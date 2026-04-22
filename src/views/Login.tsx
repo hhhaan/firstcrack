@@ -230,7 +230,7 @@ export default function Login({ onLogin }: LoginProps) {
             <div
                 style={{
                     flex: 1,
-                    background: 'var(--bg)',
+                    background: 'var(--color-main-bg)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -247,7 +247,7 @@ export default function Login({ onLogin }: LoginProps) {
                                 fontWeight: 300,
                                 fontSize: 30,
                                 lineHeight: 1.13,
-                                color: 'var(--text-primary)',
+                                color: 'var(--color-primary)',
                                 letterSpacing: '-0.4px',
                                 marginBottom: 8,
                             }}
@@ -257,7 +257,7 @@ export default function Login({ onLogin }: LoginProps) {
                         <p
                             style={{
                                 fontSize: 14,
-                                color: 'var(--text-secondary)',
+                                color: 'var(--color-secondary)',
                                 letterSpacing: '0.14px',
                                 lineHeight: 1.5,
                             }}
@@ -279,7 +279,7 @@ export default function Login({ onLogin }: LoginProps) {
                             borderRadius: 9999,
                             border: 'none',
                             background: 'var(--bg-warm)',
-                            color: 'var(--text-primary)',
+                            color: 'var(--color-primary)',
                             fontSize: 14,
                             fontWeight: 500,
                             cursor: 'pointer',
@@ -319,9 +319,9 @@ export default function Login({ onLogin }: LoginProps) {
                             marginBottom: 20,
                         }}
                     >
-                        <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
-                        <span style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.3px' }}>or</span>
-                        <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+                        <div style={{ flex: 1, height: 1, background: 'var(--color-border-subtle)' }} />
+                        <span style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.3px' }}>or</span>
+                        <div style={{ flex: 1, height: 1, background: 'var(--color-border-subtle)' }} />
                     </div>
 
                     {/* Form */}
@@ -332,7 +332,7 @@ export default function Login({ onLogin }: LoginProps) {
                                     display: 'block',
                                     fontSize: 13,
                                     fontWeight: 500,
-                                    color: 'var(--text-secondary)',
+                                    color: 'var(--color-secondary)',
                                     letterSpacing: '0.14px',
                                     marginBottom: 6,
                                 }}
@@ -350,9 +350,9 @@ export default function Login({ onLogin }: LoginProps) {
                                     padding: '10px 14px',
                                     borderRadius: 10,
                                     border: 'none',
-                                    background: 'var(--bg-secondary)',
+                                    background: 'var(--color-surface)',
                                     fontSize: 14,
-                                    color: 'var(--text-primary)',
+                                    color: 'var(--color-primary)',
                                     fontFamily: 'var(--font-body)',
                                     letterSpacing: '0.14px',
                                     outline: 'none',
@@ -382,7 +382,7 @@ export default function Login({ onLogin }: LoginProps) {
                                     style={{
                                         fontSize: 13,
                                         fontWeight: 500,
-                                        color: 'var(--text-secondary)',
+                                        color: 'var(--color-secondary)',
                                         letterSpacing: '0.14px',
                                     }}
                                 >
@@ -392,7 +392,7 @@ export default function Login({ onLogin }: LoginProps) {
                                     type="button"
                                     style={{
                                         fontSize: 12,
-                                        color: 'var(--text-muted)',
+                                        color: 'var(--color-muted)',
                                         background: 'none',
                                         border: 'none',
                                         cursor: 'pointer',
@@ -416,9 +416,9 @@ export default function Login({ onLogin }: LoginProps) {
                                         padding: '10px 40px 10px 14px',
                                         borderRadius: 10,
                                         border: 'none',
-                                        background: 'var(--bg-secondary)',
+                                        background: 'var(--color-surface)',
                                         fontSize: 14,
-                                        color: 'var(--text-primary)',
+                                        color: 'var(--color-primary)',
                                         fontFamily: 'var(--font-body)',
                                         letterSpacing: '0.14px',
                                         outline: 'none',
@@ -450,9 +450,9 @@ export default function Login({ onLogin }: LoginProps) {
                                     }}
                                 >
                                     {showPassword ? (
-                                        <EyeOff size={15} strokeWidth={1.5} color="var(--text-muted)" />
+                                        <EyeOff size={15} strokeWidth={1.5} color="var(--color-muted)" />
                                     ) : (
-                                        <Eye size={15} strokeWidth={1.5} color="var(--text-muted)" />
+                                        <Eye size={15} strokeWidth={1.5} color="var(--color-muted)" />
                                     )}
                                 </button>
                             </div>
@@ -471,7 +471,7 @@ export default function Login({ onLogin }: LoginProps) {
                                 padding: '12px 0',
                                 borderRadius: 9999,
                                 border: 'none',
-                                background: loading ? 'rgba(23,23,23,0.6)' : 'var(--text-primary)',
+                                background: loading ? 'rgba(23,23,23,0.6)' : 'var(--color-primary)',
                                 color: 'white',
                                 fontSize: 14,
                                 fontWeight: 500,
@@ -501,7 +501,7 @@ export default function Login({ onLogin }: LoginProps) {
                         style={{
                             textAlign: 'center',
                             fontSize: 13,
-                            color: 'var(--text-muted)',
+                            color: 'var(--color-muted)',
                             letterSpacing: '0.14px',
                         }}
                     >
@@ -513,12 +513,12 @@ export default function Login({ onLogin }: LoginProps) {
                                 padding: 0,
                                 fontSize: 13,
                                 fontWeight: 500,
-                                color: 'var(--text-primary)',
+                                color: 'var(--color-primary)',
                                 cursor: 'pointer',
                                 fontFamily: 'var(--font-body)',
                                 letterSpacing: '0.14px',
                                 textDecoration: 'underline',
-                                textDecorationColor: 'var(--border)',
+                                textDecorationColor: 'var(--color-border)',
                                 textUnderlineOffset: '3px',
                             }}
                         >
@@ -531,7 +531,7 @@ export default function Login({ onLogin }: LoginProps) {
                         style={{
                             marginTop: 36,
                             paddingTop: 24,
-                            borderTop: '1px solid var(--border-subtle)',
+                            borderTop: '1px solid var(--color-border-subtle)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -546,7 +546,7 @@ export default function Login({ onLogin }: LoginProps) {
                                     alignItems: 'center',
                                     gap: 5,
                                     fontSize: 11,
-                                    color: 'var(--text-muted)',
+                                    color: 'var(--color-muted)',
                                     letterSpacing: '0.3px',
                                 }}
                             >

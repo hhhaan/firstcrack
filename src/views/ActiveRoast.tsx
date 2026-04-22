@@ -73,12 +73,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       fontSize: 12,
       fontFamily: 'var(--font-body)',
     }}>
-      <div style={{ fontWeight: 500, color: 'var(--text-muted)', marginBottom: 6, letterSpacing: '0.14px' }}>{label}</div>
+      <div style={{ fontWeight: 500, color: 'var(--color-muted)', marginBottom: 6, letterSpacing: '0.14px' }}>{label}</div>
       {payload.map((entry: any) => (
         <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
           <div style={{ width: 8, height: 8, borderRadius: 2, background: entry.color, flexShrink: 0 }} />
-          <span style={{ color: 'var(--text-secondary)' }}>{entry.name}:</span>
-          <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+          <span style={{ color: 'var(--color-secondary)' }}>{entry.name}:</span>
+          <span style={{ fontWeight: 600, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>
             {entry.name === 'ROR' ? `${entry.value}°/min` : `${entry.value}°C`}
           </span>
         </div>
@@ -252,13 +252,13 @@ export default function ActiveRoast() {
             fontWeight: 300,
             fontSize: 32,
             lineHeight: 1.13,
-            color: 'var(--text-primary)',
+            color: 'var(--color-primary)',
             letterSpacing: '-0.4px',
             marginBottom: 4,
           }}>
             Ethiopia Yirgacheffe
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+          <p style={{ fontSize: 14, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
             Natural · Guji Zone · Profile: Signature Light
           </p>
         </div>
@@ -271,14 +271,14 @@ export default function ActiveRoast() {
             fontFamily: 'var(--font-mono)',
             fontSize: 44,
             fontWeight: 600,
-            color: 'var(--text-primary)',
+            color: 'var(--color-primary)',
             letterSpacing: '-2px',
             lineHeight: 1,
             marginBottom: 4,
           }}>
             {timeStr}
           </div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+          <div style={{ fontSize: 13, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
             {phase} phase
           </div>
         </div>
@@ -293,7 +293,7 @@ export default function ActiveRoast() {
           { label: 'Phase', value: phase, icon: AlertCircle, color: phaseColor, bg: `rgba(253,224,178,0.3)` },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} style={{
-            background: 'var(--bg)',
+            background: 'var(--color-main-bg)',
             borderRadius: 14,
             padding: '16px 18px',
             boxShadow: 'var(--shadow-ring)',
@@ -310,7 +310,7 @@ export default function ActiveRoast() {
               }}>
                 <Icon size={14} strokeWidth={2} color={color} />
               </div>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: 12, color: 'var(--color-muted)', fontWeight: 500, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                 {label}
               </span>
             </div>
@@ -318,7 +318,7 @@ export default function ActiveRoast() {
               fontFamily: 'var(--font-mono)',
               fontSize: 22,
               fontWeight: 600,
-              color: 'var(--text-primary)',
+              color: 'var(--color-primary)',
               letterSpacing: '-0.5px',
             }}>
               {value}
@@ -330,7 +330,7 @@ export default function ActiveRoast() {
       {/* Temperature Chart */}
       <div
         style={{
-          background: 'var(--bg)',
+          background: 'var(--color-main-bg)',
           borderRadius: isFullscreen ? 0 : 16,
           padding: isFullscreen ? '40px 60px' : '24px 24px 16px',
           boxShadow: isFullscreen ? 'none' : 'var(--shadow-ring)',
@@ -352,7 +352,7 @@ export default function ActiveRoast() {
           marginBottom: 20,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '0.15px' }}>
+            <h2 style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-primary)', letterSpacing: '0.15px' }}>
               Temperature Curve
             </h2>
             {/* Inline Fullscreen Button in Chart Header */}
@@ -365,8 +365,8 @@ export default function ActiveRoast() {
                 padding: '6px 12px',
                 borderRadius: 8,
                 border: 'none',
-                background: isFullscreen ? 'var(--bg-secondary)' : 'var(--text-primary)',
-                color: isFullscreen ? 'var(--text-primary)' : 'var(--bg)',
+                background: isFullscreen ? 'var(--color-surface)' : 'var(--color-primary)',
+                color: isFullscreen ? 'var(--color-primary)' : 'var(--color-main-bg)',
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -397,7 +397,7 @@ export default function ActiveRoast() {
                     backgroundImage: dashed ? `repeating-linear-gradient(to right, ${color} 0, ${color} 4px, transparent 4px, transparent 7px)` : 'none',
                   }} />
                 )}
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>{label}</span>
+                <span style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>{label}</span>
               </div>
             ))}
           </div>
@@ -427,8 +427,8 @@ export default function ActiveRoast() {
                   fontSize: 11,
                   fontWeight: 500,
                   letterSpacing: '0.3px',
-                  background: active ? 'var(--text-primary)' : 'var(--bg-secondary)',
-                  color: active ? 'white' : 'var(--text-muted)',
+                  background: active ? 'var(--color-primary)' : 'var(--color-surface)',
+                  color: active ? 'white' : 'var(--color-muted)',
                   boxShadow: active ? 'none' : 'var(--shadow-inset)',
                   transition: 'all 0.3s',
                 }}>
@@ -445,14 +445,14 @@ export default function ActiveRoast() {
                   axisLine={false}
                   tickLine={false}
                   interval={isFullscreen ? 2 : 3}
-                  tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--text-muted)' }}
+                  tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--color-muted)' }}
                 />
                 <YAxis
                   yAxisId="temp"
                   domain={[140, 230]}
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--text-muted)' }}
+                  tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--color-muted)' }}
                   width={36}
                   tickFormatter={v => `${v}°`}
                 />
@@ -462,7 +462,7 @@ export default function ActiveRoast() {
                   domain={[0, 20]}
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--text-muted)' }}
+                  tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--color-muted)' }}
                   width={36}
                   tickFormatter={v => `${v}°/m`}
                 />
@@ -486,7 +486,7 @@ export default function ActiveRoast() {
                 <Line
                   yAxisId="temp"
                   dataKey="btTarget"
-                  stroke="var(--text-primary)"
+                  stroke="var(--color-primary)"
                   strokeWidth={1.5}
                   strokeDasharray="5 4"
                   dot={false}
@@ -499,12 +499,12 @@ export default function ActiveRoast() {
                 <Line
                   yAxisId="temp"
                   dataKey="btActual"
-                  stroke="var(--text-primary)"
+                  stroke="var(--color-primary)"
                   strokeWidth={2.5}
                   dot={false}
                   name="Bean Temp"
                   connectNulls={false}
-                  activeDot={{ r: 4, fill: 'var(--text-primary)', strokeWidth: 0 }}
+                  activeDot={{ r: 4, fill: 'var(--color-primary)', strokeWidth: 0 }}
                 />
 
                 {/* ET line */}
@@ -560,7 +560,7 @@ export default function ActiveRoast() {
               flexDirection: 'column',
               gap: 16,
               padding: '0 0 20px 24px',
-              borderLeft: '1px solid var(--border-subtle)',
+              borderLeft: '1px solid var(--color-border-subtle)',
               overflow: 'hidden',
             }}>
               {/* Stats Grid */}
@@ -569,15 +569,15 @@ export default function ActiveRoast() {
                   { label: 'Bean Temp', value: `${currentPoint?.bt ?? '—'}°C`, color: '#ea580c' },
                   { label: 'Env Temp', value: `${currentPoint?.et ?? '—'}°C`, color: '#2563eb' },
                   { label: 'ROR', value: `${rorNow}°/min`, color: '#7c3aed' },
-                  { label: 'Time', value: timeStr, color: 'var(--text-primary)' },
+                  { label: 'Time', value: timeStr, color: 'var(--color-primary)' },
                 ].map(stat => (
                   <div key={stat.label} style={{ 
-                    background: 'var(--bg-secondary)', 
+                    background: 'var(--color-surface)', 
                     padding: '12px 14px', 
                     borderRadius: 12,
                     boxShadow: 'var(--shadow-inset)'
                   }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>{stat.label}</div>
+                    <div style={{ fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>{stat.label}</div>
                     <div style={{ fontSize: 18, fontWeight: 700, color: stat.color, fontFamily: 'var(--font-mono)' }}>{stat.value}</div>
                   </div>
                 ))}
@@ -585,7 +585,7 @@ export default function ActiveRoast() {
 
               {/* Controls */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <h3 style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Controls</h3>
+                <h3 style={{ fontSize: 12, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Controls</h3>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button
                     onClick={() => setIsRunning(r => !r)}
@@ -598,7 +598,7 @@ export default function ActiveRoast() {
                       padding: '12px 0',
                       borderRadius: 9999,
                       border: 'none',
-                      background: 'var(--text-primary)',
+                      background: 'var(--color-primary)',
                       color: 'white',
                       fontSize: 14,
                       fontWeight: 600,
@@ -621,8 +621,8 @@ export default function ActiveRoast() {
                       padding: '12px 0',
                       borderRadius: 9999,
                       border: 'none',
-                      background: roastEnded ? 'var(--bg-secondary)' : 'rgba(254,226,226,0.8)',
-                      color: roastEnded ? 'var(--text-muted)' : '#dc2626',
+                      background: roastEnded ? 'var(--color-surface)' : 'rgba(254,226,226,0.8)',
+                      color: roastEnded ? 'var(--color-muted)' : '#dc2626',
                       fontSize: 14,
                       fontWeight: 600,
                       cursor: roastEnded ? 'default' : 'pointer',
@@ -651,8 +651,8 @@ export default function ActiveRoast() {
                       padding: '10px 12px',
                       borderRadius: 10,
                       border: 'none',
-                      background: pressed ? 'var(--text-primary)' : 'var(--bg-secondary)',
-                      color: pressed ? 'white' : 'var(--text-secondary)',
+                      background: pressed ? 'var(--color-primary)' : 'var(--color-surface)',
+                      color: pressed ? 'white' : 'var(--color-secondary)',
                       fontSize: 12,
                       fontWeight: 500,
                       cursor: 'pointer',
@@ -660,7 +660,7 @@ export default function ActiveRoast() {
                       transition: 'background 0.15s, color 0.15s',
                     }}>
                       <span>{label}</span>
-                      <span style={{ fontSize: 10, color: pressed ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)', transition: 'color 0.15s' }}>{shortcut}</span>
+                      <span style={{ fontSize: 10, color: pressed ? 'rgba(255,255,255,0.6)' : 'var(--color-muted)', fontFamily: 'var(--font-mono)', transition: 'color 0.15s' }}>{shortcut}</span>
                     </button>
                   );})}
                 </div>
@@ -668,7 +668,7 @@ export default function ActiveRoast() {
 
               {/* Roast Log */}
               <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                <h3 style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 10, flexShrink: 0 }}>Roast Log</h3>
+                <h3 style={{ fontSize: 12, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 10, flexShrink: 0 }}>Roast Log</h3>
                 <div style={{ overflowY: 'auto', flex: 1 }}>
                   {[
                     ...logEntries,
@@ -678,24 +678,24 @@ export default function ActiveRoast() {
                       display: 'flex',
                       gap: 10,
                       padding: '8px 0',
-                      borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                      borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : 'none',
                     }}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', width: 32, flexShrink: 0, paddingTop: 2 }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-muted)', width: 32, flexShrink: 0, paddingTop: 2 }}>
                         {entry.time}
                       </div>
                       <div style={{ width: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 4, flexShrink: 0 }}>
                         <div style={{
                           width: 6, height: 6, borderRadius: '50%',
-                          background: (entry as any).current ? '#22c55e' : (eventMarkerColor[entry.event] ?? 'var(--border)'),
+                          background: (entry as any).current ? '#22c55e' : (eventMarkerColor[entry.event] ?? 'var(--color-border)'),
                           boxShadow: (entry as any).current ? '0 0 0 2px rgba(34,197,94,0.2)' : 'none',
                         }} />
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)' }}>{entry.event}</span>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>{entry.temp}</span>
+                          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-primary)' }}>{entry.event}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-muted)' }}>{entry.temp}</span>
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{entry.note}</div>
+                        <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>{entry.note}</div>
                       </div>
                     </div>
                   ))}
@@ -711,12 +711,12 @@ export default function ActiveRoast() {
 
         {/* Controls */}
         <div style={{
-          background: 'var(--bg)',
+          background: 'var(--color-main-bg)',
           borderRadius: 16,
           padding: '20px 24px',
           boxShadow: 'var(--shadow-ring)',
         }}>
-          <h3 style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '0.14px', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-primary)', letterSpacing: '0.14px', marginBottom: 16 }}>
             Roast Controls
           </h3>
           <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
@@ -731,7 +731,7 @@ export default function ActiveRoast() {
                 padding: '11px 0',
                 borderRadius: 9999,
                 border: 'none',
-                background: 'var(--text-primary)',
+                background: 'var(--color-primary)',
                 color: 'white',
                 fontSize: 14,
                 fontWeight: 500,
@@ -755,8 +755,8 @@ export default function ActiveRoast() {
                 padding: '11px 0',
                 borderRadius: 9999,
                 border: 'none',
-                background: roastEnded ? 'var(--bg-secondary)' : 'rgba(254,226,226,0.8)',
-                color: roastEnded ? 'var(--text-muted)' : '#dc2626',
+                background: roastEnded ? 'var(--color-surface)' : 'rgba(254,226,226,0.8)',
+                color: roastEnded ? 'var(--color-muted)' : '#dc2626',
                 fontSize: 14,
                 fontWeight: 500,
                 cursor: roastEnded ? 'default' : 'pointer',
@@ -784,8 +784,8 @@ export default function ActiveRoast() {
                 padding: '9px 12px',
                 borderRadius: 8,
                 border: 'none',
-                background: pressed ? 'var(--text-primary)' : 'var(--bg-secondary)',
-                color: pressed ? 'white' : 'var(--text-secondary)',
+                background: pressed ? 'var(--color-primary)' : 'var(--color-surface)',
+                color: pressed ? 'white' : 'var(--color-secondary)',
                 fontSize: 13,
                 fontWeight: 500,
                 cursor: 'pointer',
@@ -794,7 +794,7 @@ export default function ActiveRoast() {
                 transition: 'background 0.15s, color 0.15s',
               }}>
                 {label}
-                <span style={{ fontSize: 11, color: pressed ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)', transition: 'color 0.15s' }}>{shortcut}</span>
+                <span style={{ fontSize: 11, color: pressed ? 'rgba(255,255,255,0.6)' : 'var(--color-muted)', fontFamily: 'var(--font-mono)', transition: 'color 0.15s' }}>{shortcut}</span>
               </button>
             );})}
           </div>
@@ -802,12 +802,12 @@ export default function ActiveRoast() {
 
         {/* Roast log */}
         <div style={{
-          background: 'var(--bg)',
+          background: 'var(--color-main-bg)',
           borderRadius: 16,
           padding: '20px 24px',
           boxShadow: 'var(--shadow-ring)',
         }}>
-          <h3 style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '0.14px', marginBottom: 14 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-primary)', letterSpacing: '0.14px', marginBottom: 14 }}>
             Roast Log
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -819,12 +819,12 @@ export default function ActiveRoast() {
                 display: 'flex',
                 gap: 12,
                 padding: '10px 0',
-                borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : 'none',
               }}>
                 <div style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: 12,
-                  color: 'var(--text-muted)',
+                  color: 'var(--color-muted)',
                   width: 36,
                   flexShrink: 0,
                   paddingTop: 1,
@@ -843,21 +843,21 @@ export default function ActiveRoast() {
                     width: 7,
                     height: 7,
                     borderRadius: '50%',
-                    background: (entry as any).current ? '#22c55e' : 'var(--border)',
+                    background: (entry as any).current ? '#22c55e' : 'var(--color-border)',
                     flexShrink: 0,
                     boxShadow: (entry as any).current ? '0 0 0 3px rgba(34,197,94,0.2)' : 'none',
                   }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '0.14px' }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-primary)', letterSpacing: '0.14px' }}>
                       {entry.event}
                     </span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--color-muted)' }}>
                       {entry.temp}
                     </span>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+                  <div style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
                     {entry.note}
                   </div>
                 </div>

@@ -74,13 +74,13 @@ export default function Machines() {
             fontWeight: 300,
             fontSize: 32,
             lineHeight: 1.13,
-            color: 'var(--text-primary)',
+            color: 'var(--color-primary)',
             letterSpacing: '-0.4px',
             marginBottom: 4,
           }}>
             Machine Inventory
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+          <p style={{ fontSize: 14, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
             {machines.filter(m => m.status === 'Online').length} active · {machines.filter(m => m.status === 'Maintenance').length} maintenance · {machines.filter(m => m.status === 'Offline').length} offline
           </p>
         </div>
@@ -93,7 +93,7 @@ export default function Machines() {
             padding: '10px 18px',
             borderRadius: 9999,
             border: 'none',
-            background: 'var(--text-primary)',
+            background: 'var(--color-primary)',
             color: 'white',
             fontSize: 14,
             fontWeight: 500,
@@ -115,13 +115,13 @@ export default function Machines() {
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            background: 'var(--bg)',
+            background: 'var(--color-main-bg)',
             borderRadius: 10,
             padding: '9px 12px',
             marginBottom: 10,
             boxShadow: 'var(--shadow-ring)',
           }}>
-            <Search size={14} strokeWidth={2} color="var(--text-muted)" />
+            <Search size={14} strokeWidth={2} color="var(--color-muted)" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -131,7 +131,7 @@ export default function Machines() {
                 background: 'transparent',
                 outline: 'none',
                 fontSize: 13,
-                color: 'var(--text-primary)',
+                color: 'var(--color-primary)',
                 fontFamily: 'var(--font-body)',
                 width: '100%',
                 letterSpacing: '0.14px',
@@ -149,7 +149,7 @@ export default function Machines() {
                   key={machine.id}
                   onClick={() => setSelectedId(machine.id)}
                   style={{
-                    background: 'var(--bg)',
+                    background: 'var(--color-main-bg)',
                     borderRadius: 14,
                     padding: '14px 16px',
                     cursor: 'pointer',
@@ -160,10 +160,10 @@ export default function Machines() {
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '0.14px', marginBottom: 2 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-primary)', letterSpacing: '0.14px', marginBottom: 2 }}>
                         {machine.name}
                       </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+                      <div style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
                         {machine.type}
                       </div>
                     </div>
@@ -183,10 +183,10 @@ export default function Machines() {
                   </div>
 
                   <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ fontSize: 11, color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Activity size={12} /> {machine.hours}h
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{ fontSize: 11, color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Cpu size={12} /> {machine.capacity}
                     </div>
                   </div>
@@ -199,7 +199,7 @@ export default function Machines() {
         {/* Detail panel */}
         {selected ? (
           <div style={{
-            background: 'var(--bg)',
+            background: 'var(--color-main-bg)',
             borderRadius: 16,
             padding: '28px 32px',
             boxShadow: 'var(--shadow-ring)',
@@ -212,7 +212,7 @@ export default function Machines() {
                   fontWeight: 300,
                   fontSize: 26,
                   lineHeight: 1.2,
-                  color: 'var(--text-primary)',
+                  color: 'var(--color-primary)',
                   letterSpacing: '-0.3px',
                   marginBottom: 4,
                 }}>
@@ -222,8 +222,8 @@ export default function Machines() {
                   <span style={{
                     fontSize: 12,
                     fontWeight: 500,
-                    color: 'var(--text-secondary)',
-                    background: 'var(--bg-secondary)',
+                    color: 'var(--color-secondary)',
+                    background: 'var(--color-surface)',
                     padding: '3px 9px',
                     borderRadius: 9999,
                     boxShadow: 'var(--shadow-inset)',
@@ -233,8 +233,8 @@ export default function Machines() {
                   <span style={{
                     fontSize: 12,
                     fontWeight: 500,
-                    color: 'var(--text-secondary)',
-                    background: 'var(--bg-secondary)',
+                    color: 'var(--color-secondary)',
+                    background: 'var(--color-surface)',
                     padding: '3px 9px',
                     borderRadius: 9999,
                     boxShadow: 'var(--shadow-inset)',
@@ -247,13 +247,13 @@ export default function Machines() {
                 width: 52,
                 height: 52,
                 borderRadius: 12,
-                background: 'var(--bg-warm-solid)',
+                background: 'var(--color-surface-warm-solid)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: 'var(--shadow-warm)',
               }}>
-                <Cpu size={22} strokeWidth={1.5} color="var(--text-secondary)" />
+                <Cpu size={22} strokeWidth={1.5} color="var(--color-secondary)" />
               </div>
             </div>
 
@@ -265,18 +265,18 @@ export default function Machines() {
                  { label: 'Total Usage', value: `${selected.hours}h`, sub: 'Total time' },
                ].map((stat, i) => (
                  <div key={i} style={{
-                   background: 'var(--bg-secondary)',
+                   background: 'var(--color-surface)',
                    padding: '16px',
                    borderRadius: 12,
                    boxShadow: 'var(--shadow-inset)',
                  }}>
-                   <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+                   <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
                      {stat.label}
                    </div>
-                   <div style={{ fontSize: 20, fontWeight: 300, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+                   <div style={{ fontSize: 20, fontWeight: 300, color: 'var(--color-primary)', letterSpacing: '-0.3px' }}>
                      {stat.value}
                    </div>
-                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                   <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>
                      {stat.sub}
                    </div>
                  </div>
@@ -285,30 +285,30 @@ export default function Machines() {
 
             {/* Maintenance Info */}
             <div style={{ 
-              background: 'var(--bg-warm-solid)', 
+              background: 'var(--color-surface-warm-solid)', 
               borderRadius: 12, 
               padding: '20px', 
               marginBottom: 32,
               boxShadow: 'var(--shadow-warm)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <Activity size={16} color="var(--text-secondary)" />
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)' }}>Maintenance Schedule</span>
+                <Activity size={16} color="var(--color-secondary)" />
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-secondary)' }}>Maintenance Schedule</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
                     Last Service
                   </div>
-                  <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>
+                  <div style={{ fontSize: 14, color: 'var(--color-primary)', fontWeight: 500 }}>
                     {selected.lastMaintenance}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
                     Next Scheduled
                   </div>
-                  <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>
+                  <div style={{ fontSize: 14, color: 'var(--color-primary)', fontWeight: 500 }}>
                     {selected.nextMaintenance}
                   </div>
                 </div>
@@ -322,7 +322,7 @@ export default function Machines() {
                 padding: '12px 0',
                 borderRadius: 12,
                 border: 'none',
-                background: 'var(--text-primary)',
+                background: 'var(--color-primary)',
                 color: 'white',
                 fontSize: 14,
                 fontWeight: 500,
@@ -336,8 +336,8 @@ export default function Machines() {
                 padding: '12px 0',
                 borderRadius: 12,
                 border: 'none',
-                background: 'var(--bg-secondary)',
-                color: 'var(--text-secondary)',
+                background: 'var(--color-surface)',
+                color: 'var(--color-secondary)',
                 fontSize: 14,
                 fontWeight: 500,
                 cursor: 'pointer',
@@ -349,14 +349,14 @@ export default function Machines() {
           </div>
         ) : (
           <div style={{
-            background: 'var(--bg)',
+            background: 'var(--color-main-bg)',
             borderRadius: 16,
             padding: '60px 32px',
             boxShadow: 'var(--shadow-ring)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--text-muted)',
+            color: 'var(--color-muted)',
             fontSize: 14,
           }}>
             Select a machine to view diagnostics

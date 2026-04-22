@@ -102,13 +102,13 @@ export default function Profiles() {
             fontWeight: 300,
             fontSize: 32,
             lineHeight: 1.13,
-            color: 'var(--text-primary)',
+            color: 'var(--color-primary)',
             letterSpacing: '-0.4px',
             marginBottom: 4,
           }}>
             Roast Profiles
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+          <p style={{ fontSize: 14, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
             {profiles.length} profiles · {profiles.filter(p => p.locked).length} locked
           </p>
         </div>
@@ -119,7 +119,7 @@ export default function Profiles() {
           padding: '10px 18px',
           borderRadius: 9999,
           border: 'none',
-          background: 'var(--text-primary)',
+          background: 'var(--color-primary)',
           color: 'white',
           fontSize: 14,
           fontWeight: 500,
@@ -141,7 +141,7 @@ export default function Profiles() {
               key={profile.id}
               onClick={() => setSelectedId(profile.id)}
               style={{
-                background: 'var(--bg)',
+                background: 'var(--color-main-bg)',
                 borderRadius: 14,
                 padding: '16px',
                 cursor: 'pointer',
@@ -158,7 +158,7 @@ export default function Profiles() {
                   <LineChart data={generateProfileCurve(profile.dropVal, profile.durationSec)}>
                     <Line
                       dataKey="bt"
-                      stroke={selectedId === profile.id ? 'var(--text-primary)' : '#b3b0aa'}
+                      stroke={selectedId === profile.id ? 'var(--color-primary)' : '#b3b0aa'}
                       strokeWidth={1.5}
                       dot={false}
                     />
@@ -169,14 +169,14 @@ export default function Profiles() {
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '0.14px' }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-primary)', letterSpacing: '0.14px' }}>
                       {profile.name}
                     </span>
                     {profile.locked && (
-                      <Lock size={11} strokeWidth={2} color="var(--text-muted)" />
+                      <Lock size={11} strokeWidth={2} color="var(--color-muted)" />
                     )}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+                  <div style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
                     Drop {profile.dropTemp} · {profile.batches} batches
                   </div>
                 </div>
@@ -187,7 +187,7 @@ export default function Profiles() {
 
         {/* Detail panel */}
         <div style={{
-          background: 'var(--bg)',
+          background: 'var(--color-main-bg)',
           borderRadius: 16,
           padding: '28px 32px',
           boxShadow: 'var(--shadow-ring)',
@@ -200,7 +200,7 @@ export default function Profiles() {
                   fontWeight: 300,
                   fontSize: 26,
                   lineHeight: 1.2,
-                  color: 'var(--text-primary)',
+                  color: 'var(--color-primary)',
                   letterSpacing: '-0.3px',
                 }}>
                   {selected.name}
@@ -212,15 +212,15 @@ export default function Profiles() {
                     gap: 4,
                     padding: '3px 9px',
                     borderRadius: 9999,
-                    background: 'var(--bg-secondary)',
+                    background: 'var(--color-surface)',
                     boxShadow: 'var(--shadow-inset)',
                   }}>
-                    <Lock size={11} strokeWidth={2} color="var(--text-muted)" />
-                    <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.3px' }}>Locked</span>
+                    <Lock size={11} strokeWidth={2} color="var(--color-muted)" />
+                    <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-muted)', letterSpacing: '0.3px' }}>Locked</span>
                   </div>
                 )}
               </div>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', letterSpacing: '0.14px', lineHeight: 1.5 }}>
+              <p style={{ fontSize: 14, color: 'var(--color-secondary)', letterSpacing: '0.14px', lineHeight: 1.5 }}>
                 {selected.description}
               </p>
             </div>
@@ -235,14 +235,14 @@ export default function Profiles() {
                   height: 32,
                   borderRadius: 8,
                   border: 'none',
-                  background: 'var(--bg-secondary)',
+                  background: 'var(--color-surface)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
                   boxShadow: 'var(--shadow-inset)',
                 }}>
-                  <Icon size={14} strokeWidth={1.5} color="var(--text-secondary)" />
+                  <Icon size={14} strokeWidth={1.5} color="var(--color-secondary)" />
                 </button>
               ))}
             </div>
@@ -250,13 +250,13 @@ export default function Profiles() {
 
           {/* Temperature curve chart */}
           <div style={{
-            background: 'var(--bg-secondary)',
+            background: 'var(--color-surface)',
             borderRadius: 12,
             padding: '16px 16px 8px',
             marginBottom: 20,
             boxShadow: 'var(--shadow-inset)',
           }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>
               Profile Curve
             </div>
             <ResponsiveContainer width="100%" height={160}>
@@ -268,13 +268,13 @@ export default function Profiles() {
                   tickLine={false}
                   tickFormatter={v => `${Math.floor(v / 60)}m`}
                   interval={Math.floor(curveData.length / 6)}
-                  tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--text-muted)' }}
+                  tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--color-muted)' }}
                 />
                 <YAxis
                   domain={[140, 230]}
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--text-muted)' }}
+                  tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--color-muted)' }}
                   width={32}
                   tickFormatter={v => `${v}°`}
                 />
@@ -292,10 +292,10 @@ export default function Profiles() {
                 />
                 <Line
                   dataKey="bt"
-                  stroke="var(--text-primary)"
+                  stroke="var(--color-primary)"
                   strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 4, fill: 'var(--text-primary)', strokeWidth: 0 }}
+                  activeDot={{ r: 4, fill: 'var(--color-primary)', strokeWidth: 0 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -312,15 +312,15 @@ export default function Profiles() {
               { label: 'Total Batches', value: `${selected.batches} runs` },
             ].map(({ label, value }) => (
               <div key={label} style={{
-                background: 'var(--bg-secondary)',
+                background: 'var(--color-surface)',
                 borderRadius: 10,
                 padding: '12px 14px',
                 boxShadow: 'var(--shadow-inset)',
               }}>
-                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 4 }}>
+                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 4 }}>
                   {label}
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', letterSpacing: '-0.2px' }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', letterSpacing: '-0.2px' }}>
                   {value}
                 </div>
               </div>
@@ -329,7 +329,7 @@ export default function Profiles() {
 
           {/* Used for */}
           <div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>
               Used For
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
@@ -337,8 +337,8 @@ export default function Profiles() {
                 <span key={bean} style={{
                   fontSize: 12,
                   fontWeight: 500,
-                  color: 'var(--text-secondary)',
-                  background: 'var(--bg-secondary)',
+                  color: 'var(--color-secondary)',
+                  background: 'var(--color-surface)',
                   padding: '4px 10px',
                   borderRadius: 9999,
                   letterSpacing: '0.14px',
@@ -356,7 +356,7 @@ export default function Profiles() {
               padding: '10px 0',
               borderRadius: 9999,
               border: 'none',
-              background: 'var(--text-primary)',
+              background: 'var(--color-primary)',
               color: 'white',
               fontSize: 14,
               fontWeight: 500,

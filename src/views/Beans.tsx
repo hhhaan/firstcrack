@@ -165,14 +165,14 @@ export default function Beans({ onNavigate }: BeansProps) {
                             fontWeight: 300,
                             fontSize: 32,
                             lineHeight: 1.13,
-                            color: 'var(--text-primary)',
+                            color: 'var(--color-primary)',
                             letterSpacing: '-0.4px',
                             marginBottom: 4,
                         }}
                     >
                         Bean Inventory
                     </h1>
-                    <p style={{ fontSize: 14, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+                    <p style={{ fontSize: 14, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
                         {beans.filter((b) => b.status !== 'Out').length} active lots ·{' '}
                         {beans.filter((b) => b.status === 'Low').length} low stock ·{' '}
                         {beans.filter((b) => b.status === 'Out').length} out of stock
@@ -187,7 +187,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                         padding: '10px 18px',
                         borderRadius: 9999,
                         border: 'none',
-                        background: 'var(--text-primary)',
+                        background: 'var(--color-primary)',
                         color: 'white',
                         fontSize: 14,
                         fontWeight: 500,
@@ -210,14 +210,14 @@ export default function Beans({ onNavigate }: BeansProps) {
                             display: 'flex',
                             alignItems: 'center',
                             gap: 8,
-                            background: 'var(--bg)',
+                            background: 'var(--color-main-bg)',
                             borderRadius: 10,
                             padding: '9px 12px',
                             marginBottom: 10,
                             boxShadow: 'var(--shadow-ring)',
                         }}
                     >
-                        <Search size={14} strokeWidth={2} color="var(--text-muted)" />
+                        <Search size={14} strokeWidth={2} color="var(--color-muted)" />
                         <input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
@@ -227,7 +227,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                 background: 'transparent',
                                 outline: 'none',
                                 fontSize: 13,
-                                color: 'var(--text-primary)',
+                                color: 'var(--color-primary)',
                                 fontFamily: 'var(--font-body)',
                                 width: '100%',
                                 letterSpacing: '0.14px',
@@ -246,7 +246,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                     key={bean.id}
                                     onClick={() => setSelectedId(bean.id)}
                                     style={{
-                                        background: 'var(--bg)',
+                                        background: 'var(--color-main-bg)',
                                         borderRadius: 14,
                                         padding: '14px 16px',
                                         cursor: 'pointer',
@@ -270,7 +270,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                                 style={{
                                                     fontSize: 13,
                                                     fontWeight: 500,
-                                                    color: 'var(--text-primary)',
+                                                    color: 'var(--color-primary)',
                                                     letterSpacing: '0.14px',
                                                     marginBottom: 2,
                                                 }}
@@ -280,7 +280,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                             <div
                                                 style={{
                                                     fontSize: 12,
-                                                    color: 'var(--text-muted)',
+                                                    color: 'var(--color-muted)',
                                                     letterSpacing: '0.14px',
                                                 }}
                                             >
@@ -308,7 +308,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                         <div
                                             style={{
                                                 height: 4,
-                                                background: 'var(--bg-secondary)',
+                                                background: 'var(--color-surface)',
                                                 borderRadius: 9999,
                                                 overflow: 'hidden',
                                             }}
@@ -323,7 +323,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                                             ? '#dc2626'
                                                             : bean.status === 'Low'
                                                               ? '#d97706'
-                                                              : 'var(--text-primary)',
+                                                              : 'var(--color-primary)',
                                                     transition: 'width 0.5s',
                                                 }}
                                             />
@@ -332,7 +332,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                     <div
                                         style={{
                                             fontSize: 12,
-                                            color: 'var(--text-muted)',
+                                            color: 'var(--color-muted)',
                                             fontFamily: 'var(--font-mono)',
                                         }}
                                     >
@@ -348,7 +348,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                 {selected ? (
                     <div
                         style={{
-                            background: 'var(--bg)',
+                            background: 'var(--color-main-bg)',
                             borderRadius: 16,
                             padding: '28px 32px',
                             boxShadow: 'var(--shadow-ring)',
@@ -368,7 +368,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                 borderRadius: 10,
                                 border: '1px solid rgba(0,0,0,0.06)',
                                 background: 'white',
-                                color: 'var(--text-muted)',
+                                color: 'var(--color-muted)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -397,7 +397,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                         fontWeight: 300,
                                         fontSize: 26,
                                         lineHeight: 1.2,
-                                        color: 'var(--text-primary)',
+                                        color: 'var(--color-primary)',
                                         letterSpacing: '-0.3px',
                                         marginBottom: 4,
                                     }}
@@ -411,10 +411,10 @@ export default function Beans({ onNavigate }: BeansProps) {
                                             fontWeight: 500,
                                             color:
                                                 processColor[selected.process as keyof typeof processColor]?.color ||
-                                                'var(--text-secondary)',
+                                                'var(--color-secondary)',
                                             background:
                                                 processColor[selected.process as keyof typeof processColor]?.bg ||
-                                                'var(--bg-secondary)',
+                                                'var(--color-surface)',
                                             padding: '3px 9px',
                                             borderRadius: 9999,
                                         }}
@@ -425,8 +425,8 @@ export default function Beans({ onNavigate }: BeansProps) {
                                         style={{
                                             fontSize: 12,
                                             fontWeight: 500,
-                                            color: 'var(--text-secondary)',
-                                            background: 'var(--bg-secondary)',
+                                            color: 'var(--color-secondary)',
+                                            background: 'var(--color-surface)',
                                             padding: '3px 9px',
                                             borderRadius: 9999,
                                             boxShadow: 'var(--shadow-inset)',
@@ -441,14 +441,14 @@ export default function Beans({ onNavigate }: BeansProps) {
                                     width: 52,
                                     height: 52,
                                     borderRadius: 12,
-                                    background: 'var(--bg-warm-solid)',
+                                    background: 'var(--color-surface-warm-solid)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     boxShadow: 'var(--shadow-warm)',
                                 }}
                             >
-                                <Package size={22} strokeWidth={1.5} color="var(--text-secondary)" />
+                                <Package size={22} strokeWidth={1.5} color="var(--color-secondary)" />
                             </div> */}
                         </div>
 
@@ -467,7 +467,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                         style={{
                                             fontSize: 11,
                                             fontWeight: 500,
-                                            color: 'var(--text-muted)',
+                                            color: 'var(--color-muted)',
                                             letterSpacing: '0.5px',
                                             textTransform: 'uppercase',
                                             marginBottom: 3,
@@ -479,7 +479,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                         style={{
                                             fontSize: 14,
                                             fontWeight: 500,
-                                            color: 'var(--text-primary)',
+                                            color: 'var(--color-primary)',
                                             letterSpacing: '0.14px',
                                         }}
                                     >
@@ -492,7 +492,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                         {/* Tasting notes */}
                         <div
                             style={{
-                                background: 'var(--bg-warm-solid)',
+                                background: 'var(--color-surface-warm-solid)',
                                 borderRadius: 12,
                                 padding: '14px 16px',
                                 marginBottom: 24,
@@ -503,7 +503,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                 style={{
                                     fontSize: 11,
                                     fontWeight: 500,
-                                    color: 'var(--text-muted)',
+                                    color: 'var(--color-muted)',
                                     letterSpacing: '0.5px',
                                     textTransform: 'uppercase',
                                     marginBottom: 8,
@@ -518,7 +518,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                         style={{
                                             fontSize: 12,
                                             fontWeight: 500,
-                                            color: 'var(--text-secondary)',
+                                            color: 'var(--color-secondary)',
                                             background: 'rgba(255,255,255,0.7)',
                                             padding: '4px 10px',
                                             borderRadius: 9999,
@@ -539,14 +539,14 @@ export default function Beans({ onNavigate }: BeansProps) {
                                     style={{
                                         fontSize: 12,
                                         fontWeight: 500,
-                                        color: 'var(--text-secondary)',
+                                        color: 'var(--color-secondary)',
                                         letterSpacing: '0.14px',
                                     }}
                                 >
                                     Stock Level
                                 </span>
                                 <span
-                                    style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
+                                    style={{ fontSize: 12, color: 'var(--color-muted)', fontFamily: 'var(--font-mono)' }}
                                 >
                                     {selected.stock.toLocaleString()}g / {selected.capacity.toLocaleString()}g
                                 </span>
@@ -554,7 +554,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                             <div
                                 style={{
                                     height: 6,
-                                    background: 'var(--bg-secondary)',
+                                    background: 'var(--color-surface)',
                                     borderRadius: 9999,
                                     overflow: 'hidden',
                                     boxShadow: 'var(--shadow-inset)',
@@ -570,7 +570,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                                 ? '#dc2626'
                                                 : selected.status === 'Low'
                                                   ? '#d97706'
-                                                  : 'var(--text-primary)',
+                                                  : 'var(--color-primary)',
                                         transition: 'width 0.5s',
                                     }}
                                 />
@@ -586,7 +586,7 @@ export default function Beans({ onNavigate }: BeansProps) {
                                     padding: '10px 0',
                                     borderRadius: 9999,
                                     border: 'none',
-                                    background: 'var(--text-primary)',
+                                    background: 'var(--color-primary)',
                                     color: 'white',
                                     fontSize: 14,
                                     fontWeight: 500,
@@ -604,8 +604,8 @@ export default function Beans({ onNavigate }: BeansProps) {
                                     padding: '10px 0',
                                     borderRadius: 9999,
                                     border: 'none',
-                                    background: 'var(--bg-secondary)',
-                                    color: 'var(--text-secondary)',
+                                    background: 'var(--color-surface)',
+                                    color: 'var(--color-secondary)',
                                     fontSize: 14,
                                     fontWeight: 500,
                                     cursor: 'pointer',
@@ -620,14 +620,14 @@ export default function Beans({ onNavigate }: BeansProps) {
                 ) : (
                     <div
                         style={{
-                            background: 'var(--bg)',
+                            background: 'var(--color-main-bg)',
                             borderRadius: 16,
                             padding: '60px 32px',
                             boxShadow: 'var(--shadow-ring)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: 'var(--text-muted)',
+                            color: 'var(--color-muted)',
                             fontSize: 14,
                             letterSpacing: '0.14px',
                         }}

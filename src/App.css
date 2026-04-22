@@ -1,29 +1,21 @@
 @import 'tailwindcss';
 
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-:root {
+@theme {
     --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
     --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: ui-monospace, 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace;
 
-    --bg: #ffffff;
-    --bg-secondary: #f5f5f5;
-    --bg-warm: rgba(245, 242, 239, 0.8);
-    --bg-warm-solid: #f5f2ef;
+    --color-main-bg: #ffffff;
+    --color-surface: #f5f5f5;
+    --color-surface-warm: rgba(245, 242, 239, 0.8);
+    --color-surface-warm-solid: #f5f2ef;
 
-    --text-primary: #171717;
-    --text-secondary: #4e4e4e;
-    --text-muted: #777169;
+    --color-primary: #171717;
+    --color-secondary: #4e4e4e;
+    --color-muted: #777169;
 
-    --border: #e5e5e5;
-    --border-subtle: rgba(0, 0, 0, 0.05);
+    --color-border: #e5e5e5;
+    --color-border-subtle: rgba(0, 0, 0, 0.05);
 
     --shadow-inset: rgba(0, 0, 0, 0.075) 0px 0px 0px 0.5px inset;
     --shadow-outline: rgba(0, 0, 0, 0.06) 0px 0px 0px 1px;
@@ -46,8 +38,8 @@ body {
     font-family: var(--font-body);
     font-size: 16px;
     line-height: 1.5;
-    color: var(--text-primary);
-    background: var(--bg-secondary);
+    color: var(--color-primary);
+    background: var(--color-surface);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }

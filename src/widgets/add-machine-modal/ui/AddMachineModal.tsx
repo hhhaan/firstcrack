@@ -64,7 +64,7 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
     background: 'rgba(255,255,255,0.84)',
     boxShadow: 'var(--shadow-inset)',
     fontSize: 14,
-    color: 'var(--text-primary)',
+    color: 'var(--color-primary)',
     outline: 'none',
   };
 
@@ -74,7 +74,7 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
     gap: 6,
     fontSize: 12,
     fontWeight: 600,
-    color: 'var(--text-muted)',
+    color: 'var(--color-muted)',
     marginBottom: 8,
     letterSpacing: '0.02em',
     textTransform: 'uppercase',
@@ -119,7 +119,7 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
                 width: 46,
                 height: 46,
                 borderRadius: 14,
-                background: 'var(--text-primary)',
+                background: 'var(--color-primary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -140,7 +140,7 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
                   padding: '6px 10px',
                   borderRadius: 999,
                   background: 'rgba(255,255,255,0.8)',
-                  color: 'var(--text-secondary)',
+                  color: 'var(--color-secondary)',
                   fontSize: 12,
                   fontWeight: 600,
                   letterSpacing: '0.12px',
@@ -160,7 +160,7 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
                   lineHeight: 1.05,
                   fontWeight: 400,
                   letterSpacing: '-0.04em',
-                  color: 'var(--text-primary)',
+                  color: 'var(--color-primary)',
                   margin: 0,
                 }}
               >
@@ -170,7 +170,7 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
               <p
                 style={{
                   fontSize: 14,
-                  color: 'var(--text-secondary)',
+                  color: 'var(--color-secondary)',
                   marginTop: 10,
                   maxWidth: 460,
                 }}
@@ -188,8 +188,8 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
               height: 36,
               borderRadius: 12,
               border: 'none',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text-muted)',
+              background: 'var(--color-surface)',
+              color: 'var(--color-muted)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -336,7 +336,7 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
         >
           <div
             style={{
-              background: 'var(--bg-warm-solid)',
+              background: 'var(--color-surface-warm-solid)',
               borderRadius: 20,
               padding: 20,
               boxShadow: 'var(--shadow-warm)',
@@ -352,15 +352,15 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: 'var(--text-primary)',
+                  color: 'var(--color-primary)',
                   boxShadow: 'var(--shadow-ring)',
                 }}
               >
                 <Radio size={17} strokeWidth={1.9} />
               </div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Connection preview</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Ready for device registration</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-primary)' }}>Connection preview</div>
+                <div style={{ fontSize: 12, color: 'var(--color-secondary)' }}>Ready for device registration</div>
               </div>
             </div>
 
@@ -382,10 +382,10 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
                     boxShadow: 'var(--shadow-inset)',
                   }}
                 >
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <span style={{ fontSize: 12, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {label}
                   </span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-primary)', textAlign: 'right' }}>
                     {value}
                   </span>
                 </div>
@@ -402,7 +402,7 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
               boxShadow: 'var(--shadow-ring)',
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-primary)', marginBottom: 10 }}>
               Before going live
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
@@ -415,7 +415,7 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
                   key={item}
                   style={{
                     fontSize: 13,
-                    color: 'var(--text-secondary)',
+                    color: 'var(--color-secondary)',
                     padding: '10px 12px',
                     borderRadius: 14,
                     background: 'rgba(255,255,255,0.86)',
@@ -446,8 +446,8 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
             padding: '12px 16px',
             borderRadius: 12,
             border: 'none',
-            background: 'var(--bg-secondary)',
-            color: 'var(--text-secondary)',
+            background: 'var(--color-surface)',
+            color: 'var(--color-secondary)',
             fontSize: 14,
             fontWeight: 500,
             cursor: 'pointer',
@@ -463,7 +463,7 @@ export default function AddMachineModal({ open, onClose }: AddMachineModalProps)
             padding: '12px 18px',
             borderRadius: 12,
             border: 'none',
-            background: 'var(--text-primary)',
+            background: 'var(--color-primary)',
             color: '#fff',
             fontSize: 14,
             fontWeight: 600,

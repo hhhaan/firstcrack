@@ -45,7 +45,7 @@ export default function RoastSummaryModal({
         backdropFilter: 'blur(4px)',
       }}
       contentStyle={{
-        background: 'var(--bg)',
+        background: 'var(--color-main-bg)',
         borderRadius: 20,
         padding: '32px 36px',
         width: 480,
@@ -58,11 +58,11 @@ export default function RoastSummaryModal({
         </div>
         <div
           id="roast-summary-modal-title"
-          style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 24, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}
+          style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 24, color: 'var(--color-primary)', letterSpacing: '-0.3px' }}
         >
           Ethiopia Yirgacheffe
         </div>
-        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Natural · Guji Zone · Profile: Signature Light</div>
+        <div style={{ fontSize: 13, color: 'var(--color-muted)', marginTop: 2 }}>Natural · Guji Zone · Profile: Signature Light</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 24 }}>
@@ -71,28 +71,28 @@ export default function RoastSummaryModal({
           { label: 'Development', value: summaryData.development },
           { label: 'Final BT', value: summaryData.finalBt },
         ].map(({ label, value }) => (
-          <div key={label} style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: '12px 14px', boxShadow: 'var(--shadow-inset)' }}>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>{value}</div>
+          <div key={label} style={{ background: 'var(--color-surface)', borderRadius: 12, padding: '12px 14px', boxShadow: 'var(--shadow-inset)' }}>
+            <div style={{ fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 600, color: 'var(--color-primary)', letterSpacing: '-0.5px' }}>{value}</div>
           </div>
         ))}
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>Log</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>Log</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 0' }}>
           {summaryData.logEntries.filter((entry) => eventMarkerColor[entry.event] || entry.event === 'Charge' || entry.event === 'Turning Point').map((entry, index, entries) => (
             <div key={`${entry.time}-${entry.event}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{entry.time}</span>
-              <span style={{ fontSize: 12, fontWeight: 500, color: eventMarkerColor[entry.event] ?? 'var(--text-secondary)' }}>{entry.event}</span>
-              {index < entries.length - 1 && <span style={{ margin: '0 6px', color: 'var(--border)', fontSize: 14 }}>·</span>}
+              <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--color-muted)' }}>{entry.time}</span>
+              <span style={{ fontSize: 12, fontWeight: 500, color: eventMarkerColor[entry.event] ?? 'var(--color-secondary)' }}>{entry.event}</span>
+              {index < entries.length - 1 && <span style={{ margin: '0 6px', color: 'var(--color-border)', fontSize: 14 }}>·</span>}
             </div>
           ))}
         </div>
       </div>
 
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>Notes</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>Notes</div>
         <textarea
           value={roastNotes}
           onChange={(event) => onRoastNotesChange(event.target.value)}
@@ -103,8 +103,8 @@ export default function RoastSummaryModal({
             padding: '10px 14px',
             borderRadius: 10,
             border: 'none',
-            background: 'var(--bg-secondary)',
-            color: 'var(--text-primary)',
+            background: 'var(--color-surface)',
+            color: 'var(--color-primary)',
             fontSize: 13,
             fontFamily: 'var(--font-body)',
             resize: 'none',
@@ -122,7 +122,7 @@ export default function RoastSummaryModal({
           padding: '13px 0',
           borderRadius: 9999,
           border: 'none',
-          background: 'var(--text-primary)',
+          background: 'var(--color-primary)',
           color: 'white',
           fontSize: 14,
           fontWeight: 500,

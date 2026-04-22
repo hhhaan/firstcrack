@@ -103,7 +103,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                             fontWeight: 300,
                             fontSize: 32,
                             lineHeight: 1.13,
-                            color: 'var(--text-primary)',
+                            color: 'var(--color-primary)',
                             letterSpacing: '-0.4px',
                             marginBottom: 6,
                         }}
@@ -113,7 +113,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                     <p
                         style={{
                             fontSize: 15,
-                            color: 'var(--text-secondary)',
+                            color: 'var(--color-secondary)',
                             letterSpacing: '0.15px',
                             fontWeight: 400,
                         }}
@@ -130,7 +130,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                         padding: '10px 18px',
                         borderRadius: 9999,
                         border: 'none',
-                        background: 'var(--text-primary)',
+                        background: 'var(--color-primary)',
                         color: '#ffffff',
                         fontSize: 14,
                         fontWeight: 500,
@@ -161,7 +161,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                         <div
                             key={label}
                             style={{
-                                background: 'var(--bg)',
+                                background: 'var(--color-main-bg)',
                                 borderRadius: 16,
                                 padding: '20px 20px 18px',
                                 boxShadow: 'var(--shadow-ring)',
@@ -180,14 +180,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                         width: 34,
                                         height: 34,
                                         borderRadius: 8,
-                                        background: 'var(--bg-secondary)',
+                                        background: 'var(--color-surface)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         boxShadow: 'var(--shadow-inset)',
                                     }}
                                 >
-                                    <Icon size={16} strokeWidth={1.5} color="var(--text-secondary)" />
+                                    <Icon size={16} strokeWidth={1.5} color="var(--color-secondary)" />
                                 </div>
                                 <span
                                     style={{
@@ -207,7 +207,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                 style={{
                                     fontSize: 26,
                                     fontWeight: 600,
-                                    color: 'var(--text-primary)',
+                                    color: 'var(--color-primary)',
                                     lineHeight: 1.2,
                                     marginBottom: 4,
                                     letterSpacing: '-0.5px',
@@ -215,7 +215,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                             >
                                 {value}
                             </div>
-                            <div style={{ fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+                            <div style={{ fontSize: 13, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
                                 {label}
                             </div>
                         </div>
@@ -228,7 +228,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 {/* Recent Sessions */}
                 <div
                     style={{
-                        background: 'var(--bg)',
+                        background: 'var(--color-main-bg)',
                         borderRadius: 16,
                         boxShadow: 'var(--shadow-ring)',
                         overflow: 'hidden',
@@ -240,14 +240,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            borderBottom: '1px solid var(--border-subtle)',
+                            borderBottom: '1px solid var(--color-border-subtle)',
                         }}
                     >
                         <h2
                             style={{
                                 fontSize: 15,
                                 fontWeight: 500,
-                                color: 'var(--text-primary)',
+                                color: 'var(--color-primary)',
                                 letterSpacing: '0.15px',
                             }}
                         >
@@ -261,7 +261,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                 gap: 4,
                                 fontSize: 13,
                                 fontWeight: 500,
-                                color: 'var(--text-muted)',
+                                color: 'var(--color-muted)',
                                 background: 'none',
                                 border: 'none',
                                 cursor: 'pointer',
@@ -273,7 +273,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                     </div>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
-                            <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                            <tr style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
                                 {['Date', 'Bean', 'Profile', 'Weight', 'Drop Temp', 'Duration', 'Level'].map((h) => (
                                     <th
                                         key={h}
@@ -282,7 +282,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                             textAlign: 'left',
                                             fontSize: 12,
                                             fontWeight: 500,
-                                            color: 'var(--text-muted)',
+                                            color: 'var(--color-muted)',
                                             letterSpacing: '0.5px',
                                             textTransform: 'uppercase',
                                         }}
@@ -298,14 +298,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                     key={session.id}
                                     style={{
                                         borderBottom:
-                                            i < recentSessions.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                                            i < recentSessions.length - 1 ? '1px solid var(--color-border-subtle)' : 'none',
                                     }}
                                 >
                                     <td
                                         style={{
                                             padding: '12px 24px',
                                             fontSize: 13,
-                                            color: 'var(--text-muted)',
+                                            color: 'var(--color-muted)',
                                             fontWeight: 400,
                                             whiteSpace: 'nowrap',
                                         }}
@@ -316,7 +316,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                         style={{
                                             padding: '12px 24px',
                                             fontSize: 13,
-                                            color: 'var(--text-primary)',
+                                            color: 'var(--color-primary)',
                                             fontWeight: 500,
                                             letterSpacing: '0.14px',
                                             whiteSpace: 'nowrap',
@@ -328,7 +328,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                         style={{
                                             padding: '12px 24px',
                                             fontSize: 13,
-                                            color: 'var(--text-secondary)',
+                                            color: 'var(--color-secondary)',
                                             letterSpacing: '0.14px',
                                             whiteSpace: 'nowrap',
                                         }}
@@ -339,7 +339,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                         style={{
                                             padding: '12px 24px',
                                             fontSize: 13,
-                                            color: 'var(--text-secondary)',
+                                            color: 'var(--color-secondary)',
                                             whiteSpace: 'nowrap',
                                         }}
                                     >
@@ -349,7 +349,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                         style={{
                                             padding: '12px 24px',
                                             fontSize: 13,
-                                            color: 'var(--text-secondary)',
+                                            color: 'var(--color-secondary)',
                                             fontFamily: 'var(--font-mono)',
                                             whiteSpace: 'nowrap',
                                         }}
@@ -360,7 +360,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                         style={{
                                             padding: '12px 24px',
                                             fontSize: 13,
-                                            color: 'var(--text-secondary)',
+                                            color: 'var(--color-secondary)',
                                             fontFamily: 'var(--font-mono)',
                                             whiteSpace: 'nowrap',
                                         }}
@@ -372,8 +372,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                             style={{
                                                 fontSize: 11,
                                                 fontWeight: 500,
-                                                color: levelColor[session.level] || 'var(--text-muted)',
-                                                background: levelBg[session.level] || 'var(--bg-secondary)',
+                                                color: levelColor[session.level] || 'var(--color-muted)',
+                                                background: levelBg[session.level] || 'var(--color-surface)',
                                                 padding: '3px 8px',
                                                 borderRadius: 9999,
                                                 letterSpacing: '0.14px',
@@ -392,7 +392,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 {/* Monthly chart */}
                 <div
                     style={{
-                        background: 'var(--bg)',
+                        background: 'var(--color-main-bg)',
                         borderRadius: 16,
                         padding: '20px 24px',
                         boxShadow: 'var(--shadow-ring)',
@@ -410,13 +410,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                             style={{
                                 fontSize: 15,
                                 fontWeight: 500,
-                                color: 'var(--text-primary)',
+                                color: 'var(--color-primary)',
                                 letterSpacing: '0.15px',
                             }}
                         >
                             Monthly Batches
                         </h2>
-                        <Calendar size={15} strokeWidth={1.5} color="var(--text-muted)" />
+                        <Calendar size={15} strokeWidth={1.5} color="var(--color-muted)" />
                     </div>
                     <ResponsiveContainer width="100%" height={160}>
                         <BarChart data={monthlyData} barSize={20}>
@@ -425,12 +425,12 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                 dataKey="month"
                                 axisLine={false}
                                 tickLine={false}
-                                tick={{ fontSize: 12, fontFamily: 'var(--font-body)', fill: 'var(--text-muted)' }}
+                                tick={{ fontSize: 12, fontFamily: 'var(--font-body)', fill: 'var(--color-muted)' }}
                             />
                             <YAxis
                                 axisLine={false}
                                 tickLine={false}
-                                tick={{ fontSize: 11, fontFamily: 'var(--font-body)', fill: 'var(--text-muted)' }}
+                                tick={{ fontSize: 11, fontFamily: 'var(--font-body)', fill: 'var(--color-muted)' }}
                                 width={28}
                             />
                             <Tooltip
@@ -444,7 +444,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                     fontFamily: 'var(--font-body)',
                                 }}
                             />
-                            <Bar dataKey="batches" fill="var(--text-primary)" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="batches" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
 
@@ -452,13 +452,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                         style={{
                             marginTop: 20,
                             paddingTop: 16,
-                            borderTop: '1px solid var(--border-subtle)',
+                            borderTop: '1px solid var(--color-border-subtle)',
                         }}
                     >
                         <div
                             style={{
                                 fontSize: 12,
-                                color: 'var(--text-muted)',
+                                color: 'var(--color-muted)',
                                 marginBottom: 8,
                                 letterSpacing: '0.5px',
                                 textTransform: 'uppercase',
@@ -473,13 +473,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                     style={{
                                         fontSize: 22,
                                         fontWeight: 600,
-                                        color: 'var(--text-primary)',
+                                        color: 'var(--color-primary)',
                                         letterSpacing: '-0.4px',
                                     }}
                                 >
                                     14
                                 </div>
-                                <div style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+                                <div style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
                                     batches
                                 </div>
                             </div>
@@ -488,13 +488,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                     style={{
                                         fontSize: 22,
                                         fontWeight: 600,
-                                        color: 'var(--text-primary)',
+                                        color: 'var(--color-primary)',
                                         letterSpacing: '-0.4px',
                                     }}
                                 >
                                     8.4
                                 </div>
-                                <div style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+                                <div style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
                                     kg roasted
                                 </div>
                             </div>
@@ -503,13 +503,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                     style={{
                                         fontSize: 22,
                                         fontWeight: 600,
-                                        color: 'var(--text-primary)',
+                                        color: 'var(--color-primary)',
                                         letterSpacing: '-0.4px',
                                     }}
                                 >
                                     3
                                 </div>
-                                <div style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+                                <div style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
                                     bean origins
                                 </div>
                             </div>
@@ -523,7 +523,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 {/* Upcoming */}
                 <div
                     style={{
-                        background: 'var(--bg)',
+                        background: 'var(--color-main-bg)',
                         borderRadius: 16,
                         padding: '20px 24px',
                         boxShadow: 'var(--shadow-ring)',
@@ -533,7 +533,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                         style={{
                             fontSize: 15,
                             fontWeight: 500,
-                            color: 'var(--text-primary)',
+                            color: 'var(--color-primary)',
                             letterSpacing: '0.15px',
                             marginBottom: 14,
                         }}
@@ -562,7 +562,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                 alignItems: 'center',
                                 gap: 12,
                                 padding: '10px 0',
-                                borderBottom: i < 2 ? '1px solid var(--border-subtle)' : 'none',
+                                borderBottom: i < 2 ? '1px solid var(--color-border-subtle)' : 'none',
                             }}
                         >
                             <div
@@ -570,7 +570,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                     width: 34,
                                     height: 34,
                                     borderRadius: 8,
-                                    background: 'var(--bg-warm-solid)',
+                                    background: 'var(--color-surface-warm-solid)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -578,20 +578,20 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                     boxShadow: 'var(--shadow-inset)',
                                 }}
                             >
-                                <Calendar size={14} strokeWidth={1.5} color="var(--text-secondary)" />
+                                <Calendar size={14} strokeWidth={1.5} color="var(--color-secondary)" />
                             </div>
                             <div style={{ flex: 1 }}>
                                 <div
                                     style={{
                                         fontSize: 13,
                                         fontWeight: 500,
-                                        color: 'var(--text-primary)',
+                                        color: 'var(--color-primary)',
                                         letterSpacing: '0.14px',
                                     }}
                                 >
                                     {item.bean}
                                 </div>
-                                <div style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+                                <div style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
                                     {item.time} · {item.weight} · {item.profile}
                                 </div>
                             </div>
@@ -602,7 +602,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 {/* Low stock alert */}
                 <div
                     style={{
-                        background: 'var(--bg)',
+                        background: 'var(--color-main-bg)',
                         borderRadius: 16,
                         padding: '20px 24px',
                         boxShadow: 'var(--shadow-ring)',
@@ -612,7 +612,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                         style={{
                             fontSize: 15,
                             fontWeight: 500,
-                            color: 'var(--text-primary)',
+                            color: 'var(--color-primary)',
                             letterSpacing: '0.15px',
                             marginBottom: 14,
                         }}
@@ -649,7 +649,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                 alignItems: 'center',
                                 gap: 12,
                                 padding: '10px 0',
-                                borderBottom: i < 2 ? '1px solid var(--border-subtle)' : 'none',
+                                borderBottom: i < 2 ? '1px solid var(--color-border-subtle)' : 'none',
                             }}
                         >
                             <div
@@ -671,13 +671,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                                     style={{
                                         fontSize: 13,
                                         fontWeight: 500,
-                                        color: 'var(--text-primary)',
+                                        color: 'var(--color-primary)',
                                         letterSpacing: '0.14px',
                                     }}
                                 >
                                     {item.bean}
                                 </div>
-                                <div style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: '0.14px' }}>
+                                <div style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
                                     {item.stock} remaining
                                 </div>
                             </div>

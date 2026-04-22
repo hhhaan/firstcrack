@@ -34,8 +34,8 @@ export default function Sidebar({
         width: sidebarWidth,
         flexShrink: 0,
         height: '100vh',
-        background: 'var(--bg)',
-        borderRight: '1px solid var(--border)',
+        background: 'var(--color-main-bg)',
+        borderRight: '1px solid var(--color-border)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -45,7 +45,7 @@ export default function Sidebar({
       <div
         style={{
           padding: collapsed ? '16px 14px 14px' : '20px 20px 16px',
-          borderBottom: '1px solid var(--border-subtle)',
+          borderBottom: '1px solid var(--color-border-subtle)',
         }}
       >
         <div
@@ -72,7 +72,7 @@ export default function Sidebar({
                     fontWeight: 300,
                     fontSize: 16,
                     lineHeight: 1.2,
-                    color: 'var(--text-primary)',
+                    color: 'var(--color-primary)',
                     letterSpacing: '-0.2px',
                   }}
                 >
@@ -81,7 +81,7 @@ export default function Sidebar({
                 <div
                   style={{
                     fontSize: 11,
-                    color: 'var(--text-muted)',
+                    color: 'var(--color-muted)',
                     letterSpacing: '0.14px',
                     fontWeight: 500,
                   }}
@@ -101,8 +101,8 @@ export default function Sidebar({
               height: 32,
               borderRadius: 8,
               border: 'none',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text-muted)',
+              background: 'var(--color-surface)',
+              color: 'var(--color-muted)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -128,7 +128,7 @@ export default function Sidebar({
             padding: '8px 10px',
             borderRadius: 8,
             border: 'none',
-            background: 'var(--bg-secondary)',
+            background: 'var(--color-surface)',
             cursor: 'pointer',
             boxShadow: 'var(--shadow-inset)',
           }}
@@ -139,13 +139,13 @@ export default function Sidebar({
                 width: 22,
                 height: 22,
                 borderRadius: 5,
-                background: 'var(--bg-warm-solid)',
+                background: 'var(--color-surface-warm-solid)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 11,
                 fontWeight: 600,
-                color: 'var(--text-secondary)',
+                color: 'var(--color-secondary)',
               }}
             >
               B
@@ -155,7 +155,7 @@ export default function Sidebar({
                 style={{
                   fontSize: 13,
                   fontWeight: 500,
-                  color: 'var(--text-primary)',
+                  color: 'var(--color-primary)',
                   letterSpacing: '0.14px',
                 }}
               >
@@ -163,7 +163,7 @@ export default function Sidebar({
               </span>
             )}
           </div>
-          {!collapsed && <ChevronDown size={14} strokeWidth={2} color="var(--text-muted)" />}
+          {!collapsed && <ChevronDown size={14} strokeWidth={2} color="var(--color-muted)" />}
         </button>
       </div>
 
@@ -174,7 +174,7 @@ export default function Sidebar({
               style={{
                 fontSize: 11,
                 fontWeight: 500,
-                color: 'var(--text-muted)',
+                color: 'var(--color-muted)',
                 letterSpacing: '0.7px',
                 textTransform: 'uppercase',
                 padding: '8px 10px 4px',
@@ -203,7 +203,7 @@ export default function Sidebar({
                   border: 'none',
                   cursor: 'pointer',
                   marginBottom: 2,
-                  background: isActive ? 'var(--bg-secondary)' : 'transparent',
+                  background: isActive ? 'var(--color-surface)' : 'transparent',
                   boxShadow: isActive ? 'var(--shadow-inset)' : 'none',
                   transition: 'background 0.15s',
                 }}
@@ -211,14 +211,14 @@ export default function Sidebar({
                 <Icon
                   size={16}
                   strokeWidth={isActive ? 2 : 1.5}
-                  color={isRoast && isActive ? '#22c55e' : isActive ? 'var(--text-primary)' : 'var(--text-muted)'}
+                  color={isRoast && isActive ? '#22c55e' : isActive ? 'var(--color-primary)' : 'var(--color-muted)'}
                 />
                 {!collapsed && (
                   <span
                     style={{
                       fontSize: 14,
                       fontWeight: isActive ? 500 : 400,
-                      color: isRoast && isActive ? '#22c55e' : isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      color: isRoast && isActive ? '#22c55e' : isActive ? 'var(--color-primary)' : 'var(--color-secondary)',
                       letterSpacing: '0.14px',
                     }}
                   >
@@ -234,7 +234,7 @@ export default function Sidebar({
       <div
         style={{
           padding: '12px',
-          borderTop: '1px solid var(--border-subtle)',
+          borderTop: '1px solid var(--color-border-subtle)',
         }}
       >
         <button
@@ -250,7 +250,7 @@ export default function Sidebar({
             padding: '8px 10px',
             borderRadius: 8,
             border: 'none',
-            background: 'var(--bg-secondary)',
+            background: 'var(--color-surface)',
             cursor: 'pointer',
             boxShadow: 'var(--shadow-inset)',
           }}
@@ -260,13 +260,13 @@ export default function Sidebar({
               width: 28,
               height: 28,
               borderRadius: '50%',
-              background: 'var(--bg-warm-solid)',
+              background: 'var(--color-surface-warm-solid)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 11,
               fontWeight: 600,
-              color: 'var(--text-secondary)',
+              color: 'var(--color-secondary)',
               flexShrink: 0,
               boxShadow: 'var(--shadow-inset)',
             }}
@@ -280,7 +280,7 @@ export default function Sidebar({
                   style={{
                     fontSize: 13,
                     fontWeight: 500,
-                    color: 'var(--text-primary)',
+                    color: 'var(--color-primary)',
                     letterSpacing: '0.14px',
                   }}
                 >
@@ -289,7 +289,7 @@ export default function Sidebar({
                 <div
                   style={{
                     fontSize: 11,
-                    color: 'var(--text-muted)',
+                    color: 'var(--color-muted)',
                     letterSpacing: '0.14px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -299,10 +299,10 @@ export default function Sidebar({
                   Workspace preferences
                 </div>
               </div>
-              <Settings size={14} strokeWidth={1.5} color="var(--text-muted)" />
+              <Settings size={14} strokeWidth={1.5} color="var(--color-muted)" />
             </>
           )}
-          {collapsed && <Settings size={14} strokeWidth={1.5} color="var(--text-muted)" />}
+          {collapsed && <Settings size={14} strokeWidth={1.5} color="var(--color-muted)" />}
         </button>
       </div>
     </aside>

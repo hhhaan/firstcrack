@@ -30,7 +30,7 @@ function App() {
         onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
         onOpenSettings={() => setSettingsOpen(true)}
       />
-      <div style={{ flex: 1, overflow: 'auto', background: 'var(--bg-secondary)' }}>
+      <div style={{ flex: 1, overflow: 'auto', background: 'var(--color-surface)' }}>
         {view === 'dashboard' && <Dashboard onNavigate={setView} />}
         {view === 'roast' && <ActiveRoast />}
         {view === 'history' && <History />}

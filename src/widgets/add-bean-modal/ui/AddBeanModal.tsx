@@ -107,7 +107,7 @@ export default function AddBeanModal({
     background: 'rgba(255,255,255,0.8)',
     boxShadow: 'var(--shadow-inset)',
     fontSize: 14,
-    color: 'var(--text-primary)',
+    color: 'var(--color-primary)',
     outline: 'none',
     transition: 'all 0.2s',
   };
@@ -118,7 +118,7 @@ export default function AddBeanModal({
     gap: 6,
     fontSize: 12,
     fontWeight: 600,
-    color: 'var(--text-muted)',
+    color: 'var(--color-muted)',
     marginBottom: 8,
     letterSpacing: '0.02em',
     textTransform: 'uppercase',
@@ -130,7 +130,7 @@ export default function AddBeanModal({
     borderRadius: 12,
     border: 'none',
     background: active ? 'white' : 'transparent',
-    color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+    color: active ? 'var(--color-primary)' : 'var(--color-muted)',
     fontSize: 14,
     fontWeight: active ? 600 : 500,
     cursor: 'pointer',
@@ -169,7 +169,7 @@ export default function AddBeanModal({
               width: 44,
               height: 44,
               borderRadius: 14,
-              background: 'var(--text-primary)',
+              background: 'var(--color-primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -183,7 +183,7 @@ export default function AddBeanModal({
                 fontFamily: 'var(--font-display)',
                 fontSize: 24,
                 fontWeight: 400,
-                color: 'var(--text-primary)',
+                color: 'var(--color-primary)',
                 letterSpacing: '-0.02em',
                 margin: 0,
               }}>
@@ -198,8 +198,8 @@ export default function AddBeanModal({
               height: 36,
               borderRadius: 12,
               border: 'none',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text-muted)',
+              background: 'var(--color-surface)',
+              color: 'var(--color-muted)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -216,7 +216,7 @@ export default function AddBeanModal({
           <div style={{ padding: '0 32px 20px' }}>
             <div style={{
               display: 'flex',
-              background: 'var(--bg-secondary)',
+              background: 'var(--color-surface)',
               padding: 4,
               borderRadius: 16,
               boxShadow: 'var(--shadow-inset)',
@@ -341,8 +341,8 @@ export default function AddBeanModal({
                     style={{
                       padding: '14px 18px',
                       borderRadius: 16,
-                      background: selectedBeanId === bean.id ? 'var(--text-primary)' : 'rgba(255,255,255,0.7)',
-                      color: selectedBeanId === bean.id ? 'white' : 'var(--text-primary)',
+                      background: selectedBeanId === bean.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.7)',
+                      color: selectedBeanId === bean.id ? 'white' : 'var(--color-primary)',
                       border: '1px solid rgba(0,0,0,0.06)',
                       cursor: 'pointer',
                       display: 'flex',
@@ -369,7 +369,7 @@ export default function AddBeanModal({
             </div>
 
             <div style={{ 
-              background: 'var(--bg-warm-solid)', 
+              background: 'var(--color-surface-warm-solid)', 
               padding: '24px', 
               borderRadius: 20,
               boxShadow: 'var(--shadow-warm)',
@@ -386,7 +386,7 @@ export default function AddBeanModal({
                   value={restockAmount}
                   onChange={e => setRestockAmount(e.target.value)}
                 />
-                <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-muted)' }}>grams</div>
+                <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--color-muted)' }}>grams</div>
               </div>
             </div>
           </div>
@@ -409,8 +409,8 @@ export default function AddBeanModal({
               padding: '14px',
               borderRadius: 16,
               border: 'none',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text-secondary)',
+              background: 'var(--color-surface)',
+              color: 'var(--color-secondary)',
               fontSize: 15,
               fontWeight: 600,
               cursor: 'pointer',
@@ -429,7 +429,7 @@ export default function AddBeanModal({
               padding: '14px',
               borderRadius: 16,
               border: 'none',
-              background: 'var(--text-primary)',
+              background: 'var(--color-primary)',
               color: 'white',
               fontSize: 15,
               fontWeight: 600,

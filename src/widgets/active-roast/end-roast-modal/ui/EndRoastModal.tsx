@@ -24,7 +24,7 @@ export default function EndRoastModal({ open, timeStr, onClose, onConfirm }: End
       }}
       contentStyle={{
         width: 'min(420px, 100%)',
-        background: 'var(--bg)',
+        background: 'var(--color-main-bg)',
         borderRadius: 20,
         padding: '28px',
         boxShadow: 'rgba(0,0,0,0.22) 0px 24px 64px, rgba(0,0,0,0.06) 0px 0px 0px 1px',
@@ -52,14 +52,14 @@ export default function EndRoastModal({ open, timeStr, onClose, onConfirm }: End
           fontSize: 28,
           fontWeight: 400,
           lineHeight: 1.05,
-          color: 'var(--text-primary)',
+          color: 'var(--color-primary)',
           letterSpacing: '-0.5px',
           marginBottom: 10,
         }}
       >
         End this roast?
       </h2>
-      <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 22 }}>
+      <p style={{ fontSize: 14, color: 'var(--color-secondary)', lineHeight: 1.6, marginBottom: 22 }}>
         The roast timer will stop at {timeStr}, the roast log will be finalized, and the roast summary will open next.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -69,8 +69,8 @@ export default function EndRoastModal({ open, timeStr, onClose, onConfirm }: End
             padding: '12px 0',
             borderRadius: 9999,
             border: 'none',
-            background: 'var(--bg-secondary)',
-            color: 'var(--text-secondary)',
+            background: 'var(--color-surface)',
+            color: 'var(--color-secondary)',
             fontSize: 14,
             fontWeight: 500,
             cursor: 'pointer',

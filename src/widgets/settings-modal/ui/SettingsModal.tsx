@@ -109,7 +109,7 @@ const tabButtonStyle = (active: boolean): CSSProperties => ({
   border: 'none',
   cursor: 'pointer',
   background: active ? 'rgba(255,255,255,0.96)' : 'transparent',
-  color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+  color: active ? 'var(--color-primary)' : 'var(--color-secondary)',
   boxShadow: active ? 'var(--shadow-card)' : 'none',
   textAlign: 'left',
   transition: 'all 0.18s ease',
@@ -169,7 +169,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
           justifyContent: 'space-between',
           gap: 16,
           padding: '28px 28px 20px',
-          borderBottom: '1px solid var(--border-subtle)',
+          borderBottom: '1px solid var(--color-border-subtle)',
           background: 'linear-gradient(180deg, rgba(248,245,240,0.72) 0%, rgba(255,255,255,0.92) 100%)',
         }}
       >
@@ -181,8 +181,8 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
               gap: 8,
               padding: '6px 10px',
               borderRadius: 999,
-              background: 'var(--bg-warm-solid)',
-              color: 'var(--text-secondary)',
+              background: 'var(--color-surface-warm-solid)',
+              color: 'var(--color-secondary)',
               fontSize: 12,
               fontWeight: 600,
               letterSpacing: '0.12px',
@@ -205,8 +205,8 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
             height: 36,
             borderRadius: 10,
             border: 'none',
-            background: 'var(--bg-secondary)',
-            color: 'var(--text-muted)',
+            background: 'var(--color-surface)',
+            color: 'var(--color-muted)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -230,7 +230,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
         <aside
           style={{
             padding: 20,
-            borderRight: '1px solid var(--border-subtle)',
+            borderRight: '1px solid var(--color-border-subtle)',
             background: 'rgba(247,244,240,0.64)',
             overflowY: 'auto',
           }}
@@ -259,11 +259,11 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
                       width: 34,
                       height: 34,
                       borderRadius: 10,
-                      background: active ? 'var(--bg-warm-solid)' : 'rgba(255,255,255,0.72)',
+                      background: active ? 'var(--color-surface-warm-solid)' : 'rgba(255,255,255,0.72)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                      color: active ? 'var(--color-primary)' : 'var(--color-muted)',
                       boxShadow: 'var(--shadow-inset)',
                       flexShrink: 0,
                     }}
@@ -298,11 +298,11 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
                 width: 44,
                 height: 44,
                 borderRadius: 14,
-                background: 'var(--bg-warm-solid)',
+                background: 'var(--color-surface-warm-solid)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--text-primary)',
+                color: 'var(--color-primary)',
                 boxShadow: 'var(--shadow-warm)',
                 flexShrink: 0,
               }}
@@ -315,14 +315,14 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
                   fontSize: 24,
                   lineHeight: 1.1,
                   fontWeight: 600,
-                  color: 'var(--text-primary)',
+                  color: 'var(--color-primary)',
                   marginBottom: 8,
                   letterSpacing: '-0.03em',
                 }}
               >
                 {activeConfig.title}
               </h3>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', maxWidth: 560 }}>
+              <p style={{ fontSize: 14, color: 'var(--color-secondary)', maxWidth: 560 }}>
                 {activeConfig.description}
               </p>
             </div>
@@ -341,10 +341,10 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
                 }}
               >
                 <div style={{ marginBottom: 14 }}>
-                  <h4 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                  <h4 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-primary)', marginBottom: 4 }}>
                     {card.title}
                   </h4>
-                  <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{card.description}</p>
+                  <p style={{ fontSize: 13, color: 'var(--color-secondary)' }}>{card.description}</p>
                 </div>
 
                 <div style={{ display: 'grid', gap: 10 }}>
@@ -359,7 +359,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
                         borderRadius: 14,
                         background: 'rgba(255,255,255,0.88)',
                         boxShadow: 'var(--shadow-inset)',
-                        color: 'var(--text-secondary)',
+                        color: 'var(--color-secondary)',
                         fontSize: 13,
                       }}
                     >
@@ -381,12 +381,12 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <Gauge size={16} strokeWidth={1.9} color="var(--text-secondary)" />
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                <Gauge size={16} strokeWidth={1.9} color="var(--color-secondary)" />
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-primary)' }}>
                   Why this is in settings
                 </span>
               </div>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              <p style={{ fontSize: 13, color: 'var(--color-secondary)' }}>
                 These controls affect the whole application experience. Dedicated operational data should stay in the main sidebar views so the settings area remains lightweight.
               </p>
             </section>
