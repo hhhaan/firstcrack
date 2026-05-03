@@ -134,29 +134,22 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     const displayBT = sidecarConnected && liveData?.bt != null ? liveData.bt : (currentPoint?.bt ?? null);
     const displayET = sidecarConnected && liveData?.et != null ? liveData.et : (currentPoint?.et ?? null);
 
-    // X축은 fullData 기준 고정(0–13분), livePoints를 가장 가까운 15초 버킷에 매핑
+    // 1초 단위 그리드(0–780 = 781 pts). livePoints를 직접 사용해 초당 업데이트.
+    // target 커브는 fullData(15초 버킷)에서 선형 보간.
     const chartData = useMemo(() => {
-        const lastLiveTime = livePoints.length > 0 ? livePoints[livePoints.length - 1].time : -1;
         const liveBySecond = new Map(livePoints.map((p) => [p.time, p]));
-        return fullData.map((p) => {
-            if (p.time > lastLiveTime) {
-                return {
-                    label: p.label,
-                    btActual: null as number | null,
-                    etActual: null as number | null,
-                    rorActual: null as number | null,
-                    btTarget: p.bt,
-                };
-            }
-            let live = liveBySecond.get(p.time);
-            if (!live) {
-                for (let t = p.time - 1; t >= Math.max(0, p.time - 14); t--) {
-                    live = liveBySecond.get(t);
-                    if (live) break;
-                }
+        const lastLiveTime = livePoints.length > 0 ? livePoints[livePoints.length - 1].time : -1;
+        return Array.from({ length: 781 }, (_, t) => {
+            const live = liveBySecond.get(t);
+            if (t > lastLiveTime) {
+                // 미래 구간: target 커브 보간
+                const lo = Math.floor(t / 15);
+                const hi = Math.min(lo + 1, fullData.length - 1);
+                const frac = (t % 15) / 15;
+                const btTarget = lo === hi ? fullData[lo].bt : fullData[lo].bt + frac * (fullData[hi].bt - fullData[lo].bt);
+                return { btActual: null as number | null, etActual: null as number | null, rorActual: null as number | null, btTarget };
             }
             return {
-                label: p.label,
                 btActual: live?.bt ?? null,
                 etActual: live?.et ?? null,
                 rorActual: live ? Math.max(0, live.ror) : null,
@@ -210,18 +203,15 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
             .filter((e) => eventMarkerColor[e.event])
             .map((e) => {
                 const [min, sec] = e.time.split(':').map(Number);
-                const totalSec = min * 60 + sec;
-                const closest = fullData.reduce((prev, curr) =>
-                    Math.abs(curr.time - totalSec) < Math.abs(prev.time - totalSec) ? curr : prev,
-                );
-                return { timeSec: closest.time, event: e.event, color: eventMarkerColor[e.event] };
+                const timeSec = Math.min(780, Math.max(0, min * 60 + sec));
+                return { timeSec, event: e.event, color: eventMarkerColor[e.event] };
             }),
     [logEntries]);
 
     // uPlot column arrays — derived from visibleChartData
     const visibleXs = useMemo(() => {
         const start = effectiveZoomRange?.start ?? 0;
-        return visibleChartData.map((_, i) => fullData[start + i].time);
+        return visibleChartData.map((_, i) => start + i);
     }, [visibleChartData, effectiveZoomRange]);
     const visibleBtTarget = useMemo(() => visibleChartData.map((p) => p.btTarget), [visibleChartData]);
     const visibleBtActual = useMemo(() => visibleChartData.map((p) => p.btActual), [visibleChartData]);
@@ -249,7 +239,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
         const currentStart = effectiveZoomRange?.start ?? 0;
         const currentEnd = effectiveZoomRange?.end ?? totalChartPoints - 1;
         const currentSize = currentEnd - currentStart + 1;
-        const minVisiblePoints = Math.min(12, totalChartPoints);
+        const minVisiblePoints = Math.min(120, totalChartPoints);
 
         if (event.deltaY < 0 && currentSize <= minVisiblePoints) return;
         if (event.deltaY > 0 && currentStart === 0 && currentEnd === totalChartPoints - 1) return;
@@ -293,7 +283,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
         const currentStart = effectiveZoomRange?.start ?? 0;
         const currentEnd = effectiveZoomRange?.end ?? totalChartPoints - 1;
         const currentSize = currentEnd - currentStart + 1;
-        const minVisiblePoints = Math.min(12, totalChartPoints);
+        const minVisiblePoints = Math.min(120, totalChartPoints);
 
         const nextSize = Math.max(minVisiblePoints, Math.min(totalChartPoints, Math.round(currentSize * zoomFactor)));
 
