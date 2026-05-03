@@ -253,11 +253,14 @@ export const ActiveRoast = () => {
         if (event.deltaY < 0 && currentSize <= minVisiblePoints) return;
         if (event.deltaY > 0 && currentStart === 0 && currentEnd === totalChartPoints - 1) return;
 
+        // uPlot 내부 Y축 너비(36px)와 우측 패딩(12px)을 제외한 실제 데이터 영역 기준으로 비율 계산
         const rect = event.currentTarget.getBoundingClientRect();
-        const pointerRatio = rect.width > 0 ? (event.clientX - rect.left) / rect.width : 0.5;
-        const clampedPointerRatio = Math.max(0, Math.min(1, pointerRatio));
-        const fallbackIndex = currentStart + Math.round((currentSize - 1) * clampedPointerRatio);
-        const focusIndex = Math.max(currentStart, Math.min(currentEnd, hoveredChartIndex ?? fallbackIndex));
+        const Y_AXIS_WIDTH = 36;
+        const RIGHT_PAD = 12;
+        const dataWidth = rect.width - Y_AXIS_WIDTH - RIGHT_PAD;
+        const mouseX = event.clientX - rect.left - Y_AXIS_WIDTH;
+        const pointerRatio = dataWidth > 0 ? Math.max(0, Math.min(1, mouseX / dataWidth)) : 0.5;
+        const focusIndex = Math.round(currentStart + (currentSize - 1) * pointerRatio);
 
         const zoomFactor = event.deltaY < 0 ? 0.8 : 1.25;
         const nextSize = Math.max(minVisiblePoints, Math.min(totalChartPoints, Math.round(currentSize * zoomFactor)));
@@ -267,6 +270,7 @@ export const ActiveRoast = () => {
             return;
         }
 
+        // focusIndex가 줌 전후 동일한 비율 위치에 유지되도록 start 계산
         let nextStart = Math.round(focusIndex - (focusIndex - currentStart) * (nextSize / currentSize));
         let nextEnd = nextStart + nextSize - 1;
 
