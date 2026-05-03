@@ -41,6 +41,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     const [mainChartHeight, setMainChartHeight] = useState(260);
     const elapsedRef = useRef(0);
     const chargedRef = useRef(false);
+    const roastStartTimeRef = useRef(0); // Date.now() at charge — 0.5s 해상도 livePoints용
     const chartAreaRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -85,13 +86,13 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                 setLiveData(data);
                 setSidecarConnected(true);
                 const bt = data.bt;
-                if (chargedRef.current && bt != null) {
-                    const t = elapsedRef.current;
+                if (chargedRef.current && bt != null && roastStartTimeRef.current !== 0) {
+                    const t = (Date.now() - roastStartTimeRef.current) / 1000;
                     setLivePoints((prev) => {
-                        // 같은 초에 중복 포인트 방지 (poll 0.5s, elapsed 1s)
-                        if (prev.length > 0 && prev[prev.length - 1].time === t) return prev;
+                        // 0.4s 미만 간격은 스킵 (네트워크 지연으로 연속 응답 오는 경우 방지)
+                        if (prev.length > 0 && t - prev[prev.length - 1].time < 0.4) return prev;
                         const min = Math.floor(t / 60);
-                        const sec = t % 60;
+                        const sec = Math.floor(t % 60);
                         return [
                             ...prev,
                             {
@@ -134,28 +135,26 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     const displayBT = sidecarConnected && liveData?.bt != null ? liveData.bt : (currentPoint?.bt ?? null);
     const displayET = sidecarConnected && liveData?.et != null ? liveData.et : (currentPoint?.et ?? null);
 
-    // 1초 단위 그리드(0–780 = 781 pts). livePoints를 직접 사용해 초당 업데이트.
-    // target 커브는 fullData(15초 버킷)에서 선형 보간.
+    // 과거(livePoints 직접, 0.5s 해상도) + 미래(fullData target 커브) 합산
     const chartData = useMemo(() => {
-        const liveBySecond = new Map(livePoints.map((p) => [p.time, p]));
         const lastLiveTime = livePoints.length > 0 ? livePoints[livePoints.length - 1].time : -1;
-        return Array.from({ length: 781 }, (_, t) => {
-            const live = liveBySecond.get(t);
-            if (t > lastLiveTime) {
-                // 미래 구간: target 커브 보간
-                const lo = Math.floor(t / 15);
-                const hi = Math.min(lo + 1, fullData.length - 1);
-                const frac = (t % 15) / 15;
-                const btTarget = lo === hi ? fullData[lo].bt : fullData[lo].bt + frac * (fullData[hi].bt - fullData[lo].bt);
-                return { btActual: null as number | null, etActual: null as number | null, rorActual: null as number | null, btTarget };
-            }
-            return {
-                btActual: live?.bt ?? null,
-                etActual: live?.et ?? null,
-                rorActual: live ? Math.max(0, live.ror) : null,
-                btTarget: null as number | null,
-            };
-        });
+        const past = livePoints.map((p) => ({
+            time: p.time,
+            btActual: p.bt,
+            etActual: p.et,
+            rorActual: Math.max(0, p.ror),
+            btTarget: null as number | null,
+        }));
+        const future = fullData
+            .filter((p) => p.time > lastLiveTime)
+            .map((p) => ({
+                time: p.time,
+                btActual: null as number | null,
+                etActual: null as number | null,
+                rorActual: null as number | null,
+                btTarget: p.bt,
+            }));
+        return [...past, ...future];
     }, [livePoints]);
     const totalChartPoints = chartData.length;
     const effectiveZoomRange = zoomRange
@@ -209,10 +208,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     [logEntries]);
 
     // uPlot column arrays — derived from visibleChartData
-    const visibleXs = useMemo(() => {
-        const start = effectiveZoomRange?.start ?? 0;
-        return visibleChartData.map((_, i) => start + i);
-    }, [visibleChartData, effectiveZoomRange]);
+    const visibleXs = useMemo(() => visibleChartData.map((p) => p.time), [visibleChartData]);
     const visibleBtTarget = useMemo(() => visibleChartData.map((p) => p.btTarget), [visibleChartData]);
     const visibleBtActual = useMemo(() => visibleChartData.map((p) => p.btActual), [visibleChartData]);
     const visibleEtActual = useMemo(() => visibleChartData.map((p) => p.etActual), [visibleChartData]);
@@ -362,12 +358,14 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
         if (charged) return;
         // 시뮬레이터 타이머를 투입 시점에 맞춰 리셋 (실제 어댑터는 RoR 윈도우만 초기화)
         sidecar.startRoast().catch(() => {});
+        roastStartTimeRef.current = Date.now();
         setCharged(true);
         setIsRunning(true);
         setLogEntries([{ time: '0:00', event: 'Charge', temp: `${displayBT ?? '—'}°C`, note: 'Roast started' }]);
     };
 
     const resetActiveRoast = () => {
+        roastStartTimeRef.current = 0;
         setElapsed(0);
         setIsRunning(false);
         setCharged(false);
