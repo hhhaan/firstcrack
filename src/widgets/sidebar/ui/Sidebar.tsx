@@ -26,139 +26,50 @@ export const Sidebar = ({
   onToggleCollapse,
   onOpenSettings,
 }: SidebarProps) => {
-  const sidebarWidth = collapsed ? 88 : 240;
-
   return (
     <aside
-      style={{
-        width: sidebarWidth,
-        flexShrink: 0,
-        height: '100vh',
-        background: 'var(--color-main-bg)',
-        borderRight: '1px solid var(--color-border)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        transition: 'width 0.22s ease',
-      }}
+      className="flex-shrink-0 h-screen bg-(--color-main-bg) border-r border-(--color-border) flex flex-col overflow-hidden transition-[width] duration-[220ms] ease-in-out"
+      style={{ width: collapsed ? 88 : 240 }}
     >
-      <div
-        style={{
-          padding: collapsed ? '16px 14px 14px' : '20px 20px 16px',
-          borderBottom: '1px solid var(--color-border-subtle)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'space-between',
-            gap: 10,
-          }}
-        >
+      {/* Header */}
+      <div className={`border-b border-(--color-border-subtle) ${collapsed ? 'px-[14px] pt-4 pb-[14px]' : 'px-5 pt-5 pb-4'}`}>
+        <div className={`flex items-center gap-[10px] ${collapsed ? 'justify-center' : 'justify-between'}`}>
           {!collapsed && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                minWidth: 0,
-              }}
-            >
+            <div className="flex items-center gap-[10px] min-w-0">
               <div>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 300,
-                    fontSize: 16,
-                    lineHeight: 1.2,
-                    color: 'var(--color-primary)',
-                    letterSpacing: '-0.2px',
-                  }}
-                >
+                <div className="font-display font-light text-base leading-[1.2] text-(--color-primary) tracking-[-0.2px]">
                   First Crack
                 </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--color-muted)',
-                    letterSpacing: '0.14px',
-                    fontWeight: 500,
-                  }}
-                >
+                <div className="text-[11px] text-(--color-muted) tracking-[0.14px] font-medium">
                   Roastery Dashboard
                 </div>
               </div>
             </div>
           )}
-
           <button
             onClick={onToggleCollapse}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              border: 'none',
-              background: 'var(--color-surface)',
-              color: 'var(--color-muted)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              flexShrink: 0,
-              boxShadow: 'var(--shadow-inset)',
-            }}
+            className="w-8 h-8 rounded-lg border-none bg-(--color-surface) text-(--color-muted) flex items-center justify-center cursor-pointer flex-shrink-0 shadow-(--shadow-inset)"
           >
             <Menu size={15} strokeWidth={1.9} />
           </button>
         </div>
       </div>
 
-      <div style={{ padding: collapsed ? '12px 10px 8px' : '12px 12px 8px' }}>
+      {/* Workspace selector */}
+      <div className={collapsed ? 'px-[10px] pt-3 pb-2' : 'px-3 pt-3 pb-2'}>
         <button
           aria-label="Workspace selector"
           title={collapsed ? 'Workspace' : undefined}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'space-between',
-            padding: '8px 10px',
-            borderRadius: 8,
-            border: 'none',
-            background: 'var(--color-surface)',
-            cursor: 'pointer',
-            boxShadow: 'var(--shadow-inset)',
-          }}
+          className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-[10px] py-2 rounded-lg border-none bg-(--color-surface) cursor-pointer shadow-(--shadow-inset)`}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 5,
-                background: 'var(--color-surface-warm-solid)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 11,
-                fontWeight: 600,
-                color: 'var(--color-secondary)',
-              }}
-            >
+          <div className="flex items-center gap-2">
+            <div className="w-[22px] h-[22px] rounded-[5px] bg-(--color-surface-warm-solid) flex items-center justify-center text-[11px] font-semibold text-(--color-secondary)">
               B
             </div>
             {!collapsed && (
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: 'var(--color-primary)',
-                  letterSpacing: '0.14px',
-                }}
-              >
+              <span className="text-[13px] font-medium text-(--color-primary) tracking-[0.14px]">
                 Brewlab Works
               </span>
             )}
@@ -167,19 +78,11 @@ export const Sidebar = ({
         </button>
       </div>
 
-      <nav style={{ flex: 1, padding: collapsed ? '4px 10px' : '4px 12px', overflowY: 'auto' }}>
-        <div style={{ marginBottom: 4 }}>
+      {/* Nav */}
+      <nav className={`flex-1 overflow-y-auto ${collapsed ? 'px-[10px] py-1' : 'px-3 py-1'}`}>
+        <div className="mb-1">
           {!collapsed && (
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 500,
-                color: 'var(--color-muted)',
-                letterSpacing: '0.7px',
-                textTransform: 'uppercase',
-                padding: '8px 10px 4px',
-              }}
-            >
+            <div className="text-[11px] font-medium text-(--color-muted) tracking-[0.7px] uppercase px-[10px] pt-2 pb-1">
               Workspace
             </div>
           )}
@@ -192,21 +95,7 @@ export const Sidebar = ({
                 onClick={() => onNavigate(id)}
                 aria-label={label}
                 title={collapsed ? label : undefined}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: collapsed ? 'center' : 'flex-start',
-                  gap: 10,
-                  padding: '8px 10px',
-                  borderRadius: 8,
-                  border: 'none',
-                  cursor: 'pointer',
-                  marginBottom: 2,
-                  background: isActive ? 'var(--color-surface)' : 'transparent',
-                  boxShadow: isActive ? 'var(--shadow-inset)' : 'none',
-                  transition: 'background 0.15s',
-                }}
+                className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-start'} gap-[10px] px-[10px] py-2 rounded-lg border-none cursor-pointer mb-0.5 transition-[background] duration-150 ${isActive ? 'bg-(--color-surface) shadow-(--shadow-inset)' : 'bg-transparent'}`}
               >
                 <Icon
                   size={16}
@@ -215,12 +104,8 @@ export const Sidebar = ({
                 />
                 {!collapsed && (
                   <span
-                    style={{
-                      fontSize: 14,
-                      fontWeight: isActive ? 500 : 400,
-                      color: isRoast && isActive ? '#22c55e' : isActive ? 'var(--color-primary)' : 'var(--color-secondary)',
-                      letterSpacing: '0.14px',
-                    }}
+                    className={`text-[14px] tracking-[0.14px] ${isActive ? 'font-medium' : 'font-normal'}`}
+                    style={{ color: isRoast && isActive ? '#22c55e' : isActive ? 'var(--color-primary)' : 'var(--color-secondary)' }}
                   >
                     {label}
                   </span>
@@ -231,71 +116,24 @@ export const Sidebar = ({
         </div>
       </nav>
 
-      <div
-        style={{
-          padding: '12px',
-          borderTop: '1px solid var(--color-border-subtle)',
-        }}
-      >
+      {/* Footer */}
+      <div className="p-3 border-t border-(--color-border-subtle)">
         <button
           onClick={onOpenSettings}
           aria-label="Open settings"
           title={collapsed ? 'Settings' : undefined}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            gap: 10,
-            padding: '8px 10px',
-            borderRadius: 8,
-            border: 'none',
-            background: 'var(--color-surface)',
-            cursor: 'pointer',
-            boxShadow: 'var(--shadow-inset)',
-          }}
+          className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-start'} gap-[10px] px-[10px] py-2 rounded-lg border-none bg-(--color-surface) cursor-pointer shadow-(--shadow-inset)`}
         >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              background: 'var(--color-surface-warm-solid)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 11,
-              fontWeight: 600,
-              color: 'var(--color-secondary)',
-              flexShrink: 0,
-              boxShadow: 'var(--shadow-inset)',
-            }}
-          >
+          <div className="w-7 h-7 rounded-full bg-(--color-surface-warm-solid) flex items-center justify-center text-[11px] font-semibold text-(--color-secondary) flex-shrink-0 shadow-(--shadow-inset)">
             H
           </div>
           {!collapsed && (
             <>
-              <div style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: 'var(--color-primary)',
-                    letterSpacing: '0.14px',
-                  }}
-                >
+              <div className="text-left flex-1 min-w-0">
+                <div className="text-[13px] font-medium text-(--color-primary) tracking-[0.14px]">
                   Settings
                 </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--color-muted)',
-                    letterSpacing: '0.14px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
+                <div className="text-[11px] text-(--color-muted) tracking-[0.14px] overflow-hidden text-ellipsis whitespace-nowrap">
                   Workspace preferences
                 </div>
               </div>
