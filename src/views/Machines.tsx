@@ -13,18 +13,15 @@ export const Machines = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // 사이드카 연결 상태
   const [sidecarStatus, setSidecarStatus] = useState<SidecarStatus | null>(null);
   const [temps, setTemps] = useState<TemperatureReading | null>(null);
   const [connecting, setConnecting] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 초기 상태 조회
   useEffect(() => {
     sidecar.getStatus().then(setSidecarStatus).catch(() => null);
   }, []);
 
-  // 연결 상태 변화 시 폴링 시작/중지
   useEffect(() => {
     if (pollRef.current) clearInterval(pollRef.current);
     if (!sidecarStatus?.connected) { setTemps(null); return; }
@@ -49,11 +46,7 @@ export const Machines = () => {
   const isThisMachineConnected = (m: Machine) =>
     sidecarStatus?.connected && sidecarStatus.roaster === m.roasterKey;
 
-  const handleAdd = (
-    roasterKey: string,
-    def: RoasterDef,
-    params: Record<string, unknown>,
-  ) => {
+  const handleAdd = (roasterKey: string, def: RoasterDef, params: Record<string, unknown>) => {
     addMachine({
       name: def.display_name,
       roasterKey,
@@ -88,7 +81,7 @@ export const Machines = () => {
   const connectedMachine = machines.find(m => sidecarStatus?.connected && sidecarStatus.roaster === m.roasterKey);
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 1100, margin: '0 auto' }}>
+    <div className="px-10 py-8 max-w-[1100px] mx-auto">
       <AddMachineModal
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -96,16 +89,12 @@ export const Machines = () => {
       />
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28 }}>
+      <div className="flex items-end justify-between mb-7">
         <div>
-          <h1 style={{
-            fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 32,
-            lineHeight: 1.13, color: 'var(--color-primary)',
-            letterSpacing: '-0.4px', marginBottom: 4,
-          }}>
+          <h1 className="font-display font-light text-[32px] leading-[1.13] text-(--color-primary) tracking-[-0.4px] mb-1">
             Machine Inventory
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
+          <p className="text-sm text-(--color-muted) tracking-[0.14px]">
             {machines.length} registered
             {sidecarStatus?.connected && connectedMachine
               ? ` · ${connectedMachine.name} connected`
@@ -114,13 +103,7 @@ export const Machines = () => {
         </div>
         <button
           onClick={() => setIsAddModalOpen(true)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '10px 18px', borderRadius: 9999, border: 'none',
-            background: 'var(--color-primary)', color: 'white',
-            fontSize: 14, fontWeight: 500, cursor: 'pointer',
-            boxShadow: 'var(--shadow-card)', letterSpacing: '0.14px',
-          }}
+          className="flex items-center gap-2 px-[18px] py-[10px] rounded-full border-none bg-(--color-primary) text-white text-sm font-medium cursor-pointer shadow-(--shadow-card) tracking-[0.14px]"
         >
           <Plus size={15} strokeWidth={2.5} />
           Add Machine
@@ -128,49 +111,34 @@ export const Machines = () => {
       </div>
 
       {machines.length === 0 ? (
-        <div style={{
-          background: 'var(--color-main-bg)', borderRadius: 16, padding: '64px 32px',
-          boxShadow: 'var(--shadow-ring)', textAlign: 'center',
-        }}>
-          <Cpu size={32} strokeWidth={1.2} color="var(--color-muted)" style={{ marginBottom: 16 }} />
-          <p style={{ fontSize: 15, color: 'var(--color-muted)', marginBottom: 20 }}>
+        <div className="bg-(--color-main-bg) rounded-2xl py-16 px-8 shadow-(--shadow-ring) text-center">
+          <Cpu size={32} strokeWidth={1.2} color="var(--color-muted)" className="mb-4 mx-auto" />
+          <p className="text-[15px] text-(--color-muted) mb-5">
             No machines registered yet
           </p>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            style={{
-              padding: '10px 20px', borderRadius: 10, border: 'none',
-              background: 'var(--color-primary)', color: 'white',
-              fontSize: 13, fontWeight: 500, cursor: 'pointer',
-            }}
+            className="px-5 py-[10px] rounded-[10px] border-none bg-(--color-primary) text-white text-[13px] font-medium cursor-pointer"
           >
             Add your first machine
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20 }}>
+        <div className="grid gap-5" style={{ gridTemplateColumns: '300px 1fr' }}>
 
           {/* List */}
           <div>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: 'var(--color-main-bg)', borderRadius: 10,
-              padding: '9px 12px', marginBottom: 10, boxShadow: 'var(--shadow-ring)',
-            }}>
+            <div className="flex items-center gap-2 bg-(--color-main-bg) rounded-[10px] px-3 py-[9px] mb-[10px] shadow-(--shadow-ring)">
               <Search size={14} strokeWidth={2} color="var(--color-muted)" />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search machines..."
-                style={{
-                  border: 'none', background: 'transparent', outline: 'none',
-                  fontSize: 13, color: 'var(--color-primary)',
-                  fontFamily: 'var(--font-body)', width: '100%', letterSpacing: '0.14px',
-                }}
+                className="border-none bg-transparent outline-none text-[13px] text-(--color-primary) font-body w-full tracking-[0.14px]"
               />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {filtered.map(machine => {
                 const isConnected = isThisMachineConnected(machine);
                 const isSelected = selectedId === machine.id;
@@ -178,40 +146,26 @@ export const Machines = () => {
                   <div
                     key={machine.id}
                     onClick={() => setSelectedId(machine.id)}
-                    style={{
-                      background: 'var(--color-main-bg)', borderRadius: 14,
-                      padding: '14px 16px', cursor: 'pointer',
-                      boxShadow: isSelected
-                        ? 'rgba(0,0,0,0.4) 0px 0px 1px, rgba(0,0,0,0.06) 0px 2px 8px'
-                        : 'var(--shadow-ring)',
-                      border: isSelected ? '1px solid rgba(0,0,0,0.08)' : '1px solid transparent',
-                      transition: 'all 0.15s',
-                    }}
+                    className={`bg-(--color-main-bg) rounded-[14px] px-4 py-[14px] cursor-pointer transition-all duration-150 ${isSelected ? 'border border-black/8 shadow-[rgba(0,0,0,0.4)_0px_0px_1px,rgba(0,0,0,0.06)_0px_2px_8px]' : 'border border-transparent shadow-(--shadow-ring)'}`}
                   >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div className="flex items-start justify-between mb-2">
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-primary)', marginBottom: 2 }}>
+                        <div className="text-[13px] font-medium text-(--color-primary) mb-0.5">
                           {machine.name}
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--color-muted)' }}>
+                        <div className="text-[12px] text-(--color-muted)">
                           {machine.displayName}
                         </div>
                       </div>
-                      <span style={{
-                        fontSize: 10, fontWeight: 600,
-                        color: isConnected ? '#16a34a' : '#64748b',
-                        background: isConnected ? 'rgba(220,252,231,0.8)' : 'rgba(241,245,249,0.8)',
-                        padding: '2px 7px', borderRadius: 9999,
-                        textTransform: 'uppercase', letterSpacing: '0.4px', flexShrink: 0,
-                      }}>
+                      <span className={`text-[10px] font-semibold px-[7px] py-0.5 rounded-full uppercase tracking-[0.4px] flex-shrink-0 ${isConnected ? 'text-[#16a34a] bg-[rgba(220,252,231,0.8)]' : 'text-[#64748b] bg-[rgba(241,245,249,0.8)]'}`}>
                         {isConnected ? 'Live' : 'Offline'}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <span style={{ fontSize: 11, color: 'var(--color-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <div className="flex gap-[10px]">
+                      <span className="text-[11px] text-(--color-muted) flex items-center gap-[3px]">
                         <Activity size={11} /> {machine.protocol.toUpperCase()}
                       </span>
-                      <span style={{ fontSize: 11, color: 'var(--color-muted)' }}>
+                      <span className="text-[11px] text-(--color-muted)">
                         {machine.brand}
                       </span>
                     </div>
@@ -223,40 +177,24 @@ export const Machines = () => {
 
           {/* Detail */}
           {selected ? (
-            <div style={{
-              background: 'var(--color-main-bg)', borderRadius: 16,
-              padding: '28px 32px', boxShadow: 'var(--shadow-ring)', height: 'fit-content',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div className="bg-(--color-main-bg) rounded-2xl px-8 py-7 shadow-(--shadow-ring) h-fit">
+              <div className="flex items-start justify-between mb-6">
                 <div>
-                  <h2 style={{
-                    fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 26,
-                    lineHeight: 1.2, color: 'var(--color-primary)',
-                    letterSpacing: '-0.3px', marginBottom: 8,
-                  }}>
+                  <h2 className="font-display font-light text-[26px] leading-[1.2] text-(--color-primary) tracking-[-0.3px] mb-2">
                     {selected.name}
                   </h2>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <div className="flex gap-[6px] flex-wrap">
                     {[selected.brand, selected.protocol.toUpperCase(), ...selected.capabilities].map(tag => (
-                      <span key={tag} style={{
-                        fontSize: 11, fontWeight: 600, color: 'var(--color-secondary)',
-                        background: 'var(--color-surface)', padding: '3px 9px',
-                        borderRadius: 9999, boxShadow: 'var(--shadow-inset)',
-                      }}>
+                      <span key={tag} className="text-[11px] font-semibold text-(--color-secondary) bg-(--color-surface) px-[9px] py-[3px] rounded-full shadow-(--shadow-inset)">
                         {tag}
                       </span>
                     ))}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="flex gap-2">
                   <button
                     onClick={() => removeMachine(selected.id)}
-                    style={{
-                      width: 36, height: 36, borderRadius: 10, border: 'none',
-                      background: 'var(--color-surface)', color: 'var(--color-muted)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', boxShadow: 'var(--shadow-inset)',
-                    }}
+                    className="w-9 h-9 rounded-[10px] border-none bg-(--color-surface) text-(--color-muted) flex items-center justify-center cursor-pointer shadow-(--shadow-inset)"
                     title="Remove machine"
                   >
                     <Trash2 size={15} strokeWidth={2} />
@@ -264,35 +202,27 @@ export const Machines = () => {
                 </div>
               </div>
 
-              {/* 온도 카드 (연결 시) */}
+              {/* Temperature cards (when connected) */}
               {isThisMachineConnected(selected) && temps ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+                <div className="grid grid-cols-3 gap-[14px] mb-6">
                   {[
                     { label: 'Bean Temp', value: temps.bt != null ? `${temps.bt}°C` : '—', sub: 'BT' },
                     { label: 'Env Temp', value: temps.et != null ? `${temps.et}°C` : '—', sub: 'ET' },
                     { label: 'RoR', value: `${temps.ror} °C/min`, sub: 'Rate of Rise' },
                   ].map(s => (
-                    <div key={s.label} style={{
-                      background: 'var(--color-surface)', padding: '14px 16px',
-                      borderRadius: 12, boxShadow: 'var(--shadow-inset)',
-                    }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>{s.label}</div>
-                      <div style={{ fontSize: 22, fontWeight: 300, color: 'var(--color-primary)', letterSpacing: '-0.3px' }}>{s.value}</div>
-                      <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>{s.sub}</div>
+                    <div key={s.label} className="bg-(--color-surface) px-4 py-[14px] rounded-[12px] shadow-(--shadow-inset)">
+                      <div className="text-[10px] font-semibold text-(--color-muted) uppercase tracking-[0.5px] mb-[6px]">{s.label}</div>
+                      <div className="text-[22px] font-light text-(--color-primary) tracking-[-0.3px]">{s.value}</div>
+                      <div className="text-[11px] text-(--color-muted) mt-0.5">{s.sub}</div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div style={{
-                  background: 'var(--color-surface)', borderRadius: 12,
-                  padding: '20px 16px', marginBottom: 24,
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  boxShadow: 'var(--shadow-inset)',
-                }}>
+                <div className="bg-(--color-surface) rounded-[12px] px-4 py-5 mb-6 flex items-center gap-3 shadow-(--shadow-inset)">
                   {isThisMachineConnected(selected)
                     ? <Wifi size={18} color="#16a34a" />
                     : <WifiOff size={18} color="var(--color-muted)" />}
-                  <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
+                  <span className="text-[13px] text-(--color-muted)">
                     {isThisMachineConnected(selected)
                       ? 'Connected — waiting for data...'
                       : 'Not connected. Press Connect to start.'}
@@ -300,55 +230,37 @@ export const Machines = () => {
                 </div>
               )}
 
-              {/* 연결 파라미터 요약 */}
+              {/* Connection params */}
               {Object.keys(selected.connectionParams).length > 0 && (
-                <div style={{
-                  background: 'var(--color-surface-warm-solid)', borderRadius: 12,
-                  padding: '16px 18px', marginBottom: 24,
-                  boxShadow: 'var(--shadow-warm)',
-                }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-secondary)', marginBottom: 10 }}>
+                <div className="bg-(--color-surface-warm-solid) rounded-[12px] px-[18px] py-4 mb-6 shadow-(--shadow-warm)">
+                  <div className="text-[12px] font-semibold text-(--color-secondary) mb-[10px]">
                     Connection
                   </div>
-                  <div style={{ display: 'grid', gap: 6 }}>
+                  <div className="grid gap-[6px]">
                     {Object.entries(selected.connectionParams).filter(([, v]) => v !== '' && v != null).map(([k, v]) => (
-                      <div key={k} style={{
-                        display: 'flex', justifyContent: 'space-between', gap: 12,
-                        padding: '7px 10px', borderRadius: 10,
-                        background: 'rgba(255,255,255,0.82)', boxShadow: 'var(--shadow-inset)',
-                      }}>
-                        <span style={{ fontSize: 11, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k}</span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-primary)' }}>{String(v)}</span>
+                      <div key={k} className="flex justify-between gap-3 px-[10px] py-[7px] rounded-[10px] bg-white/82 shadow-(--shadow-inset)">
+                        <span className="text-[11px] text-(--color-muted) uppercase tracking-[0.05em]">{k}</span>
+                        <span className="text-[12px] font-semibold text-(--color-primary)">{String(v)}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* 에러 */}
+              {/* Error */}
               {sidecarStatus?.error && isThisMachineConnected(selected) && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  background: 'rgba(192,57,43,0.07)', borderRadius: 10,
-                  padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#c0392b',
-                }}>
+                <div className="flex items-center gap-2 bg-[rgba(192,57,43,0.07)] rounded-[10px] px-[14px] py-[10px] mb-4 text-[12px] text-[#c0392b]">
                   <AlertCircle size={14} />
                   {sidecarStatus.error}
                 </div>
               )}
 
               {/* Connect / Disconnect */}
-              <div style={{ display: 'flex', gap: 10 }}>
+              <div className="flex gap-[10px]">
                 {isThisMachineConnected(selected) ? (
                   <button
                     onClick={handleDisconnect}
-                    style={{
-                      flex: 1, padding: '12px 0', borderRadius: 12, border: 'none',
-                      background: 'var(--color-surface)', color: 'var(--color-secondary)',
-                      fontSize: 14, fontWeight: 500, cursor: 'pointer',
-                      boxShadow: 'var(--shadow-inset)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    }}
+                    className="flex-1 py-3 rounded-[12px] border-none bg-(--color-surface) text-(--color-secondary) text-sm font-medium cursor-pointer shadow-(--shadow-inset) flex items-center justify-center gap-2"
                   >
                     <WifiOff size={15} strokeWidth={2} />
                     Disconnect
@@ -357,13 +269,7 @@ export const Machines = () => {
                   <button
                     onClick={() => handleConnect(selected)}
                     disabled={connecting}
-                    style={{
-                      flex: 1, padding: '12px 0', borderRadius: 12, border: 'none',
-                      background: 'var(--color-primary)', color: 'white',
-                      fontSize: 14, fontWeight: 500, cursor: connecting ? 'default' : 'pointer',
-                      boxShadow: 'var(--shadow-card)', opacity: connecting ? 0.7 : 1,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    }}
+                    className={`flex-1 py-3 rounded-[12px] border-none bg-(--color-primary) text-white text-sm font-medium flex items-center justify-center gap-2 shadow-(--shadow-card) ${connecting ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
                   >
                     {connecting
                       ? <><Activity size={15} /> Connecting...</>
@@ -372,24 +278,16 @@ export const Machines = () => {
                 )}
               </div>
 
-              {/* 연결 상태 뱃지 */}
+              {/* Uptime badge */}
               {isThisMachineConnected(selected) && (
-                <div style={{
-                  marginTop: 12, display: 'flex', alignItems: 'center', gap: 6,
-                  fontSize: 12, color: '#16a34a',
-                }}>
+                <div className="mt-3 flex items-center gap-[6px] text-[12px] text-[#16a34a]">
                   <CheckCircle2 size={13} />
                   Uptime {sidecarStatus?.uptime}s
                 </div>
               )}
             </div>
           ) : (
-            <div style={{
-              background: 'var(--color-main-bg)', borderRadius: 16,
-              padding: '60px 32px', boxShadow: 'var(--shadow-ring)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--color-muted)', fontSize: 14,
-            }}>
+            <div className="bg-(--color-main-bg) rounded-2xl py-[60px] px-8 shadow-(--shadow-ring) flex items-center justify-center text-(--color-muted) text-sm">
               Select a machine
             </div>
           )}
