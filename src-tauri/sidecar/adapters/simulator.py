@@ -55,6 +55,10 @@ class SimulatorAdapter:
         et, bt = self._sim.read(tx)
         return Reading(bt=bt, et=et, heater=0.0, fan=0.0, timestamp=time.monotonic())
 
+    async def start_roast(self) -> None:
+        """Charge 버튼과 동기화 — 프로파일 재생을 UI 투입 시점부터 시작."""
+        self._start_time = time.monotonic()
+
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
         pass
 

@@ -37,6 +37,10 @@ export const sidecar = {
   getTemperatures: () =>
     request<TemperatureReading>('/temperatures'),
 
+  // Charge 버튼과 연동 — 시뮬레이터 타이머 리셋 + RoR 윈도우 초기화
+  startRoast: () =>
+    request<{ ok: boolean }>('/start', { method: 'POST' }),
+
   control: (params: { heater?: number; fan?: number; drum?: number }) =>
     request<{ ok: boolean }>('/control', {
       method: 'POST',

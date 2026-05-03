@@ -9,6 +9,7 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
   POST /connect       → {"roaster": "easyster", "host": "...", ...}
   POST /disconnect
   GET  /temperatures  → {"bt", "et", "ror", "heater", "fan", "timestamp"}
+  POST /start         → Charge 버튼 연동: 시뮬레이터 타이머 리셋 + RoR 윈도우 초기화
   POST /control       → {"heater"?, "fan"?, "drum"?}
 
 어댑터 추가 방법:
@@ -86,6 +87,12 @@ async def handle_temperatures(request: web.Request) -> web.Response:
     return web.json_response(data)
 
 
+async def handle_start(request: web.Request) -> web.Response:
+    manager: RoasterManager = request.app["manager"]
+    await manager.start_roast()
+    return web.json_response({"ok": True})
+
+
 async def handle_control(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
     try:
@@ -132,6 +139,7 @@ def create_app() -> web.Application:
     app.router.add_post("/connect",     handle_connect)
     app.router.add_post("/disconnect",  handle_disconnect)
     app.router.add_get("/temperatures", handle_temperatures)
+    app.router.add_post("/start",        handle_start)
     app.router.add_post("/control",     handle_control)
     app.router.add_route("OPTIONS", "/{path_info:.*}", lambda r: web.Response())
     return app

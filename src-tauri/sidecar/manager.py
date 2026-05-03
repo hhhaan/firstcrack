@@ -84,6 +84,13 @@ class RoasterManager:
             "timestamp": reading.timestamp,
         }
 
+    async def start_roast(self) -> None:
+        """UI의 Charge 버튼과 연동. 어댑터가 지원하면 타이머를 리셋하고, RoR 윈도우를 초기화."""
+        async with self._lock:
+            self._ror_window.clear()
+            if self._adapter is not None and hasattr(self._adapter, "start_roast"):
+                await self._adapter.start_roast()
+
     async def send_control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
         if self._connected and self._adapter is not None:
             await self._adapter.control(heater=heater, fan=fan, drum=drum)

@@ -370,6 +370,8 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
 
     const handleCharge = () => {
         if (charged) return;
+        // 시뮬레이터 타이머를 투입 시점에 맞춰 리셋 (실제 어댑터는 RoR 윈도우만 초기화)
+        sidecar.startRoast().catch(() => {});
         setCharged(true);
         setIsRunning(true);
         setLogEntries([{ time: '0:00', event: 'Charge', temp: `${displayBT ?? '—'}°C`, note: 'Roast started' }]);
