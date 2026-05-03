@@ -1,5 +1,5 @@
 import { Square } from 'lucide-react';
-import ModalShell from '../../../../shared/ui/modal-shell/ModalShell';
+import { ModalShell } from '../../../../shared/ui/modal-shell/ModalShell';
 
 interface EndRoastModalProps {
   open: boolean;
@@ -8,7 +8,7 @@ interface EndRoastModalProps {
   onConfirm: () => void;
 }
 
-export default function EndRoastModal({ open, timeStr, onClose, onConfirm }: EndRoastModalProps) {
+export const EndRoastModal = ({ open, timeStr, onClose, onConfirm }: EndRoastModalProps) => {
   if (!open) {
     return null;
   }
@@ -98,4 +98,4 @@ export default function EndRoastModal({ open, timeStr, onClose, onConfirm }: End
       </div>
     </ModalShell>
   );
-}
+};

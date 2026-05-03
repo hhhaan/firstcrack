@@ -16,14 +16,14 @@
     font-weight: 300;
     font-size: 32px;
     line-height: 1.13;
-    color: var(--text-primary);
+    color: var(--color-primary);
     letter-spacing: -0.4px;
     margin-bottom: 4px;
 }
 
 .history-subtitle {
     font-size: 14px;
-    color: var(--text-muted);
+    color: var(--color-muted);
     letter-spacing: 0.14px;
 }
 
@@ -34,8 +34,8 @@
     padding: 9px 16px;
     border-radius: 9999px;
     border: none;
-    background: var(--bg);
-    color: var(--text-secondary);
+    background: var(--color-main-bg);
+    color: var(--color-secondary);
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
@@ -44,7 +44,7 @@
 }
 
 .filters {
-    background: var(--bg);
+    background: var(--color-main-bg);
     border-radius: 16px;
     padding: 16px 20px;
     box-shadow: var(--shadow-ring);
@@ -59,7 +59,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    background: var(--bg-secondary);
+    background: var(--color-surface);
     border-radius: 8px;
     padding: 8px 12px;
     box-shadow: var(--shadow-inset);
@@ -70,7 +70,7 @@
     background: transparent;
     outline: none;
     font-size: 13px;
-    color: var(--text-primary);
+    color: var(--color-primary);
     font-family: var(--font-body);
     width: 100%;
     letter-spacing: 0.14px;
@@ -83,8 +83,8 @@
     padding: 8px 12px;
     border-radius: 8px;
     border: none;
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
+    background: var(--color-surface);
+    color: var(--color-secondary);
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
@@ -94,7 +94,7 @@
 }
 
 .table-container {
-    background: var(--bg);
+    background: var(--color-main-bg);
     border-radius: 16px;
     box-shadow: var(--shadow-ring);
     overflow-x: auto;
@@ -112,7 +112,7 @@
     text-align: left;
     font-size: 11px;
     font-weight: 500;
-    color: var(--text-muted);
+    color: var(--color-muted);
     letter-spacing: 0.5px;
     text-transform: uppercase;
     user-select: none;
@@ -138,23 +138,23 @@
 }
 
 .td-date {
-    color: var(--text-muted);
+    color: var(--color-muted);
     font-family: var(--font-mono);
 }
 
 .td-bean {
     font-weight: 500;
-    color: var(--text-primary);
+    color: var(--color-primary);
     letter-spacing: 0.14px;
 }
 
 .td-secondary {
-    color: var(--text-secondary);
+    color: var(--color-secondary);
     letter-spacing: 0.14px;
 }
 
 .td-mono {
-    color: var(--text-secondary);
+    color: var(--color-secondary);
     font-family: var(--font-mono);
 }
 
@@ -168,7 +168,7 @@
 }
 
 .table-row {
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--color-border-subtle);
     cursor: pointer;
     transition: background 0.1s;
 }
@@ -178,7 +178,7 @@
 }
 
 .detail-row {
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--color-border-subtle);
     background: rgba(245, 242, 239, 0.3);
 }
 
@@ -199,7 +199,7 @@
 
 .detail-label {
     font-size: 11px;
-    color: var(--text-muted);
+    color: var(--color-muted);
     font-weight: 500;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -209,14 +209,14 @@
 .detail-value {
     font-size: 13px;
     font-weight: 500;
-    color: var(--text-primary);
+    color: var(--color-primary);
     font-family: var(--font-mono);
     letter-spacing: 0.14px;
 }
 
 .detail-notes {
     font-size: 13px;
-    color: var(--text-secondary);
+    color: var(--color-secondary);
     letter-spacing: 0.14px;
     line-height: 1.5;
 }
@@ -226,12 +226,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-top: 1px solid var(--border-subtle);
+    border-top: 1px solid var(--color-border-subtle);
 }
 
 .footer-text {
     font-size: 12px;
-    color: var(--text-muted);
+    color: var(--color-muted);
     letter-spacing: 0.14px;
 }
 
@@ -245,8 +245,8 @@
     height: 28px;
     border-radius: 6px;
     border: none;
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
+    background: var(--color-surface);
+    color: var(--color-secondary);
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
@@ -254,7 +254,7 @@
 }
 
 .page-btn-active {
-    background: var(--text-primary);
+    background: var(--color-primary);
     color: white;
     box-shadow: none;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { PackagePlus, X, Info, Scale, MapPin, Tag, Search, Check, Edit3 } from 'lucide-react';
-import ModalShell from '../../../shared/ui/modal-shell/ModalShell';
+import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
 
 interface Bean {
   id: number;
@@ -25,14 +25,14 @@ interface AddBeanModalProps {
   initialData?: Bean | null;
 }
 
-export default function AddBeanModal({ 
+export const AddBeanModal = ({
   open, 
   onClose, 
   existingBeans,
   initialTab = 'new',
   initialBeanId = null,
   initialData = null
-}: AddBeanModalProps) {
+}: AddBeanModalProps) => {
   const [tab, setTab] = useState<'new' | 'restock' | 'edit'>(initialTab);
   const [selectedBeanId, setSelectedBeanId] = useState<number | null>(initialBeanId);
   const [restockAmount, setRestockAmount] = useState('');
@@ -444,4 +444,4 @@ export default function AddBeanModal({
       </div>
     </ModalShell>
   );
-}
+};

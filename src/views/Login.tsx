@@ -23,7 +23,7 @@ const testimonials = [
     },
 ];
 
-export default function Login({ onLogin }: LoginProps) {
+export const Login = ({ onLogin }: LoginProps) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -570,9 +570,9 @@ export default function Login({ onLogin }: LoginProps) {
             </div>
         </div>
     );
-}
+};
 
-function LoadingSpinner() {
+export const LoadingSpinner = () => {
     return (
         <svg
             width="14"
@@ -588,4 +588,4 @@ function LoadingSpinner() {
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />
         </svg>
     );
-}
+};

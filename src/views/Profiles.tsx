@@ -86,7 +86,7 @@ const profiles = [
   },
 ];
 
-export default function Profiles() {
+export const Profiles = () => {
   const [selectedId, setSelectedId] = useState<number>(1);
   const selected = profiles.find(p => p.id === selectedId)!;
   const curveData = generateProfileCurve(selected.dropVal, selected.durationSec);
@@ -389,4 +389,4 @@ export default function Profiles() {
       </div>
     </div>
   );
-}
+};

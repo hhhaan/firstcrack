@@ -1,4 +1,4 @@
-import ModalShell from '../../../../shared/ui/modal-shell/ModalShell';
+import { ModalShell } from '../../../../shared/ui/modal-shell/ModalShell';
 
 export interface RoastLogEntry {
   time: string;
@@ -23,14 +23,14 @@ interface RoastSummaryModalProps {
   onClose: () => void;
 }
 
-export default function RoastSummaryModal({
+export const RoastSummaryModal = ({
   open,
   summaryData,
   roastNotes,
   eventMarkerColor,
   onRoastNotesChange,
   onClose,
-}: RoastSummaryModalProps) {
+}: RoastSummaryModalProps) => {
   if (!open || !summaryData) {
     return null;
   }
@@ -135,4 +135,4 @@ export default function RoastSummaryModal({
       </button>
     </ModalShell>
   );
-}
+};

@@ -1,5 +1,10 @@
 @import 'tailwindcss';
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 @theme {
     --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
     --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;

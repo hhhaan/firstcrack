@@ -1,4 +1,18 @@
 
+## Component Design Rules
+
+- All components and functions must be declared as `export const` arrow functions.
+- Use Tailwind CSS classes for styling. Do not use separate CSS files or inline style attributes.
+  ```tsx
+  // Correct
+  export const MyComponent = () => { ... }
+  export const myFunction = () => { ... }
+
+  // Do not use
+  export default function MyComponent() { ... }
+  function myFunction() { ... }
+  ```
+
 ## Skill routing
 
 When the user's request matches an available skill, ALWAYS invoke it using the Skill
@@ -18,3 +32,17 @@ Key routing rules:
 - Architecture review → invoke plan-eng-review
 - Save progress, checkpoint, resume → invoke checkpoint
 - Code quality, health check → invoke health
+
+## Karpathy Coding Guidelines
+
+These apply automatically whenever writing, editing, or reviewing code:
+
+**1. Think Before Coding** — State assumptions explicitly. If multiple interpretations exist, present them. If something is unclear, ask before implementing.
+
+**2. Simplicity First** — Minimum code that solves the problem. No speculative features, no abstractions for single-use code, no unnecessary configurability.
+
+**3. Surgical Changes** — Touch only what the request requires. Don't "improve" adjacent code. Match existing style. Remove only imports/variables made unused by YOUR changes.
+
+**4. Goal-Driven Execution** — Define verifiable success criteria before starting. For multi-step tasks, state a brief plan with verification steps.
+
+> Full skill: invoke `andrej-karpathy-skills:karpathy-guidelines`

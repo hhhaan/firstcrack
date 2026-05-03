@@ -19,13 +19,13 @@ const navItems: { id: View; label: string; icon: FC<{ size?: number; strokeWidth
   { id: 'machines', label: 'Machines', icon: Cpu },
 ];
 
-export default function Sidebar({
+export const Sidebar = ({
   activeView,
   onNavigate,
   collapsed,
   onToggleCollapse,
   onOpenSettings,
-}: SidebarProps) {
+}: SidebarProps) => {
   const sidebarWidth = collapsed ? 88 : 240;
 
   return (
@@ -307,4 +307,4 @@ export default function Sidebar({
       </div>
     </aside>
   );
-}
+};

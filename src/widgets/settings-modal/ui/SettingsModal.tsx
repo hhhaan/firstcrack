@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Bell, Database, Gauge, LayoutDashboard, PlayCircle, Shield, X } from 'lucide-react';
-import ModalShell from '../../../shared/ui/modal-shell/ModalShell';
+import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
 
 interface SettingsModalProps {
   open: boolean;
@@ -115,7 +115,7 @@ const tabButtonStyle = (active: boolean): CSSProperties => ({
   transition: 'all 0.18s ease',
 });
 
-export default function SettingsModal({ open, onClose }: SettingsModalProps) {
+export const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
   const [activeTab, setActiveTab] = useState<SettingsTabId>('general');
 
   useEffect(() => {
@@ -395,4 +395,4 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
       </div>
     </ModalShell>
   );
-}
+};

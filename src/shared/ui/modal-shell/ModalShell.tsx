@@ -8,13 +8,13 @@ interface ModalShellProps {
   contentStyle?: CSSProperties;
 }
 
-export default function ModalShell({
+export const ModalShell = ({
   children,
   onClose,
   labelledBy,
   overlayStyle,
   contentStyle,
-}: ModalShellProps) {
+}: ModalShellProps) => {
   return (
     <div
       onClick={onClose}
@@ -43,4 +43,4 @@ export default function ModalShell({
       </div>
     </div>
   );
-}
+};

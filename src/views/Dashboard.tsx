@@ -91,7 +91,7 @@ const stats = [
     { label: 'Success Rate', value: '96%', change: '+2%', icon: CheckCircle },
 ];
 
-export default function Dashboard({ onNavigate }: DashboardProps) {
+export const Dashboard = ({ onNavigate }: DashboardProps) => {
     return (
         <div style={{ padding: '32px 40px', maxWidth: 1100, margin: '0 auto' }}>
             {/* Header */}
@@ -701,4 +701,4 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             </div>
         </div>
     );
-}
+};

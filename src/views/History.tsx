@@ -351,7 +351,7 @@ const HistoryTable = ({
     );
 };
 
-export default function History() {
+export const History = () => {
     const [search, setSearch] = useState<string>('');
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const [sortKey, setSortKey] = useState<SortKey>('date');
@@ -437,4 +437,4 @@ export default function History() {
             />
         </div>
     );
-}
+};

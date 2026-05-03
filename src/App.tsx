@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import './App.css';
-import Sidebar from './widgets/sidebar/ui/Sidebar';
-import SettingsModal from './widgets/settings-modal/ui/SettingsModal';
-import Login from './views/Login';
-import Dashboard from './views/Dashboard';
-import ActiveRoast from './views/ActiveRoast';
-import History from './views/History';
-import Beans from './views/Beans';
-import Profiles from './views/Profiles';
-import Machines from './views/Machines';
+import { Sidebar } from './widgets/sidebar/ui/Sidebar';
+import { SettingsModal } from './widgets/settings-modal/ui/SettingsModal';
+import { Login } from './views/Login';
+import { Dashboard } from './views/Dashboard';
+import { ActiveRoast } from './views/ActiveRoast';
+import { History } from './views/History';
+import { Beans } from './views/Beans';
+import { Profiles } from './views/Profiles';
+import { Machines } from './views/Machines';
 import { type View } from './shared/types/view';
 
-function App() {
+export const App = () => {
   const [loggedIn, setLoggedIn] = useState(import.meta.env.DEV);
   const [view, setView] = useState<View>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -41,6 +41,4 @@ function App() {
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
-}
-
-export default App;
+};

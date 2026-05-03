@@ -1,6 +1,6 @@
 import { Plus, Search, TrendingDown, AlertTriangle, CheckCircle, Edit3 } from 'lucide-react';
 import { useState } from 'react';
-import AddBeanModal from '../widgets/add-bean-modal/ui/AddBeanModal';
+import { AddBeanModal } from '../widgets/add-bean-modal/ui/AddBeanModal';
 import { View } from '../shared/types/view';
 
 const beans = [
@@ -115,7 +115,7 @@ interface BeansProps {
     onNavigate?: (view: View) => void;
 }
 
-export default function Beans({ onNavigate }: BeansProps) {
+export const Beans = ({ onNavigate }: BeansProps) => {
     const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState<number | null>(1);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -638,4 +638,4 @@ export default function Beans({ onNavigate }: BeansProps) {
             </div>
         </div>
     );
-}
+};
