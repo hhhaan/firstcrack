@@ -3,21 +3,19 @@ import type { Machine } from '../types/machine';
 
 const STORAGE_KEY = 'fc_machines';
 
-function load(): Machine[] {
+const load = (): Machine[] => {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
   } catch {
     return [];
   }
-}
+};
 
-function save(machines: Machine[]): void {
+const save = (machines: Machine[]): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(machines));
-}
+};
 
-function uid(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
+const uid = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 export const useMachines = () => {
   const [machines, setMachines] = useState<Machine[]>(load);

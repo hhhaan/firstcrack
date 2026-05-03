@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Pause, Square, Thermometer, Wind, TrendingUp, AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
 import {
     ComposedChart,
@@ -18,13 +18,10 @@ import {
     type RoastSummaryData,
 } from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
 
-import { fullData, type RoastPoint } from '@shared/data/roast-mock-data';
-
-const isEditableTarget = (target: EventTarget | null) => {
-    if (!(target instanceof HTMLElement)) return false;
-    const tagName = target.tagName.toLowerCase();
-    return target.isContentEditable || tagName === 'input' || tagName === 'textarea' || tagName === 'select';
-};
+import { fullData } from '@shared/data/roast-mock-data';
+import type { RoastPoint } from '@shared/types/roast';
+import { isEditableTarget } from '@shared/lib/dom';
+import { sidecar } from '@shared/lib/sidecar';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
@@ -109,12 +106,11 @@ export const ActiveRoast = () => {
         if (!isRunning) return;
         const poll = async () => {
             try {
-                const res = await fetch('http://127.0.0.1:9999/temperatures');
-                if (!res.ok) return;
-                const data = await res.json();
+                const data = await sidecar.getTemperatures();
                 setLiveData(data);
                 setSidecarConnected(true);
-                if (chargedRef.current && data.bt != null) {
+                const bt = data.bt;
+                if (chargedRef.current && bt != null) {
                     const t = elapsedRef.current;
                     setLivePoints((prev) => {
                         // 같은 초에 중복 포인트 방지 (poll 0.5s, elapsed 1s)
@@ -126,7 +122,7 @@ export const ActiveRoast = () => {
                             {
                                 time: t,
                                 label: `${min}:${String(sec).padStart(2, '0')}`,
-                                bt: data.bt,
+                                bt,
                                 et: data.et ?? 0,
                                 ror: data.ror,
                             },
@@ -162,36 +158,36 @@ export const ActiveRoast = () => {
     const displayBT = sidecarConnected && liveData?.bt != null ? liveData.bt : (currentPoint?.bt ?? null);
     const displayET = sidecarConnected && liveData?.et != null ? liveData.et : (currentPoint?.et ?? null);
 
-    // X축은 항상 fullData 기준 고정 (0~13분, 15초 간격)
-    // livePoints는 가장 가까운 버킷에 매핑
-    const lastLiveTime = livePoints.length > 0 ? livePoints[livePoints.length - 1].time : -1;
-    const liveBySecond = new Map(livePoints.map((p) => [p.time, p]));
-    const chartData = fullData.map((p) => {
-        if (p.time > lastLiveTime) {
+    // X축은 fullData 기준 고정(0–13분), livePoints를 가장 가까운 15초 버킷에 매핑
+    const chartData = useMemo(() => {
+        const lastLiveTime = livePoints.length > 0 ? livePoints[livePoints.length - 1].time : -1;
+        const liveBySecond = new Map(livePoints.map((p) => [p.time, p]));
+        return fullData.map((p) => {
+            if (p.time > lastLiveTime) {
+                return {
+                    label: p.label,
+                    btActual: null as number | null,
+                    etActual: null as number | null,
+                    rorActual: null as number | null,
+                    btTarget: p.bt,
+                };
+            }
+            let live = liveBySecond.get(p.time);
+            if (!live) {
+                for (let t = p.time - 1; t >= Math.max(0, p.time - 14); t--) {
+                    live = liveBySecond.get(t);
+                    if (live) break;
+                }
+            }
             return {
                 label: p.label,
-                btActual: null as number | null,
-                etActual: null as number | null,
-                rorActual: null as number | null,
-                btTarget: p.bt,
+                btActual: live?.bt ?? null,
+                etActual: live?.et ?? null,
+                rorActual: live ? Math.max(0, live.ror) : null,
+                btTarget: null as number | null,
             };
-        }
-        // 해당 버킷 또는 직전 최근 live 읽기 사용
-        let live = liveBySecond.get(p.time);
-        if (!live) {
-            for (let t = p.time - 1; t >= Math.max(0, p.time - 14); t--) {
-                live = liveBySecond.get(t);
-                if (live) break;
-            }
-        }
-        return {
-            label: p.label,
-            btActual: live?.bt ?? null,
-            etActual: live?.et ?? null,
-            rorActual: live ? Math.max(0, live.ror) : null,
-            btTarget: null as number | null,
-        };
-    });
+        });
+    }, [livePoints]);
     const totalChartPoints = chartData.length;
     const effectiveZoomRange = zoomRange
         ? {
@@ -233,16 +229,18 @@ export const ActiveRoast = () => {
         Note: '#6b7280',
     };
 
-    const eventMarkers = logEntries
-        .filter((e) => eventMarkerColor[e.event])
-        .map((e) => {
-            const [min, sec] = e.time.split(':').map(Number);
-            const totalSec = min * 60 + sec;
-            const closest = fullData.reduce((prev, curr) =>
-                Math.abs(curr.time - totalSec) < Math.abs(prev.time - totalSec) ? curr : prev,
-            );
-            return { ...e, chartLabel: closest.label, color: eventMarkerColor[e.event] };
-        });
+    const eventMarkers = useMemo(() =>
+        logEntries
+            .filter((e) => eventMarkerColor[e.event])
+            .map((e) => {
+                const [min, sec] = e.time.split(':').map(Number);
+                const totalSec = min * 60 + sec;
+                const closest = fullData.reduce((prev, curr) =>
+                    Math.abs(curr.time - totalSec) < Math.abs(prev.time - totalSec) ? curr : prev,
+                );
+                return { ...e, chartLabel: closest.label, color: eventMarkerColor[e.event] };
+            }),
+    [logEntries]);
 
     const flashButton = (label: string) => {
         setPressedButtons((prev) => new Set(prev).add(label));

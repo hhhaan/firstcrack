@@ -1,12 +1,6 @@
-export interface RoastPoint {
-    time: number;
-    label: string;
-    bt: number;
-    et: number;
-    ror: number;
-}
+import type { RoastPoint } from '../types/roast';
 
-function generateFullRoastData(): RoastPoint[] {
+const generateFullRoastData = (): RoastPoint[] => {
     const points: RoastPoint[] = [];
     for (let t = 0; t <= 780; t += 15) {
         const min = t / 60;

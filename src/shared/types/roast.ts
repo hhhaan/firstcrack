@@ -6,13 +6,6 @@ export interface RoastPoint {
     ror: number;
 }
 
-export interface LivePoint {
-    time: number;
-    label: string;
-    bt: number;
-    et: number;
-    ror: number;
-}
 
 export interface LogEntry {
     time: string;

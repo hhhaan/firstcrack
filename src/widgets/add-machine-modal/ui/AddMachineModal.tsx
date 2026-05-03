@@ -106,11 +106,23 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
   const isFieldVisible = (fieldKey: string): boolean => {
     const mode = params['mode']?.toLowerCase() ?? '';
     if (!mode) return true;
-    const isTCP = mode === 'tcp' || mode === 'tcp';
+    const isTCP = mode === 'tcp' || mode === 'udp';
     const isRTU = mode === 'rtu' || mode === 'serial';
     if (TCP_ONLY.has(fieldKey) && isRTU) return false;
     if (RTU_ONLY.has(fieldKey) && isTCP) return false;
     return true;
+  };
+
+  const buildTypedParams = (): Record<string, unknown> => {
+    if (!selectedDef) return {};
+    const result: Record<string, unknown> = {};
+    for (const field of selectedDef.form_fields) {
+      if (!isFieldVisible(field.key)) continue;
+      const raw = params[field.key];
+      if (raw === '' || raw == null) continue;
+      result[field.key] = field.type === 'number' ? Number(raw) : raw;
+    }
+    return result;
   };
 
   const handleTestConnection = async () => {
@@ -121,14 +133,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
     setTestMessage('');
     setError('');
 
-    // 현재 표시된 필드만 params에 포함
-    const typedParams: Record<string, unknown> = {};
-    for (const field of selectedDef.form_fields) {
-      if (!isFieldVisible(field.key)) continue;
-      const raw = params[field.key];
-      if (raw === '' || raw == null) continue;
-      typedParams[field.key] = field.type === 'number' ? Number(raw) : raw;
-    }
+    const typedParams = buildTypedParams();
 
     try {
       const status = await sidecar.connect(selectedKey, typedParams);
@@ -169,14 +174,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
     setSaving(true);
     setError('');
 
-    // 현재 표시된 필드만 typedParams에 포함
-    const typedParams: Record<string, unknown> = {};
-    for (const field of selectedDef.form_fields) {
-      if (!isFieldVisible(field.key)) continue;
-      const raw = params[field.key];
-      if (raw === '' || raw == null) continue;
-      typedParams[field.key] = field.type === 'number' ? Number(raw) : raw;
-    }
+    const typedParams = buildTypedParams();
 
     try {
       onAdd(selectedKey, selectedDef, typedParams);
