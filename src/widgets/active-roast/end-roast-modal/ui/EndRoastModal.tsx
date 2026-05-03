@@ -17,11 +17,7 @@ export const EndRoastModal = ({ open, timeStr, onClose, onConfirm }: EndRoastMod
     <ModalShell
       onClose={onClose}
       labelledBy="end-roast-modal-title"
-      overlayStyle={{
-        zIndex: 10000,
-        background: 'rgba(0,0,0,0.32)',
-        backdropFilter: 'blur(6px)',
-      }}
+      overlayClassName="z-[10000]"
       contentStyle={{
         width: 'min(420px, 100%)',
         background: 'var(--color-main-bg)',

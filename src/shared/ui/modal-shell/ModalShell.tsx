@@ -4,7 +4,7 @@ interface ModalShellProps {
   children: ReactNode;
   onClose: () => void;
   labelledBy: string;
-  overlayStyle?: CSSProperties;
+  overlayClassName?: string;
   contentStyle?: CSSProperties;
 }
 
@@ -12,25 +12,14 @@ export const ModalShell = ({
   children,
   onClose,
   labelledBy,
-  overlayStyle,
+  overlayClassName,
   contentStyle,
 }: ModalShellProps) => {
   return (
     <div
       onClick={onClose}
       role="presentation"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(23, 23, 23, 0.32)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-        zIndex: 1000,
-        ...overlayStyle,
-      }}
+      className={`fixed inset-0 bg-[rgba(23,23,23,0.32)] backdrop-blur-[8px] flex items-center justify-center p-6 z-[1000] ${overlayClassName ?? ''}`}
     >
       <div
         onClick={(event) => event.stopPropagation()}

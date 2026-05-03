@@ -39,11 +39,7 @@ export const RoastSummaryModal = ({
     <ModalShell
       onClose={onClose}
       labelledBy="roast-summary-modal-title"
-      overlayStyle={{
-        zIndex: 10000,
-        background: 'rgba(0,0,0,0.3)',
-        backdropFilter: 'blur(4px)',
-      }}
+      overlayClassName="z-[10000]"
       contentStyle={{
         background: 'var(--color-main-bg)',
         borderRadius: 20,
