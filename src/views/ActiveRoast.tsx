@@ -13,7 +13,7 @@ import type { RoastPoint } from '@shared/types/roast';
 import { isEditableTarget } from '@shared/lib/dom';
 import { sidecar } from '@shared/lib/sidecar';
 
-export const ActiveRoast = () => {
+export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     const [elapsed, setElapsed] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
     const [charged, setCharged] = useState(false);
@@ -117,6 +117,7 @@ export const ActiveRoast = () => {
         if (!showEndRoastModal) return undefined;
 
         const handleKeyDown = (event: KeyboardEvent) => {
+            if (!isActive) return;
             if (event.key === 'Escape') {
                 setShowEndRoastModal(false);
             }
@@ -124,7 +125,7 @@ export const ActiveRoast = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [showEndRoastModal]);
+    }, [isActive, showEndRoastModal]);
 
     const currentIndex = Math.floor(elapsed / 15);
     const currentPoint: RoastPoint | undefined = fullData[Math.min(currentIndex, fullData.length - 1)];
@@ -412,6 +413,8 @@ export const ActiveRoast = () => {
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
+            // CSS hide 상태에서도 window 이벤트를 수신하므로 비활성 시 차단
+            if (!isActive) return;
             if (isEditableTarget(event.target) || showEndRoastModal || showSummaryModal) return;
 
             const shortcutModifier = event.metaKey || event.ctrlKey;
@@ -464,7 +467,7 @@ export const ActiveRoast = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [charged, displayBT, isFullscreen, roastEnded, showEndRoastModal, showSummaryModal, timeStr]);
+    }, [isActive, charged, displayBT, isFullscreen, roastEnded, showEndRoastModal, showSummaryModal, timeStr]);
 
     // Development time calculation
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
@@ -522,6 +525,7 @@ export const ActiveRoast = () => {
                             marginBottom: 4,
                         }}
                     >
+                        {/* TODO: 현재 선택된 로스트 프로파일에서 빈 이름/원산지를 동적으로 읽어오도록 개선 */}
                         Ethiopia Yirgacheffe
                     </h1>
                     <p style={{ fontSize: 14, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>

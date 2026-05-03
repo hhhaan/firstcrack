@@ -32,7 +32,11 @@ export const App = () => {
       />
       <div style={{ flex: 1, overflow: 'auto', background: 'var(--color-surface)' }}>
         {view === 'dashboard' && <Dashboard onNavigate={setView} />}
-        {view === 'roast' && <ActiveRoast />}
+        {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
+            TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
+        <div style={{ display: view === 'roast' ? 'block' : 'none' }}>
+          <ActiveRoast isActive={view === 'roast'} />
+        </div>
         {view === 'history' && <History />}
         {view === 'beans' && <Beans onNavigate={setView} />}
         {view === 'profiles' && <Profiles />}
