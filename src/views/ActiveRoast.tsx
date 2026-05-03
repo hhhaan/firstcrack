@@ -156,15 +156,15 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
             }));
         return [...past, ...future];
     }, [livePoints]);
-    const totalChartPoints = chartData.length;
+    // zoomRange는 초(seconds) 단위 시간 — 배열 인덱스가 아님
+    // chartData가 성장해도 "30s~120s 구간"은 항상 같은 데이터를 가리킴
+    const MAX_TIME = chartData.length > 0 ? chartData[chartData.length - 1].time : 780;
+    const MIN_VISIBLE_SECS = 60;
     const effectiveZoomRange = zoomRange
-        ? {
-              start: Math.max(0, Math.min(zoomRange.start, Math.max(0, totalChartPoints - 1))),
-              end: Math.max(0, Math.min(zoomRange.end, Math.max(0, totalChartPoints - 1))),
-          }
+        ? { start: Math.max(0, zoomRange.start), end: Math.min(MAX_TIME, zoomRange.end) }
         : null;
     const visibleChartData = effectiveZoomRange
-        ? chartData.slice(effectiveZoomRange.start, effectiveZoomRange.end + 1)
+        ? chartData.filter((p) => p.time >= effectiveZoomRange.start && p.time <= effectiveZoomRange.end)
         : chartData;
 
     const elapsedMin = Math.floor(elapsed / 60);
@@ -228,17 +228,16 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     };
 
     const handleChartWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-        if (totalChartPoints <= 1) return;
+        if (MAX_TIME <= 0) return;
 
         event.preventDefault();
 
         const currentStart = effectiveZoomRange?.start ?? 0;
-        const currentEnd = effectiveZoomRange?.end ?? totalChartPoints - 1;
-        const currentSize = currentEnd - currentStart + 1;
-        const minVisiblePoints = Math.min(120, totalChartPoints);
+        const currentEnd = effectiveZoomRange?.end ?? MAX_TIME;
+        const currentDuration = currentEnd - currentStart;
 
-        if (event.deltaY < 0 && currentSize <= minVisiblePoints) return;
-        if (event.deltaY > 0 && currentStart === 0 && currentEnd === totalChartPoints - 1) return;
+        if (event.deltaY < 0 && currentDuration <= MIN_VISIBLE_SECS) return;
+        if (event.deltaY > 0 && currentStart === 0 && currentEnd === MAX_TIME) return;
 
         // uPlot 내부 Y축 너비(36px)와 우측 패딩(12px)을 제외한 실제 데이터 영역 기준으로 비율 계산
         const rect = event.currentTarget.getBoundingClientRect();
@@ -247,62 +246,49 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
         const dataWidth = rect.width - Y_AXIS_WIDTH - RIGHT_PAD;
         const mouseX = event.clientX - rect.left - Y_AXIS_WIDTH;
         const pointerRatio = dataWidth > 0 ? Math.max(0, Math.min(1, mouseX / dataWidth)) : 0.5;
-        const focusIndex = Math.round(currentStart + (currentSize - 1) * pointerRatio);
+        const focusTime = currentStart + pointerRatio * currentDuration;
 
         const zoomFactor = event.deltaY < 0 ? 0.8 : 1.25;
-        const nextSize = Math.max(minVisiblePoints, Math.min(totalChartPoints, Math.round(currentSize * zoomFactor)));
+        const nextDuration = Math.max(MIN_VISIBLE_SECS, Math.min(MAX_TIME, currentDuration * zoomFactor));
 
-        if (nextSize >= totalChartPoints) {
+        if (nextDuration >= MAX_TIME) {
             setZoomRange(null);
             return;
         }
 
-        // focusIndex가 줌 전후 동일한 비율 위치에 유지되도록 start 계산
-        let nextStart = Math.round(focusIndex - (focusIndex - currentStart) * (nextSize / currentSize));
-        let nextEnd = nextStart + nextSize - 1;
+        // focusTime이 줌 전후 동일한 비율 위치에 유지되도록 start 계산
+        let nextStart = focusTime - pointerRatio * nextDuration;
+        let nextEnd = nextStart + nextDuration;
 
-        if (nextStart < 0) {
-            nextStart = 0;
-            nextEnd = nextSize - 1;
-        }
-        if (nextEnd > totalChartPoints - 1) {
-            nextEnd = totalChartPoints - 1;
-            nextStart = nextEnd - nextSize + 1;
-        }
+        if (nextStart < 0) { nextStart = 0; nextEnd = nextDuration; }
+        if (nextEnd > MAX_TIME) { nextEnd = MAX_TIME; nextStart = MAX_TIME - nextDuration; }
 
         setZoomRange({ start: nextStart, end: nextEnd });
     };
 
     const zoomChart = (zoomFactor: number) => {
-        if (totalChartPoints <= 1) return;
+        if (MAX_TIME <= 0) return;
 
         const currentStart = effectiveZoomRange?.start ?? 0;
-        const currentEnd = effectiveZoomRange?.end ?? totalChartPoints - 1;
-        const currentSize = currentEnd - currentStart + 1;
-        const minVisiblePoints = Math.min(120, totalChartPoints);
+        const currentEnd = effectiveZoomRange?.end ?? MAX_TIME;
+        const currentDuration = currentEnd - currentStart;
 
-        const nextSize = Math.max(minVisiblePoints, Math.min(totalChartPoints, Math.round(currentSize * zoomFactor)));
+        const nextDuration = Math.max(MIN_VISIBLE_SECS, Math.min(MAX_TIME, currentDuration * zoomFactor));
 
-        if (nextSize >= totalChartPoints) {
+        if (nextDuration >= MAX_TIME) {
             setZoomRange(null);
             return;
         }
 
-        const focusIndex = Math.max(
-            currentStart,
-            Math.min(currentEnd, hoveredChartIndex ?? Math.round((currentStart + currentEnd) / 2)),
-        );
-        let nextStart = Math.round(focusIndex - (focusIndex - currentStart) * (nextSize / currentSize));
-        let nextEnd = nextStart + nextSize - 1;
+        const focusTime = hoveredChartIndex != null
+            ? (visibleChartData[hoveredChartIndex]?.time ?? (currentStart + currentEnd) / 2)
+            : (currentStart + currentEnd) / 2;
+        const ratio = currentDuration > 0 ? (focusTime - currentStart) / currentDuration : 0.5;
+        let nextStart = focusTime - ratio * nextDuration;
+        let nextEnd = nextStart + nextDuration;
 
-        if (nextStart < 0) {
-            nextStart = 0;
-            nextEnd = nextSize - 1;
-        }
-        if (nextEnd > totalChartPoints - 1) {
-            nextEnd = totalChartPoints - 1;
-            nextStart = nextEnd - nextSize + 1;
-        }
+        if (nextStart < 0) { nextStart = 0; nextEnd = nextDuration; }
+        if (nextEnd > MAX_TIME) { nextEnd = MAX_TIME; nextStart = MAX_TIME - nextDuration; }
 
         setZoomRange({ start: nextStart, end: nextEnd });
     };
@@ -310,11 +296,11 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     const panChart = (direction: -1 | 1) => {
         if (!effectiveZoomRange) return;
 
-        const size = effectiveZoomRange.end - effectiveZoomRange.start + 1;
-        const step = Math.max(1, Math.round(size * 0.2));
-        const nextStart = Math.max(0, Math.min(totalChartPoints - size, effectiveZoomRange.start + step * direction));
+        const duration = effectiveZoomRange.end - effectiveZoomRange.start;
+        const step = Math.max(1, duration * 0.2);
+        const nextStart = Math.max(0, Math.min(MAX_TIME - duration, effectiveZoomRange.start + step * direction));
 
-        setZoomRange({ start: nextStart, end: nextStart + size - 1 });
+        setZoomRange({ start: nextStart, end: nextStart + duration });
     };
 
     const handleChartKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
