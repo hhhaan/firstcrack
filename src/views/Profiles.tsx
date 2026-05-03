@@ -2,7 +2,7 @@ import { Plus, Copy, Pencil, Trash2, MoreHorizontal, Lock } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 import { useState } from 'react';
 
-function generateProfileCurve(dropTemp: number, duration: number) {
+const generateProfileCurve = (dropTemp: number, duration: number) => {
   const points = [];
   for (let t = 0; t <= duration; t += 30) {
     let bt: number;
@@ -17,7 +17,7 @@ function generateProfileCurve(dropTemp: number, duration: number) {
     points.push({ t, bt: Math.round(bt * 10) / 10 });
   }
   return points;
-}
+};
 
 const profiles = [
   {
@@ -92,156 +92,94 @@ export const Profiles = () => {
   const curveData = generateProfileCurve(selected.dropVal, selected.durationSec);
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 1100, margin: '0 auto' }}>
+    <div className="px-10 py-8 max-w-[1100px] mx-auto">
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28 }}>
+      <div className="flex items-end justify-between mb-7">
         <div>
-          <h1 style={{
-            fontFamily: 'var(--font-display)',
-            fontWeight: 300,
-            fontSize: 32,
-            lineHeight: 1.13,
-            color: 'var(--color-primary)',
-            letterSpacing: '-0.4px',
-            marginBottom: 4,
-          }}>
+          <h1 className="font-display font-light text-[32px] leading-[1.13] text-(--color-primary) tracking-[-0.4px] mb-1">
             Roast Profiles
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
+          <p className="text-sm text-(--color-muted) tracking-[0.14px]">
             {profiles.length} profiles · {profiles.filter(p => p.locked).length} locked
           </p>
         </div>
-        <button style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '10px 18px',
-          borderRadius: 9999,
-          border: 'none',
-          background: 'var(--color-primary)',
-          color: 'white',
-          fontSize: 14,
-          fontWeight: 500,
-          cursor: 'pointer',
-          boxShadow: 'var(--shadow-card)',
-          letterSpacing: '0.14px',
-        }}>
+        <button className="flex items-center gap-2 px-[18px] py-[10px] rounded-full border-none bg-(--color-primary) text-white text-sm font-medium cursor-pointer shadow-(--shadow-card) tracking-[0.14px]">
           <Plus size={15} strokeWidth={2.5} />
           New Profile
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20 }}>
+      <div className="grid gap-5" style={{ gridTemplateColumns: '300px 1fr' }}>
 
         {/* Profile list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {profiles.map(profile => (
-            <div
-              key={profile.id}
-              onClick={() => setSelectedId(profile.id)}
-              style={{
-                background: 'var(--color-main-bg)',
-                borderRadius: 14,
-                padding: '16px',
-                cursor: 'pointer',
-                boxShadow: selectedId === profile.id
-                  ? 'rgba(0,0,0,0.4) 0px 0px 1px, rgba(0,0,0,0.06) 0px 2px 8px'
-                  : 'var(--shadow-ring)',
-                border: selectedId === profile.id ? '1px solid rgba(0,0,0,0.08)' : '1px solid transparent',
-                transition: 'all 0.15s',
-              }}
-            >
-              {/* Mini sparkline */}
-              <div style={{ height: 44, marginBottom: 10 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={generateProfileCurve(profile.dropVal, profile.durationSec)}>
-                    <Line
-                      dataKey="bt"
-                      stroke={selectedId === profile.id ? 'var(--color-primary)' : '#b3b0aa'}
-                      strokeWidth={1.5}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+        <div className="flex flex-col gap-2">
+          {profiles.map(profile => {
+            const isSelected = selectedId === profile.id;
+            return (
+              <div
+                key={profile.id}
+                onClick={() => setSelectedId(profile.id)}
+                className={`bg-(--color-main-bg) rounded-[14px] p-4 cursor-pointer transition-all duration-150 ${isSelected ? 'border border-black/8 shadow-[rgba(0,0,0,0.4)_0px_0px_1px,rgba(0,0,0,0.06)_0px_2px_8px]' : 'border border-transparent shadow-(--shadow-ring)'}`}
+              >
+                {/* Mini sparkline */}
+                <div className="h-11 mb-[10px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={generateProfileCurve(profile.dropVal, profile.durationSec)}>
+                      <Line
+                        dataKey="bt"
+                        stroke={isSelected ? 'var(--color-primary)' : '#b3b0aa'}
+                        strokeWidth={1.5}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-primary)', letterSpacing: '0.14px' }}>
-                      {profile.name}
-                    </span>
-                    {profile.locked && (
-                      <Lock size={11} strokeWidth={2} color="var(--color-muted)" />
-                    )}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
-                    Drop {profile.dropTemp} · {profile.batches} batches
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-[5px] mb-0.5">
+                      <span className="text-[13px] font-medium text-(--color-primary) tracking-[0.14px]">
+                        {profile.name}
+                      </span>
+                      {profile.locked && <Lock size={11} strokeWidth={2} color="var(--color-muted)" />}
+                    </div>
+                    <div className="text-[12px] text-(--color-muted) tracking-[0.14px]">
+                      Drop {profile.dropTemp} · {profile.batches} batches
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Detail panel */}
-        <div style={{
-          background: 'var(--color-main-bg)',
-          borderRadius: 16,
-          padding: '28px 32px',
-          boxShadow: 'var(--shadow-ring)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div className="bg-(--color-main-bg) rounded-2xl px-8 py-7 shadow-(--shadow-ring)">
+          <div className="flex items-start justify-between mb-5">
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <h2 style={{
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 300,
-                  fontSize: 26,
-                  lineHeight: 1.2,
-                  color: 'var(--color-primary)',
-                  letterSpacing: '-0.3px',
-                }}>
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="font-display font-light text-[26px] leading-[1.2] text-(--color-primary) tracking-[-0.3px]">
                   {selected.name}
                 </h2>
                 {selected.locked && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '3px 9px',
-                    borderRadius: 9999,
-                    background: 'var(--color-surface)',
-                    boxShadow: 'var(--shadow-inset)',
-                  }}>
+                  <div className="flex items-center gap-1 px-[9px] py-[3px] rounded-full bg-(--color-surface) shadow-(--shadow-inset)">
                     <Lock size={11} strokeWidth={2} color="var(--color-muted)" />
-                    <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-muted)', letterSpacing: '0.3px' }}>Locked</span>
+                    <span className="text-[11px] font-medium text-(--color-muted) tracking-[0.3px]">Locked</span>
                   </div>
                 )}
               </div>
-              <p style={{ fontSize: 14, color: 'var(--color-secondary)', letterSpacing: '0.14px', lineHeight: 1.5 }}>
+              <p className="text-sm text-(--color-secondary) tracking-[0.14px] leading-[1.5]">
                 {selected.description}
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div className="flex gap-[6px]">
               {[
                 { icon: Copy, label: 'Duplicate' },
                 { icon: Pencil, label: 'Edit' },
                 { icon: MoreHorizontal, label: 'More' },
               ].map(({ icon: Icon, label }) => (
-                <button key={label} title={label} style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  border: 'none',
-                  background: 'var(--color-surface)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: 'var(--shadow-inset)',
-                }}>
+                <button key={label} title={label} className="w-8 h-8 rounded-lg border-none bg-(--color-surface) flex items-center justify-center cursor-pointer shadow-(--shadow-inset)">
                   <Icon size={14} strokeWidth={1.5} color="var(--color-secondary)" />
                 </button>
               ))}
@@ -249,14 +187,8 @@ export const Profiles = () => {
           </div>
 
           {/* Temperature curve chart */}
-          <div style={{
-            background: 'var(--color-surface)',
-            borderRadius: 12,
-            padding: '16px 16px 8px',
-            marginBottom: 20,
-            boxShadow: 'var(--shadow-inset)',
-          }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>
+          <div className="bg-(--color-surface) rounded-xl px-4 pt-4 pb-2 mb-5 shadow-(--shadow-inset)">
+            <div className="text-[12px] font-medium text-(--color-muted) tracking-[0.5px] uppercase mb-2">
               Profile Curve
             </div>
             <ResponsiveContainer width="100%" height={160}>
@@ -302,7 +234,7 @@ export const Profiles = () => {
           </div>
 
           {/* Profile parameters */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+          <div className="grid grid-cols-3 gap-3 mb-5">
             {[
               { label: 'Total Duration', value: selected.duration },
               { label: 'Drop Temperature', value: selected.dropTemp },
@@ -311,16 +243,11 @@ export const Profiles = () => {
               { label: 'Dev/Total %', value: selected.devPct },
               { label: 'Total Batches', value: `${selected.batches} runs` },
             ].map(({ label, value }) => (
-              <div key={label} style={{
-                background: 'var(--color-surface)',
-                borderRadius: 10,
-                padding: '12px 14px',
-                boxShadow: 'var(--shadow-inset)',
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 4 }}>
+              <div key={label} className="bg-(--color-surface) rounded-[10px] px-[14px] py-3 shadow-(--shadow-inset)">
+                <div className="text-[11px] font-medium text-(--color-muted) tracking-[0.5px] uppercase mb-1">
                   {label}
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', letterSpacing: '-0.2px' }}>
+                <div className="text-sm font-semibold text-(--color-primary) font-mono tracking-[-0.2px]">
                   {value}
                 </div>
               </div>
@@ -329,58 +256,23 @@ export const Profiles = () => {
 
           {/* Used for */}
           <div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>
+            <div className="text-[12px] font-medium text-(--color-muted) tracking-[0.5px] uppercase mb-2">
               Used For
             </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
+            <div className="flex gap-[6px] flex-wrap mb-5">
               {selected.usedFor.map(bean => (
-                <span key={bean} style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: 'var(--color-secondary)',
-                  background: 'var(--color-surface)',
-                  padding: '4px 10px',
-                  borderRadius: 9999,
-                  letterSpacing: '0.14px',
-                  boxShadow: 'var(--shadow-inset)',
-                }}>
+                <span key={bean} className="text-[12px] font-medium text-(--color-secondary) bg-(--color-surface) px-[10px] py-1 rounded-full tracking-[0.14px] shadow-(--shadow-inset)">
                   {bean}
                 </span>
               ))}
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button style={{
-              flex: 1,
-              padding: '10px 0',
-              borderRadius: 9999,
-              border: 'none',
-              background: 'var(--color-primary)',
-              color: 'white',
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: 'pointer',
-              letterSpacing: '0.14px',
-              boxShadow: 'var(--shadow-card)',
-            }}>
+          <div className="flex gap-[10px]">
+            <button className="flex-1 py-[10px] rounded-full border-none bg-(--color-primary) text-white text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)">
               Start with this Profile
             </button>
-            <button style={{
-              padding: '10px 20px',
-              borderRadius: 9999,
-              border: 'none',
-              background: 'rgba(254,226,226,0.8)',
-              color: '#dc2626',
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: 'pointer',
-              letterSpacing: '0.14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              boxShadow: 'var(--shadow-inset)',
-            }}>
+            <button className="flex items-center gap-[6px] px-5 py-[10px] rounded-full border-none bg-[rgba(254,226,226,0.8)] text-[#dc2626] text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-inset)">
               <Trash2 size={14} strokeWidth={2} />
               Delete
             </button>
