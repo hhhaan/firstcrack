@@ -1,57 +1,17 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Pause, Square, Thermometer, Wind, TrendingUp, AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
-import {
-    ComposedChart,
-    AreaChart,
-    Area,
-    Line,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    ReferenceLine,
-} from 'recharts';
 import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
 import {
     RoastSummaryModal,
     type RoastSummaryData,
 } from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
+import { RoastTempChart, type RoastEventMarker } from '@widgets/active-roast/ui/RoastTempChart';
+import { RoastRorChart } from '@widgets/active-roast/ui/RoastRorChart';
 
 import { fullData } from '@shared/data/roast-mock-data';
 import type { RoastPoint } from '@shared/types/roast';
 import { isEditableTarget } from '@shared/lib/dom';
 import { sidecar } from '@shared/lib/sidecar';
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
-    return (
-        <div
-            style={{
-                background: 'white',
-                border: 'none',
-                borderRadius: 10,
-                padding: '10px 14px',
-                boxShadow: 'rgba(0,0,0,0.4) 0px 0px 1px, rgba(0,0,0,0.04) 0px 4px 4px',
-                fontSize: 12,
-                fontFamily: 'var(--font-body)',
-            }}
-        >
-            <div style={{ fontWeight: 500, color: 'var(--color-muted)', marginBottom: 6, letterSpacing: '0.14px' }}>
-                {label}
-            </div>
-            {payload.map((entry: any) => (
-                <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: 2, background: entry.color, flexShrink: 0 }} />
-                    <span style={{ color: 'var(--color-secondary)' }}>{entry.name}:</span>
-                    <span style={{ fontWeight: 600, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>
-                        {entry.name === 'ROR' ? `${entry.value}°/min` : `${entry.value}°C`}
-                    </span>
-                </div>
-            ))}
-        </div>
-    );
-};
 
 export const ActiveRoast = () => {
     const [elapsed, setElapsed] = useState(0);
@@ -78,8 +38,10 @@ export const ActiveRoast = () => {
     >([]);
     const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);
     const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
+    const [mainChartHeight, setMainChartHeight] = useState(260);
     const elapsedRef = useRef(0);
     const chargedRef = useRef(false);
+    const chartAreaRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         elapsedRef.current = elapsed;
@@ -91,6 +53,19 @@ export const ActiveRoast = () => {
     const toggleFullscreen = () => {
         setIsFullscreen((prev) => !prev);
     };
+
+    // Measure chart area height for fullscreen mode
+    useEffect(() => {
+        const el = chartAreaRef.current;
+        if (!el) return;
+        const obs = new ResizeObserver(() => {
+            const h = el.offsetHeight;
+            // subtract phase labels (~36px), RoR header (~24px), RoR chart (80px), margins
+            setMainChartHeight(Math.max(180, h - 36 - 24 - 80 - 16));
+        });
+        obs.observe(el);
+        return () => obs.disconnect();
+    }, []);
 
     useEffect(() => {
         if (!isRunning) return;
@@ -229,7 +204,7 @@ export const ActiveRoast = () => {
         Note: '#6b7280',
     };
 
-    const eventMarkers = useMemo(() =>
+    const eventMarkers = useMemo((): RoastEventMarker[] =>
         logEntries
             .filter((e) => eventMarkerColor[e.event])
             .map((e) => {
@@ -238,9 +213,19 @@ export const ActiveRoast = () => {
                 const closest = fullData.reduce((prev, curr) =>
                     Math.abs(curr.time - totalSec) < Math.abs(prev.time - totalSec) ? curr : prev,
                 );
-                return { ...e, chartLabel: closest.label, color: eventMarkerColor[e.event] };
+                return { timeSec: closest.time, event: e.event, color: eventMarkerColor[e.event] };
             }),
     [logEntries]);
+
+    // uPlot column arrays — derived from visibleChartData
+    const visibleXs = useMemo(() => {
+        const start = effectiveZoomRange?.start ?? 0;
+        return visibleChartData.map((_, i) => fullData[start + i].time);
+    }, [visibleChartData, effectiveZoomRange]);
+    const visibleBtTarget = useMemo(() => visibleChartData.map((p) => p.btTarget), [visibleChartData]);
+    const visibleBtActual = useMemo(() => visibleChartData.map((p) => p.btActual), [visibleChartData]);
+    const visibleEtActual = useMemo(() => visibleChartData.map((p) => p.etActual), [visibleChartData]);
+    const visibleRorActual = useMemo(() => visibleChartData.map((p) => p.rorActual), [visibleChartData]);
 
     const flashButton = (label: string) => {
         setPressedButtons((prev) => new Set(prev).add(label));
@@ -742,6 +727,7 @@ export const ActiveRoast = () => {
                 >
                     {/* Main Chart Area */}
                     <div
+                        ref={chartAreaRef}
                         style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}
                         onWheel={handleChartWheel}
                         onKeyDown={handleChartKeyDown}
@@ -776,213 +762,30 @@ export const ActiveRoast = () => {
                             ))}
                         </div>
 
-                        <ResponsiveContainer width="100%" height={isFullscreen ? '100%' : 260}>
-                            <ComposedChart
-                                data={visibleChartData}
-                                margin={{ top: 4, right: 12, left: 0, bottom: 0 }}
-                                onMouseMove={(state: any) => {
-                                    if (typeof state?.activeTooltipIndex !== 'number') return;
-                                    const baseIndex = effectiveZoomRange?.start ?? 0;
-                                    setHoveredChartIndex(baseIndex + state.activeTooltipIndex);
-                                }}
-                            >
-                                <CartesianGrid strokeDasharray="0" stroke="rgba(0,0,0,0.05)" />
-                                <XAxis
-                                    dataKey="label"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    interval={Math.max(1, Math.floor(chartData.length / 13))}
-                                    tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--color-muted)' }}
-                                />
-                                <YAxis
-                                    yAxisId="temp"
-                                    domain={[140, 230]}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fontSize: 11, fontFamily: 'var(--font-mono)', fill: 'var(--color-muted)' }}
-                                    width={36}
-                                    tickFormatter={(v) => `${v}°`}
-                                />
-                                <Tooltip content={<CustomTooltip />} />
+                        <RoastTempChart
+                            xs={visibleXs}
+                            btTarget={visibleBtTarget}
+                            btActual={visibleBtActual}
+                            etActual={visibleEtActual}
+                            currentTimeSec={elapsed}
+                            eventMarkers={eventMarkers}
+                            height={isFullscreen ? mainChartHeight : 260}
+                            onCursorIdx={(idx) => {
+                                if (idx != null) setHoveredChartIndex((effectiveZoomRange?.start ?? 0) + idx);
+                            }}
+                        />
 
-                                {/* Phase markers */}
-                                <ReferenceLine
-                                    yAxisId="temp"
-                                    x="3:00"
-                                    stroke="rgba(0,0,0,0.07)"
-                                    strokeDasharray="3 3"
-                                />
-                                <ReferenceLine
-                                    yAxisId="temp"
-                                    x="5:00"
-                                    stroke="rgba(0,0,0,0.07)"
-                                    strokeDasharray="3 3"
-                                />
-                                <ReferenceLine
-                                    yAxisId="temp"
-                                    x="10:30"
-                                    stroke="rgba(0,0,0,0.07)"
-                                    strokeDasharray="3 3"
-                                />
-
-                                {/* Current time marker */}
-                                <ReferenceLine
-                                    yAxisId="temp"
-                                    x={currentPoint?.label}
-                                    stroke="rgba(0,0,0,0.3)"
-                                    strokeWidth={1.5}
-                                    strokeDasharray="4 3"
-                                />
-
-                                {/* Profile target (dashed) */}
-                                <Line
-                                    yAxisId="temp"
-                                    dataKey="btTarget"
-                                    stroke="var(--color-primary)"
-                                    strokeWidth={1.5}
-                                    strokeDasharray="5 4"
-                                    dot={false}
-                                    opacity={0.25}
-                                    name="Target BT"
-                                    connectNulls={false}
-                                />
-
-                                {/* Actual BT (solid) */}
-                                <Line
-                                    yAxisId="temp"
-                                    dataKey="btActual"
-                                    stroke="var(--color-primary)"
-                                    strokeWidth={2.5}
-                                    dot={false}
-                                    name="Bean Temp"
-                                    connectNulls={false}
-                                    activeDot={{ r: 4, fill: 'var(--color-primary)', strokeWidth: 0 }}
-                                />
-
-                                {/* ET line */}
-                                <Line
-                                    yAxisId="temp"
-                                    dataKey="etActual"
-                                    stroke="#2563eb"
-                                    strokeWidth={1.5}
-                                    dot={false}
-                                    opacity={0.7}
-                                    strokeDasharray="5 3"
-                                    name="Env Temp"
-                                    connectNulls={false}
-                                />
-
-                                {/* Event markers */}
-                                {eventMarkers.map((marker, i) => (
-                                    <ReferenceLine
-                                        key={i}
-                                        yAxisId="temp"
-                                        x={marker.chartLabel}
-                                        stroke={marker.color}
-                                        strokeWidth={1.5}
-                                        label={{
-                                            value: marker.event,
-                                            position: 'top',
-                                            fontSize: 10,
-                                            fill: marker.color,
-                                            fontFamily: 'var(--font-body)',
-                                            fontWeight: 600,
-                                        }}
-                                    />
-                                ))}
-                            </ComposedChart>
-                        </ResponsiveContainer>
-
-                        {/* RoR Sub-chart (RSI style) */}
+                        {/* RoR Sub-chart */}
                         <div style={{ marginTop: 4 }}>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    marginBottom: 4,
-                                    paddingLeft: 4,
-                                }}
-                            >
-                                <span
-                                    style={{
-                                        fontSize: 10,
-                                        fontWeight: 600,
-                                        color: 'var(--color-muted)',
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '0.5px',
-                                    }}
-                                >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, paddingLeft: 4 }}>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                     Rate of Rise
                                 </span>
-                                <span
-                                    style={{
-                                        fontSize: 11,
-                                        fontFamily: 'var(--font-mono)',
-                                        fontWeight: 700,
-                                        color: '#d97706',
-                                    }}
-                                >
+                                <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#d97706' }}>
                                     {displayRoR}°/min
                                 </span>
                             </div>
-                            <ResponsiveContainer width="100%" height={80}>
-                                <AreaChart data={visibleChartData} margin={{ top: 2, right: 12, left: 0, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="rorGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#d97706" stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor="#d97706" stopOpacity={0.02} />
-                                        </linearGradient>
-                                    </defs>
-                                    <XAxis dataKey="label" hide />
-                                    <YAxis
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{
-                                            fontSize: 10,
-                                            fontFamily: 'var(--font-mono)',
-                                            fill: 'var(--color-muted)',
-                                        }}
-                                        width={36}
-                                        tickFormatter={(v) => `${v}`}
-                                        domain={['auto', 'auto']}
-                                    />
-                                    <ReferenceLine y={0} stroke="rgba(0,0,0,0.1)" strokeDasharray="3 3" />
-                                    <Tooltip
-                                        content={({ active, payload }) => {
-                                            if (!active || !payload?.length) return null;
-                                            const v = payload[0]?.value;
-                                            if (v == null) return null;
-                                            return (
-                                                <div
-                                                    style={{
-                                                        background: 'white',
-                                                        borderRadius: 8,
-                                                        padding: '6px 10px',
-                                                        fontSize: 12,
-                                                        boxShadow: 'rgba(0,0,0,0.15) 0px 2px 8px',
-                                                        fontFamily: 'var(--font-mono)',
-                                                        fontWeight: 600,
-                                                        color: '#d97706',
-                                                    }}
-                                                >
-                                                    {Number(v).toFixed(1)}°/min
-                                                </div>
-                                            );
-                                        }}
-                                    />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="rorActual"
-                                        stroke="#d97706"
-                                        strokeWidth={1.5}
-                                        fill="url(#rorGradient)"
-                                        dot={false}
-                                        connectNulls={false}
-                                        activeDot={{ r: 3, fill: '#d97706', strokeWidth: 0 }}
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            <RoastRorChart xs={visibleXs} rorActual={visibleRorActual} height={80} />
                         </div>
                     </div>
 

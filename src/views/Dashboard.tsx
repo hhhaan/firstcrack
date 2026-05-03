@@ -1,5 +1,5 @@
 import { TrendingUp, Coffee, Clock, CheckCircle, ArrowRight, Calendar, ChevronRight } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useEffect, useRef } from 'react';
 import { type View } from '../shared/types/view';
 
 interface DashboardProps {
@@ -14,6 +14,133 @@ const monthlyData = [
     { month: 'Mar', batches: 26 },
     { month: 'Apr', batches: 14 },
 ];
+
+interface BarCanvasProps {
+    data: { month: string; batches: number }[];
+    height?: number;
+}
+
+const BarCanvas = ({ data, height = 160 }: BarCanvasProps) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const tooltipRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const draw = (canvas: HTMLCanvasElement) => {
+        const dpr = window.devicePixelRatio || 1;
+        const W = canvas.offsetWidth;
+        const H = height;
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        canvas.style.width = `${W}px`;
+        canvas.style.height = `${H}px`;
+
+        const ctx = canvas.getContext('2d')!;
+        ctx.scale(dpr, dpr);
+
+        const cs = getComputedStyle(document.documentElement);
+        const colorPrimary = cs.getPropertyValue('--color-primary').trim() || '#171717';
+        const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#9ca3af';
+
+        const maxVal = Math.max(...data.map((d) => d.batches));
+        const padL = 28; const padR = 8; const padT = 8; const padB = 28;
+        const plotW = W - padL - padR;
+        const plotH = H - padT - padB;
+        const barW = Math.min(20, (plotW / data.length) * 0.5);
+        const gap = plotW / data.length;
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 3; i++) {
+            const y = padT + plotH - (i / 3) * plotH;
+            ctx.beginPath();
+            ctx.moveTo(padL, y);
+            ctx.lineTo(padL + plotW, y);
+            ctx.stroke();
+            ctx.fillStyle = colorMuted;
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(String(Math.round((i / 3) * maxVal)), padL - 4, y + 4);
+        }
+
+        // Bars
+        data.forEach((d, i) => {
+            const x = padL + gap * i + gap / 2 - barW / 2;
+            const barH = (d.batches / maxVal) * plotH;
+            const y = padT + plotH - barH;
+            const r = 4;
+
+            ctx.fillStyle = colorPrimary;
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + barW - r, y);
+            ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+            ctx.lineTo(x + barW, y + barH);
+            ctx.lineTo(x, y + barH);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+            ctx.fill();
+
+            // X label
+            ctx.fillStyle = colorMuted;
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(d.month, padL + gap * i + gap / 2, H - 6);
+        });
+    };
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        draw(canvas);
+        const obs = new ResizeObserver(() => { if (canvas) draw(canvas); });
+        obs.observe(canvas.parentElement!);
+        return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        const canvas = canvasRef.current;
+        const tt = tooltipRef.current;
+        if (!canvas || !tt) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const W = canvas.offsetWidth;
+        const padL = 28; const padR = 8;
+        const plotW = W - padL - padR;
+        const gap = plotW / data.length;
+
+        const idx = Math.floor((mx - padL) / gap);
+        if (idx < 0 || idx >= data.length) { tt.style.display = 'none'; return; }
+
+        tt.textContent = `${data[idx].month}: ${data[idx].batches} batches`;
+        tt.style.display = 'block';
+        tt.style.left = `${e.clientX - rect.left + 10}px`;
+        tt.style.top = `${e.clientY - rect.top - 30}px`;
+    };
+
+    return (
+        <div ref={containerRef} className="relative w-full">
+            <canvas
+                ref={canvasRef}
+                style={{ display: 'block', width: '100%', height }}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={() => { if (tooltipRef.current) tooltipRef.current.style.display = 'none'; }}
+            />
+            <div
+                ref={tooltipRef}
+                style={{
+                    position: 'absolute', pointerEvents: 'none', display: 'none',
+                    background: 'white', borderRadius: 10, padding: '6px 12px',
+                    boxShadow: 'rgba(0,0,0,0.4) 0px 0px 1px, rgba(0,0,0,0.04) 0px 4px 4px',
+                    fontSize: 13, whiteSpace: 'nowrap', zIndex: 10,
+                }}
+            />
+        </div>
+    );
+};
 
 const recentSessions = [
     {
@@ -418,35 +545,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         </h2>
                         <Calendar size={15} strokeWidth={1.5} color="var(--color-muted)" />
                     </div>
-                    <ResponsiveContainer width="100%" height={160}>
-                        <BarChart data={monthlyData} barSize={20}>
-                            <CartesianGrid vertical={false} strokeDasharray="0" />
-                            <XAxis
-                                dataKey="month"
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fontSize: 12, fontFamily: 'var(--font-body)', fill: 'var(--color-muted)' }}
-                            />
-                            <YAxis
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fontSize: 11, fontFamily: 'var(--font-body)', fill: 'var(--color-muted)' }}
-                                width={28}
-                            />
-                            <Tooltip
-                                cursor={{ fill: 'rgba(0,0,0,0.02)' }}
-                                contentStyle={{
-                                    background: 'white',
-                                    border: 'none',
-                                    borderRadius: 10,
-                                    boxShadow: 'rgba(0,0,0,0.4) 0px 0px 1px, rgba(0,0,0,0.04) 0px 4px 4px',
-                                    fontSize: 13,
-                                    fontFamily: 'var(--font-body)',
-                                }}
-                            />
-                            <Bar dataKey="batches" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    <BarCanvas data={monthlyData} height={160} />
 
                     <div
                         style={{

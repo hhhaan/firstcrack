@@ -1,0 +1,19 @@
+{
+	"mcpServers": {
+		"memory": {
+			"command": "npx",
+			"args": [
+				"-y",
+				"@modelcontextprotocol/server-memory"
+			],
+			"alwaysAllow": [
+				"create_relations",
+				"create_entities",
+				"read_graph"
+			],
+			"env": {
+				"MEMORY_FILE_PATH": "/Users/hanseungheon/han/first-crack-proj/roastery-agent/memory.jsonl"
+			}
+		}
+	}
+}

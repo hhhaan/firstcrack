@@ -1,0 +1,29 @@
+# Serial / TCP
+pyserial>=3.5
+
+# Siemens S7 PLC (Giesen, Probat S7 모델)
+python-snap7>=1.3
+
+# BLE
+bleak>=0.21.0
+
+# MODBUS (used directly by santoker.py)
+pymodbus>=3.0.0
+
+# PID filters
+numpy>=1.24.0
+scipy>=1.10.0
+
+# WebSocket (kaleido.py)
+websockets>=12.0
+
+# Phidget USB 온도 센서 (TMP1101, TMP1200, 1048 등)
+# 시스템 드라이버도 별도 설치 필요: https://www.phidgets.com/docs/OS_-_macOS
+Phidget22>=1.12.0
+
+# USB HID (aillio_r1.py, aillio_r2.py) — 현재 미사용, 의존성만 유지
+libusb-package>=1.0.0
+pyusb>=1.2.1
+
+# Sidecar HTTP server
+aiohttp>=3.9.0
