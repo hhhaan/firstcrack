@@ -53,7 +53,11 @@ class SimulatorAdapter:
     async def read(self) -> Reading:
         tx = time.monotonic() - self._start_time
         et, bt = self._sim.read(tx)
-        return Reading(bt=bt, et=et, heater=0.0, fan=0.0, drum=0.0, timestamp=time.monotonic())
+        # 가상 제어값 — 780초 프로파일 기준
+        heater = 70.0 - (tx / 780.0) * 20.0          # 70% → 50% (시간이 지날수록 화력 줄임)
+        fan = 30.0 + (tx / 780.0) * 30.0              # 30% → 60% (시간이 지날수록 에어 올림)
+        drum = 50.0                                    # 드럼은 고정
+        return Reading(bt=bt, et=et, heater=round(heater, 1), fan=round(fan, 1), drum=drum, timestamp=time.monotonic())
 
     async def start_roast(self) -> None:
         """Charge 버튼과 동기화 — 프로파일 재생을 UI 투입 시점부터 시작."""
