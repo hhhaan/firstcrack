@@ -50,7 +50,9 @@ export interface TemperatureReading {
   bt: number | null;
   et: number | null;
   ror: number;
+  ror_et: number;
   heater: number;
   fan: number;
+  drum: number;
   timestamp: number;
 }

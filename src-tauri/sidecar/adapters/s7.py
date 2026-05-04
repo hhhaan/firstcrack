@@ -46,6 +46,7 @@ class S7Adapter:
         self._et_ch: dict[str, Any] | None = None
         self._hp_ch: dict[str, Any] | None = None
         self._fc_ch: dict[str, Any] | None = None
+        self._drum_ch: dict[str, Any] | None = None
 
     async def connect(self) -> None:
         import snap7  # type: ignore[import]
@@ -68,6 +69,7 @@ class S7Adapter:
         self._et_ch = next((c for c in self._channels if c.get("role") == "ET"), None)
         self._hp_ch = next((c for c in self._channels if c.get("role") == "heater"), None)
         self._fc_ch = next((c for c in self._channels if c.get("role") == "fan"), None)
+        self._drum_ch = next((c for c in self._channels if c.get("role") == "drum"), None)
         _log.info("S7Adapter connected: %s:%d", self._host, self._port)
 
     async def disconnect(self) -> None:
@@ -82,7 +84,7 @@ class S7Adapter:
 
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _disconnect)
-        self._bt_ch = self._et_ch = self._hp_ch = self._fc_ch = None
+        self._bt_ch = self._et_ch = self._hp_ch = self._fc_ch = self._drum_ch = None
 
     def _throttle(self) -> None:
         """요청 간 최소 간격(40ms) 보장. 스레드에서 호출."""
@@ -124,16 +126,17 @@ class S7Adapter:
         if self._plc is None or not self._plc.get_connected():
             raise ConnectionError("S7 PLC가 연결되지 않음")
 
-        def _read_all() -> tuple[float, float, float, float]:
+        def _read_all() -> tuple[float, float, float, float, float]:
             bt = self._read_channel_sync(self._bt_ch) if self._bt_ch else -1.0
             et = self._read_channel_sync(self._et_ch) if self._et_ch else -1.0
             hp = self._read_channel_sync(self._hp_ch) if self._hp_ch else 0.0
             fc = self._read_channel_sync(self._fc_ch) if self._fc_ch else 0.0
-            return bt, et, hp, fc
+            drum = self._read_channel_sync(self._drum_ch) if self._drum_ch else 0.0
+            return bt, et, hp, fc, drum
 
         loop = asyncio.get_running_loop()
-        bt, et, hp, fc = await loop.run_in_executor(None, _read_all)
-        return Reading(bt=bt, et=et, heater=hp, fan=fc, timestamp=time.monotonic())
+        bt, et, hp, fc, drum = await loop.run_in_executor(None, _read_all)
+        return Reading(bt=bt, et=et, heater=hp, fan=fc, drum=drum, timestamp=time.monotonic())
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
         pass  # S7 write_area 확장 시 여기에 구현

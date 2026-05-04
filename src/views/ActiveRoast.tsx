@@ -29,12 +29,14 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
         bt: number | null;
         et: number | null;
         ror: number;
+        ror_et: number;
         heater: number;
         fan: number;
+        drum: number;
     } | null>(null);
     const [sidecarConnected, setSidecarConnected] = useState(false);
     const [livePoints, setLivePoints] = useState<
-        { time: number; label: string; bt: number; et: number; ror: number }[]
+        { time: number; label: string; bt: number; et: number; ror: number; ror_et: number }[]
     >([]);
     const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);
     const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
@@ -85,6 +87,8 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                 const data = await sidecar.getTemperatures();
                 setLiveData(data);
                 setSidecarConnected(true);
+                // TODO [T13]: 드럼/히터/팬 값 UI 표시 (현재 콘솔 확인용)
+                console.log('[fc] heater=%d fan=%d drum=%s', data.heater, data.fan, data.drum);
                 const bt = data.bt;
                 if (chargedRef.current && bt != null && roastStartTimeRef.current !== 0) {
                     const t = (Date.now() - roastStartTimeRef.current) / 1000;
@@ -101,6 +105,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                                 bt,
                                 et: data.et ?? 0,
                                 ror: data.ror,
+                                ror_et: data.ror_et ?? 0,
                             },
                         ];
                     });
@@ -142,7 +147,8 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
             time: p.time,
             btActual: p.bt,
             etActual: p.et,
-            rorActual: Math.max(0, p.ror),
+            rorActual: p.ror,
+            etRorActual: p.ror_et,
             btTarget: null as number | null,
         }));
         const future = fullData
@@ -152,6 +158,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                 btActual: null as number | null,
                 etActual: null as number | null,
                 rorActual: null as number | null,
+                etRorActual: null as number | null,
                 btTarget: p.bt,
             }));
         return [...past, ...future];
@@ -213,6 +220,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     const visibleBtActual = useMemo(() => visibleChartData.map((p) => p.btActual), [visibleChartData]);
     const visibleEtActual = useMemo(() => visibleChartData.map((p) => p.etActual), [visibleChartData]);
     const visibleRorActual = useMemo(() => visibleChartData.map((p) => p.rorActual), [visibleChartData]);
+    const visibleEtRorActual = useMemo(() => visibleChartData.map((p) => p.etRorActual ?? null), [visibleChartData]);
 
     const flashButton = (label: string) => {
         setPressedButtons((prev) => new Set(prev).add(label));
@@ -769,7 +777,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                                     {displayRoR}°/min
                                 </span>
                             </div>
-                            <RoastRorChart xs={visibleXs} rorActual={visibleRorActual} height={80} />
+                            <RoastRorChart xs={visibleXs} rorActual={visibleRorActual} etRorActual={visibleEtRorActual} height={80} />
                         </div>
                     </div>
 

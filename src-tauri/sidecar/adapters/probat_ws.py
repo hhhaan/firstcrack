@@ -114,6 +114,7 @@ class ProbatWSAdapter:
                 et=_get("ET", -1.0),
                 heater=_get("heater", 0.0),
                 fan=_get("fan", 0.0),
+                drum=_get("drum", 0.0),
                 timestamp=time.monotonic(),
             )
 

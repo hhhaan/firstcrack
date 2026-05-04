@@ -128,9 +128,11 @@ class ModbusAdapter:
 
         bt_cfg = self._regs.get("BT")
         et_cfg = self._regs.get("ET")
+        drum_cfg = self._regs.get("drum")
         bt = await self._read_channel(bt_cfg) if bt_cfg else -1.0
         et = await self._read_channel(et_cfg) if et_cfg else -1.0
-        return Reading(bt=bt, et=et, heater=0.0, fan=0.0, timestamp=time.monotonic())
+        drum = await self._read_channel(drum_cfg) if drum_cfg else 0.0
+        return Reading(bt=bt, et=et, heater=0.0, fan=0.0, drum=drum, timestamp=time.monotonic())
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
         pass  # 대부분 읽기 전용. 제어 필요 시 write_register 확장.

@@ -18,6 +18,7 @@ class RoasterManager:
         self._error: str | None = None
         self._start_time: float = 0.0
         self._ror_window: deque[tuple[float, float]] = deque()
+        self._et_ror_window: deque[tuple[float, float]] = deque()
         self._lock: asyncio.Lock = asyncio.Lock()
 
     async def connect(self, roaster_key: str, params: dict[str, Any]) -> None:
@@ -35,6 +36,7 @@ class RoasterManager:
             self._adapter = make_adapter(protocol, merged)
             self._roaster_key = roaster_key
             self._ror_window.clear()
+            self._et_ror_window.clear()
             self._error = None
 
             try:
@@ -60,27 +62,32 @@ class RoasterManager:
         self._connected = False
         self._roaster_key = ""
         self._ror_window.clear()
+        self._et_ror_window.clear()
 
     async def read_temperatures(self) -> dict[str, Any]:
         if not self._connected or self._adapter is None:
-            return {"bt": None, "et": None, "ror": 0.0, "heater": 0, "fan": 0, "timestamp": time.time()}
+            return {"bt": None, "et": None, "ror": 0.0, "ror_et": 0.0, "heater": 0, "fan": 0, "drum": 0, "timestamp": time.time()}
         try:
             reading = await self._adapter.read()
         except Exception as exc:
             self._error = str(exc)
             self._connected = False
             _log.error("읽기 실패: %s", exc)
-            return {"bt": None, "et": None, "ror": 0.0, "heater": 0, "fan": 0, "timestamp": time.time()}
+            return {"bt": None, "et": None, "ror": 0.0, "ror_et": 0.0, "heater": 0, "fan": 0, "drum": 0, "timestamp": time.time()}
 
         if reading.bt > 0:
             self._add_to_ror_window(reading.timestamp, reading.bt)
+        if reading.et > 0:
+            self._add_to_et_ror_window(reading.timestamp, reading.et)
 
         return {
             "bt": round(reading.bt, 1),
             "et": round(reading.et, 1),
             "ror": round(self._compute_ror(), 2),
+            "ror_et": round(self._compute_et_ror(), 2),
             "heater": int(reading.heater),
             "fan": int(reading.fan),
+            "drum": round(reading.drum, 1),
             "timestamp": reading.timestamp,
         }
 
@@ -88,6 +95,7 @@ class RoasterManager:
         """UI의 Charge 버튼과 연동. 어댑터가 지원하면 타이머를 리셋하고, RoR 윈도우를 초기화."""
         async with self._lock:
             self._ror_window.clear()
+            self._et_ror_window.clear()
             if self._adapter is not None and hasattr(self._adapter, "start_roast"):
                 await self._adapter.start_roast()
 
@@ -113,13 +121,26 @@ class RoasterManager:
         while self._ror_window and self._ror_window[0][0] < cutoff:
             self._ror_window.popleft()
 
+    def _add_to_et_ror_window(self, ts: float, et: float) -> None:
+        self._et_ror_window.append((ts, et))
+        cutoff = ts - 30.0
+        while self._et_ror_window and self._et_ror_window[0][0] < cutoff:
+            self._et_ror_window.popleft()
+
     def _compute_ror(self) -> float:
         """BT의 최근 30초 선형 최소제곱 기울기 (°C/min)."""
-        if len(self._ror_window) < 2:
+        return self._least_squares_slope(self._ror_window)
+
+    def _compute_et_ror(self) -> float:
+        """ET의 최근 30초 선형 최소제곱 기울기 (°C/min)."""
+        return self._least_squares_slope(self._et_ror_window)
+
+    def _least_squares_slope(self, window: deque[tuple[float, float]]) -> float:
+        if len(window) < 2:
             return 0.0
-        t0 = self._ror_window[0][0]
-        xs = [(t - t0) / 60.0 for t, _ in self._ror_window]
-        ys = [bt for _, bt in self._ror_window]
+        t0 = window[0][0]
+        xs = [(t - t0) / 60.0 for t, _ in window]
+        ys = [v for _, v in window]
         n = len(xs)
         sx, sy = sum(xs), sum(ys)
         sxy = sum(x * y for x, y in zip(xs, ys))

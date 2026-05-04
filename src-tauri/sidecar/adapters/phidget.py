@@ -94,7 +94,7 @@ class PhidgetAdapter:
 
         loop = asyncio.get_running_loop()
         bt, et = await loop.run_in_executor(None, _read_temps)
-        return Reading(bt=bt, et=et, heater=0.0, fan=0.0, timestamp=time.monotonic())
+        return Reading(bt=bt, et=et, heater=0.0, fan=0.0, drum=0.0, timestamp=time.monotonic())
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
         pass  # 온도 센서는 읽기 전용

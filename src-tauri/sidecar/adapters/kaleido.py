@@ -60,10 +60,14 @@ class KaleidoAdapter:
         except (KeyError, TypeError):
             hp = 0.0
         try:
-            fc = float(self._driver.get_state("FC") or 0)
+            fc = float(self._driver.get_state("SM") or 0)
         except (KeyError, TypeError):
             fc = 0.0
-        return Reading(bt=bt, et=et, heater=hp, fan=fc, timestamp=time.monotonic())
+        try:
+            drum = float(self._driver.get_state("RL") or 0)
+        except (KeyError, TypeError):
+            drum = 0.0
+        return Reading(bt=bt, et=et, heater=hp, fan=fc, drum=drum, timestamp=time.monotonic())
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
         if heater is not None:

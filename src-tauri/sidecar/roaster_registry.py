@@ -38,42 +38,152 @@ from typing import Any
 
 PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
     "s7": [
-        {"key": "host",  "label": "PLC IP Address", "type": "text",   "required": True,  "placeholder": "192.168.1.100"},
-        {"key": "port",  "label": "Port",            "type": "number", "required": False, "placeholder": "102"},
-        {"key": "rack",  "label": "Rack",            "type": "number", "required": False, "placeholder": "0"},
-        {"key": "slot",  "label": "Slot",            "type": "number", "required": False, "placeholder": "0"},
+        {
+            "key": "host",
+            "label": "PLC IP Address",
+            "type": "text",
+            "required": True,
+            "placeholder": "192.168.1.100",
+        },
+        {
+            "key": "port",
+            "label": "Port",
+            "type": "number",
+            "required": False,
+            "placeholder": "102",
+        },
+        {
+            "key": "rack",
+            "label": "Rack",
+            "type": "number",
+            "required": False,
+            "placeholder": "0",
+        },
+        {
+            "key": "slot",
+            "label": "Slot",
+            "type": "number",
+            "required": False,
+            "placeholder": "0",
+        },
     ],
     "kaleido": [
-        {"key": "mode",    "label": "Connection Mode", "type": "select", "required": True,
-         "options": [{"value": "TCP", "label": "Network (WebSocket)"}, {"value": "Serial", "label": "Serial (MODBUS)"}]},
-        {"key": "host",    "label": "IP Address",      "type": "text",   "required": False, "placeholder": "127.0.0.1"},
-        {"key": "port",    "label": "Port",            "type": "number", "required": False, "placeholder": "80"},
-        {"key": "comport", "label": "Serial Port",     "type": "text",   "required": False, "placeholder": "/dev/ttyUSB0"},
-        {"key": "baudrate","label": "Baud Rate",       "type": "number", "required": False, "placeholder": "57600"},
+        {
+            "key": "mode",
+            "label": "Connection Mode",
+            "type": "select",
+            "required": True,
+            "options": [
+                {"value": "TCP", "label": "Network (WebSocket)"},
+                {"value": "Serial", "label": "Serial (MODBUS)"},
+            ],
+        },
+        {
+            "key": "host",
+            "label": "IP Address",
+            "type": "text",
+            "required": False,
+            "placeholder": "127.0.0.1",
+        },
+        {
+            "key": "port",
+            "label": "Port",
+            "type": "number",
+            "required": False,
+            "placeholder": "80",
+        },
+        {
+            "key": "comport",
+            "label": "Serial Port",
+            "type": "text",
+            "required": False,
+            "placeholder": "/dev/ttyUSB0",
+        },
+        {
+            "key": "baudrate",
+            "label": "Baud Rate",
+            "type": "number",
+            "required": False,
+            "placeholder": "57600",
+        },
     ],
     "probat_ws": [
-        {"key": "host", "label": "IP Address", "type": "text",   "required": True,  "placeholder": "127.0.0.1"},
-        {"key": "port", "label": "Port",        "type": "number", "required": False, "placeholder": "80"},
+        {
+            "key": "host",
+            "label": "IP Address",
+            "type": "text",
+            "required": True,
+            "placeholder": "127.0.0.1",
+        },
+        {
+            "key": "port",
+            "label": "Port",
+            "type": "number",
+            "required": False,
+            "placeholder": "80",
+        },
     ],
     "modbus": [
-        {"key": "mode",    "label": "Connection", "type": "select", "required": True,
-         "options": [{"value": "tcp", "label": "TCP/IP"}, {"value": "rtu", "label": "Serial RTU"}]},
-        {"key": "host",    "label": "IP Address",  "type": "text",   "required": False, "placeholder": "127.0.0.1"},
-        {"key": "port",    "label": "Port",        "type": "number", "required": False},
-        {"key": "comport", "label": "Serial Port", "type": "text",   "required": False, "placeholder": "/dev/ttyUSB0"},
-        {"key": "baudrate","label": "Baud Rate",   "type": "number", "required": False},
+        {
+            "key": "mode",
+            "label": "Connection",
+            "type": "select",
+            "required": True,
+            "options": [
+                {"value": "tcp", "label": "TCP/IP"},
+                {"value": "rtu", "label": "Serial RTU"},
+            ],
+        },
+        {
+            "key": "host",
+            "label": "IP Address",
+            "type": "text",
+            "required": False,
+            "placeholder": "127.0.0.1",
+        },
+        {"key": "port", "label": "Port", "type": "number", "required": False},
+        {
+            "key": "comport",
+            "label": "Serial Port",
+            "type": "text",
+            "required": False,
+            "placeholder": "/dev/ttyUSB0",
+        },
+        {"key": "baudrate", "label": "Baud Rate", "type": "number", "required": False},
     ],
     "phidget": [
-        {"key": "device_type", "label": "Phidget Model", "type": "select", "required": True,
-         "options": [
-             {"value": "TMP1101", "label": "TMP1101 (4x TC)"},
-             {"value": "TMP1200", "label": "TMP1200 (1x RTD)"},
-             {"value": "TMP1202", "label": "TMP1202 (2x RTD)"},
-             {"value": "1048",    "label": "1048 (4x TC, USB)"},
-         ]},
-        {"key": "channel_bt",    "label": "BT Channel (0-3)",         "type": "number", "required": True,  "placeholder": "0"},
-        {"key": "channel_et",    "label": "ET Channel (0-3)",         "type": "number", "required": False, "placeholder": "1"},
-        {"key": "serial_number", "label": "Serial Number (optional)", "type": "number", "required": False},
+        {
+            "key": "device_type",
+            "label": "Phidget Model",
+            "type": "select",
+            "required": True,
+            "options": [
+                {"value": "TMP1101", "label": "TMP1101 (4x TC)"},
+                {"value": "TMP1200", "label": "TMP1200 (1x RTD)"},
+                {"value": "TMP1202", "label": "TMP1202 (2x RTD)"},
+                {"value": "1048", "label": "1048 (4x TC, USB)"},
+            ],
+        },
+        {
+            "key": "channel_bt",
+            "label": "BT Channel (0-3)",
+            "type": "number",
+            "required": True,
+            "placeholder": "0",
+        },
+        {
+            "key": "channel_et",
+            "label": "ET Channel (0-3)",
+            "type": "number",
+            "required": False,
+            "placeholder": "1",
+        },
+        {
+            "key": "serial_number",
+            "label": "Serial Number (optional)",
+            "type": "number",
+            "required": False,
+        },
     ],
     "simulator": [],
 }
@@ -84,7 +194,6 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
 # ---------------------------------------------------------------------------
 
 ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
-
     # -----------------------------------------------------------------------
     # Simulator
     # -----------------------------------------------------------------------
@@ -97,13 +206,11 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": None,
         "capabilities": [],
     },
-
     # -----------------------------------------------------------------------
     # Giesen — S7 (8개 항목)
     # 출처: Giesen/*.aset
     # 공통: port=102, rack=0, slot=0, div=0, PID Kp=20/Ki=0.01/Kd=3
     # -----------------------------------------------------------------------
-
     # W1A, W1E, Sample_WPE, Sample_WPG
     # BT=db3/118/INT, ET=db3/114/INT
     "giesen_w1": {
@@ -113,20 +220,28 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "protocol": "s7",
         "default_params": {
             "host": "172.30.30.30",
-            "port": 102, "rack": 0, "slot": 0,
+            "port": 102,
+            "rack": 0,
+            "slot": 0,
             "channels": [
-                {"role": "BT",     "db": 3, "offset": 118, "area": 6, "type": 1, "div": 0},
-                {"role": "ET",     "db": 3, "offset": 114, "area": 6, "type": 1, "div": 0},
-                {"role": "heater", "db": 2, "offset": 48,  "area": 6, "type": 0, "div": 0},
-                {"role": "fan",    "db": 2, "offset": 10,  "area": 6, "type": 0, "div": 0},
-                {"role": "drum",   "db": 2, "offset": 14,  "area": 6, "type": 0, "div": 0},
-                {"role": "AT",     "db": 2, "offset": 54,  "area": 6, "type": 0, "div": 0},
+                {"role": "BT", "db": 3, "offset": 118, "area": 6, "type": 1, "div": 0},
+                {"role": "ET", "db": 3, "offset": 114, "area": 6, "type": 1, "div": 0},
+                {
+                    "role": "heater",
+                    "db": 2,
+                    "offset": 48,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
+                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
             ],
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
     },
-
     # W6A, W6E, W15A, W30A, W45A, W60A
     # BT=db3/116/INT, ET=db3/112/INT
     "giesen_standard": {
@@ -136,20 +251,28 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "protocol": "s7",
         "default_params": {
             "host": "172.30.30.50",
-            "port": 102, "rack": 0, "slot": 0,
+            "port": 102,
+            "rack": 0,
+            "slot": 0,
             "channels": [
-                {"role": "BT",     "db": 3, "offset": 116, "area": 6, "type": 1, "div": 0},
-                {"role": "ET",     "db": 3, "offset": 112, "area": 6, "type": 1, "div": 0},
-                {"role": "heater", "db": 2, "offset": 48,  "area": 6, "type": 0, "div": 0},
-                {"role": "fan",    "db": 2, "offset": 10,  "area": 6, "type": 0, "div": 0},
-                {"role": "drum",   "db": 2, "offset": 14,  "area": 6, "type": 0, "div": 0},
-                {"role": "AT",     "db": 2, "offset": 54,  "area": 6, "type": 0, "div": 0},
+                {"role": "BT", "db": 3, "offset": 116, "area": 6, "type": 1, "div": 0},
+                {"role": "ET", "db": 3, "offset": 112, "area": 6, "type": 1, "div": 0},
+                {
+                    "role": "heater",
+                    "db": 2,
+                    "offset": 48,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
+                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
             ],
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
     },
-
     # W15E, W140A v1 — BT/ET=standard와 동일, 추가 채널 db3/184
     "giesen_w15e": {
         "display_name": "Giesen W15E / W140A (v1)",
@@ -158,21 +281,36 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "protocol": "s7",
         "default_params": {
             "host": "172.30.30.50",
-            "port": 102, "rack": 0, "slot": 0,
+            "port": 102,
+            "rack": 0,
+            "slot": 0,
             "channels": [
-                {"role": "BT",     "db": 3, "offset": 116, "area": 6, "type": 1, "div": 0},
-                {"role": "ET",     "db": 3, "offset": 112, "area": 6, "type": 1, "div": 0},
-                {"role": "heater", "db": 2, "offset": 48,  "area": 6, "type": 0, "div": 0},
-                {"role": "fan",    "db": 2, "offset": 10,  "area": 6, "type": 0, "div": 0},
-                {"role": "drum",   "db": 2, "offset": 14,  "area": 6, "type": 0, "div": 0},
-                {"role": "AT",     "db": 2, "offset": 54,  "area": 6, "type": 0, "div": 0},
-                {"role": "extra",  "db": 3, "offset": 184, "area": 6, "type": 0, "div": 0},
+                {"role": "BT", "db": 3, "offset": 116, "area": 6, "type": 1, "div": 0},
+                {"role": "ET", "db": 3, "offset": 112, "area": 6, "type": 1, "div": 0},
+                {
+                    "role": "heater",
+                    "db": 2,
+                    "offset": 48,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
+                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
+                {
+                    "role": "extra",
+                    "db": 3,
+                    "offset": 184,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
             ],
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
     },
-
     # W30A PRO — BT/ET=standard와 동일, 추가 채널 db2/54
     "giesen_w30a_pro": {
         "display_name": "Giesen W30A PRO",
@@ -181,21 +319,36 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "protocol": "s7",
         "default_params": {
             "host": "172.30.30.70",
-            "port": 102, "rack": 0, "slot": 0,
+            "port": 102,
+            "rack": 0,
+            "slot": 0,
             "channels": [
-                {"role": "BT",     "db": 3, "offset": 116, "area": 6, "type": 1, "div": 0},
-                {"role": "ET",     "db": 3, "offset": 112, "area": 6, "type": 1, "div": 0},
-                {"role": "heater", "db": 2, "offset": 48,  "area": 6, "type": 0, "div": 0},
-                {"role": "fan",    "db": 2, "offset": 10,  "area": 6, "type": 0, "div": 0},
-                {"role": "drum",   "db": 2, "offset": 14,  "area": 6, "type": 0, "div": 0},
-                {"role": "AT",     "db": 2, "offset": 54,  "area": 6, "type": 0, "div": 0},
-                {"role": "extra",  "db": 2, "offset": 54,  "area": 6, "type": 0, "div": 0},
+                {"role": "BT", "db": 3, "offset": 116, "area": 6, "type": 1, "div": 0},
+                {"role": "ET", "db": 3, "offset": 112, "area": 6, "type": 1, "div": 0},
+                {
+                    "role": "heater",
+                    "db": 2,
+                    "offset": 48,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
+                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
+                {
+                    "role": "extra",
+                    "db": 2,
+                    "offset": 54,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
             ],
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
     },
-
     # W140A v2 — BT=db3/196/INT, ET=db3/192/INT (v1과 오프셋 완전히 다름)
     "giesen_w140a_v2": {
         "display_name": "Giesen W140A (v2)",
@@ -204,20 +357,28 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "protocol": "s7",
         "default_params": {
             "host": "172.30.30.110",
-            "port": 102, "rack": 0, "slot": 0,
+            "port": 102,
+            "rack": 0,
+            "slot": 0,
             "channels": [
-                {"role": "BT",     "db": 3, "offset": 196, "area": 6, "type": 1, "div": 0},
-                {"role": "ET",     "db": 3, "offset": 192, "area": 6, "type": 1, "div": 0},
-                {"role": "heater", "db": 2, "offset": 48,  "area": 6, "type": 0, "div": 0},
-                {"role": "fan",    "db": 2, "offset": 10,  "area": 6, "type": 0, "div": 0},
-                {"role": "drum",   "db": 2, "offset": 14,  "area": 6, "type": 0, "div": 0},
-                {"role": "AT",     "db": 2, "offset": 54,  "area": 6, "type": 0, "div": 0},
+                {"role": "BT", "db": 3, "offset": 196, "area": 6, "type": 1, "div": 0},
+                {"role": "ET", "db": 3, "offset": 192, "area": 6, "type": 1, "div": 0},
+                {
+                    "role": "heater",
+                    "db": 2,
+                    "offset": 48,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
+                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
             ],
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
     },
-
     # W6A PRO — 신형 PLC (DB 1006/1001), 기존 구조와 완전히 다름
     "giesen_w6a_pro": {
         "display_name": "Giesen W6A PRO",
@@ -226,14 +387,58 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "protocol": "s7",
         "default_params": {
             "host": "172.30.30.50",
-            "port": 102, "rack": 0, "slot": 0,
+            "port": 102,
+            "rack": 0,
+            "slot": 0,
             "channels": [
-                {"role": "BT",     "db": 1006, "offset": 30,  "area": 6, "type": 1, "div": 0},
-                {"role": "ET",     "db": 1006, "offset": 16,  "area": 6, "type": 1, "div": 0},
-                {"role": "heater", "db": 1006, "offset": 98,  "area": 6, "type": 0, "div": 0},
-                {"role": "fan",    "db": 1006, "offset": 20,  "area": 6, "type": 1, "div": 0},
-                {"role": "drum",   "db": 1006, "offset": 106, "area": 6, "type": 0, "div": 0},
-                {"role": "AT",     "db": 1006, "offset": 96,  "area": 6, "type": 0, "div": 0},
+                {
+                    "role": "BT",
+                    "db": 1006,
+                    "offset": 30,
+                    "area": 6,
+                    "type": 1,
+                    "div": 0,
+                },
+                {
+                    "role": "ET",
+                    "db": 1006,
+                    "offset": 16,
+                    "area": 6,
+                    "type": 1,
+                    "div": 0,
+                },
+                {
+                    "role": "heater",
+                    "db": 1006,
+                    "offset": 98,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
+                {
+                    "role": "fan",
+                    "db": 1006,
+                    "offset": 20,
+                    "area": 6,
+                    "type": 1,
+                    "div": 0,
+                },
+                {
+                    "role": "drum",
+                    "db": 1006,
+                    "offset": 106,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
+                {
+                    "role": "AT",
+                    "db": 1006,
+                    "offset": 96,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
             ],
             "pid_db": 1001,
             "pid_sv_register": 24,
@@ -241,7 +446,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
     },
-
     # WxA, WxA_coarse, WxA_IR, WxA_IR_Env — db2, REAL(type=0)
     # BT=db2/38/REAL, ET=db2/36/REAL
     "giesen_wxa": {
@@ -251,19 +455,27 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "protocol": "s7",
         "default_params": {
             "host": "192.168.2.180",
-            "port": 102, "rack": 0, "slot": 0,
+            "port": 102,
+            "rack": 0,
+            "slot": 0,
             "channels": [
-                {"role": "BT",     "db": 2, "offset": 38, "area": 6, "type": 0, "div": 0},
-                {"role": "ET",     "db": 2, "offset": 36, "area": 6, "type": 0, "div": 0},
-                {"role": "heater", "db": 2, "offset": 48, "area": 6, "type": 0, "div": 0},
-                {"role": "fan",    "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum",   "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "BT", "db": 2, "offset": 38, "area": 6, "type": 0, "div": 0},
+                {"role": "ET", "db": 2, "offset": 36, "area": 6, "type": 0, "div": 0},
+                {
+                    "role": "heater",
+                    "db": 2,
+                    "offset": 48,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
+                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
             ],
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
     },
-
     # WxA+, WxA+ IR, WxA+ IR Env — db4, INT(type=1)
     # BT=db4/10/INT, ET=db4/6/INT (WxA와 DB 번호, 오프셋, 타입 모두 다름)
     "giesen_wxa_plus": {
@@ -273,25 +485,32 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "protocol": "s7",
         "default_params": {
             "host": "192.168.2.180",
-            "port": 102, "rack": 0, "slot": 0,
+            "port": 102,
+            "rack": 0,
+            "slot": 0,
             "channels": [
-                {"role": "BT",     "db": 4, "offset": 10, "area": 6, "type": 1, "div": 0},
-                {"role": "ET",     "db": 4, "offset": 6,  "area": 6, "type": 1, "div": 0},
-                {"role": "heater", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
-                {"role": "fan",    "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum",   "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "BT", "db": 4, "offset": 10, "area": 6, "type": 1, "div": 0},
+                {"role": "ET", "db": 4, "offset": 6, "area": 6, "type": 1, "div": 0},
+                {
+                    "role": "heater",
+                    "db": 2,
+                    "offset": 18,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
+                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
             ],
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
     },
-
     # -----------------------------------------------------------------------
     # Probat — S7 (2개), WebSocket (2개), MODBUS (2개)
     # 출처: Probat/*.aset
     # PID: 없음 (Probat 자체 PID 사용)
     # -----------------------------------------------------------------------
-
     # G_UG (S7) — db100
     # BT=db100/4/INT, ET=db100/8/INT
     "probat_gug_s7": {
@@ -301,19 +520,41 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "protocol": "s7",
         "default_params": {
             "host": "10.32.176.124",
-            "port": 102, "rack": 0, "slot": 0,
+            "port": 102,
+            "rack": 0,
+            "slot": 0,
             "channels": [
-                {"role": "BT",     "db": 100, "offset": 4,  "area": 6, "type": 1, "div": 0},
-                {"role": "ET",     "db": 100, "offset": 8,  "area": 6, "type": 1, "div": 0},
-                {"role": "heater", "db": 100, "offset": 0,  "area": 6, "type": 1, "div": 0},
-                {"role": "fan",    "db": 100, "offset": 22, "area": 6, "type": 0, "div": 0},
-                {"role": "drum",   "db": 100, "offset": 28, "area": 6, "type": 0, "div": 0},
+                {"role": "BT", "db": 100, "offset": 4, "area": 6, "type": 1, "div": 0},
+                {"role": "ET", "db": 100, "offset": 8, "area": 6, "type": 1, "div": 0},
+                {
+                    "role": "heater",
+                    "db": 100,
+                    "offset": 0,
+                    "area": 6,
+                    "type": 1,
+                    "div": 0,
+                },
+                {
+                    "role": "fan",
+                    "db": 100,
+                    "offset": 22,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
+                {
+                    "role": "drum",
+                    "db": 100,
+                    "offset": 28,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
             ],
         },
         "pid": None,
-        "capabilities": ["heater", "fan"],
+        "capabilities": ["heater", "fan", "drum"],
     },
-
     # G_UG_control (S7) — db200 (G_UG와 DB 번호, 오프셋 완전히 다름)
     # BT=db200/18/INT, ET=db200/22/INT
     # div[6]=2 (채널 6번 스케일링 있음)
@@ -324,21 +565,50 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "protocol": "s7",
         "default_params": {
             "host": "10.32.176.124",
-            "port": 102, "rack": 0, "slot": 0,
+            "port": 102,
+            "rack": 0,
+            "slot": 0,
             "channels": [
-                {"role": "BT",     "db": 200, "offset": 18, "area": 6, "type": 1, "div": 0},
-                {"role": "ET",     "db": 200, "offset": 22, "area": 6, "type": 1, "div": 0},
-                {"role": "heater", "db": 200, "offset": 14, "area": 6, "type": 1, "div": 0},
-                {"role": "fan",    "db": 200, "offset": 30, "area": 6, "type": 1, "div": 0},
-                {"role": "drum",   "db": 200, "offset": 80, "area": 6, "type": 0, "div": 0},
-                {"role": "AT",     "db": 200, "offset": 64, "area": 6, "type": 0, "div": 0},
-                {"role": "extra",  "db": 200, "offset": 44, "area": 6, "type": 0, "div": 2},
+                {"role": "BT", "db": 200, "offset": 18, "area": 6, "type": 1, "div": 0},
+                {"role": "ET", "db": 200, "offset": 22, "area": 6, "type": 1, "div": 0},
+                {
+                    "role": "heater",
+                    "db": 200,
+                    "offset": 14,
+                    "area": 6,
+                    "type": 1,
+                    "div": 0,
+                },
+                {
+                    "role": "fan",
+                    "db": 200,
+                    "offset": 30,
+                    "area": 6,
+                    "type": 1,
+                    "div": 0,
+                },
+                {
+                    "role": "drum",
+                    "db": 200,
+                    "offset": 80,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
+                {"role": "AT", "db": 200, "offset": 64, "area": 6, "type": 0, "div": 0},
+                {
+                    "role": "extra",
+                    "db": 200,
+                    "offset": 44,
+                    "area": 6,
+                    "type": 0,
+                    "div": 2,
+                },
             ],
         },
         "pid": None,
-        "capabilities": ["heater", "fan"],
+        "capabilities": ["heater", "fan", "drum"],
     },
-
     # G_UG_WebSockets + P_Series_III — WebSocket, 동일한 channel_nodes
     "probat_ws": {
         "display_name": "Probat G / UG / P-Series (WebSocket)",
@@ -349,20 +619,19 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "host": "127.0.0.1",
             "port": 80,
             "channel_nodes": {
-                "BT":     "beanTemp",
-                "ET":     "ambientTemp",
+                "BT": "beanTemp",
+                "ET": "ambientTemp",
                 "heater": "burner",
-                "fan":    "exhaustFan",
-                "drum":   "drum",
-                "AT":     "intakeAirTemp",
+                "fan": "exhaustFan",
+                "drum": "drum",
+                "AT": "intakeAirTemp",
                 "exhaust_AT": "exhaustAirTemp",
                 "cooling_AT": "coolingAirTemp",
             },
         },
         "pid": None,
-        "capabilities": ["heater", "fan"],
+        "capabilities": ["heater", "fan", "drum"],
     },
-
     # Sample_Roaster — WebSocket, channel_nodes 일부 비어있음
     "probat_sample_ws": {
         "display_name": "Probat Sample Roaster (WebSocket)",
@@ -373,15 +642,14 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "host": "127.0.0.1",
             "port": 80,
             "channel_nodes": {
-                "BT":     "beanTemp",
-                "ET":     "exhaustAirTemp",
+                "BT": "beanTemp",
+                "ET": "exhaustAirTemp",
                 "heater": "burner",
             },
         },
         "pid": None,
         "capabilities": ["heater"],
     },
-
     # Probatone — MODBUS RTU, BT만 읽힘 (ET deviceId=0 → 비활성)
     # BT: register=12392, func=3, float=false, div=2(÷100), unit_id=1
     "probat_probatone": {
@@ -396,20 +664,26 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "comport": "",
             "baudrate": 115200,
             "modbus_registers": {
-                "BT": {"register": 12392, "func": 3, "unit_id": 1, "float": False, "div": 2, "mode": "C"},
+                "BT": {
+                    "register": 12392,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "div": 2,
+                    "mode": "C",
+                },
                 "ET": None,  # 비활성
             },
         },
         "pid": None,
         "capabilities": [],
     },
-
     # Probatone 7'' — ET register가 Probatone과 다름 (12393, div=2)
     # BT: register=12392, ET: register=12393, func=3, div=2(÷100), unit_id=1
     "probat_probatone_7": {
-        "display_name": "Probat Probatone 7\"",
+        "display_name": 'Probat Probatone 7"',
         "brand": "Probat",
-        "models": ["Probatone 7\""],
+        "models": ['Probatone 7"'],
         "protocol": "modbus",
         "default_params": {
             "mode": "rtu",
@@ -418,14 +692,27 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "comport": "",
             "baudrate": 115200,
             "modbus_registers": {
-                "BT": {"register": 12392, "func": 3, "unit_id": 1, "float": False, "div": 2, "mode": "C"},
-                "ET": {"register": 12393, "func": 3, "unit_id": 1, "float": False, "div": 2, "mode": "C"},
+                "BT": {
+                    "register": 12392,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "div": 2,
+                    "mode": "C",
+                },
+                "ET": {
+                    "register": 12393,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "div": 2,
+                    "mode": "C",
+                },
             },
         },
         "pid": None,
         "capabilities": [],
     },
-
     # -----------------------------------------------------------------------
     # Kaleido — kaleido.py 전용 드라이버 (id=138)
     # 출처: Kaleido/Network.aset, Serial.aset
@@ -448,13 +735,11 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": {"Kp": 15, "Ki": 0.07, "Kd": 0.06},
         "capabilities": ["heater", "fan", "drum"],
     },
-
     # -----------------------------------------------------------------------
     # Diedrich — MODBUS (CR/DR) + Phidget (Data Logging)
     # 출처: Diedrich/*.aset
     # PID: 없음
     # -----------------------------------------------------------------------
-
     # CR — TCP port=8010(비표준), RTU 115200
     # BT: register=0, ET: register=4, func=3(Holding), float=True(32-bit IEEE), unit_id=1
     # 주의: 값이 °F로 읽힘 → ModbusAdapter에서 °C 변환 필요
@@ -470,14 +755,27 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "comport": "",
             "baudrate": 115200,
             "modbus_registers": {
-                "BT": {"register": 0, "func": 3, "unit_id": 1, "float": True,  "div": 0, "mode": "F"},
-                "ET": {"register": 4, "func": 3, "unit_id": 1, "float": True,  "div": 0, "mode": "F"},
+                "BT": {
+                    "register": 0,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": True,
+                    "div": 0,
+                    "mode": "F",
+                },
+                "ET": {
+                    "register": 4,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": True,
+                    "div": 0,
+                    "mode": "F",
+                },
             },
         },
         "pid": None,
         "capabilities": [],
     },
-
     # DR — CR과 레지스터 동일, default host만 다름
     "diedrich_dr": {
         "display_name": "Diedrich DR",
@@ -491,14 +789,27 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "comport": "",
             "baudrate": 115200,
             "modbus_registers": {
-                "BT": {"register": 0, "func": 3, "unit_id": 1, "float": True,  "div": 0, "mode": "F"},
-                "ET": {"register": 4, "func": 3, "unit_id": 1, "float": True,  "div": 0, "mode": "F"},
+                "BT": {
+                    "register": 0,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": True,
+                    "div": 0,
+                    "mode": "F",
+                },
+                "ET": {
+                    "register": 4,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": True,
+                    "div": 0,
+                    "mode": "F",
+                },
             },
         },
         "pid": None,
         "capabilities": [],
     },
-
     # 4/6 Sensor Data Logging — id=34, Phidget 1048 사용
     "diedrich_phidget_4ch": {
         "display_name": "Diedrich 4-Sensor Data Logging",
@@ -514,7 +825,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": None,
         "capabilities": [],
     },
-
     "diedrich_phidget_6ch": {
         "display_name": "Diedrich 6-Sensor Data Logging",
         "brand": "Diedrich",
@@ -529,13 +839,11 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": None,
         "capabilities": [],
     },
-
     # -----------------------------------------------------------------------
     # Easyster — MODBUS (2개 항목)
     # 출처: Easyster/*.aset
     # PID: 없음
     # -----------------------------------------------------------------------
-
     # 2Temp, 3Temp, AirPressure — baudrate=9600, port=502
     # 핵심: BT와 ET가 같은 레지스터(1000)인데 unit_id(slave address)로 구분
     # BT: register=1000, func=4(Input), unit_id=1, div=1(÷10)
@@ -552,14 +860,27 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "comport": "",
             "baudrate": 9600,
             "modbus_registers": {
-                "BT": {"register": 1000, "func": 4, "unit_id": 1, "float": False, "div": 1, "mode": "C"},
-                "ET": {"register": 1000, "func": 4, "unit_id": 2, "float": False, "div": 1, "mode": "C"},
+                "BT": {
+                    "register": 1000,
+                    "func": 4,
+                    "unit_id": 1,
+                    "float": False,
+                    "div": 1,
+                    "mode": "C",
+                },
+                "ET": {
+                    "register": 1000,
+                    "func": 4,
+                    "unit_id": 2,
+                    "float": False,
+                    "div": 1,
+                    "mode": "C",
+                },
             },
         },
         "pid": None,
         "capabilities": [],
     },
-
     # Smart — host/port/baudrate 완전히 다름, 레지스터도 다름
     # BT: register=3, ET: register=4, func=3(Holding), unit_id=1, div=1(÷10)
     "easyster_smart": {
@@ -574,20 +895,32 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "comport": "",
             "baudrate": 115200,
             "modbus_registers": {
-                "BT": {"register": 3, "func": 3, "unit_id": 1, "float": False, "div": 1, "mode": "C"},
-                "ET": {"register": 4, "func": 3, "unit_id": 1, "float": False, "div": 1, "mode": "C"},
+                "BT": {
+                    "register": 3,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "div": 1,
+                    "mode": "C",
+                },
+                "ET": {
+                    "register": 4,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "div": 1,
+                    "mode": "C",
+                },
             },
         },
         "pid": None,
         "capabilities": [],
     },
-
     # -----------------------------------------------------------------------
     # Proaster — MODBUS (2개 항목)
     # 출처: Proaster/*.aset
     # PID: 없음
     # -----------------------------------------------------------------------
-
     # 2Temp, 3Temp, AirPressure — Easyster와 레지스터 동일
     # BT: register=1000, func=4(Input), unit_id=1, div=1(÷10)
     # ET: register=1000, func=4(Input), unit_id=2, div=1(÷10)
@@ -603,14 +936,27 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "comport": "",
             "baudrate": 9600,
             "modbus_registers": {
-                "BT": {"register": 1000, "func": 4, "unit_id": 1, "float": False, "div": 1, "mode": "C"},
-                "ET": {"register": 1000, "func": 4, "unit_id": 2, "float": False, "div": 1, "mode": "C"},
+                "BT": {
+                    "register": 1000,
+                    "func": 4,
+                    "unit_id": 1,
+                    "float": False,
+                    "div": 1,
+                    "mode": "C",
+                },
+                "ET": {
+                    "register": 1000,
+                    "func": 4,
+                    "unit_id": 2,
+                    "float": False,
+                    "div": 1,
+                    "mode": "C",
+                },
             },
         },
         "pid": None,
         "capabilities": [],
     },
-
     # THCR-01A — baudrate=38400, 레지스터 완전히 다름
     # BT: register=0, ET: register=2, func=4(Input), unit_id=1, div=0
     "proaster_thcr01a": {
@@ -625,20 +971,32 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "comport": "",
             "baudrate": 38400,
             "modbus_registers": {
-                "BT": {"register": 0, "func": 4, "unit_id": 1, "float": False, "div": 0, "mode": "C"},
-                "ET": {"register": 2, "func": 4, "unit_id": 1, "float": False, "div": 0, "mode": "C"},
+                "BT": {
+                    "register": 0,
+                    "func": 4,
+                    "unit_id": 1,
+                    "float": False,
+                    "div": 0,
+                    "mode": "C",
+                },
+                "ET": {
+                    "register": 2,
+                    "func": 4,
+                    "unit_id": 1,
+                    "float": False,
+                    "div": 0,
+                    "mode": "C",
+                },
             },
         },
         "pid": None,
         "capabilities": [],
     },
-
     # -----------------------------------------------------------------------
     # Trinitas — MODBUS (2개 항목: T2계열 / T7계열은 레지스터 맵이 완전히 다름)
     # 출처: TRINITAS/*.aset
     # PID: 없음
     # -----------------------------------------------------------------------
-
     # T2, T2_air, T2_legacy — func=4(Input), register=1000, unit_id로 BT/ET 구분
     # BT: unit_id=2 / ET: unit_id=1 (Easyster/Proaster와 unit_id 순서 반대!)
     "trinitas_t2": {
@@ -653,14 +1011,27 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "comport": "",
             "baudrate": 9600,
             "modbus_registers": {
-                "BT": {"register": 1000, "func": 4, "unit_id": 2, "float": False, "div": 0, "mode": "C"},
-                "ET": {"register": 1000, "func": 4, "unit_id": 1, "float": False, "div": 0, "mode": "C"},
+                "BT": {
+                    "register": 1000,
+                    "func": 4,
+                    "unit_id": 2,
+                    "float": False,
+                    "div": 0,
+                    "mode": "C",
+                },
+                "ET": {
+                    "register": 1000,
+                    "func": 4,
+                    "unit_id": 1,
+                    "float": False,
+                    "div": 0,
+                    "mode": "C",
+                },
             },
         },
         "pid": None,
         "capabilities": [],
     },
-
     # T7, T7_gas, T7_legacy — func=3(Holding), 단일 unit_id=3, 레지스터 분리
     # BT: register=1, ET: register=0, unit_id=3 (T2와 완전히 다른 구조)
     "trinitas_t7": {
@@ -675,14 +1046,27 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "comport": "",
             "baudrate": 9600,
             "modbus_registers": {
-                "BT": {"register": 1, "func": 3, "unit_id": 3, "float": False, "div": 0, "mode": "C"},
-                "ET": {"register": 0, "func": 3, "unit_id": 3, "float": False, "div": 0, "mode": "C"},
+                "BT": {
+                    "register": 1,
+                    "func": 3,
+                    "unit_id": 3,
+                    "float": False,
+                    "div": 0,
+                    "mode": "C",
+                },
+                "ET": {
+                    "register": 0,
+                    "func": 3,
+                    "unit_id": 3,
+                    "float": False,
+                    "div": 0,
+                    "mode": "C",
+                },
             },
         },
         "pid": None,
         "capabilities": [],
     },
-
     # -----------------------------------------------------------------------
     # Phidget — USB 센서 인터페이스 (범용)
     # 출처: Phidget/*.aset
@@ -702,7 +1086,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": None,
         "capabilities": [],
     },
-
     "phidget_tmp1200": {
         "display_name": "Phidget TMP1200 (1x RTD)",
         "brand": "Phidget",
@@ -717,7 +1100,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": None,
         "capabilities": [],
     },
-
     "phidget_1048": {
         "display_name": "Phidget 1048 (4x TC, USB)",
         "brand": "Phidget",
@@ -732,7 +1114,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": None,
         "capabilities": [],
     },
-
     # -----------------------------------------------------------------------
     # Loring — MODBUS TCP (2개 항목: Smart Roast / Smart Roast Auto)
     # 출처: Loring/Smart_Roast.aset, Smart_Roast_Auto.aset
@@ -744,7 +1125,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
     #   - wordorderLittle=true (word order little-endian)
     #   - drum 채널은 bcd_as_int=true (BCD 값을 정수 그대로 읽음, % 단위)
     # -----------------------------------------------------------------------
-
     # Smart Roast (표준) — BT/ET + Inlet/Stack 온도 + Drum 속도
     # BT:    register=768, func=3(Holding), unit_id=1, bcd=true, div=1, mode=F
     # ET:    register=774, func=3, unit_id=1, bcd=true, div=1, mode=F
@@ -763,24 +1143,71 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "comport": "COM5",
             "baudrate": 115200,
             "modbus_registers": {
-                "BT":    {"register": 768, "func": 3, "unit_id": 1, "float": False, "bcd": True,  "div": 1, "mode": "F"},
-                "ET":    {"register": 774, "func": 3, "unit_id": 1, "float": False, "bcd": True,  "div": 1, "mode": "F"},
-                "inlet": {"register": 770, "func": 3, "unit_id": 1, "float": False, "bcd": True,  "div": 1, "mode": "F"},
-                "stack": {"register": 772, "func": 3, "unit_id": 1, "float": False, "bcd": True,  "div": 1, "mode": "F"},
-                "drum":  {"register": 778, "func": 3, "unit_id": 1, "float": False, "bcd": False, "bcd_as_int": True, "div": 0, "mode": ""},
+                "BT": {
+                    "register": 768,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "bcd": True,
+                    "div": 1,
+                    "mode": "F",
+                },
+                "ET": {
+                    "register": 774,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "bcd": True,
+                    "div": 1,
+                    "mode": "F",
+                },
+                "inlet": {
+                    "register": 770,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "bcd": True,
+                    "div": 1,
+                    "mode": "F",
+                },
+                "stack": {
+                    "register": 772,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "bcd": True,
+                    "div": 1,
+                    "mode": "F",
+                },
+                "drum": {
+                    "register": 778,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "bcd": False,
+                    "bcd_as_int": True,
+                    "div": 0,
+                    "mode": "",
+                },
             },
         },
         "pid": None,
-        "capabilities": [],
+        "capabilities": ["drum"],
     },
-
     # Smart Roast Auto — Smart Roast와 동일하나 자동 로스팅 상태 채널 추가
     # auto_status: register=284, func=2(Discrete Input), unit_id=1, div=0
     #   → 비트 0 = 자동 로스팅 활성 여부 (artisan: bit(0,x))
     "loring_smart_roast_auto": {
         "display_name": "Loring Smart Roast Auto",
         "brand": "Loring",
-        "models": ["S7 Auto", "S15 Auto", "S35 Auto", "S70 Auto", "S135 Auto", "Smart Roast Auto"],
+        "models": [
+            "S7 Auto",
+            "S15 Auto",
+            "S35 Auto",
+            "S70 Auto",
+            "S135 Auto",
+            "Smart Roast Auto",
+        ],
         "protocol": "modbus",
         "default_params": {
             "mode": "tcp",
@@ -789,15 +1216,64 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "comport": "COM5",
             "baudrate": 115200,
             "modbus_registers": {
-                "BT":          {"register": 768, "func": 3, "unit_id": 1, "float": False, "bcd": True,  "div": 1, "mode": "F"},
-                "ET":          {"register": 774, "func": 3, "unit_id": 1, "float": False, "bcd": True,  "div": 1, "mode": "F"},
-                "inlet":       {"register": 770, "func": 3, "unit_id": 1, "float": False, "bcd": True,  "div": 1, "mode": "F"},
-                "stack":       {"register": 772, "func": 3, "unit_id": 1, "float": False, "bcd": True,  "div": 1, "mode": "F"},
-                "drum":        {"register": 778, "func": 3, "unit_id": 1, "float": False, "bcd": False, "bcd_as_int": True, "div": 0, "mode": ""},
-                "auto_status": {"register": 284, "func": 2, "unit_id": 1, "float": False, "bcd": False, "div": 0, "mode": ""},
+                "BT": {
+                    "register": 768,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "bcd": True,
+                    "div": 1,
+                    "mode": "F",
+                },
+                "ET": {
+                    "register": 774,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "bcd": True,
+                    "div": 1,
+                    "mode": "F",
+                },
+                "inlet": {
+                    "register": 770,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "bcd": True,
+                    "div": 1,
+                    "mode": "F",
+                },
+                "stack": {
+                    "register": 772,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "bcd": True,
+                    "div": 1,
+                    "mode": "F",
+                },
+                "drum": {
+                    "register": 778,
+                    "func": 3,
+                    "unit_id": 1,
+                    "float": False,
+                    "bcd": False,
+                    "bcd_as_int": True,
+                    "div": 0,
+                    "mode": "",
+                },
+                "auto_status": {
+                    "register": 284,
+                    "func": 2,
+                    "unit_id": 1,
+                    "float": False,
+                    "bcd": False,
+                    "div": 0,
+                    "mode": "",
+                },
             },
         },
         "pid": None,
-        "capabilities": [],
+        "capabilities": ["drum"],
     },
 }

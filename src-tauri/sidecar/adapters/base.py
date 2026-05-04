@@ -7,4 +7,5 @@ class Reading:
     et: float        # Environment Temperature °C
     heater: float    # 0-100
     fan: float       # 0-100
+    drum: float      # 0-100 (RPM % or raw speed)
     timestamp: float # time.monotonic()
