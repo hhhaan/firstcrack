@@ -13,6 +13,11 @@ import type { RoastPoint } from '@shared/types/roast';
 import { isEditableTarget } from '@shared/lib/dom';
 import { sidecar } from '@shared/lib/sidecar';
 
+type RoastLogEntry = { time: string; event: string; temp: string; note: string };
+type RoastLogDisplayEntry = RoastLogEntry & { current?: boolean };
+
+const TOGGLEABLE_LOG_EVENTS = new Set(['Yellow', 'FC Start', 'FC End']);
+
 export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     const [elapsed, setElapsed] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
@@ -24,7 +29,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     const [summaryData, setSummaryData] = useState<RoastSummaryData | null>(null);
     const [roastNotes, setRoastNotes] = useState('');
     const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
-    const [logEntries, setLogEntries] = useState<{ time: string; event: string; temp: string; note: string }[]>([]);
+    const [logEntries, setLogEntries] = useState<RoastLogEntry[]>([]);
     const [liveData, setLiveData] = useState<{
         bt: number | null;
         et: number | null;
@@ -36,7 +41,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     } | null>(null);
     const [sidecarConnected, setSidecarConnected] = useState(false);
     const [livePoints, setLivePoints] = useState<
-        { time: number; label: string; bt: number; et: number; ror: number; ror_et: number }[]
+        { time: number; label: string; bt: number; et: number | null; ror: number; ror_et: number | null }[]
     >([]);
     const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);
     const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
@@ -103,9 +108,9 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                                 time: t,
                                 label: `${min}:${String(sec).padStart(2, '0')}`,
                                 bt,
-                                et: data.et ?? 0,
+                                et: data.et ?? null,
                                 ror: data.ror,
-                                ror_et: data.ror_et ?? 0,
+                                ror_et: data.ror_et ?? null,
                             },
                         ];
                     });
@@ -339,8 +344,15 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     };
 
     const markEvent = (event: string, note: string, buttonLabel?: string) => {
-        setLogEntries((prev) => [...prev, { time: timeStr, event, temp: `${displayBT ?? '—'}°C`, note }]);
-        if (buttonLabel) flashButton(buttonLabel);
+        const isRemoval = TOGGLEABLE_LOG_EVENTS.has(event) && logEntries.some((entry) => entry.event === event);
+        setLogEntries((prev) => {
+            if (TOGGLEABLE_LOG_EVENTS.has(event) && prev.some((entry) => entry.event === event)) {
+                return prev.filter((entry) => entry.event !== event);
+            }
+
+            return [...prev, { time: timeStr, event, temp: `${displayBT ?? '—'}°C`, note }];
+        });
+        if (!isRemoval && buttonLabel) flashButton(buttonLabel);
     };
 
     const handleMarkNote = () => {
@@ -463,6 +475,20 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
         const pct = Math.round((devSec / elapsed) * 100);
         return `${Math.floor(devSec / 60)}:${String(devSec % 60).padStart(2, '0')} (${pct}%)`;
     })();
+    const roastLogDisplayEntries = useMemo((): RoastLogDisplayEntry[] => [
+        ...logEntries,
+        ...(!roastEnded
+            ? [
+                  {
+                      time: timeStr,
+                      event: 'Now',
+                      temp: `${displayBT ?? currentPoint?.bt ?? '—'}°C`,
+                      note: `${phase} in progress`,
+                      current: true,
+                  },
+              ]
+            : []),
+    ], [logEntries, roastEnded, timeStr, displayBT, currentPoint, phase]);
 
     return (
         <div style={{ padding: '32px 40px', maxWidth: 1100, margin: '0 auto' }}>
@@ -918,12 +944,14 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                                     {[
                                         {
                                             label: 'Yellow',
+                                            event: 'Yellow',
                                             shortcut: '⌘1',
                                             pressKey: 'Mark Yellow',
                                             onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow'),
                                         },
                                         {
                                             label: 'FC Start',
+                                            event: 'FC Start',
                                             shortcut: '⌘2',
                                             pressKey: 'Mark FC Start',
                                             onClick: () =>
@@ -931,17 +959,20 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                                         },
                                         {
                                             label: 'FC End',
+                                            event: 'FC End',
                                             shortcut: '⌘3',
                                             pressKey: 'Mark FC End',
                                             onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
                                         },
                                         {
                                             label: 'Add Note',
+                                            event: null,
                                             shortcut: '⌘N',
                                             pressKey: 'Add Log Note',
                                             onClick: handleMarkNote,
                                         },
-                                    ].map(({ label, shortcut, pressKey, onClick }) => {
+                                    ].map(({ label, event, shortcut, pressKey, onClick }) => {
+                                        const registered = event ? logEntries.some((entry) => entry.event === event) : false;
                                         const pressed = pressedButtons.has(pressKey);
                                         return (
                                             <button
@@ -955,23 +986,23 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                                                     gap: 2,
                                                     padding: '8px 4px',
                                                     borderRadius: 8,
-                                                    border: 'none',
+                                                    border: registered && !pressed ? '1.5px solid var(--color-primary)' : 'none',
                                                     background: pressed
                                                         ? 'var(--color-primary)'
                                                         : 'var(--color-surface)',
-                                                    color: pressed ? 'white' : 'var(--color-secondary)',
+                                                    color: pressed ? 'white' : registered ? 'var(--color-primary)' : 'var(--color-secondary)',
                                                     fontSize: 11,
-                                                    fontWeight: 500,
+                                                    fontWeight: registered || pressed ? 600 : 500,
                                                     cursor: 'pointer',
-                                                    boxShadow: pressed ? 'none' : 'var(--shadow-inset)',
-                                                    transition: 'background 0.15s, color 0.15s',
+                                                    boxShadow: pressed || registered ? 'none' : 'var(--shadow-inset)',
+                                                    transition: 'background 0.15s, color 0.15s, border 0.15s',
                                                 }}
                                             >
                                                 <span>{label}</span>
                                                 <span
                                                     style={{
                                                         fontSize: 10,
-                                                        color: pressed ? 'rgba(255,255,255,0.6)' : 'var(--color-muted)',
+                                                        color: pressed ? 'rgba(255,255,255,0.6)' : registered ? 'var(--color-secondary)' : 'var(--color-muted)',
                                                         fontFamily: 'var(--font-mono)',
                                                         transition: 'color 0.15s',
                                                     }}
@@ -1007,20 +1038,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                                     Roast Log
                                 </h3>
                                 <div style={{ overflowY: 'auto', flex: 1 }}>
-                                    {[
-                                        ...logEntries,
-                                        ...(!roastEnded
-                                            ? [
-                                                  {
-                                                      time: timeStr,
-                                                      event: 'Now',
-                                                      temp: `${currentPoint?.bt}°C`,
-                                                      note: `${phase} in progress`,
-                                                      current: true,
-                                                  },
-                                              ]
-                                            : []),
-                                    ].map((entry, i, arr) => (
+                                    {roastLogDisplayEntries.map((entry, i, arr) => (
                                         <div
                                             key={i}
                                             style={{
@@ -1060,10 +1078,10 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                                                         width: 6,
                                                         height: 6,
                                                         borderRadius: '50%',
-                                                        background: (entry as any).current
+                                                        background: entry.current
                                                             ? '#22c55e'
                                                             : (eventMarkerColor[entry.event] ?? 'var(--color-border)'),
-                                                        boxShadow: (entry as any).current
+                                                        boxShadow: entry.current
                                                             ? '0 0 0 2px rgba(34,197,94,0.2)'
                                                             : 'none',
                                                     }}
@@ -1207,21 +1225,25 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                         {[
                             {
                                 label: 'Mark Yellow',
+                                event: 'Yellow',
                                 shortcut: '⌘1',
                                 onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow'),
                             },
                             {
                                 label: 'Mark FC Start',
+                                event: 'FC Start',
                                 shortcut: '⌘2',
                                 onClick: () => markEvent('FC Start', 'First crack started', 'Mark FC Start'),
                             },
                             {
                                 label: 'Mark FC End',
+                                event: 'FC End',
                                 shortcut: '⌘3',
                                 onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
                             },
-                            { label: 'Add Log Note', shortcut: '⌘N', onClick: handleMarkNote },
-                        ].map(({ label, shortcut, onClick }) => {
+                            { label: 'Add Log Note', event: null, shortcut: '⌘N', onClick: handleMarkNote },
+                        ].map(({ label, event, shortcut, onClick }) => {
+                            const registered = event ? logEntries.some((entry) => entry.event === event) : false;
                             const pressed = pressedButtons.has(label);
                             return (
                                 <button
@@ -1234,22 +1256,22 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                                         justifyContent: 'space-between',
                                         padding: '9px 12px',
                                         borderRadius: 8,
-                                        border: 'none',
+                                        border: registered && !pressed ? '1.5px solid var(--color-primary)' : 'none',
                                         background: pressed ? 'var(--color-primary)' : 'var(--color-surface)',
-                                        color: pressed ? 'white' : 'var(--color-secondary)',
+                                        color: pressed ? 'white' : registered ? 'var(--color-primary)' : 'var(--color-secondary)',
                                         fontSize: 13,
-                                        fontWeight: 500,
+                                        fontWeight: registered || pressed ? 600 : 500,
                                         cursor: 'pointer',
                                         letterSpacing: '0.14px',
-                                        boxShadow: pressed ? 'none' : 'var(--shadow-inset)',
-                                        transition: 'background 0.15s, color 0.15s',
+                                        boxShadow: pressed || registered ? 'none' : 'var(--shadow-inset)',
+                                        transition: 'background 0.15s, color 0.15s, border 0.15s',
                                     }}
                                 >
                                     {label}
                                     <span
                                         style={{
                                             fontSize: 11,
-                                            color: pressed ? 'rgba(255,255,255,0.6)' : 'var(--color-muted)',
+                                            color: pressed ? 'rgba(255,255,255,0.6)' : registered ? 'var(--color-secondary)' : 'var(--color-muted)',
                                             fontFamily: 'var(--font-mono)',
                                             transition: 'color 0.15s',
                                         }}
@@ -1283,20 +1305,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                         Roast Log
                     </h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                        {[
-                            ...logEntries,
-                            ...(!roastEnded
-                                ? [
-                                      {
-                                          time: timeStr,
-                                          event: 'Now',
-                                          temp: `${currentPoint?.bt}°C`,
-                                          note: `${phase} in progress`,
-                                          current: true,
-                                      },
-                                  ]
-                                : []),
-                        ].map((entry, i, arr) => (
+                        {roastLogDisplayEntries.map((entry, i, arr) => (
                             <div
                                 key={i}
                                 style={{
@@ -1333,9 +1342,11 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                                             width: 7,
                                             height: 7,
                                             borderRadius: '50%',
-                                            background: (entry as any).current ? '#22c55e' : 'var(--color-border)',
+                                            background: entry.current
+                                                ? '#22c55e'
+                                                : (eventMarkerColor[entry.event] ?? 'var(--color-border)'),
                                             flexShrink: 0,
-                                            boxShadow: (entry as any).current
+                                            boxShadow: entry.current
                                                 ? '0 0 0 3px rgba(34,197,94,0.2)'
                                                 : 'none',
                                         }}
