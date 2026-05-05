@@ -1,13 +1,17 @@
 import { useEffect, useRef } from 'react';
 import uPlot from 'uplot';
 
+const Y_MIN = -5;
+const Y_MAX = 20;
+
 interface Props {
     xs: number[];
     rorActual: (number | null)[];
+    etRorActual: (number | null)[];
     height?: number;
 }
 
-export const RoastRorChart = ({ xs, rorActual, height = 80 }: Props) => {
+export const RoastRorChart = ({ xs, rorActual, etRorActual, height = 80 }: Props) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const plotRef = useRef<uPlot | null>(null);
 
@@ -61,9 +65,13 @@ export const RoastRorChart = ({ xs, rorActual, height = 80 }: Props) => {
                 setCursor: [(u) => {
                     const { idx, left: cx, top: cy } = u.cursor;
                     if (idx == null || cx == null || cy == null) { ttEl.style.display = 'none'; return; }
-                    const v = (u.data[1] as (number | null)[])[idx];
-                    if (v == null) { ttEl.style.display = 'none'; return; }
-                    ttEl.textContent = `${v.toFixed(1)}°/min`;
+                    const btRor = (u.data[1] as (number | null)[])[idx];
+                    const etRor = (u.data[2] as (number | null)[])[idx];
+                    if (btRor == null && etRor == null) { ttEl.style.display = 'none'; return; }
+                    const parts = [];
+                    if (btRor != null) parts.push(`BT ${btRor.toFixed(1)}°/min`);
+                    if (etRor != null) parts.push(`ET ${etRor.toFixed(1)}°/min`);
+                    ttEl.textContent = parts.join('  ');
                     ttEl.style.display = 'block';
                     ttEl.style.left = `${cx + 10}px`;
                     ttEl.style.top = `${Math.max(0, cy - 20)}px`;
@@ -74,7 +82,7 @@ export const RoastRorChart = ({ xs, rorActual, height = 80 }: Props) => {
         const opts: uPlot.Options = {
             width: el.offsetWidth,
             height,
-            padding: [2, 12, 0, 0],
+            padding: [8, 12, 8, 0],
             cursor: { focus: { prox: 16 }, drag: { x: false, y: false } },
             legend: { show: false },
             axes: [
@@ -86,12 +94,13 @@ export const RoastRorChart = ({ xs, rorActual, height = 80 }: Props) => {
                     border: { show: false },
                     font: '10px monospace',
                     size: 36,
+                    splits: [Y_MIN, 0, Y_MAX],
                     values: (_, vals) => vals.map(String),
                 },
             ],
             scales: {
                 x: { time: false },
-                y: { auto: true },
+                y: { range: [Y_MIN, Y_MAX] },
             },
             series: [
                 {},
@@ -106,12 +115,18 @@ export const RoastRorChart = ({ xs, rorActual, height = 80 }: Props) => {
                     },
                     points: { show: false },
                 },
+                {
+                    stroke: '#3b82f6',
+                    width: 1.5,
+                    dash: [4, 3],
+                    points: { show: false },
+                },
             ],
             plugins: [zeroLinePlugin, tooltipPlugin],
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        plotRef.current = new uPlot(opts, [xs, rorActual] as any, el);
+        plotRef.current = new uPlot(opts, [xs, rorActual, etRorActual] as any, el);
 
         const obs = new ResizeObserver(() => {
             if (plotRef.current && el) plotRef.current.setSize({ width: el.offsetWidth, height: plotRef.current.height });
@@ -124,8 +139,8 @@ export const RoastRorChart = ({ xs, rorActual, height = 80 }: Props) => {
 
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        plotRef.current?.setData([xs, rorActual] as any);
-    }, [xs, rorActual]);
+        plotRef.current?.setData([xs, rorActual, etRorActual] as any);
+    }, [xs, rorActual, etRorActual]);
 
     useEffect(() => {
         if (plotRef.current) {
