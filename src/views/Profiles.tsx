@@ -1,5 +1,6 @@
 import { Plus, Copy, Pencil, Trash2, MoreHorizontal, Lock } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { type View } from '../shared/types/view';
 import uPlot from 'uplot';
 
 // Lightweight SVG sparkline — no axes, no tooltip
@@ -195,7 +196,11 @@ const profiles = [
     },
 ];
 
-export const Profiles = () => {
+interface ProfilesProps {
+    onNavigate: (view: View) => void;
+}
+
+export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const [selectedId, setSelectedId] = useState<number>(1);
     const selected = profiles.find((p) => p.id === selectedId)!;
     const curveData = generateProfileCurve(selected.dropVal, selected.durationSec);
@@ -342,7 +347,10 @@ export const Profiles = () => {
                     </div>
 
                     <div className="flex gap-2.5">
-                        <button className="flex-1 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)">
+                        <button
+                            onClick={() => onNavigate('roast')}
+                            className="flex-1 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
+                        >
                             Start with this Profile
                         </button>
                         <button className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border-none bg-[rgba(254,226,226,0.8)] text-[#dc2626] text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-inset)">
