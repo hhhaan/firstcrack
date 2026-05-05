@@ -9,6 +9,17 @@ from adapters.base import Reading
 _log = logging.getLogger(__name__)
 
 
+def _bcd_decode(raw: int) -> int:
+    """BCD 인코딩된 정수를 10진수로 변환. 예: 0x0212 → 212."""
+    result = 0
+    factor = 1
+    while raw:
+        result += (raw & 0xF) * factor
+        raw >>= 4
+        factor *= 10
+    return result
+
+
 class ModbusAdapter:
     """
     MODBUS TCP/RTU 어댑터 (Diedrich, Easyster, Proaster, Trinitas, Probat Probatone).
@@ -106,7 +117,10 @@ class ModbusAdapter:
                     raw = struct.pack(">HH", result.registers[0], result.registers[1])
                     value = struct.unpack(">f", raw)[0]
                 else:
-                    value = float(result.registers[0])
+                    raw_int = result.registers[0]
+                    if cfg.get("bcd", False):
+                        raw_int = _bcd_decode(raw_int)
+                    value = float(raw_int)
                     if div == 1:
                         value /= 10.0
                     elif div == 2:

@@ -23,7 +23,7 @@ roaster_registry.py
 
 출처: artisan/src/includes/Machines/ 각 브랜드별 .aset 파일
 
-S7 type 필드: 0=REAL(32-bit float), 1=INT(16-bit signed)
+S7 type 필드: 0=INT(16-bit signed), 1=REAL(32-bit float)
 S7 area 필드: 6=DB(Data Block)
 S7 div  필드: 0=스케일링 없음
 """
