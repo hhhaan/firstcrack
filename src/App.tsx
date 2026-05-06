@@ -40,7 +40,7 @@ export const App = () => {
         {view === 'history' && <History />}
         {view === 'beans' && <Beans onNavigate={setView} />}
         {view === 'profiles' && <Profiles onNavigate={setView} />}
-        {view === 'machines' && <Machines />}
+        {view === 'machines' && <Machines onNavigate={setView} />}
       </div>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>

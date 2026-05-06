@@ -1,13 +1,14 @@
-import { Plus, Search, Cpu, Activity, AlertCircle, CheckCircle2, Wifi, WifiOff, Trash2 } from 'lucide-react';
+import { Plus, Search, Cpu, Activity, AlertCircle, CheckCircle2, Wifi, WifiOff, Trash2, Flame } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AddMachineModal } from '../widgets/add-machine-modal/ui/AddMachineModal';
 import { useMachines } from '../shared/data/useMachines';
 import { sidecar } from '../shared/lib/sidecar';
 import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '../shared/types/machine';
+import type { View } from '../shared/types/view';
 
 const POLL_INTERVAL_MS = 3000;
 
-export const Machines = () => {
+export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
     const { machines, addMachine, removeMachine } = useMachines();
     const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -283,8 +284,8 @@ export const Machines = () => {
                                 </div>
                             )}
 
-                            {/* Error */}
-                            {sidecarStatus?.error && isThisMachineConnected(selected) && (
+                            {/* Error — roasterKey 기준으로 표시 (연결 실패 후에도 보임) */}
+                            {sidecarStatus?.error && sidecarStatus.roaster === selected.roasterKey && (
                                 <div className="flex items-center gap-2 bg-[rgba(192,57,43,0.07)] rounded-[10px] px-3.5 py-2.5 mb-4 text-[12px] text-[#c0392b]">
                                     <AlertCircle size={14} />
                                     {sidecarStatus.error}
@@ -296,7 +297,7 @@ export const Machines = () => {
                                 {isThisMachineConnected(selected) ? (
                                     <button
                                         onClick={handleDisconnect}
-                                        className="flex-1 py-3 rounded-xl border-none bg-surface text-secondary text-sm font-medium cursor-pointer shadow-(--shadow-inset) flex items-center justify-center gap-2"
+                                        className="py-3 px-5 rounded-xl border-none bg-surface text-secondary text-sm font-medium cursor-pointer shadow-(--shadow-inset) flex items-center justify-center gap-2"
                                     >
                                         <WifiOff size={15} strokeWidth={2} />
                                         Disconnect
@@ -316,6 +317,16 @@ export const Machines = () => {
                                                 <Wifi size={15} strokeWidth={2} /> Connect
                                             </>
                                         )}
+                                    </button>
+                                )}
+                                {/* Start Roasting CTA — 연결 성공 시 표시 */}
+                                {isThisMachineConnected(selected) && onNavigate && (
+                                    <button
+                                        onClick={() => onNavigate('roast')}
+                                        className="flex-1 py-3 rounded-xl border-none bg-primary text-white text-sm font-semibold cursor-pointer shadow-(--shadow-card) flex items-center justify-center gap-2"
+                                    >
+                                        <Flame size={15} strokeWidth={2} />
+                                        Start Roasting
                                     </button>
                                 )}
                             </div>
