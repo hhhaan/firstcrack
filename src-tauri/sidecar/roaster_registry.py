@@ -32,12 +32,9 @@ import platform
 from typing import Any
 
 # OS별 시리얼 포트 placeholder
-_COMPORT_PLACEHOLDER: dict[str, str] = {
-    "Darwin":  "/dev/cu.usbserial-XXXX",
-    "Windows": "COM3",
-    "Linux":   "/dev/ttyUSB0",
-}
-_comport_placeholder = _COMPORT_PLACEHOLDER.get(platform.system(), "/dev/ttyUSB0")
+_comport_placeholder = {"Darwin": "/dev/cu.usbserial-XXXX", "Windows": "COM3"}.get(
+    platform.system(), "/dev/ttyUSB0"
+)
 
 
 # ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Cpu, Radio, ShieldCheck, X, ChevronDown, Wifi, WifiOff, Loader } from 'lucide-react';
 import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
 import { sidecar } from '../../../shared/lib/sidecar';
-import type { RoasterDef, RoastersResponse } from '../../../shared/types/machine';
+import type { RoasterDef, RoastersResponse, SerialPort } from '../../../shared/types/machine';
 
 interface AddMachineModalProps {
   open: boolean;
@@ -38,12 +38,11 @@ const ComportSelect = ({
 }: {
   value: string;
   onChange: (v: string) => void;
-  ports: { device: string; description: string }[];
+  ports: SerialPort[];
   registryDefault: string;
   inputStyle: CSSProperties;
 }) => {
   const detectedDevices = ports.map(p => p.device);
-  // registry default가 있고 감지 목록에 없으면 별도 옵션으로 표시
   const showRegistryDefault = registryDefault && !detectedDevices.includes(registryDefault);
   return (
     <div style={{ position: 'relative' }}>
@@ -85,35 +84,26 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
   // 테스트 성공 후 라이브 연결이 살아있는지 추적
   const testConnectedRef = useRef(false);
 
-  const [serialPorts, setSerialPorts] = useState<{ device: string; description: string }[]>([]);
+  const [serialPorts, setSerialPorts] = useState<SerialPort[]>([]);
 
-  // 사이드카에서 로스터 목록 fetch
   useEffect(() => {
     if (!open) return;
-    setLoading(true);
-    sidecar.getRoasters()
-      .then(setRoasters)
-      .catch(() => setRoasters({}))
-      .finally(() => setLoading(false));
-  }, [open]);
-
-  // 모달 열릴 때 초기화
-  useEffect(() => {
-    if (!open) return;
+    // 모달 열릴 때 상태 초기화
     setSelectedKey('');
     setParams({});
     setError('');
     setTestState('idle');
     setTestMessage('');
     testConnectedRef.current = false;
-  }, [open]);
-
-  // 시리얼 포트 목록 fetch — 모달 열릴 때마다 (USB 새로 연결 시 반영)
-  useEffect(() => {
-    if (!open) return;
-    sidecar.getSerialPorts()
-      .then(setSerialPorts)
-      .catch(() => setSerialPorts([]));
+    // 로스터 목록 + 시리얼 포트 병렬 fetch
+    setLoading(true);
+    Promise.all([
+      sidecar.getRoasters().catch(() => ({})),
+      sidecar.getSerialPorts().catch(() => []),
+    ]).then(([roasters, ports]) => {
+      setRoasters(roasters as RoastersResponse);
+      setSerialPorts(ports as SerialPort[]);
+    }).finally(() => setLoading(false));
   }, [open]);
 
   // 모달 닫기: 라이브 테스트 연결이 있으면 disconnect 후 닫기
@@ -461,8 +451,6 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                     }} />
                   </div>
                 ) : field.key === 'comport' && serialPorts.length > 0 ? (
-                  // 시리얼 포트 드롭다운 (pyserial로 OS 포트 열거)
-                  // registry default가 감지 목록에 없으면 별도 옵션으로 추가
                   <ComportSelect
                     value={params[field.key] ?? ''}
                     onChange={v => setParams(p => ({ ...p, [field.key]: v }))}

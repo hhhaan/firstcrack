@@ -1,3 +1,8 @@
+export interface SerialPort {
+  device: string;
+  description: string;
+}
+
 export interface Machine {
   id: string;
   name: string;

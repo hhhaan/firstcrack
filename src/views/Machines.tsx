@@ -41,10 +41,14 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
         }
 
         const poll = async () => {
-            const t = await sidecar.getTemperatures().catch(() => null);
+            const [t, s] = await Promise.all([
+                sidecar.getTemperatures().catch(() => null),
+                sidecar.getStatus().catch(() => null),
+            ]);
             if (t) setTemps(t);
-            const s = await sidecar.getStatus().catch(() => null);
-            if (s) setSidecarStatus(s);
+            if (s) setSidecarStatus(prev =>
+                JSON.stringify(prev) === JSON.stringify(s) ? prev : s
+            );
         };
         poll();
         pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
@@ -284,7 +288,6 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                 </div>
                             )}
 
-                            {/* Error — roasterKey 기준으로 표시 (연결 실패 후에도 보임) */}
                             {sidecarStatus?.error && sidecarStatus.roaster === selected.roasterKey && (
                                 <div className="flex items-center gap-2 bg-[rgba(192,57,43,0.07)] rounded-[10px] px-3.5 py-2.5 mb-4 text-[12px] text-[#c0392b]">
                                     <AlertCircle size={14} />
@@ -319,7 +322,6 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                         )}
                                     </button>
                                 )}
-                                {/* Start Roasting CTA — 연결 성공 시 표시 */}
                                 {isThisMachineConnected(selected) && onNavigate && (
                                     <button
                                         onClick={() => onNavigate('roast')}

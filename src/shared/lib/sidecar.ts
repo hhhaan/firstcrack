@@ -1,5 +1,6 @@
 import type {
   RoastersResponse,
+  SerialPort,
   SidecarStatus,
   TemperatureReading,
 } from '../types/machine';
@@ -48,5 +49,5 @@ export const sidecar = {
     }),
 
   getSerialPorts: () =>
-    request<{ device: string; description: string }[]>('/serial-ports'),
+    request<SerialPort[]>('/serial-ports'),
 };
