@@ -44,7 +44,8 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
   type TestState = 'idle' | 'testing' | 'success' | 'failed';
   const [testState, setTestState] = useState<TestState>('idle');
   const [testMessage, setTestMessage] = useState('');
-  const testCleanupRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 테스트 성공 후 라이브 연결이 살아있는지 추적
+  const testConnectedRef = useRef(false);
 
   // 사이드카에서 로스터 목록 fetch
   useEffect(() => {
@@ -64,16 +65,25 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
     setError('');
     setTestState('idle');
     setTestMessage('');
-    if (testCleanupRef.current) clearTimeout(testCleanupRef.current);
+    testConnectedRef.current = false;
   }, [open]);
+
+  // 모달 닫기: 라이브 테스트 연결이 있으면 disconnect 후 닫기
+  const handleClose = async () => {
+    if (testConnectedRef.current) {
+      await sidecar.disconnect().catch(() => null);
+      testConnectedRef.current = false;
+    }
+    onClose();
+  };
 
   // ESC 닫기
   useEffect(() => {
     if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [open, onClose]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 로스터 선택 시 폼 파라미터 초기화
   useEffect(() => {
@@ -125,9 +135,26 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
     return result;
   };
 
+  const validateFields = (): boolean => {
+    if (!selectedKey || !selectedDef) return false;
+    for (const field of selectedDef.form_fields) {
+      if (!isFieldVisible(field.key)) continue;
+      if (field.required && !params[field.key]?.trim()) {
+        setError(`${field.label} is required`);
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleTestConnection = async () => {
     if (!selectedKey || !selectedDef) return;
-    if (testCleanupRef.current) clearTimeout(testCleanupRef.current);
+
+    // 이전 테스트 연결 정리
+    if (testConnectedRef.current) {
+      await sidecar.disconnect().catch(() => null);
+      testConnectedRef.current = false;
+    }
 
     setTestState('testing');
     setTestMessage('');
@@ -138,17 +165,11 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
     try {
       const status = await sidecar.connect(selectedKey, typedParams);
       if (status.connected) {
-        // 온도 한 번 읽어서 응답 확인
         const temps = await sidecar.getTemperatures().catch(() => null);
         const detail = temps?.bt != null ? ` — BT ${temps.bt}°C` : '';
         setTestState('success');
         setTestMessage(`Connected${detail}`);
-        // 3초 후 자동 disconnect (테스트 목적이므로 정리)
-        testCleanupRef.current = setTimeout(async () => {
-          await sidecar.disconnect().catch(() => null);
-          setTestState('idle');
-          setTestMessage('');
-        }, 3000);
+        testConnectedRef.current = true; // 연결 유지 — "Add & Connect" 흐름에서 사용
       } else {
         setTestState('failed');
         setTestMessage(status.error ?? 'Connection failed');
@@ -159,25 +180,47 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
     }
   };
 
-  const handleSubmit = async () => {
-    if (!selectedKey || !selectedDef) return;
-
-    // 현재 표시된 필드만 required 체크
-    for (const field of selectedDef.form_fields) {
-      if (!isFieldVisible(field.key)) continue;
-      if (field.required && !params[field.key]?.trim()) {
-        setError(`${field.label} is required`);
-        return;
-      }
+  // 테스트 연결 유지한 채로 머신 추가 (권장 경로)
+  const handleAddAndConnect = () => {
+    if (!validateFields() || !selectedDef) return;
+    setSaving(true);
+    try {
+      onAdd(selectedKey, selectedDef, buildTypedParams());
+      testConnectedRef.current = false; // 연결 소유권을 Machines 뷰로 이전
+      onClose(); // disconnect 없이 닫기
+    } catch {
+      setError('Failed to add machine');
+    } finally {
+      setSaving(false);
     }
+  };
 
+  // 테스트 연결 끊고 설정만 저장
+  const handleAddOnly = async () => {
+    if (!validateFields() || !selectedDef) return;
     setSaving(true);
     setError('');
-
-    const typedParams = buildTypedParams();
-
     try {
-      onAdd(selectedKey, selectedDef, typedParams);
+      if (testConnectedRef.current) {
+        await sidecar.disconnect().catch(() => null);
+        testConnectedRef.current = false;
+      }
+      onAdd(selectedKey, selectedDef, buildTypedParams());
+      onClose();
+    } catch {
+      setError('Failed to add machine');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 테스트 전 단순 저장 (기존 동작)
+  const handleSubmit = async () => {
+    if (!validateFields() || !selectedDef) return;
+    setSaving(true);
+    setError('');
+    try {
+      onAdd(selectedKey, selectedDef, buildTypedParams());
       onClose();
     } catch {
       setError('Failed to add machine');
@@ -188,7 +231,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
 
   return (
     <ModalShell
-      onClose={onClose}
+      onClose={handleClose}
       labelledBy="add-machine-modal-title"
       contentStyle={{
         width: 'min(680px, 100%)',
@@ -244,7 +287,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
             </h2>
           </div>
         </div>
-        <button onClick={onClose} aria-label="Close" style={{
+        <button onClick={handleClose} aria-label="Close" style={{
           width: 34, height: 34, borderRadius: 10, border: 'none',
           background: 'var(--color-surface)', color: 'var(--color-muted)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -412,7 +455,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
             </span>
             {testState === 'success' && (
               <span style={{ fontSize: 11, color: '#16a34a', opacity: 0.7, marginLeft: 4 }}>
-                (disconnecting in 3s)
+                (live)
               </span>
             )}
           </div>
@@ -438,9 +481,9 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
             Test Connection
           </button>
 
-          {/* 오른쪽: Cancel + Add */}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={onClose} style={{
+          {/* 오른쪽: 상황별 버튼 */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button onClick={handleClose} style={{
               padding: '10px 16px', borderRadius: 10, border: 'none',
               background: 'var(--color-surface)', color: 'var(--color-secondary)',
               fontSize: 13, fontWeight: 500, cursor: 'pointer',
@@ -448,21 +491,60 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
             }}>
               Cancel
             </button>
-            <button
-              onClick={handleSubmit}
-              disabled={!selectedKey || saving}
-              style={{
-                padding: '10px 20px', borderRadius: 10, border: 'none',
-                background: !selectedKey ? 'var(--color-surface)' : 'var(--color-primary)',
-                color: !selectedKey ? 'var(--color-muted)' : '#fff',
-                fontSize: 13, fontWeight: 600,
-                cursor: selectedKey ? 'pointer' : 'default',
-                boxShadow: selectedKey ? 'var(--shadow-card)' : 'var(--shadow-inset)',
-                opacity: saving ? 0.7 : 1,
-              }}
-            >
-              {saving ? 'Adding...' : 'Add Machine'}
-            </button>
+
+            {testState === 'success' ? (
+              // 테스트 성공: Add & Connect (primary) + Add only (secondary)
+              <>
+                <button
+                  onClick={handleAddOnly}
+                  disabled={saving}
+                  style={{
+                    padding: '10px 16px', borderRadius: 10, border: 'none',
+                    background: 'var(--color-surface)', color: 'var(--color-secondary)',
+                    fontSize: 13, fontWeight: 500,
+                    cursor: saving ? 'default' : 'pointer',
+                    boxShadow: 'var(--shadow-inset)',
+                    opacity: saving ? 0.7 : 1,
+                  }}
+                >
+                  Add only
+                </button>
+                <button
+                  onClick={handleAddAndConnect}
+                  disabled={saving}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7,
+                    padding: '10px 20px', borderRadius: 10, border: 'none',
+                    background: '#16a34a',
+                    color: '#fff',
+                    fontSize: 13, fontWeight: 600,
+                    cursor: saving ? 'default' : 'pointer',
+                    boxShadow: '0 2px 8px rgba(22,163,74,0.35)',
+                    opacity: saving ? 0.7 : 1,
+                  }}
+                >
+                  <Wifi size={14} strokeWidth={2.5} />
+                  {saving ? 'Adding...' : 'Add & Connect'}
+                </button>
+              </>
+            ) : (
+              // 기본: Add Machine
+              <button
+                onClick={handleSubmit}
+                disabled={!selectedKey || saving}
+                style={{
+                  padding: '10px 20px', borderRadius: 10, border: 'none',
+                  background: !selectedKey ? 'var(--color-surface)' : 'var(--color-primary)',
+                  color: !selectedKey ? 'var(--color-muted)' : '#fff',
+                  fontSize: 13, fontWeight: 600,
+                  cursor: selectedKey ? 'pointer' : 'default',
+                  boxShadow: selectedKey ? 'var(--shadow-card)' : 'var(--shadow-inset)',
+                  opacity: saving ? 0.7 : 1,
+                }}
+              >
+                {saving ? 'Adding...' : 'Add Machine'}
+              </button>
+            )}
           </div>
         </div>
       </div>

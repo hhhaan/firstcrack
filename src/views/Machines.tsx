@@ -25,6 +25,13 @@ export const Machines = () => {
             .catch(() => null);
     }, []);
 
+    // 모달이 닫힐 때 status re-fetch — "Add & Connect" 흐름에서 연결 상태 즉시 반영
+    useEffect(() => {
+        if (!isAddModalOpen) {
+            sidecar.getStatus().then(setSidecarStatus).catch(() => null);
+        }
+    }, [isAddModalOpen]);
+
     useEffect(() => {
         if (pollRef.current) clearInterval(pollRef.current);
         if (!sidecarStatus?.connected) {
