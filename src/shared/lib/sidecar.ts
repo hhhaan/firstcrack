@@ -46,4 +46,7 @@ export const sidecar = {
       method: 'POST',
       body: JSON.stringify(params),
     }),
+
+  getSerialPorts: () =>
+    request<{ device: string; description: string }[]>('/serial-ports'),
 };

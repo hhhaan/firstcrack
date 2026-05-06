@@ -93,6 +93,18 @@ async def handle_start(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+async def handle_serial_ports(request: web.Request) -> web.Response:
+    try:
+        import serial.tools.list_ports  # type: ignore[import]
+        ports = [
+            {"device": p.device, "description": p.description or p.device}
+            for p in serial.tools.list_ports.comports()
+        ]
+    except ImportError:
+        ports = []
+    return web.json_response(ports)
+
+
 async def handle_control(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
     try:
@@ -135,6 +147,7 @@ def create_app() -> web.Application:
     app["manager"] = RoasterManager()
     app.on_startup.append(on_startup)
     app.router.add_get("/roasters",     handle_roasters)
+    app.router.add_get("/serial-ports", handle_serial_ports)
     app.router.add_get("/status",       handle_status)
     app.router.add_post("/connect",     handle_connect)
     app.router.add_post("/disconnect",  handle_disconnect)

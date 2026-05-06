@@ -47,6 +47,9 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
   // 테스트 성공 후 라이브 연결이 살아있는지 추적
   const testConnectedRef = useRef(false);
 
+  const [serialPorts, setSerialPorts] = useState<{ device: string; description: string }[]>([]);
+  const serialPortsFetchedRef = useRef(false);
+
   // 사이드카에서 로스터 목록 fetch
   useEffect(() => {
     if (!open) return;
@@ -66,6 +69,15 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
     setTestState('idle');
     setTestMessage('');
     testConnectedRef.current = false;
+  }, [open]);
+
+  // 시리얼 포트 목록 fetch — 모달이 처음 열릴 때 한 번만
+  useEffect(() => {
+    if (!open || serialPortsFetchedRef.current) return;
+    serialPortsFetchedRef.current = true;
+    sidecar.getSerialPorts()
+      .then(setSerialPorts)
+      .catch(() => setSerialPorts([]));
   }, [open]);
 
   // 모달 닫기: 라이브 테스트 연결이 있으면 disconnect 후 닫기
@@ -404,6 +416,27 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                     >
                       {field.options.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={13} style={{
+                      position: 'absolute', right: 12, top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--color-muted)', pointerEvents: 'none',
+                    }} />
+                  </div>
+                ) : field.key === 'comport' && serialPorts.length > 0 ? (
+                  // 시리얼 포트 드롭다운 (pyserial로 OS 포트 열거)
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      style={{ ...inputStyle, appearance: 'none', paddingRight: 36, cursor: 'pointer' }}
+                      value={params[field.key] ?? ''}
+                      onChange={e => setParams(p => ({ ...p, [field.key]: e.target.value }))}
+                    >
+                      <option value="">Select a port...</option>
+                      {serialPorts.map(p => (
+                        <option key={p.device} value={p.device}>
+                          {p.device}{p.description !== p.device ? ` — ${p.description}` : ''}
+                        </option>
                       ))}
                     </select>
                     <ChevronDown size={13} style={{
