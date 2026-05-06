@@ -28,7 +28,16 @@ S7 area 필드: 6=DB(Data Block)
 S7 div  필드: 0=스케일링 없음
 """
 
+import platform
 from typing import Any
+
+# OS별 시리얼 포트 placeholder
+_COMPORT_PLACEHOLDER: dict[str, str] = {
+    "Darwin":  "/dev/cu.usbserial-XXXX",
+    "Windows": "COM3",
+    "Linux":   "/dev/ttyUSB0",
+}
+_comport_placeholder = _COMPORT_PLACEHOLDER.get(platform.system(), "/dev/ttyUSB0")
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +106,7 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
             "label": "Serial Port",
             "type": "text",
             "required": False,
-            "placeholder": "/dev/ttyUSB0",
+            "placeholder": _comport_placeholder,
         },
         {
             "key": "baudrate",
@@ -147,7 +156,7 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
             "label": "Serial Port",
             "type": "text",
             "required": False,
-            "placeholder": "/dev/ttyUSB0",
+            "placeholder": _comport_placeholder,
         },
         {"key": "baudrate", "label": "Baud Rate", "type": "number", "required": False},
     ],
