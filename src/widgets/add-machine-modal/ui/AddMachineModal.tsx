@@ -33,6 +33,44 @@ const labelStyle: CSSProperties = {
   letterSpacing: '0.05em',
 };
 
+const ComportSelect = ({
+  value, onChange, ports, registryDefault, inputStyle,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  ports: { device: string; description: string }[];
+  registryDefault: string;
+  inputStyle: CSSProperties;
+}) => {
+  const detectedDevices = ports.map(p => p.device);
+  // registry default가 있고 감지 목록에 없으면 별도 옵션으로 표시
+  const showRegistryDefault = registryDefault && !detectedDevices.includes(registryDefault);
+  return (
+    <div style={{ position: 'relative' }}>
+      <select
+        style={{ ...inputStyle, appearance: 'none', paddingRight: 36, cursor: 'pointer' }}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      >
+        <option value="">Select a port...</option>
+        {showRegistryDefault && (
+          <option value={registryDefault}>{registryDefault} (default)</option>
+        )}
+        {ports.map(p => (
+          <option key={p.device} value={p.device}>
+            {p.device}{p.description !== p.device ? ` — ${p.description}` : ''}
+          </option>
+        ))}
+      </select>
+      <ChevronDown size={13} style={{
+        position: 'absolute', right: 12, top: '50%',
+        transform: 'translateY(-50%)',
+        color: 'var(--color-muted)', pointerEvents: 'none',
+      }} />
+    </div>
+  );
+};
+
 export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) => {
   const [roasters, setRoasters] = useState<RoastersResponse>({});
   const [loading, setLoading] = useState(false);
@@ -426,25 +464,14 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                   </div>
                 ) : field.key === 'comport' && serialPorts.length > 0 ? (
                   // 시리얼 포트 드롭다운 (pyserial로 OS 포트 열거)
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      style={{ ...inputStyle, appearance: 'none', paddingRight: 36, cursor: 'pointer' }}
-                      value={params[field.key] ?? ''}
-                      onChange={e => setParams(p => ({ ...p, [field.key]: e.target.value }))}
-                    >
-                      <option value="">Select a port...</option>
-                      {serialPorts.map(p => (
-                        <option key={p.device} value={p.device}>
-                          {p.device}{p.description !== p.device ? ` — ${p.description}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={13} style={{
-                      position: 'absolute', right: 12, top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: 'var(--color-muted)', pointerEvents: 'none',
-                    }} />
-                  </div>
+                  // registry default가 감지 목록에 없으면 별도 옵션으로 추가
+                  <ComportSelect
+                    value={params[field.key] ?? ''}
+                    onChange={v => setParams(p => ({ ...p, [field.key]: v }))}
+                    ports={serialPorts}
+                    registryDefault={(selectedDef?.default_params[field.key] as string) ?? ''}
+                    inputStyle={inputStyle}
+                  />
                 ) : (
                   <input
                     style={inputStyle}
