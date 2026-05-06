@@ -86,7 +86,6 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
   const testConnectedRef = useRef(false);
 
   const [serialPorts, setSerialPorts] = useState<{ device: string; description: string }[]>([]);
-  const serialPortsFetchedRef = useRef(false);
 
   // 사이드카에서 로스터 목록 fetch
   useEffect(() => {
@@ -109,10 +108,9 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
     testConnectedRef.current = false;
   }, [open]);
 
-  // 시리얼 포트 목록 fetch — 모달이 처음 열릴 때 한 번만
+  // 시리얼 포트 목록 fetch — 모달 열릴 때마다 (USB 새로 연결 시 반영)
   useEffect(() => {
-    if (!open || serialPortsFetchedRef.current) return;
-    serialPortsFetchedRef.current = true;
+    if (!open) return;
     sidecar.getSerialPorts()
       .then(setSerialPorts)
       .catch(() => setSerialPorts([]));
