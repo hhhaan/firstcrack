@@ -66,14 +66,14 @@ class RoasterManager:
 
     async def read_temperatures(self) -> dict[str, Any]:
         if not self._connected or self._adapter is None:
-            return {"bt": None, "et": None, "ror": 0.0, "ror_et": 0.0, "heater": 0, "fan": 0, "drum": 0, "timestamp": time.time()}
+            return {"bt": None, "et": None, "ror": 0.0, "ror_et": 0.0, "heater": 0, "fan": 0, "drum": 0, "timestamp": time.monotonic()}
         try:
             reading = await self._adapter.read()
         except Exception as exc:
             self._error = str(exc)
             self._connected = False
             _log.error("읽기 실패: %s", exc)
-            return {"bt": None, "et": None, "ror": 0.0, "ror_et": 0.0, "heater": 0, "fan": 0, "drum": 0, "timestamp": time.time()}
+            return {"bt": None, "et": None, "ror": 0.0, "ror_et": 0.0, "heater": 0, "fan": 0, "drum": 0, "timestamp": time.monotonic()}
 
         if reading.bt > 0:
             self._add_to_ror_window(reading.timestamp, reading.bt)
