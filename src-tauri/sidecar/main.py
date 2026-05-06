@@ -93,20 +93,22 @@ async def handle_start(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+def _is_na(s: str) -> bool:
+    return not s or s.lower() == "n/a"
+
+
 async def handle_serial_ports(request: web.Request) -> web.Response:
     try:
         import serial.tools.list_ports  # type: ignore[import]
         ports = []
         for p in serial.tools.list_ports.comports():
-            # hwid, description 모두 'n/a'인 포트는 Bluetooth 가상 포트 — 제외
             hwid = (p.hwid or "").strip()
             desc = (p.description or "").strip()
-            if hwid.lower() == "n/a" and desc.lower() == "n/a":
+            if _is_na(hwid) and _is_na(desc):  # Bluetooth 가상 포트 제외
                 continue
             ports.append({
                 "device": p.device,
-                # description이 'n/a'거나 비어있으면 device 이름만 표시
-                "description": desc if desc and desc.lower() != "n/a" else p.device,
+                "description": desc if not _is_na(desc) else p.device,
             })
     except ImportError:
         ports = []
