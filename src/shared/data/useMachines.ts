@@ -1,54 +1,43 @@
-import { useState, useCallback } from 'react';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Machine } from '../types/machine';
-
-const STORAGE_KEY = 'fc_machines';
-
-const load = (): Machine[] => {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-  } catch {
-    return [];
-  }
-};
-
-const save = (machines: Machine[]): void => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(machines));
-};
 
 const uid = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-export const useMachines = () => {
-  const [machines, setMachines] = useState<Machine[]>(load);
+interface MachinesState {
+  machines: Machine[];
+  addMachine: (draft: Omit<Machine, 'id' | 'createdAt'>) => Machine;
+  removeMachine: (id: string) => void;
+  updateMachine: (id: string, patch: Partial<Machine>) => void;
+}
 
-  const addMachine = useCallback((draft: Omit<Machine, 'id' | 'createdAt'>) => {
-    const machine: Machine = {
-      ...draft,
-      id: uid(),
-      createdAt: new Date().toISOString(),
-    };
-    setMachines(prev => {
-      const next = [...prev, machine];
-      save(next);
-      return next;
-    });
-    return machine;
-  }, []);
+export const useMachines = create<MachinesState>()(
+  persist(
+    (set) => ({
+      machines: [],
 
-  const removeMachine = useCallback((id: string) => {
-    setMachines(prev => {
-      const next = prev.filter(m => m.id !== id);
-      save(next);
-      return next;
-    });
-  }, []);
+      addMachine: (draft) => {
+        const machine: Machine = {
+          ...draft,
+          id: uid(),
+          createdAt: new Date().toISOString(),
+        };
+        set((s) => ({ machines: [...s.machines, machine] }));
+        return machine;
+      },
 
-  const updateMachine = useCallback((id: string, patch: Partial<Machine>) => {
-    setMachines(prev => {
-      const next = prev.map(m => m.id === id ? { ...m, ...patch } : m);
-      save(next);
-      return next;
-    });
-  }, []);
+      removeMachine: (id) => {
+        set((s) => ({ machines: s.machines.filter((m) => m.id !== id) }));
+      },
 
-  return { machines, addMachine, removeMachine, updateMachine };
-};
+      updateMachine: (id, patch) => {
+        set((s) => ({
+          machines: s.machines.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+        }));
+      },
+    }),
+    {
+      name: 'fc_machines', // 기존 localStorage 키 유지 — 저장된 데이터 그대로 마이그레이션
+    },
+  ),
+);

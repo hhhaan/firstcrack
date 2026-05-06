@@ -16,7 +16,8 @@
     "lucide-react": "^1.8.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "uplot": "^1.6.32"
+    "uplot": "^1.6.32",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.4",
