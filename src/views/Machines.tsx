@@ -1,5 +1,6 @@
 import { Plus, Search, Cpu, Activity, AlertCircle, Wifi, WifiOff, Trash2, Flame } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AddMachineModal } from '../widgets/add-machine-modal/ui/AddMachineModal';
 import { useMachines, SIMULATOR_ID } from '../shared/data/useMachines';
 import { sidecar } from '../shared/lib/sidecar';
@@ -9,6 +10,7 @@ import type { View } from '../shared/types/view';
 const POLL_INTERVAL_MS = 3000;
 
 export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
+    const { t } = useTranslation();
     const { machines, addMachine, removeMachine } = useMachines();
     const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -119,13 +121,13 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
             <div className="flex items-end justify-between mb-7">
                 <div>
                     <h1 className="font-display font-light text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1">
-                        Machine Inventory
+                        {t('machines.title')}
                     </h1>
                     <p className="text-sm text-muted tracking-[0.14px]">
-                        {machines.length} registered
+                        {t('machines.registered', { count: machines.length })}
                         {sidecarStatus?.connected && connectedMachine
-                            ? ` · ${connectedMachine.name} connected`
-                            : ' · no active connection'}
+                            ? ` · ${t('machines.connectedSuffix', { name: connectedMachine.name })}`
+                            : ` · ${t('machines.noActiveConnection')}`}
                     </p>
                 </div>
                 <button
@@ -133,19 +135,19 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                     className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer shadow-(--shadow-card) tracking-[0.14px]"
                 >
                     <Plus size={15} strokeWidth={2.5} />
-                    Add Machine
+                    {t('machines.addMachine')}
                 </button>
             </div>
 
             {machines.length === 0 ? (
                 <div className="bg-main-bg rounded-2xl py-16 px-8 shadow-(--shadow-ring) text-center">
                     <Cpu size={32} strokeWidth={1.2} color="var(--color-muted)" className="mb-4 mx-auto" />
-                    <p className="text-[15px] text-muted mb-5">No machines registered yet</p>
+                    <p className="text-[15px] text-muted mb-5">{t('machines.empty')}</p>
                     <button
                         onClick={() => setIsAddModalOpen(true)}
                         className="px-5 py-2.5 rounded-[10px] border-none bg-primary text-white text-[13px] font-medium cursor-pointer"
                     >
-                        Add your first machine
+                        {t('machines.addFirst')}
                     </button>
                 </div>
             ) : (
@@ -157,7 +159,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                             <input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Search machines..."
+                                placeholder={t('machines.searchPlaceholder')}
                                 className="border-none bg-transparent outline-none text-[13px] text-primary font-body w-full tracking-[0.14px]"
                             />
                         </div>
@@ -182,7 +184,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                             <span
                                                 className={`text-[10px] font-semibold px-1.75 py-0.5 rounded-full uppercase tracking-[0.4px] shrink-0 ${isConnected ? 'text-[#16a34a] bg-[rgba(220,252,231,0.8)]' : 'text-[#64748b] bg-[rgba(241,245,249,0.8)]'}`}
                                             >
-                                                {isConnected ? 'Live' : 'Offline'}
+                                                {isConnected ? t('common.live') : t('common.offline')}
                                             </span>
                                         </div>
                                         <div className="flex gap-2.5">
@@ -225,7 +227,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                         <button
                                             onClick={() => removeMachine(selected.id)}
                                             className="w-9 h-9 rounded-[10px] border-none bg-surface text-muted flex items-center justify-center cursor-pointer shadow-inset"
-                                            title="Remove machine"
+                                            title={t('machines.removeMachine')}
                                         >
                                             <Trash2 size={15} strokeWidth={2} />
                                         </button>
@@ -238,16 +240,16 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                 <div className="grid grid-cols-3 gap-3.5 mb-6">
                                     {[
                                         {
-                                            label: 'Bean Temp',
+                                            label: t('machines.temperature.bean'),
                                             value: temps.bt != null ? `${temps.bt}°C` : '—',
                                             sub: 'BT',
                                         },
                                         {
-                                            label: 'Env Temp',
+                                            label: t('machines.temperature.environment'),
                                             value: temps.et != null ? `${temps.et}°C` : '—',
                                             sub: 'ET',
                                         },
-                                        { label: 'RoR', value: `${temps.ror} °C/min`, sub: 'Rate of Rise' },
+                                        { label: t('machines.temperature.ror'), value: `${temps.ror} °C/min`, sub: t('machines.temperature.rateOfRise') },
                                     ].map((s) => (
                                         <div key={s.label} className="bg-surface px-4 py-3.5 rounded-xl shadow-inset">
                                             <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.5px] mb-1.5">
@@ -269,8 +271,8 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                     )}
                                     <span className="text-[13px] text-muted)">
                                         {isThisMachineConnected(selected)
-                                            ? 'Connected'
-                                            : 'Not connected. Press Connect to start.'}
+                                            ? t('common.connected')
+                                            : t('machines.notConnectedHint')}
                                     </span>
                                 </div>
                             )}
@@ -278,7 +280,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                             {/* Connection params */}
                             {Object.keys(selected.connectionParams).length > 0 && (
                                 <div className="bg-surface-warm-solid rounded-xl px-4.5 py-4 mb-6 shadow-(--shadow-warm)">
-                                    <div className="text-[12px] font-semibold text-secondary mb-2.5">Connection</div>
+                                    <div className="text-[12px] font-semibold text-secondary mb-2.5">{t('machines.connection')}</div>
                                     <div className="grid gap-1.5">
                                         {Object.entries(selected.connectionParams)
                                             .filter(([, v]) => v !== '' && v != null)
@@ -314,7 +316,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                         className="py-3 px-5 rounded-xl border-none bg-surface text-secondary text-sm font-medium cursor-pointer shadow-(--shadow-inset) flex items-center justify-center gap-2"
                                     >
                                         <WifiOff size={15} strokeWidth={2} />
-                                        Disconnect
+                                        {t('machines.disconnect')}
                                     </button>
                                 ) : (
                                     <button
@@ -324,11 +326,11 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                     >
                                         {connecting ? (
                                             <>
-                                                <Activity size={15} /> Connecting...
+                                                <Activity size={15} /> {t('common.connecting')}
                                             </>
                                         ) : (
                                             <>
-                                                <Wifi size={15} strokeWidth={2} /> Connect
+                                                <Wifi size={15} strokeWidth={2} /> {t('machines.connect')}
                                             </>
                                         )}
                                     </button>
@@ -339,7 +341,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                         className="flex-1 py-3 rounded-xl border-none bg-primary text-white text-sm font-semibold cursor-pointer shadow-(--shadow-card) flex items-center justify-center gap-2"
                                     >
                                         <Flame size={15} strokeWidth={2} />
-                                        Start Roasting
+                                        {t('machines.startRoasting')}
                                     </button>
                                 )}
                             </div>
@@ -347,7 +349,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                         </div>
                     ) : (
                         <div className="bg-main-bg rounded-2xl py-15 px-8 shadow-(--shadow-ring) flex items-center justify-center text-muted text-sm">
-                            Select a machine
+                            {t('machines.selectMachine')}
                         </div>
                     )}
                 </div>

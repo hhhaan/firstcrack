@@ -169,7 +169,7 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
             axes: [
                 {
                     stroke: colorMuted,
-                    grid: { stroke: 'rgba(0,0,0,0.05)', width: 1 },
+                    grid: { stroke: 'rgba(0,0,0,0.1)', width: 1 },
                     ticks: { show: false },
                     border: { show: false },
                     font: `11px monospace`,
@@ -179,17 +179,18 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
                 },
                 {
                     stroke: colorMuted,
-                    grid: { show: false },
+                    grid: { stroke: 'rgba(0,0,0,0.1)', width: 1 },
                     ticks: { show: false },
                     border: { show: false },
                     font: `11px monospace`,
-                    size: 36,
-                    values: (_, vals) => vals.map(v => `${v}°`),
+                    size: 40,
+                    incrs: [10, 20, 25, 50],
+                    values: (_, vals) => vals.map(v => `${v}°C`),
                 },
             ],
             scales: {
                 x: { time: false },
-                y: { range: [140, 230] },
+                y: { range: [130, 240] },
             },
             series: [
                 {},

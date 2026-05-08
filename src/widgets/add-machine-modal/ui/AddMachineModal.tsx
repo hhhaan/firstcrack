@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Cpu, Radio, ShieldCheck, X, ChevronDown, Wifi, WifiOff, Loader } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
 import { sidecar } from '../../../shared/lib/sidecar';
 import type { RoasterDef, RoastersResponse, SerialPort } from '../../../shared/types/machine';
@@ -42,6 +43,7 @@ const ComportSelect = ({
   registryDefault: string;
   inputStyle: CSSProperties;
 }) => {
+  const { t } = useTranslation();
   const detectedDevices = ports.map(p => p.device);
   const showRegistryDefault = registryDefault && !detectedDevices.includes(registryDefault);
   return (
@@ -51,9 +53,9 @@ const ComportSelect = ({
         value={value}
         onChange={e => onChange(e.target.value)}
       >
-        <option value="">Select a port...</option>
+        <option value="">{t('addMachine.selectPort')}</option>
         {showRegistryDefault && (
-          <option value={registryDefault}>{registryDefault} (default)</option>
+          <option value={registryDefault}>{registryDefault} ({t('addMachine.defaultPort')})</option>
         )}
         {ports.map(p => (
           <option key={p.device} value={p.device}>
@@ -71,6 +73,7 @@ const ComportSelect = ({
 };
 
 export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) => {
+  const { t } = useTranslation();
   const [roasters, setRoasters] = useState<RoastersResponse>({});
   const [loading, setLoading] = useState(false);
   const [selectedKey, setSelectedKey] = useState('');
@@ -178,7 +181,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
     for (const field of selectedDef.form_fields) {
       if (!isFieldVisible(field.key)) continue;
       if (field.required && !params[field.key]?.trim()) {
-        setError(`${field.label} is required`);
+        setError(t('addMachine.fieldRequired', { field: field.label }));
         return false;
       }
     }
@@ -204,17 +207,16 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
       const status = await sidecar.connect(selectedKey, typedParams);
       if (status.connected) {
         const temps = await sidecar.getTemperatures().catch(() => null);
-        const detail = temps?.bt != null ? ` — BT ${temps.bt}°C` : '';
         setTestState('success');
-        setTestMessage(`Connected${detail}`);
+        setTestMessage(temps?.bt != null ? t('addMachine.connectedWithBt', { bt: temps.bt }) : t('common.connected'));
         testConnectedRef.current = true; // 연결 유지 — "Add & Connect" 흐름에서 사용
       } else {
         setTestState('failed');
-        setTestMessage(status.error ?? 'Connection failed');
+        setTestMessage(status.error ?? t('addMachine.connectionFailed'));
       }
     } catch (e) {
       setTestState('failed');
-      setTestMessage(e instanceof Error ? e.message : 'Connection failed');
+      setTestMessage(e instanceof Error ? e.message : t('addMachine.connectionFailed'));
     }
   };
 
@@ -227,7 +229,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
       testConnectedRef.current = false; // 연결 소유권을 Machines 뷰로 이전
       onClose(); // disconnect 없이 닫기
     } catch {
-      setError('Failed to add machine');
+      setError(t('addMachine.failedToAdd'));
     } finally {
       setSaving(false);
     }
@@ -246,7 +248,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
       onAdd(selectedKey, selectedDef, buildTypedParams());
       onClose();
     } catch {
-      setError('Failed to add machine');
+      setError(t('addMachine.failedToAdd'));
     } finally {
       setSaving(false);
     }
@@ -261,7 +263,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
       onAdd(selectedKey, selectedDef, buildTypedParams());
       onClose();
     } catch {
-      setError('Failed to add machine');
+      setError(t('addMachine.failedToAdd'));
     } finally {
       setSaving(false);
     }
@@ -314,18 +316,18 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
               marginBottom: 10, boxShadow: 'var(--shadow-inset)',
             }}>
               <ShieldCheck size={13} strokeWidth={1.9} />
-              Machine onboarding
+              {t('addMachine.onboarding')}
             </div>
             <h2 id="add-machine-modal-title" style={{
               fontFamily: 'var(--font-display)', fontSize: 26,
               fontWeight: 400, letterSpacing: '-0.04em',
               color: 'var(--color-primary)', margin: 0,
             }}>
-              Add a new machine
+              {t('addMachine.title')}
             </h2>
           </div>
         </div>
-        <button onClick={handleClose} aria-label="Close" style={{
+        <button onClick={handleClose} aria-label={t('common.close')} style={{
           width: 34, height: 34, borderRadius: 10, border: 'none',
           background: 'var(--color-surface)', color: 'var(--color-muted)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -340,10 +342,10 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
 
         {/* Roaster select */}
         <div>
-          <label style={labelStyle}>Roaster Model</label>
+          <label style={labelStyle}>{t('addMachine.roasterModel')}</label>
           {loading ? (
             <div style={{ fontSize: 13, color: 'var(--color-muted)', padding: '10px 0' }}>
-              Loading roasters...
+              {t('addMachine.loadingRoasters')}
             </div>
           ) : (
             <div style={{ position: 'relative' }}>
@@ -352,7 +354,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                 value={selectedKey}
                 onChange={e => setSelectedKey(e.target.value)}
               >
-                <option value="">Select a roaster...</option>
+                <option value="">{t('addMachine.selectRoaster')}</option>
                 {Object.entries(brands).sort(([a], [b]) => a.localeCompare(b)).map(([brand, items]) => (
                   <optgroup key={brand} label={brand}>
                     {items.map(({ key, def }) => (
@@ -424,7 +426,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
             <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <Radio size={14} color="var(--color-secondary)" />
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-secondary)' }}>
-                Connection settings
+                {t('addMachine.connectionSettings')}
               </span>
             </div>
             {selectedDef.form_fields.filter(f => isFieldVisible(f.key)).map(field => (
@@ -497,7 +499,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
             {testState === 'success' && <Wifi size={14} />}
             {testState === 'failed' && <WifiOff size={14} />}
             <span>
-              {testState === 'testing' ? 'Testing connection...' : testMessage}
+              {testState === 'testing' ? t('addMachine.testingConnection') : testMessage}
             </span>
             {testState === 'success' && (
               <span style={{ fontSize: 11, color: '#16a34a', opacity: 0.7, marginLeft: 4 }}>
@@ -524,7 +526,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
             }}
           >
             <Wifi size={14} strokeWidth={2} />
-            Test Connection
+            {t('addMachine.testConnection')}
           </button>
 
           {/* 오른쪽: 상황별 버튼 */}
@@ -535,7 +537,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
               fontSize: 13, fontWeight: 500, cursor: 'pointer',
               boxShadow: 'var(--shadow-inset)',
             }}>
-              Cancel
+              {t('common.cancel')}
             </button>
 
             {testState === 'success' ? (
@@ -553,7 +555,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                     opacity: saving ? 0.7 : 1,
                   }}
                 >
-                  Add only
+                  {t('addMachine.addOnly')}
                 </button>
                 <button
                   onClick={handleAddAndConnect}
@@ -570,7 +572,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                   }}
                 >
                   <Wifi size={14} strokeWidth={2.5} />
-                  {saving ? 'Adding...' : 'Add & Connect'}
+                  {saving ? t('addMachine.adding') : t('addMachine.addAndConnect')}
                 </button>
               </>
             ) : (
@@ -588,7 +590,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                   opacity: saving ? 0.7 : 1,
                 }}
               >
-                {saving ? 'Adding...' : 'Add Machine'}
+                {saving ? t('addMachine.adding') : t('machines.addMachine')}
               </button>
             )}
           </div>

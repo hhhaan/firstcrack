@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { ask } from '@tauri-apps/plugin-dialog';
 import { Play, Pause, Square, Thermometer, Wind, TrendingUp, AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
 import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
 import {
@@ -21,6 +23,8 @@ const TOGGLEABLE_LOG_EVENTS = new Set(['Yellow', 'FC Start', 'FC End']);
 export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     const [elapsed, setElapsed] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
+    const isRunningRef = useRef(isRunning);
+    isRunningRef.current = isRunning;
     const [charged, setCharged] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [roastEnded, setRoastEnded] = useState(false);
@@ -82,6 +86,25 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
         }, 1000);
         return () => clearInterval(interval);
     }, [isRunning]);
+
+    useEffect(() => {
+        const win = getCurrentWindow();
+        let unlisten: (() => void) | undefined;
+        let active = true;
+        win.onCloseRequested(async (e) => {
+            if (!isRunningRef.current) return;
+            e.preventDefault();
+            const ok = await ask('로스팅이 진행 중입니다. 정말 종료하시겠습니까?', {
+                title: '로스팅 진행 중',
+                kind: 'warning',
+                okLabel: '종료',
+                cancelLabel: '취소',
+            });
+            if (ok) { unlisten?.(); win.close(); }
+        }).then((fn) => { active ? (unlisten = fn) : fn(); });
+        return () => { active = false; unlisten?.(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // TODO: expose poll interval as user setting (3000ms → 1000ms → 500ms)
     const POLL_INTERVAL_MS = 500;

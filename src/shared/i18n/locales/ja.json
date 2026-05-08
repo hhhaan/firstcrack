@@ -1,0 +1,146 @@
+{
+  "common": {
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "connected": "接続済み",
+    "connecting": "接続中...",
+    "disconnected": "未接続",
+    "live": "ライブ",
+    "offline": "オフライン"
+  },
+  "sidebar": {
+    "roasteryDashboard": "ロースタリーダッシュボード",
+    "expand": "サイドバーを展開",
+    "collapse": "サイドバーを折りたたむ",
+    "workspaceSelector": "ワークスペース選択",
+    "workspace": "ワークスペース",
+    "settings": "設定",
+    "workspacePreferences": "ワークスペース設定",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "roast": "ロースト中",
+      "history": "ロースト履歴",
+      "beans": "豆在庫",
+      "profiles": "プロファイル",
+      "machines": "マシン"
+    }
+  },
+  "settings": {
+    "title": "ワークスペース設定",
+    "close": "設定を閉じる",
+    "whyTitle": "設定に含まれる理由",
+    "whyDescription": "これらの項目はアプリ全体の体験に影響します。運用データは設定画面を軽く保つため、サイドバーの主要画面に置きます。",
+    "tabs": {
+      "general": {
+        "label": "一般",
+        "title": "ワークスペース設定",
+        "description": "ロースタリーのワークスペース全体に適用される既定値を管理します。",
+        "interfaceTitle": "インターフェース",
+        "interfaceDescription": "アプリ全体に適用される軽量な設定です。",
+        "language": "言語",
+        "languageDescription": "アプリの表示言語を選択します。",
+        "defaultLandingView": "既定の開始画面",
+        "temperatureUnit": "温度単位",
+        "weightUnit": "重量単位",
+        "displayTitle": "表示の既定値",
+        "displayDescription": "ダッシュボードとナビゲーションの動作をセッション間で一貫させます。",
+        "expandedSidebar": "既定でサイドバーを展開",
+        "liveMetricsPanel": "ライブ指標パネルを表示",
+        "compactDataCards": "コンパクトなデータカードを使用"
+      },
+      "notifications": {
+        "label": "通知",
+        "title": "通知とリマインダー",
+        "description": "サイドバーの作業画面を重複させず、必要なメッセージだけを受け取ります。",
+        "operationalTitle": "運用通知",
+        "operationalDescription": "ロースト中や機器監視中に役立つ通知です。",
+        "milestoneAlerts": "ローストマイルストーン通知",
+        "disconnectWarning": "マシン切断警告",
+        "maintenanceReminder": "メンテナンス通知",
+        "deliveryTitle": "通知方法",
+        "deliveryDescription": "作業中に通知を表示する方法です。",
+        "bannerNotifications": "バナー通知",
+        "soundAlerts": "サウンド通知",
+        "highPriorityOnly": "高優先度の通知のみ"
+      },
+      "session": {
+        "label": "セッション",
+        "title": "ローストセッションの動作",
+        "description": "各ローストセッションの開始から終了までに適用される小さな既定値です。",
+        "startTitle": "セッション開始",
+        "startDescription": "オペレーターがすばやく開始できるようにする自動化です。",
+        "autoStartTimer": "ローストタイマーを自動開始",
+        "openActiveRoast": "ロースト中画面をすぐに開く",
+        "confirmBeforeStart": "セッション開始前に確認",
+        "endTitle": "セッション終了",
+        "endDescription": "サマリーと最終確認を一貫させます。",
+        "showSummary": "終了後にローストサマリーを表示",
+        "confirmDiscard": "セッション破棄前に確認",
+        "keepNotesVisible": "ローストノートを表示したままにする"
+      },
+      "system": {
+        "label": "システム",
+        "title": "システムとデータ",
+        "description": "アプリ全体の操作、ローカルデータの状態、エクスポート関連の制御をまとめます。",
+        "dataTitle": "データ制御",
+        "dataDescription": "豆、マシン、プロファイル画面に直接属さないワークスペース操作です。",
+        "exportWorkspace": "現在のワークスペースデータをエクスポート",
+        "backupSnapshot": "ローカルバックアップスナップショットを作成",
+        "preserveLogs": "アクティビティログを保持",
+        "environmentTitle": "環境",
+        "environmentDescription": "アプリ自体の状態と安全性に関する設定です。",
+        "healthBadge": "接続状態バッジを表示",
+        "checkServices": "ローカルデバイスサービスを確認",
+        "confirmResets": "リセット前の確認を必須にする"
+      }
+    }
+  },
+  "language": {
+    "ko": "한국어",
+    "en": "English",
+    "ja": "日本語",
+    "zh-CN": "简体中文"
+  },
+  "machines": {
+    "title": "マシン一覧",
+    "registered": "{{count}}台登録済み",
+    "connectedSuffix": "{{name}} 接続済み",
+    "noActiveConnection": "アクティブな接続なし",
+    "addMachine": "マシンを追加",
+    "empty": "登録済みのマシンはまだありません",
+    "addFirst": "最初のマシンを追加",
+    "searchPlaceholder": "マシンを検索...",
+    "removeMachine": "マシンを削除",
+    "temperature": {
+      "bean": "豆温度",
+      "environment": "環境温度",
+      "ror": "RoR",
+      "rateOfRise": "上昇率"
+    },
+    "notConnectedHint": "接続されていません。接続ボタンを押して開始してください。",
+    "connection": "接続",
+    "disconnect": "切断",
+    "connect": "接続",
+    "startRoasting": "ローストを開始",
+    "selectMachine": "マシンを選択してください"
+  },
+  "addMachine": {
+    "onboarding": "マシンオンボーディング",
+    "title": "新しいマシンを追加",
+    "roasterModel": "ロースターモデル",
+    "loadingRoasters": "ロースターを読み込み中...",
+    "selectPort": "ポートを選択...",
+    "defaultPort": "既定値",
+    "selectRoaster": "ロースターを選択...",
+    "connectionSettings": "接続設定",
+    "fieldRequired": "{{field}} は必須です",
+    "failedToAdd": "マシンの追加に失敗しました",
+    "connectionFailed": "接続に失敗しました",
+    "testConnection": "接続テスト",
+    "testingConnection": "接続をテスト中...",
+    "connectedWithBt": "接続済み - BT {{bt}}°C",
+    "addOnly": "追加のみ",
+    "addAndConnect": "追加して接続",
+    "adding": "追加中..."
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "connected": "Connected",
+    "connecting": "Connecting...",
+    "disconnected": "Disconnected",
+    "live": "Live",
+    "offline": "Offline"
+  },
+  "sidebar": {
+    "roasteryDashboard": "Roastery Dashboard",
+    "expand": "Expand sidebar",
+    "collapse": "Collapse sidebar",
+    "workspaceSelector": "Workspace selector",
+    "workspace": "Workspace",
+    "settings": "Settings",
+    "workspacePreferences": "Workspace preferences",
+    "nav": {
+      "dashboard": "Dashboard",
+      "roast": "Active Roast",
+      "history": "Roast History",
+      "beans": "Bean Inventory",
+      "profiles": "Profiles",
+      "machines": "Machines"
+    }
+  },
+  "settings": {
+    "title": "Workspace settings",
+    "close": "Close settings",
+    "whyTitle": "Why this is in settings",
+    "whyDescription": "These controls affect the whole application experience. Dedicated operational data should stay in the main sidebar views so the settings area remains lightweight.",
+    "tabs": {
+      "general": {
+        "label": "General",
+        "title": "Workspace preferences",
+        "description": "Control the app-wide defaults that shape how the roastery workspace feels day to day.",
+        "interfaceTitle": "Interface",
+        "interfaceDescription": "Lightweight preferences that apply across the whole app.",
+        "language": "Language",
+        "languageDescription": "Choose the display language for the app.",
+        "defaultLandingView": "Default landing view",
+        "temperatureUnit": "Temperature unit",
+        "weightUnit": "Weight unit",
+        "displayTitle": "Display defaults",
+        "displayDescription": "Keep the dashboard and navigation behavior consistent between sessions.",
+        "expandedSidebar": "Expanded sidebar by default",
+        "liveMetricsPanel": "Show live metrics panel",
+        "compactDataCards": "Use compact data cards"
+      },
+      "notifications": {
+        "label": "Notifications",
+        "title": "Alerts and reminders",
+        "description": "Choose which messages need your attention without duplicating workflow screens from the sidebar.",
+        "operationalTitle": "Operational alerts",
+        "operationalDescription": "Useful prompts during roasting and equipment monitoring.",
+        "milestoneAlerts": "Roast milestone alerts",
+        "disconnectWarning": "Machine disconnect warning",
+        "maintenanceReminder": "Maintenance reminder",
+        "deliveryTitle": "Delivery style",
+        "deliveryDescription": "How the app should surface notifications while you work.",
+        "bannerNotifications": "Banner notifications",
+        "soundAlerts": "Sound alerts",
+        "highPriorityOnly": "Only high-priority alerts"
+      },
+      "session": {
+        "label": "Session",
+        "title": "Roast session behavior",
+        "description": "Set the small workflow defaults that affect each roast session from start to finish.",
+        "startTitle": "Session start",
+        "startDescription": "Automations that help the operator begin quickly.",
+        "autoStartTimer": "Auto-start roast timer",
+        "openActiveRoast": "Open active roast view immediately",
+        "confirmBeforeStart": "Confirm before starting session",
+        "endTitle": "Session end",
+        "endDescription": "Consistency for summaries and final review.",
+        "showSummary": "Show roast summary after end",
+        "confirmDiscard": "Confirm before discarding session",
+        "keepNotesVisible": "Keep roast notes visible"
+      },
+      "system": {
+        "label": "System",
+        "title": "System and data",
+        "description": "A home for global app actions, local data health, and export-related controls.",
+        "dataTitle": "Data controls",
+        "dataDescription": "Workspace-level actions that do not belong to beans, machines, or profiles directly.",
+        "exportWorkspace": "Export current workspace data",
+        "backupSnapshot": "Create local backup snapshot",
+        "preserveLogs": "Preserve activity logs",
+        "environmentTitle": "Environment",
+        "environmentDescription": "Status and safety-oriented preferences for the app itself.",
+        "healthBadge": "Show connection health badge",
+        "checkServices": "Check local device services",
+        "confirmResets": "Require confirmation for resets"
+      }
+    }
+  },
+  "language": {
+    "ko": "한국어",
+    "en": "English",
+    "ja": "日本語",
+    "zh-CN": "简体中文"
+  },
+  "machines": {
+    "title": "Machine Inventory",
+    "registered": "{{count}} registered",
+    "connectedSuffix": "{{name}} connected",
+    "noActiveConnection": "no active connection",
+    "addMachine": "Add Machine",
+    "empty": "No machines registered yet",
+    "addFirst": "Add your first machine",
+    "searchPlaceholder": "Search machines...",
+    "removeMachine": "Remove machine",
+    "temperature": {
+      "bean": "Bean Temp",
+      "environment": "Env Temp",
+      "ror": "RoR",
+      "rateOfRise": "Rate of Rise"
+    },
+    "notConnectedHint": "Not connected. Press Connect to start.",
+    "connection": "Connection",
+    "disconnect": "Disconnect",
+    "connect": "Connect",
+    "startRoasting": "Start Roasting",
+    "selectMachine": "Select a machine"
+  },
+  "addMachine": {
+    "onboarding": "Machine onboarding",
+    "title": "Add a new machine",
+    "roasterModel": "Roaster Model",
+    "loadingRoasters": "Loading roasters...",
+    "selectPort": "Select a port...",
+    "defaultPort": "default",
+    "selectRoaster": "Select a roaster...",
+    "connectionSettings": "Connection settings",
+    "fieldRequired": "{{field}} is required",
+    "failedToAdd": "Failed to add machine",
+    "connectionFailed": "Connection failed",
+    "testConnection": "Test Connection",
+    "testingConnection": "Testing connection...",
+    "connectedWithBt": "Connected - BT {{bt}}°C",
+    "addOnly": "Add only",
+    "addAndConnect": "Add & Connect",
+    "adding": "Adding..."
+  }
+}

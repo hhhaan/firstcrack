@@ -1,6 +1,8 @@
-import { useEffect, useState, type CSSProperties } from 'react';
-import { Bell, Database, Gauge, LayoutDashboard, PlayCircle, Shield, X } from 'lucide-react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { Bell, Database, Gauge, Languages, LayoutDashboard, PlayCircle, Shield, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
+import { setLanguage, supportedLanguages, type SupportedLanguage } from '../../../shared/i18n';
 
 interface SettingsModalProps {
   open: boolean;
@@ -9,7 +11,7 @@ interface SettingsModalProps {
 
 type SettingsTabId = 'general' | 'notifications' | 'session' | 'system';
 
-const tabs: {
+const getTabs = (t: (key: string) => string): {
   id: SettingsTabId;
   label: string;
   icon: typeof LayoutDashboard;
@@ -20,80 +22,112 @@ const tabs: {
     description: string;
     items: string[];
   }>;
-}[] = [
+}[] => [
   {
     id: 'general',
-    label: 'General',
+    label: t('settings.tabs.general.label'),
     icon: LayoutDashboard,
-    title: 'Workspace preferences',
-    description: 'Control the app-wide defaults that shape how the roastery workspace feels day to day.',
+    title: t('settings.tabs.general.title'),
+    description: t('settings.tabs.general.description'),
     cards: [
       {
-        title: 'Interface',
-        description: 'Lightweight preferences that apply across the whole app.',
-        items: ['Default landing view', 'Temperature unit', 'Weight unit'],
+        title: t('settings.tabs.general.interfaceTitle'),
+        description: t('settings.tabs.general.interfaceDescription'),
+        items: [
+          t('settings.tabs.general.defaultLandingView'),
+          t('settings.tabs.general.temperatureUnit'),
+          t('settings.tabs.general.weightUnit'),
+        ],
       },
       {
-        title: 'Display defaults',
-        description: 'Keep the dashboard and navigation behavior consistent between sessions.',
-        items: ['Expanded sidebar by default', 'Show live metrics panel', 'Use compact data cards'],
+        title: t('settings.tabs.general.displayTitle'),
+        description: t('settings.tabs.general.displayDescription'),
+        items: [
+          t('settings.tabs.general.expandedSidebar'),
+          t('settings.tabs.general.liveMetricsPanel'),
+          t('settings.tabs.general.compactDataCards'),
+        ],
       },
     ],
   },
   {
     id: 'notifications',
-    label: 'Notifications',
+    label: t('settings.tabs.notifications.label'),
     icon: Bell,
-    title: 'Alerts and reminders',
-    description: 'Choose which messages need your attention without duplicating workflow screens from the sidebar.',
+    title: t('settings.tabs.notifications.title'),
+    description: t('settings.tabs.notifications.description'),
     cards: [
       {
-        title: 'Operational alerts',
-        description: 'Useful prompts during roasting and equipment monitoring.',
-        items: ['Roast milestone alerts', 'Machine disconnect warning', 'Maintenance reminder'],
+        title: t('settings.tabs.notifications.operationalTitle'),
+        description: t('settings.tabs.notifications.operationalDescription'),
+        items: [
+          t('settings.tabs.notifications.milestoneAlerts'),
+          t('settings.tabs.notifications.disconnectWarning'),
+          t('settings.tabs.notifications.maintenanceReminder'),
+        ],
       },
       {
-        title: 'Delivery style',
-        description: 'How the app should surface notifications while you work.',
-        items: ['Banner notifications', 'Sound alerts', 'Only high-priority alerts'],
+        title: t('settings.tabs.notifications.deliveryTitle'),
+        description: t('settings.tabs.notifications.deliveryDescription'),
+        items: [
+          t('settings.tabs.notifications.bannerNotifications'),
+          t('settings.tabs.notifications.soundAlerts'),
+          t('settings.tabs.notifications.highPriorityOnly'),
+        ],
       },
     ],
   },
   {
     id: 'session',
-    label: 'Session',
+    label: t('settings.tabs.session.label'),
     icon: PlayCircle,
-    title: 'Roast session behavior',
-    description: 'Set the small workflow defaults that affect each roast session from start to finish.',
+    title: t('settings.tabs.session.title'),
+    description: t('settings.tabs.session.description'),
     cards: [
       {
-        title: 'Session start',
-        description: 'Automations that help the operator begin quickly.',
-        items: ['Auto-start roast timer', 'Open active roast view immediately', 'Confirm before starting session'],
+        title: t('settings.tabs.session.startTitle'),
+        description: t('settings.tabs.session.startDescription'),
+        items: [
+          t('settings.tabs.session.autoStartTimer'),
+          t('settings.tabs.session.openActiveRoast'),
+          t('settings.tabs.session.confirmBeforeStart'),
+        ],
       },
       {
-        title: 'Session end',
-        description: 'Consistency for summaries and final review.',
-        items: ['Show roast summary after end', 'Confirm before discarding session', 'Keep roast notes visible'],
+        title: t('settings.tabs.session.endTitle'),
+        description: t('settings.tabs.session.endDescription'),
+        items: [
+          t('settings.tabs.session.showSummary'),
+          t('settings.tabs.session.confirmDiscard'),
+          t('settings.tabs.session.keepNotesVisible'),
+        ],
       },
     ],
   },
   {
     id: 'system',
-    label: 'System',
+    label: t('settings.tabs.system.label'),
     icon: Database,
-    title: 'System and data',
-    description: 'A home for global app actions, local data health, and export-related controls.',
+    title: t('settings.tabs.system.title'),
+    description: t('settings.tabs.system.description'),
     cards: [
       {
-        title: 'Data controls',
-        description: 'Workspace-level actions that do not belong to beans, machines, or profiles directly.',
-        items: ['Export current workspace data', 'Create local backup snapshot', 'Preserve activity logs'],
+        title: t('settings.tabs.system.dataTitle'),
+        description: t('settings.tabs.system.dataDescription'),
+        items: [
+          t('settings.tabs.system.exportWorkspace'),
+          t('settings.tabs.system.backupSnapshot'),
+          t('settings.tabs.system.preserveLogs'),
+        ],
       },
       {
-        title: 'Environment',
-        description: 'Status and safety-oriented preferences for the app itself.',
-        items: ['Show connection health badge', 'Check local device services', 'Require confirmation for resets'],
+        title: t('settings.tabs.system.environmentTitle'),
+        description: t('settings.tabs.system.environmentDescription'),
+        items: [
+          t('settings.tabs.system.healthBadge'),
+          t('settings.tabs.system.checkServices'),
+          t('settings.tabs.system.confirmResets'),
+        ],
       },
     ],
   },
@@ -116,7 +150,9 @@ const tabButtonStyle = (active: boolean): CSSProperties => ({
 });
 
 export const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTabId>('general');
+  const tabs = useMemo(() => getTabs(t), [t]);
 
   useEffect(() => {
     if (!open) {
@@ -190,16 +226,16 @@ export const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
             }}
           >
             <Shield size={14} strokeWidth={1.8} />
-            Workspace settings
+            {t('settings.title')}
           </div>
           <h2 id="settings-modal-title" style={{ margin: 0, fontSize: 0, lineHeight: 0 }}>
-            Workspace settings
+            {t('settings.title')}
           </h2>
         </div>
 
         <button
           onClick={onClose}
-          aria-label="Close settings"
+          aria-label={t('settings.close')}
           style={{
             width: 36,
             height: 36,
@@ -329,6 +365,56 @@ export const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
           </div>
 
           <div style={{ display: 'grid', gap: 16 }}>
+            {activeTab === 'general' && (
+              <section
+                style={{
+                  borderRadius: 20,
+                  padding: 20,
+                  background: 'linear-gradient(180deg, rgba(245,242,239,0.75) 0%, rgba(255,255,255,0.92) 100%)',
+                  border: '1px solid rgba(0,0,0,0.06)',
+                  boxShadow: 'var(--shadow-warm)',
+                }}
+              >
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <Languages size={16} strokeWidth={1.9} color="var(--color-secondary)" />
+                    <h4 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-primary)', margin: 0 }}>
+                      {t('settings.tabs.general.language')}
+                    </h4>
+                  </div>
+                  <p style={{ fontSize: 13, color: 'var(--color-secondary)' }}>
+                    {t('settings.tabs.general.languageDescription')}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {supportedLanguages.map((language) => {
+                    const active = i18n.resolvedLanguage === language;
+
+                    return (
+                      <button
+                        key={language}
+                        onClick={() => void setLanguage(language)}
+                        style={{
+                          border: 'none',
+                          borderRadius: 9999,
+                          padding: '9px 14px',
+                          cursor: 'pointer',
+                          background: active ? 'var(--color-primary)' : 'rgba(255,255,255,0.88)',
+                          color: active ? '#fff' : 'var(--color-secondary)',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          boxShadow: active ? 'var(--shadow-card)' : 'var(--shadow-inset)',
+                        }}
+                      >
+                        {t(`language.${language}`)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             {activeConfig.cards.map((card) => (
               <section
                 key={card.title}
@@ -383,11 +469,11 @@ export const SettingsModal = ({ open, onClose }: SettingsModalProps) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <Gauge size={16} strokeWidth={1.9} color="var(--color-secondary)" />
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-primary)' }}>
-                  Why this is in settings
+                  {t('settings.whyTitle')}
                 </span>
               </div>
               <p style={{ fontSize: 13, color: 'var(--color-secondary)' }}>
-                These controls affect the whole application experience. Dedicated operational data should stay in the main sidebar views so the settings area remains lightweight.
+                {t('settings.whyDescription')}
               </p>
             </section>
           </div>

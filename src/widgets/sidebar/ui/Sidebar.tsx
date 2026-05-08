@@ -10,6 +10,7 @@ import {
     Menu,
     Cpu,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { type View } from '../../../shared/types/view';
 
 interface SidebarProps {
@@ -20,16 +21,18 @@ interface SidebarProps {
     onOpenSettings: () => void;
 }
 
-const navItems: { id: View; label: string; icon: FC<{ size?: number; strokeWidth?: number; color?: string }> }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'roast', label: 'Active Roast', icon: Flame },
-    { id: 'history', label: 'Roast History', icon: ClipboardList },
-    { id: 'beans', label: 'Bean Inventory', icon: Coffee },
-    { id: 'profiles', label: 'Profiles', icon: BookOpen },
-    { id: 'machines', label: 'Machines', icon: Cpu },
+const navItems: { id: View; labelKey: string; icon: FC<{ size?: number; strokeWidth?: number; color?: string }> }[] = [
+    { id: 'dashboard', labelKey: 'sidebar.nav.dashboard', icon: LayoutDashboard },
+    { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Flame },
+    { id: 'history', labelKey: 'sidebar.nav.history', icon: ClipboardList },
+    { id: 'beans', labelKey: 'sidebar.nav.beans', icon: Coffee },
+    { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: BookOpen },
+    { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Cpu },
 ];
 
 export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, onOpenSettings }: SidebarProps) => {
+    const { t } = useTranslation();
+
     return (
         <aside
             className="shrink-0 h-screen bg-main-bg border-r border-border flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out"
@@ -45,15 +48,15 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                     First Crack
                                 </div>
                                 <div className="text-[11px] text-muted tracking-[0.14px] font-medium">
-                                    Roastery Dashboard
+                                    {t('sidebar.roasteryDashboard')}
                                 </div>
                             </div>
                         </div>
                     )}
                     <button
                         onClick={onToggleCollapse}
-                        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
+                        title={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
                         className="w-8 h-8 rounded-lg border-none bg-surface text-muted flex items-center justify-center cursor-pointer shrink-0 shadow-(--shadow-inset)"
                     >
                         <Menu size={15} strokeWidth={1.9} />
@@ -64,8 +67,8 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             {/* Workspace selector */}
             <div className={collapsed ? 'px-2.5 pt-3 pb-2' : 'px-3 pt-3 pb-2'}>
                 <button
-                    aria-label="Workspace selector"
-                    title={collapsed ? 'Workspace' : undefined}
+                    aria-label={t('sidebar.workspaceSelector')}
+                    title={collapsed ? t('sidebar.workspace') : undefined}
                     className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-[10px] py-2 rounded-lg border-none bg-surface cursor-pointer shadow-(--shadow-inset)`}
                 >
                     <div className="flex items-center gap-2">
@@ -87,11 +90,12 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                 <div className="mb-1">
                     {!collapsed && (
                         <div className="text-[11px] font-medium text-muted tracking-[0.7px] uppercase px-2.5 pt-2 pb-1">
-                            Workspace
+                            {t('sidebar.workspace')}
                         </div>
                     )}
-                    {navItems.map(({ id, label, icon: Icon }) => {
+                    {navItems.map(({ id, labelKey, icon: Icon }) => {
                         const isActive = activeView === id;
+                        const label = t(labelKey);
                         return (
                             <button
                                 key={id}
@@ -123,8 +127,8 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             <div className="p-3 border-t border-border-subtle">
                 <button
                     onClick={onOpenSettings}
-                    aria-label="Open settings"
-                    title={collapsed ? 'Settings' : undefined}
+                    aria-label={t('sidebar.settings')}
+                    title={collapsed ? t('sidebar.settings') : undefined}
                     className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-start'} gap-2.5 px-2.5 py-2 rounded-lg border-none bg-surface cursor-pointer shadow-(--shadow-inset)`}
                 >
                     <div className="w-7 h-7 rounded-full bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary shrink-0 shadow-(--shadow-inset)">
@@ -133,9 +137,9 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                     {!collapsed && (
                         <>
                             <div className="text-left flex-1 min-w-0">
-                                <div className="text-[13px] font-medium text-primary tracking-[0.14px]">Settings</div>
+                                <div className="text-[13px] font-medium text-primary tracking-[0.14px]">{t('sidebar.settings')}</div>
                                 <div className="text-[11px] text-muted tracking-[0.14px] overflow-hidden text-ellipsis whitespace-nowrap">
-                                    Workspace preferences
+                                    {t('sidebar.workspacePreferences')}
                                 </div>
                             </div>
                             <Settings size={14} strokeWidth={1.5} color="var(--color-muted)" />
