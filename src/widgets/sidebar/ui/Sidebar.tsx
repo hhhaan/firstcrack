@@ -76,6 +76,8 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                             B
                         </div>
                         {!collapsed && (
+                            // TODO: 카페 이름 동적 설정 지원 — 현재 하드코딩됨.
+                            // 팀/멀티 테넌트 지원 시 사용자 설정(settings store)에서 읽어오도록 교체 필요.
                             <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
                                 Brewlab Works
                             </span>

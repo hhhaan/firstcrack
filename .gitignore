@@ -26,6 +26,8 @@ dist-ssr
 config/machines/ 
 
 # Python sidecar
+__pycache__/
+*.py[cod]
 sidecar/.venv/
 sidecar/__pycache__/
 sidecar/**/*.pyc

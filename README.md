@@ -4,7 +4,7 @@ This template should help get you started developing with Tauri, React and Types
 
 ## Documentation
 
-- [Sidecar API](./SIDECAR_API.md): Python `aiohttp` API used by the Tauri frontend.
+- [Sidecar API](./docs/sidecar-api.md): Python `aiohttp` API used by the Tauri frontend.
 
 ## Recommended IDE Setup
 
