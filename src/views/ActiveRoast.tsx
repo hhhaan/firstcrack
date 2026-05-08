@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
-import { Play, Pause, Square, Thermometer, Wind, TrendingUp, AlertCircle, Maximize2, Minimize2, Settings2 } from 'lucide-react';
+import {
+    Play,
+    Square,
+    Thermometer,
+    Wind,
+    TrendingUp,
+    AlertCircle,
+    Maximize2,
+    Minimize2,
+    Settings2,
+} from 'lucide-react';
 import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
 import {
     RoastSummaryModal,
@@ -23,7 +33,13 @@ type RoastLogDisplayEntry = RoastLogEntry & { current?: boolean };
 
 const TOGGLEABLE_LOG_EVENTS = new Set(['Yellow', 'FC Start', 'FC End']);
 
-export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boolean; onOpenRoastSettings?: () => void }) => {
+export const ActiveRoast = ({
+    isActive,
+    onOpenRoastSettings,
+}: {
+    isActive: boolean;
+    onOpenRoastSettings?: () => void;
+}) => {
     const roastSettings = useRoastSettings();
     const [elapsed, setElapsed] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
@@ -111,10 +127,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                 okLabel: '종료',
                 cancelLabel: '취소',
             });
-            if (ok) { unlisten?.(); win.close(); }
-        }).then((fn) => { active ? (unlisten = fn) : fn(); });
-        return () => { active = false; unlisten?.(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+            if (ok) {
+                unlisten?.();
+                win.close();
+            }
+        }).then((fn) => {
+            active ? (unlisten = fn) : fn();
+        });
+        return () => {
+            active = false;
+            unlisten?.();
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -223,13 +247,17 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
     const prevIndex = Math.max(0, currentIndex - rorSpanPoints);
     const rorNow =
         currentIndex > rorSpanPoints
-            ? toDisplayRoR((fullData[currentIndex].bt - fullData[prevIndex].bt) / (roastSettings.rorSpanSec / 60), unit).toFixed(1)
+            ? toDisplayRoR(
+                  (fullData[currentIndex].bt - fullData[prevIndex].bt) / (roastSettings.rorSpanSec / 60),
+                  unit,
+              ).toFixed(1)
             : '—';
-    const displayRoR = tpTimeSecRef.current == null
-        ? '—'
-        : sidecarConnected
-            ? toDisplayRoR(liveData?.ror ?? 0, unit).toFixed(1)
-            : rorNow;
+    const displayRoR =
+        tpTimeSecRef.current == null
+            ? '—'
+            : sidecarConnected
+              ? toDisplayRoR(liveData?.ror ?? 0, unit).toFixed(1)
+              : rorNow;
 
     let phase = 'Drying';
     let phaseColor = '#d97706';
@@ -252,31 +280,43 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
         Note: '#6b7280',
     };
 
-    const eventMarkers = useMemo((): RoastEventMarker[] =>
-        logEntries
-            .filter((e) => eventMarkerColor[e.event])
-            .map((e) => {
-                const [min, sec] = e.time.split(':').map(Number);
-                const timeSec = Math.min(780, Math.max(0, min * 60 + sec));
-                return { timeSec, event: e.event, color: eventMarkerColor[e.event] };
-            }),
-    [logEntries]);
+    const eventMarkers = useMemo(
+        (): RoastEventMarker[] =>
+            logEntries
+                .filter((e) => eventMarkerColor[e.event])
+                .map((e) => {
+                    const [min, sec] = e.time.split(':').map(Number);
+                    const timeSec = Math.min(780, Math.max(0, min * 60 + sec));
+                    return { timeSec, event: e.event, color: eventMarkerColor[e.event] };
+                }),
+        [logEntries],
+    );
 
     const turningPoints = useMemo(
-        () => detectTurningPoints(livePoints.map((p) => p.time), livePoints.map((p) => p.bt)),
+        () =>
+            detectTurningPoints(
+                livePoints.map((p) => p.time),
+                livePoints.map((p) => p.bt),
+            ),
         [livePoints],
     );
     const tpTimeSec = turningPoints[0]?.timeSec ?? null;
     tpTimeSecRef.current = tpTimeSec;
 
     // uPlot column arrays — derived from visibleChartData, converted to display unit
-    const conv = (v: number | null) => v != null ? toDisplayTemp(v, unit) : null;
+    const conv = (v: number | null) => (v != null ? toDisplayTemp(v, unit) : null);
     const visibleXs = useMemo(() => visibleChartData.map((p) => p.time), [visibleChartData]);
     const visibleBtTarget = useMemo(() => visibleChartData.map((p) => conv(p.btTarget)), [visibleChartData, unit]);
     const visibleBtActual = useMemo(() => visibleChartData.map((p) => conv(p.btActual)), [visibleChartData, unit]);
     const visibleEtActual = useMemo(() => visibleChartData.map((p) => conv(p.etActual)), [visibleChartData, unit]);
-    const visibleRorActual = useMemo(() => visibleChartData.map((p) => p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null), [visibleChartData, unit]);
-    const visibleEtRorActual = useMemo(() => visibleChartData.map((p) => p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null), [visibleChartData, unit]);
+    const visibleRorActual = useMemo(
+        () => visibleChartData.map((p) => (p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null)),
+        [visibleChartData, unit],
+    );
+    const visibleEtRorActual = useMemo(
+        () => visibleChartData.map((p) => (p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null)),
+        [visibleChartData, unit],
+    );
 
     const flashButton = (label: string) => {
         setPressedButtons((prev) => new Set(prev).add(label));
@@ -324,8 +364,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
         let nextStart = focusTime - pointerRatio * nextDuration;
         let nextEnd = nextStart + nextDuration;
 
-        if (nextStart < 0) { nextStart = 0; nextEnd = nextDuration; }
-        if (nextEnd > MAX_TIME) { nextEnd = MAX_TIME; nextStart = MAX_TIME - nextDuration; }
+        if (nextStart < 0) {
+            nextStart = 0;
+            nextEnd = nextDuration;
+        }
+        if (nextEnd > MAX_TIME) {
+            nextEnd = MAX_TIME;
+            nextStart = MAX_TIME - nextDuration;
+        }
 
         setZoomRange({ start: nextStart, end: nextEnd });
     };
@@ -344,15 +390,22 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
             return;
         }
 
-        const focusTime = hoveredChartIndex != null
-            ? (visibleChartData[hoveredChartIndex]?.time ?? (currentStart + currentEnd) / 2)
-            : (currentStart + currentEnd) / 2;
+        const focusTime =
+            hoveredChartIndex != null
+                ? (visibleChartData[hoveredChartIndex]?.time ?? (currentStart + currentEnd) / 2)
+                : (currentStart + currentEnd) / 2;
         const ratio = currentDuration > 0 ? (focusTime - currentStart) / currentDuration : 0.5;
         let nextStart = focusTime - ratio * nextDuration;
         let nextEnd = nextStart + nextDuration;
 
-        if (nextStart < 0) { nextStart = 0; nextEnd = nextDuration; }
-        if (nextEnd > MAX_TIME) { nextEnd = MAX_TIME; nextStart = MAX_TIME - nextDuration; }
+        if (nextStart < 0) {
+            nextStart = 0;
+            nextEnd = nextDuration;
+        }
+        if (nextEnd > MAX_TIME) {
+            nextEnd = MAX_TIME;
+            nextStart = MAX_TIME - nextDuration;
+        }
 
         setZoomRange({ start: nextStart, end: nextEnd });
     };
@@ -546,8 +599,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                 event.preventDefault();
                 if (!charged) {
                     handleCharge();
-                } else if (!roastEnded) {
-                    setIsRunning((running) => !running);
                 }
                 return;
             }
@@ -589,20 +640,23 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
         const pct = Math.round((devSec / elapsed) * 100);
         return `${Math.floor(devSec / 60)}:${String(devSec % 60).padStart(2, '0')} (${pct}%)`;
     })();
-    const roastLogDisplayEntries = useMemo((): RoastLogDisplayEntry[] => [
-        ...logEntries,
-        ...(!roastEnded
-            ? [
-                  {
-                      time: timeStr,
-                      event: 'Now',
-                      temp: formatTemp(rawBT ?? currentPoint?.bt ?? null, unit),
-                      note: `${phase} in progress`,
-                      current: true,
-                  },
-              ]
-            : []),
-    ], [logEntries, roastEnded, timeStr, displayBT, currentPoint, phase]);
+    const roastLogDisplayEntries = useMemo(
+        (): RoastLogDisplayEntry[] => [
+            ...logEntries,
+            ...(!roastEnded
+                ? [
+                      {
+                          time: timeStr,
+                          event: 'Now',
+                          temp: formatTemp(rawBT ?? currentPoint?.bt ?? null, unit),
+                          note: `${phase} in progress`,
+                          current: true,
+                      },
+                  ]
+                : []),
+        ],
+        [logEntries, roastEnded, timeStr, displayBT, currentPoint, phase],
+    );
 
     return (
         <div style={{ padding: '32px 40px', maxWidth: 1100, margin: '0 auto' }}>
@@ -952,15 +1006,44 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                         {/* RoR Sub-chart */}
                         {roastSettings.showRoRChart && (
                             <div style={{ marginTop: 4 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, paddingLeft: 4 }}>
-                                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        marginBottom: 4,
+                                        paddingLeft: 4,
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            fontSize: 10,
+                                            fontWeight: 600,
+                                            color: 'var(--color-muted)',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.5px',
+                                        }}
+                                    >
                                         Rate of Rise
                                     </span>
-                                    <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#d97706' }}>
+                                    <span
+                                        style={{
+                                            fontSize: 11,
+                                            fontFamily: 'var(--font-mono)',
+                                            fontWeight: 700,
+                                            color: '#d97706',
+                                        }}
+                                    >
                                         {displayRoR}°{unit}/min
                                     </span>
                                 </div>
-                                <RoastRorChart xs={visibleXs} rorActual={visibleRorActual} etRorActual={visibleEtRorActual} height={80} showRoRET={roastSettings.showRoRET} />
+                                <RoastRorChart
+                                    xs={visibleXs}
+                                    rorActual={visibleRorActual}
+                                    etRorActual={visibleEtRorActual}
+                                    height={80}
+                                    showRoRET={roastSettings.showRoRET}
+                                />
                             </div>
                         )}
                     </div>
@@ -1026,53 +1109,29 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                             {/* Controls */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    {!charged ? (
-                                        <button
-                                            onClick={handleCharge}
-                                            aria-keyshortcuts="Meta+Enter Control+Enter"
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                gap: 4,
-                                                padding: '8px 0',
-                                                borderRadius: 9999,
-                                                border: 'none',
-                                                background: '#ea580c',
-                                                color: 'white',
-                                                fontSize: 12,
-                                                fontWeight: 600,
-                                                cursor: 'pointer',
-                                                boxShadow: 'var(--shadow-card)',
-                                            }}
-                                        >
-                                            <Play size={12} />
-                                            Charge
-                                        </button>
-                                    ) : (
-                                        <button
-                                            onClick={() => setIsRunning((r) => !r)}
-                                            aria-keyshortcuts="Meta+Enter Control+Enter"
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                gap: 4,
-                                                padding: '8px 0',
-                                                borderRadius: 9999,
-                                                border: 'none',
-                                                background: 'var(--color-primary)',
-                                                color: 'white',
-                                                fontSize: 12,
-                                                fontWeight: 600,
-                                                cursor: 'pointer',
-                                                boxShadow: 'var(--shadow-card)',
-                                            }}
-                                        >
-                                            {isRunning ? <Pause size={12} /> : <Play size={12} />}
-                                            {isRunning ? 'Pause' : 'Resume'}
-                                        </button>
-                                    )}
+                                    <button
+                                        onClick={!charged ? handleCharge : undefined}
+                                        disabled={charged}
+                                        aria-keyshortcuts={!charged ? 'Meta+Enter Control+Enter' : undefined}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 4,
+                                            padding: '8px 0',
+                                            borderRadius: 9999,
+                                            border: 'none',
+                                            background: charged ? 'var(--color-surface)' : 'rgba(220,252,231,0.8)',
+                                            color: charged ? 'var(--color-muted)' : '#16a34a',
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            cursor: charged ? 'default' : 'pointer',
+                                            boxShadow: 'var(--shadow-inset)',
+                                        }}
+                                    >
+                                        <Play size={12} />
+                                        Charge
+                                    </button>
                                     <button
                                         onClick={handleEndRoastClick}
                                         disabled={roastEnded}
@@ -1094,7 +1153,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                                         }}
                                     >
                                         <Square size={12} />
-                                        End
+                                        End Roast
                                     </button>
                                 </div>
 
@@ -1130,7 +1189,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                                             onClick: handleMarkNote,
                                         },
                                     ].map(({ label, event, shortcut, pressKey, onClick }) => {
-                                        const registered = event ? logEntries.some((entry) => entry.event === event) : false;
+                                        const registered = event
+                                            ? logEntries.some((entry) => entry.event === event)
+                                            : false;
                                         const pressed = pressedButtons.has(pressKey);
                                         return (
                                             <button
@@ -1144,11 +1205,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                                                     gap: 2,
                                                     padding: '8px 4px',
                                                     borderRadius: 8,
-                                                    border: registered && !pressed ? '1.5px solid var(--color-primary)' : 'none',
+                                                    border:
+                                                        registered && !pressed
+                                                            ? '1.5px solid var(--color-primary)'
+                                                            : 'none',
                                                     background: pressed
                                                         ? 'var(--color-primary)'
                                                         : 'var(--color-surface)',
-                                                    color: pressed ? 'white' : registered ? 'var(--color-primary)' : 'var(--color-secondary)',
+                                                    color: pressed
+                                                        ? 'white'
+                                                        : registered
+                                                          ? 'var(--color-primary)'
+                                                          : 'var(--color-secondary)',
                                                     fontSize: 11,
                                                     fontWeight: registered || pressed ? 600 : 500,
                                                     cursor: 'pointer',
@@ -1160,7 +1228,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                                                 <span
                                                     style={{
                                                         fontSize: 10,
-                                                        color: pressed ? 'rgba(255,255,255,0.6)' : registered ? 'var(--color-secondary)' : 'var(--color-muted)',
+                                                        color: pressed
+                                                            ? 'rgba(255,255,255,0.6)'
+                                                            : registered
+                                                              ? 'var(--color-secondary)'
+                                                              : 'var(--color-muted)',
                                                         fontFamily: 'var(--font-mono)',
                                                         transition: 'color 0.15s',
                                                     }}
@@ -1302,57 +1374,31 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                         Roast Controls
                     </h3>
                     <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-                        {!charged ? (
-                            <button
-                                onClick={handleCharge}
-                                aria-keyshortcuts="Meta+Enter Control+Enter"
-                                style={{
-                                    flex: 1,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 8,
-                                    padding: '11px 0',
-                                    borderRadius: 9999,
-                                    border: 'none',
-                                    background: '#ea580c',
-                                    color: 'white',
-                                    fontSize: 14,
-                                    fontWeight: 500,
-                                    cursor: 'pointer',
-                                    boxShadow: 'var(--shadow-card)',
-                                    letterSpacing: '0.14px',
-                                }}
-                            >
-                                <Play size={15} strokeWidth={2} />
-                                Charge
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => setIsRunning((r) => !r)}
-                                aria-keyshortcuts="Meta+Enter Control+Enter"
-                                style={{
-                                    flex: 1,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 8,
-                                    padding: '11px 0',
-                                    borderRadius: 9999,
-                                    border: 'none',
-                                    background: 'var(--color-primary)',
-                                    color: 'white',
-                                    fontSize: 14,
-                                    fontWeight: 500,
-                                    cursor: 'pointer',
-                                    boxShadow: 'var(--shadow-card)',
-                                    letterSpacing: '0.14px',
-                                }}
-                            >
-                                {isRunning ? <Pause size={15} strokeWidth={2} /> : <Play size={15} strokeWidth={2} />}
-                                {isRunning ? 'Pause' : 'Resume'}
-                            </button>
-                        )}
+                        <button
+                            onClick={!charged ? handleCharge : undefined}
+                            disabled={charged}
+                            aria-keyshortcuts={!charged ? 'Meta+Enter Control+Enter' : undefined}
+                            style={{
+                                flex: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 8,
+                                padding: '11px 0',
+                                borderRadius: 9999,
+                                border: 'none',
+                                background: charged ? 'var(--color-surface)' : 'rgba(220,252,231,0.8)',
+                                color: charged ? 'var(--color-muted)' : '#16a34a',
+                                fontSize: 14,
+                                fontWeight: 500,
+                                cursor: charged ? 'default' : 'pointer',
+                                boxShadow: 'var(--shadow-inset)',
+                                letterSpacing: '0.14px',
+                            }}
+                        >
+                            <Play size={15} strokeWidth={2} />
+                            Charge
+                        </button>
                         <button
                             onClick={handleEndRoastClick}
                             disabled={roastEnded}
@@ -1372,7 +1418,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                                 fontWeight: 500,
                                 cursor: roastEnded ? 'default' : 'pointer',
                                 letterSpacing: '0.14px',
-                                boxShadow: 'var(--shadow-inset)',
+                                boxShadow: roastEnded ? 'var(--shadow-inset)' : 'var(--shadow-card)',
                             }}
                         >
                             <Square size={14} strokeWidth={2} />
@@ -1416,7 +1462,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                                         borderRadius: 8,
                                         border: registered && !pressed ? '1.5px solid var(--color-primary)' : 'none',
                                         background: pressed ? 'var(--color-primary)' : 'var(--color-surface)',
-                                        color: pressed ? 'white' : registered ? 'var(--color-primary)' : 'var(--color-secondary)',
+                                        color: pressed
+                                            ? 'white'
+                                            : registered
+                                              ? 'var(--color-primary)'
+                                              : 'var(--color-secondary)',
                                         fontSize: 13,
                                         fontWeight: registered || pressed ? 600 : 500,
                                         cursor: 'pointer',
@@ -1429,7 +1479,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                                     <span
                                         style={{
                                             fontSize: 11,
-                                            color: pressed ? 'rgba(255,255,255,0.6)' : registered ? 'var(--color-secondary)' : 'var(--color-muted)',
+                                            color: pressed
+                                                ? 'rgba(255,255,255,0.6)'
+                                                : registered
+                                                  ? 'var(--color-secondary)'
+                                                  : 'var(--color-muted)',
                                             fontFamily: 'var(--font-mono)',
                                             transition: 'color 0.15s',
                                         }}
@@ -1504,9 +1558,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                                                 ? '#22c55e'
                                                 : (eventMarkerColor[entry.event] ?? 'var(--color-border)'),
                                             flexShrink: 0,
-                                            boxShadow: entry.current
-                                                ? '0 0 0 3px rgba(34,197,94,0.2)'
-                                                : 'none',
+                                            boxShadow: entry.current ? '0 0 0 3px rgba(34,197,94,0.2)' : 'none',
                                         }}
                                     />
                                 </div>
@@ -1546,6 +1598,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                 open={showEndRoastModal}
                 timeStr={timeStr}
                 onClose={() => setShowEndRoastModal(false)}
+                onDiscard={() => {
+                    setShowEndRoastModal(false);
+                    resetActiveRoast();
+                }}
                 onConfirm={confirmEndRoast}
             />
             <RoastSummaryModal

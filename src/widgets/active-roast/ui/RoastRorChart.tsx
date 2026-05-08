@@ -9,9 +9,10 @@ interface Props {
     rorActual: (number | null)[];
     etRorActual: (number | null)[];
     height?: number;
+    showRoRET?: boolean;
 }
 
-export const RoastRorChart = ({ xs, rorActual, etRorActual, height = 80 }: Props) => {
+export const RoastRorChart = ({ xs, rorActual, etRorActual, height = 80, showRoRET = false }: Props) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const plotRef = useRef<uPlot | null>(null);
 
@@ -147,6 +148,10 @@ export const RoastRorChart = ({ xs, rorActual, etRorActual, height = 80 }: Props
             plotRef.current.setSize({ width: containerRef.current?.offsetWidth ?? plotRef.current.width, height });
         }
     }, [height]);
+
+    useEffect(() => {
+        plotRef.current?.setSeries(2, { show: showRoRET });
+    }, [showRoRET]);
 
     return <div ref={containerRef} className="w-full" />;
 };
