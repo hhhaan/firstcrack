@@ -64,6 +64,7 @@ export const ActiveRoast = ({
         drum: number;
     } | null>(null);
     const [sidecarConnected, setSidecarConnected] = useState(false);
+    const [machineCapabilities, setMachineCapabilities] = useState<string[]>([]);
     const [livePoints, setLivePoints] = useState<
         { time: number; label: string; bt: number; et: number | null; ror: number | null; ror_et: number | null }[]
     >([]);
@@ -148,8 +149,6 @@ export const ActiveRoast = ({
                 const data = await sidecar.getTemperatures();
                 setLiveData(data);
                 setSidecarConnected(true);
-                // TODO [T13]: 드럼/히터/팬 값 UI 표시 (현재 콘솔 확인용)
-                console.log('[fc] heater=%d fan=%d drum=%s', data.heater, data.fan, data.drum);
                 const bt = data.bt;
                 if (chargedRef.current && bt != null && roastStartTimeRef.current !== 0) {
                     const t = (Date.now() - roastStartTimeRef.current) / 1000;
@@ -529,6 +528,7 @@ export const ActiveRoast = ({
         }
 
         setSidecarConnected(true);
+        setMachineCapabilities(status.capabilities ?? []);
         // 시뮬레이터 타이머를 투입 시점에 맞춰 리셋 (실제 어댑터는 RoR 윈도우만 초기화)
         sidecar.startRoast().catch(() => {});
         roastStartTimeRef.current = Date.now();
@@ -759,7 +759,7 @@ export const ActiveRoast = ({
             </div>
 
             {/* Live readings */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 10 }}>
                 {[
                     {
                         label: 'Bean Temp',
@@ -833,6 +833,36 @@ export const ActiveRoast = ({
                     </div>
                 ))}
             </div>
+
+            {/* Machine Controls — heater / fan / drum (실제 머신: capabilities 기준, 시뮬레이터: 항상 표시) */}
+            {(machineCapabilities.length > 0 || !sidecarConnected) && (
+                <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 10, paddingLeft: 2 }}>
+                    {(machineCapabilities.includes('heater') || !sidecarConnected) && (
+                        <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
+                            Heater{' '}
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#ea580c' }}>
+                                {liveData ? `${liveData.heater}%` : '—'}
+                            </span>
+                        </span>
+                    )}
+                    {(machineCapabilities.includes('fan') || !sidecarConnected) && (
+                        <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
+                            Fan{' '}
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#2563eb' }}>
+                                {liveData ? `${liveData.fan}%` : '—'}
+                            </span>
+                        </span>
+                    )}
+                    {(machineCapabilities.includes('drum') || !sidecarConnected) && (
+                        <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
+                            Drum{' '}
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#16a34a' }}>
+                                {liveData ? `${liveData.drum} RPM` : '—'}
+                            </span>
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* Temperature Chart */}
             <div

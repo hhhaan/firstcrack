@@ -46,6 +46,7 @@ export interface SidecarStatus {
   roaster: string;
   display_name: string;
   brand: string;
+  capabilities: string[];
   uptime: number;
   error: string | null;
 }

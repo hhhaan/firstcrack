@@ -182,6 +182,7 @@ class RoasterManager:
             "roaster": self._roaster_key,
             "display_name": reg.get("display_name", ""),
             "brand": reg.get("brand", ""),
+            "capabilities": reg.get("capabilities", []),
             "uptime": uptime,
             "error": self._error,
         }

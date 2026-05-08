@@ -210,7 +210,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "protocol": "simulator",
         "default_params": {"mode": "C"},
         "pid": None,
-        "capabilities": [],
+        "capabilities": ["heater", "fan", "drum"],
     },
     # -----------------------------------------------------------------------
     # Giesen — S7 (8개 항목)
