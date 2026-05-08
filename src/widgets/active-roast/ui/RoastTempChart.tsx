@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import uPlot from 'uplot';
+import type { TurningPoint } from '@shared/lib/turningPoints';
 
 export interface RoastEventMarker {
     timeSec: number;
@@ -14,8 +15,11 @@ interface Props {
     etActual: (number | null)[];
     currentTimeSec: number;
     eventMarkers: RoastEventMarker[];
+    turningPoints?: TurningPoint[];
     height: number;
     onCursorIdx?: (idx: number | null) => void;
+    showET?: boolean;
+    showTargetCurve?: boolean;
 }
 
 const PHASE_SECS = [180, 300, 630];
@@ -26,16 +30,20 @@ const fmtSec = (v: number) => {
     return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSec, eventMarkers, height, onCursorIdx }: Props) => {
+const TP_COLOR = '#16a34a';
+
+export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSec, eventMarkers, turningPoints = [], height, onCursorIdx, showET = true, showTargetCurve = true }: Props) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const plotRef = useRef<uPlot | null>(null);
 
     // Mutable refs so plugin hooks always read latest values without recreating uPlot
     const currentTimeRef = useRef(currentTimeSec);
     const eventMarkersRef = useRef(eventMarkers);
+    const turningPointsRef = useRef(turningPoints);
     const onCursorIdxRef = useRef(onCursorIdx);
     currentTimeRef.current = currentTimeSec;
     eventMarkersRef.current = eventMarkers;
+    turningPointsRef.current = turningPoints;
     onCursorIdxRef.current = onCursorIdx;
 
     // Create uPlot once on mount
@@ -113,6 +121,19 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
                         ctx.lineTo(ex, top + bh);
                         ctx.stroke();
                         ctx.fillText(m.event, ex + 3, top + 12);
+                    }
+
+                    // TP vertical line (same style as event markers)
+                    for (const tp of turningPointsRef.current) {
+                        const tx = u.valToPos(tp.timeSec, 'x', true);
+                        if (tx < left || tx > left + bw) continue;
+                        ctx.strokeStyle = TP_COLOR;
+                        ctx.fillStyle = TP_COLOR;
+                        ctx.beginPath();
+                        ctx.moveTo(tx, top);
+                        ctx.lineTo(tx, top + bh);
+                        ctx.stroke();
+                        ctx.fillText('TP', tx + 3, top + 12);
                     }
 
                     ctx.restore();
@@ -227,10 +248,10 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
         plotRef.current?.setData([xs, btTarget, btActual, etActual] as any);
     }, [xs, btTarget, btActual, etActual]);
 
-    // Redraw reference lines when time or event markers change (no path rebuild needed)
+    // Redraw reference lines when time, event markers, or turning points change (no path rebuild needed)
     useEffect(() => {
         plotRef.current?.redraw(false);
-    }, [currentTimeSec, eventMarkers]);
+    }, [currentTimeSec, eventMarkers, turningPoints]);
 
     // Sync explicit height changes (normal ↔ fullscreen)
     useEffect(() => {
@@ -238,6 +259,15 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
             plotRef.current.setSize({ width: containerRef.current?.offsetWidth ?? plotRef.current.width, height });
         }
     }, [height]);
+
+    // Series visibility toggles (series 1 = btTarget, series 3 = etActual)
+    useEffect(() => {
+        plotRef.current?.setSeries(1, { show: showTargetCurve });
+    }, [showTargetCurve]);
+
+    useEffect(() => {
+        plotRef.current?.setSeries(3, { show: showET });
+    }, [showET]);
 
     return <div ref={containerRef} className="w-full" />;
 };

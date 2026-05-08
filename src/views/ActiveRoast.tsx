@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ask } from '@tauri-apps/plugin-dialog';
-import { Play, Pause, Square, Thermometer, Wind, TrendingUp, AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
+import { ask, message } from '@tauri-apps/plugin-dialog';
+import { Play, Pause, Square, Thermometer, Wind, TrendingUp, AlertCircle, Maximize2, Minimize2, Settings2 } from 'lucide-react';
 import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
 import {
     RoastSummaryModal,
@@ -14,13 +14,16 @@ import { fullData } from '@shared/data/roast-mock-data';
 import type { RoastPoint } from '@shared/types/roast';
 import { isEditableTarget } from '@shared/lib/dom';
 import { sidecar } from '@shared/lib/sidecar';
+import { useRoastSettings } from '@shared/store/roastSettings';
+import { detectTurningPoints } from '@shared/lib/turningPoints';
 
 type RoastLogEntry = { time: string; event: string; temp: string; note: string };
 type RoastLogDisplayEntry = RoastLogEntry & { current?: boolean };
 
 const TOGGLEABLE_LOG_EVENTS = new Set(['Yellow', 'FC Start', 'FC End']);
 
-export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
+export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boolean; onOpenRoastSettings?: () => void }) => {
+    const roastSettings = useRoastSettings();
     const [elapsed, setElapsed] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
     const isRunningRef = useRef(isRunning);
@@ -45,15 +48,22 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     } | null>(null);
     const [sidecarConnected, setSidecarConnected] = useState(false);
     const [livePoints, setLivePoints] = useState<
-        { time: number; label: string; bt: number; et: number | null; ror: number; ror_et: number | null }[]
+        { time: number; label: string; bt: number; et: number | null; ror: number | null; ror_et: number | null }[]
     >([]);
     const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);
     const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
     const [mainChartHeight, setMainChartHeight] = useState(260);
+    const [isChartDragging, setIsChartDragging] = useState(false);
     const elapsedRef = useRef(0);
     const chargedRef = useRef(false);
     const roastStartTimeRef = useRef(0); // Date.now() at charge — 0.5s 해상도 livePoints용
+    const tpTimeSecRef = useRef<number | null>(null);
     const chartAreaRef = useRef<HTMLDivElement>(null);
+    const chartDragRef = useRef<{
+        pointerId: number;
+        startX: number;
+        startRange: { start: number; end: number };
+    } | null>(null);
 
     useEffect(() => {
         elapsedRef.current = elapsed;
@@ -106,8 +116,6 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // TODO: expose poll interval as user setting (3000ms → 1000ms → 500ms)
-    const POLL_INTERVAL_MS = 500;
     useEffect(() => {
         if (!isRunning) return;
         const poll = async () => {
@@ -125,6 +133,7 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                         if (prev.length > 0 && t - prev[prev.length - 1].time < 0.4) return prev;
                         const min = Math.floor(t / 60);
                         const sec = Math.floor(t % 60);
+                        const tpConfirmed = tpTimeSecRef.current != null;
                         return [
                             ...prev,
                             {
@@ -132,8 +141,8 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                                 label: `${min}:${String(sec).padStart(2, '0')}`,
                                 bt,
                                 et: data.et ?? null,
-                                ror: data.ror,
-                                ror_et: data.ror_et ?? null,
+                                ror: tpConfirmed ? data.ror : null,
+                                ror_et: tpConfirmed ? (data.ror_et ?? null) : null,
                             },
                         ];
                     });
@@ -143,9 +152,9 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
             }
         };
         poll();
-        const id = setInterval(poll, POLL_INTERVAL_MS);
+        const id = setInterval(poll, roastSettings.pollIntervalMs);
         return () => clearInterval(id);
-    }, [isRunning]);
+    }, [isRunning, roastSettings.pollIntervalMs]);
 
     useEffect(() => {
         if (!showEndRoastModal) return undefined;
@@ -206,10 +215,13 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
     const elapsedSec = elapsed % 60;
     const timeStr = `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}`;
 
-    const prevIndex = Math.max(0, currentIndex - 4);
+    const rorSpanPoints = Math.round(roastSettings.rorSpanSec / 15); // mock data is 15s/point
+    const prevIndex = Math.max(0, currentIndex - rorSpanPoints);
     const rorNow =
-        currentIndex > 4 ? ((fullData[currentIndex].bt - fullData[prevIndex].bt) / (60 / 60)).toFixed(1) : '—';
-    const displayRoR = sidecarConnected ? (liveData?.ror ?? 0).toFixed(1) : rorNow;
+        currentIndex > rorSpanPoints
+            ? ((fullData[currentIndex].bt - fullData[prevIndex].bt) / (roastSettings.rorSpanSec / 60)).toFixed(1)
+            : '—';
+    const displayRoR = tpTimeSecRef.current == null ? '—' : sidecarConnected ? (liveData?.ror ?? 0).toFixed(1) : rorNow;
 
     let phase = 'Drying';
     let phaseColor = '#d97706';
@@ -241,6 +253,13 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                 return { timeSec, event: e.event, color: eventMarkerColor[e.event] };
             }),
     [logEntries]);
+
+    const turningPoints = useMemo(
+        () => detectTurningPoints(livePoints.map((p) => p.time), livePoints.map((p) => p.bt)),
+        [livePoints],
+    );
+    const tpTimeSec = turningPoints[0]?.timeSec ?? null;
+    tpTimeSecRef.current = tpTimeSec;
 
     // uPlot column arrays — derived from visibleChartData
     const visibleXs = useMemo(() => visibleChartData.map((p) => p.time), [visibleChartData]);
@@ -339,6 +358,54 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
         setZoomRange({ start: nextStart, end: nextStart + duration });
     };
 
+    const getChartDataWidth = (rect: DOMRect) => {
+        const Y_AXIS_WIDTH = 36;
+        const RIGHT_PAD = 12;
+        return Math.max(1, rect.width - Y_AXIS_WIDTH - RIGHT_PAD);
+    };
+
+    const handleChartPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+        if (!effectiveZoomRange || event.button !== 0) return;
+
+        chartDragRef.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startRange: effectiveZoomRange,
+        };
+        event.currentTarget.setPointerCapture(event.pointerId);
+        event.currentTarget.focus();
+        setIsChartDragging(true);
+        event.preventDefault();
+    };
+
+    const handleChartPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+        const drag = chartDragRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+
+        const duration = drag.startRange.end - drag.startRange.start;
+        if (duration <= 0) return;
+
+        const rect = event.currentTarget.getBoundingClientRect();
+        const dataWidth = getChartDataWidth(rect);
+        const deltaPx = event.clientX - drag.startX;
+        const deltaTime = -(deltaPx / dataWidth) * duration;
+        const nextStart = Math.max(0, Math.min(MAX_TIME - duration, drag.startRange.start + deltaTime));
+
+        setZoomRange({ start: nextStart, end: nextStart + duration });
+        event.preventDefault();
+    };
+
+    const endChartDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+        const drag = chartDragRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        chartDragRef.current = null;
+        setIsChartDragging(false);
+    };
+
     const handleChartKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
         if (event.key === '+' || event.key === '=') {
             event.preventDefault();
@@ -383,8 +450,23 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
         if (note?.trim()) markEvent('Note', note.trim(), 'Add Log Note');
     };
 
-    const handleCharge = () => {
+    const showMachineDisconnectedAlert = () =>
+        message('머신이 연결되어 있지 않습니다. 머신을 먼저 연결한 뒤 로스팅을 시작하세요.', {
+            title: '머신 연결 필요',
+            kind: 'warning',
+        });
+
+    const handleCharge = async () => {
         if (charged) return;
+        const status = await sidecar.getStatus().catch(() => null);
+
+        if (!status?.connected) {
+            setSidecarConnected(false);
+            await showMachineDisconnectedAlert();
+            return;
+        }
+
+        setSidecarConnected(true);
         // 시뮬레이터 타이머를 투입 시점에 맞춰 리셋 (실제 어댑터는 RoR 윈도우만 초기화)
         sidecar.startRoast().catch(() => {});
         roastStartTimeRef.current = Date.now();
@@ -566,24 +648,50 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                     </p>
                 </div>
 
-                {/* Timer */}
-                <div style={{ textAlign: 'right' }}>
-                    <div
-                        style={{
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: 44,
-                            fontWeight: 600,
-                            color: 'var(--color-primary)',
-                            letterSpacing: '-2px',
-                            lineHeight: 1,
-                            marginBottom: 4,
-                        }}
-                    >
-                        {timeStr}
+                {/* Timer + Settings */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ textAlign: 'right' }}>
+                        <div
+                            style={{
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: 44,
+                                fontWeight: 600,
+                                color: 'var(--color-primary)',
+                                letterSpacing: '-2px',
+                                lineHeight: 1,
+                                marginBottom: 4,
+                            }}
+                        >
+                            {timeStr}
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
+                            {phase} phase
+                        </div>
                     </div>
-                    <div style={{ fontSize: 13, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
-                        {phase} phase
-                    </div>
+                    {onOpenRoastSettings && (
+                        <button
+                            onClick={onOpenRoastSettings}
+                            aria-label="Open roast settings"
+                            title="Roast settings"
+                            style={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: 10,
+                                border: 'none',
+                                background: 'var(--color-surface)',
+                                color: 'var(--color-muted)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                flexShrink: 0,
+                                boxShadow: 'var(--shadow-inset)',
+                                marginTop: 6,
+                            }}
+                        >
+                            <Settings2 size={15} strokeWidth={1.9} />
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -769,12 +877,24 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                     {/* Main Chart Area */}
                     <div
                         ref={chartAreaRef}
-                        style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}
+                        style={{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minWidth: 0,
+                            cursor: effectiveZoomRange ? (isChartDragging ? 'grabbing' : 'grab') : 'default',
+                            userSelect: isChartDragging ? 'none' : 'auto',
+                            touchAction: effectiveZoomRange ? 'none' : 'auto',
+                        }}
                         onWheel={handleChartWheel}
+                        onPointerDown={handleChartPointerDown}
+                        onPointerMove={handleChartPointerMove}
+                        onPointerUp={endChartDrag}
+                        onPointerCancel={endChartDrag}
                         onKeyDown={handleChartKeyDown}
                         tabIndex={0}
                         role="region"
-                        aria-label="Temperature curve chart. Use plus and minus to zoom, left and right arrows to pan, and 0 to reset zoom."
+                        aria-label="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
                     >
                         {/* Phase labels */}
                         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -810,24 +930,29 @@ export const ActiveRoast = ({ isActive }: { isActive: boolean }) => {
                             etActual={visibleEtActual}
                             currentTimeSec={elapsed}
                             eventMarkers={eventMarkers}
+                            turningPoints={turningPoints}
                             height={isFullscreen ? mainChartHeight : 260}
                             onCursorIdx={(idx) => {
                                 if (idx != null) setHoveredChartIndex((effectiveZoomRange?.start ?? 0) + idx);
                             }}
+                            showET={roastSettings.showET}
+                            showTargetCurve={roastSettings.showTargetCurve}
                         />
 
                         {/* RoR Sub-chart */}
-                        <div style={{ marginTop: 4 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, paddingLeft: 4 }}>
-                                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Rate of Rise
-                                </span>
-                                <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#d97706' }}>
-                                    {displayRoR}°/min
-                                </span>
+                        {roastSettings.showRoRChart && (
+                            <div style={{ marginTop: 4 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, paddingLeft: 4 }}>
+                                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        Rate of Rise
+                                    </span>
+                                    <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#d97706' }}>
+                                        {displayRoR}°/min
+                                    </span>
+                                </div>
+                                <RoastRorChart xs={visibleXs} rorActual={visibleRorActual} etRorActual={visibleEtRorActual} height={80} showRoRET={roastSettings.showRoRET} />
                             </div>
-                            <RoastRorChart xs={visibleXs} rorActual={visibleRorActual} etRorActual={visibleEtRorActual} height={80} />
-                        </div>
+                        )}
                     </div>
 
                     {/* Fullscreen Sidebar (only visible in fullscreen) */}
