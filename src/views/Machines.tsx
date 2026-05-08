@@ -1,7 +1,7 @@
-import { Plus, Search, Cpu, Activity, AlertCircle, CheckCircle2, Wifi, WifiOff, Trash2, Flame } from 'lucide-react';
+import { Plus, Search, Cpu, Activity, AlertCircle, Wifi, WifiOff, Trash2, Flame } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AddMachineModal } from '../widgets/add-machine-modal/ui/AddMachineModal';
-import { useMachines } from '../shared/data/useMachines';
+import { useMachines, SIMULATOR_ID } from '../shared/data/useMachines';
 import { sidecar } from '../shared/lib/sidecar';
 import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '../shared/types/machine';
 import type { View } from '../shared/types/view';
@@ -56,6 +56,15 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
             if (pollRef.current) clearInterval(pollRef.current);
         };
     }, [sidecarStatus?.connected]);
+
+    // 연결 상태가 바뀔 때만 자동 select — 사용자가 수동으로 다른 카드를 클릭할 수 있음
+    useEffect(() => {
+        if (!sidecarStatus?.connected) return;
+        const connectedId = machines.find((m) => m.roasterKey === sidecarStatus.roaster)?.id;
+        if (connectedId) setSelectedId(connectedId);
+    // selectedId 제외: 사용자 클릭 시 effect 재실행 방지
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sidecarStatus?.connected, sidecarStatus?.roaster]);
 
     const filtered = machines.filter(
         (m) =>
@@ -212,18 +221,20 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button
-                                        onClick={() => removeMachine(selected.id)}
-                                        className="w-9 h-9 rounded-[10px] border-none bg-surface text-muted flex items-center justify-center cursor-pointer shadow-inset"
-                                        title="Remove machine"
-                                    >
-                                        <Trash2 size={15} strokeWidth={2} />
-                                    </button>
+                                    {selected.id !== SIMULATOR_ID && (
+                                        <button
+                                            onClick={() => removeMachine(selected.id)}
+                                            className="w-9 h-9 rounded-[10px] border-none bg-surface text-muted flex items-center justify-center cursor-pointer shadow-inset"
+                                            title="Remove machine"
+                                        >
+                                            <Trash2 size={15} strokeWidth={2} />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* Temperature cards (when connected) */}
-                            {isThisMachineConnected(selected) && temps ? (
+                            {/* Temperature cards (when connected, simulator 제외) */}
+                            {isThisMachineConnected(selected) && temps && selected.id !== SIMULATOR_ID ? (
                                 <div className="grid grid-cols-3 gap-3.5 mb-6">
                                     {[
                                         {
@@ -258,7 +269,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                     )}
                                     <span className="text-[13px] text-muted)">
                                         {isThisMachineConnected(selected)
-                                            ? 'Connected — waiting for data...'
+                                            ? 'Connected'
                                             : 'Not connected. Press Connect to start.'}
                                     </span>
                                 </div>
@@ -333,13 +344,6 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                 )}
                             </div>
 
-                            {/* Uptime badge */}
-                            {isThisMachineConnected(selected) && (
-                                <div className="mt-3 flex items-center gap-1.5 text-[12px] text-[#16a34a]">
-                                    <CheckCircle2 size={13} />
-                                    Uptime {sidecarStatus?.uptime}s
-                                </div>
-                            )}
                         </div>
                     ) : (
                         <div className="bg-main-bg rounded-2xl py-15 px-8 shadow-(--shadow-ring) flex items-center justify-center text-muted text-sm">

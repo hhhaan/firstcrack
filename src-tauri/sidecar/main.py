@@ -145,17 +145,9 @@ async def cors_middleware(request: web.Request, handler: Any) -> web.Response:
     return resp
 
 
-async def on_startup(app: web.Application) -> None:
-    """시작 시 Simulator 자동 연결 (개발용)."""
-    manager: RoasterManager = app["manager"]
-    await manager.connect("simulator", {})
-    _log.info("Simulator 자동 연결 완료")
-
-
 def create_app() -> web.Application:
     app = web.Application(middlewares=[cors_middleware])
     app["manager"] = RoasterManager()
-    app.on_startup.append(on_startup)
     app.router.add_get("/roasters",     handle_roasters)
     app.router.add_get("/serial-ports", handle_serial_ports)
     app.router.add_get("/status",       handle_status)
