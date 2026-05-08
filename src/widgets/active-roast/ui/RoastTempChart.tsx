@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import uPlot from 'uplot';
 import type { TurningPoint } from '@shared/lib/turningPoints';
+import type { TemperatureUnit } from '@shared/store/roastSettings';
 
 export interface RoastEventMarker {
     timeSec: number;
@@ -16,6 +17,7 @@ interface Props {
     currentTimeSec: number;
     eventMarkers: RoastEventMarker[];
     turningPoints?: TurningPoint[];
+    temperatureUnit?: TemperatureUnit;
     height: number;
     onCursorIdx?: (idx: number | null) => void;
     showET?: boolean;
@@ -32,7 +34,7 @@ const fmtSec = (v: number) => {
 
 const TP_COLOR = '#16a34a';
 
-export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSec, eventMarkers, turningPoints = [], height, onCursorIdx, showET = true, showTargetCurve = true }: Props) => {
+export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSec, eventMarkers, turningPoints = [], temperatureUnit = 'C', height, onCursorIdx, showET = true, showTargetCurve = true }: Props) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const plotRef = useRef<uPlot | null>(null);
 
@@ -41,10 +43,12 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
     const eventMarkersRef = useRef(eventMarkers);
     const turningPointsRef = useRef(turningPoints);
     const onCursorIdxRef = useRef(onCursorIdx);
+    const temperatureUnitRef = useRef(temperatureUnit);
     currentTimeRef.current = currentTimeSec;
     eventMarkersRef.current = eventMarkers;
     turningPointsRef.current = turningPoints;
     onCursorIdxRef.current = onCursorIdx;
+    temperatureUnitRef.current = temperatureUnit;
 
     // Create uPlot once on mount
     useEffect(() => {
@@ -168,7 +172,7 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
                             <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
                                 <div style="width:8px;height:8px;border-radius:2px;background:${r.color};flex-shrink:0"></div>
                                 <span style="color:${colorSecondary}">${r.name}:</span>
-                                <span style="font-weight:600;color:${colorPrimary}">${r.val.toFixed(1)}°C</span>
+                                <span style="font-weight:600;color:${colorPrimary}">${r.val.toFixed(1)}°${temperatureUnitRef.current}</span>
                             </div>`).join('')}
                     `;
 
@@ -206,12 +210,12 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
                     font: `11px monospace`,
                     size: 40,
                     incrs: [10, 20, 25, 50],
-                    values: (_, vals) => vals.map(v => `${v}°C`),
+                    values: (_, vals) => vals.map(v => `${v}°${temperatureUnit}`),
                 },
             ],
             scales: {
                 x: { time: false },
-                y: { range: [130, 240] },
+                y: { range: temperatureUnit === 'F' ? [266, 464] : [130, 240] },
             },
             series: [
                 {},

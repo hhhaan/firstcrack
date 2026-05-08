@@ -16,6 +16,7 @@ import { isEditableTarget } from '@shared/lib/dom';
 import { sidecar } from '@shared/lib/sidecar';
 import { useRoastSettings } from '@shared/store/roastSettings';
 import { detectTurningPoints } from '@shared/lib/turningPoints';
+import { toDisplayTemp, toDisplayRoR, formatTemp } from '@shared/lib/temperature';
 
 type RoastLogEntry = { time: string; event: string; temp: string; note: string };
 type RoastLogDisplayEntry = RoastLogEntry & { current?: boolean };
@@ -173,9 +174,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
     const currentIndex = Math.floor(elapsed / 15);
     const currentPoint: RoastPoint | undefined = fullData[Math.min(currentIndex, fullData.length - 1)];
 
-    // Prefer live sidecar data when connected; fall back to mock
-    const displayBT = sidecarConnected && liveData?.bt != null ? liveData.bt : (currentPoint?.bt ?? null);
-    const displayET = sidecarConnected && liveData?.et != null ? liveData.et : (currentPoint?.et ?? null);
+    const unit = roastSettings.temperatureUnit;
+
+    // Prefer live sidecar data when connected; fall back to mock (raw °C)
+    const rawBT = sidecarConnected && liveData?.bt != null ? liveData.bt : (currentPoint?.bt ?? null);
+    const rawET = sidecarConnected && liveData?.et != null ? liveData.et : (currentPoint?.et ?? null);
+    const displayBT = rawBT != null ? toDisplayTemp(rawBT, unit) : null;
 
     // 과거(livePoints 직접, 0.5s 해상도) + 미래(fullData target 커브) 합산
     const chartData = useMemo(() => {
@@ -219,9 +223,13 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
     const prevIndex = Math.max(0, currentIndex - rorSpanPoints);
     const rorNow =
         currentIndex > rorSpanPoints
-            ? ((fullData[currentIndex].bt - fullData[prevIndex].bt) / (roastSettings.rorSpanSec / 60)).toFixed(1)
+            ? toDisplayRoR((fullData[currentIndex].bt - fullData[prevIndex].bt) / (roastSettings.rorSpanSec / 60), unit).toFixed(1)
             : '—';
-    const displayRoR = tpTimeSecRef.current == null ? '—' : sidecarConnected ? (liveData?.ror ?? 0).toFixed(1) : rorNow;
+    const displayRoR = tpTimeSecRef.current == null
+        ? '—'
+        : sidecarConnected
+            ? toDisplayRoR(liveData?.ror ?? 0, unit).toFixed(1)
+            : rorNow;
 
     let phase = 'Drying';
     let phaseColor = '#d97706';
@@ -261,13 +269,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
     const tpTimeSec = turningPoints[0]?.timeSec ?? null;
     tpTimeSecRef.current = tpTimeSec;
 
-    // uPlot column arrays — derived from visibleChartData
+    // uPlot column arrays — derived from visibleChartData, converted to display unit
+    const conv = (v: number | null) => v != null ? toDisplayTemp(v, unit) : null;
     const visibleXs = useMemo(() => visibleChartData.map((p) => p.time), [visibleChartData]);
-    const visibleBtTarget = useMemo(() => visibleChartData.map((p) => p.btTarget), [visibleChartData]);
-    const visibleBtActual = useMemo(() => visibleChartData.map((p) => p.btActual), [visibleChartData]);
-    const visibleEtActual = useMemo(() => visibleChartData.map((p) => p.etActual), [visibleChartData]);
-    const visibleRorActual = useMemo(() => visibleChartData.map((p) => p.rorActual), [visibleChartData]);
-    const visibleEtRorActual = useMemo(() => visibleChartData.map((p) => p.etRorActual ?? null), [visibleChartData]);
+    const visibleBtTarget = useMemo(() => visibleChartData.map((p) => conv(p.btTarget)), [visibleChartData, unit]);
+    const visibleBtActual = useMemo(() => visibleChartData.map((p) => conv(p.btActual)), [visibleChartData, unit]);
+    const visibleEtActual = useMemo(() => visibleChartData.map((p) => conv(p.etActual)), [visibleChartData, unit]);
+    const visibleRorActual = useMemo(() => visibleChartData.map((p) => p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null), [visibleChartData, unit]);
+    const visibleEtRorActual = useMemo(() => visibleChartData.map((p) => p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null), [visibleChartData, unit]);
 
     const flashButton = (label: string) => {
         setPressedButtons((prev) => new Set(prev).add(label));
@@ -440,7 +449,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                 return prev.filter((entry) => entry.event !== event);
             }
 
-            return [...prev, { time: timeStr, event, temp: `${displayBT ?? '—'}°C`, note }];
+            return [...prev, { time: timeStr, event, temp: formatTemp(rawBT, unit), note }];
         });
         if (!isRemoval && buttonLabel) flashButton(buttonLabel);
     };
@@ -472,7 +481,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
         roastStartTimeRef.current = Date.now();
         setCharged(true);
         setIsRunning(true);
-        setLogEntries([{ time: '0:00', event: 'Charge', temp: `${displayBT ?? '—'}°C`, note: 'Roast started' }]);
+        setLogEntries([{ time: '0:00', event: 'Charge', temp: formatTemp(rawBT, unit), note: 'Roast started' }]);
     };
 
     const resetActiveRoast = () => {
@@ -491,13 +500,13 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
     const confirmEndRoast = () => {
         const completedLogEntries = [
             ...logEntries,
-            { time: timeStr, event: 'End', temp: `${displayBT ?? '—'}°C`, note: 'Roast complete' },
+            { time: timeStr, event: 'End', temp: formatTemp(rawBT, unit), note: 'Roast complete' },
         ];
 
         setSummaryData({
             totalTime: timeStr,
             development: devTimeStr,
-            finalBt: `${displayBT ?? '—'}°C`,
+            finalBt: formatTemp(rawBT, unit),
             logEntries: completedLogEntries,
         });
 
@@ -587,7 +596,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                   {
                       time: timeStr,
                       event: 'Now',
-                      temp: `${displayBT ?? currentPoint?.bt ?? '—'}°C`,
+                      temp: formatTemp(rawBT ?? currentPoint?.bt ?? null, unit),
                       note: `${phase} in progress`,
                       current: true,
                   },
@@ -700,21 +709,21 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                 {[
                     {
                         label: 'Bean Temp',
-                        value: `${displayBT ?? '—'}°C`,
+                        value: formatTemp(rawBT, unit),
                         icon: Thermometer,
                         color: '#ea580c',
                         bg: 'rgba(253,224,178,0.5)',
                     },
                     {
                         label: 'Env Temp',
-                        value: `${displayET ?? '—'}°C`,
+                        value: formatTemp(rawET, unit),
                         icon: Wind,
                         color: '#2563eb',
                         bg: 'rgba(219,234,254,0.5)',
                     },
                     {
                         label: 'Rate of Rise',
-                        value: `${displayRoR}°/min`,
+                        value: `${displayRoR}°${unit}/min`,
                         icon: TrendingUp,
                         color: '#7c3aed',
                         bg: 'rgba(237,233,254,0.5)',
@@ -937,6 +946,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                             }}
                             showET={roastSettings.showET}
                             showTargetCurve={roastSettings.showTargetCurve}
+                            temperatureUnit={unit}
                         />
 
                         {/* RoR Sub-chart */}
@@ -947,7 +957,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                                         Rate of Rise
                                     </span>
                                     <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#d97706' }}>
-                                        {displayRoR}°/min
+                                        {displayRoR}°{unit}/min
                                     </span>
                                 </div>
                                 <RoastRorChart xs={visibleXs} rorActual={visibleRorActual} etRorActual={visibleEtRorActual} height={80} showRoRET={roastSettings.showRoRET} />
@@ -971,9 +981,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings }: { isActive: boole
                             {/* Stats Grid */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
                                 {[
-                                    { label: 'Bean Temp', value: `${displayBT ?? '—'}°C`, color: '#ea580c' },
-                                    { label: 'Env Temp', value: `${displayET ?? '—'}°C`, color: '#2563eb' },
-                                    { label: 'ROR', value: `${displayRoR}°/min`, color: '#7c3aed' },
+                                    { label: 'Bean Temp', value: formatTemp(rawBT, unit), color: '#ea580c' },
+                                    { label: 'Env Temp', value: formatTemp(rawET, unit), color: '#2563eb' },
+                                    { label: 'ROR', value: `${displayRoR}°${unit}/min`, color: '#7c3aed' },
                                     { label: 'Time', value: timeStr, color: 'var(--color-primary)' },
                                 ].map((stat) => (
                                     <div
