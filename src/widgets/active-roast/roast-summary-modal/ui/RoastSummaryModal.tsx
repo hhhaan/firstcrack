@@ -1,134 +1,143 @@
-import { ModalShell } from '../../../../shared/ui/modal-shell/ModalShell';
+import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 
 export interface RoastLogEntry {
-  time: string;
-  event: string;
-  temp: string;
-  note: string;
+    time: string;
+    event: string;
+    temp: string;
+    note: string;
 }
 
 export interface RoastSummaryData {
-  totalTime: string;
-  development: string;
-  finalBt: string;
-  logEntries: RoastLogEntry[];
+    totalTime: string;
+    development: string;
+    finalBt: string;
+    logEntries: RoastLogEntry[];
 }
 
 interface RoastSummaryModalProps {
-  open: boolean;
-  summaryData: RoastSummaryData | null;
-  roastNotes: string;
-  eventMarkerColor: Record<string, string>;
-  onRoastNotesChange: (notes: string) => void;
-  onClose: () => void;
+    open: boolean;
+    summaryData: RoastSummaryData | null;
+    roastNotes: string;
+    eventMarkerColor: Record<string, string>;
+    onRoastNotesChange: (notes: string) => void;
+    onClose: () => void;
+    onDiscard: () => void;
 }
 
 export const RoastSummaryModal = ({
-  open,
-  summaryData,
-  roastNotes,
-  eventMarkerColor,
-  onRoastNotesChange,
-  onClose,
+    open,
+    summaryData,
+    roastNotes,
+    eventMarkerColor,
+    onRoastNotesChange,
+    onClose,
+    onDiscard,
 }: RoastSummaryModalProps) => {
-  if (!open || !summaryData) {
-    return null;
-  }
+    if (!open || !summaryData) {
+        return null;
+    }
 
-  return (
-    <ModalShell
-      onClose={onClose}
-      labelledBy="roast-summary-modal-title"
-      overlayClassName="z-[10000]"
-      contentStyle={{
-        background: 'var(--color-main-bg)',
-        borderRadius: 20,
-        padding: '32px 36px',
-        width: 480,
-        boxShadow: 'rgba(0,0,0,0.2) 0px 20px 60px, rgba(0,0,0,0.06) 0px 0px 0px 1px',
-      }}
-    >
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 6 }}>
-          Roast Complete
-        </div>
-        <div
-          id="roast-summary-modal-title"
-          style={{ fontFamily: 'var(--font-display)', fontWeight: 300, fontSize: 24, color: 'var(--color-primary)', letterSpacing: '-0.3px' }}
+    return (
+        <ModalShell
+            onClose={onClose}
+            labelledBy="roast-summary-modal-title"
+            overlayClassName="z-[10000]"
+            contentStyle={{
+                width: 'min(420px, 100%)',
+                background: 'var(--color-main-bg)',
+                borderRadius: 20,
+                padding: '28px',
+                boxShadow: 'rgba(0,0,0,0.22) 0px 24px 64px, rgba(0,0,0,0.06) 0px 0px 0px 1px',
+            }}
         >
-          Ethiopia Yirgacheffe
-        </div>
-        <div style={{ fontSize: 13, color: 'var(--color-muted)', marginTop: 2 }}>Natural · Guji Zone · Profile: Signature Light</div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 24 }}>
-        {[
-          { label: 'Total Time', value: summaryData.totalTime },
-          { label: 'Development', value: summaryData.development },
-          { label: 'Final BT', value: summaryData.finalBt },
-        ].map(({ label, value }) => (
-          <div key={label} style={{ background: 'var(--color-surface)', borderRadius: 12, padding: '12px 14px', boxShadow: 'var(--shadow-inset)' }}>
-            <div style={{ fontSize: 10, color: 'var(--color-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 600, color: 'var(--color-primary)', letterSpacing: '-0.5px' }}>{value}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>Log</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 0' }}>
-          {summaryData.logEntries.filter((entry) => eventMarkerColor[entry.event] || entry.event === 'Charge' || entry.event === 'Turning Point').map((entry, index, entries) => (
-            <div key={`${entry.time}-${entry.event}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--color-muted)' }}>{entry.time}</span>
-              <span style={{ fontSize: 12, fontWeight: 500, color: eventMarkerColor[entry.event] ?? 'var(--color-secondary)' }}>{entry.event}</span>
-              {index < entries.length - 1 && <span style={{ margin: '0 6px', color: 'var(--color-border)', fontSize: 14 }}>·</span>}
+            <div className="w-11 h-11 rounded-xl bg-[rgba(220,252,231,0.9)] text-[#16a34a] flex items-center justify-center mb-4.5">
+                <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                >
+                    <polyline points="20 6 9 17 4 12" />
+                </svg>
             </div>
-          ))}
-        </div>
-      </div>
 
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>Notes</div>
-        <textarea
-          value={roastNotes}
-          onChange={(event) => onRoastNotesChange(event.target.value)}
-          placeholder="Flavor notes, observations, adjustments for next time..."
-          rows={3}
-          style={{
-            width: '100%',
-            padding: '10px 14px',
-            borderRadius: 10,
-            border: 'none',
-            background: 'var(--color-surface)',
-            color: 'var(--color-primary)',
-            fontSize: 13,
-            fontFamily: 'var(--font-body)',
-            resize: 'none',
-            boxShadow: 'var(--shadow-inset)',
-            outline: 'none',
-            boxSizing: 'border-box',
-          }}
-        />
-      </div>
+            <h2
+                id="roast-summary-modal-title"
+                className="text-[28px] font-normal leading-[1.05] text-primary tracking-[-0.5px] mb-2.5"
+            >
+                Roast Complete
+            </h2>
+            <p className="text-sm text-secondary leading-[1.6] mb-5">
+                Ethiopia Yirgacheffe · Natural · Guji Zone · Profile: Signature Light
+            </p>
 
-      <button
-        onClick={onClose}
-        style={{
-          width: '100%',
-          padding: '13px 0',
-          borderRadius: 9999,
-          border: 'none',
-          background: 'var(--color-primary)',
-          color: 'white',
-          fontSize: 14,
-          fontWeight: 500,
-          cursor: 'pointer',
-          letterSpacing: '0.14px',
-          boxShadow: 'var(--shadow-card)',
-        }}
-      >
-        Save & Close
-      </button>
-    </ModalShell>
-  );
+            <div className="grid grid-cols-3 gap-2 mb-5">
+                {[
+                    { label: 'Total Time', value: summaryData.totalTime },
+                    { label: 'Development', value: summaryData.development },
+                    { label: 'Final BT', value: summaryData.finalBt },
+                ].map(({ label, value }) => (
+                    <div key={label} className="bg-surface rounded-lg px-2.5 py-2.5 shadow-(--shadow-inset)">
+                        <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">{label}</div>
+                        <div className="font-(--font-mono) text-sm text-primary">{value}</div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="mb-5">
+                <div className="text-[11px] font-semibold text-muted uppercase tracking-[0.4px] mb-2.5">Log</div>
+                <div className="flex flex-wrap gap-y-1.5">
+                    {summaryData.logEntries
+                        .filter(
+                            (entry) =>
+                                eventMarkerColor[entry.event] ||
+                                entry.event === 'Charge' ||
+                                entry.event === 'Turning Point',
+                        )
+                        .map((entry, index, entries) => (
+                            <div key={`${entry.time}-${entry.event}-${index}`} className="flex items-center gap-1">
+                                <span className="text-xs font-(--font-mono) text-muted">{entry.time}</span>
+                                <span
+                                    className="text-xs font-medium"
+                                    style={{ color: eventMarkerColor[entry.event] ?? 'var(--color-secondary)' }}
+                                >
+                                    {entry.event}
+                                </span>
+                                {index < entries.length - 1 && <span className="mx-1.5 text-border text-sm">·</span>}
+                            </div>
+                        ))}
+                </div>
+            </div>
+
+            <div className="mb-6">
+                <div className="text-[11px] font-semibold text-muted uppercase tracking-[0.4px] mb-2">Notes</div>
+                <textarea
+                    value={roastNotes}
+                    onChange={(event) => onRoastNotesChange(event.target.value)}
+                    placeholder="Flavor notes, observations, adjustments for next time..."
+                    rows={3}
+                    className="w-full px-3.5 py-2.5 rounded-lg border-none bg-surface text-primary text-[13px] font-(--font-body) resize-none shadow-(--shadow-inset) outline-none box-border"
+                />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <button
+                    onClick={onClose}
+                    className="w-full py-3 rounded-lg border-none bg-[rgba(220,252,231,0.9)] text-[#16a34a] text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
+                >
+                    저장
+                </button>
+                <button
+                    onClick={onDiscard}
+                    className="w-full py-3 rounded-lg border-none bg-surface text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-inset)"
+                >
+                    저장 안 함
+                </button>
+            </div>
+        </ModalShell>
+    );
 };

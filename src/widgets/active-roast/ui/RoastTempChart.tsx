@@ -37,8 +37,8 @@ const fmtSec = (v: number) => {
 };
 
 const TP_COLOR = '#16a34a';
-const MARKER_LABEL_FONT = 'bold 27px sans-serif';
-const MARKER_LABEL_Y_OFFSET = 28;
+const MARKER_LABEL_FONT = 'bold 16px sans-serif';
+const MARKER_LABEL_Y_OFFSET = 18;
 
 export const RoastTempChart = ({
     xs,
@@ -99,113 +99,145 @@ export const RoastTempChart = ({
         // --- Plugins ---
         const refLinePlugin: uPlot.Plugin = {
             hooks: {
-                draw: [(u) => {
-                    const { ctx } = u;
-                    const { top, height: bh, left, width: bw } = u.bbox;
-                    ctx.save();
+                draw: [
+                    (u) => {
+                        const { ctx } = u;
+                        const { top, height: bh, left, width: bw } = u.bbox;
+                        ctx.save();
 
-                    // Phase boundary lines
-                    ctx.strokeStyle = 'rgba(0,0,0,0.07)';
-                    ctx.setLineDash([3, 3]);
-                    ctx.lineWidth = 1;
-                    for (const sec of PHASE_SECS) {
-                        const x = u.valToPos(sec, 'x', true);
-                        if (x < left || x > left + bw) continue;
-                        ctx.beginPath();
-                        ctx.moveTo(x, top);
-                        ctx.lineTo(x, top + bh);
-                        ctx.stroke();
-                    }
-
-                    // Current time marker
-                    const ct = currentTimeRef.current;
-                    if (ct > 0) {
-                        const cx = u.valToPos(ct, 'x', true);
-                        if (cx >= left && cx <= left + bw) {
-                            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-                            ctx.setLineDash([4, 3]);
-                            ctx.lineWidth = 1.5;
+                        // Phase boundary lines
+                        ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+                        ctx.setLineDash([3, 3]);
+                        ctx.lineWidth = 1;
+                        for (const sec of PHASE_SECS) {
+                            const x = u.valToPos(sec, 'x', true);
+                            if (x < left || x > left + bw) continue;
                             ctx.beginPath();
-                            ctx.moveTo(cx, top);
-                            ctx.lineTo(cx, top + bh);
+                            ctx.moveTo(x, top);
+                            ctx.lineTo(x, top + bh);
                             ctx.stroke();
                         }
-                    }
 
-                    // Event markers with labels
-                    ctx.setLineDash([]);
-                    ctx.lineWidth = 1.5;
-                    ctx.font = MARKER_LABEL_FONT;
-                    for (const m of eventMarkersRef.current) {
-                        const ex = u.valToPos(m.timeSec, 'x', true);
-                        if (ex < left || ex > left + bw) continue;
-                        ctx.strokeStyle = m.color;
-                        ctx.fillStyle = m.color;
-                        ctx.beginPath();
-                        ctx.moveTo(ex, top);
-                        ctx.lineTo(ex, top + bh);
-                        ctx.stroke();
-                        ctx.fillText(m.event, ex + 3, top + MARKER_LABEL_Y_OFFSET);
-                    }
+                        // Current time marker
+                        const ct = currentTimeRef.current;
+                        if (ct > 0) {
+                            const cx = u.valToPos(ct, 'x', true);
+                            if (cx >= left && cx <= left + bw) {
+                                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                                ctx.setLineDash([4, 3]);
+                                ctx.lineWidth = 1.5;
+                                ctx.beginPath();
+                                ctx.moveTo(cx, top);
+                                ctx.lineTo(cx, top + bh);
+                                ctx.stroke();
+                            }
+                        }
 
-                    // TP vertical line (same style as event markers)
-                    ctx.font = MARKER_LABEL_FONT;
-                    for (const tp of turningPointsRef.current) {
-                        const tx = u.valToPos(tp.timeSec, 'x', true);
-                        if (tx < left || tx > left + bw) continue;
-                        ctx.strokeStyle = TP_COLOR;
-                        ctx.fillStyle = TP_COLOR;
-                        ctx.beginPath();
-                        ctx.moveTo(tx, top);
-                        ctx.lineTo(tx, top + bh);
-                        ctx.stroke();
-                        ctx.fillText('TP', tx + 3, top + MARKER_LABEL_Y_OFFSET);
-                    }
+                        // Event markers with labels
+                        ctx.setLineDash([]);
+                        ctx.lineWidth = 1.5;
+                        ctx.font = MARKER_LABEL_FONT;
+                        for (const m of eventMarkersRef.current) {
+                            const ex = u.valToPos(m.timeSec, 'x', true);
+                            if (ex < left || ex > left + bw) continue;
+                            ctx.strokeStyle = m.color;
+                            ctx.fillStyle = m.color;
+                            ctx.beginPath();
+                            ctx.moveTo(ex, top);
+                            ctx.lineTo(ex, top + bh);
+                            ctx.stroke();
+                            ctx.fillText(m.event, ex + 3, top + MARKER_LABEL_Y_OFFSET);
+                        }
 
-                    ctx.restore();
-                }],
+                        // TP vertical line (same style as event markers)
+                        ctx.font = MARKER_LABEL_FONT;
+                        for (const tp of turningPointsRef.current) {
+                            const tx = u.valToPos(tp.timeSec, 'x', true);
+                            if (tx < left || tx > left + bw) continue;
+                            ctx.strokeStyle = TP_COLOR;
+                            ctx.fillStyle = TP_COLOR;
+                            ctx.beginPath();
+                            ctx.moveTo(tx, top);
+                            ctx.lineTo(tx, top + bh);
+                            ctx.stroke();
+                            ctx.fillText('TP', tx + 3, top + MARKER_LABEL_Y_OFFSET);
+                        }
+
+                        ctx.restore();
+                    },
+                ],
             },
         };
 
         const tooltipPlugin: uPlot.Plugin = {
             hooks: {
-                init: [(u) => {
-                    u.root.style.position = 'relative';
-                    u.root.appendChild(ttEl);
-                }],
-                setCursor: [(u) => {
-                    const { idx, left: cx, top: cy } = u.cursor;
-                    if (idx == null || cx == null || cy == null) { ttEl.style.display = 'none'; return; }
+                init: [
+                    (u) => {
+                        u.root.style.position = 'relative';
+                        u.root.appendChild(ttEl);
+                    },
+                ],
+                setCursor: [
+                    (u) => {
+                        const { idx, left: cx, top: cy } = u.cursor;
+                        if (idx == null || cx == null || cy == null) {
+                            ttEl.style.display = 'none';
+                            return;
+                        }
 
-                    const xSec = (u.data[0] as number[])[idx] ?? 0;
-                    const btA = (u.data[2] as (number | null)[])[idx];
-                    const etA = (u.data[3] as (number | null)[])[idx];
-                    const btT = (u.data[1] as (number | null)[])[idx];
-                    const ror = (u.data[4] as (number | null)[])[idx];
+                        const xSec = (u.data[0] as number[])[idx] ?? 0;
+                        const btA = (u.data[2] as (number | null)[])[idx];
+                        const etA = (u.data[3] as (number | null)[])[idx];
+                        const btT = (u.data[1] as (number | null)[])[idx];
+                        const ror = (u.data[4] as (number | null)[])[idx];
 
-                    const rows: { name: string; val: string; color: string }[] = [];
-                    if (btA != null) rows.push({ name: 'Bean Temp', val: `${btA.toFixed(1)}°${temperatureUnitRef.current}`, color: colorPrimary });
-                    if (etA != null) rows.push({ name: 'Env Temp', val: `${etA.toFixed(1)}°${temperatureUnitRef.current}`, color: '#2563eb' });
-                    if (btT != null) rows.push({ name: 'Target BT', val: `${btT.toFixed(1)}°${temperatureUnitRef.current}`, color: 'rgba(23,23,23,0.4)' });
-                    if (ror != null && u.series[4]?.show) rows.push({ name: 'BT RoR', val: `${ror.toFixed(1)}°/min`, color: '#d97706' });
-                    if (rows.length === 0) { ttEl.style.display = 'none'; return; }
+                        const rows: { name: string; val: string; color: string }[] = [];
+                        if (btA != null)
+                            rows.push({
+                                name: 'Bean Temp',
+                                val: `${btA.toFixed(1)}°${temperatureUnitRef.current}`,
+                                color: colorPrimary,
+                            });
+                        if (etA != null)
+                            rows.push({
+                                name: 'Env Temp',
+                                val: `${etA.toFixed(1)}°${temperatureUnitRef.current}`,
+                                color: '#2563eb',
+                            });
+                        if (btT != null)
+                            rows.push({
+                                name: 'Target BT',
+                                val: `${btT.toFixed(1)}°${temperatureUnitRef.current}`,
+                                color: 'rgba(23,23,23,0.4)',
+                            });
+                        if (ror != null && u.series[4]?.show)
+                            rows.push({ name: 'BT RoR', val: `${ror.toFixed(1)}°/min`, color: '#d97706' });
+                        if (rows.length === 0) {
+                            ttEl.style.display = 'none';
+                            return;
+                        }
 
-                    ttEl.innerHTML = `
+                        ttEl.innerHTML = `
                         <div style="font-weight:500;color:${colorMuted};margin-bottom:6px;letter-spacing:0.14px">${fmtSec(xSec)}</div>
-                        ${rows.map(r => `
+                        ${rows
+                            .map(
+                                (r) => `
                             <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
                                 <div style="width:8px;height:8px;border-radius:2px;background:${r.color};flex-shrink:0"></div>
                                 <span style="color:${colorSecondary}">${r.name}:</span>
                                 <span style="font-weight:600;color:${colorPrimary}">${r.val}</span>
-                            </div>`).join('')}
+                            </div>`,
+                            )
+                            .join('')}
                     `;
 
-                    const tw = ttEl.offsetWidth || 140;
-                    const offsetX = cx + 12 + tw > u.width ? cx - tw - 12 : cx + 12;
-                    ttEl.style.display = 'block';
-                    ttEl.style.left = `${offsetX}px`;
-                    ttEl.style.top = `${Math.max(0, cy - 20)}px`;
-                }],
+                        const tw = ttEl.offsetWidth || 140;
+                        const offsetX = cx + 12 + tw > u.width ? cx - tw - 12 : cx + 12;
+                        ttEl.style.display = 'block';
+                        ttEl.style.left = `${offsetX}px`;
+                        ttEl.style.top = `${Math.max(0, cy - 20)}px`;
+                    },
+                ],
             },
         };
 
@@ -224,7 +256,7 @@ export const RoastTempChart = ({
                     font: `11px monospace`,
                     size: 24,
                     incrs: [15, 30, 60, 120, 180, 300],
-                    values: (_, vals) => vals.map(v => fmtSec(v)),
+                    values: (_, vals) => vals.map((v) => fmtSec(v)),
                 },
                 // Left Y-axis: temperature
                 {
@@ -235,7 +267,7 @@ export const RoastTempChart = ({
                     font: `11px monospace`,
                     size: 40,
                     incrs: [10, 20, 25, 50],
-                    values: (_, vals) => vals.map(v => `${v}°${temperatureUnit}`),
+                    values: (_, vals) => vals.map((v) => `${v}°${temperatureUnit}`),
                 },
                 // Right Y-axis: RoR
                 {
@@ -248,7 +280,7 @@ export const RoastTempChart = ({
                     font: `10px monospace`,
                     size: 36,
                     splits: [ROR_Y_MIN, 0, ROR_Y_MAX],
-                    values: (_, vals) => vals.map(v => `${v}`),
+                    values: (_, vals) => vals.map((v) => `${v}`),
                 },
             ],
             scales: {
@@ -269,7 +301,11 @@ export const RoastTempChart = ({
             ],
             plugins: [refLinePlugin, tooltipPlugin],
             hooks: {
-                setCursor: [(u) => { onCursorIdxRef.current?.(u.cursor.idx ?? null); }],
+                setCursor: [
+                    (u) => {
+                        onCursorIdxRef.current?.(u.cursor.idx ?? null);
+                    },
+                ],
             },
         };
 
@@ -283,8 +319,12 @@ export const RoastTempChart = ({
         });
         obs.observe(el);
 
-        return () => { obs.disconnect(); plotRef.current?.destroy(); plotRef.current = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        return () => {
+            obs.disconnect();
+            plotRef.current?.destroy();
+            plotRef.current = null;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Update series data when zoom or live data changes

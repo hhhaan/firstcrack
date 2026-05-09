@@ -1,17 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
-import {
-    Play,
-    Square,
-    Thermometer,
-    Wind,
-    TrendingUp,
-    AlertCircle,
-    Maximize2,
-    Minimize2,
-    Settings2,
-} from 'lucide-react';
+import { Play, Square, Maximize2, Minimize2 } from 'lucide-react';
 import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
 import {
     RoastSummaryModal,
@@ -20,15 +10,14 @@ import {
 import { RoastTempChart, type RoastEventMarker } from '@widgets/active-roast/ui/RoastTempChart';
 
 import { fullData } from '@shared/data/roast-mock-data';
-import type { RoastPoint } from '@shared/types/roast';
+import type { RoastPoint, LogEntry } from '@shared/types/roast';
 import { isEditableTarget } from '@shared/lib/dom';
 import { sidecar } from '@shared/lib/sidecar';
 import { useRoastSettings } from '@shared/store/roastSettings';
 import { detectTurningPoints } from '@shared/lib/turningPoints';
 import { toDisplayTemp, toDisplayRoR, formatTemp } from '@shared/lib/temperature';
 
-type RoastLogEntry = { time: string; event: string; temp: string; note: string };
-type RoastLogDisplayEntry = RoastLogEntry & { current?: boolean };
+import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog } from '@widgets/active-roast';
 
 const TOGGLEABLE_LOG_EVENTS = new Set(['Yellow', 'FC Start', 'FC End']);
 
@@ -52,7 +41,7 @@ export const ActiveRoast = ({
     const [summaryData, setSummaryData] = useState<RoastSummaryData | null>(null);
     const [roastNotes, setRoastNotes] = useState('');
     const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
-    const [logEntries, setLogEntries] = useState<RoastLogEntry[]>([]);
+    const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
     const [liveData, setLiveData] = useState<{
         bt: number | null;
         et: number | null;
@@ -641,7 +630,7 @@ export const ActiveRoast = ({
         return `${Math.floor(devSec / 60)}:${String(devSec % 60).padStart(2, '0')} (${pct}%)`;
     })();
     const roastLogDisplayEntries = useMemo(
-        (): RoastLogDisplayEntry[] => [
+        (): LogEntry[] => [
             ...logEntries,
             ...(!roastEnded
                 ? [
@@ -660,209 +649,29 @@ export const ActiveRoast = ({
 
     return (
         <div style={{ padding: '32px 40px', maxWidth: 1100, margin: '0 auto' }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28 }}>
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                        <div
-                            style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                background: roastEnded || !charged ? '#6b7280' : '#22c55e',
-                                boxShadow: charged && !roastEnded ? '0 0 0 3px rgba(34,197,94,0.2)' : 'none',
-                                animation: charged && !roastEnded ? 'pulse 2s infinite' : 'none',
-                            }}
-                        />
-                        <span
-                            style={{
-                                fontSize: 12,
-                                fontWeight: 500,
-                                color: roastEnded || !charged ? '#6b7280' : '#16a34a',
-                                letterSpacing: '0.5px',
-                                textTransform: 'uppercase',
-                            }}
-                        >
-                            {roastEnded
-                                ? 'Roast Complete'
-                                : !charged
-                                  ? 'Ready to Roast'
-                                  : sidecarConnected
-                                    ? 'Live — Roast in Progress'
-                                    : 'Mock — Roast in Progress'}
-                        </span>
-                    </div>
-                    <h1
-                        style={{
-                            fontFamily: 'var(--font-display)',
-                            fontWeight: 300,
-                            fontSize: 32,
-                            lineHeight: 1.13,
-                            color: 'var(--color-primary)',
-                            letterSpacing: '-0.4px',
-                            marginBottom: 4,
-                        }}
-                    >
-                        {/* TODO: 현재 선택된 로스트 프로파일에서 빈 이름/원산지를 동적으로 읽어오도록 개선 */}
-                        Ethiopia Yirgacheffe
-                    </h1>
-                    <p style={{ fontSize: 14, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
-                        Natural · Guji Zone · Profile: Signature Light
-                    </p>
-                </div>
+            <RoastHeader
+                roastEnded={roastEnded}
+                charged={charged}
+                sidecarConnected={sidecarConnected}
+                timeStr={timeStr}
+                phase={phase}
+                onOpenRoastSettings={onOpenRoastSettings}
+            />
 
-                {/* Timer + Settings */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <div style={{ textAlign: 'right' }}>
-                        <div
-                            style={{
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: 44,
-                                fontWeight: 600,
-                                color: 'var(--color-primary)',
-                                letterSpacing: '-2px',
-                                lineHeight: 1,
-                                marginBottom: 4,
-                            }}
-                        >
-                            {timeStr}
-                        </div>
-                        <div style={{ fontSize: 13, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
-                            {phase} phase
-                        </div>
-                    </div>
-                    {onOpenRoastSettings && (
-                        <button
-                            onClick={onOpenRoastSettings}
-                            aria-label="Open roast settings"
-                            title="Roast settings"
-                            style={{
-                                width: 34,
-                                height: 34,
-                                borderRadius: 10,
-                                border: 'none',
-                                background: 'var(--color-surface)',
-                                color: 'var(--color-muted)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                flexShrink: 0,
-                                boxShadow: 'var(--shadow-inset)',
-                                marginTop: 6,
-                            }}
-                        >
-                            <Settings2 size={15} strokeWidth={1.9} />
-                        </button>
-                    )}
-                </div>
-            </div>
+            <LiveReadings
+                rawBT={rawBT}
+                rawET={rawET}
+                displayRoR={displayRoR}
+                unit={unit}
+                phase={phase}
+                phaseColor={phaseColor}
+            />
 
-            {/* Live readings */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 10 }}>
-                {[
-                    {
-                        label: 'Bean Temp',
-                        value: formatTemp(rawBT, unit),
-                        icon: Thermometer,
-                        color: '#ea580c',
-                        bg: 'rgba(253,224,178,0.5)',
-                    },
-                    {
-                        label: 'Env Temp',
-                        value: formatTemp(rawET, unit),
-                        icon: Wind,
-                        color: '#2563eb',
-                        bg: 'rgba(219,234,254,0.5)',
-                    },
-                    {
-                        label: 'Rate of Rise',
-                        value: `${displayRoR}°${unit}/min`,
-                        icon: TrendingUp,
-                        color: '#7c3aed',
-                        bg: 'rgba(237,233,254,0.5)',
-                    },
-                    { label: 'Phase', value: phase, icon: AlertCircle, color: phaseColor, bg: `rgba(253,224,178,0.3)` },
-                ].map(({ label, value, icon: Icon, color, bg }) => (
-                    <div
-                        key={label}
-                        style={{
-                            background: 'var(--color-main-bg)',
-                            borderRadius: 14,
-                            padding: '16px 18px',
-                            boxShadow: 'var(--shadow-ring)',
-                        }}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                            <div
-                                style={{
-                                    width: 28,
-                                    height: 28,
-                                    borderRadius: 7,
-                                    background: bg,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                }}
-                            >
-                                <Icon size={14} strokeWidth={2} color={color} />
-                            </div>
-                            <span
-                                style={{
-                                    fontSize: 12,
-                                    color: 'var(--color-muted)',
-                                    fontWeight: 500,
-                                    letterSpacing: '0.5px',
-                                    textTransform: 'uppercase',
-                                }}
-                            >
-                                {label}
-                            </span>
-                        </div>
-                        <div
-                            style={{
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: 22,
-                                fontWeight: 600,
-                                color: 'var(--color-primary)',
-                                letterSpacing: '-0.5px',
-                            }}
-                        >
-                            {value}
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Machine Controls — heater / fan / drum (실제 머신: capabilities 기준, 시뮬레이터: 항상 표시) */}
-            {(machineCapabilities.length > 0 || !sidecarConnected) && (
-                <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 10, paddingLeft: 2 }}>
-                    {(machineCapabilities.includes('heater') || !sidecarConnected) && (
-                        <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
-                            Heater{' '}
-                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#ea580c' }}>
-                                {liveData ? `${liveData.heater}%` : '—'}
-                            </span>
-                        </span>
-                    )}
-                    {(machineCapabilities.includes('fan') || !sidecarConnected) && (
-                        <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
-                            Fan{' '}
-                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#2563eb' }}>
-                                {liveData ? `${liveData.fan}%` : '—'}
-                            </span>
-                        </span>
-                    )}
-                    {(machineCapabilities.includes('drum') || !sidecarConnected) && (
-                        <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
-                            Drum{' '}
-                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#16a34a' }}>
-                                {liveData ? `${liveData.drum} RPM` : '—'}
-                            </span>
-                        </span>
-                    )}
-                </div>
-            )}
+            <MachineControls
+                machineCapabilities={machineCapabilities}
+                sidecarConnected={sidecarConnected}
+                liveData={liveData}
+            />
 
             {/* Temperature Chart */}
             <div
@@ -914,7 +723,7 @@ export const ActiveRoast = ({
                                 alignItems: 'center',
                                 gap: 6,
                                 padding: '6px 12px',
-                                borderRadius: 8,
+                                borderRadius: 6,
                                 border: 'none',
                                 background: isFullscreen ? 'var(--color-surface)' : 'var(--color-primary)',
                                 color: isFullscreen ? 'var(--color-primary)' : 'var(--color-main-bg)',
@@ -1107,7 +916,7 @@ export const ActiveRoast = ({
                                             justifyContent: 'center',
                                             gap: 4,
                                             padding: '8px 0',
-                                            borderRadius: 9999,
+                                            borderRadius: 6,
                                             border: 'none',
                                             background: charged ? 'var(--color-surface)' : 'rgba(220,252,231,0.8)',
                                             color: charged ? 'var(--color-muted)' : '#16a34a',
@@ -1130,9 +939,12 @@ export const ActiveRoast = ({
                                             justifyContent: 'center',
                                             gap: 4,
                                             padding: '8px 0',
-                                            borderRadius: 9999,
+                                            borderRadius: 6,
                                             border: 'none',
-                                            background: roastEnded || !charged ? 'var(--color-surface)' : 'rgba(254,226,226,0.8)',
+                                            background:
+                                                roastEnded || !charged
+                                                    ? 'var(--color-surface)'
+                                                    : 'rgba(254,226,226,0.8)',
                                             color: roastEnded || !charged ? 'var(--color-muted)' : '#dc2626',
                                             fontSize: 12,
                                             fontWeight: 600,
@@ -1145,8 +957,11 @@ export const ActiveRoast = ({
                                     </button>
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
-                                    {[
+                                <EventButtons
+                                    variant="sidebar"
+                                    logEntries={logEntries}
+                                    pressedButtons={pressedButtons}
+                                    buttons={[
                                         {
                                             label: 'Yellow',
                                             event: 'Yellow',
@@ -1176,164 +991,15 @@ export const ActiveRoast = ({
                                             pressKey: 'Add Log Note',
                                             onClick: handleMarkNote,
                                         },
-                                    ].map(({ label, event, shortcut, pressKey, onClick }) => {
-                                        const registered = event
-                                            ? logEntries.some((entry) => entry.event === event)
-                                            : false;
-                                        const pressed = pressedButtons.has(pressKey);
-                                        return (
-                                            <button
-                                                key={label}
-                                                onClick={onClick}
-                                                aria-keyshortcuts={`Meta+${shortcut.replace('⌘', '')} Control+${shortcut.replace('⌘', '')}`}
-                                                style={{
-                                                    display: 'flex',
-                                                    flexDirection: 'column',
-                                                    alignItems: 'center',
-                                                    gap: 2,
-                                                    padding: '8px 4px',
-                                                    borderRadius: 8,
-                                                    border:
-                                                        registered && !pressed
-                                                            ? '1.5px solid var(--color-primary)'
-                                                            : 'none',
-                                                    background: pressed
-                                                        ? 'var(--color-primary)'
-                                                        : 'var(--color-surface)',
-                                                    color: pressed
-                                                        ? 'white'
-                                                        : registered
-                                                          ? 'var(--color-primary)'
-                                                          : 'var(--color-secondary)',
-                                                    fontSize: 11,
-                                                    fontWeight: registered || pressed ? 600 : 500,
-                                                    cursor: 'pointer',
-                                                    boxShadow: pressed || registered ? 'none' : 'var(--shadow-inset)',
-                                                    transition: 'background 0.15s, color 0.15s, border 0.15s',
-                                                }}
-                                            >
-                                                <span>{label}</span>
-                                                <span
-                                                    style={{
-                                                        fontSize: 10,
-                                                        color: pressed
-                                                            ? 'rgba(255,255,255,0.6)'
-                                                            : registered
-                                                              ? 'var(--color-secondary)'
-                                                              : 'var(--color-muted)',
-                                                        fontFamily: 'var(--font-mono)',
-                                                        transition: 'color 0.15s',
-                                                    }}
-                                                >
-                                                    {shortcut}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                    ]}
+                                />
                             </div>
 
-                            {/* Roast Log */}
-                            <div
-                                style={{
-                                    flex: 1,
-                                    overflow: 'hidden',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    minHeight: 0,
-                                }}
-                            >
-                                <h3
-                                    style={{
-                                        fontSize: 12,
-                                        color: 'var(--color-muted)',
-                                        fontWeight: 600,
-                                        textTransform: 'uppercase',
-                                        marginBottom: 10,
-                                        flexShrink: 0,
-                                    }}
-                                >
-                                    Roast Log
-                                </h3>
-                                <div style={{ overflowY: 'auto', flex: 1 }}>
-                                    {roastLogDisplayEntries.map((entry, i, arr) => (
-                                        <div
-                                            key={i}
-                                            style={{
-                                                display: 'flex',
-                                                gap: 10,
-                                                padding: '8px 0',
-                                                borderBottom:
-                                                    i < arr.length - 1
-                                                        ? '1px solid var(--color-border-subtle)'
-                                                        : 'none',
-                                            }}
-                                        >
-                                            <div
-                                                style={{
-                                                    fontFamily: 'var(--font-mono)',
-                                                    fontSize: 11,
-                                                    color: 'var(--color-muted)',
-                                                    width: 32,
-                                                    flexShrink: 0,
-                                                    paddingTop: 2,
-                                                }}
-                                            >
-                                                {entry.time}
-                                            </div>
-                                            <div
-                                                style={{
-                                                    width: 6,
-                                                    display: 'flex',
-                                                    flexDirection: 'column',
-                                                    alignItems: 'center',
-                                                    paddingTop: 4,
-                                                    flexShrink: 0,
-                                                }}
-                                            >
-                                                <div
-                                                    style={{
-                                                        width: 6,
-                                                        height: 6,
-                                                        borderRadius: '50%',
-                                                        background: entry.current
-                                                            ? '#22c55e'
-                                                            : (eventMarkerColor[entry.event] ?? 'var(--color-border)'),
-                                                        boxShadow: entry.current
-                                                            ? '0 0 0 2px rgba(34,197,94,0.2)'
-                                                            : 'none',
-                                                    }}
-                                                />
-                                            </div>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                    <span
-                                                        style={{
-                                                            fontSize: 12,
-                                                            fontWeight: 500,
-                                                            color: 'var(--color-primary)',
-                                                        }}
-                                                    >
-                                                        {entry.event}
-                                                    </span>
-                                                    <span
-                                                        style={{
-                                                            fontFamily: 'var(--font-mono)',
-                                                            fontSize: 11,
-                                                            color: 'var(--color-muted)',
-                                                        }}
-                                                    >
-                                                        {entry.temp}
-                                                    </span>
-                                                </div>
-                                                <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>
-                                                    {entry.note}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                            <RoastLog
+                                variant="sidebar"
+                                entries={roastLogDisplayEntries}
+                                eventMarkerColor={eventMarkerColor}
+                            />
                         </div>
                     )}
                 </div>
@@ -1373,7 +1039,7 @@ export const ActiveRoast = ({
                                 justifyContent: 'center',
                                 gap: 8,
                                 padding: '11px 0',
-                                borderRadius: 9999,
+                                borderRadius: 6,
                                 border: 'none',
                                 background: charged ? 'var(--color-surface)' : 'rgba(220,252,231,0.8)',
                                 color: charged ? 'var(--color-muted)' : '#16a34a',
@@ -1398,7 +1064,7 @@ export const ActiveRoast = ({
                                 justifyContent: 'center',
                                 gap: 8,
                                 padding: '11px 0',
-                                borderRadius: 9999,
+                                borderRadius: 6,
                                 border: 'none',
                                 background: roastEnded || !charged ? 'var(--color-surface)' : 'rgba(254,226,226,0.8)',
                                 color: roastEnded || !charged ? 'var(--color-muted)' : '#dc2626',
@@ -1413,78 +1079,43 @@ export const ActiveRoast = ({
                             End Roast
                         </button>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        {[
+                    <EventButtons
+                        variant="main"
+                        logEntries={logEntries}
+                        pressedButtons={pressedButtons}
+                        buttons={[
                             {
                                 label: 'Mark Yellow',
                                 event: 'Yellow',
                                 shortcut: '⌘1',
+                                pressKey: 'Mark Yellow',
                                 onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow'),
                             },
                             {
                                 label: 'Mark FC Start',
                                 event: 'FC Start',
                                 shortcut: '⌘2',
+                                pressKey: 'Mark FC Start',
                                 onClick: () => markEvent('FC Start', 'First crack started', 'Mark FC Start'),
                             },
                             {
                                 label: 'Mark FC End',
                                 event: 'FC End',
                                 shortcut: '⌘3',
+                                pressKey: 'Mark FC End',
                                 onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
                             },
-                            { label: 'Add Log Note', event: null, shortcut: '⌘N', onClick: handleMarkNote },
-                        ].map(({ label, event, shortcut, onClick }) => {
-                            const registered = event ? logEntries.some((entry) => entry.event === event) : false;
-                            const pressed = pressedButtons.has(label);
-                            return (
-                                <button
-                                    key={label}
-                                    onClick={onClick}
-                                    aria-keyshortcuts={`Meta+${shortcut.replace('⌘', '')} Control+${shortcut.replace('⌘', '')}`}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: '9px 12px',
-                                        borderRadius: 8,
-                                        border: registered && !pressed ? '1.5px solid var(--color-primary)' : 'none',
-                                        background: pressed ? 'var(--color-primary)' : 'var(--color-surface)',
-                                        color: pressed
-                                            ? 'white'
-                                            : registered
-                                              ? 'var(--color-primary)'
-                                              : 'var(--color-secondary)',
-                                        fontSize: 13,
-                                        fontWeight: registered || pressed ? 600 : 500,
-                                        cursor: 'pointer',
-                                        letterSpacing: '0.14px',
-                                        boxShadow: pressed || registered ? 'none' : 'var(--shadow-inset)',
-                                        transition: 'background 0.15s, color 0.15s, border 0.15s',
-                                    }}
-                                >
-                                    {label}
-                                    <span
-                                        style={{
-                                            fontSize: 11,
-                                            color: pressed
-                                                ? 'rgba(255,255,255,0.6)'
-                                                : registered
-                                                  ? 'var(--color-secondary)'
-                                                  : 'var(--color-muted)',
-                                            fontFamily: 'var(--font-mono)',
-                                            transition: 'color 0.15s',
-                                        }}
-                                    >
-                                        {shortcut}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
+                            {
+                                label: 'Add Log Note',
+                                event: null,
+                                shortcut: '⌘N',
+                                pressKey: 'Add Log Note',
+                                onClick: handleMarkNote,
+                            },
+                        ]}
+                    />
                 </div>
 
-                {/* Roast log */}
                 <div
                     style={{
                         background: 'var(--color-main-bg)',
@@ -1504,81 +1135,7 @@ export const ActiveRoast = ({
                     >
                         Roast Log
                     </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                        {roastLogDisplayEntries.map((entry, i, arr) => (
-                            <div
-                                key={i}
-                                style={{
-                                    display: 'flex',
-                                    gap: 12,
-                                    padding: '10px 0',
-                                    borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : 'none',
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        fontFamily: 'var(--font-mono)',
-                                        fontSize: 12,
-                                        color: 'var(--color-muted)',
-                                        width: 36,
-                                        flexShrink: 0,
-                                        paddingTop: 1,
-                                    }}
-                                >
-                                    {entry.time}
-                                </div>
-                                <div
-                                    style={{
-                                        width: 6,
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        paddingTop: 4,
-                                        flexShrink: 0,
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            width: 7,
-                                            height: 7,
-                                            borderRadius: '50%',
-                                            background: entry.current
-                                                ? '#22c55e'
-                                                : (eventMarkerColor[entry.event] ?? 'var(--color-border)'),
-                                            flexShrink: 0,
-                                            boxShadow: entry.current ? '0 0 0 3px rgba(34,197,94,0.2)' : 'none',
-                                        }}
-                                    />
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <span
-                                            style={{
-                                                fontSize: 13,
-                                                fontWeight: 500,
-                                                color: 'var(--color-primary)',
-                                                letterSpacing: '0.14px',
-                                            }}
-                                        >
-                                            {entry.event}
-                                        </span>
-                                        <span
-                                            style={{
-                                                fontFamily: 'var(--font-mono)',
-                                                fontSize: 12,
-                                                color: 'var(--color-muted)',
-                                            }}
-                                        >
-                                            {entry.temp}
-                                        </span>
-                                    </div>
-                                    <div style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
-                                        {entry.note}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <RoastLog variant="main" entries={roastLogDisplayEntries} eventMarkerColor={eventMarkerColor} />
                 </div>
             </div>
 
@@ -1586,10 +1143,6 @@ export const ActiveRoast = ({
                 open={showEndRoastModal}
                 timeStr={timeStr}
                 onClose={() => setShowEndRoastModal(false)}
-                onDiscard={() => {
-                    setShowEndRoastModal(false);
-                    resetActiveRoast();
-                }}
                 onConfirm={confirmEndRoast}
             />
             <RoastSummaryModal
@@ -1601,6 +1154,11 @@ export const ActiveRoast = ({
                 onClose={() => {
                     setShowSummaryModal(false);
                     setSummaryData(null);
+                }}
+                onDiscard={() => {
+                    setShowSummaryModal(false);
+                    setSummaryData(null);
+                    resetActiveRoast();
                 }}
             />
         </div>
