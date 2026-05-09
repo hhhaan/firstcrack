@@ -10,9 +10,10 @@ import { Beans } from './views/Beans';
 import { Profiles } from './views/profiles';
 import { Machines } from './views/machines';
 import { type View } from './shared/types/view';
+import { useAuth } from './shared/hooks/useAuth';
 
 export const App = () => {
-    const [loggedIn, setLoggedIn] = useState(import.meta.env.DEV);
+    const { loggedIn } = useAuth();
     const [view, setView] = useState<View>('dashboard');
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -24,7 +25,7 @@ export const App = () => {
     };
 
     if (!loggedIn) {
-        return <Login onLogin={() => setLoggedIn(true)} />;
+        return <Login />;
     }
 
     return (

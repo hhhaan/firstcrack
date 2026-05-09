@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { supabase } from '@shared/lib/supabase';
 
 interface LoginProps {
-    onLogin: () => void;
+    onLogin?: () => void;
 }
 
 const testimonials = [
@@ -37,7 +38,7 @@ export const Login = ({ onLogin }: LoginProps) => {
         setLoading(true);
         setTimeout(() => {
             setLoading(false);
-            onLogin();
+            onLogin?.();
         }, 900);
     };
 
@@ -279,6 +280,12 @@ export const Login = ({ onLogin }: LoginProps) => {
                     {/* Google SSO */}
                     <button
                         type="button"
+                        onClick={() =>
+                            supabase.auth.signInWithOAuth({
+                                provider: 'google',
+                                options: { redirectTo: `${window.location.origin}/auth/callback` },
+                            })
+                        }
                         style={{
                             width: '100%',
                             display: 'flex',

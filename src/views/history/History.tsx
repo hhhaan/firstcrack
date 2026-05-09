@@ -1,10 +1,8 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { Search, Filter, ChevronDown, ChevronUp, Download } from 'lucide-react';
-import { useRoastSessions } from '@entities/roast-session';
+import { useRoastSessions } from '@entities/roast';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
-
-// TODO: auth 연동 후 실제 userId로 교체
-const USER_ID = 'ad755cd2-cb7f-48d1-94a7-b7ee72f705b7';
+import { useAuth } from '@shared/hooks/useAuth';
 
 const levelColor: Record<string, string> = {
     Light: '#a16207',
@@ -49,8 +47,20 @@ const columns: Column[] = [
     { key: 'bean', label: 'Bean', width: '200px', sortable: true, render: (s) => s.beans?.name ?? '—' },
     { key: null, label: 'Profile', width: '150px', sortable: false, render: (s) => s.roast_profiles?.name ?? '—' },
     { key: null, label: 'Weight', width: '90px', sortable: false, render: (s) => `${s.weight_grams}g` },
-    { key: 'drop', label: 'Drop', width: '80px', sortable: true, render: (s) => s.drop_temp_celsius != null ? `${s.drop_temp_celsius}°C` : '—' },
-    { key: 'duration', label: 'Duration', width: '90px', sortable: true, render: (s) => formatDuration(s.duration_seconds) },
+    {
+        key: 'drop',
+        label: 'Drop',
+        width: '80px',
+        sortable: true,
+        render: (s) => (s.drop_temp_celsius != null ? `${s.drop_temp_celsius}°C` : '—'),
+    },
+    {
+        key: 'duration',
+        label: 'Duration',
+        width: '90px',
+        sortable: true,
+        render: (s) => formatDuration(s.duration_seconds),
+    },
     {
         key: 'level',
         label: 'Level',
@@ -90,11 +100,16 @@ const ExpandedRow = ({ session }: { session: RoastSessionWithRelations }): React
             <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
                 {[
                     { label: 'Origin', value: session.beans?.origin ?? '—' },
-                    { label: 'Drop Temp', value: session.drop_temp_celsius != null ? `${session.drop_temp_celsius}°C` : '—' },
+                    {
+                        label: 'Drop Temp',
+                        value: session.drop_temp_celsius != null ? `${session.drop_temp_celsius}°C` : '—',
+                    },
                     { label: 'Duration', value: formatDuration(session.duration_seconds) },
                 ].map(({ label, value }) => (
                     <div key={label} className="mb-2">
-                        <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">{label}</div>
+                        <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                            {label}
+                        </div>
                         <div className="font-mono text-[13px] font-medium tracking-[0.14px] text-primary">{value}</div>
                     </div>
                 ))}
@@ -199,7 +214,9 @@ export const History = () => {
     const [sortKey, setSortKey] = useState<SortKey>('date');
     const [sortAsc, setSortAsc] = useState<boolean>(false);
 
-    const { data: rawSessions = [], isLoading, isError } = useRoastSessions(USER_ID, 'completed');
+    const { user } = useAuth();
+
+    const { data: rawSessions = [], isLoading, isError } = useRoastSessions(user?.id ?? '', 'completed');
 
     const handleSort = (key: SortKey): void => {
         if (sortKey === key) {
@@ -279,9 +296,7 @@ export const History = () => {
                     Failed to load sessions. Please try again.
                 </div>
             ) : isLoading ? (
-                <div className="rounded-2xl bg-main-bg p-8 text-center text-sm text-muted shadow-ring">
-                    Loading…
-                </div>
+                <div className="rounded-2xl bg-main-bg p-8 text-center text-sm text-muted shadow-ring">Loading…</div>
             ) : filtered.length === 0 ? (
                 <div className="rounded-2xl bg-main-bg p-8 text-center text-sm text-muted shadow-ring">
                     No sessions found.
