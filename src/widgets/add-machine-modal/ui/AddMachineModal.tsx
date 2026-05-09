@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Cpu, Radio, ShieldCheck, X, ChevronDown, Wifi, WifiOff, Loader } from 'lucide-react';
+import { Cpu, Radio, ShieldCheck, X, ChevronDown, Wifi, WifiOff, Loader, Info } from 'lucide-react';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useTranslation } from 'react-i18next';
 import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
 import { sidecar } from '../../../shared/lib/sidecar';
@@ -494,6 +495,22 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                                 {selectedDef.models.join(' · ')}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {selectedDef?.protocol === 'phidget' && (
+                    <div className="flex items-start gap-2.5 bg-[rgba(59,130,246,0.07)] border border-[rgba(59,130,246,0.15)] rounded-xl px-3.5 py-[11px]">
+                        <Info size={14} className="text-blue-500 shrink-0 mt-px" />
+                        <span className="text-[12px] text-secondary leading-relaxed">
+                            {t('addMachine.phidgetDriverNotice')}{' '}
+                            <button
+                                type="button"
+                                onClick={() => openUrl('https://example.com/phidget-driver')}
+                                className="text-blue-500 underline cursor-pointer bg-transparent border-none p-0 text-[12px] font-body"
+                            >
+                                {t('addMachine.phidgetDriverLink')}
+                            </button>
+                        </span>
                     </div>
                 )}
 
