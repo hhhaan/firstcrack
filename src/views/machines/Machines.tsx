@@ -1,5 +1,5 @@
 import { Plus, Search, Cpu, Activity, AlertCircle, Wifi, WifiOff, Trash2, Flame } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AddMachineModal } from '../../widgets/add-machine-modal/ui/AddMachineModal';
 import { useMachines, SIMULATOR_ID } from '@shared/data/useMachines';
@@ -19,16 +19,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
     const [sidecarStatus, setSidecarStatus] = useState<SidecarStatus | null>(null);
     const [temps, setTemps] = useState<TemperatureReading | null>(null);
     const [connecting, setConnecting] = useState(false);
-    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-    useEffect(() => {
-        sidecar
-            .getStatus()
-            .then(setSidecarStatus)
-            .catch(() => null);
-    }, []);
-
-    // 모달이 닫힐 때 status re-fetch — "Add & Connect" 흐름에서 연결 상태 즉시 반영
+    // 마운트 시 & 모달 닫힐 때 status fetch — "Add & Connect" 흐름에서 연결 상태 즉시 반영
     useEffect(() => {
         if (!isAddModalOpen) {
             sidecar
@@ -39,7 +30,6 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
     }, [isAddModalOpen]);
 
     useEffect(() => {
-        if (pollRef.current) clearInterval(pollRef.current);
         if (!sidecarStatus?.connected) {
             setTemps(null);
             return;
@@ -54,10 +44,8 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
             if (s) setSidecarStatus((prev) => (JSON.stringify(prev) === JSON.stringify(s) ? prev : s));
         };
         poll();
-        pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
-        return () => {
-            if (pollRef.current) clearInterval(pollRef.current);
-        };
+        const id = setInterval(poll, POLL_INTERVAL_MS);
+        return () => clearInterval(id);
     }, [sidecarStatus?.connected]);
 
     // 연결 상태가 바뀔 때만 자동 select — 사용자가 수동으로 다른 카드를 클릭할 수 있음
@@ -68,13 +56,6 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
         // selectedId 제외: 사용자 클릭 시 effect 재실행 방지
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sidecarStatus?.connected, sidecarStatus?.roaster]);
-
-    // 로스터 선택이 바뀌면 이전 연결 테스트 에러 초기화
-    useEffect(() => {
-        if (sidecarStatus?.error) {
-            setSidecarStatus((prev) => (prev ? { ...prev, error: null } : prev));
-        }
-    }, [selectedId]);
 
     const filtered = machines.filter(
         (m) =>
@@ -100,6 +81,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
 
     const handleConnect = async (machine: Machine) => {
         setConnecting(true);
+        setSidecarStatus((prev) => (prev ? { ...prev, error: null } : prev));
         try {
             const status = await sidecar.connect(
                 machine.roasterKey,
@@ -119,7 +101,8 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
         setTemps(null);
     };
 
-    const connectedMachine = machines.find((m) => sidecarStatus?.connected && sidecarStatus.roaster === m.roasterKey);
+    const connectedMachine = machines.find(isThisMachineConnected);
+    const isSelectedConnected = selected ? isThisMachineConnected(selected) : false;
 
     return (
         <div className="px-10 py-8 max-w-275 mx-auto">
@@ -244,7 +227,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                             </div>
 
                             {/* Temperature cards (when connected, simulator 제외) */}
-                            {isThisMachineConnected(selected) && temps && selected.id !== SIMULATOR_ID ? (
+                            {isSelectedConnected && temps && selected.id !== SIMULATOR_ID ? (
                                 <div className="grid grid-cols-3 gap-3.5 mb-6">
                                     {[
                                         {
@@ -276,13 +259,13 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                 </div>
                             ) : (
                                 <div className="bg-surface rounded-xl px-4 py-5 mb-6 flex items-center gap-3 shadow-inset">
-                                    {isThisMachineConnected(selected) ? (
+                                    {isSelectedConnected ? (
                                         <Wifi size={18} color="#16a34a" />
                                     ) : (
                                         <WifiOff size={18} color="var(--color-muted)" />
                                     )}
                                     <span className="text-[13px] text-muted)">
-                                        {isThisMachineConnected(selected)
+                                        {isSelectedConnected
                                             ? t('common.connected')
                                             : t('machines.notConnectedHint')}
                                     </span>
@@ -316,6 +299,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                             )}
 
                             {sidecarStatus?.error && sidecarStatus.roaster === selected.roasterKey && (
+                                // TODO: 에러 메시지 하단에 "문의하기" 링크 추가 (예: 이메일 or 카카오 채널)
                                 <div className="flex items-center gap-2 bg-[rgba(192,57,43,0.07)] rounded-[10px] px-3.5 py-2.5 mb-4 text-[12px] text-[#c0392b]">
                                     <AlertCircle size={14} />
                                     {sidecarStatus.error}
@@ -324,7 +308,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
 
                             {/* Connect / Disconnect */}
                             <div className="flex gap-2.5">
-                                {isThisMachineConnected(selected) ? (
+                                {isSelectedConnected ? (
                                     <button
                                         onClick={handleDisconnect}
                                         className="py-3 px-5 rounded-xl border-none bg-surface text-secondary text-sm font-medium cursor-pointer shadow-(--shadow-inset) flex items-center justify-center gap-2"
@@ -349,7 +333,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                         )}
                                     </button>
                                 )}
-                                {isThisMachineConnected(selected) && onNavigate && (
+                                {isSelectedConnected && onNavigate && (
                                     <button
                                         onClick={() => onNavigate('roast')}
                                         className="flex-1 py-3 rounded-xl border-none bg-primary text-white text-sm font-semibold cursor-pointer shadow-(--shadow-card) flex items-center justify-center gap-2"
