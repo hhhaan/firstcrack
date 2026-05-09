@@ -1,14 +1,14 @@
-import { type CSSProperties, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 
 interface ModalShellProps {
     children: ReactNode;
     onClose: () => void;
     labelledBy: string;
     overlayClassName?: string;
-    contentStyle?: CSSProperties;
+    contentClassName?: string;
 }
 
-export const ModalShell = ({ children, onClose, labelledBy, overlayClassName, contentStyle }: ModalShellProps) => {
+export const ModalShell = ({ children, onClose, labelledBy, overlayClassName, contentClassName }: ModalShellProps) => {
     return (
         <div
             onClick={onClose}
@@ -20,7 +20,7 @@ export const ModalShell = ({ children, onClose, labelledBy, overlayClassName, co
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={labelledBy}
-                style={contentStyle}
+                className={contentClassName}
             >
                 {children}
             </div>

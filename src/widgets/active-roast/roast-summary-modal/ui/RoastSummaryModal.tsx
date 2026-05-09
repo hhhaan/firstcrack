@@ -42,13 +42,7 @@ export const RoastSummaryModal = ({
             onClose={onClose}
             labelledBy="roast-summary-modal-title"
             overlayClassName="z-[10000]"
-            contentStyle={{
-                width: 'min(420px, 100%)',
-                background: 'var(--color-main-bg)',
-                borderRadius: 20,
-                padding: '28px',
-                boxShadow: 'rgba(0,0,0,0.22) 0px 24px 64px, rgba(0,0,0,0.06) 0px 0px 0px 1px',
-            }}
+            contentClassName="max-w-[420px] w-full bg-main-bg rounded-[20px] p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px]"
         >
             <div className="w-11 h-11 rounded-xl bg-[rgba(220,252,231,0.9)] text-[#16a34a] flex items-center justify-center mb-4.5">
                 <svg

@@ -648,7 +648,7 @@ export const ActiveRoast = ({
     );
 
     return (
-        <div style={{ padding: '32px 40px', maxWidth: 1100, margin: '0 auto' }}>
+        <div className="px-10 py-8 max-w-275 mx-auto">
             <RoastHeader
                 roastEnded={roastEnded}
                 charged={charged}
@@ -675,41 +675,15 @@ export const ActiveRoast = ({
 
             {/* Temperature Chart */}
             <div
-                style={{
-                    background: 'var(--color-main-bg)',
-                    borderRadius: isFullscreen ? 0 : 16,
-                    padding: isFullscreen ? '40px 60px' : '24px 24px 16px',
-                    boxShadow: isFullscreen ? 'none' : 'var(--shadow-ring)',
-                    marginBottom: 20,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    height: isFullscreen ? '100vh' : 'auto',
-                    width: isFullscreen ? '100vw' : 'auto',
-                    position: isFullscreen ? 'fixed' : 'relative',
-                    top: 0,
-                    left: 0,
-                    zIndex: isFullscreen ? 9999 : 1,
-                }}
+                className={`bg-main-bg flex flex-col mb-5 ${
+                    isFullscreen
+                        ? 'rounded-none fixed inset-0 z-9999 h-screen w-screen p-10'
+                        : 'rounded-2xl relative z-1 shadow-(--shadow-ring) px-6 pb-4 pt-6'
+                }`}
             >
-                <div
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: 20,
-                    }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <h2
-                            style={{
-                                fontSize: 15,
-                                fontWeight: 500,
-                                color: 'var(--color-primary)',
-                                letterSpacing: '0.15px',
-                            }}
-                        >
-                            Temperature Curve
-                        </h2>
+                <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Temperature Curve</h2>
                         {/* Inline Fullscreen Button in Chart Header */}
                         <button
                             onClick={toggleFullscreen}
@@ -718,34 +692,24 @@ export const ActiveRoast = ({
                             }
                             aria-pressed={isFullscreen}
                             aria-keyshortcuts="F"
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                padding: '6px 12px',
-                                borderRadius: 6,
-                                border: 'none',
-                                background: isFullscreen ? 'var(--color-surface)' : 'var(--color-primary)',
-                                color: isFullscreen ? 'var(--color-primary)' : 'var(--color-main-bg)',
-                                fontSize: 12,
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                boxShadow: isFullscreen ? 'var(--shadow-inset)' : 'none',
-                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border-none text-xs font-semibold cursor-pointer transition-all duration-200 ${
+                                isFullscreen
+                                    ? 'bg-surface text-primary shadow-(--shadow-inset)'
+                                    : 'bg-primary text-main-bg'
+                            }`}
                         >
                             {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                             {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}{' '}
-                            <span style={{ fontFamily: 'var(--font-mono)', opacity: 0.7 }}>F</span>
+                            <span className="font-(--font-mono) opacity-70">F</span>
                         </button>
                     </div>
-                    <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                    <div className="flex gap-4 items-center">
                         {[
                             { color: '#171717', label: 'Bean Temp (BT)' },
                             { color: '#2563eb', label: 'Env Temp (ET)', dashed: true },
                             { color: '#d97706', label: 'Rate of Rise (ROR)' },
                         ].map(({ color, label, dashed }) => (
-                            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <div key={label} className="flex items-center gap-1.25">
                                 <div
                                     style={{
                                         width: 16,
@@ -758,36 +722,24 @@ export const ActiveRoast = ({
                                             : 'none',
                                     }}
                                 />
-                                <span style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
-                                    {label}
-                                </span>
+                                <span className="text-xs text-muted tracking-[0.14px]">{label}</span>
                             </div>
                         ))}
                     </div>
                 </div>
 
                 {/* Fullscreen Content Layout */}
-                <div
-                    style={{
-                        display: 'flex',
-                        flexDirection: isFullscreen ? 'row' : 'column',
-                        gap: 24,
-                        flex: 1,
-                        minHeight: 0,
-                    }}
-                >
+                <div className={`flex gap-6 flex-1 min-h-0 ${isFullscreen ? 'flex-row' : 'flex-col'}`}>
                     {/* Main Chart Area */}
                     <div
                         ref={chartAreaRef}
-                        style={{
-                            flex: 1,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            minWidth: 0,
-                            cursor: effectiveZoomRange ? (isChartDragging ? 'grabbing' : 'grab') : 'default',
-                            userSelect: isChartDragging ? 'none' : 'auto',
-                            touchAction: effectiveZoomRange ? 'none' : 'auto',
-                        }}
+                        className={`flex-1 flex flex-col min-w-0 outline-none ${
+                            effectiveZoomRange
+                                ? isChartDragging
+                                    ? 'cursor-grabbing select-none touch-none'
+                                    : 'cursor-grab touch-none'
+                                : 'cursor-default'
+                        }`}
                         onWheel={handleChartWheel}
                         onPointerDown={handleChartPointerDown}
                         onPointerMove={handleChartPointerMove}
@@ -799,7 +751,7 @@ export const ActiveRoast = ({
                         aria-label="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
                     >
                         {/* Phase labels */}
-                        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                        <div className="flex gap-2 mb-3">
                             {[
                                 { label: 'Drying', range: '0:00–3:00', active: elapsed < 180 },
                                 { label: 'Yellowing', range: '3:00–5:00', active: elapsed >= 180 && elapsed < 300 },
@@ -808,19 +760,13 @@ export const ActiveRoast = ({
                             ].map(({ label, range, active }) => (
                                 <div
                                     key={label}
-                                    style={{
-                                        padding: '4px 10px',
-                                        borderRadius: 9999,
-                                        fontSize: 11,
-                                        fontWeight: 500,
-                                        letterSpacing: '0.3px',
-                                        background: active ? 'var(--color-primary)' : 'var(--color-surface)',
-                                        color: active ? 'white' : 'var(--color-muted)',
-                                        boxShadow: active ? 'none' : 'var(--shadow-inset)',
-                                        transition: 'all 0.3s',
-                                    }}
+                                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium tracking-[0.3px] transition-all duration-300 ${
+                                        active
+                                            ? 'bg-primary text-white'
+                                            : 'bg-surface text-muted shadow-(--shadow-inset)'
+                                    }`}
                                 >
-                                    {label} <span style={{ opacity: 0.6 }}>{range}</span>
+                                    {label} <span className="opacity-60">{range}</span>
                                 </div>
                             ))}
                         </div>
@@ -847,19 +793,9 @@ export const ActiveRoast = ({
 
                     {/* Fullscreen Sidebar (only visible in fullscreen) */}
                     {isFullscreen && (
-                        <div
-                            style={{
-                                width: 200,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: 12,
-                                padding: '0 12px 20px 12px',
-                                borderLeft: '1px solid var(--color-border-subtle)',
-                                overflow: 'hidden',
-                            }}
-                        >
+                        <div className="w-50 flex flex-col gap-3 px-3 pb-5 border-l border-border-subtle overflow-hidden">
                             {/* Stats Grid */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+                            <div className="grid grid-cols-1 gap-3">
                                 {[
                                     { label: 'Bean Temp', value: formatTemp(rawBT, unit), color: '#ea580c' },
                                     { label: 'Env Temp', value: formatTemp(rawET, unit), color: '#2563eb' },
@@ -868,34 +804,14 @@ export const ActiveRoast = ({
                                 ].map((stat) => (
                                     <div
                                         key={stat.label}
-                                        style={{
-                                            background: 'var(--color-surface)',
-                                            padding: '8px 10px',
-                                            borderRadius: 10,
-                                            boxShadow: 'var(--shadow-inset)',
-                                        }}
+                                        className="bg-surface px-2.5 py-2 rounded-xl shadow-(--shadow-inset)"
                                     >
-                                        <div
-                                            style={{
-                                                fontSize: 9,
-                                                color: 'var(--color-muted)',
-                                                fontWeight: 600,
-                                                textTransform: 'uppercase',
-                                                marginBottom: 2,
-                                            }}
-                                        >
+                                        <div className="text-[9px] text-muted font-semibold uppercase mb-0.5">
                                             {stat.label}
                                         </div>
                                         <div
-                                            style={{
-                                                fontSize: 14,
-                                                fontWeight: 700,
-                                                color: stat.color,
-                                                fontFamily: 'var(--font-mono)',
-                                                whiteSpace: 'nowrap',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                            }}
+                                            className="text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis"
+                                            style={{ color: stat.color }}
                                         >
                                             {stat.value}
                                         </div>
@@ -904,27 +820,17 @@ export const ActiveRoast = ({
                             </div>
 
                             {/* Controls */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div className="flex flex-col gap-2">
+                                <div className="flex flex-col gap-1.5">
                                     <button
                                         onClick={!charged ? handleCharge : undefined}
                                         disabled={charged}
                                         aria-keyshortcuts={!charged ? 'Meta+Enter Control+Enter' : undefined}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: 4,
-                                            padding: '8px 0',
-                                            borderRadius: 6,
-                                            border: 'none',
-                                            background: charged ? 'var(--color-surface)' : 'rgba(220,252,231,0.8)',
-                                            color: charged ? 'var(--color-muted)' : '#16a34a',
-                                            fontSize: 12,
-                                            fontWeight: 600,
-                                            cursor: charged ? 'default' : 'pointer',
-                                            boxShadow: 'var(--shadow-inset)',
-                                        }}
+                                        className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold shadow-(--shadow-inset) ${
+                                            charged
+                                                ? 'bg-surface text-muted cursor-default'
+                                                : 'bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer'
+                                        }`}
                                     >
                                         <Play size={12} />
                                         Charge
@@ -933,24 +839,11 @@ export const ActiveRoast = ({
                                         onClick={handleEndRoastClick}
                                         disabled={roastEnded || !charged}
                                         aria-label="End roast"
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: 4,
-                                            padding: '8px 0',
-                                            borderRadius: 6,
-                                            border: 'none',
-                                            background:
-                                                roastEnded || !charged
-                                                    ? 'var(--color-surface)'
-                                                    : 'rgba(254,226,226,0.8)',
-                                            color: roastEnded || !charged ? 'var(--color-muted)' : '#dc2626',
-                                            fontSize: 12,
-                                            fontWeight: 600,
-                                            cursor: roastEnded || !charged ? 'default' : 'pointer',
-                                            boxShadow: 'var(--shadow-inset)',
-                                        }}
+                                        className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold shadow-(--shadow-inset) ${
+                                            roastEnded || !charged
+                                                ? 'bg-surface text-muted cursor-default'
+                                                : 'bg-[rgba(254,226,226,0.8)] text-[#dc2626] cursor-pointer'
+                                        }`}
                                     >
                                         <Square size={12} />
                                         End Roast
@@ -984,6 +877,7 @@ export const ActiveRoast = ({
                                             pressKey: 'Mark FC End',
                                             onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
                                         },
+                                        // TODO : Drop으로 바꿀지 고민해보기
                                         {
                                             label: 'Add Note',
                                             event: null,
@@ -1006,49 +900,20 @@ export const ActiveRoast = ({
             </div>
 
             {/* Controls + Notes row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div className="grid grid-cols-2 gap-5">
                 {/* Controls */}
-                <div
-                    style={{
-                        background: 'var(--color-main-bg)',
-                        borderRadius: 16,
-                        padding: '20px 24px',
-                        boxShadow: 'var(--shadow-ring)',
-                    }}
-                >
-                    <h3
-                        style={{
-                            fontSize: 14,
-                            fontWeight: 500,
-                            color: 'var(--color-primary)',
-                            letterSpacing: '0.14px',
-                            marginBottom: 16,
-                        }}
-                    >
-                        Roast Controls
-                    </h3>
-                    <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                <div className="bg-main-bg rounded-2xl px-6 py-5 shadow-(--shadow-ring)">
+                    <h3 className="text-sm font-medium text-primary tracking-[0.14px] mb-4">Roast Controls</h3>
+                    <div className="flex gap-2.5 mb-5">
                         <button
                             onClick={!charged ? handleCharge : undefined}
                             disabled={charged}
                             aria-keyshortcuts={!charged ? 'Meta+Enter Control+Enter' : undefined}
-                            style={{
-                                flex: 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 8,
-                                padding: '11px 0',
-                                borderRadius: 6,
-                                border: 'none',
-                                background: charged ? 'var(--color-surface)' : 'rgba(220,252,231,0.8)',
-                                color: charged ? 'var(--color-muted)' : '#16a34a',
-                                fontSize: 14,
-                                fontWeight: 500,
-                                cursor: charged ? 'default' : 'pointer',
-                                boxShadow: 'var(--shadow-inset)',
-                                letterSpacing: '0.14px',
-                            }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] shadow-(--shadow-inset) ${
+                                charged
+                                    ? 'bg-surface text-muted cursor-default'
+                                    : 'bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer'
+                            }`}
                         >
                             <Play size={15} strokeWidth={2} />
                             Charge
@@ -1057,23 +922,11 @@ export const ActiveRoast = ({
                             onClick={handleEndRoastClick}
                             disabled={roastEnded || !charged}
                             aria-label="End roast"
-                            style={{
-                                flex: 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 8,
-                                padding: '11px 0',
-                                borderRadius: 6,
-                                border: 'none',
-                                background: roastEnded || !charged ? 'var(--color-surface)' : 'rgba(254,226,226,0.8)',
-                                color: roastEnded || !charged ? 'var(--color-muted)' : '#dc2626',
-                                fontSize: 14,
-                                fontWeight: 500,
-                                cursor: roastEnded || !charged ? 'default' : 'pointer',
-                                letterSpacing: '0.14px',
-                                boxShadow: roastEnded || !charged ? 'var(--shadow-inset)' : 'var(--shadow-card)',
-                            }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] ${
+                                roastEnded || !charged
+                                    ? 'bg-surface text-muted cursor-default shadow-(--shadow-inset)'
+                                    : 'bg-[rgba(254,226,226,0.8)] text-[#dc2626] cursor-pointer shadow-(--shadow-card)'
+                            }`}
                         >
                             <Square size={14} strokeWidth={2} />
                             End Roast
@@ -1116,25 +969,8 @@ export const ActiveRoast = ({
                     />
                 </div>
 
-                <div
-                    style={{
-                        background: 'var(--color-main-bg)',
-                        borderRadius: 16,
-                        padding: '20px 24px',
-                        boxShadow: 'var(--shadow-ring)',
-                    }}
-                >
-                    <h3
-                        style={{
-                            fontSize: 14,
-                            fontWeight: 500,
-                            color: 'var(--color-primary)',
-                            letterSpacing: '0.14px',
-                            marginBottom: 14,
-                        }}
-                    >
-                        Roast Log
-                    </h3>
+                <div className="bg-main-bg rounded-2xl px-6 py-5 shadow-(--shadow-ring)">
+                    <h3 className="text-sm font-medium text-primary tracking-[0.14px] mb-3.5">Roast Log</h3>
                     <RoastLog variant="main" entries={roastLogDisplayEntries} eventMarkerColor={eventMarkerColor} />
                 </div>
             </div>

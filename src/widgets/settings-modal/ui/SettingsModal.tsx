@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Bell, Database, Flame, Languages, LayoutDashboard, PlayCircle, Shield, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
-import { setLanguage, supportedLanguages } from '../../../shared/i18n';
+import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { setLanguage, supportedLanguages } from '@shared/i18n';
 import {
     useRoastSettings,
     updateRoastSettings,
     type PollIntervalMs,
     type RorSpanSec,
     type TemperatureUnit,
-} from '../../../shared/store/roastSettings';
+} from '@shared/store/roastSettings';
 
 export type SettingsTabId = 'general' | 'notifications' | 'session' | 'system' | 'roast';
 
@@ -151,22 +151,6 @@ const getTabs = (
     },
 ];
 
-const tabButtonStyle = (active: boolean): CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    width: '100%',
-    padding: '12px 14px',
-    borderRadius: 14,
-    border: 'none',
-    cursor: 'pointer',
-    background: active ? 'rgba(255,255,255,0.96)' : 'transparent',
-    color: active ? 'var(--color-primary)' : 'var(--color-secondary)',
-    boxShadow: active ? 'var(--shadow-card)' : 'none',
-    textAlign: 'left',
-    transition: 'all 0.18s ease',
-});
-
 export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps) => {
     const { t, i18n } = useTranslation();
     const [activeTab, setActiveTab] = useState<SettingsTabId>(initialTab ?? 'general');
@@ -205,49 +189,15 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
         <ModalShell
             onClose={onClose}
             labelledBy="settings-modal-title"
-            contentStyle={{
-                width: 'min(920px, 100%)',
-                maxHeight: 'min(780px, calc(100vh - 48px))',
-                display: 'flex',
-                flexDirection: 'column',
-                borderRadius: 24,
-                background: 'rgba(255,255,255,0.95)',
-                boxShadow: '0 24px 60px rgba(22, 18, 12, 0.2)',
-                border: '1px solid rgba(0,0,0,0.08)',
-                overflow: 'hidden',
-            }}
+            contentClassName="max-w-[920px] w-full max-h-[min(780px,calc(100vh-48px))] flex flex-col rounded-3xl bg-[rgba(255,255,255,0.95)] shadow-[0_24px_60px_rgba(22,18,12,0.2)] border border-[rgba(0,0,0,0.08)] overflow-hidden"
         >
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: 16,
-                    padding: '28px 28px 20px',
-                    borderBottom: '1px solid var(--color-border-subtle)',
-                    background: 'linear-gradient(180deg, rgba(248,245,240,0.72) 0%, rgba(255,255,255,0.92) 100%)',
-                }}
-            >
+            <div className="flex items-start justify-between gap-4 px-7 pt-7 pb-5 border-b border-border-subtle bg-linear-to-b from-[rgba(248,245,240,0.72)] to-[rgba(255,255,255,0.92)]">
                 <div>
-                    <div
-                        style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            padding: '6px 10px',
-                            borderRadius: 999,
-                            background: 'var(--color-surface-warm-solid)',
-                            color: 'var(--color-secondary)',
-                            fontSize: 12,
-                            fontWeight: 600,
-                            letterSpacing: '0.12px',
-                            marginBottom: 14,
-                        }}
-                    >
+                    <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-surface-warm-solid text-secondary text-xs font-semibold tracking-[0.12px] mb-3.5">
                         <Shield size={14} strokeWidth={1.8} />
                         {t('settings.title')}
                     </div>
-                    <h2 id="settings-modal-title" style={{ margin: 0, fontSize: 0, lineHeight: 0 }}>
+                    <h2 id="settings-modal-title" className="m-0 text-[0px] leading-0">
                         {t('settings.title')}
                     </h2>
                 </div>
@@ -255,78 +205,39 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                 <button
                     onClick={onClose}
                     aria-label={t('settings.close')}
-                    style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 10,
-                        border: 'none',
-                        background: 'var(--color-surface)',
-                        color: 'var(--color-muted)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                        boxShadow: 'var(--shadow-inset)',
-                    }}
+                    className="w-9 h-9 rounded-[10px] border-none bg-surface text-muted flex items-center justify-center cursor-pointer shrink-0 shadow-inset"
                 >
                     <X size={16} strokeWidth={1.9} />
                 </button>
             </div>
 
-            <div
-                style={{
-                    display: 'grid',
-                    gridTemplateColumns: '240px minmax(0, 1fr)',
-                    minHeight: 0,
-                    flex: 1,
-                }}
-            >
-                <aside
-                    style={{
-                        padding: 20,
-                        borderRight: '1px solid var(--color-border-subtle)',
-                        background: 'rgba(247,244,240,0.64)',
-                        overflowY: 'auto',
-                    }}
-                >
-                    <div
-                        style={{
-                            display: 'grid',
-                            gap: 8,
-                            padding: 6,
-                            borderRadius: 20,
-                            background: 'rgba(255,255,255,0.55)',
-                            boxShadow: 'var(--shadow-inset)',
-                        }}
-                    >
+            <div className="grid grid-cols-[240px_minmax(0,1fr)] min-h-0 flex-1">
+                <aside className="p-5 border-r border-border-subtle bg-[rgba(247,244,240,0.64)] overflow-y-auto">
+                    <div className="grid gap-2 p-1.5 rounded-[20px] bg-[rgba(255,255,255,0.55)] shadow-inset">
                         {tabs.map(({ id, label, icon: Icon }) => {
                             const active = id === activeTab;
 
                             return (
-                                <button key={id} onClick={() => setActiveTab(id)} style={tabButtonStyle(active)}>
+                                <button
+                                    key={id}
+                                    onClick={() => setActiveTab(id)}
+                                    className={`flex items-center gap-2.5 w-full px-3.5 py-3 rounded-[14px] border-none cursor-pointer text-left transition-all duration-[0.18s] ease-in-out ${
+                                        active
+                                            ? 'bg-[rgba(255,255,255,0.96)] text-primary shadow-card'
+                                            : 'bg-transparent text-secondary shadow-none'
+                                    }`}
+                                >
                                     <div
-                                        style={{
-                                            width: 34,
-                                            height: 34,
-                                            borderRadius: 10,
-                                            background: active
-                                                ? 'var(--color-surface-warm-solid)'
-                                                : 'rgba(255,255,255,0.72)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            color: active ? 'var(--color-primary)' : 'var(--color-muted)',
-                                            boxShadow: 'var(--shadow-inset)',
-                                            flexShrink: 0,
-                                        }}
+                                        className={`w-[34px] h-[34px] rounded-[10px] flex items-center justify-center shadow-inset shrink-0 ${
+                                            active
+                                                ? 'bg-surface-warm-solid text-primary'
+                                                : 'bg-[rgba(255,255,255,0.72)] text-muted'
+                                        }`}
                                     >
                                         <Icon size={16} strokeWidth={1.8} />
                                     </div>
                                     <div>
-                                        <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.12px' }}>
-                                            {label}
-                                        </div>
+                                        <div className="text-sm font-semibold tracking-[0.12px]">{label}</div>
                                     </div>
                                 </button>
                             );
@@ -334,106 +245,41 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                     </div>
                 </aside>
 
-                <div
-                    style={{
-                        padding: 24,
-                        overflowY: 'auto',
-                    }}
-                >
-                    <div
-                        style={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: 14,
-                            marginBottom: 20,
-                        }}
-                    >
-                        <div
-                            style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 14,
-                                background: 'var(--color-surface-warm-solid)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'var(--color-primary)',
-                                boxShadow: 'var(--shadow-warm)',
-                                flexShrink: 0,
-                            }}
-                        >
+                <div className="p-6 overflow-y-auto">
+                    <div className="flex items-start gap-3.5 mb-5">
+                        <div className="w-11 h-11 rounded-[14px] bg-surface-warm-solid flex items-center justify-center text-primary shadow-warm shrink-0">
                             <ActiveIcon size={20} strokeWidth={1.9} />
                         </div>
                         <div>
-                            <h3
-                                style={{
-                                    fontSize: 24,
-                                    lineHeight: 1.1,
-                                    fontWeight: 600,
-                                    color: 'var(--color-primary)',
-                                    marginBottom: 8,
-                                    letterSpacing: '-0.03em',
-                                }}
-                            >
+                            <h3 className="text-2xl leading-[1.1] font-semibold text-primary mb-2 tracking-[-0.03em]">
                                 {activeConfig.title}
                             </h3>
-                            <p style={{ fontSize: 14, color: 'var(--color-secondary)', maxWidth: 560 }}>
-                                {activeConfig.description}
-                            </p>
+                            <p className="text-sm text-secondary max-w-140">{activeConfig.description}</p>
                         </div>
                     </div>
 
-                    <div style={{ display: 'grid', gap: 16 }}>
+                    <div className="grid gap-4">
                         {activeTab === 'roast' && (
                             <>
-                                {/* Temperature Unit */}
-                                <section
-                                    style={{
-                                        borderRadius: 20,
-                                        padding: 20,
-                                        background:
-                                            'linear-gradient(180deg, rgba(245,242,239,0.75) 0%, rgba(255,255,255,0.92) 100%)',
-                                        border: '1px solid rgba(0,0,0,0.06)',
-                                        boxShadow: 'var(--shadow-warm)',
-                                    }}
-                                >
-                                    <div style={{ marginBottom: 14 }}>
-                                        <h4
-                                            style={{
-                                                fontSize: 16,
-                                                fontWeight: 600,
-                                                color: 'var(--color-primary)',
-                                                marginBottom: 4,
-                                            }}
-                                        >
-                                            Temperature Unit
-                                        </h4>
-                                        <p style={{ fontSize: 13, color: 'var(--color-secondary)' }}>
+                                <section className="rounded-[20px] p-5 bg-linear-to-b from-[rgba(245,242,239,0.75)] to-[rgba(255,255,255,0.92)] border border-[rgba(0,0,0,0.06)] shadow-warm">
+                                    <div className="mb-3.5">
+                                        <h4 className="text-base font-semibold text-primary mb-1">Temperature Unit</h4>
+                                        <p className="text-[13px] text-secondary">
                                             Display temperatures in Celsius or Fahrenheit.
                                         </p>
                                     </div>
-                                    <div style={{ display: 'flex', gap: 8 }}>
+                                    <div className="flex gap-2">
                                         {(['C', 'F'] as TemperatureUnit[]).map((u) => {
                                             const active = roastSettings.temperatureUnit === u;
                                             return (
                                                 <button
                                                     key={u}
                                                     onClick={() => updateRoastSettings({ temperatureUnit: u })}
-                                                    style={{
-                                                        border: 'none',
-                                                        borderRadius: 9999,
-                                                        padding: '9px 20px',
-                                                        cursor: 'pointer',
-                                                        background: active
-                                                            ? 'var(--color-primary)'
-                                                            : 'rgba(255,255,255,0.88)',
-                                                        color: active ? '#fff' : 'var(--color-secondary)',
-                                                        fontSize: 13,
-                                                        fontWeight: 600,
-                                                        boxShadow: active
-                                                            ? 'var(--shadow-card)'
-                                                            : 'var(--shadow-inset)',
-                                                    }}
+                                                    className={`border-none rounded-full px-5 py-2.25 cursor-pointer text-[13px] font-semibold ${
+                                                        active
+                                                            ? 'bg-primary text-white shadow-card'
+                                                            : 'bg-[rgba(255,255,255,0.88)] text-secondary shadow-inset'
+                                                    }`}
                                                 >
                                                     °{u}
                                                 </button>
@@ -442,33 +288,14 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                     </div>
                                 </section>
 
-                                {/* Update Rate */}
-                                <section
-                                    style={{
-                                        borderRadius: 20,
-                                        padding: 20,
-                                        background:
-                                            'linear-gradient(180deg, rgba(245,242,239,0.75) 0%, rgba(255,255,255,0.92) 100%)',
-                                        border: '1px solid rgba(0,0,0,0.06)',
-                                        boxShadow: 'var(--shadow-warm)',
-                                    }}
-                                >
-                                    <div style={{ marginBottom: 14 }}>
-                                        <h4
-                                            style={{
-                                                fontSize: 16,
-                                                fontWeight: 600,
-                                                color: 'var(--color-primary)',
-                                                marginBottom: 4,
-                                            }}
-                                        >
-                                            Update Rate
-                                        </h4>
-                                        <p style={{ fontSize: 13, color: 'var(--color-secondary)' }}>
+                                <section className="rounded-[20px] p-5 bg-linear-to-b from-[rgba(245,242,239,0.75)] to-[rgba(255,255,255,0.92)] border border-[rgba(0,0,0,0.06)] shadow-warm">
+                                    <div className="mb-3.5">
+                                        <h4 className="text-base font-semibold text-primary mb-1">Update Rate</h4>
+                                        <p className="text-[13px] text-secondary">
                                             How often to poll the machine for temperature data during a live session.
                                         </p>
                                     </div>
-                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                    <div className="flex gap-2 flex-wrap">
                                         {([250, 500, 1000] as PollIntervalMs[]).map((ms) => {
                                             const active = roastSettings.pollIntervalMs === ms;
                                             const label = ms < 1000 ? `${ms}ms` : `${ms / 1000}s`;
@@ -476,21 +303,11 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                                 <button
                                                     key={ms}
                                                     onClick={() => updateRoastSettings({ pollIntervalMs: ms })}
-                                                    style={{
-                                                        border: 'none',
-                                                        borderRadius: 9999,
-                                                        padding: '9px 16px',
-                                                        cursor: 'pointer',
-                                                        background: active
-                                                            ? 'var(--color-primary)'
-                                                            : 'rgba(255,255,255,0.88)',
-                                                        color: active ? '#fff' : 'var(--color-secondary)',
-                                                        fontSize: 13,
-                                                        fontWeight: 600,
-                                                        boxShadow: active
-                                                            ? 'var(--shadow-card)'
-                                                            : 'var(--shadow-inset)',
-                                                    }}
+                                                    className={`border-none rounded-full px-4 py-2.25 cursor-pointer text-[13px] font-semibold ${
+                                                        active
+                                                            ? 'bg-primary text-white shadow-card'
+                                                            : 'bg-[rgba(255,255,255,0.88)] text-secondary shadow-inset'
+                                                    }`}
                                                 >
                                                     {label}
                                                 </button>
@@ -499,55 +316,26 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                     </div>
                                 </section>
 
-                                {/* RoR Span */}
-                                <section
-                                    style={{
-                                        borderRadius: 20,
-                                        padding: 20,
-                                        background:
-                                            'linear-gradient(180deg, rgba(245,242,239,0.75) 0%, rgba(255,255,255,0.92) 100%)',
-                                        border: '1px solid rgba(0,0,0,0.06)',
-                                        boxShadow: 'var(--shadow-warm)',
-                                    }}
-                                >
-                                    <div style={{ marginBottom: 14 }}>
-                                        <h4
-                                            style={{
-                                                fontSize: 16,
-                                                fontWeight: 600,
-                                                color: 'var(--color-primary)',
-                                                marginBottom: 4,
-                                            }}
-                                        >
-                                            RoR Span
-                                        </h4>
-                                        <p style={{ fontSize: 13, color: 'var(--color-secondary)' }}>
+                                <section className="rounded-[20px] p-5 bg-linear-to-b from-[rgba(245,242,239,0.75)] to-[rgba(255,255,255,0.92)] border border-[rgba(0,0,0,0.06)] shadow-warm">
+                                    <div className="mb-3.5">
+                                        <h4 className="text-base font-semibold text-primary mb-1">RoR Span</h4>
+                                        <p className="text-[13px] text-secondary">
                                             Time window for Rate of Rise calculation. Shorter spans react faster; longer
                                             spans are smoother.
                                         </p>
                                     </div>
-                                    <div style={{ display: 'flex', gap: 8 }}>
+                                    <div className="flex gap-2">
                                         {([15, 30, 60] as RorSpanSec[]).map((sec) => {
                                             const active = roastSettings.rorSpanSec === sec;
                                             return (
                                                 <button
                                                     key={sec}
                                                     onClick={() => updateRoastSettings({ rorSpanSec: sec })}
-                                                    style={{
-                                                        border: 'none',
-                                                        borderRadius: 9999,
-                                                        padding: '9px 16px',
-                                                        cursor: 'pointer',
-                                                        background: active
-                                                            ? 'var(--color-primary)'
-                                                            : 'rgba(255,255,255,0.88)',
-                                                        color: active ? '#fff' : 'var(--color-secondary)',
-                                                        fontSize: 13,
-                                                        fontWeight: 600,
-                                                        boxShadow: active
-                                                            ? 'var(--shadow-card)'
-                                                            : 'var(--shadow-inset)',
-                                                    }}
+                                                    className={`border-none rounded-full px-4 py-2.25 cursor-pointer text-[13px] font-semibold ${
+                                                        active
+                                                            ? 'bg-primary text-white shadow-card'
+                                                            : 'bg-[rgba(255,255,255,0.88)] text-secondary shadow-inset'
+                                                    }`}
                                                 >
                                                     {sec}s
                                                 </button>
@@ -556,33 +344,14 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                     </div>
                                 </section>
 
-                                {/* Data Visibility */}
-                                <section
-                                    style={{
-                                        borderRadius: 20,
-                                        padding: 20,
-                                        background:
-                                            'linear-gradient(180deg, rgba(245,242,239,0.75) 0%, rgba(255,255,255,0.92) 100%)',
-                                        border: '1px solid rgba(0,0,0,0.06)',
-                                        boxShadow: 'var(--shadow-warm)',
-                                    }}
-                                >
-                                    <div style={{ marginBottom: 14 }}>
-                                        <h4
-                                            style={{
-                                                fontSize: 16,
-                                                fontWeight: 600,
-                                                color: 'var(--color-primary)',
-                                                marginBottom: 4,
-                                            }}
-                                        >
-                                            Data Visibility
-                                        </h4>
-                                        <p style={{ fontSize: 13, color: 'var(--color-secondary)' }}>
+                                <section className="rounded-[20px] p-5 bg-linear-to-b from-[rgba(245,242,239,0.75)] to-[rgba(255,255,255,0.92)] border border-[rgba(0,0,0,0.06)] shadow-warm">
+                                    <div className="mb-3.5">
+                                        <h4 className="text-base font-semibold text-primary mb-1">Data Visibility</h4>
+                                        <p className="text-[13px] text-secondary">
                                             Choose which data series are displayed on the roasting chart.
                                         </p>
                                     </div>
-                                    <div style={{ display: 'grid', gap: 10 }}>
+                                    <div className="grid gap-2.5">
                                         {(
                                             [
                                                 {
@@ -609,42 +378,17 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                         ).map(({ key, label, description }) => (
                                             <label
                                                 key={key}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'flex-start',
-                                                    gap: 12,
-                                                    padding: '12px 14px',
-                                                    borderRadius: 14,
-                                                    background: 'rgba(255,255,255,0.88)',
-                                                    boxShadow: 'var(--shadow-inset)',
-                                                    cursor: 'pointer',
-                                                }}
+                                                className="flex items-start gap-3 px-3.5 py-3 rounded-[14px] bg-[rgba(255,255,255,0.88)] shadow-inset cursor-pointer"
                                             >
                                                 <input
                                                     type="checkbox"
                                                     checked={roastSettings[key]}
                                                     onChange={(e) => updateRoastSettings({ [key]: e.target.checked })}
-                                                    style={{ accentColor: '#6f4e37', marginTop: 2, flexShrink: 0 }}
+                                                    className="accent-[#6f4e37] mt-0.5 shrink-0"
                                                 />
                                                 <div>
-                                                    <div
-                                                        style={{
-                                                            fontSize: 13,
-                                                            fontWeight: 500,
-                                                            color: 'var(--color-primary)',
-                                                        }}
-                                                    >
-                                                        {label}
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            fontSize: 12,
-                                                            color: 'var(--color-muted)',
-                                                            marginTop: 2,
-                                                        }}
-                                                    >
-                                                        {description}
-                                                    </div>
+                                                    <div className="text-[13px] font-medium text-primary">{label}</div>
+                                                    <div className="text-xs text-muted mt-0.5">{description}</div>
                                                 </div>
                                             </label>
                                         ))}
@@ -654,36 +398,20 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                         )}
 
                         {activeTab === 'general' && (
-                            <section
-                                style={{
-                                    borderRadius: 20,
-                                    padding: 20,
-                                    background:
-                                        'linear-gradient(180deg, rgba(245,242,239,0.75) 0%, rgba(255,255,255,0.92) 100%)',
-                                    border: '1px solid rgba(0,0,0,0.06)',
-                                    boxShadow: 'var(--shadow-warm)',
-                                }}
-                            >
-                                <div style={{ marginBottom: 14 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                        <Languages size={16} strokeWidth={1.9} color="var(--color-secondary)" />
-                                        <h4
-                                            style={{
-                                                fontSize: 16,
-                                                fontWeight: 600,
-                                                color: 'var(--color-primary)',
-                                                margin: 0,
-                                            }}
-                                        >
+                            <section className="rounded-[20px] p-5 bg-linear-to-b from-[rgba(245,242,239,0.75)] to-[rgba(255,255,255,0.92)] border border-[rgba(0,0,0,0.06)] shadow-warm">
+                                <div className="mb-3.5">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Languages size={16} strokeWidth={1.9} className="text-secondary shrink-0" />
+                                        <h4 className="text-base font-semibold text-primary m-0">
                                             {t('settings.tabs.general.language')}
                                         </h4>
                                     </div>
-                                    <p style={{ fontSize: 13, color: 'var(--color-secondary)' }}>
+                                    <p className="text-[13px] text-secondary">
                                         {t('settings.tabs.general.languageDescription')}
                                     </p>
                                 </div>
 
-                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <div className="flex gap-2 flex-wrap">
                                     {supportedLanguages.map((language) => {
                                         const active = i18n.resolvedLanguage === language;
 
@@ -691,19 +419,11 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                             <button
                                                 key={language}
                                                 onClick={() => void setLanguage(language)}
-                                                style={{
-                                                    border: 'none',
-                                                    borderRadius: 9999,
-                                                    padding: '9px 14px',
-                                                    cursor: 'pointer',
-                                                    background: active
-                                                        ? 'var(--color-primary)'
-                                                        : 'rgba(255,255,255,0.88)',
-                                                    color: active ? '#fff' : 'var(--color-secondary)',
-                                                    fontSize: 13,
-                                                    fontWeight: 600,
-                                                    boxShadow: active ? 'var(--shadow-card)' : 'var(--shadow-inset)',
-                                                }}
+                                                className={`border-none rounded-full px-3.5 py-2.25 cursor-pointer text-[13px] font-semibold ${
+                                                    active
+                                                        ? 'bg-primary text-white shadow-card'
+                                                        : 'bg-[rgba(255,255,255,0.88)] text-secondary shadow-inset'
+                                                }`}
                                             >
                                                 {t(`language.${language}`)}
                                             </button>
@@ -716,46 +436,20 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                         {activeConfig.cards.map((card) => (
                             <section
                                 key={card.title}
-                                style={{
-                                    borderRadius: 20,
-                                    padding: 20,
-                                    background:
-                                        'linear-gradient(180deg, rgba(245,242,239,0.75) 0%, rgba(255,255,255,0.92) 100%)',
-                                    border: '1px solid rgba(0,0,0,0.06)',
-                                    boxShadow: 'var(--shadow-warm)',
-                                }}
+                                className="rounded-[20px] p-5 bg-linear-to-b from-[rgba(245,242,239,0.75)] to-[rgba(255,255,255,0.92)] border border-[rgba(0,0,0,0.06)] shadow-warm"
                             >
-                                <div style={{ marginBottom: 14 }}>
-                                    <h4
-                                        style={{
-                                            fontSize: 16,
-                                            fontWeight: 600,
-                                            color: 'var(--color-primary)',
-                                            marginBottom: 4,
-                                        }}
-                                    >
-                                        {card.title}
-                                    </h4>
-                                    <p style={{ fontSize: 13, color: 'var(--color-secondary)' }}>{card.description}</p>
+                                <div className="mb-3.5">
+                                    <h4 className="text-base font-semibold text-primary mb-1">{card.title}</h4>
+                                    <p className="text-[13px] text-secondary">{card.description}</p>
                                 </div>
 
-                                <div style={{ display: 'grid', gap: 10 }}>
+                                <div className="grid gap-2.5">
                                     {card.items.map((item) => (
                                         <label
                                             key={item}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 12,
-                                                padding: '12px 14px',
-                                                borderRadius: 14,
-                                                background: 'rgba(255,255,255,0.88)',
-                                                boxShadow: 'var(--shadow-inset)',
-                                                color: 'var(--color-secondary)',
-                                                fontSize: 13,
-                                            }}
+                                            className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] bg-[rgba(255,255,255,0.88)] shadow-inset text-secondary text-[13px]"
                                         >
-                                            <input type="checkbox" defaultChecked style={{ accentColor: '#6f4e37' }} />
+                                            <input type="checkbox" defaultChecked className="accent-[#6f4e37]" />
                                             <span>{item}</span>
                                         </label>
                                     ))}

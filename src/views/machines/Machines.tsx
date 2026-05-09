@@ -1,11 +1,11 @@
 import { Plus, Search, Cpu, Activity, AlertCircle, Wifi, WifiOff, Trash2, Flame } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AddMachineModal } from '../widgets/add-machine-modal/ui/AddMachineModal';
-import { useMachines, SIMULATOR_ID } from '../shared/data/useMachines';
-import { sidecar } from '../shared/lib/sidecar';
-import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '../shared/types/machine';
-import type { View } from '../shared/types/view';
+import { AddMachineModal } from '../../widgets/add-machine-modal/ui/AddMachineModal';
+import { useMachines, SIMULATOR_ID } from '@shared/data/useMachines';
+import { sidecar } from '@shared/lib/sidecar';
+import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@shared/types/machine';
+import type { View } from '@shared/types/view';
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -31,7 +31,10 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
     // 모달이 닫힐 때 status re-fetch — "Add & Connect" 흐름에서 연결 상태 즉시 반영
     useEffect(() => {
         if (!isAddModalOpen) {
-            sidecar.getStatus().then(setSidecarStatus).catch(() => null);
+            sidecar
+                .getStatus()
+                .then(setSidecarStatus)
+                .catch(() => null);
         }
     }, [isAddModalOpen]);
 
@@ -48,9 +51,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                 sidecar.getStatus().catch(() => null),
             ]);
             if (t) setTemps(t);
-            if (s) setSidecarStatus(prev =>
-                JSON.stringify(prev) === JSON.stringify(s) ? prev : s
-            );
+            if (s) setSidecarStatus((prev) => (JSON.stringify(prev) === JSON.stringify(s) ? prev : s));
         };
         poll();
         pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
@@ -64,9 +65,16 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
         if (!sidecarStatus?.connected) return;
         const connectedId = machines.find((m) => m.roasterKey === sidecarStatus.roaster)?.id;
         if (connectedId) setSelectedId(connectedId);
-    // selectedId 제외: 사용자 클릭 시 effect 재실행 방지
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // selectedId 제외: 사용자 클릭 시 effect 재실행 방지
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sidecarStatus?.connected, sidecarStatus?.roaster]);
+
+    // 로스터 선택이 바뀌면 이전 연결 테스트 에러 초기화
+    useEffect(() => {
+        if (sidecarStatus?.error) {
+            setSidecarStatus((prev) => (prev ? { ...prev, error: null } : prev));
+        }
+    }, [selectedId]);
 
     const filtered = machines.filter(
         (m) =>
@@ -249,7 +257,11 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                             value: temps.et != null ? `${temps.et}°C` : '—',
                                             sub: 'ET',
                                         },
-                                        { label: t('machines.temperature.ror'), value: `${temps.ror} °C/min`, sub: t('machines.temperature.rateOfRise') },
+                                        {
+                                            label: t('machines.temperature.ror'),
+                                            value: `${temps.ror} °C/min`,
+                                            sub: t('machines.temperature.rateOfRise'),
+                                        },
                                     ].map((s) => (
                                         <div key={s.label} className="bg-surface px-4 py-3.5 rounded-xl shadow-inset">
                                             <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.5px] mb-1.5">
@@ -280,7 +292,9 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                             {/* Connection params */}
                             {Object.keys(selected.connectionParams).length > 0 && (
                                 <div className="bg-surface-warm-solid rounded-xl px-4.5 py-4 mb-6 shadow-(--shadow-warm)">
-                                    <div className="text-[12px] font-semibold text-secondary mb-2.5">{t('machines.connection')}</div>
+                                    <div className="text-[12px] font-semibold text-secondary mb-2.5">
+                                        {t('machines.connection')}
+                                    </div>
                                     <div className="grid gap-1.5">
                                         {Object.entries(selected.connectionParams)
                                             .filter(([, v]) => v !== '' && v != null)
@@ -345,7 +359,6 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                     </button>
                                 )}
                             </div>
-
                         </div>
                     ) : (
                         <div className="bg-main-bg rounded-2xl py-15 px-8 shadow-(--shadow-ring) flex items-center justify-center text-muted text-sm">
