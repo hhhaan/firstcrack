@@ -14,6 +14,7 @@ interface Props {
     btTarget: (number | null)[];
     btActual: (number | null)[];
     etActual: (number | null)[];
+    rorActual: (number | null)[];
     currentTimeSec: number;
     eventMarkers: RoastEventMarker[];
     turningPoints?: TurningPoint[];
@@ -22,9 +23,12 @@ interface Props {
     onCursorIdx?: (idx: number | null) => void;
     showET?: boolean;
     showTargetCurve?: boolean;
+    showRoR?: boolean;
 }
 
 const PHASE_SECS = [180, 300, 630];
+const ROR_Y_MIN = -5;
+const ROR_Y_MAX = 20;
 
 const fmtSec = (v: number) => {
     const m = Math.floor(v / 60);
@@ -33,8 +37,25 @@ const fmtSec = (v: number) => {
 };
 
 const TP_COLOR = '#16a34a';
+const MARKER_LABEL_FONT = 'bold 27px sans-serif';
+const MARKER_LABEL_Y_OFFSET = 28;
 
-export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSec, eventMarkers, turningPoints = [], temperatureUnit = 'C', height, onCursorIdx, showET = true, showTargetCurve = true }: Props) => {
+export const RoastTempChart = ({
+    xs,
+    btTarget,
+    btActual,
+    etActual,
+    rorActual,
+    currentTimeSec,
+    eventMarkers,
+    turningPoints = [],
+    temperatureUnit = 'C',
+    height,
+    onCursorIdx,
+    showET = true,
+    showTargetCurve = true,
+    showRoR = true,
+}: Props) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const plotRef = useRef<uPlot | null>(null);
 
@@ -114,7 +135,7 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
                     // Event markers with labels
                     ctx.setLineDash([]);
                     ctx.lineWidth = 1.5;
-                    ctx.font = 'bold 10px sans-serif';
+                    ctx.font = MARKER_LABEL_FONT;
                     for (const m of eventMarkersRef.current) {
                         const ex = u.valToPos(m.timeSec, 'x', true);
                         if (ex < left || ex > left + bw) continue;
@@ -124,10 +145,11 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
                         ctx.moveTo(ex, top);
                         ctx.lineTo(ex, top + bh);
                         ctx.stroke();
-                        ctx.fillText(m.event, ex + 3, top + 12);
+                        ctx.fillText(m.event, ex + 3, top + MARKER_LABEL_Y_OFFSET);
                     }
 
                     // TP vertical line (same style as event markers)
+                    ctx.font = MARKER_LABEL_FONT;
                     for (const tp of turningPointsRef.current) {
                         const tx = u.valToPos(tp.timeSec, 'x', true);
                         if (tx < left || tx > left + bw) continue;
@@ -137,7 +159,7 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
                         ctx.moveTo(tx, top);
                         ctx.lineTo(tx, top + bh);
                         ctx.stroke();
-                        ctx.fillText('TP', tx + 3, top + 12);
+                        ctx.fillText('TP', tx + 3, top + MARKER_LABEL_Y_OFFSET);
                     }
 
                     ctx.restore();
@@ -159,11 +181,13 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
                     const btA = (u.data[2] as (number | null)[])[idx];
                     const etA = (u.data[3] as (number | null)[])[idx];
                     const btT = (u.data[1] as (number | null)[])[idx];
+                    const ror = (u.data[4] as (number | null)[])[idx];
 
-                    const rows: { name: string; val: number; color: string }[] = [];
-                    if (btA != null) rows.push({ name: 'Bean Temp', val: btA, color: colorPrimary });
-                    if (etA != null) rows.push({ name: 'Env Temp', val: etA, color: '#2563eb' });
-                    if (btT != null) rows.push({ name: 'Target BT', val: btT, color: 'rgba(23,23,23,0.4)' });
+                    const rows: { name: string; val: string; color: string }[] = [];
+                    if (btA != null) rows.push({ name: 'Bean Temp', val: `${btA.toFixed(1)}°${temperatureUnitRef.current}`, color: colorPrimary });
+                    if (etA != null) rows.push({ name: 'Env Temp', val: `${etA.toFixed(1)}°${temperatureUnitRef.current}`, color: '#2563eb' });
+                    if (btT != null) rows.push({ name: 'Target BT', val: `${btT.toFixed(1)}°${temperatureUnitRef.current}`, color: 'rgba(23,23,23,0.4)' });
+                    if (ror != null && u.series[4]?.show) rows.push({ name: 'BT RoR', val: `${ror.toFixed(1)}°/min`, color: '#d97706' });
                     if (rows.length === 0) { ttEl.style.display = 'none'; return; }
 
                     ttEl.innerHTML = `
@@ -172,7 +196,7 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
                             <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
                                 <div style="width:8px;height:8px;border-radius:2px;background:${r.color};flex-shrink:0"></div>
                                 <span style="color:${colorSecondary}">${r.name}:</span>
-                                <span style="font-weight:600;color:${colorPrimary}">${r.val.toFixed(1)}°${temperatureUnitRef.current}</span>
+                                <span style="font-weight:600;color:${colorPrimary}">${r.val}</span>
                             </div>`).join('')}
                     `;
 
@@ -202,6 +226,7 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
                     incrs: [15, 30, 60, 120, 180, 300],
                     values: (_, vals) => vals.map(v => fmtSec(v)),
                 },
+                // Left Y-axis: temperature
                 {
                     stroke: colorMuted,
                     grid: { stroke: 'rgba(0,0,0,0.1)', width: 1 },
@@ -212,10 +237,24 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
                     incrs: [10, 20, 25, 50],
                     values: (_, vals) => vals.map(v => `${v}°${temperatureUnit}`),
                 },
+                // Right Y-axis: RoR
+                {
+                    scale: 'ror',
+                    side: 1,
+                    stroke: '#d97706',
+                    grid: { show: false },
+                    ticks: { show: false },
+                    border: { show: false },
+                    font: `10px monospace`,
+                    size: 36,
+                    splits: [ROR_Y_MIN, 0, ROR_Y_MAX],
+                    values: (_, vals) => vals.map(v => `${v}`),
+                },
             ],
             scales: {
                 x: { time: false },
                 y: { range: temperatureUnit === 'F' ? [266, 464] : [130, 240] },
+                ror: { range: [ROR_Y_MIN, ROR_Y_MAX] },
             },
             series: [
                 {},
@@ -225,6 +264,8 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
                 { stroke: colorPrimary, width: 2.5, points: { show: false } },
                 // etActual — dashed, blue, 70% opacity
                 { stroke: 'rgba(37,99,235,0.7)', width: 1.5, dash: [5, 3], points: { show: false } },
+                // rorActual — amber, right axis
+                { scale: 'ror', stroke: '#d97706', width: 1.5, dash: [4, 3], points: { show: false }, show: showRoR },
             ],
             plugins: [refLinePlugin, tooltipPlugin],
             hooks: {
@@ -233,7 +274,7 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
         };
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        plotRef.current = new uPlot(opts, [xs, btTarget, btActual, etActual] as any, el);
+        plotRef.current = new uPlot(opts, [xs, btTarget, btActual, etActual, rorActual] as any, el);
 
         const obs = new ResizeObserver(() => {
             if (plotRef.current && el) {
@@ -249,8 +290,8 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
     // Update series data when zoom or live data changes
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        plotRef.current?.setData([xs, btTarget, btActual, etActual] as any);
-    }, [xs, btTarget, btActual, etActual]);
+        plotRef.current?.setData([xs, btTarget, btActual, etActual, rorActual] as any);
+    }, [xs, btTarget, btActual, etActual, rorActual]);
 
     // Redraw reference lines when time, event markers, or turning points change (no path rebuild needed)
     useEffect(() => {
@@ -264,7 +305,7 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
         }
     }, [height]);
 
-    // Series visibility toggles (series 1 = btTarget, series 3 = etActual)
+    // Series visibility toggles
     useEffect(() => {
         plotRef.current?.setSeries(1, { show: showTargetCurve });
     }, [showTargetCurve]);
@@ -272,6 +313,10 @@ export const RoastTempChart = ({ xs, btTarget, btActual, etActual, currentTimeSe
     useEffect(() => {
         plotRef.current?.setSeries(3, { show: showET });
     }, [showET]);
+
+    useEffect(() => {
+        plotRef.current?.setSeries(4, { show: showRoR });
+    }, [showRoR]);
 
     return <div ref={containerRef} className="w-full" />;
 };

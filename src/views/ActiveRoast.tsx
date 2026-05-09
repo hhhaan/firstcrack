@@ -1122,7 +1122,7 @@ export const ActiveRoast = ({
                                     </button>
                                     <button
                                         onClick={handleEndRoastClick}
-                                        disabled={roastEnded}
+                                        disabled={roastEnded || !charged}
                                         aria-label="End roast"
                                         style={{
                                             display: 'flex',
@@ -1132,11 +1132,11 @@ export const ActiveRoast = ({
                                             padding: '8px 0',
                                             borderRadius: 9999,
                                             border: 'none',
-                                            background: roastEnded ? 'var(--color-surface)' : 'rgba(254,226,226,0.8)',
-                                            color: roastEnded ? 'var(--color-muted)' : '#dc2626',
+                                            background: roastEnded || !charged ? 'var(--color-surface)' : 'rgba(254,226,226,0.8)',
+                                            color: roastEnded || !charged ? 'var(--color-muted)' : '#dc2626',
                                             fontSize: 12,
                                             fontWeight: 600,
-                                            cursor: roastEnded ? 'default' : 'pointer',
+                                            cursor: roastEnded || !charged ? 'default' : 'pointer',
                                             boxShadow: 'var(--shadow-inset)',
                                         }}
                                     >
@@ -1389,7 +1389,7 @@ export const ActiveRoast = ({
                         </button>
                         <button
                             onClick={handleEndRoastClick}
-                            disabled={roastEnded}
+                            disabled={roastEnded || !charged}
                             aria-label="End roast"
                             style={{
                                 flex: 1,
@@ -1400,13 +1400,13 @@ export const ActiveRoast = ({
                                 padding: '11px 0',
                                 borderRadius: 9999,
                                 border: 'none',
-                                background: roastEnded ? 'var(--color-surface)' : 'rgba(254,226,226,0.8)',
-                                color: roastEnded ? 'var(--color-muted)' : '#dc2626',
+                                background: roastEnded || !charged ? 'var(--color-surface)' : 'rgba(254,226,226,0.8)',
+                                color: roastEnded || !charged ? 'var(--color-muted)' : '#dc2626',
                                 fontSize: 14,
                                 fontWeight: 500,
-                                cursor: roastEnded ? 'default' : 'pointer',
+                                cursor: roastEnded || !charged ? 'default' : 'pointer',
                                 letterSpacing: '0.14px',
-                                boxShadow: roastEnded ? 'var(--shadow-inset)' : 'var(--shadow-card)',
+                                boxShadow: roastEnded || !charged ? 'var(--shadow-inset)' : 'var(--shadow-card)',
                             }}
                         >
                             <Square size={14} strokeWidth={2} />
