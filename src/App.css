@@ -1,5 +1,13 @@
 @import 'tailwindcss';
 
+@font-face {
+  font-family: 'Pretendard';
+  src: url('/fonts/PretendardVariable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @keyframes spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
@@ -48,6 +56,18 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
+
+html[lang='ko'] body {
+    font-family: 'Pretendard', sans-serif;
+}
+
+/* html[lang='ja'] body {
+    font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif;
+} */
+
+/* html[lang='zh-CN'] body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+} */
 
 ::-webkit-scrollbar {
     width: 5px;

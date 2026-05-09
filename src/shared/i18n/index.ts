@@ -51,6 +51,7 @@ const persistLanguage = async (language: SupportedLanguage) => {
 
 export const setLanguage = async (language: SupportedLanguage) => {
   await i18n.changeLanguage(language);
+  document.documentElement.lang = language;
   await persistLanguage(language);
 };
 
@@ -70,6 +71,8 @@ export const initI18n = async () => {
     },
     interpolation: { escapeValue: false },
   });
+
+  document.documentElement.lang = language;
 
   if (!savedLanguage) {
     await persistLanguage(language);
