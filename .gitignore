@@ -1,3 +1,6 @@
+# Artisan roast profile files
+*.aset
+
 # Logs
 logs
 *.log
