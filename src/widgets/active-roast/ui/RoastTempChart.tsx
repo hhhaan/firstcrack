@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import uPlot from 'uplot';
-import type { TurningPoint } from '@shared/lib/turningPoints';
-import type { TemperatureUnit } from '@shared/store/roastSettings';
+import type { TurningPoint, TemperatureUnit } from '@features/active-roast';
 
 export interface RoastEventMarker {
     timeSec: number;
@@ -135,7 +134,7 @@ export const RoastTempChart = ({
 
                         // Event markers with labels
                         ctx.setLineDash([]);
-                        ctx.lineWidth = 1.5;
+                        ctx.lineWidth = 4;
                         ctx.font = MARKER_LABEL_FONT;
                         for (const m of eventMarkersRef.current) {
                             const ex = u.valToPos(m.timeSec, 'x', true);
@@ -295,7 +294,7 @@ export const RoastTempChart = ({
                 // btActual
                 { stroke: colorPrimary, width: 2.5, points: { show: false } },
                 // etActual — dashed, blue, 70% opacity
-                { stroke: 'rgba(37,99,235,0.7)', width: 1.5, dash: [5, 3], points: { show: false } },
+                { stroke: 'rgba(37,99,235,0.7)', width: 4.0, dash: [5, 3], points: { show: false } },
                 // rorActual — amber, right axis
                 { scale: 'ror', stroke: '#d97706', width: 1.5, dash: [4, 3], points: { show: false }, show: showRoR },
             ],

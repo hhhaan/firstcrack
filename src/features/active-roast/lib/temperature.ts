@@ -1,4 +1,4 @@
-import type { TemperatureUnit } from '@shared/store/roastSettings';
+import type { TemperatureUnit } from '../model/settings';
 
 export const toDisplayTemp = (celsius: number, unit: TemperatureUnit): number =>
     unit === 'F' ? celsius * 9 / 5 + 32 : celsius;

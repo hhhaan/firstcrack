@@ -13,9 +13,7 @@ import { fullData } from '@shared/data/roast-mock-data';
 import type { RoastPoint, LogEntry } from '@shared/types/roast';
 import { isEditableTarget } from '@shared/lib/dom';
 import { sidecar } from '@shared/lib/sidecar';
-import { useRoastSettings } from '@shared/store/roastSettings';
-import { detectTurningPoints } from '@shared/lib/turningPoints';
-import { toDisplayTemp, toDisplayRoR, formatTemp } from '@shared/lib/temperature';
+import { useRoastSettings, detectTurningPoints, toDisplayTemp, toDisplayRoR, formatTemp } from '@features/active-roast';
 
 import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog } from '@widgets/active-roast';
 

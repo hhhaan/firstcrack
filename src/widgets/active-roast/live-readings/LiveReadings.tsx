@@ -1,6 +1,5 @@
 import { Thermometer, Wind, TrendingUp, AlertCircle } from 'lucide-react';
-import type { TemperatureUnit } from '@shared/store/roastSettings';
-import { formatTemp } from '@shared/lib/temperature';
+import { formatTemp, type TemperatureUnit } from '@features/active-roast';
 
 export const LiveReadings = ({
     rawBT,

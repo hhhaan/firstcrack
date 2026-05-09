@@ -13,6 +13,7 @@ export default defineConfig(async () => ({
     alias: {
       "@shared": fileURLToPath(new URL("./src/shared", import.meta.url)),
       "@entities": fileURLToPath(new URL("./src/entities", import.meta.url)),
+      "@features": fileURLToPath(new URL("./src/features", import.meta.url)),
       "@views": fileURLToPath(new URL("./src/views", import.meta.url)),
       "@widgets": fileURLToPath(new URL("./src/widgets", import.meta.url)),
     },

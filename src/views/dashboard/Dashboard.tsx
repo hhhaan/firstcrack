@@ -2,7 +2,7 @@ import { TrendingUp, Coffee, Clock, CheckCircle, ArrowRight, Calendar, ChevronRi
 import { useEffect, useRef } from 'react'
 import { type View } from '@shared/types/view'
 import { useDashboard } from './useDashboard'
-import useRoastingStore from '@shared/store/roastingStatus'
+import { useRoastingStore } from '@features/active-roast'
 
 // TODO: auth 연동 후 실제 userId로 교체
 const USER_ID = 'ad755cd2-cb7f-48d1-94a7-b7ee72f705b7'
