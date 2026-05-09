@@ -1,0 +1,6 @@
+#!/bin/bash
+# First Crack Python sidecar launcher
+# Tauri가 앱 시작 시 이 스크립트를 실행함
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SIDECAR_DIR="$SCRIPT_DIR/../sidecar"
+exec "$SIDECAR_DIR/.venv/bin/python" "$SIDECAR_DIR/main.py"

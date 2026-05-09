@@ -16,96 +16,160 @@
 # Marko Luther, 2023
 
 
-from extern.util import fromFtoCstrict, fromCtoFstrict, RoRfromFtoCstrict, RoRfromCtoFstrict
+from extern.util import (
+    fromFtoCstrict,
+    fromCtoFstrict,
+    RoRfromFtoCstrict,
+    RoRfromCtoFstrict,
+)
 
-import numpy
 import logging
-from typing import Final, Any, TYPE_CHECKING
-
-
-if TYPE_CHECKING:
-    import numpy.typing as npt # pylint: disable=unused-import
+from bisect import bisect_right
+from typing import Final, Any
 
 
 _log: Final[logging.Logger] = logging.getLogger(__name__)
 
+
+# Linear interpolation equivalent to numpy.interp.
+# xp must be sorted in ascending order (invariant maintained by removeEmptyPrefix).
+def _interp(x: float, xp: list[float], fp: list[float]) -> float:
+    if x <= xp[0]:
+        return fp[0]
+    if x >= xp[-1]:
+        return fp[-1]
+    i = bisect_right(xp, x)  # xp[i-1] < x <= xp[i]
+    x0, x1 = xp[i - 1], xp[i]
+    y0, y1 = fp[i - 1], fp[i]
+    return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+
+
 class Simulator:
-    __slots__ = [ 'profile', 'temp1', 'temp2', 'timex', 'extratemp1', 'extratemp2', 'extratimex',
-        'extraDelta1', 'extraDelta2', 'extraNoneTempHint1', 'extraNoneTempHint2',
-        'temp1_array', 'temp2_array', 'timex_array', 'extratemp1_array', 'extratemp2_array', 'extratimex_array']
+    __slots__ = [
+        "profile",
+        "temp1",
+        "temp2",
+        "timex",
+        "extratemp1",
+        "extratemp2",
+        "extratimex",
+        "extraDelta1",
+        "extraDelta2",
+        "extraNoneTempHint1",
+        "extraNoneTempHint2",
+        "temp1_array",
+        "temp2_array",
+        "timex_array",
+        "extratemp1_array",
+        "extratemp2_array",
+        "extratimex_array",
+    ]
 
     # mode is the current temperature of Artisan, either "C" or "F"
-    def __init__(self, mode:str, profile:dict[str, Any]|None = None) -> None:
+    def __init__(self, mode: str, profile: dict[str, Any] | None = None) -> None:
 
-        self.temp1:list[float]
-        self.temp2:list[float]
-        self.timex:list[float]
+        self.temp1: list[float]
+        self.temp2: list[float]
+        self.timex: list[float]
         self.extratemp1: list[list[float]]
         self.extratemp2: list[list[float]]
         self.extratimex: list[list[float]]
-        self.extraDelta1: list[bool] # note that in contrast to aw.extraDelta1, this one has the length of self.extratimex and NOT aw.nLCDS
-        self.extraDelta2: list[bool] # note that in contrast to aw.extraDelta1, this one has the length of self.extratimex and NOT aw.nLCDS
+        self.extraDelta1: list[
+            bool
+        ]  # note that in contrast to aw.extraDelta1, this one has the length of self.extratimex and NOT aw.nLCDS
+        self.extraDelta2: list[
+            bool
+        ]  # note that in contrast to aw.extraDelta1, this one has the length of self.extratimex and NOT aw.nLCDS
 
-        self.temp1_array:npt.NDArray[numpy.double]
-        self.temp2_array:npt.NDArray[numpy.double]
-        self.timex_array:npt.NDArray[numpy.double]
-        self.extratemp1_array: list[npt.NDArray[numpy.double]]
-        self.extratemp2_array: list[npt.NDArray[numpy.double]]
-        self.extratimex_array: list[npt.NDArray[numpy.double]]
+        self.temp1_array: list[float]
+        self.temp2_array: list[float]
+        self.timex_array: list[float]
+        self.extratemp1_array: list[list[float]]
+        self.extratemp2_array: list[list[float]]
+        self.extratimex_array: list[list[float]]
 
         self.profile = profile
         if profile is not None:
-            self.temp1 = profile['temp1']
-            self.temp2 = profile['temp2']
-            self.timex = profile['timex']
+            self.temp1 = profile["temp1"]
+            self.temp2 = profile["temp2"]
+            self.timex = profile["timex"]
         else:
             self.temp1 = []
             self.temp2 = []
             self.timex = []
-        if profile is not None and 'extratemp1' in profile and 'extratemp2' in profile and 'extratimex' in profile:
-            self.extratemp1 = profile['extratemp1']
-            self.extratemp2 = profile['extratemp2']
-            self.extratimex = profile['extratimex']
+        if (
+            profile is not None
+            and "extratemp1" in profile
+            and "extratemp2" in profile
+            and "extratimex" in profile
+        ):
+            self.extratemp1 = profile["extratemp1"]
+            self.extratemp2 = profile["extratemp2"]
+            self.extratimex = profile["extratimex"]
         else:
             self.extratemp1 = []
             self.extratemp2 = []
             self.extratimex = []
-        if profile is not None and 'extraDelta1' in profile and 'extraDelta2' in profile:
-            self.extraDelta1 = profile['extraDelta1']
-            self.extraDelta2 = profile['extraDelta2']
+        if (
+            profile is not None
+            and "extraDelta1" in profile
+            and "extraDelta2" in profile
+        ):
+            self.extraDelta1 = profile["extraDelta1"]
+            self.extraDelta2 = profile["extraDelta2"]
         else:
             # len of this local self.extraDelta1/2 here is that of self.extratimex and NOT of aw.nLCDs as in other places
-            self.extraDelta1 = [False]*len(self.extratimex)
-            self.extraDelta2 = [False]*len(self.extratimex)
-        self.extraNoneTempHint1:list[bool] = (profile.get('extraNoneTempHint1', []) if profile is not None else [])
-        self.extraNoneTempHint2:list[bool] = (profile.get('extraNoneTempHint2', []) if profile is not None else [])
+            self.extraDelta1 = [False] * len(self.extratimex)
+            self.extraDelta2 = [False] * len(self.extratimex)
+        self.extraNoneTempHint1: list[bool] = (
+            profile.get("extraNoneTempHint1", []) if profile is not None else []
+        )
+        self.extraNoneTempHint2: list[bool] = (
+            profile.get("extraNoneTempHint2", []) if profile is not None else []
+        )
 
         # convert temperature unit if needed
-        m = profile['mode'] if profile is not None and 'mode' in profile else mode
-        if mode == 'C' and m == 'F':
+        m = profile["mode"] if profile is not None and "mode" in profile else mode
+        if mode == "C" and m == "F":
             self.temp1 = [fromFtoCstrict(t) for t in self.temp1]
             self.temp2 = [fromFtoCstrict(t) for t in self.temp2]
             for e in range(len(self.extratimex)):
                 if self.extraDelta1[e]:
-                    self.extratemp1[e] = [RoRfromFtoCstrict(t) for t in self.extratemp1[e]]
-                elif not (len(self.extraNoneTempHint1) > e and self.extraNoneTempHint1[e]):
+                    self.extratemp1[e] = [
+                        RoRfromFtoCstrict(t) for t in self.extratemp1[e]
+                    ]
+                elif not (
+                    len(self.extraNoneTempHint1) > e and self.extraNoneTempHint1[e]
+                ):
                     self.extratemp1[e] = [fromFtoCstrict(t) for t in self.extratemp1[e]]
                 if self.extraDelta2[e]:
-                    self.extratemp2[e] = [RoRfromFtoCstrict(t) for t in self.extratemp2[e]]
-                elif not (len(self.extraNoneTempHint2) > e and self.extraNoneTempHint2[e]):
+                    self.extratemp2[e] = [
+                        RoRfromFtoCstrict(t) for t in self.extratemp2[e]
+                    ]
+                elif not (
+                    len(self.extraNoneTempHint2) > e and self.extraNoneTempHint2[e]
+                ):
                     self.extratemp2[e] = [fromFtoCstrict(t) for t in self.extratemp2[e]]
-        elif mode == 'F' and m == 'C':
+        elif mode == "F" and m == "C":
             self.temp1 = [fromCtoFstrict(t) for t in self.temp1]
             self.temp2 = [fromCtoFstrict(t) for t in self.temp2]
 
             for e in range(len(self.extratimex)):
                 if self.extraDelta1[e]:
-                    self.extratemp1[e] = [RoRfromCtoFstrict(t) for t in self.extratemp1[e]]
-                elif not (len(self.extraNoneTempHint1) > e and self.extraNoneTempHint1[e]):
+                    self.extratemp1[e] = [
+                        RoRfromCtoFstrict(t) for t in self.extratemp1[e]
+                    ]
+                elif not (
+                    len(self.extraNoneTempHint1) > e and self.extraNoneTempHint1[e]
+                ):
                     self.extratemp1[e] = [fromCtoFstrict(t) for t in self.extratemp1[e]]
                 if self.extraDelta2[e]:
-                    self.extratemp2[e] = [RoRfromCtoFstrict(t) for t in self.extratemp2[e]]
-                elif not (len(self.extraNoneTempHint2) > e and self.extraNoneTempHint2[e]):
+                    self.extratemp2[e] = [
+                        RoRfromCtoFstrict(t) for t in self.extratemp2[e]
+                    ]
+                elif not (
+                    len(self.extraNoneTempHint2) > e and self.extraNoneTempHint2[e]
+                ):
                     self.extratemp2[e] = [fromCtoFstrict(t) for t in self.extratemp2[e]]
 
         self.removeEmptyPrefix()
@@ -114,50 +178,54 @@ class Simulator:
         try:
             # select the first BT index not an error value to start with
             start = [i != -1 for i in self.temp2].index(True)
-            self.temp1_array = numpy.array(self.temp1[start:])
-            self.temp2_array = numpy.array(self.temp2[start:])
-            self.timex_array = numpy.array(self.timex[start:])
+            self.temp1_array = list(self.temp1[start:])
+            self.temp2_array = list(self.temp2[start:])
+            self.timex_array = list(self.timex[start:])
             self.extratemp1_array = []
             self.extratemp2_array = []
             self.extratimex_array = []
             for i, _ in enumerate(self.extratimex):
-                self.extratemp1_array.append(numpy.array(self.extratemp1[i][start:]))
-                self.extratemp2_array.append(numpy.array(self.extratemp2[i][start:]))
-                self.extratimex_array.append(numpy.array(self.extratimex[i][start:]))
+                self.extratemp1_array.append(list(self.extratemp1[i][start:]))
+                self.extratemp2_array.append(list(self.extratemp2[i][start:]))
+                self.extratimex_array.append(list(self.extratimex[i][start:]))
             # shift timestamps such that they start with 0
             if len(self.timex_array) > 0:
-                self.timex_array = self.timex_array - self.timex_array[0]
+                t0 = self.timex_array[0]
+                self.timex_array = [t - t0 for t in self.timex_array]
             # shift timestamps such that they start with 0
             for i, _ in enumerate(self.extratimex_array):
                 if len(self.extratimex_array[i]) > 0:
-                    self.extratimex_array[i] = self.extratimex_array[i] - self.extratimex_array[i][0]
-        except Exception as e: # pylint: disable=broad-except
+                    t0 = self.extratimex_array[i][0]
+                    self.extratimex_array[i] = [
+                        t - t0 for t in self.extratimex_array[i]
+                    ]
+        except Exception as e:  # pylint: disable=broad-except
             _log.exception(e)
 
-    def read(self, tx:float) -> tuple[float, float]:
-        et:float = -1.0
-        bt:float = -1.0
+    def read(self, tx: float) -> tuple[float, float]:
+        et: float = -1.0
+        bt: float = -1.0
         try:
             if tx == 0:
                 et = self.temp1_array[0]
                 bt = self.temp2_array[0]
             else:
-                et = float(numpy.interp(tx,self.timex_array,self.temp1_array))
-                bt = float(numpy.interp(tx,self.timex_array,self.temp2_array))
-        except Exception: # pylint: disable=broad-except
+                et = _interp(tx, self.timex_array, self.temp1_array)
+                bt = _interp(tx, self.timex_array, self.temp2_array)
+        except Exception:  # pylint: disable=broad-except
             pass
-        return et,bt
+        return et, bt
 
-    def readextra(self, i:int, tx:float) -> tuple[float, float]:
-        t1:float = -1
-        t2:float = -1
+    def readextra(self, i: int, tx: float) -> tuple[float, float]:
+        t1: float = -1
+        t2: float = -1
         try:
             if tx == 0:
                 t1 = self.extratemp1_array[i][0]
                 t2 = self.extratemp2_array[i][0]
             else:
-                t1 = float(numpy.interp(tx,self.extratimex_array[i],self.extratemp1_array[i]))
-                t2 = float(numpy.interp(tx,self.extratimex_array[i],self.extratemp2_array[i]))
-        except Exception: # pylint: disable=broad-except
+                t1 = _interp(tx, self.extratimex_array[i], self.extratemp1_array[i])
+                t2 = _interp(tx, self.extratimex_array[i], self.extratemp2_array[i])
+        except Exception:  # pylint: disable=broad-except
             pass
-        return t2,t1
+        return t2, t1
