@@ -542,3 +542,58 @@ Time,BT,ET,RoR,Heater,Fan,...
 **Why:** 현재 로컬의 모든 웹 페이지가 POST /control로 로스터를 제어 가능. 물리적 안전 우려.
 **Context:** main.py cors_middleware. 프로덕션 빌드 origin은 `tauri://localhost`로 변경 필요.
 **Depends on:** Tauri sidecar 번들링 완료 후 실제 origin 확인
+
+---
+
+### [T29] Python Sidecar 용량 최적화 (Numpy/Scipy 제거)
+
+**What:** `extern/util.py`와 `extern/simulator.py`에서 `numpy` 의존성을 제거하고 순수 파이썬 코드로 리팩토링.
+**Why:** 배포 용량을 약 150~200MB 절감하기 위해 `requirements.txt`에서 `numpy`, `scipy`를 제거함. 현재 코드가 `numpy`를 임포트하고 있어 런타임 에러 발생 가능.
+**How:**
+1. `util.py`: `numpy.isnan` -> `math.isnan`, 타입 힌트 수정.
+2. `simulator.py`: `numpy.interp` -> `bisect` 기반 선형 보간 함수 구현, `numpy.array` -> `list`.
+**Context:** `requirements.txt`는 이미 수정됨. 런타임 에러 방지를 위해 실제 코드 리팩토링 필수.
+**Depends on:** 없음
+
+---
+
+## Plan View (오늘의 로스팅 계획) — 추후 개선 항목
+
+_CEO review 2026-05-10에서 V2로 연기된 항목들_
+
+### [P1] Plan 배치 드래그 앤 드롭 순서 변경
+
+**What:** Plan 뷰에서 pending 배치를 드래그하여 순서 변경.
+**Why:** V1에서는 삭제+재입력으로 우회하지만, 배치가 5개 이상이면 번거롭다.
+**Pros:** UX 개선, 로스팅 순서 즉흥 변경 쉬워짐.
+**Cons:** drag-and-drop 라이브러리 의존성 추가 (예: @dnd-kit/core), 복잡도 증가.
+**Context:** `src/views/Plan.tsx`. in-progress/done 배치는 이동 불가. batches 배열 인덱스로 순서 관리.
+**Effort:** M (human) → S (CC)
+**Priority:** P3
+**Depends on:** Plan 뷰 V1 구현 완료
+
+---
+
+### [P2] '어제 계획 반복' 버튼
+
+**What:** 가장 최근 DayPlan을 오늘 계획 초안으로 로드 (원두명, 투입량 복사, 상태는 모두 pending).
+**Why:** 매주 비슷한 로스팅 패턴을 가진 로스터에게 유용. 빈 상태에서 시작하는 시간 절약.
+**Pros:** 반복 작업 최소화, 빠른 계획 수립.
+**Cons:** 날짜별 plan 히스토리가 쌓여야 의미 있음. LazyStore에 최근 날짜 키 탐색 필요.
+**Context:** `LazyStore('plans.json')`의 키 목록에서 가장 최근 날짜 찾기. 오늘 계획이 이미 있으면 비활성화.
+**Effort:** M (human) → S (CC)
+**Priority:** P3
+**Depends on:** Plan 뷰 V1 구현, 최소 1회 이상 계획 저장 후 테스트 가능
+
+---
+
+### [P3] Profiles에 estimatedTimeSec 필드 추가
+
+**What:** Profiles 데이터 모델에 `estimatedTimeSec?: number` 추가. Plan 뷰 ETA 계산에 사용.
+**Why:** 현재 ETA는 프로파일 없을 때 600초(10분) fallback만 사용. 프로파일마다 다른 로스팅 시간을 반영하면 ETA가 정확해짐.
+**Pros:** 오늘 로스팅 예상 종료 시간 정확도 향상.
+**Cons:** Profiles mock data → 실 데이터화 이후에 의미 있음.
+**Context:** `src/views/Profiles.tsx` mock data 및 향후 Profiles 타입 정의.
+**Effort:** S (human) → S (CC)
+**Priority:** P2
+**Depends on:** Profiles 실 데이터화 (D1 결정 이후)
