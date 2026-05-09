@@ -3,7 +3,7 @@ import { Cpu, Radio, ShieldCheck, X, ChevronDown, Wifi, WifiOff, Loader } from '
 import { useTranslation } from 'react-i18next';
 import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
 import { sidecar } from '../../../shared/lib/sidecar';
-import type { RoasterDef, RoastersResponse, SerialPort } from '../../../shared/types/machine';
+import type { RoasterDef, RoastersResponse, SerialPort } from '@entities/machine';
 
 interface AddMachineModalProps {
     open: boolean;

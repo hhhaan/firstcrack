@@ -2,9 +2,9 @@ import { Plus, Search, Cpu, Activity, AlertCircle, Wifi, WifiOff, Trash2, Flame 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AddMachineModal } from '../../widgets/add-machine-modal/ui/AddMachineModal';
-import { useMachines, SIMULATOR_ID } from '@shared/data/useMachines';
+import { useMachines, SIMULATOR_ID } from '@entities/machine';
 import { sidecar } from '@shared/lib/sidecar';
-import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@shared/types/machine';
+import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
 import type { View } from '@shared/types/view';
 
 const POLL_INTERVAL_MS = 3000;

@@ -3,11 +3,11 @@ import './App.css';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
 import { Login } from './views/Login';
-import { Dashboard } from './views/Dashboard';
+import { Dashboard } from './views/dashboard';
 import { ActiveRoast } from './views/ActiveRoast';
-import { History } from './views/History';
+import { History } from './views/history';
 import { Beans } from './views/Beans';
-import { Profiles } from './views/Profiles';
+import { Profiles } from './views/profiles';
 import { Machines } from './views/machines';
 import { type View } from './shared/types/view';
 

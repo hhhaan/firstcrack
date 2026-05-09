@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Machine } from '../types/machine';
+import type { Machine } from './types';
 
 const uid = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -43,7 +43,7 @@ export const useMachines = create<MachinesState>()(
       },
 
       removeMachine: (id) => {
-        if (id === SIMULATOR_ID) return; // built-in — 삭제 불가
+        if (id === SIMULATOR_ID) return;
         set((s) => ({ machines: s.machines.filter((m) => m.id !== id) }));
       },
 
@@ -55,11 +55,9 @@ export const useMachines = create<MachinesState>()(
     }),
     {
       name: 'fc_machines',
-      // Simulator는 localStorage에 저장하지 않음 — 항상 코드에서 주입
       partialize: (state) => ({
         machines: state.machines.filter((m) => m.id !== SIMULATOR_ID),
       }),
-      // localStorage 복원 시 Simulator를 맨 앞에 붙여 넣음
       merge: (persisted, current) => ({
         ...current,
         machines: [

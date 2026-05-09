@@ -3,7 +3,7 @@ import type {
   SerialPort,
   SidecarStatus,
   TemperatureReading,
-} from '../types/machine';
+} from '@entities/machine';
 
 const BASE = 'http://127.0.0.1:9999';
 
