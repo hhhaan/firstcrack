@@ -86,7 +86,17 @@ export const Login = ({ onLogin }: LoginProps) => {
                 />
 
                 {/* Logo */}
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                    style={{
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                    }}
+                    onClick={() => alert('First Crack no Football Club')}
+                >
                     <span
                         style={{
                             fontFamily: 'var(--font-display)',

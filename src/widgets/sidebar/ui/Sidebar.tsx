@@ -42,7 +42,10 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             <div className={`border-b border-border-subtle ${collapsed ? 'px-3.5 pt-4 pb-3.5' : 'px-5 pt-5 pb-4'}`}>
                 <div className={`flex items-center gap-2.5 ${collapsed ? 'justify-center' : 'justify-between'}`}>
                     {!collapsed && (
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                            className="flex items-center gap-2.5 min-w-0 cursor-pointer select-none"
+                            onClick={() => alert('First Crack no Football Club')}
+                        >
                             <div>
                                 <div className="font-display font-light text-base leading-[1.2] text-primary tracking-[-0.2px]">
                                     First Crack
