@@ -18,7 +18,6 @@ import {
     type RoastSummaryData,
 } from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
 import { RoastTempChart, type RoastEventMarker } from '@widgets/active-roast/ui/RoastTempChart';
-import { RoastRorChart } from '@widgets/active-roast/ui/RoastRorChart';
 
 import { fullData } from '@shared/data/roast-mock-data';
 import type { RoastPoint } from '@shared/types/roast';
@@ -116,6 +115,7 @@ export const ActiveRoast = ({
     }, [isRunning]);
 
     useEffect(() => {
+        if (!('__TAURI_INTERNALS__' in window)) return;
         const win = getCurrentWindow();
         let unlisten: (() => void) | undefined;
         let active = true;
@@ -310,10 +310,6 @@ export const ActiveRoast = ({
     const visibleEtActual = useMemo(() => visibleChartData.map((p) => conv(p.etActual)), [visibleChartData, unit]);
     const visibleRorActual = useMemo(
         () => visibleChartData.map((p) => (p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null)),
-        [visibleChartData, unit],
-    );
-    const visibleEtRorActual = useMemo(
-        () => visibleChartData.map((p) => (p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null)),
         [visibleChartData, unit],
     );
 
@@ -511,11 +507,15 @@ export const ActiveRoast = ({
         if (note?.trim()) markEvent('Note', note.trim(), 'Add Log Note');
     };
 
-    const showMachineDisconnectedAlert = () =>
-        message('머신이 연결되어 있지 않습니다. 머신을 먼저 연결한 뒤 로스팅을 시작하세요.', {
-            title: '머신 연결 필요',
-            kind: 'warning',
-        });
+    const showMachineDisconnectedAlert = () => {
+        if ('__TAURI_INTERNALS__' in window) {
+            return message('머신이 연결되어 있지 않습니다. 머신을 먼저 연결한 뒤 로스팅을 시작하세요.', {
+                title: '머신 연결 필요',
+                kind: 'warning',
+            });
+        }
+        return Promise.resolve();
+    };
 
     const handleCharge = async () => {
         if (charged) return;
@@ -1021,6 +1021,7 @@ export const ActiveRoast = ({
                             btTarget={visibleBtTarget}
                             btActual={visibleBtActual}
                             etActual={visibleEtActual}
+                            rorActual={visibleRorActual}
                             currentTimeSec={elapsed}
                             eventMarkers={eventMarkers}
                             turningPoints={turningPoints}
@@ -1030,52 +1031,9 @@ export const ActiveRoast = ({
                             }}
                             showET={roastSettings.showET}
                             showTargetCurve={roastSettings.showTargetCurve}
+                            showRoR={roastSettings.showRoRChart}
                             temperatureUnit={unit}
                         />
-
-                        {/* RoR Sub-chart */}
-                        {roastSettings.showRoRChart && (
-                            <div style={{ marginTop: 4 }}>
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 6,
-                                        marginBottom: 4,
-                                        paddingLeft: 4,
-                                    }}
-                                >
-                                    <span
-                                        style={{
-                                            fontSize: 10,
-                                            fontWeight: 600,
-                                            color: 'var(--color-muted)',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.5px',
-                                        }}
-                                    >
-                                        Rate of Rise
-                                    </span>
-                                    <span
-                                        style={{
-                                            fontSize: 11,
-                                            fontFamily: 'var(--font-mono)',
-                                            fontWeight: 700,
-                                            color: '#d97706',
-                                        }}
-                                    >
-                                        {displayRoR}°{unit}/min
-                                    </span>
-                                </div>
-                                <RoastRorChart
-                                    xs={visibleXs}
-                                    rorActual={visibleRorActual}
-                                    etRorActual={visibleEtRorActual}
-                                    height={80}
-                                    showRoRET={roastSettings.showRoRET}
-                                />
-                            </div>
-                        )}
                     </div>
 
                     {/* Fullscreen Sidebar (only visible in fullscreen) */}
