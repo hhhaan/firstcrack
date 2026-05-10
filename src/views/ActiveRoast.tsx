@@ -16,6 +16,7 @@ import { sidecar } from '@shared/lib/sidecar';
 import { useRoastSettings, detectTurningPoints, toDisplayTemp, toDisplayRoR, formatTemp } from '@features/active-roast';
 
 import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog } from '@widgets/active-roast';
+import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
 
 const TOGGLEABLE_LOG_EVENTS = new Set(['Yellow', 'FC Start', 'FC End']);
 
@@ -679,8 +680,8 @@ export const ActiveRoast = ({
                         : 'rounded-lg relative z-1 shadow-(--shadow-ring) px-6 pb-4 pt-6'
                 }`}
             >
-                <div className="flex items-center justify-between mb-5">
-                    <div className="flex items-center gap-3">
+                <div className="mb-5">
+                    <div className="flex items-center justify-between">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Temperature Curve</h2>
                         {/* Inline Fullscreen Button in Chart Header */}
                         <button
@@ -690,39 +691,11 @@ export const ActiveRoast = ({
                             }
                             aria-pressed={isFullscreen}
                             aria-keyshortcuts="F"
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border-none text-xs font-semibold cursor-pointer transition-all duration-200 ${
-                                isFullscreen
-                                    ? 'bg-surface text-primary shadow-(--shadow-inset)'
-                                    : 'bg-primary text-main-bg'
-                            }`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border-none text-xs font-semibold cursor-pointer transition-all duration-200 bg-surface text-muted shadow-(--shadow-inset) hover:text-primary"
                         >
                             {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                            {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}{' '}
                             <span className="font-(--font-mono) opacity-70">F</span>
                         </button>
-                    </div>
-                    <div className="flex gap-4 items-center">
-                        {[
-                            { color: '#171717', label: 'Bean Temp (BT)' },
-                            { color: '#2563eb', label: 'Env Temp (ET)', dashed: true },
-                            { color: '#d97706', label: 'Rate of Rise (ROR)' },
-                        ].map(({ color, label, dashed }) => (
-                            <div key={label} className="flex items-center gap-1.25">
-                                <div
-                                    style={{
-                                        width: 16,
-                                        height: 2,
-                                        background: color,
-                                        borderRadius: 1,
-                                        opacity: dashed ? 0.5 : 1,
-                                        backgroundImage: dashed
-                                            ? `repeating-linear-gradient(to right, ${color} 0, ${color} 4px, transparent 4px, transparent 7px)`
-                                            : 'none',
-                                    }}
-                                />
-                                <span className="text-xs text-muted tracking-[0.14px]">{label}</span>
-                            </div>
-                        ))}
                     </div>
                 </div>
 
@@ -731,7 +704,7 @@ export const ActiveRoast = ({
                     {/* Main Chart Area */}
                     <div
                         ref={chartAreaRef}
-                        className={`flex-1 flex flex-col min-w-0 outline-none ${
+                        className={`relative flex-1 flex flex-col min-w-0 outline-none ${
                             effectiveZoomRange
                                 ? isChartDragging
                                     ? 'cursor-grabbing select-none touch-none'
@@ -748,6 +721,8 @@ export const ActiveRoast = ({
                         role="region"
                         aria-label="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
                     >
+                        <ChartLegend />
+
                         {/* Phase labels */}
                         <div className="flex gap-2 mb-3">
                             {[
