@@ -21,29 +21,39 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     loading: true,
 
     init: () => {
-        // Supabase v2: onAuthStateChange가 subscribe 시점에 INITIAL_SESSION으로 즉시 발화
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+        // 5초 안에 auth 응답 없으면 강제로 loading 해제 (토큰 refresh hang 방어)
+        const timeout = setTimeout(() => {
+            if (get().loading) set({ user: null, plan: 'free', loading: false });
+        }, 5000);
+
+        // onAuthStateChange는 동기 콜백이어야 함 — async 사용 금지
+        // Supabase v2: subscribe 시점에 INITIAL_SESSION으로 즉시 발화
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+            clearTimeout(timeout);
+
             const next = session?.user ?? null;
-            // user.id 동등성 가드 — 동일 세션 이벤트 시 불필요한 리렌더 방지
             if (get().user?.id === next?.id && !get().loading) return;
 
+            // loading은 즉시 해제 — plan은 백그라운드에서 업데이트
+            set({ user: next, plan: 'free', loading: false });
+
             if (next) {
-                try {
-                    const { data } = await supabase
-                        .from('profiles')
-                        .select('plan')
-                        .eq('id', next.id)
-                        .single();
-                    set({ user: next, plan: (data?.plan ?? 'free') as Plan, loading: false });
-                } catch {
-                    set({ user: next, plan: 'free', loading: false });
-                }
-            } else {
-                set({ user: null, plan: 'free', loading: false });
+                supabase
+                    .from('profiles')
+                    .select('plan')
+                    .eq('id', next.id)
+                    .single()
+                    .then(({ data }) => {
+                        if (data?.plan) set({ plan: data.plan as Plan });
+                    })
+                    .catch(() => {});
             }
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            clearTimeout(timeout);
+            subscription.unsubscribe();
+        };
     },
 }));
 
