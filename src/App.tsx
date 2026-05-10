@@ -13,7 +13,8 @@ import { type View } from './shared/types/view';
 import { useAuthStore } from './shared/store/auth';
 
 export const App = () => {
-    const { user, loading } = useAuthStore((s) => ({ user: s.user, loading: s.loading }));
+    const user = useAuthStore((s) => s.user);
+    const loading = useAuthStore((s) => s.loading);
     const init = useAuthStore((s) => s.init);
 
     useEffect(() => init(), [init]);
