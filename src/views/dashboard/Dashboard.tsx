@@ -1,4 +1,14 @@
-import { TrendingUp, Coffee, Clock, CheckCircle, ArrowRight, Calendar, ChevronRight, Thermometer, Droplets } from 'lucide-react';
+import {
+    TrendingUp,
+    Coffee,
+    Clock,
+    CheckCircle,
+    ArrowRight,
+    Calendar,
+    ChevronRight,
+    Thermometer,
+    Droplets,
+} from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { type View } from '@shared/types/view';
 import { useDashboard } from './useDashboard';
@@ -235,7 +245,13 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             <div className="mb-8 flex items-end justify-between">
                 <div>
                     <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
-                        Good morning, Han
+                        {(() => {
+                            const h = new Date().getHours();
+                            if (h < 12) return 'Good morning';
+                            if (h < 18) return 'Good afternoon';
+                            return 'Good evening';
+                        })()}
+                        , Han
                     </h1>
                     <p className="text-[15px] text-secondary tracking-[0.15px] font-normal flex items-center gap-2.5">
                         {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
