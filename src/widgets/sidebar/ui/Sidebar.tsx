@@ -44,7 +44,14 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                     {!collapsed && (
                         <div
                             className="flex items-center gap-2.5 min-w-0 cursor-pointer select-none"
-                            onClick={() => alert('First Crack no Football Club')}
+                            onClick={async () => {
+                                if ((window as Window & { __TAURI__?: unknown }).__TAURI__) {
+                                    const { message } = await import('@tauri-apps/plugin-dialog');
+                                    message('First Crack no Football Club');
+                                } else {
+                                    alert('First Crack no Football Club');
+                                }
+                            }}
                         >
                             <div>
                                 <div className="font-display font-light text-base leading-[1.2] text-primary tracking-[-0.2px]">
