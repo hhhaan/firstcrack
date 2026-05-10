@@ -2,8 +2,11 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
+type Plan = 'free' | 'pro' | 'team';
+
 interface AuthState {
     user: User | null;
+    plan: Plan;
     loading: boolean;
 }
 
@@ -14,17 +17,31 @@ interface AuthActions {
 
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     user: null,
+    plan: 'free',
     loading: true,
 
     init: () => {
         // Supabase v2: onAuthStateChange가 subscribe 시점에 INITIAL_SESSION으로 즉시 발화
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
             const next = session?.user ?? null;
             // user.id 동등성 가드 — 동일 세션 이벤트 시 불필요한 리렌더 방지
             if (get().user?.id === next?.id && !get().loading) return;
-            set({ user: next, loading: false });
+
+            if (next) {
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('plan')
+                    .eq('id', next.id)
+                    .single();
+                set({ user: next, plan: (data?.plan ?? 'free') as Plan, loading: false });
+            } else {
+                set({ user: null, plan: 'free', loading: false });
+            }
         });
 
         return () => subscription.unsubscribe();
     },
 }));
+
+/** 현재 유저가 Pro 이상인지 반환 (pro / team 모두 true) */
+export const selectIsPro = (s: AuthState & AuthActions) => s.plan !== 'free';
