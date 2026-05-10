@@ -46,7 +46,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                             .eq('id', next.id)
                             .single();
                         if (data?.plan) set({ plan: data.plan as Plan });
-                    } catch {}
+                    } catch (e) {
+                        console.warn('[auth] plan fetch failed:', e);
+                    }
                 })();
             }
         });

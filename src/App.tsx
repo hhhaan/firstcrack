@@ -9,6 +9,7 @@ import { History } from './views/history';
 import { Beans } from './views/bean';
 import { Profiles } from './views/profiles';
 import { Machines } from './views/machines';
+import { LoadingSpinner } from './views/Login';
 import { type View } from './shared/types/view';
 import { useAuthStore } from './shared/store/auth';
 
@@ -30,7 +31,7 @@ export const App = () => {
 
     if (loading) return (
         <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--color-surface)' }}>
-            <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid var(--color-border-subtle)', borderTopColor: 'var(--color-primary)', animation: 'spin 0.7s linear infinite' }} />
+            <LoadingSpinner />
         </div>
     );
     if (!user) return <Login />;
