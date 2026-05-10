@@ -1,4 +1,17 @@
 
+## Database Rules
+
+When making **any schema change** (new table, new column, index, RLS policy, etc.):
+
+1. Apply the migration via `mcp__claude_ai_Supabase__apply_migration`
+2. **Immediately after**, regenerate types:
+   ```bash
+   npm run types:gen
+   ```
+3. Commit the updated `src/shared/types/database.types.ts` together with the feature code.
+
+Never manually edit `database.types.ts` above the `// ── Convenience aliases ──` line — that section is auto-generated.
+
 ## Component Design Rules
 
 - All components and functions must be declared as `export const` arrow functions.
