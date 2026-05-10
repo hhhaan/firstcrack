@@ -28,12 +28,16 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             if (get().user?.id === next?.id && !get().loading) return;
 
             if (next) {
-                const { data } = await supabase
-                    .from('profiles')
-                    .select('plan')
-                    .eq('id', next.id)
-                    .single();
-                set({ user: next, plan: (data?.plan ?? 'free') as Plan, loading: false });
+                try {
+                    const { data } = await supabase
+                        .from('profiles')
+                        .select('plan')
+                        .eq('id', next.id)
+                        .single();
+                    set({ user: next, plan: (data?.plan ?? 'free') as Plan, loading: false });
+                } catch {
+                    set({ user: next, plan: 'free', loading: false });
+                }
             } else {
                 set({ user: null, plan: 'free', loading: false });
             }
