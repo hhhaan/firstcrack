@@ -2,7 +2,7 @@ import { Plus, Search, Cpu, Activity, AlertCircle, Wifi, WifiOff, Trash2, Flame 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AddMachineModal } from '../../widgets/add-machine-modal/ui/AddMachineModal';
-import { useMachines, SIMULATOR_ID } from '@entities/machine';
+import { useMachines, VIRTUAL_ID } from '@entities/machine';
 import { sidecar } from '@shared/lib/sidecar';
 import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
 import type { View } from '@shared/types/view';
@@ -214,7 +214,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    {selected.id !== SIMULATOR_ID && (
+                                    {selected.id !== VIRTUAL_ID && (
                                         <button
                                             onClick={() => removeMachine(selected.id)}
                                             className="w-9 h-9 rounded-[10px] border-none bg-surface text-muted flex items-center justify-center cursor-pointer shadow-inset"
@@ -226,8 +226,8 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                 </div>
                             </div>
 
-                            {/* Temperature cards (when connected, simulator 제외) */}
-                            {isSelectedConnected && temps && selected.id !== SIMULATOR_ID ? (
+                            {/* Temperature cards (when connected, 가상 머신 제외) */}
+                            {isSelectedConnected && temps && selected.id !== VIRTUAL_ID ? (
                                 <div className="grid grid-cols-3 gap-3.5 mb-6">
                                     {[
                                         {
@@ -265,9 +265,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                         <WifiOff size={18} color="var(--color-muted)" />
                                     )}
                                     <span className="text-[13px] text-muted)">
-                                        {isSelectedConnected
-                                            ? t('common.connected')
-                                            : t('machines.notConnectedHint')}
+                                        {isSelectedConnected ? t('common.connected') : t('machines.notConnectedHint')}
                                     </span>
                                 </div>
                             )}

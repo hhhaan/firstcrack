@@ -9,7 +9,7 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
   POST /connect       → {"roaster": "easyster", "host": "...", ...}
   POST /disconnect
   GET  /temperatures  → {"bt", "et", "ror", "heater", "fan", "timestamp"}
-  POST /start         → Charge 버튼 연동: 시뮬레이터 타이머 리셋 + RoR 윈도우 초기화
+  POST /start         → Charge 버튼 연동: 가상 머신 타이머 리셋 + RoR 윈도우 초기화
   POST /control       → {"heater"?, "fan"?, "drum"?}
 
 어댑터 추가 방법:
@@ -34,6 +34,7 @@ _log = logging.getLogger(__name__)
 # Route handlers
 # ---------------------------------------------------------------------------
 
+
 async def handle_roasters(request: web.Request) -> web.Response:
     result: dict[str, Any] = {}
     for key, reg in ROASTER_REGISTRY.items():
@@ -47,8 +48,16 @@ async def handle_roasters(request: web.Request) -> web.Response:
             "pid": reg.get("pid"),
             "form_fields": PROTOCOL_FORM_FIELDS.get(protocol, []),
             "default_params": {
-                k: v for k, v in reg["default_params"].items()
-                if k not in ("channels", "channel_nodes", "pid_db", "pid_sv_register", "modbus_registers")
+                k: v
+                for k, v in reg["default_params"].items()
+                if k
+                not in (
+                    "channels",
+                    "channel_nodes",
+                    "pid_db",
+                    "pid_sv_register",
+                    "modbus_registers",
+                )
             },
         }
     return web.json_response(result)
@@ -100,16 +109,19 @@ def _is_na(s: str) -> bool:
 async def handle_serial_ports(request: web.Request) -> web.Response:
     try:
         import serial.tools.list_ports  # type: ignore[import]
+
         ports = []
         for p in serial.tools.list_ports.comports():
             hwid = (p.hwid or "").strip()
             desc = (p.description or "").strip()
             if _is_na(hwid) and _is_na(desc):  # Bluetooth 가상 포트 제외
                 continue
-            ports.append({
-                "device": p.device,
-                "description": desc if not _is_na(desc) else p.device,
-            })
+            ports.append(
+                {
+                    "device": p.device,
+                    "description": desc if not _is_na(desc) else p.device,
+                }
+            )
     except ImportError:
         ports = []
     return web.json_response(ports)
@@ -133,6 +145,7 @@ async def handle_control(request: web.Request) -> web.Response:
 # App factory
 # ---------------------------------------------------------------------------
 
+
 @web.middleware
 async def cors_middleware(request: web.Request, handler: Any) -> web.Response:
     if request.method == "OPTIONS":
@@ -148,14 +161,14 @@ async def cors_middleware(request: web.Request, handler: Any) -> web.Response:
 def create_app() -> web.Application:
     app = web.Application(middlewares=[cors_middleware])
     app["manager"] = RoasterManager()
-    app.router.add_get("/roasters",     handle_roasters)
+    app.router.add_get("/roasters", handle_roasters)
     app.router.add_get("/serial-ports", handle_serial_ports)
-    app.router.add_get("/status",       handle_status)
-    app.router.add_post("/connect",     handle_connect)
-    app.router.add_post("/disconnect",  handle_disconnect)
+    app.router.add_get("/status", handle_status)
+    app.router.add_post("/connect", handle_connect)
+    app.router.add_post("/disconnect", handle_disconnect)
     app.router.add_get("/temperatures", handle_temperatures)
-    app.router.add_post("/start",        handle_start)
-    app.router.add_post("/control",     handle_control)
+    app.router.add_post("/start", handle_start)
+    app.router.add_post("/control", handle_control)
     app.router.add_route("OPTIONS", "/{path_info:.*}", lambda r: web.Response())
     return app
 

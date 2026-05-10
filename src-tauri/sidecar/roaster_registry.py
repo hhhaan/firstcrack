@@ -14,7 +14,7 @@ roaster_registry.py
   probat_ws   → Probat WebSocket 모델 (G_UG_WS, P_Series_III, Sample_Roaster)
   modbus      → Probat Probatone, Diedrich CR/DR, Easyster, Proaster, Trinitas
   phidget     → Diedrich Data Logging (id=34), Phidget 장착 범용 로스터
-  simulator   → 개발/테스트용
+  virtual     → 개발/테스트용 가상 머신
   mqtt        → ROEST (100/200/P3000). 미지원, 추후 MqttAdapter 추가 시 여기에 항목 추가.
   opcua       → 산업용 대형 로스터 일부. 미지원.
   usb_hid     → Aillio R1/R2. 제외 결정.
@@ -191,7 +191,7 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
             "required": False,
         },
     ],
-    "simulator": [],
+    "virtual": [],
 }
 
 
@@ -201,13 +201,13 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
 
 ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
     # -----------------------------------------------------------------------
-    # Simulator
+    # Virtual Machine (가상 머신)
     # -----------------------------------------------------------------------
-    "simulator": {
-        "display_name": "Simulator",
+    "virtual": {
+        "display_name": "가상 머신",
         "brand": "Internal",
-        "models": ["Simulator"],
-        "protocol": "simulator",
+        "models": ["가상 머신"],
+        "protocol": "virtual",
         "default_params": {"mode": "C"},
         "pid": None,
         "capabilities": ["heater", "fan", "drum"],

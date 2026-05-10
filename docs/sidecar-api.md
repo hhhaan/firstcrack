@@ -10,7 +10,7 @@
 - Base URL: `http://127.0.0.1:9999`
 - Content-Type: JSON 요청은 `application/json`
 - CORS: 모든 origin 허용
-- Startup behavior: 서버 시작 시 개발용 `simulator` 로스터에 자동 연결한다.
+- Startup behavior: 서버 시작 시 개발용 `virtual` (가상 머신) 로스터에 자동 연결한다.
 
 ```py
 web.run_app(create_app(), host="127.0.0.1", port=9999, print=None)
@@ -24,12 +24,12 @@ web.run_app(create_app(), host="127.0.0.1", port=9999, print=None)
 
 ```ts
 interface SidecarStatus {
-  connected: boolean;
-  roaster: string;
-  display_name: string;
-  brand: string;
-  uptime: number;
-  error: string | null;
+    connected: boolean;
+    roaster: string;
+    display_name: string;
+    brand: string;
+    uptime: number;
+    error: string | null;
 }
 ```
 
@@ -39,42 +39,42 @@ interface SidecarStatus {
 
 ```ts
 interface TemperatureReading {
-  bt: number | null;
-  et: number | null;
-  ror: number;
-  ror_et: number;
-  heater: number;
-  fan: number;
-  drum: number;
-  timestamp: number;
+    bt: number | null;
+    et: number | null;
+    ror: number;
+    ror_et: number;
+    heater: number;
+    fan: number;
+    drum: number;
+    timestamp: number;
 }
 ```
 
 필드 의미:
 
-| Field | Meaning |
-| --- | --- |
-| `bt` | Bean Temperature, 원두 온도. 섭씨. |
-| `et` | Environment Temperature, 환경/배기 온도. 섭씨. |
-| `ror` | BT 기준 Rate of Rise. 최근 30초 BT window의 선형 최소제곱 기울기. 단위 `°C/min`. |
-| `ror_et` | ET 기준 Rate of Rise. 최근 30초 ET window의 선형 최소제곱 기울기. 단위 `°C/min`. |
-| `heater` | 히터/버너 출력 값. adapter에 따라 0-100 또는 장비 raw 값. |
-| `fan` | 팬 출력 값. adapter에 따라 0-100 또는 장비 raw 값. |
-| `drum` | 드럼 속도 값. adapter에 따라 0-100, RPM %, 또는 raw speed. |
-| `timestamp` | Python `time.monotonic()` 값. |
+| Field       | Meaning                                                                          |
+| ----------- | -------------------------------------------------------------------------------- |
+| `bt`        | Bean Temperature, 원두 온도. 섭씨.                                               |
+| `et`        | Environment Temperature, 환경/배기 온도. 섭씨.                                   |
+| `ror`       | BT 기준 Rate of Rise. 최근 30초 BT window의 선형 최소제곱 기울기. 단위 `°C/min`. |
+| `ror_et`    | ET 기준 Rate of Rise. 최근 30초 ET window의 선형 최소제곱 기울기. 단위 `°C/min`. |
+| `heater`    | 히터/버너 출력 값. adapter에 따라 0-100 또는 장비 raw 값.                        |
+| `fan`       | 팬 출력 값. adapter에 따라 0-100 또는 장비 raw 값.                               |
+| `drum`      | 드럼 속도 값. adapter에 따라 0-100, RPM %, 또는 raw speed.                       |
+| `timestamp` | Python `time.monotonic()` 값.                                                    |
 
 연결이 없거나 읽기에 실패하면 아래 fallback을 반환한다.
 
 ```json
 {
-  "bt": null,
-  "et": null,
-  "ror": 0.0,
-  "ror_et": 0.0,
-  "heater": 0,
-  "fan": 0,
-  "drum": 0,
-  "timestamp": 483729.129392
+    "bt": null,
+    "et": null,
+    "ror": 0.0,
+    "ror_et": 0.0,
+    "heater": 0,
+    "fan": 0,
+    "drum": 0,
+    "timestamp": 483729.129392
 }
 ```
 
@@ -86,8 +86,8 @@ interface TemperatureReading {
 
 ```ts
 interface SerialPort {
-  device: string;
-  description: string;
+    device: string;
+    description: string;
 }
 ```
 
@@ -99,23 +99,23 @@ interface SerialPort {
 type RoastersResponse = Record<string, RoasterDef>;
 
 interface RoasterDef {
-  display_name: string;
-  brand: string;
-  models: string[];
-  protocol: string;
-  capabilities: string[];
-  pid: { Kp: number; Ki: number; Kd: number } | null;
-  form_fields: RoasterFormField[];
-  default_params: Record<string, unknown>;
+    display_name: string;
+    brand: string;
+    models: string[];
+    protocol: string;
+    capabilities: string[];
+    pid: { Kp: number; Ki: number; Kd: number } | null;
+    form_fields: RoasterFormField[];
+    default_params: Record<string, unknown>;
 }
 
 interface RoasterFormField {
-  key: string;
-  label: string;
-  type: "text" | "number" | "select";
-  required: boolean;
-  placeholder?: string;
-  options?: { value: string; label: string }[];
+    key: string;
+    label: string;
+    type: 'text' | 'number' | 'select';
+    required: boolean;
+    placeholder?: string;
+    options?: { value: string; label: string }[];
 }
 ```
 
@@ -152,18 +152,18 @@ Response shape:
 
 ```json
 {
-  "simulator": {
-    "display_name": "Simulator",
-    "brand": "Internal",
-    "models": ["Simulator"],
-    "protocol": "simulator",
-    "capabilities": [],
-    "pid": null,
-    "form_fields": [],
-    "default_params": {
-      "mode": "C"
+    "virtual": {
+        "display_name": "가상 머신",
+        "brand": "Internal",
+        "models": ["가상 머신"],
+        "protocol": "virtual",
+        "capabilities": [],
+        "pid": null,
+        "form_fields": [],
+        "default_params": {
+            "mode": "C"
+        }
     }
-  }
 }
 ```
 
@@ -184,12 +184,12 @@ Example response:
 
 ```json
 {
-  "connected": true,
-  "roaster": "simulator",
-  "display_name": "Simulator",
-  "brand": "Internal",
-  "uptime": 12.4,
-  "error": null
+    "connected": true,
+    "roaster": "virtual",
+    "display_name": "가상 머신",
+    "brand": "Internal",
+    "uptime": 12.4,
+    "error": null
 }
 ```
 
@@ -216,11 +216,11 @@ Example:
 
 ```json
 {
-  "roaster": "giesen_standard",
-  "host": "172.30.30.50",
-  "port": 102,
-  "rack": 0,
-  "slot": 0
+    "roaster": "giesen_standard",
+    "host": "172.30.30.50",
+    "port": 102,
+    "rack": 0,
+    "slot": 0
 }
 ```
 
@@ -230,12 +230,12 @@ Success response example:
 
 ```json
 {
-  "connected": true,
-  "roaster": "giesen_standard",
-  "display_name": "Giesen W6A / W15A / W30A / W45A / W60A",
-  "brand": "Giesen",
-  "uptime": 0.0,
-  "error": null
+    "connected": true,
+    "roaster": "giesen_standard",
+    "display_name": "Giesen W6A / W15A / W30A / W45A / W60A",
+    "brand": "Giesen",
+    "uptime": 0.0,
+    "error": null
 }
 ```
 
@@ -276,12 +276,12 @@ Example response:
 
 ```json
 {
-  "connected": false,
-  "roaster": "",
-  "display_name": "",
-  "brand": "",
-  "uptime": 0,
-  "error": null
+    "connected": false,
+    "roaster": "",
+    "display_name": "",
+    "brand": "",
+    "uptime": 0,
+    "error": null
 }
 ```
 
@@ -302,14 +302,14 @@ Example response:
 
 ```json
 {
-  "bt": 184.2,
-  "et": 215.8,
-  "ror": 7.24,
-  "ror_et": -0.12,
-  "heater": 65,
-  "fan": 42,
-  "drum": 50.0,
-  "timestamp": 483729.129392
+    "bt": 184.2,
+    "et": 215.8,
+    "ror": 7.24,
+    "ror_et": -0.12,
+    "heater": 65,
+    "fan": 42,
+    "drum": 50.0,
+    "timestamp": 483729.129392
 }
 ```
 
@@ -326,14 +326,14 @@ Notes:
 
 Adapter별 원천:
 
-| Protocol | BT/ET source | Heater/Fan/Drum source |
-| --- | --- | --- |
-| `simulator` | 내부 profile `temp2`/`temp1` | 가상 값 |
-| `s7` | `roaster_registry.py`의 `channels`에서 `role=BT/ET` DB/offset | `role=heater/fan/drum` 채널 |
-| `modbus` | `modbus_registers.BT/ET` | 현재 `drum`만 선택적으로 읽고, `heater/fan`은 0 |
-| `phidget` | `channel_bt`, `channel_et` 센서 채널 | 모두 0 |
-| `kaleido` | `KaleidoPort.getBTET()` | `HP`, `SM`, `RL` 상태값 |
-| `probat_ws` | `channel_nodes.BT/ET`가 가리키는 WebSocket data field | `channel_nodes.heater/fan/drum` |
+| Protocol    | BT/ET source                                                  | Heater/Fan/Drum source                          |
+| ----------- | ------------------------------------------------------------- | ----------------------------------------------- |
+| `virtual`   | 내부 profile `temp2`/`temp1`                                  | 가상 값                                         |
+| `s7`        | `roaster_registry.py`의 `channels`에서 `role=BT/ET` DB/offset | `role=heater/fan/drum` 채널                     |
+| `modbus`    | `modbus_registers.BT/ET`                                      | 현재 `drum`만 선택적으로 읽고, `heater/fan`은 0 |
+| `phidget`   | `channel_bt`, `channel_et` 센서 채널                          | 모두 0                                          |
+| `kaleido`   | `KaleidoPort.getBTET()`                                       | `HP`, `SM`, `RL` 상태값                         |
+| `probat_ws` | `channel_nodes.BT/ET`가 가리키는 WebSocket data field         | `channel_nodes.heater/fan/drum`                 |
 
 ### POST /start
 
@@ -352,7 +352,7 @@ Behavior:
 - BT RoR window를 초기화한다.
 - ET RoR window를 초기화한다.
 - 현재 adapter에 `start_roast()` 메서드가 있으면 호출한다.
-- simulator adapter는 이 호출 시 profile 재생 시작 시간을 현재 시각으로 리셋한다.
+- virtual adapter는 이 호출 시 profile 재생 시작 시간을 현재 시각으로 리셋한다.
 
 ### POST /control
 
@@ -372,9 +372,9 @@ Example:
 
 ```json
 {
-  "heater": 70,
-  "fan": 35,
-  "drum": 50
+    "heater": 70,
+    "fan": 35,
+    "drum": 50
 }
 ```
 
@@ -411,10 +411,10 @@ Example response:
 
 ```json
 [
-  {
-    "device": "/dev/cu.usbserial-XXXX",
-    "description": "USB Serial"
-  }
+    {
+        "device": "/dev/cu.usbserial-XXXX",
+        "description": "USB Serial"
+    }
 ]
 ```
 
@@ -446,21 +446,21 @@ Access-Control-Allow-Headers: Content-Type
 프론트엔드 wrapper는 `src/shared/lib/sidecar.ts`에 있다.
 
 ```ts
-const BASE = "http://127.0.0.1:9999";
+const BASE = 'http://127.0.0.1:9999';
 ```
 
 현재 wrapper:
 
-| Function | Endpoint |
-| --- | --- |
-| `sidecar.getRoasters()` | `GET /roasters` |
-| `sidecar.getStatus()` | `GET /status` |
-| `sidecar.connect(roasterKey, params)` | `POST /connect` |
-| `sidecar.disconnect()` | `POST /disconnect` |
-| `sidecar.getTemperatures()` | `GET /temperatures` |
-| `sidecar.startRoast()` | `POST /start` |
-| `sidecar.control(params)` | `POST /control` |
-| `sidecar.getSerialPorts()` | `GET /serial-ports` |
+| Function                              | Endpoint            |
+| ------------------------------------- | ------------------- |
+| `sidecar.getRoasters()`               | `GET /roasters`     |
+| `sidecar.getStatus()`                 | `GET /status`       |
+| `sidecar.connect(roasterKey, params)` | `POST /connect`     |
+| `sidecar.disconnect()`                | `POST /disconnect`  |
+| `sidecar.getTemperatures()`           | `GET /temperatures` |
+| `sidecar.startRoast()`                | `POST /start`       |
+| `sidecar.control(params)`             | `POST /control`     |
+| `sidecar.getSerialPorts()`            | `GET /serial-ports` |
 
 ## Implementation Notes
 

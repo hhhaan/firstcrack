@@ -1,5 +1,5 @@
 from adapters.base import Reading
-from adapters.simulator import SimulatorAdapter
+from adapters.virtual import VirtualMachineAdapter
 from adapters.kaleido import KaleidoAdapter
 from adapters.s7 import S7Adapter
 from adapters.modbus import ModbusAdapter
@@ -8,12 +8,12 @@ from adapters.phidget import PhidgetAdapter
 from typing import Any
 
 _PROTOCOL_ADAPTER: dict[str, type] = {
-    "simulator": SimulatorAdapter,
-    "kaleido":   KaleidoAdapter,
-    "s7":        S7Adapter,
-    "modbus":    ModbusAdapter,
+    "virtual": VirtualMachineAdapter,
+    "kaleido": KaleidoAdapter,
+    "s7": S7Adapter,
+    "modbus": ModbusAdapter,
     "probat_ws": ProbatWSAdapter,
-    "phidget":   PhidgetAdapter,
+    "phidget": PhidgetAdapter,
 }
 
 

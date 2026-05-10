@@ -1,6 +1,7 @@
 #
 # ABOUT
-# A simple device simulator for Artisan
+# A simple virtual machine for Artisan
+# (formerly known as simulator)
 
 # LICENSE
 # This program or module is free software: you can redistribute it and/or
@@ -44,7 +45,7 @@ def _interp(x: float, xp: list[float], fp: list[float]) -> float:
     return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
 
 
-class Simulator:
+class VirtualMachine:
     __slots__ = [
         "profile",
         "temp1",

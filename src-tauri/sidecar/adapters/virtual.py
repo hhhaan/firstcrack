@@ -23,7 +23,11 @@ def _build_default_profile() -> dict[str, Any]:
             bt = 174 + (19 * (t - 420)) / 240
         else:
             bt = 193 + (10 * (t - 660)) / 120
-        et = 220.0 if t == 0 else (220 - (5 * t) / 90 if t <= 90 else 215 + math.sin(t / 300) * 0.8)
+        et = (
+            220.0
+            if t == 0
+            else (220 - (5 * t) / 90 if t <= 90 else 215 + math.sin(t / 300) * 0.8)
+        )
         times.append(float(t))
         temp1.append(round(et, 1))
         temp2.append(round(bt, 1))
@@ -33,37 +37,50 @@ def _build_default_profile() -> dict[str, Any]:
 _DEFAULT_PROFILE = _build_default_profile()
 
 
-class SimulatorAdapter:
-    """개발/테스트용 가상 온도 데이터."""
+class VirtualMachineAdapter:
+    """개발/테스트용 가상 머신 온도 데이터."""
 
     def __init__(self, mode: str = "C", **_: Any) -> None:
-        from extern.simulator import Simulator
-        self._sim = Simulator(mode=mode, profile=_DEFAULT_PROFILE)
+        from extern.virtual import VirtualMachine
+
+        self._vm = VirtualMachine(mode=mode, profile=_DEFAULT_PROFILE)
         self._start_time: float = 0.0
         self._connected: bool = False
 
     async def connect(self) -> None:
         self._start_time = time.monotonic()
         self._connected = True
-        _log.info("Simulator connected")
+        _log.info("VirtualMachine connected")
 
     async def disconnect(self) -> None:
         self._connected = False
 
     async def read(self) -> Reading:
         tx = time.monotonic() - self._start_time
-        et, bt = self._sim.read(tx)
+        et, bt = self._vm.read(tx)
         # 가상 제어값 — 780초 프로파일 기준
-        heater = 70.0 - (tx / 780.0) * 20.0          # 70% → 50% (시간이 지날수록 화력 줄임)
-        fan = 30.0 + (tx / 780.0) * 30.0              # 30% → 60% (시간이 지날수록 에어 올림)
-        drum = 50.0                                    # 드럼은 고정
-        return Reading(bt=bt, et=et, heater=round(heater, 1), fan=round(fan, 1), drum=drum, timestamp=time.monotonic())
+        heater = 70.0 - (tx / 780.0) * 20.0  # 70% → 50% (시간이 지날수록 화력 줄임)
+        fan = 30.0 + (tx / 780.0) * 30.0  # 30% → 60% (시간이 지날수록 에어 올림)
+        drum = 50.0  # 드럼은 고정
+        return Reading(
+            bt=bt,
+            et=et,
+            heater=round(heater, 1),
+            fan=round(fan, 1),
+            drum=drum,
+            timestamp=time.monotonic(),
+        )
 
     async def start_roast(self) -> None:
         """Charge 버튼과 동기화 — 프로파일 재생을 UI 투입 시점부터 시작."""
         self._start_time = time.monotonic()
 
-    async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
+    async def control(
+        self,
+        heater: float | None = None,
+        fan: float | None = None,
+        drum: float | None = None,
+    ) -> None:
         pass
 
     @property

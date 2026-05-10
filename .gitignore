@@ -44,3 +44,7 @@ sidecar/.venv/
 sidecar/__pycache__/
 sidecar/**/*.pyc
 sidecar/extern/
+
+# Documentation and planning
+plans/
+docs/designs/
