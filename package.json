@@ -8,7 +8,8 @@
     "dev": "concurrently --names \"vite,sidecar\" --prefix-colors \"cyan,yellow\" \"vite\" \"src-tauri/sidecar/.venv/bin/python src-tauri/sidecar/main.py\"",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "types:gen": "supabase gen types typescript --linked 2>/dev/null > src/shared/types/database.types.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
