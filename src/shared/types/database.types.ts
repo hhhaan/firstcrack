@@ -11,34 +11,58 @@ export type Database = {
     Tables: {
       beans: {
         Row: {
-          created_at: string
           id: string
-          low_stock_threshold_grams: number
+          user_id: string
           name: string
           origin: string | null
+          region: string | null
+          farm: string | null
+          altitude_masl: number | null
+          process: string | null
+          variety: string | null
+          purchase_date: string | null
+          tasting_notes: string | null
           stock_grams: number
+          capacity_grams: number
+          low_stock_threshold_grams: number
+          created_at: string
           updated_at: string
-          user_id: string
         }
         Insert: {
-          created_at?: string
           id?: string
-          low_stock_threshold_grams?: number
+          user_id: string
           name: string
           origin?: string | null
+          region?: string | null
+          farm?: string | null
+          altitude_masl?: number | null
+          process?: string | null
+          variety?: string | null
+          purchase_date?: string | null
+          tasting_notes?: string | null
           stock_grams?: number
+          capacity_grams?: number
+          low_stock_threshold_grams?: number
+          created_at?: string
           updated_at?: string
-          user_id: string
         }
         Update: {
-          created_at?: string
           id?: string
-          low_stock_threshold_grams?: number
+          user_id?: string
           name?: string
           origin?: string | null
+          region?: string | null
+          farm?: string | null
+          altitude_masl?: number | null
+          process?: string | null
+          variety?: string | null
+          purchase_date?: string | null
+          tasting_notes?: string | null
           stock_grams?: number
+          capacity_grams?: number
+          low_stock_threshold_grams?: number
+          created_at?: string
           updated_at?: string
-          user_id?: string
         }
       }
       profiles: {

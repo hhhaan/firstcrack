@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { beanInventoryApi } from './api'
-import type { BeanInventoryLog } from '@shared/types/database.types'
+import type { BeanInventoryLog } from '../../shared/types/database.types'
 
 export const beanInventoryKeys = {
     all: (userId: string) => ['inventory_logs', userId] as const,

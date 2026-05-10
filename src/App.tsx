@@ -6,7 +6,7 @@ import { Login } from './views/Login';
 import { Dashboard } from './views/dashboard';
 import { ActiveRoast } from './views/ActiveRoast';
 import { History } from './views/history';
-import { Beans } from './views/Beans';
+import { Beans } from './views/bean';
 import { Profiles } from './views/profiles';
 import { Machines } from './views/machines';
 import { type View } from './shared/types/view';

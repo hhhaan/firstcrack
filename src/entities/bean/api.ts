@@ -1,8 +1,8 @@
-import { supabaseAxios } from '@shared/lib/axios'
-import type { Bean } from '@shared/types/database.types'
+import { supabaseAxios } from '../../shared/lib/axios'
+import type { Bean, Database } from '../../shared/types/database.types'
 
-type BeanInsert = Omit<Bean, 'id' | 'created_at' | 'updated_at'>
-type BeanUpdate = { id: string } & Partial<Omit<Bean, 'id' | 'created_at' | 'updated_at' | 'user_id'>>
+type BeanInsert = Database['public']['Tables']['beans']['Insert']
+type BeanUpdate = { id: string } & Database['public']['Tables']['beans']['Update']
 
 export const beanApi = {
     list: async (userId: string): Promise<Bean[]> => {

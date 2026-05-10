@@ -1,42 +1,34 @@
 import { useEffect, useState } from 'react';
 import { PackagePlus, X, Info, Scale, MapPin, Tag, Search, Check, Edit3 } from 'lucide-react';
 import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
-
-interface Bean {
-    id: number;
-    name: string;
-    origin: string;
-    process: string;
-    stock: number;
-    capacity: number;
-    region?: string;
-    farm?: string;
-    variety?: string;
-    altitude?: number;
-    tasting?: string;
-}
+import { useCreateBean, useUpdateBean } from '../../../entities/bean/queries';
+import { useCreateBeanInventoryLog } from '../../../entities/bean-inventory/queries';
+import type { Bean } from '../../../shared/types/database.types';
 
 interface AddBeanModalProps {
     open: boolean;
     onClose: () => void;
+    userId: string;
     existingBeans: Bean[];
     initialTab?: 'new' | 'restock' | 'edit';
-    initialBeanId?: number | null;
+    initialBeanId?: string | null;
     initialData?: Bean | null;
+    onSuccess?: (bean: Bean | null) => void;
 }
 
 export const AddBeanModal = ({
     open,
     onClose,
+    userId,
     existingBeans,
     initialTab = 'new',
     initialBeanId = null,
     initialData = null,
+    onSuccess,
 }: AddBeanModalProps) => {
     const [tab, setTab] = useState<'new' | 'restock' | 'edit'>(initialTab);
-    const [selectedBeanId, setSelectedBeanId] = useState<number | null>(initialBeanId);
+    const [selectedBeanId, setSelectedBeanId] = useState<string | null>(initialBeanId);
     const [restockAmount, setRestockAmount] = useState('');
-
     const [formData, setFormData] = useState({
         name: '',
         origin: '',
@@ -50,6 +42,10 @@ export const AddBeanModal = ({
         tastingNotes: '',
     });
 
+    const createBean = useCreateBean(userId);
+    const updateBean = useUpdateBean(userId);
+    const createInventoryLog = useCreateBeanInventoryLog(userId);
+
     useEffect(() => {
         if (open) {
             setTab(initialTab);
@@ -58,16 +54,16 @@ export const AddBeanModal = ({
 
             if (initialData && (initialTab === 'edit' || initialTab === 'new')) {
                 setFormData({
-                    name: initialData.name || '',
-                    origin: initialData.origin || '',
-                    region: initialData.region || '',
-                    farm: initialData.farm || '',
-                    process: initialData.process || 'Washed',
-                    variety: initialData.variety || '',
-                    altitude: initialData.altitude?.toString() || '',
-                    stock: initialData.stock?.toString() || '',
-                    capacity: initialData.capacity?.toString() || '5000',
-                    tastingNotes: initialData.tasting || '',
+                    name: initialData.name ?? '',
+                    origin: initialData.origin ?? '',
+                    region: initialData.region ?? '',
+                    farm: initialData.farm ?? '',
+                    process: initialData.process ?? 'Washed',
+                    variety: initialData.variety ?? '',
+                    altitude: initialData.altitude_masl?.toString() ?? '',
+                    stock: initialData.stock_grams?.toString() ?? '',
+                    capacity: initialData.capacity_grams?.toString() ?? '5000',
+                    tastingNotes: initialData.tasting_notes ?? '',
                 });
             } else if (!initialData) {
                 setFormData({
@@ -88,16 +84,80 @@ export const AddBeanModal = ({
 
     useEffect(() => {
         if (!open) return;
-
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') onClose();
         };
-
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [open, onClose]);
 
     if (!open) return null;
+
+    const isSubmitting = createBean.isPending || updateBean.isPending || createInventoryLog.isPending;
+
+    const handleSubmit = async () => {
+        if (isSubmitting) return;
+        try {
+            if (tab === 'new') {
+                const stockGrams = parseInt(formData.stock) || 0;
+                const newBean = await createBean.mutateAsync({
+                    user_id: userId,
+                    name: formData.name,
+                    origin: formData.origin || null,
+                    region: formData.region || null,
+                    farm: formData.farm || null,
+                    process: formData.process || null,
+                    variety: formData.variety || null,
+                    altitude_masl: formData.altitude ? parseInt(formData.altitude) : null,
+                    stock_grams: stockGrams,
+                    capacity_grams: parseInt(formData.capacity) || 5000,
+                    tasting_notes: formData.tastingNotes || null,
+                    purchase_date: new Date().toISOString().split('T')[0],
+                });
+                if (stockGrams > 0) {
+                    await createInventoryLog.mutateAsync({
+                        user_id: userId,
+                        bean_id: newBean.id,
+                        change_grams: stockGrams,
+                        type: 'purchase',
+                    });
+                }
+                onSuccess?.(newBean);
+            } else if (tab === 'edit' && initialData) {
+                const updated = await updateBean.mutateAsync({
+                    id: initialData.id,
+                    name: formData.name,
+                    origin: formData.origin || null,
+                    region: formData.region || null,
+                    farm: formData.farm || null,
+                    process: formData.process || null,
+                    variety: formData.variety || null,
+                    altitude_masl: formData.altitude ? parseInt(formData.altitude) : null,
+                    stock_grams: parseInt(formData.stock) || 0,
+                    capacity_grams: parseInt(formData.capacity) || 5000,
+                    tasting_notes: formData.tastingNotes || null,
+                });
+                onSuccess?.(updated);
+            } else if (tab === 'restock' && selectedBeanId && restockAmount) {
+                const amount = parseInt(restockAmount);
+                const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
+                const updated = await updateBean.mutateAsync({
+                    id: selectedBeanId,
+                    stock_grams: (currentBean?.stock_grams ?? 0) + amount,
+                });
+                await createInventoryLog.mutateAsync({
+                    user_id: userId,
+                    bean_id: selectedBeanId,
+                    change_grams: amount,
+                    type: 'purchase',
+                });
+                onSuccess?.(updated);
+            }
+            onClose();
+        } catch (err) {
+            console.error('AddBeanModal submit error:', err);
+        }
+    };
 
     const inputStyle: React.CSSProperties = {
         width: '100%',
@@ -137,6 +197,11 @@ export const AddBeanModal = ({
         transition: 'all 0.2s',
         boxShadow: active ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
     });
+
+    const isSubmitDisabled =
+        isSubmitting ||
+        (tab === 'restock' && (!selectedBeanId || !restockAmount)) ||
+        (tab === 'new' && !formData.name);
 
     return (
         <ModalShell
@@ -245,7 +310,6 @@ export const AddBeanModal = ({
             <div style={{ padding: '32px', overflowY: 'auto', flex: 1 }}>
                 {tab === 'new' || tab === 'edit' ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-                        {/* General Info */}
                         <div style={{ gridColumn: 'span 2' }}>
                             <label style={labelStyle}>
                                 <Info size={14} /> Lot Name
@@ -272,13 +336,38 @@ export const AddBeanModal = ({
 
                         <div>
                             <label style={labelStyle}>
-                                <MapPin size={14} /> Region / Farm
+                                <MapPin size={14} /> Region
                             </label>
                             <input
                                 style={inputStyle}
-                                placeholder="e.g. Guji Zone / Shakiso"
+                                placeholder="e.g. Guji Zone"
                                 value={formData.region}
                                 onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <label style={labelStyle}>
+                                <MapPin size={14} /> Farm
+                            </label>
+                            <input
+                                style={inputStyle}
+                                placeholder="e.g. Shakiso Cooperative"
+                                value={formData.farm}
+                                onChange={(e) => setFormData({ ...formData, farm: e.target.value })}
+                            />
+                        </div>
+
+                        <div>
+                            <label style={labelStyle}>
+                                <MapPin size={14} /> Altitude (masl)
+                            </label>
+                            <input
+                                type="number"
+                                style={inputStyle}
+                                placeholder="e.g. 2100"
+                                value={formData.altitude}
+                                onChange={(e) => setFormData({ ...formData, altitude: e.target.value })}
                             />
                         </div>
 
@@ -369,13 +458,7 @@ export const AddBeanModal = ({
                             <label style={labelStyle}>
                                 <Search size={14} /> Select Bean to Restock
                             </label>
-                            <div
-                                style={{
-                                    display: 'grid',
-                                    gap: 10,
-                                    padding: '4px',
-                                }}
-                            >
+                            <div style={{ display: 'grid', gap: 10, padding: '4px' }}>
                                 {existingBeans.map((bean) => (
                                     <div
                                         key={bean.id}
@@ -403,14 +486,14 @@ export const AddBeanModal = ({
                                         <div>
                                             <div style={{ fontSize: 14, fontWeight: 600 }}>{bean.name}</div>
                                             <div style={{ fontSize: 12, opacity: 0.7 }}>
-                                                {bean.origin} · {bean.process}
+                                                {bean.origin ?? '—'} · {bean.process ?? '—'}
                                             </div>
                                         </div>
                                         {selectedBeanId === bean.id ? (
                                             <Check size={18} strokeWidth={2.5} />
                                         ) : (
                                             <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', opacity: 0.6 }}>
-                                                {bean.stock.toLocaleString()}g
+                                                {bean.stock_grams.toLocaleString()}g
                                             </div>
                                         )}
                                     </div>
@@ -476,10 +559,8 @@ export const AddBeanModal = ({
                         Cancel
                     </button>
                     <button
-                        disabled={tab === 'restock' && (!selectedBeanId || !restockAmount)}
-                        onClick={() => {
-                            onClose();
-                        }}
+                        disabled={isSubmitDisabled}
+                        onClick={handleSubmit}
                         style={{
                             flex: 2,
                             padding: '14px',
@@ -489,13 +570,19 @@ export const AddBeanModal = ({
                             color: 'white',
                             fontSize: 15,
                             fontWeight: 600,
-                            cursor:
-                                tab === 'restock' && (!selectedBeanId || !restockAmount) ? 'not-allowed' : 'pointer',
+                            cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
                             boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                            opacity: tab === 'restock' && (!selectedBeanId || !restockAmount) ? 0.6 : 1,
+                            opacity: isSubmitDisabled ? 0.6 : 1,
+                            transition: 'opacity 0.2s',
                         }}
                     >
-                        {tab === 'new' ? 'Create Bean Lot' : tab === 'edit' ? 'Update Bean Details' : 'Confirm Restock'}
+                        {isSubmitting
+                            ? 'Saving...'
+                            : tab === 'new'
+                              ? 'Create Bean Lot'
+                              : tab === 'edit'
+                                ? 'Update Bean Details'
+                                : 'Confirm Restock'}
                     </button>
                 </div>
             </div>

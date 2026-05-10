@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { beanApi } from './api'
-import type { Bean } from '@shared/types/database.types'
+import type { Bean } from '../../shared/types/database.types'
 
 export const beanKeys = {
     all: (userId: string) => ['beans', userId] as const,

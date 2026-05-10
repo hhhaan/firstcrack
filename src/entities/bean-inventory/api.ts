@@ -1,5 +1,5 @@
-import { supabaseAxios } from '@shared/lib/axios'
-import type { BeanInventoryLog, BeanInventoryLogInsert, BeanInventoryLogUpdate } from '@shared/types/database.types'
+import { supabaseAxios } from '../../shared/lib/axios'
+import type { BeanInventoryLog, BeanInventoryLogInsert, BeanInventoryLogUpdate } from '../../shared/types/database.types'
 
 export const beanInventoryApi = {
     list: async (userId: string, beanId?: string): Promise<BeanInventoryLog[]> => {
