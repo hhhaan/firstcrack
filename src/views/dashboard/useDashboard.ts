@@ -73,12 +73,11 @@ export const useDashboard = (userId: string): DashboardData => {
                         .order('scheduled_at', { ascending: true })
                         .limit(3),
 
-                    // Inventory alerts (stock <= threshold)
+                    // Inventory alerts — 전체 가져와서 클라이언트에서 필터 (PostgREST는 컬럼끼리 비교 미지원)
                     supabase
                         .from('beans')
                         .select('*')
-                        .eq('user_id', userId)
-                        .filter('stock_grams', 'lte', 'low_stock_threshold_grams'),
+                        .eq('user_id', userId),
 
                     // Monthly batches (last 6 months)
                     supabase
