@@ -46,7 +46,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                     .then(({ data }) => {
                         if (data?.plan) set({ plan: data.plan as Plan });
                     })
-                    .catch(() => {});
+                    .catch((_err: unknown) => {});
             }
         });
 
