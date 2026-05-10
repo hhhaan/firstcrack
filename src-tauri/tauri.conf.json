@@ -17,7 +17,8 @@
                 "width": 1400,
                 "height": 900,
                 "center": true,
-                "resizable": true
+                "resizable": true,
+                "devtools": true
             }
         ],
         "security": {
