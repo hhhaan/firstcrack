@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Camera, LogOut } from 'lucide-react';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
-import type { Profile } from '@shared/types/database.types';
+import { useProfile, useUpdateProfile } from '../../../entities/profile';
 
 const SectionCard = ({ children }: { children: React.ReactNode }) => (
     <section className="rounded-[20px] p-5 bg-linear-to-b from-[rgba(245,242,239,0.75)] to-[rgba(255,255,255,0.92)] border border-[rgba(0,0,0,0.06)] shadow-warm">
@@ -12,38 +12,26 @@ const SectionCard = ({ children }: { children: React.ReactNode }) => (
 
 export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
     const user = useAuthStore((s) => s.user);
-    const [profile, setProfile] = useState<Profile | null>(null);
+    const { data: profile } = useProfile(user?.id ?? '');
+    const updateProfile = useUpdateProfile(user?.id ?? '');
+
     const [displayName, setDisplayName] = useState('');
-    const [saving, setSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // 프로필 로드 완료 시 displayName 초기화
     useEffect(() => {
-        if (!user) return;
-        supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single()
-            .then(({ data }) => {
-                const p = data as Profile | null;
-                if (p) {
-                    setProfile(p);
-                    setDisplayName(p.display_name ?? '');
-                }
-            });
-    }, [user]);
+        if (profile?.display_name) setDisplayName(profile.display_name);
+    }, [profile?.display_name]);
 
     const handleSaveProfile = async () => {
         if (!user) return;
-        setSaving(true);
-        const update: Partial<Profile> = { display_name: displayName.trim() };
-        const { error } = await supabase
-            .from('profiles')
-            .update(update as never)
-            .eq('id', user.id);
-        setSaving(false);
-        setSaveStatus(error ? 'error' : 'saved');
+        try {
+            await updateProfile.mutateAsync({ display_name: displayName.trim() });
+            setSaveStatus('saved');
+        } catch {
+            setSaveStatus('error');
+        }
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         saveTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2500);
     };
@@ -95,10 +83,10 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                 <div className="flex items-center gap-3 mt-4">
                     <button
                         onClick={handleSaveProfile}
-                        disabled={saving}
+                        disabled={updateProfile.isPending}
                         className="px-4.5 py-2 rounded-full bg-primary text-white text-[13px] font-semibold border-none cursor-pointer shadow-card disabled:opacity-50"
                     >
-                        {saving ? 'Saving…' : 'Save changes'}
+                        {updateProfile.isPending ? 'Saving…' : 'Save changes'}
                     </button>
                     {saveStatus === 'saved' && <span className="text-[13px] text-green-600 font-medium">Saved</span>}
                     {saveStatus === 'error' && (
