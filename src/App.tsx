@@ -13,7 +13,7 @@ import { type View } from './shared/types/view';
 import { useAuthStore } from './shared/store/auth';
 
 export const App = () => {
-    const loggedIn = useAuthStore((s) => s.user !== null);
+    const { user, loading } = useAuthStore((s) => ({ user: s.user, loading: s.loading }));
     const init = useAuthStore((s) => s.init);
 
     useEffect(() => init(), [init]);
@@ -27,9 +27,8 @@ export const App = () => {
         setSettingsOpen(true);
     };
 
-    if (!loggedIn) {
-        return <Login />;
-    }
+    if (loading) return null;
+    if (!user) return <Login />;
 
     return (
         <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>

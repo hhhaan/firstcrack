@@ -41,6 +41,8 @@ export const useDashboard = (userId: string): DashboardData => {
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
+        if (!userId) return;
+
         const fetch = async () => {
             setLoading(true)
             setError(null)
