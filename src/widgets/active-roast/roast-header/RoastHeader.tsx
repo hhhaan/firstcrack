@@ -1,4 +1,5 @@
-import { Settings2 } from 'lucide-react';
+import { Settings2, ChevronDown } from 'lucide-react';
+import { roastProfiles, DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
 
 export const RoastHeader = ({
     roastEnded,
@@ -6,6 +7,8 @@ export const RoastHeader = ({
     sidecarConnected,
     timeStr,
     phase,
+    targetProfileId,
+    onTargetProfileChange,
     onOpenRoastSettings,
 }: {
     roastEnded: boolean;
@@ -13,8 +16,19 @@ export const RoastHeader = ({
     sidecarConnected: boolean;
     timeStr: string;
     phase: string;
+    targetProfileId: number | null;
+    onTargetProfileChange: (id: number | null) => void;
     onOpenRoastSettings?: () => void;
-}) => (
+}) => {
+    const handleProfileChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const val = e.target.value;
+        const id = val === '' ? null : Number(val);
+        onTargetProfileChange(id);
+        if (id != null) localStorage.setItem(DEFAULT_PROFILE_KEY, String(id));
+        else localStorage.removeItem(DEFAULT_PROFILE_KEY);
+    };
+
+    return (
     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
@@ -59,9 +73,43 @@ export const RoastHeader = ({
             >
                 Ethiopia Yirgacheffe
             </h1>
-            <p style={{ fontSize: 14, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
-                Natural · Guji Zone · Profile: Signature Light
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 13, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
+                    Natural · Guji Zone · Target:
+                </span>
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                    <select
+                        value={targetProfileId ?? ''}
+                        onChange={handleProfileChange}
+                        disabled={charged}
+                        style={{
+                            appearance: 'none',
+                            background: 'transparent',
+                            border: 'none',
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: targetProfileId ? 'rgba(16,185,129,0.9)' : 'var(--color-muted)',
+                            cursor: charged ? 'default' : 'pointer',
+                            paddingRight: 16,
+                            letterSpacing: '0.14px',
+                            outline: 'none',
+                        }}
+                    >
+                        <option value="">No Target</option>
+                        {roastProfiles.map((p) => (
+                            <option key={p.id} value={p.id}>
+                                {p.name}
+                            </option>
+                        ))}
+                    </select>
+                    {!charged && (
+                        <ChevronDown
+                            size={12}
+                            style={{ position: 'absolute', right: 0, pointerEvents: 'none', color: 'rgba(16,185,129,0.7)' }}
+                        />
+                    )}
+                </div>
+            </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -107,4 +155,5 @@ export const RoastHeader = ({
             )}
         </div>
     </div>
-);
+    );
+};

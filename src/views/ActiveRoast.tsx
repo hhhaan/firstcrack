@@ -10,6 +10,7 @@ import {
 import { RoastTempChart, type RoastEventMarker } from '@widgets/active-roast/ui/RoastTempChart';
 
 import { fullData } from '@shared/data/roast-mock-data';
+import { roastProfiles, generateProfileCurve, interpolateProfileBT, DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
 import type { RoastPoint, LogEntry } from '@shared/types/roast';
 import { isEditableTarget } from '@shared/lib/dom';
 import { sidecar } from '@shared/lib/sidecar';
@@ -28,6 +29,10 @@ export const ActiveRoast = ({
     onOpenRoastSettings?: () => void;
 }) => {
     const roastSettings = useRoastSettings();
+    const [targetProfileId, setTargetProfileId] = useState<number | null>(() => {
+        const stored = localStorage.getItem(DEFAULT_PROFILE_KEY);
+        return stored ? Number(stored) : roastProfiles[0]?.id ?? null;
+    });
     const [elapsed, setElapsed] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
     const isRunningRef = useRef(isRunning);
@@ -192,7 +197,16 @@ export const ActiveRoast = ({
     const rawET = sidecarConnected && liveData?.et != null ? liveData.et : (currentPoint?.et ?? null);
     const displayBT = rawBT != null ? toDisplayTemp(rawBT, unit) : null;
 
-    // 과거(livePoints 직접, 0.5s 해상도) + 미래(fullData target 커브) 합산
+    // 선택된 프로파일 커브 (전체 구간)
+    const targetCurve = useMemo(() => {
+        if (!targetProfileId) return null;
+        const profile = roastProfiles.find((p) => p.id === targetProfileId);
+        if (!profile) return null;
+        return generateProfileCurve(profile.dropVal, profile.durationSec);
+    }, [targetProfileId]);
+
+    // 과거(livePoints 직접, 0.5s 해상도) + 미래(fullData mock) 합산
+    // btTarget은 전체 구간에 걸쳐 선택된 프로파일 커브로 채움
     const chartData = useMemo(() => {
         const lastLiveTime = livePoints.length > 0 ? livePoints[livePoints.length - 1].time : -1;
         const past = livePoints.map((p) => ({
@@ -201,7 +215,7 @@ export const ActiveRoast = ({
             etActual: p.et,
             rorActual: p.ror,
             etRorActual: p.ror_et,
-            btTarget: null as number | null,
+            btTarget: targetCurve ? interpolateProfileBT(targetCurve, p.time) : null,
         }));
         const future = fullData
             .filter((p) => p.time > lastLiveTime)
@@ -211,10 +225,10 @@ export const ActiveRoast = ({
                 etActual: null as number | null,
                 rorActual: null as number | null,
                 etRorActual: null as number | null,
-                btTarget: p.bt,
+                btTarget: targetCurve ? interpolateProfileBT(targetCurve, p.time) : null,
             }));
         return [...past, ...future];
-    }, [livePoints]);
+    }, [livePoints, targetCurve]);
     // zoomRange는 초(seconds) 단위 시간 — 배열 인덱스가 아님
     // chartData가 성장해도 "30s~120s 구간"은 항상 같은 데이터를 가리킴
     const MAX_TIME = chartData.length > 0 ? chartData[chartData.length - 1].time : 780;
@@ -654,6 +668,8 @@ export const ActiveRoast = ({
                 sidecarConnected={sidecarConnected}
                 timeStr={timeStr}
                 phase={phase}
+                targetProfileId={targetProfileId}
+                onTargetProfileChange={setTargetProfileId}
                 onOpenRoastSettings={onOpenRoastSettings}
             />
 

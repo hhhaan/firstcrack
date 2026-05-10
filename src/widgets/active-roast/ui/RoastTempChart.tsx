@@ -289,8 +289,8 @@ export const RoastTempChart = ({
             },
             series: [
                 {},
-                // btTarget — dashed, faded
-                { stroke: 'rgba(23,23,23,0.25)', width: 1.5, dash: [5, 4], points: { show: false } },
+                // btTarget — green dashed reference curve
+                { stroke: 'rgba(16,185,129,0.7)', width: 1.5, dash: [6, 4], points: { show: false } },
                 // btActual
                 { stroke: colorPrimary, width: 2.5, points: { show: false } },
                 // etActual — dashed, blue, 70% opacity

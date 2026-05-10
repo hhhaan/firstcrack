@@ -1,8 +1,9 @@
-const LEGEND_ITEMS = [
+const LEGEND_ITEMS: { color: string; label: string; dashed?: boolean }[] = [
     { color: '#1F2937', label: 'BT' },
     { color: '#2563eb', label: 'ET', dashed: true },
     { color: '#d97706', label: 'RoR' },
-] as const;
+    { color: 'rgba(16,185,129,0.7)', label: 'Target', dashed: true },
+];
 
 export const ChartLegend = () => (
     <div className="absolute top-1 right-10 z-10 flex items-center gap-4">
