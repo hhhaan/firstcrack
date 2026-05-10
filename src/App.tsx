@@ -13,7 +13,7 @@ import { type View } from './shared/types/view';
 import { useAuthStore } from './shared/store/auth';
 
 export const App = () => {
-    const loggedIn = useAuthStore((s) => s.loggedIn);
+    const loggedIn = useAuthStore((s) => s.user !== null);
     const init = useAuthStore((s) => s.init);
 
     useEffect(() => init(), [init]);

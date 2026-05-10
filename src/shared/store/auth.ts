@@ -4,7 +4,6 @@ import type { User } from '@supabase/supabase-js';
 
 interface AuthState {
     user: User | null;
-    loggedIn: boolean;
     loading: boolean;
 }
 
@@ -13,18 +12,17 @@ interface AuthActions {
     init: () => () => void;
 }
 
-export const useAuthStore = create<AuthState & AuthActions>((set) => ({
+export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     user: null,
-    loggedIn: false,
     loading: true,
 
     init: () => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            set({ user: session?.user ?? null, loggedIn: !!session, loading: false });
-        });
-
+        // Supabase v2: onAuthStateChange가 subscribe 시점에 INITIAL_SESSION으로 즉시 발화
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-            set({ user: session?.user ?? null, loggedIn: !!session, loading: false });
+            const next = session?.user ?? null;
+            // user.id 동등성 가드 — 동일 세션 이벤트 시 불필요한 리렌더 방지
+            if (get().user?.id === next?.id && !get().loading) return;
+            set({ user: next, loading: false });
         });
 
         return () => subscription.unsubscribe();
