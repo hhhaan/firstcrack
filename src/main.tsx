@@ -5,7 +5,14 @@ import { App } from './App';
 import { initI18n } from './shared/i18n';
 import 'uplot/dist/uPlot.min.css';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: Infinity,
+            refetchOnWindowFocus: false,
+        },
+    },
+});
 
 const bootstrap = async () => {
     await initI18n();
