@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { Search, Filter, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { useRoastSessions } from '@entities/roast';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
-import { useAuth } from '@shared/hooks/useAuth';
+import { useAuthStore } from '@shared/store/auth';
 
 const levelColor: Record<string, string> = {
     Light: '#a16207',
@@ -214,7 +214,7 @@ export const History = () => {
     const [sortKey, setSortKey] = useState<SortKey>('date');
     const [sortAsc, setSortAsc] = useState<boolean>(false);
 
-    const { user } = useAuth();
+    const user = useAuthStore((s) => s.user);
 
     const { data: rawSessions = [], isLoading, isError } = useRoastSessions(user?.id ?? '', 'completed');
 

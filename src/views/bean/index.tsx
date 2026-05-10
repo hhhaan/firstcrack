@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { useAuth } from '../../shared/hooks/useAuth'
+import { useAuthStore } from '../../shared/store/auth'
 import { useBeans } from '../../entities/bean/queries'
 import { getStatus } from '../../entities/bean/lib'
 import { BeanList } from '../../widgets/bean-list/ui/BeanList'
@@ -14,8 +14,8 @@ interface BeansProps {
 }
 
 export const Beans = ({ onNavigate }: BeansProps) => {
-    const { user } = useAuth()
-    const { data: beans = [], isLoading } = useBeans(user?.id ?? '')
+    const userId = useAuthStore((s) => s.user?.id ?? '')
+    const { data: beans = [], isLoading } = useBeans(userId)
 
     const [search, setSearch] = useState('')
     const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -49,7 +49,7 @@ export const Beans = ({ onNavigate }: BeansProps) => {
             <AddBeanModal
                 open={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
-                userId={user?.id ?? ''}
+                userId={userId}
                 existingBeans={beans}
                 initialTab={modalConfig.tab}
                 initialBeanId={modalConfig.beanId}

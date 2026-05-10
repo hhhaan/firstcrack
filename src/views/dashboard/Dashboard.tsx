@@ -4,9 +4,7 @@ import { type View } from '@shared/types/view';
 import { useDashboard } from './useDashboard';
 import { useWeather } from './useWeather';
 import { useRoastingStore } from '@features/active-roast';
-
-// TODO: auth 연동 후 실제 userId로 교체
-const USER_ID = 'ad755cd2-cb7f-48d1-94a7-b7ee72f705b7';
+import { useAuthStore } from '@shared/store/auth';
 
 interface DashboardProps {
     onNavigate: (view: View) => void;
@@ -199,7 +197,8 @@ const durationDiff = (current: number, previous: number) => {
 };
 
 export const Dashboard = ({ onNavigate }: DashboardProps) => {
-    const db = useDashboard(USER_ID);
+    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const db = useDashboard(userId);
     const isRoasting = useRoastingStore((s) => s.isRoasting);
     const weather = useWeather();
 

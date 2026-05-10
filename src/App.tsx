@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
@@ -10,10 +10,13 @@ import { Beans } from './views/bean';
 import { Profiles } from './views/profiles';
 import { Machines } from './views/machines';
 import { type View } from './shared/types/view';
-import { useAuth } from './shared/hooks/useAuth';
+import { useAuthStore } from './shared/store/auth';
 
 export const App = () => {
-    const { loggedIn } = useAuth();
+    const loggedIn = useAuthStore((s) => s.loggedIn);
+    const init = useAuthStore((s) => s.init);
+
+    useEffect(() => init(), [init]);
     const [view, setView] = useState<View>('dashboard');
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);

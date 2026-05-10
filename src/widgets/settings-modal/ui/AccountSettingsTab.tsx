@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, LogOut } from 'lucide-react';
 import { supabase } from '@shared/lib/supabase';
-import { useAuth } from '@shared/hooks/useAuth';
+import { useAuthStore } from '@shared/store/auth';
 import type { Profile } from '@shared/types/database.types';
 
 const SectionCard = ({ children }: { children: React.ReactNode }) => (
@@ -11,7 +11,7 @@ const SectionCard = ({ children }: { children: React.ReactNode }) => (
 );
 
 export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
-    const { user } = useAuth();
+    const user = useAuthStore((s) => s.user);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [displayName, setDisplayName] = useState('');
     const [saving, setSaving] = useState(false);
