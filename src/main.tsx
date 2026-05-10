@@ -5,11 +5,20 @@ import { App } from './App';
 import { initI18n } from './shared/i18n';
 import 'uplot/dist/uPlot.min.css';
 
+const is4xx = (error: unknown) => {
+    if (!error || typeof error !== 'object') return false;
+    const status = (error as Record<string, unknown>).status
+        ?? (error as { response?: { status?: unknown } }).response?.status;
+    return typeof status === 'number' && status >= 400 && status < 500;
+};
+
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
             staleTime: Infinity,
             refetchOnWindowFocus: false,
+            // 4xx는 재시도 의미 없음 (인증/권한 문제) — 서버 오류(5xx)만 최대 2회 재시도
+            retry: (failureCount, error) => !is4xx(error) && failureCount < 2,
         },
     },
 });
