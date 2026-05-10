@@ -1,127 +1,127 @@
-import { TrendingUp, Coffee, Clock, CheckCircle, ArrowRight, Calendar, ChevronRight } from 'lucide-react'
-import { useEffect, useRef } from 'react'
-import { type View } from '@shared/types/view'
-import { useDashboard } from './useDashboard'
-import { useRoastingStore } from '@features/active-roast'
+import { TrendingUp, Coffee, Clock, CheckCircle, ArrowRight, Calendar, ChevronRight } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { type View } from '@shared/types/view';
+import { useDashboard } from './useDashboard';
+import { useRoastingStore } from '@features/active-roast';
 
 // TODO: auth 연동 후 실제 userId로 교체
-const USER_ID = 'ad755cd2-cb7f-48d1-94a7-b7ee72f705b7'
+const USER_ID = 'ad755cd2-cb7f-48d1-94a7-b7ee72f705b7';
 
 interface DashboardProps {
-    onNavigate: (view: View) => void
+    onNavigate: (view: View) => void;
 }
 
 interface BarCanvasProps {
-    data: { month: string; batches: number }[]
-    height?: number
+    data: { month: string; batches: number }[];
+    height?: number;
 }
 
 const BarCanvas = ({ data, height = 160 }: BarCanvasProps) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null)
-    const tooltipRef = useRef<HTMLDivElement>(null)
-    const containerRef = useRef<HTMLDivElement>(null)
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const tooltipRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const draw = (canvas: HTMLCanvasElement) => {
-        const dpr = window.devicePixelRatio || 1
-        const W = canvas.offsetWidth
-        const H = height
-        canvas.width = W * dpr
-        canvas.height = H * dpr
-        canvas.style.width = `${W}px`
-        canvas.style.height = `${H}px`
+        const dpr = window.devicePixelRatio || 1;
+        const W = canvas.offsetWidth;
+        const H = height;
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        canvas.style.width = `${W}px`;
+        canvas.style.height = `${H}px`;
 
-        const ctx = canvas.getContext('2d')!
-        ctx.scale(dpr, dpr)
+        const ctx = canvas.getContext('2d')!;
+        ctx.scale(dpr, dpr);
 
-        const cs = getComputedStyle(document.documentElement)
-        const colorPrimary = cs.getPropertyValue('--color-primary').trim() || '#171717'
-        const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#9ca3af'
+        const cs = getComputedStyle(document.documentElement);
+        const colorPrimary = cs.getPropertyValue('--color-primary').trim() || '#171717';
+        const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#9ca3af';
 
-        const maxVal = Math.max(...data.map((d) => d.batches), 1)
-        const padL = 28
-        const padR = 8
-        const padT = 8
-        const padB = 28
-        const plotW = W - padL - padR
-        const plotH = H - padT - padB
-        const barW = Math.min(20, (plotW / data.length) * 0.5)
-        const gap = plotW / data.length
+        const maxVal = Math.max(...data.map((d) => d.batches), 1);
+        const padL = 28;
+        const padR = 8;
+        const padT = 8;
+        const padB = 28;
+        const plotW = W - padL - padR;
+        const plotH = H - padT - padB;
+        const barW = Math.min(20, (plotW / data.length) * 0.5);
+        const gap = plotW / data.length;
 
-        ctx.strokeStyle = 'rgba(0,0,0,0.05)'
-        ctx.lineWidth = 1
+        ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+        ctx.lineWidth = 1;
         for (let i = 0; i <= 3; i++) {
-            const y = padT + plotH - (i / 3) * plotH
-            ctx.beginPath()
-            ctx.moveTo(padL, y)
-            ctx.lineTo(padL + plotW, y)
-            ctx.stroke()
-            ctx.fillStyle = colorMuted
-            ctx.font = '11px sans-serif'
-            ctx.textAlign = 'right'
-            ctx.fillText(String(Math.round((i / 3) * maxVal)), padL - 4, y + 4)
+            const y = padT + plotH - (i / 3) * plotH;
+            ctx.beginPath();
+            ctx.moveTo(padL, y);
+            ctx.lineTo(padL + plotW, y);
+            ctx.stroke();
+            ctx.fillStyle = colorMuted;
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(String(Math.round((i / 3) * maxVal)), padL - 4, y + 4);
         }
 
         data.forEach((d, i) => {
-            const x = padL + gap * i + gap / 2 - barW / 2
-            const barH = (d.batches / maxVal) * plotH
-            const y = padT + plotH - barH
-            const r = 4
+            const x = padL + gap * i + gap / 2 - barW / 2;
+            const barH = (d.batches / maxVal) * plotH;
+            const y = padT + plotH - barH;
+            const r = 4;
 
-            ctx.fillStyle = colorPrimary
-            ctx.beginPath()
-            ctx.moveTo(x + r, y)
-            ctx.lineTo(x + barW - r, y)
-            ctx.quadraticCurveTo(x + barW, y, x + barW, y + r)
-            ctx.lineTo(x + barW, y + barH)
-            ctx.lineTo(x, y + barH)
-            ctx.lineTo(x, y + r)
-            ctx.quadraticCurveTo(x, y, x + r, y)
-            ctx.closePath()
-            ctx.fill()
+            ctx.fillStyle = colorPrimary;
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + barW - r, y);
+            ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+            ctx.lineTo(x + barW, y + barH);
+            ctx.lineTo(x, y + barH);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+            ctx.fill();
 
-            ctx.fillStyle = colorMuted
-            ctx.font = '12px sans-serif'
-            ctx.textAlign = 'center'
-            ctx.fillText(d.month, padL + gap * i + gap / 2, H - 6)
-        })
-    }
+            ctx.fillStyle = colorMuted;
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(d.month, padL + gap * i + gap / 2, H - 6);
+        });
+    };
 
     useEffect(() => {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        draw(canvas)
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        draw(canvas);
         const obs = new ResizeObserver(() => {
-            if (canvas) draw(canvas)
-        })
-        obs.observe(canvas.parentElement!)
-        return () => obs.disconnect()
+            if (canvas) draw(canvas);
+        });
+        obs.observe(canvas.parentElement!);
+        return () => obs.disconnect();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data])
+    }, [data]);
 
     const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        const canvas = canvasRef.current
-        const tt = tooltipRef.current
-        if (!canvas || !tt) return
+        const canvas = canvasRef.current;
+        const tt = tooltipRef.current;
+        if (!canvas || !tt) return;
 
-        const rect = canvas.getBoundingClientRect()
-        const mx = e.clientX - rect.left
-        const W = canvas.offsetWidth
-        const padL = 28
-        const padR = 8
-        const plotW = W - padL - padR
-        const gap = plotW / data.length
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const W = canvas.offsetWidth;
+        const padL = 28;
+        const padR = 8;
+        const plotW = W - padL - padR;
+        const gap = plotW / data.length;
 
-        const idx = Math.floor((mx - padL) / gap)
+        const idx = Math.floor((mx - padL) / gap);
         if (idx < 0 || idx >= data.length) {
-            tt.style.display = 'none'
-            return
+            tt.style.display = 'none';
+            return;
         }
 
-        tt.textContent = `${data[idx].month}: ${data[idx].batches} batches`
-        tt.style.display = 'block'
-        tt.style.left = `${e.clientX - rect.left + 10}px`
-        tt.style.top = `${e.clientY - rect.top - 30}px`
-    }
+        tt.textContent = `${data[idx].month}: ${data[idx].batches} batches`;
+        tt.style.display = 'block';
+        tt.style.left = `${e.clientX - rect.left + 10}px`;
+        tt.style.top = `${e.clientY - rect.top - 30}px`;
+    };
 
     return (
         <div ref={containerRef} className="relative w-full">
@@ -131,7 +131,7 @@ const BarCanvas = ({ data, height = 160 }: BarCanvasProps) => {
                 style={{ height }}
                 onMouseMove={handleMouseMove}
                 onMouseLeave={() => {
-                    if (tooltipRef.current) tooltipRef.current.style.display = 'none'
+                    if (tooltipRef.current) tooltipRef.current.style.display = 'none';
                 }}
             />
             <div
@@ -143,8 +143,8 @@ const BarCanvas = ({ data, height = 160 }: BarCanvasProps) => {
                 }}
             />
         </div>
-    )
-}
+    );
+};
 
 const levelColor: Record<string, string> = {
     Light: '#a16207',
@@ -152,7 +152,7 @@ const levelColor: Record<string, string> = {
     Medium: '#7c2d12',
     'Medium-Dark': '#431407',
     Dark: '#1c0a00',
-}
+};
 
 const levelBg: Record<string, string> = {
     Light: 'rgba(254,243,199,0.8)',
@@ -160,46 +160,46 @@ const levelBg: Record<string, string> = {
     Medium: 'rgba(253,220,198,0.8)',
     'Medium-Dark': 'rgba(240,180,150,0.8)',
     Dark: 'rgba(220,140,100,0.8)',
-}
+};
 
 const formatDuration = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-    const s = Math.round(seconds % 60)
-    return `${m}:${String(s).padStart(2, '0')}`
-}
+    const m = Math.floor(seconds / 60);
+    const s = Math.round(seconds % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+};
 
 const formatDate = (iso: string) => {
-    const d = new Date(iso)
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
 
 const formatScheduled = (iso: string) => {
-    const d = new Date(iso)
-    const now = new Date()
-    const isToday = d.toDateString() === now.toDateString()
-    const tomorrow = new Date(now)
-    tomorrow.setDate(now.getDate() + 1)
-    const isTomorrow = d.toDateString() === tomorrow.toDateString()
-    const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    if (isToday) return `Today, ${timeStr}`
-    if (isTomorrow) return `Tomorrow, ${timeStr}`
-    return `${formatDate(iso)}, ${timeStr}`
-}
+    const d = new Date(iso);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const isTomorrow = d.toDateString() === tomorrow.toDateString();
+    const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    if (isToday) return `Today, ${timeStr}`;
+    if (isTomorrow) return `Tomorrow, ${timeStr}`;
+    return `${formatDate(iso)}, ${timeStr}`;
+};
 
 const pctChange = (current: number, previous: number) => {
-    if (previous === 0) return current > 0 ? '+∞%' : '0%'
-    const diff = ((current - previous) / previous) * 100
-    return `${diff >= 0 ? '+' : ''}${Math.round(diff)}%`
-}
+    if (previous === 0) return current > 0 ? '+∞%' : '0%';
+    const diff = ((current - previous) / previous) * 100;
+    return `${diff >= 0 ? '+' : ''}${Math.round(diff)}%`;
+};
 
 const durationDiff = (current: number, previous: number) => {
-    const diff = Math.round(current - previous)
-    return `${diff >= 0 ? '+' : '-'}${formatDuration(Math.abs(diff))}`
-}
+    const diff = Math.round(current - previous);
+    return `${diff >= 0 ? '+' : '-'}${formatDuration(Math.abs(diff))}`;
+};
 
 export const Dashboard = ({ onNavigate }: DashboardProps) => {
-    const db = useDashboard(USER_ID)
-    const isRoasting = useRoastingStore((s) => s.isRoasting)
+    const db = useDashboard(USER_ID);
+    const isRoasting = useRoastingStore((s) => s.isRoasting);
 
     const stats = [
         {
@@ -226,7 +226,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             change: '+2%',
             icon: CheckCircle,
         },
-    ]
+    ];
 
     return (
         <div className="px-10 py-8 max-w-275 mx-auto">
@@ -246,7 +246,9 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     onClick={() => onNavigate('roast')}
                     className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-0 bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
                 >
-                    <span className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-green-400' : 'bg-white/40'}`} />
+                    <span
+                        className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-green-400' : 'bg-white/40'}`}
+                    />
                     View Active Roast
                     <ArrowRight size={14} strokeWidth={2} />
                 </button>
@@ -255,10 +257,10 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             {/* KPI Cards */}
             <div className="grid grid-cols-4 gap-4 mb-8">
                 {stats.map(({ label, value, change, icon: Icon }) => {
-                    const isPositive = change.startsWith('+')
-                    const isNeutral = change === ''
+                    const isPositive = change.startsWith('+');
+                    const isNeutral = change === '';
                     return (
-                        <div key={label} className="bg-main-bg rounded-2xl px-5 pt-5 pb-4.5 shadow-(--shadow-ring)">
+                        <div key={label} className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5 shadow-(--shadow-ring)">
                             <div className="flex items-start justify-between mb-3.5">
                                 <div className="w-8.5 h-8.5 rounded-lg bg-surface flex items-center justify-center shadow-(--shadow-inset)">
                                     <Icon size={16} strokeWidth={1.5} color="var(--color-secondary)" />
@@ -280,14 +282,14 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                             </div>
                             <div className="text-[13px] text-muted tracking-[0.14px]">{label}</div>
                         </div>
-                    )
+                    );
                 })}
             </div>
 
             {/* Main Grid */}
             <div className="grid grid-cols-[1fr_340px] gap-5 mb-5">
                 {/* Recent Sessions */}
-                <div className="bg-main-bg rounded-2xl shadow-(--shadow-ring) overflow-hidden">
+                <div className="bg-main-bg rounded-lg shadow-(--shadow-ring) overflow-hidden">
                     <div className="px-6 pt-4.5 pb-3.5 flex items-center justify-between border-b border-border-subtle">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Recent Sessions</h2>
                         <button
@@ -325,7 +327,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                 </tr>
                             ) : (
                                 db.recentSessions.map((session, i) => {
-                                    const level = session.roast_level ?? ''
+                                    const level = session.roast_level ?? '';
                                     return (
                                         <tr
                                             key={session.id}
@@ -369,7 +371,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                                 )}
                                             </td>
                                         </tr>
-                                    )
+                                    );
                                 })
                             )}
                         </tbody>
@@ -377,7 +379,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </div>
 
                 {/* Monthly chart */}
-                <div className="bg-main-bg rounded-2xl px-6 py-5 shadow-(--shadow-ring)">
+                <div className="bg-main-bg rounded-lg px-6 py-5 shadow-(--shadow-ring)">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Monthly Batches</h2>
                         <Calendar size={15} strokeWidth={1.5} color="var(--color-muted)" />
@@ -403,9 +405,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                 <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
                                     {db.loading
                                         ? '—'
-                                        : new Set(
-                                              db.recentSessions.map((s) => s.beans?.origin).filter(Boolean),
-                                          ).size}
+                                        : new Set(db.recentSessions.map((s) => s.beans?.origin).filter(Boolean)).size}
                                 </div>
                                 <div className="text-xs text-muted tracking-[0.14px]">bean origins</div>
                             </div>
@@ -417,7 +417,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             {/* Upcoming + Inventory Alerts */}
             <div className="grid grid-cols-2 gap-5">
                 {/* Upcoming */}
-                <div className="bg-main-bg rounded-2xl px-6 py-5 shadow-(--shadow-ring)">
+                <div className="bg-main-bg rounded-lg px-6 py-5 shadow-(--shadow-ring)">
                     <h2 className="text-[15px] font-medium text-primary tracking-[0.15px] mb-3.5">Upcoming Batches</h2>
                     {db.loading ? (
                         <p className="text-[13px] text-muted py-2">Loading...</p>
@@ -450,7 +450,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </div>
 
                 {/* Inventory Alerts */}
-                <div className="bg-main-bg rounded-2xl px-6 py-5 shadow-(--shadow-ring)">
+                <div className="bg-main-bg rounded-lg px-6 py-5 shadow-(--shadow-ring)">
                     <h2 className="text-[15px] font-medium text-primary tracking-[0.15px] mb-3.5">Inventory Alerts</h2>
                     {db.loading ? (
                         <p className="text-[13px] text-muted py-2">Loading...</p>
@@ -458,10 +458,10 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         <p className="text-[13px] text-muted py-2">All stock levels OK</p>
                     ) : (
                         db.inventoryAlerts.map((item, i) => {
-                            const isOut = item.stock_grams === 0
-                            const color = isOut ? '#dc2626' : '#d97706'
-                            const bg = isOut ? 'rgba(254,226,226,0.8)' : 'rgba(254,243,199,0.8)'
-                            const status = isOut ? 'Out of Stock' : 'Low Stock'
+                            const isOut = item.stock_grams === 0;
+                            const color = isOut ? '#dc2626' : '#d97706';
+                            const bg = isOut ? 'rgba(254,226,226,0.8)' : 'rgba(254,243,199,0.8)';
+                            const status = isOut ? 'Out of Stock' : 'Low Stock';
                             return (
                                 <div
                                     key={item.id}
@@ -488,11 +488,11 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                         {status}
                                     </span>
                                 </div>
-                            )
+                            );
                         })
                     )}
                 </div>
             </div>
         </div>
-    )
-}
+    );
+};

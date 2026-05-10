@@ -1,4 +1,9 @@
-import { Plus, Copy, Pencil, Trash2, MoreHorizontal, Lock } from 'lucide-react';
+// Data architecture:
+// - Profile data (name, temps, curve, etc.) → server (Supabase) when ready
+// - defaultProfileId → localStorage only (per-device preference, not synced)
+//   If cross-device sync becomes a requirement, move to a user_preferences table.
+
+import { Plus, Copy, Pencil, Trash2, MoreHorizontal, Lock, Star } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { type View } from '@shared/types/view';
 import uPlot from 'uplot';
@@ -225,9 +230,20 @@ interface ProfilesProps {
     onNavigate: (view: View) => void;
 }
 
+const DEFAULT_PROFILE_KEY = 'fc_default_profile_id';
+
 export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const [selectedId, setSelectedId] = useState<number>(1);
+    const [defaultId, setDefaultId] = useState<number>(() => {
+        const stored = localStorage.getItem(DEFAULT_PROFILE_KEY);
+        return stored ? Number(stored) : 1;
+    });
     const selected = profiles.find((p) => p.id === selectedId)!;
+
+    const setDefault = (id: number) => {
+        setDefaultId(id);
+        localStorage.setItem(DEFAULT_PROFILE_KEY, String(id));
+    };
     const curveData = generateProfileCurve(selected.dropVal, selected.durationSec);
     const curveXs = curveData.map((d) => d.t);
     const curveYs = curveData.map((d) => d.bt);
@@ -259,7 +275,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                             <div
                                 key={profile.id}
                                 onClick={() => setSelectedId(profile.id)}
-                                className={`bg-main-bg rounded-[14px] p-4 cursor-pointer transition-all duration-150 ${isSelected ? 'border border-black/8 shadow-[rgba(0,0,0,0.4)_0px_0px_1px,rgba(0,0,0,0.06)_0px_2px_8px]' : 'border border-transparent shadow-(--shadow-ring)'}`}
+                                className={`bg-main-bg rounded-lg p-4 cursor-pointer transition-all duration-150 ${isSelected ? 'border border-black/8 shadow-[rgba(0,0,0,0.4)_0px_0px_1px,rgba(0,0,0,0.06)_0px_2px_8px]' : 'border border-transparent shadow-(--shadow-ring)'}`}
                             >
                                 {/* Mini sparkline */}
                                 <Sparkline
@@ -276,6 +292,14 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                             {profile.locked && (
                                                 <Lock size={11} strokeWidth={2} color="var(--color-muted)" />
                                             )}
+                                            {defaultId === profile.id && (
+                                                <Star
+                                                    size={11}
+                                                    strokeWidth={2}
+                                                    fill="currentColor"
+                                                    className="text-amber-400"
+                                                />
+                                            )}
                                         </div>
                                         <div className="text-[12px] text-muted tracking-[0.14px]">
                                             Drop {profile.dropTemp} · {profile.batches} batches
@@ -288,7 +312,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                 </div>
 
                 {/* Detail panel */}
-                <div className="bg-main-bg rounded-2xl px-8 py-7 shadow-(--shadow-ring)">
+                <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring)">
                     <div className="flex items-start justify-between mb-5">
                         <div>
                             <div className="flex items-center gap-2 mb-1">
@@ -308,7 +332,26 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 {selected.description}
                             </p>
                         </div>
-                        <div className="flex gap-1.5">
+                        <div className="flex gap-1.5 items-center">
+                            {defaultId === selected.id ? (
+                                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 shadow-(--shadow-inset)">
+                                    <Star size={11} strokeWidth={2} fill="currentColor" className="text-amber-400" />
+                                    <span className="text-[11px] font-medium text-amber-600 tracking-[0.3px]">
+                                        Default
+                                    </span>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setDefault(selected.id)}
+                                    title="Set as Default"
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded-full border-none bg-surface cursor-pointer shadow-(--shadow-inset) hover:bg-amber-50 transition-colors"
+                                >
+                                    <Star size={11} strokeWidth={2} color="var(--color-muted)" />
+                                    <span className="text-[11px] font-medium text-muted tracking-[0.3px]">
+                                        Set Default
+                                    </span>
+                                </button>
+                            )}
                             {[
                                 { icon: Copy, label: 'Duplicate' },
                                 { icon: Pencil, label: 'Edit' },
@@ -326,7 +369,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                     </div>
 
                     {/* Temperature curve chart */}
-                    <div className="bg-surface rounded-xl px-4 pt-4 pb-2 mb-5 shadow-(--shadow-inset)">
+                    <div className="bg-surface rounded-lg px-4 pt-4 pb-2 mb-5 shadow-(--shadow-inset)">
                         <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
                             Profile Curve
                         </div>
@@ -343,7 +386,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                             { label: 'Dev/Total %', value: selected.devPct },
                             { label: 'Total Batches', value: `${selected.batches} runs` },
                         ].map(({ label, value }) => (
-                            <div key={label} className="bg-surface rounded-[10px] px-3.5 py-3 shadow-(--shadow-inset)">
+                            <div key={label} className="bg-surface rounded-lg px-3.5 py-3 shadow-(--shadow-inset)">
                                 <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-1">
                                     {label}
                                 </div>

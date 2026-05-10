@@ -131,7 +131,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
             </div>
 
             {machines.length === 0 ? (
-                <div className="bg-main-bg rounded-2xl py-16 px-8 shadow-(--shadow-ring) text-center">
+                <div className="bg-main-bg rounded-lg py-16 px-8 shadow-(--shadow-ring) text-center">
                     <Cpu size={32} strokeWidth={1.2} color="var(--color-muted)" className="mb-4 mx-auto" />
                     <p className="text-[15px] text-muted mb-5">{t('machines.empty')}</p>
                     <button
@@ -145,7 +145,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                 <div className="grid gap-5" style={{ gridTemplateColumns: '300px 1fr' }}>
                     {/* List */}
                     <div>
-                        <div className="flex items-center gap-2 bg-main-bg rounded-[10px] px-3 py-2.25 mb-2.5 shadow-(--shadow-ring)">
+                        <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5 shadow-(--shadow-ring)">
                             <Search size={14} strokeWidth={2} color="var(--color-muted)" />
                             <input
                                 value={search}
@@ -163,7 +163,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                     <div
                                         key={machine.id}
                                         onClick={() => setSelectedId(machine.id)}
-                                        className={`bg-main-bg rounded-[14px] px-4 py-3.5 cursor-pointer transition-all duration-150 ${isSelected ? 'border border-black/8 shadow-[rgba(0,0,0,0.4)_0px_0px_1px,rgba(0,0,0,0.06)_0px_2px_8px]' : 'border border-transparent shadow-(--shadow-ring)'}`}
+                                        className={`bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150 ${isSelected ? 'border border-black/8 shadow-[rgba(0,0,0,0.4)_0px_0px_1px,rgba(0,0,0,0.06)_0px_2px_8px]' : 'border border-transparent shadow-(--shadow-ring)'}`}
                                     >
                                         <div className="flex items-start justify-between mb-2">
                                             <div>
@@ -192,7 +192,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
 
                     {/* Detail */}
                     {selected ? (
-                        <div className="bg-main-bg rounded-2xl px-8 py-7 shadow-(--shadow-ring) h-fit">
+                        <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring) h-fit">
                             <div className="flex items-start justify-between mb-6">
                                 <div>
                                     <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-2">
@@ -246,7 +246,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                             sub: t('machines.temperature.rateOfRise'),
                                         },
                                     ].map((s) => (
-                                        <div key={s.label} className="bg-surface px-4 py-3.5 rounded-xl shadow-inset">
+                                        <div key={s.label} className="bg-surface px-4 py-3.5 rounded-lg shadow-inset">
                                             <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.5px] mb-1.5">
                                                 {s.label}
                                             </div>
@@ -258,7 +258,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                     ))}
                                 </div>
                             ) : (
-                                <div className="bg-surface rounded-xl px-4 py-5 mb-6 flex items-center gap-3 shadow-inset">
+                                <div className="bg-surface rounded-lg px-4 py-5 mb-6 flex items-center gap-3 shadow-inset">
                                     {isSelectedConnected ? (
                                         <Wifi size={18} color="#16a34a" />
                                     ) : (
@@ -272,7 +272,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
 
                             {/* Connection params */}
                             {Object.keys(selected.connectionParams).length > 0 && (
-                                <div className="bg-surface-warm-solid rounded-xl px-4.5 py-4 mb-6 shadow-(--shadow-warm)">
+                                <div className="bg-surface-warm-solid rounded-lg px-4.5 py-4 mb-6 shadow-(--shadow-warm)">
                                     <div className="text-[12px] font-semibold text-secondary mb-2.5">
                                         {t('machines.connection')}
                                     </div>
@@ -282,7 +282,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                             .map(([k, v]) => (
                                                 <div
                                                     key={k}
-                                                    className="flex justify-between gap-3 px-2.5 py-1.75 rounded-[10px] bg-white/82 shadow-(--shadow-inset)"
+                                                    className="flex justify-between gap-3 px-2.5 py-1.75 rounded-lg bg-white/82 shadow-(--shadow-inset)"
                                                 >
                                                     <span className="text-[11px] text-muted uppercase tracking-wider">
                                                         {k}
@@ -298,7 +298,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
 
                             {sidecarStatus?.error && sidecarStatus.roaster === selected.roasterKey && (
                                 // TODO: 에러 메시지 하단에 "문의하기" 링크 추가 (예: 이메일 or 카카오 채널)
-                                <div className="flex items-center gap-2 bg-[rgba(192,57,43,0.07)] rounded-[10px] px-3.5 py-2.5 mb-4 text-[12px] text-[#c0392b]">
+                                <div className="flex items-center gap-2 bg-[rgba(192,57,43,0.07)] rounded-lg px-3.5 py-2.5 mb-4 text-[12px] text-[#c0392b]">
                                     <AlertCircle size={14} />
                                     {sidecarStatus.error}
                                 </div>
@@ -309,7 +309,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                 {isSelectedConnected ? (
                                     <button
                                         onClick={handleDisconnect}
-                                        className="py-3 px-5 rounded-xl border-none bg-surface text-secondary text-sm font-medium cursor-pointer shadow-(--shadow-inset) flex items-center justify-center gap-2"
+                                        className="py-3 px-5 rounded-lg border-none bg-surface text-secondary text-sm font-medium cursor-pointer shadow-(--shadow-inset) flex items-center justify-center gap-2"
                                     >
                                         <WifiOff size={15} strokeWidth={2} />
                                         {t('machines.disconnect')}
@@ -318,7 +318,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                     <button
                                         onClick={() => handleConnect(selected)}
                                         disabled={connecting}
-                                        className={`flex-1 py-3 rounded-xl border-none bg-primary text-white text-sm font-medium flex items-center justify-center gap-2 shadow-(--shadow-card) ${connecting ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
+                                        className={`flex-1 py-3 rounded-lg border-none bg-primary text-white text-sm font-medium flex items-center justify-center gap-2 shadow-(--shadow-card) ${connecting ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
                                     >
                                         {connecting ? (
                                             <>
@@ -334,7 +334,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                 {isSelectedConnected && onNavigate && (
                                     <button
                                         onClick={() => onNavigate('roast')}
-                                        className="flex-1 py-3 rounded-xl border-none bg-primary text-white text-sm font-semibold cursor-pointer shadow-(--shadow-card) flex items-center justify-center gap-2"
+                                        className="flex-1 py-3 rounded-lg border-none bg-primary text-white text-sm font-semibold cursor-pointer shadow-(--shadow-card) flex items-center justify-center gap-2"
                                     >
                                         <Flame size={15} strokeWidth={2} />
                                         {t('machines.startRoasting')}
@@ -343,7 +343,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-main-bg rounded-2xl py-15 px-8 shadow-(--shadow-ring) flex items-center justify-center text-muted text-sm">
+                        <div className="bg-main-bg rounded-lg py-15 px-8 shadow-(--shadow-ring) flex items-center justify-center text-muted text-sm">
                             {t('machines.selectMachine')}
                         </div>
                     )}

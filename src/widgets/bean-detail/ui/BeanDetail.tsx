@@ -1,135 +1,118 @@
-import { Edit3 } from 'lucide-react'
-import { getStatus, statusConfig, processColor } from '../../../entities/bean/lib'
-import type { Bean } from '../../../shared/types/database.types'
+import { Edit3 } from 'lucide-react';
+import { getStatus, statusConfig, processColor } from '@entities/bean/lib';
+import type { Bean } from '@shared/types/database.types';
 
 interface BeanDetailProps {
-    bean: Bean | null
-    isLoading: boolean
-    onEdit: (bean: Bean) => void
-    onRestock: (id: string) => void
-    onStartRoast: () => void
+    bean: Bean | null;
+    isLoading: boolean;
+    onEdit: (bean: Bean) => void;
+    onRestock: (id: string) => void;
+    onStartRoast: () => void;
 }
 
 const Skeleton = () => (
-    <div style={{ background: 'var(--color-main-bg)', borderRadius: 16, padding: '28px 32px', boxShadow: 'var(--shadow-ring)' }}>
-        <div style={{ marginBottom: 24 }}>
-            <div style={{ width: 200, height: 26, borderRadius: 8, background: 'var(--color-surface)', marginBottom: 10 }} className="animate-pulse" />
-            <div style={{ display: 'flex', gap: 6 }}>
-                <div style={{ width: 60, height: 22, borderRadius: 9999, background: 'var(--color-surface)' }} className="animate-pulse" />
-                <div style={{ width: 80, height: 22, borderRadius: 9999, background: 'var(--color-surface)' }} className="animate-pulse" />
+    <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring)">
+        <div className="mb-6">
+            <div className="w-50 h-8 rounded-lg bg-surface mb-2.5 animate-pulse" />
+            <div className="flex gap-1.5">
+                <div className="w-15 h-5.5 rounded-full bg-surface animate-pulse" />
+                <div className="w-20 h-5.5 rounded-full bg-surface animate-pulse" />
             </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+        <div className="grid grid-cols-2 gap-4 mb-6">
             {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i}>
-                    <div style={{ width: 50, height: 10, borderRadius: 4, background: 'var(--color-surface)', marginBottom: 6 }} className="animate-pulse" />
-                    <div style={{ width: 100, height: 14, borderRadius: 6, background: 'var(--color-surface)' }} className="animate-pulse" />
+                    <div className="w-12.5 h-2.5 rounded bg-surface mb-1.5 animate-pulse" />
+                    <div className="w-25 h-3.5 rounded-md bg-surface animate-pulse" />
                 </div>
             ))}
         </div>
-        <div style={{ height: 6, borderRadius: 9999, background: 'var(--color-surface)', marginBottom: 24 }} className="animate-pulse" />
-        <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ flex: 1, height: 40, borderRadius: 9999, background: 'var(--color-surface)' }} className="animate-pulse" />
-            <div style={{ flex: 1, height: 40, borderRadius: 9999, background: 'var(--color-surface)' }} className="animate-pulse" />
+        <div className="h-1.5 rounded-full bg-surface mb-6 animate-pulse" />
+        <div className="flex gap-2.5">
+            <div className="flex-1 h-10 rounded-full bg-surface animate-pulse" />
+            <div className="flex-1 h-10 rounded-full bg-surface animate-pulse" />
         </div>
     </div>
-)
+);
 
 const Empty = ({ hasAny }: { hasAny: boolean }) => (
-    <div style={{ background: 'var(--color-main-bg)', borderRadius: 16, padding: '60px 32px', boxShadow: 'var(--shadow-ring)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-muted)', fontSize: 14, letterSpacing: '0.14px' }}>
+    <div className="bg-main-bg rounded-lg px-8 py-15 shadow-(--shadow-ring) flex items-center justify-center text-sm text-muted tracking-[0.14px]">
         {hasAny ? 'Select a bean to view details' : 'Add your first bean lot to get started.'}
     </div>
-)
+);
 
 export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast }: BeanDetailProps) => {
-    if (isLoading) return <Skeleton />
-    if (!bean) return <Empty hasAny={false} />
+    if (isLoading) return <Skeleton />;
+    if (!bean) return <Empty hasAny={false} />;
 
-    const status = getStatus(bean)
-    const cfg = statusConfig[status]
+    const status = getStatus(bean);
+    const cfg = statusConfig[status];
 
     return (
-        <div style={{ background: 'var(--color-main-bg)', borderRadius: 16, padding: '28px 32px', boxShadow: 'var(--shadow-ring)', height: 'fit-content', position: 'relative' }}>
+        <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring) h-fit relative">
             <button
                 onClick={() => onEdit(bean)}
-                style={{
-                    position: 'absolute',
-                    top: 24,
-                    right: 24,
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    border: '1px solid rgba(0,0,0,0.06)',
-                    background: 'white',
-                    color: 'var(--color-muted)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    boxShadow: 'var(--shadow-button)',
-                    zIndex: 2,
-                }}
+                className="absolute top-6 right-6 w-9 h-9 rounded-[10px] border border-black/6 bg-white text-muted flex items-center justify-center cursor-pointer shadow-(--shadow-button) z-2 transition-all duration-200"
             >
                 <Edit3 size={16} />
             </button>
 
-            <div style={{ marginBottom: 24, paddingRight: 40 }}>
-                <h2
-                    style={{
-                        fontFamily: 'var(--font-display)',
-                        fontWeight: 300,
-                        fontSize: 26,
-                        lineHeight: 1.2,
-                        color: 'var(--color-primary)',
-                        letterSpacing: '-0.3px',
-                        marginBottom: 4,
-                    }}
-                >
+            <div className="mb-6 pr-10">
+                <h2 className="font-(--font-display) text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
                     {bean.name}
                 </h2>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div className="flex gap-1.5">
                     {bean.process && (
-                        <span style={{ fontSize: 12, fontWeight: 500, color: processColor[bean.process]?.color ?? 'var(--color-secondary)', background: processColor[bean.process]?.bg ?? 'var(--color-surface)', padding: '3px 9px', borderRadius: 9999 }}>
+                        <span
+                            className="text-xs font-medium px-2.25 py-0.75 rounded-full tracking-[0.14px]"
+                            style={{
+                                color: processColor[bean.process]?.color ?? 'var(--color-secondary)',
+                                background: processColor[bean.process]?.bg ?? 'var(--color-surface)',
+                            }}
+                        >
                             {bean.process}
                         </span>
                     )}
                     {bean.variety && (
-                        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-secondary)', background: 'var(--color-surface)', padding: '3px 9px', borderRadius: 9999, boxShadow: 'var(--shadow-inset)' }}>
+                        <span className="text-xs font-medium text-secondary bg-surface px-2.25 py-0.75 rounded-full shadow-(--shadow-inset)">
                             {bean.variety}
                         </span>
                     )}
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+            <div className="grid grid-cols-2 gap-4 mb-6">
                 {[
                     { label: 'Origin', value: bean.origin ?? '—' },
                     { label: 'Region', value: bean.region ?? '—' },
                     { label: 'Farm', value: bean.farm ?? '—' },
-                    { label: 'Altitude', value: bean.altitude_masl ? `${bean.altitude_masl.toLocaleString()} masl` : '—' },
+                    {
+                        label: 'Altitude',
+                        value: bean.altitude_masl ? `${bean.altitude_masl.toLocaleString()} masl` : '—',
+                    },
                     { label: 'Received', value: bean.purchase_date ?? '—' },
                     { label: 'Current Stock', value: `${bean.stock_grams.toLocaleString()}g` },
                 ].map(({ label, value }) => (
                     <div key={label}>
-                        <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 3 }}>
+                        <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-0.75">
                             {label}
                         </div>
-                        <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-primary)', letterSpacing: '0.14px' }}>
-                            {value}
-                        </div>
+                        <div className="text-sm font-medium text-primary tracking-[0.14px]">{value}</div>
                     </div>
                 ))}
             </div>
 
             {bean.tasting_notes && (
-                <div style={{ background: 'var(--color-surface-warm-solid)', borderRadius: 12, padding: '14px 16px', marginBottom: 24, boxShadow: 'var(--shadow-warm)' }}>
-                    <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>
+                <div className="bg-surface-warm-solid rounded-lg px-4 py-3.5 mb-6 shadow-(--shadow-warm)">
+                    <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
                         Tasting Notes
                     </div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <div className="flex gap-1.5 flex-wrap">
                         {bean.tasting_notes.split(', ').map((note) => (
-                            <span key={note} style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-secondary)', background: 'rgba(255,255,255,0.7)', padding: '4px 10px', borderRadius: 9999, letterSpacing: '0.14px', boxShadow: 'var(--shadow-inset)' }}>
+                            <span
+                                key={note}
+                                className="text-xs font-medium text-secondary bg-white/70 px-2.5 py-1 rounded-full tracking-[0.14px] shadow-(--shadow-inset)"
+                            >
                                 {note}
                             </span>
                         ))}
@@ -137,40 +120,38 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast }:
                 </div>
             )}
 
-            <div style={{ marginBottom: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-secondary)', letterSpacing: '0.14px' }}>Stock Level</span>
-                    <span style={{ fontSize: 12, color: 'var(--color-muted)', fontFamily: 'var(--font-mono)' }}>
+            <div className="mb-6">
+                <div className="flex justify-between mb-1.5">
+                    <span className="text-xs font-medium text-secondary tracking-[0.14px]">Stock Level</span>
+                    <span className="text-xs text-muted font-mono">
                         {bean.stock_grams.toLocaleString()}g / {bean.capacity_grams.toLocaleString()}g
                     </span>
                 </div>
-                <div style={{ height: 6, background: 'var(--color-surface)', borderRadius: 9999, overflow: 'hidden', boxShadow: 'var(--shadow-inset)' }}>
+                <div className="h-1.5 bg-surface rounded-full overflow-hidden shadow-(--shadow-inset)">
                     <div
+                        className="h-full rounded-full transition-all duration-500"
                         style={{
-                            height: '100%',
                             width: `${Math.min(100, (bean.stock_grams / bean.capacity_grams) * 100)}%`,
-                            borderRadius: 9999,
                             background: cfg.color,
-                            transition: 'width 0.5s',
                         }}
                     />
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div className="flex gap-2.5">
                 <button
                     onClick={onStartRoast}
-                    style={{ flex: 1, padding: '10px 0', borderRadius: 9999, border: 'none', background: 'var(--color-primary)', color: 'white', fontSize: 14, fontWeight: 500, cursor: 'pointer', letterSpacing: '0.14px', boxShadow: 'var(--shadow-card)' }}
+                    className="flex-1 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
                 >
                     Start Roast
                 </button>
                 <button
                     onClick={() => onRestock(bean.id)}
-                    style={{ flex: 1, padding: '10px 0', borderRadius: 9999, border: 'none', background: 'var(--color-surface)', color: 'var(--color-secondary)', fontSize: 14, fontWeight: 500, cursor: 'pointer', letterSpacing: '0.14px', boxShadow: 'var(--shadow-inset)' }}
+                    className="flex-1 py-2.5 rounded-full border-none bg-surface text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-inset)"
                 >
                     Restock
                 </button>
             </div>
         </div>
-    )
-}
+    );
+};

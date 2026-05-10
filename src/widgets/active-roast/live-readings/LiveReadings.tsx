@@ -45,7 +45,7 @@ export const LiveReadings = ({
                 key={label}
                 style={{
                     background: 'var(--color-main-bg)',
-                    borderRadius: 14,
+                    borderRadius: 8,
                     padding: '16px 18px',
                     boxShadow: 'var(--shadow-ring)',
                 }}

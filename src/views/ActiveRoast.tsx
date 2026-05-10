@@ -676,7 +676,7 @@ export const ActiveRoast = ({
                 className={`bg-main-bg flex flex-col mb-5 ${
                     isFullscreen
                         ? 'rounded-none fixed inset-0 z-9999 h-screen w-screen p-10'
-                        : 'rounded-2xl relative z-1 shadow-(--shadow-ring) px-6 pb-4 pt-6'
+                        : 'rounded-lg relative z-1 shadow-(--shadow-ring) px-6 pb-4 pt-6'
                 }`}
             >
                 <div className="flex items-center justify-between mb-5">
@@ -900,7 +900,7 @@ export const ActiveRoast = ({
             {/* Controls + Notes row */}
             <div className="grid grid-cols-2 gap-5">
                 {/* Controls */}
-                <div className="bg-main-bg rounded-2xl px-6 py-5 shadow-(--shadow-ring)">
+                <div className="bg-main-bg rounded-lg px-6 py-5 shadow-(--shadow-ring)">
                     <h3 className="text-sm font-medium text-primary tracking-[0.14px] mb-4">Roast Controls</h3>
                     <div className="flex gap-2.5 mb-5">
                         <button
@@ -967,7 +967,7 @@ export const ActiveRoast = ({
                     />
                 </div>
 
-                <div className="bg-main-bg rounded-2xl px-6 py-5 shadow-(--shadow-ring)">
+                <div className="bg-main-bg rounded-lg px-6 py-5 shadow-(--shadow-ring)">
                     <h3 className="text-sm font-medium text-primary tracking-[0.14px] mb-3.5">Roast Log</h3>
                     <RoastLog variant="main" entries={roastLogDisplayEntries} eventMarkerColor={eventMarkerColor} />
                 </div>

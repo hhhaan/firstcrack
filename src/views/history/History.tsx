@@ -141,7 +141,7 @@ const HistoryTable = ({
     sortAsc: boolean;
     onSort: (key: SortKey) => void;
 }): ReactNode => (
-    <div className="overflow-x-auto rounded-2xl bg-main-bg shadow-ring [-webkit-overflow-scrolling:touch]">
+    <div className="overflow-x-auto rounded-lg bg-main-bg shadow-ring [-webkit-overflow-scrolling:touch]">
         <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
             <thead>
                 <tr className="border-b border-border-subtle">
@@ -267,8 +267,8 @@ export const History = () => {
                 </button>
             </div>
 
-            <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-main-bg p-4 shadow-ring lg:flex-row lg:items-center lg:gap-3 lg:px-5">
-                <div className="flex flex-1 items-center gap-2 rounded-2xl bg-surface px-3 py-2 shadow-inset">
+            <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg p-4 shadow-ring lg:flex-row lg:items-center lg:gap-3 lg:px-5">
+                <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface px-3 py-2 shadow-inset">
                     <Search size={14} strokeWidth={2} className="text-muted" />
                     <input
                         className="w-full border-none bg-transparent text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted font-body"
@@ -281,7 +281,7 @@ export const History = () => {
                     {['All Levels', 'All Origins', 'This Month'].map((label) => (
                         <button
                             key={label}
-                            className="inline-flex items-center gap-1 whitespace-nowrap rounded-2xl border-0 bg-surface px-3 py-2 text-[13px] font-medium tracking-[0.14px] text-secondary shadow-(--shadow-inset) transition hover:bg-surface-warm-solid hover:text-primary"
+                            className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border-0 bg-surface px-3 py-2 text-[13px] font-medium tracking-[0.14px] text-secondary shadow-(--shadow-inset) transition hover:bg-surface-warm-solid hover:text-primary"
                         >
                             <Filter size={12} strokeWidth={2} className="text-muted" />
                             {label}
@@ -292,13 +292,13 @@ export const History = () => {
             </div>
 
             {isError ? (
-                <div className="rounded-2xl bg-main-bg p-8 text-center text-sm text-muted shadow-ring">
+                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted shadow-ring">
                     Failed to load sessions. Please try again.
                 </div>
             ) : isLoading ? (
-                <div className="rounded-2xl bg-main-bg p-8 text-center text-sm text-muted shadow-ring">Loading…</div>
+                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted shadow-ring">Loading…</div>
             ) : filtered.length === 0 ? (
-                <div className="rounded-2xl bg-main-bg p-8 text-center text-sm text-muted shadow-ring">
+                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted shadow-ring">
                     No sessions found.
                 </div>
             ) : (
