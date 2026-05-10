@@ -1,7 +1,8 @@
-import { TrendingUp, Coffee, Clock, CheckCircle, ArrowRight, Calendar, ChevronRight } from 'lucide-react';
+import { TrendingUp, Coffee, Clock, CheckCircle, ArrowRight, Calendar, ChevronRight, Thermometer, Droplets } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { type View } from '@shared/types/view';
 import { useDashboard } from './useDashboard';
+import { useWeather } from './useWeather';
 import { useRoastingStore } from '@features/active-roast';
 
 // TODO: auth 연동 후 실제 userId로 교체
@@ -200,6 +201,7 @@ const durationDiff = (current: number, previous: number) => {
 export const Dashboard = ({ onNavigate }: DashboardProps) => {
     const db = useDashboard(USER_ID);
     const isRoasting = useRoastingStore((s) => s.isRoasting);
+    const weather = useWeather();
 
     const stats = [
         {
@@ -236,10 +238,23 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
                         Good morning, Han
                     </h1>
-                    <p className="text-[15px] text-secondary tracking-[0.15px] font-normal">
+                    <p className="text-[15px] text-secondary tracking-[0.15px] font-normal flex items-center gap-2.5">
                         {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                         {db.upcomingSessions.length > 0 &&
                             ` · ${db.upcomingSessions.length} roast${db.upcomingSessions.length > 1 ? 's' : ''} scheduled`}
+                        {weather.data && (
+                            <>
+                                <span className="text-muted/40">·</span>
+                                <span className="flex items-center gap-1 text-muted">
+                                    <Thermometer size={13} strokeWidth={1.5} />
+                                    {weather.data.temperature}°C
+                                </span>
+                                <span className="flex items-center gap-1 text-muted">
+                                    <Droplets size={13} strokeWidth={1.5} />
+                                    {weather.data.humidity}%
+                                </span>
+                            </>
+                        )}
                     </p>
                 </div>
                 <button
