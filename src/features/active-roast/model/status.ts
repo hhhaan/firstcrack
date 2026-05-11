@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended';
+
 type LiveData = {
     bt: number | null;
     et: number | null;
@@ -11,13 +13,18 @@ type LiveData = {
 };
 
 export interface RoastingState {
-    isRoasting: boolean;
-    charged: boolean;
+    phase: RoastPhase;
     elapsed: number;
     sidecarConnected: boolean;
     machineCapabilities: string[];
     liveData: LiveData | null;
 
+    // derived convenience
+    isRoasting: boolean;
+    charged: boolean;
+
+    enterPreheating: (capabilities?: string[]) => void;
+    enterStandby: () => void;
     startCharge: () => void;
     endRoast: () => void;
     tick: () => void;
@@ -27,23 +34,38 @@ export interface RoastingState {
 }
 
 const initialState = {
-    isRoasting: false,
-    charged: false,
+    phase: 'idle' as RoastPhase,
     elapsed: 0,
     sidecarConnected: false,
     machineCapabilities: [] as string[],
     liveData: null as LiveData | null,
+    isRoasting: false,
+    charged: false,
 };
 
 const useRoastingStore = create<RoastingState>((set, get) => ({
     ...initialState,
 
+    enterPreheating: (capabilities?: string[]) => {
+        set({
+            phase: 'preheating',
+            sidecarConnected: true,
+            ...(capabilities && { machineCapabilities: capabilities }),
+        });
+    },
+
+    enterStandby: () => {
+        const { phase } = get();
+        if (phase !== 'preheating') return;
+        set({ phase: 'standby' });
+    },
+
     startCharge: () => {
-        set({ charged: true, isRoasting: true });
+        set({ phase: 'roasting', charged: true, isRoasting: true });
     },
 
     endRoast: () => {
-        set({ isRoasting: false });
+        set({ phase: 'ended', isRoasting: false });
     },
 
     tick: () => {
@@ -54,6 +76,7 @@ const useRoastingStore = create<RoastingState>((set, get) => ({
         set({
             sidecarConnected: connected,
             ...(capabilities && { machineCapabilities: capabilities }),
+            ...(!connected && { phase: get().phase === 'idle' ? 'idle' : get().phase }),
         });
     },
 
