@@ -1,47 +1,53 @@
-import { supabaseAxios } from '@shared/lib/axios'
-import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types'
+import { supabase } from '@shared/lib/supabase';
+import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 
-const SELECT_WITH_RELATIONS = '*, beans(name, origin), roast_profiles(name, target_level)'
+const SELECT_WITH_RELATIONS = '*, beans(name, origin), roast_profiles(name, target_level)';
 
-type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at'>
-type RoastSessionUpdate = { id: string } & Partial<Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'user_id'>>
+type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at'>;
+type RoastSessionUpdate = { id: string } & Partial<Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;
 
 export const roastSessionApi = {
     list: async (userId: string, status?: RoastSession['status']): Promise<RoastSessionWithRelations[]> => {
-        const { data } = await supabaseAxios.get<RoastSessionWithRelations[]>('/roast_sessions', {
-            params: {
-                user_id: `eq.${userId}`,
-                ...(status ? { status: `eq.${status}` } : {}),
-                select: SELECT_WITH_RELATIONS,
-                order: 'roasted_at.desc,created_at.desc',
-            },
-        })
-        return data
+        let query = supabase
+            .from('roast_sessions')
+            .select(SELECT_WITH_RELATIONS)
+            .eq('user_id', userId)
+            .order('roasted_at', { ascending: false, nullsFirst: true })
+            .order('created_at', { ascending: false });
+
+        if (status) {
+            query = query.eq('status', status);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
     },
 
     get: async (id: string): Promise<RoastSessionWithRelations> => {
-        const { data } = await supabaseAxios.get<RoastSessionWithRelations[]>('/roast_sessions', {
-            params: { id: `eq.${id}`, select: SELECT_WITH_RELATIONS },
-        })
-        return data[0]
+        const { data, error } = await supabase
+            .from('roast_sessions')
+            .select(SELECT_WITH_RELATIONS)
+            .eq('id', id)
+            .single();
+        if (error) throw error;
+        return data!;
     },
 
     create: async (session: RoastSessionInsert): Promise<RoastSession> => {
-        const { data } = await supabaseAxios.post<RoastSession[]>('/roast_sessions', session, {
-            headers: { Prefer: 'return=representation' },
-        })
-        return data[0]
+        const { data, error } = await supabase.from('roast_sessions').insert(session).select().single();
+        if (error) throw error;
+        return data!;
     },
 
     update: async ({ id, ...patch }: RoastSessionUpdate): Promise<RoastSession> => {
-        const { data } = await supabaseAxios.patch<RoastSession[]>('/roast_sessions', patch, {
-            params: { id: `eq.${id}` },
-            headers: { Prefer: 'return=representation' },
-        })
-        return data[0]
+        const { data, error } = await supabase.from('roast_sessions').update(patch).eq('id', id).select().single();
+        if (error) throw error;
+        return data!;
     },
 
     delete: async (id: string): Promise<void> => {
-        await supabaseAxios.delete('/roast_sessions', { params: { id: `eq.${id}` } })
+        const { error } = await supabase.from('roast_sessions').delete().eq('id', id);
+        if (error) throw error;
     },
-}
+};
