@@ -123,8 +123,12 @@ export const ActiveRoast = ({
         startRange: { start: number; end: number };
     } | null>(null);
 
-    useEffect(() => { elapsedRef.current = elapsed; }, [elapsed]);
-    useEffect(() => { chargedRef.current = charged; }, [charged]);
+    useEffect(() => {
+        elapsedRef.current = elapsed;
+    }, [elapsed]);
+    useEffect(() => {
+        chargedRef.current = charged;
+    }, [charged]);
 
     const toggleFullscreen = () => setIsFullscreen((prev) => !prev);
 
@@ -249,12 +253,15 @@ export const ActiveRoast = ({
                                     if (prev.some((e) => e.event === 'Drop')) return prev;
                                     const min2 = Math.floor(elapsedRef.current / 60);
                                     const sec2 = elapsedRef.current % 60;
-                                    return [...prev, {
-                                        time: `${min2}:${String(sec2).padStart(2, '0')}`,
-                                        event: 'Drop',
-                                        temp: formatTemp(bt, unit),
-                                        note: 'Bean drop detected',
-                                    }];
+                                    return [
+                                        ...prev,
+                                        {
+                                            time: `${min2}:${String(sec2).padStart(2, '0')}`,
+                                            event: 'Drop',
+                                            temp: formatTemp(bt, unit),
+                                            note: 'Bean drop detected',
+                                        },
+                                    ];
                                 });
                                 setShowEndRoastModal(true);
                             }
@@ -320,11 +327,7 @@ export const ActiveRoast = ({
 
         const needsStart = live.length === 0 || live[0].time > 0.5;
         const needsEnd = live.length === 0 || live[live.length - 1].time < CHART_TOTAL_SECS - 1;
-        return [
-            ...(needsStart ? [sentinel(0)] : []),
-            ...live,
-            ...(needsEnd ? [sentinel(CHART_TOTAL_SECS)] : []),
-        ];
+        return [...(needsStart ? [sentinel(0)] : []), ...live, ...(needsEnd ? [sentinel(CHART_TOTAL_SECS)] : [])];
     }, [livePoints, targetCurve]);
 
     const MAX_TIME = chartData.length > 0 ? chartData[chartData.length - 1].time : CHART_TOTAL_SECS;
@@ -340,10 +343,7 @@ export const ActiveRoast = ({
     const elapsedSec = elapsed % 60;
     const timeStr = `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}`;
 
-    const displayRoR =
-        tpTimeSecRef.current == null
-            ? '—'
-            : toDisplayRoR(liveData?.ror ?? 0, unit).toFixed(1);
+    const displayRoR = tpTimeSecRef.current == null ? '—' : toDisplayRoR(liveData?.ror ?? 0, unit).toFixed(1);
 
     // Phase label derived from event markers
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
@@ -358,7 +358,8 @@ export const ActiveRoast = ({
         if (yellowEntry && elapsed >= parseTimeSec(yellowEntry.time)) return 'Maillard';
         return 'Drying';
     })();
-    const roastPhaseColor = roastPhaseName === 'Development' ? '#ea580c' : roastPhaseName === 'Maillard' ? '#b45309' : '#d97706';
+    const roastPhaseColor =
+        roastPhaseName === 'Development' ? '#ea580c' : roastPhaseName === 'Maillard' ? '#b45309' : '#d97706';
 
     const eventMarkerColor = EVENT_MARKER_COLORS;
 
@@ -391,7 +392,12 @@ export const ActiveRoast = ({
         const tpTimeStr = `${timeMin}:${String(timeSec).padStart(2, '0')}`;
         setLogEntries((prev) => {
             if (prev.some((e) => e.event === 'TP')) return prev;
-            const newEntry = { time: tpTimeStr, event: 'TP', temp: formatTemp(confirmedTP.temp, unit), note: 'Turning Point detected' };
+            const newEntry = {
+                time: tpTimeStr,
+                event: 'TP',
+                temp: formatTemp(confirmedTP.temp, unit),
+                note: 'Turning Point detected',
+            };
             return [...prev, newEntry].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
         });
     }, [confirmedTP, unit]);
@@ -413,7 +419,15 @@ export const ActiveRoast = ({
 
     const flashButton = (label: string) => {
         setPressedButtons((prev) => new Set(prev).add(label));
-        setTimeout(() => setPressedButtons((prev) => { const n = new Set(prev); n.delete(label); return n; }), 600);
+        setTimeout(
+            () =>
+                setPressedButtons((prev) => {
+                    const n = new Set(prev);
+                    n.delete(label);
+                    return n;
+                }),
+            600,
+        );
     };
 
     const handleChartWheel = (event: React.WheelEvent<HTMLDivElement>) => {
@@ -433,11 +447,20 @@ export const ActiveRoast = ({
         const focusTime = currentStart + pointerRatio * currentDuration;
         const zoomFactor = event.deltaY < 0 ? 0.8 : 1.25;
         const nextDuration = Math.max(MIN_VISIBLE_SECS, Math.min(MAX_TIME, currentDuration * zoomFactor));
-        if (nextDuration >= MAX_TIME) { setZoomRange(null); return; }
+        if (nextDuration >= MAX_TIME) {
+            setZoomRange(null);
+            return;
+        }
         let nextStart = focusTime - pointerRatio * nextDuration;
         let nextEnd = nextStart + nextDuration;
-        if (nextStart < 0) { nextStart = 0; nextEnd = nextDuration; }
-        if (nextEnd > MAX_TIME) { nextEnd = MAX_TIME; nextStart = MAX_TIME - nextDuration; }
+        if (nextStart < 0) {
+            nextStart = 0;
+            nextEnd = nextDuration;
+        }
+        if (nextEnd > MAX_TIME) {
+            nextEnd = MAX_TIME;
+            nextStart = MAX_TIME - nextDuration;
+        }
         setZoomRange({ start: nextStart, end: nextEnd });
     };
 
@@ -447,15 +470,25 @@ export const ActiveRoast = ({
         const currentEnd = effectiveZoomRange?.end ?? MAX_TIME;
         const currentDuration = currentEnd - currentStart;
         const nextDuration = Math.max(MIN_VISIBLE_SECS, Math.min(MAX_TIME, currentDuration * zoomFactor));
-        if (nextDuration >= MAX_TIME) { setZoomRange(null); return; }
-        const focusTime = hoveredChartIndex != null
-            ? (visibleChartData[hoveredChartIndex]?.time ?? (currentStart + currentEnd) / 2)
-            : (currentStart + currentEnd) / 2;
+        if (nextDuration >= MAX_TIME) {
+            setZoomRange(null);
+            return;
+        }
+        const focusTime =
+            hoveredChartIndex != null
+                ? (visibleChartData[hoveredChartIndex]?.time ?? (currentStart + currentEnd) / 2)
+                : (currentStart + currentEnd) / 2;
         const ratio = currentDuration > 0 ? (focusTime - currentStart) / currentDuration : 0.5;
         let nextStart = focusTime - ratio * nextDuration;
         let nextEnd = nextStart + nextDuration;
-        if (nextStart < 0) { nextStart = 0; nextEnd = nextDuration; }
-        if (nextEnd > MAX_TIME) { nextEnd = MAX_TIME; nextStart = MAX_TIME - nextDuration; }
+        if (nextStart < 0) {
+            nextStart = 0;
+            nextEnd = nextDuration;
+        }
+        if (nextEnd > MAX_TIME) {
+            nextEnd = MAX_TIME;
+            nextStart = MAX_TIME - nextDuration;
+        }
         setZoomRange({ start: nextStart, end: nextEnd });
     };
 
@@ -495,17 +528,37 @@ export const ActiveRoast = ({
     const endChartDrag = (event: React.PointerEvent<HTMLDivElement>) => {
         const drag = chartDragRef.current;
         if (!drag || drag.pointerId !== event.pointerId) return;
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        if (event.currentTarget.hasPointerCapture(event.pointerId))
+            event.currentTarget.releasePointerCapture(event.pointerId);
         chartDragRef.current = null;
         setIsChartDragging(false);
     };
 
     const handleChartKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (event.key === '+' || event.key === '=') { event.preventDefault(); zoomChart(0.8); return; }
-        if (event.key === '-' || event.key === '_') { event.preventDefault(); zoomChart(1.25); return; }
-        if (event.key === '0') { event.preventDefault(); setZoomRange(null); return; }
-        if (event.key === 'ArrowLeft') { event.preventDefault(); panChart(-1); return; }
-        if (event.key === 'ArrowRight') { event.preventDefault(); panChart(1); }
+        if (event.key === '+' || event.key === '=') {
+            event.preventDefault();
+            zoomChart(0.8);
+            return;
+        }
+        if (event.key === '-' || event.key === '_') {
+            event.preventDefault();
+            zoomChart(1.25);
+            return;
+        }
+        if (event.key === '0') {
+            event.preventDefault();
+            setZoomRange(null);
+            return;
+        }
+        if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            panChart(-1);
+            return;
+        }
+        if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            panChart(1);
+        }
     };
 
     const handleEventMarkerDrag = (event: string, newTimeSec: number) => {
@@ -631,8 +684,16 @@ export const ActiveRoast = ({
             if (isEditableTarget(event.target) || showEndRoastModal || showSummaryModal) return;
             const shortcutModifier = event.metaKey || event.ctrlKey;
 
-            if (event.key === 'Escape' && isFullscreen) { event.preventDefault(); setIsFullscreen(false); return; }
-            if (!shortcutModifier && event.code === 'KeyF') { event.preventDefault(); toggleFullscreen(); return; }
+            if (event.key === 'Escape' && isFullscreen) {
+                event.preventDefault();
+                setIsFullscreen(false);
+                return;
+            }
+            if (!shortcutModifier && event.code === 'KeyF') {
+                event.preventDefault();
+                toggleFullscreen();
+                return;
+            }
             if (shortcutModifier && event.key === 'Enter') {
                 event.preventDefault();
                 if (phase === 'preheating') handleEnterStandby();
@@ -640,9 +701,21 @@ export const ActiveRoast = ({
                 return;
             }
             if (!shortcutModifier) return;
-            if (event.key === '1') { event.preventDefault(); markEvent('Yellow', 'Color change visible', 'Mark Yellow'); return; }
-            if (event.key === '2') { event.preventDefault(); markEvent('FC Start', 'First crack started', 'Mark FC Start'); return; }
-            if (event.key === '3') { event.preventDefault(); markEvent('FC End', 'First crack ended', 'Mark FC End'); return; }
+            if (event.key === '1') {
+                event.preventDefault();
+                markEvent('Yellow', 'Color change visible', 'Mark Yellow');
+                return;
+            }
+            if (event.key === '2') {
+                event.preventDefault();
+                markEvent('FC Start', 'First crack started', 'Mark FC Start');
+                return;
+            }
+            if (event.key === '3') {
+                event.preventDefault();
+                markEvent('FC End', 'First crack ended', 'Mark FC End');
+                return;
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
@@ -662,7 +735,15 @@ export const ActiveRoast = ({
         return [
             ...sorted,
             ...(!roastEnded && charged
-                ? [{ time: timeStr, event: 'Now', temp: formatTemp(rawBT, unit), note: `${roastPhaseName} in progress`, current: true }]
+                ? [
+                      {
+                          time: timeStr,
+                          event: 'Now',
+                          temp: formatTemp(rawBT, unit),
+                          note: `${roastPhaseName} in progress`,
+                          current: true,
+                      },
+                  ]
                 : []),
         ];
     }, [logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName]);
@@ -699,7 +780,9 @@ export const ActiveRoast = ({
             <Coffee size={16} color="#16a34a" />
             <div>
                 <p className="text-[13px] font-medium text-[#16a34a]">생두를 투입해 주세요</p>
-                <p className="text-xs text-[#15803d] opacity-80">온도 강하 감지 시 자동으로 로스팅이 시작됩니다 (또는 ⌘↵ 수동 시작)</p>
+                <p className="text-xs text-[#15803d] opacity-80">
+                    온도 강하 감지 시 자동으로 로스팅이 시작됩니다 (또는 ⌘↵ 수동 시작)
+                </p>
             </div>
         </div>
     );
@@ -748,7 +831,9 @@ export const ActiveRoast = ({
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Temperature Curve</h2>
                         <button
                             onClick={toggleFullscreen}
-                            aria-label={isFullscreen ? 'Exit temperature chart fullscreen' : 'Open temperature chart fullscreen'}
+                            aria-label={
+                                isFullscreen ? 'Exit temperature chart fullscreen' : 'Open temperature chart fullscreen'
+                            }
                             aria-pressed={isFullscreen}
                             aria-keyshortcuts="F"
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border-none text-xs font-semibold cursor-pointer transition-all duration-200 bg-surface text-muted shadow-(--shadow-inset) hover:text-primary"
@@ -791,7 +876,9 @@ export const ActiveRoast = ({
                                 <div
                                     key={label}
                                     className={`px-2.5 py-1 rounded-full text-[11px] font-medium tracking-[0.3px] transition-all duration-300 ${
-                                        active ? 'bg-primary text-white' : 'bg-surface text-muted shadow-(--shadow-inset)'
+                                        active
+                                            ? 'bg-primary text-white'
+                                            : 'bg-surface text-muted shadow-(--shadow-inset)'
                                     }`}
                                 >
                                     {label}
@@ -818,13 +905,13 @@ export const ActiveRoast = ({
                             showRoR={roastSettings.showRoRChart}
                             temperatureUnit={unit}
                         />
-                        {livePoints.length === 0 && phase !== 'ended' && (
+                        {/* {livePoints.length === 0 && phase !== 'ended' && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <span className="text-[13px] text-muted bg-main-bg/80 px-3 py-1.5 rounded-full">
                                     {phase === 'standby' ? '생두 투입 대기 중...' : '예열 중 — 실시간 온도 모니터링'}
                                 </span>
                             </div>
-                        )}
+                        )} */}
                     </div>
 
                     {isFullscreen && (
@@ -836,9 +923,17 @@ export const ActiveRoast = ({
                                     { label: 'ROR', value: `${displayRoR}°${unit}/min`, color: '#7c3aed' },
                                     { label: 'Time', value: timeStr, color: 'var(--color-primary)' },
                                 ].map((stat) => (
-                                    <div key={stat.label} className="bg-surface px-2.5 py-2 rounded-xl shadow-(--shadow-inset)">
-                                        <div className="text-[9px] text-muted font-semibold uppercase mb-0.5">{stat.label}</div>
-                                        <div className="text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis" style={{ color: stat.color }}>
+                                    <div
+                                        key={stat.label}
+                                        className="bg-surface px-2.5 py-2 rounded-xl shadow-(--shadow-inset)"
+                                    >
+                                        <div className="text-[9px] text-muted font-semibold uppercase mb-0.5">
+                                            {stat.label}
+                                        </div>
+                                        <div
+                                            className="text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis"
+                                            style={{ color: stat.color }}
+                                        >
                                             {stat.value}
                                         </div>
                                     </div>
@@ -883,14 +978,43 @@ export const ActiveRoast = ({
                                     logEntries={logEntries}
                                     pressedButtons={pressedButtons}
                                     buttons={[
-                                        { label: 'Yellow', event: 'Yellow', shortcut: '⌘1', pressKey: 'Mark Yellow', onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow') },
-                                        { label: 'FC Start', event: 'FC Start', shortcut: '⌘2', pressKey: 'Mark FC Start', onClick: () => markEvent('FC Start', 'First crack started', 'Mark FC Start') },
-                                        { label: 'FC End', event: 'FC End', shortcut: '⌘3', pressKey: 'Mark FC End', onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End') },
-                                        { label: 'Mark Drop', event: 'Drop', shortcut: '⌘D', pressKey: 'Mark Drop', onClick: handleDrop },
+                                        {
+                                            label: 'Yellow',
+                                            event: 'Yellow',
+                                            shortcut: '⌘1',
+                                            pressKey: 'Mark Yellow',
+                                            onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow'),
+                                        },
+                                        {
+                                            label: 'FC Start',
+                                            event: 'FC Start',
+                                            shortcut: '⌘2',
+                                            pressKey: 'Mark FC Start',
+                                            onClick: () =>
+                                                markEvent('FC Start', 'First crack started', 'Mark FC Start'),
+                                        },
+                                        {
+                                            label: 'FC End',
+                                            event: 'FC End',
+                                            shortcut: '⌘3',
+                                            pressKey: 'Mark FC End',
+                                            onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
+                                        },
+                                        {
+                                            label: 'Mark Drop',
+                                            event: 'Drop',
+                                            shortcut: '⌘D',
+                                            pressKey: 'Mark Drop',
+                                            onClick: handleDrop,
+                                        },
                                     ]}
                                 />
                             </div>
-                            <RoastLog variant="sidebar" entries={roastLogDisplayEntries} eventMarkerColor={eventMarkerColor} />
+                            <RoastLog
+                                variant="sidebar"
+                                entries={roastLogDisplayEntries}
+                                eventMarkerColor={eventMarkerColor}
+                            />
                         </div>
                     )}
                 </div>
@@ -949,10 +1073,34 @@ export const ActiveRoast = ({
                         logEntries={logEntries}
                         pressedButtons={pressedButtons}
                         buttons={[
-                            { label: 'Mark Yellow', event: 'Yellow', shortcut: '⌘1', pressKey: 'Mark Yellow', onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow') },
-                            { label: 'Mark FC Start', event: 'FC Start', shortcut: '⌘2', pressKey: 'Mark FC Start', onClick: () => markEvent('FC Start', 'First crack started', 'Mark FC Start') },
-                            { label: 'Mark FC End', event: 'FC End', shortcut: '⌘3', pressKey: 'Mark FC End', onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End') },
-                            { label: 'Mark Drop', event: 'Drop', shortcut: '⌘D', pressKey: 'Mark Drop', onClick: handleDrop },
+                            {
+                                label: 'Mark Yellow',
+                                event: 'Yellow',
+                                shortcut: '⌘1',
+                                pressKey: 'Mark Yellow',
+                                onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow'),
+                            },
+                            {
+                                label: 'Mark FC Start',
+                                event: 'FC Start',
+                                shortcut: '⌘2',
+                                pressKey: 'Mark FC Start',
+                                onClick: () => markEvent('FC Start', 'First crack started', 'Mark FC Start'),
+                            },
+                            {
+                                label: 'Mark FC End',
+                                event: 'FC End',
+                                shortcut: '⌘3',
+                                pressKey: 'Mark FC End',
+                                onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
+                            },
+                            {
+                                label: 'Mark Drop',
+                                event: 'Drop',
+                                shortcut: '⌘D',
+                                pressKey: 'Mark Drop',
+                                onClick: handleDrop,
+                            },
                         ]}
                     />
                 </div>
@@ -975,8 +1123,15 @@ export const ActiveRoast = ({
                 roastNotes={roastNotes}
                 eventMarkerColor={eventMarkerColor}
                 onRoastNotesChange={setRoastNotes}
-                onClose={() => { setShowSummaryModal(false); setSummaryData(null); }}
-                onDiscard={() => { setShowSummaryModal(false); setSummaryData(null); resetActiveRoast(); }}
+                onClose={() => {
+                    setShowSummaryModal(false);
+                    setSummaryData(null);
+                }}
+                onDiscard={() => {
+                    setShowSummaryModal(false);
+                    setSummaryData(null);
+                    resetActiveRoast();
+                }}
             />
         </div>
     );
