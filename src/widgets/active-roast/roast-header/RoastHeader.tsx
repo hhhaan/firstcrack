@@ -37,8 +37,8 @@ export const RoastHeader = ({
                         width: 8,
                         height: 8,
                         borderRadius: '50%',
-                        background: roastEnded || !charged ? '#6b7280' : '#22c55e',
-                        boxShadow: charged && !roastEnded ? '0 0 0 3px rgba(34,197,94,0.2)' : 'none',
+                        background: roastEnded ? '#6b7280' : (!charged && !sidecarConnected) ? '#6b7280' : '#22c55e',
+                        boxShadow: !roastEnded && (charged || sidecarConnected) ? '0 0 0 3px rgba(34,197,94,0.2)' : 'none',
                         animation: charged && !roastEnded ? 'pulse 2s infinite' : 'none',
                     }}
                 />
@@ -46,7 +46,7 @@ export const RoastHeader = ({
                     style={{
                         fontSize: 12,
                         fontWeight: 500,
-                        color: roastEnded || !charged ? '#6b7280' : '#16a34a',
+                        color: roastEnded ? '#6b7280' : (!charged && !sidecarConnected) ? '#6b7280' : '#16a34a',
                         letterSpacing: '0.5px',
                         textTransform: 'uppercase',
                     }}
@@ -54,7 +54,7 @@ export const RoastHeader = ({
                     {roastEnded
                         ? 'Roast Complete'
                         : !charged
-                          ? 'Ready to Roast'
+                          ? 'Machine Connected · Ready to Roast'
                           : sidecarConnected
                             ? 'Live — Roast in Progress'
                             : 'Mock — Roast in Progress'}

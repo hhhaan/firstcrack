@@ -1,6 +1,15 @@
 import { useEffect, useRef } from 'react';
 import uPlot from 'uplot';
+import {
+    CHART_COLORS,
+    PHASE_SECS,
+    ROR_Y_MIN,
+    ROR_Y_MAX,
+    MARKER_LABEL_FONT_CSS_PX,
+    MARKER_LABEL_Y_OFFSET_CSS_PX,
+} from '@features/active-roast/lib/chart-config';
 import type { TurningPoint, TemperatureUnit } from '@features/active-roast';
+import { computeHitThreshSec, useMarkerDrag } from './useMarkerDrag';
 
 export interface RoastEventMarker {
     timeSec: number;
@@ -20,24 +29,17 @@ interface Props {
     temperatureUnit?: TemperatureUnit;
     height: number;
     onCursorIdx?: (idx: number | null) => void;
+    onEventMarkerDrag?: (event: string, newTimeSec: number) => void;
     showET?: boolean;
     showTargetCurve?: boolean;
     showRoR?: boolean;
 }
-
-const PHASE_SECS = [180, 300, 630];
-const ROR_Y_MIN = -5;
-const ROR_Y_MAX = 20;
 
 const fmtSec = (v: number) => {
     const m = Math.floor(v / 60);
     const s = Math.round(v % 60);
     return `${m}:${String(s).padStart(2, '0')}`;
 };
-
-const TP_COLOR = '#16a34a';
-const MARKER_LABEL_FONT = 'bold 16px sans-serif';
-const MARKER_LABEL_Y_OFFSET = 18;
 
 export const RoastTempChart = ({
     xs,
@@ -51,6 +53,7 @@ export const RoastTempChart = ({
     temperatureUnit = 'C',
     height,
     onCursorIdx,
+    onEventMarkerDrag,
     showET = true,
     showTargetCurve = true,
     showRoR = true,
@@ -58,19 +61,24 @@ export const RoastTempChart = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const plotRef = useRef<uPlot | null>(null);
 
-    // Mutable refs so plugin hooks always read latest values without recreating uPlot
     const currentTimeRef = useRef(currentTimeSec);
     const eventMarkersRef = useRef(eventMarkers);
     const turningPointsRef = useRef(turningPoints);
     const onCursorIdxRef = useRef(onCursorIdx);
     const temperatureUnitRef = useRef(temperatureUnit);
+    const onEventMarkerDragRef = useRef(onEventMarkerDrag);
     currentTimeRef.current = currentTimeSec;
     eventMarkersRef.current = eventMarkers;
     turningPointsRef.current = turningPoints;
     onCursorIdxRef.current = onCursorIdx;
     temperatureUnitRef.current = temperatureUnit;
+    onEventMarkerDragRef.current = onEventMarkerDrag;
 
-    // Create uPlot once on mount
+    const { isDraggingRef, isNearMarkerRef, hoveredMarkerRef, setupDrag } = useMarkerDrag(
+        eventMarkersRef,
+        onEventMarkerDragRef,
+    );
+
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -80,7 +88,6 @@ export const RoastTempChart = ({
         const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#9ca3af';
         const colorSecondary = cs.getPropertyValue('--color-secondary').trim() || '#6b7280';
 
-        // --- Tooltip ---
         const ttEl = document.createElement('div');
         Object.assign(ttEl.style, {
             position: 'absolute',
@@ -95,7 +102,6 @@ export const RoastTempChart = ({
             whiteSpace: 'nowrap',
         });
 
-        // --- Plugins ---
         const refLinePlugin: uPlot.Plugin = {
             hooks: {
                 draw: [
@@ -104,8 +110,7 @@ export const RoastTempChart = ({
                         const { top, height: bh, left, width: bw } = u.bbox;
                         ctx.save();
 
-                        // Phase boundary lines
-                        ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+                        ctx.strokeStyle = CHART_COLORS.phaseLines;
                         ctx.setLineDash([3, 3]);
                         ctx.lineWidth = 1;
                         for (const sec of PHASE_SECS) {
@@ -117,12 +122,11 @@ export const RoastTempChart = ({
                             ctx.stroke();
                         }
 
-                        // Current time marker
                         const ct = currentTimeRef.current;
                         if (ct > 0) {
                             const cx = u.valToPos(ct, 'x', true);
                             if (cx >= left && cx <= left + bw) {
-                                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                                ctx.strokeStyle = CHART_COLORS.currentTimeLine;
                                 ctx.setLineDash([4, 3]);
                                 ctx.lineWidth = 1.5;
                                 ctx.beginPath();
@@ -132,34 +136,37 @@ export const RoastTempChart = ({
                             }
                         }
 
-                        // Event markers with labels
+                        const dpr = devicePixelRatio;
                         ctx.setLineDash([]);
                         ctx.lineWidth = 4;
-                        ctx.font = MARKER_LABEL_FONT;
+                        ctx.font = `bold ${Math.round(MARKER_LABEL_FONT_CSS_PX * dpr)}px monospace`;
+                        const labelY = top + MARKER_LABEL_Y_OFFSET_CSS_PX * dpr;
+                        const hovered = hoveredMarkerRef.current;
+                        const hasHover = hovered != null && !isDraggingRef.current;
                         for (const m of eventMarkersRef.current) {
                             const ex = u.valToPos(m.timeSec, 'x', true);
                             if (ex < left || ex > left + bw) continue;
+                            ctx.globalAlpha = hasHover && m.event !== hovered ? 0.2 : 1;
                             ctx.strokeStyle = m.color;
                             ctx.fillStyle = m.color;
                             ctx.beginPath();
                             ctx.moveTo(ex, top);
                             ctx.lineTo(ex, top + bh);
                             ctx.stroke();
-                            ctx.fillText(m.event, ex + 3, top + MARKER_LABEL_Y_OFFSET);
+                            ctx.fillText(m.event, ex + 3, labelY);
                         }
+                        ctx.globalAlpha = 1;
 
-                        // TP vertical line (same style as event markers)
-                        ctx.font = MARKER_LABEL_FONT;
                         for (const tp of turningPointsRef.current) {
                             const tx = u.valToPos(tp.timeSec, 'x', true);
                             if (tx < left || tx > left + bw) continue;
-                            ctx.strokeStyle = TP_COLOR;
-                            ctx.fillStyle = TP_COLOR;
+                            ctx.strokeStyle = CHART_COLORS.tp;
+                            ctx.fillStyle = CHART_COLORS.tp;
                             ctx.beginPath();
                             ctx.moveTo(tx, top);
                             ctx.lineTo(tx, top + bh);
                             ctx.stroke();
-                            ctx.fillText('TP', tx + 3, top + MARKER_LABEL_Y_OFFSET);
+                            ctx.fillText('TP', tx + 3, labelY);
                         }
 
                         ctx.restore();
@@ -178,6 +185,10 @@ export const RoastTempChart = ({
                 ],
                 setCursor: [
                     (u) => {
+                        if (isDraggingRef.current || isNearMarkerRef.current) {
+                            ttEl.style.display = 'none';
+                            return;
+                        }
                         const { idx, left: cx, top: cy } = u.cursor;
                         if (idx == null || cx == null || cy == null) {
                             ttEl.style.display = 'none';
@@ -195,7 +206,7 @@ export const RoastTempChart = ({
                             rows.push({
                                 name: 'Bean Temp',
                                 val: `${btA.toFixed(1)}°${temperatureUnitRef.current}`,
-                                color: colorPrimary,
+                                color: CHART_COLORS.btActual,
                             });
                         if (etA != null)
                             rows.push({
@@ -207,10 +218,10 @@ export const RoastTempChart = ({
                             rows.push({
                                 name: 'Target BT',
                                 val: `${btT.toFixed(1)}°${temperatureUnitRef.current}`,
-                                color: 'rgba(23,23,23,0.4)',
+                                color: CHART_COLORS.btTargetTooltip,
                             });
                         if (ror != null && u.series[4]?.show)
-                            rows.push({ name: 'BT RoR', val: `${ror.toFixed(1)}°/min`, color: '#d97706' });
+                            rows.push({ name: 'BT RoR', val: `${ror.toFixed(1)}°/min`, color: '#CA8A04' });
                         if (rows.length === 0) {
                             ttEl.style.display = 'none';
                             return;
@@ -243,7 +254,7 @@ export const RoastTempChart = ({
         const opts: uPlot.Options = {
             width: el.offsetWidth,
             height,
-            padding: [4, 12, 0, 0],
+            padding: [12, 12, 0, 0],
             cursor: { focus: { prox: 16 }, drag: { x: false, y: false } },
             legend: { show: false },
             axes: [
@@ -253,31 +264,29 @@ export const RoastTempChart = ({
                     ticks: { show: false },
                     border: { show: false },
                     font: `11px monospace`,
-                    size: 24,
-                    incrs: [15, 30, 60, 120, 180, 300],
+                    size: 28,
+                    incrs: [60, 120, 180, 240, 300, 360, 420, 480, 540, 600, 660, 720],
                     values: (_, vals) => vals.map((v) => fmtSec(v)),
                 },
-                // Left Y-axis: temperature
                 {
                     stroke: colorMuted,
                     grid: { stroke: 'rgba(0,0,0,0.1)', width: 1 },
                     ticks: { show: false },
                     border: { show: false },
                     font: `11px monospace`,
-                    size: 40,
+                    size: 38,
                     incrs: [10, 20, 25, 50],
                     values: (_, vals) => vals.map((v) => `${v}°${temperatureUnit}`),
                 },
-                // Right Y-axis: RoR
                 {
                     scale: 'ror',
                     side: 1,
-                    stroke: '#d97706',
+                    stroke: CHART_COLORS.rorActual,
                     grid: { show: false },
                     ticks: { show: false },
                     border: { show: false },
                     font: `10px monospace`,
-                    size: 36,
+                    size: 25,
                     splits: [ROR_Y_MIN, 0, ROR_Y_MAX],
                     values: (_, vals) => vals.map((v) => `${v}`),
                 },
@@ -289,20 +298,41 @@ export const RoastTempChart = ({
             },
             series: [
                 {},
-                // btTarget — green dashed reference curve
-                { stroke: 'rgba(16,185,129,0.7)', width: 1.5, dash: [6, 4], points: { show: false } },
-                // btActual
-                { stroke: colorPrimary, width: 2.5, points: { show: false } },
-                // etActual — dashed, blue, 70% opacity
-                { stroke: 'rgba(37,99,235,0.7)', width: 4.0, dash: [5, 3], points: { show: false } },
-                // rorActual — amber, right axis
-                { scale: 'ror', stroke: '#d97706', width: 1.5, dash: [4, 3], points: { show: false }, show: showRoR },
+                { stroke: CHART_COLORS.btTarget, width: 2.0, dash: [6, 4], points: { show: false } },
+                { stroke: colorPrimary, width: 3.0, points: { show: false } },
+                { stroke: CHART_COLORS.etActual, width: 3.0, points: { show: false } },
+                {
+                    scale: 'ror',
+                    stroke: CHART_COLORS.rorActual,
+                    width: 3.0,
+                    dash: [4, 3],
+                    points: { show: false },
+                    show: showRoR,
+                },
             ],
             plugins: [refLinePlugin, tooltipPlugin],
             hooks: {
                 setCursor: [
                     (u) => {
                         onCursorIdxRef.current?.(u.cursor.idx ?? null);
+
+                        if (isDraggingRef.current) return;
+                        const cx = u.cursor.left;
+                        if (cx == null) return;
+                        const cursorTime = u.posToVal(cx, 'x');
+                        const thresh = computeHitThreshSec(u);
+                        const hovered = eventMarkersRef.current.find(
+                            (m) => Math.abs(cursorTime - m.timeSec) <= thresh,
+                        ) ?? null;
+                        const nextHovered = hovered?.event ?? null;
+
+                        isNearMarkerRef.current = nextHovered != null;
+                        (u.over as HTMLElement).style.cursor = nextHovered != null ? 'pointer' : '';
+
+                        if (nextHovered !== hoveredMarkerRef.current) {
+                            hoveredMarkerRef.current = nextHovered;
+                            u.redraw(false);
+                        }
                     },
                 ],
             },
@@ -311,14 +341,20 @@ export const RoastTempChart = ({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         plotRef.current = new uPlot(opts, [xs, btTarget, btActual, etActual, rorActual] as any, el);
 
+        const teardownDrag = setupDrag(plotRef.current);
+
         const obs = new ResizeObserver(() => {
             if (plotRef.current && el) {
-                plotRef.current.setSize({ width: el.offsetWidth, height: plotRef.current.height });
+                const newW = el.offsetWidth;
+                if (newW !== plotRef.current.width) {
+                    plotRef.current.setSize({ width: newW, height: plotRef.current.height });
+                }
             }
         });
         obs.observe(el);
 
         return () => {
+            teardownDrag();
             obs.disconnect();
             plotRef.current?.destroy();
             plotRef.current = null;
@@ -326,25 +362,21 @@ export const RoastTempChart = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Update series data when zoom or live data changes
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         plotRef.current?.setData([xs, btTarget, btActual, etActual, rorActual] as any);
     }, [xs, btTarget, btActual, etActual, rorActual]);
 
-    // Redraw reference lines when time, event markers, or turning points change (no path rebuild needed)
     useEffect(() => {
         plotRef.current?.redraw(false);
     }, [currentTimeSec, eventMarkers, turningPoints]);
 
-    // Sync explicit height changes (normal ↔ fullscreen)
     useEffect(() => {
         if (plotRef.current) {
             plotRef.current.setSize({ width: containerRef.current?.offsetWidth ?? plotRef.current.width, height });
         }
     }, [height]);
 
-    // Series visibility toggles
     useEffect(() => {
         plotRef.current?.setSeries(1, { show: showTargetCurve });
     }, [showTargetCurve]);

@@ -8,18 +8,31 @@ import {
     type RoastSummaryData,
 } from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
 import { RoastTempChart, type RoastEventMarker } from '@widgets/active-roast/ui/RoastTempChart';
+import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 
 import { fullData } from '@shared/data/roast-mock-data';
-import { roastProfiles, generateProfileCurve, interpolateProfileBT, DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
+import {
+    roastProfiles,
+    generateProfileCurve,
+    interpolateProfileBT,
+    DEFAULT_PROFILE_KEY,
+} from '@shared/data/roast-profiles';
 import type { RoastPoint, LogEntry } from '@shared/types/roast';
 import { isEditableTarget } from '@shared/lib/dom';
 import { sidecar } from '@shared/lib/sidecar';
-import { useRoastSettings, detectTurningPoints, toDisplayTemp, toDisplayRoR, formatTemp } from '@features/active-roast';
+import {
+    useRoastSettings,
+    detectTurningPoints,
+    toDisplayTemp,
+    toDisplayRoR,
+    formatTemp,
+    type TurningPoint,
+} from '@features/active-roast';
 
 import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog } from '@widgets/active-roast';
 import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
 
-const TOGGLEABLE_LOG_EVENTS = new Set(['Yellow', 'FC Start', 'FC End']);
+const TOGGLEABLE_LOG_EVENTS = new Set(['Yellow', 'FC Start', 'FC End', 'Drop']);
 
 export const ActiveRoast = ({
     isActive,
@@ -31,7 +44,7 @@ export const ActiveRoast = ({
     const roastSettings = useRoastSettings();
     const [targetProfileId, setTargetProfileId] = useState<number | null>(() => {
         const stored = localStorage.getItem(DEFAULT_PROFILE_KEY);
-        return stored ? Number(stored) : roastProfiles[0]?.id ?? null;
+        return stored ? Number(stored) : (roastProfiles[0]?.id ?? null);
     });
     const [elapsed, setElapsed] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
@@ -60,9 +73,10 @@ export const ActiveRoast = ({
     const [livePoints, setLivePoints] = useState<
         { time: number; label: string; bt: number; et: number | null; ror: number | null; ror_et: number | null }[]
     >([]);
+    const [confirmedTP, setConfirmedTP] = useState<TurningPoint | null>(null);
     const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);
     const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
-    const [mainChartHeight, setMainChartHeight] = useState(260);
+    const [mainChartHeight, setMainChartHeight] = useState(350);
     const [isChartDragging, setIsChartDragging] = useState(false);
     const elapsedRef = useRef(0);
     const chargedRef = useRef(false);
@@ -92,8 +106,8 @@ export const ActiveRoast = ({
         if (!el) return;
         const obs = new ResizeObserver(() => {
             const h = el.offsetHeight;
-            // subtract phase labels (~36px), RoR header (~24px), RoR chart (80px), margins
-            setMainChartHeight(Math.max(180, h - 36 - 24 - 80 - 16));
+            // subtract phase labels (~36px) and margins (~16px) — fullscreen에서 하단 여백 최적화
+            setMainChartHeight(Math.max(180, h - 36 - 16));
         });
         obs.observe(el);
         return () => obs.disconnect();
@@ -133,6 +147,14 @@ export const ActiveRoast = ({
             unlisten?.();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // 마운트 시 초기 연결 상태 확인
+    useEffect(() => {
+        sidecar
+            .getStatus()
+            .then((s) => setSidecarConnected(s.connected))
+            .catch(() => setSidecarConnected(false));
     }, []);
 
     useEffect(() => {
@@ -273,18 +295,12 @@ export const ActiveRoast = ({
         phaseColor = '#ca8a04';
     }
 
-    const eventMarkerColor: Record<string, string> = {
-        Yellow: '#ca8a04',
-        'FC Start': '#ea580c',
-        'FC End': '#dc2626',
-        End: '#171717',
-        Note: '#6b7280',
-    };
+    const eventMarkerColor = EVENT_MARKER_COLORS;
 
     const eventMarkers = useMemo(
         (): RoastEventMarker[] =>
             logEntries
-                .filter((e) => eventMarkerColor[e.event])
+                .filter((e) => eventMarkerColor[e.event] && e.event !== 'TP') // TP는 turningPoints로 별도 처리되므로 차트 마커에서는 제외
                 .map((e) => {
                     const [min, sec] = e.time.split(':').map(Number);
                     const timeSec = Math.min(780, Math.max(0, min * 60 + sec));
@@ -293,14 +309,43 @@ export const ActiveRoast = ({
         [logEntries],
     );
 
-    const turningPoints = useMemo(
-        () =>
-            detectTurningPoints(
-                livePoints.map((p) => p.time),
-                livePoints.map((p) => p.bt),
-            ),
-        [livePoints],
-    );
+    const turningPoints = useMemo(() => {
+        if (confirmedTP) return [confirmedTP];
+
+        const pts = detectTurningPoints(
+            livePoints.map((p) => p.time),
+            livePoints.map((p) => p.bt),
+        );
+        if (pts.length > 0) {
+            setConfirmedTP(pts[0]);
+        }
+        return pts;
+    }, [livePoints, confirmedTP]);
+
+    useEffect(() => {
+        if (!confirmedTP) return;
+        const timeMin = Math.floor(confirmedTP.timeSec / 60);
+        const timeSec = Math.floor(confirmedTP.timeSec % 60);
+        const tpTimeStr = `${timeMin}:${String(timeSec).padStart(2, '0')}`;
+
+        setLogEntries((prev) => {
+            if (prev.some((e) => e.event === 'TP')) return prev;
+            const newEntry = {
+                time: tpTimeStr,
+                event: 'TP',
+                temp: formatTemp(confirmedTP.temp, unit),
+                note: 'Turning Point detected',
+            };
+            // 시간순 정렬 (TP는 보통 Charge 다음, 다른 수동 이벤트 전일 가능성이 높음)
+            const combined = [...prev, newEntry];
+            return combined.sort((a, b) => {
+                const [am, as] = a.time.split(':').map(Number);
+                const [bm, bs] = b.time.split(':').map(Number);
+                return am * 60 + as - (bm * 60 + bs);
+            });
+        });
+    }, [confirmedTP, unit]);
+
     const tpTimeSec = turningPoints[0]?.timeSec ?? null;
     tpTimeSecRef.current = tpTimeSec;
 
@@ -492,6 +537,13 @@ export const ActiveRoast = ({
         }
     };
 
+    const handleEventMarkerDrag = (event: string, newTimeSec: number) => {
+        const newMin = Math.floor(newTimeSec / 60);
+        const newSec = Math.floor(newTimeSec % 60);
+        const newTimeStr = `${newMin}:${String(newSec).padStart(2, '0')}`;
+        setLogEntries((prev) => prev.map((entry) => (entry.event === event ? { ...entry, time: newTimeStr } : entry)));
+    };
+
     const markEvent = (event: string, note: string, buttonLabel?: string) => {
         const isRemoval = TOGGLEABLE_LOG_EVENTS.has(event) && logEntries.some((entry) => entry.event === event);
         setLogEntries((prev) => {
@@ -504,9 +556,8 @@ export const ActiveRoast = ({
         if (!isRemoval && buttonLabel) flashButton(buttonLabel);
     };
 
-    const handleMarkNote = () => {
-        const note = window.prompt('Note:');
-        if (note?.trim()) markEvent('Note', note.trim(), 'Add Log Note');
+    const handleDrop = () => {
+        markEvent('Drop', 'Coffee dropped', 'Drop');
     };
 
     const showMachineDisconnectedAlert = () => {
@@ -547,6 +598,7 @@ export const ActiveRoast = ({
         setRoastEnded(false);
         setLogEntries([]);
         setLivePoints([]);
+        setConfirmedTP(null);
         setZoomRange(null);
         setHoveredChartIndex(null);
         setPressedButtons(new Set());
@@ -583,7 +635,6 @@ export const ActiveRoast = ({
             if (isEditableTarget(event.target) || showEndRoastModal || showSummaryModal) return;
 
             const shortcutModifier = event.metaKey || event.ctrlKey;
-            const key = event.key.toLowerCase();
 
             if (event.key === 'Escape' && isFullscreen) {
                 event.preventDefault();
@@ -622,10 +673,6 @@ export const ActiveRoast = ({
                 markEvent('FC End', 'First crack ended', 'Mark FC End');
                 return;
             }
-            if (key === 'n') {
-                event.preventDefault();
-                handleMarkNote();
-            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -642,9 +689,19 @@ export const ActiveRoast = ({
         const pct = Math.round((devSec / elapsed) * 100);
         return `${Math.floor(devSec / 60)}:${String(devSec % 60).padStart(2, '0')} (${pct}%)`;
     })();
-    const roastLogDisplayEntries = useMemo(
-        (): LogEntry[] => [
-            ...logEntries,
+    const parseTimeToSeconds = (t: string): number => {
+        const parts = t.split(':');
+        if (parts.length === 2) {
+            const [m, s] = parts.map(Number);
+            return m * 60 + s;
+        }
+        return 0;
+    };
+
+    const roastLogDisplayEntries = useMemo((): LogEntry[] => {
+        const sorted = [...logEntries].sort((a, b) => parseTimeToSeconds(a.time) - parseTimeToSeconds(b.time));
+        return [
+            ...sorted,
             ...(!roastEnded
                 ? [
                       {
@@ -656,9 +713,8 @@ export const ActiveRoast = ({
                       },
                   ]
                 : []),
-        ],
-        [logEntries, roastEnded, timeStr, displayBT, currentPoint, phase],
-    );
+        ];
+    }, [logEntries, roastEnded, timeStr, displayBT, currentPoint, phase]);
 
     return (
         <div className="px-10 py-8 max-w-275 mx-auto">
@@ -680,6 +736,7 @@ export const ActiveRoast = ({
                 unit={unit}
                 phase={phase}
                 phaseColor={phaseColor}
+                connected={sidecarConnected}
             />
 
             <MachineControls
@@ -769,10 +826,11 @@ export const ActiveRoast = ({
                             currentTimeSec={elapsed}
                             eventMarkers={eventMarkers}
                             turningPoints={turningPoints}
-                            height={isFullscreen ? mainChartHeight : 260}
+                            height={isFullscreen ? mainChartHeight : 350}
                             onCursorIdx={(idx) => {
                                 if (idx != null) setHoveredChartIndex((effectiveZoomRange?.start ?? 0) + idx);
                             }}
+                            onEventMarkerDrag={handleEventMarkerDrag}
                             showET={roastSettings.showET}
                             showTargetCurve={roastSettings.showTargetCurve}
                             showRoR={roastSettings.showRoRChart}
@@ -866,13 +924,12 @@ export const ActiveRoast = ({
                                             pressKey: 'Mark FC End',
                                             onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
                                         },
-                                        // TODO : Drop으로 바꿀지 고민해보기
                                         {
-                                            label: 'Add Note',
-                                            event: null,
-                                            shortcut: '⌘N',
-                                            pressKey: 'Add Log Note',
-                                            onClick: handleMarkNote,
+                                            label: 'Mark Drop',
+                                            event: 'Drop',
+                                            shortcut: '⌘D',
+                                            pressKey: 'Mark Drop',
+                                            onClick: handleDrop,
                                         },
                                     ]}
                                 />
@@ -948,11 +1005,11 @@ export const ActiveRoast = ({
                                 onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
                             },
                             {
-                                label: 'Add Log Note',
-                                event: null,
-                                shortcut: '⌘N',
-                                pressKey: 'Add Log Note',
-                                onClick: handleMarkNote,
+                                label: 'Mark Drop',
+                                event: 'Drop',
+                                shortcut: '⌘D',
+                                pressKey: 'Mark Drop',
+                                onClick: handleDrop,
                             },
                         ]}
                     />
