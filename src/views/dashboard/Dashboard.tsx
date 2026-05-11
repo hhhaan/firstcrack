@@ -251,7 +251,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                             if (h < 18) return 'Good afternoon';
                             return 'Good evening';
                         })()}
-                        , Han
+                        {/* , Han */}
                     </h1>
                     <p className="text-[15px] text-secondary tracking-[0.15px] font-normal flex items-center gap-2.5">
                         {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
