@@ -1,7 +1,7 @@
 // model
 export { useRoastSettings, updateRoastSettings } from './model/settings';
 export type { RoastSettings, TemperatureUnit, PollIntervalMs, RorSpanSec } from './model/settings';
-export { default as useRoastingStore } from './model/status';
+export { useRoastingStore } from './model/status';
 export type { RoastingState, RoastPhase } from './model/status';
 
 // lib

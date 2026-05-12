@@ -221,7 +221,7 @@ export const RoastTempChart = ({
                                 color: CHART_COLORS.btTargetTooltip,
                             });
                         if (ror != null && u.series[4]?.show)
-                            rows.push({ name: 'BT RoR', val: `${ror.toFixed(1)}°/min`, color: '#CA8A04' });
+                            rows.push({ name: 'BT RoR', val: `${ror.toFixed(1)}°/min`, color: '#FFC107' });
                         if (rows.length === 0) {
                             ttEl.style.display = 'none';
                             return;
@@ -276,7 +276,7 @@ export const RoastTempChart = ({
                     font: `11px monospace`,
                     size: 38,
                     incrs: [10, 20, 25, 50],
-                    values: (_, vals) => vals.map((v) => `${v}°${temperatureUnit}`),
+                    values: (_, vals) => vals.map((v) => (v === 130 ? '' : `${v}°${temperatureUnit}`)),
                 },
                 {
                     scale: 'ror',
@@ -287,7 +287,7 @@ export const RoastTempChart = ({
                     border: { show: false },
                     font: `10px monospace`,
                     size: 25,
-                    splits: [ROR_Y_MIN, 0, ROR_Y_MAX],
+                    splits: [0, 10, 20],
                     values: (_, vals) => vals.map((v) => `${v}`),
                 },
             ],
@@ -299,13 +299,12 @@ export const RoastTempChart = ({
             series: [
                 {},
                 { stroke: CHART_COLORS.btTarget, width: 2.0, dash: [6, 4], points: { show: false } },
-                { stroke: colorPrimary, width: 3.0, points: { show: false } },
+                { stroke: CHART_COLORS.btActual, width: 3.0, points: { show: false } },
                 { stroke: CHART_COLORS.etActual, width: 3.0, points: { show: false } },
                 {
                     scale: 'ror',
                     stroke: CHART_COLORS.rorActual,
                     width: 3.0,
-                    dash: [4, 3],
                     points: { show: false },
                     show: showRoR,
                 },
@@ -321,9 +320,8 @@ export const RoastTempChart = ({
                         if (cx == null) return;
                         const cursorTime = u.posToVal(cx, 'x');
                         const thresh = computeHitThreshSec(u);
-                        const hovered = eventMarkersRef.current.find(
-                            (m) => Math.abs(cursorTime - m.timeSec) <= thresh,
-                        ) ?? null;
+                        const hovered =
+                            eventMarkersRef.current.find((m) => Math.abs(cursorTime - m.timeSec) <= thresh) ?? null;
                         const nextHovered = hovered?.event ?? null;
 
                         isNearMarkerRef.current = nextHovered != null;

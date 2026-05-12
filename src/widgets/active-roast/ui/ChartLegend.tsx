@@ -1,7 +1,7 @@
 const LEGEND_ITEMS: { color: string; label: string; dashed?: boolean }[] = [
-    { color: '#1F2937', label: 'BT' },
+    { color: '#0acc19', label: 'BT' },
     { color: '#2563eb', label: 'ET' },
-    { color: '#CA8A04', label: 'RoR' },
+    { color: '#FFC107', label: 'RoR' },
     { color: 'rgba(16,185,129,0.7)', label: 'Target', dashed: true },
 ];
 

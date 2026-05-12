@@ -1,9 +1,9 @@
 export const CHART_COLORS = {
     btTarget: 'rgba(16,185,129,0.7)',
     btTargetTooltip: 'rgba(16,185,129,0.8)',
-    btActual: '#1F2937',
+    btActual: '#0acc19',
     etActual: 'rgba(37,99,235,0.7)',
-    rorActual: '#CA8A04',
+    rorActual: '#FFC107',
     tp: '#16a34a',
     phaseLines: 'rgba(0,0,0,0.07)',
     currentTimeLine: 'rgba(0,0,0,0.3)',

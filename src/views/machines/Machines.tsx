@@ -112,7 +112,8 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
             <div className="flex items-end justify-between mb-7">
                 <div>
                     <h1 className="font-display font-light text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1">
-                        {t('machines.title')}
+                        {/* {t('machines.title')} */}
+                        Machines
                     </h1>
                     <p className="text-sm text-muted tracking-[0.14px]">
                         {t('machines.registered', { count: machines.length })}

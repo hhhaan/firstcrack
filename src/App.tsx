@@ -2,14 +2,13 @@ import { useState, useEffect } from 'react';
 import './App.css';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
-import { Login } from './views/Login';
+import { Login, LoadingSpinner } from './views/login';
 import { Dashboard } from './views/dashboard';
 import { ActiveRoast } from './views/ActiveRoast';
 import { History } from './views/history';
 import { Beans } from './views/bean';
 import { Profiles } from './views/profiles';
 import { Machines } from './views/machines';
-import { LoadingSpinner } from './views/Login';
 import { type View } from './shared/types/view';
 import { useAuthStore } from './shared/store/auth';
 import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
@@ -30,11 +29,20 @@ export const App = () => {
         setSettingsOpen(true);
     };
 
-    if (loading) return (
-        <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--color-surface)' }}>
-            <LoadingSpinner />
-        </div>
-    );
+    if (loading)
+        return (
+            <div
+                style={{
+                    display: 'flex',
+                    height: '100vh',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'var(--color-surface)',
+                }}
+            >
+                <LoadingSpinner />
+            </div>
+        );
     if (!user) return <Login />;
 
     return (
@@ -47,7 +55,11 @@ export const App = () => {
                 onOpenSettings={() => openSettings()}
             />
             <div style={{ flex: 1, overflow: 'auto', background: 'var(--color-surface)' }}>
-                {view === 'dashboard' && <ViewErrorBoundary><Dashboard onNavigate={setView} /></ViewErrorBoundary>}
+                {view === 'dashboard' && (
+                    <ViewErrorBoundary>
+                        <Dashboard onNavigate={setView} />
+                    </ViewErrorBoundary>
+                )}
                 {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
             TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
                 <div style={{ display: view === 'roast' ? 'block' : 'none' }}>
@@ -55,10 +67,26 @@ export const App = () => {
                         <ActiveRoast isActive={view === 'roast'} onOpenRoastSettings={() => openSettings('roast')} />
                     </ViewErrorBoundary>
                 </div>
-                {view === 'history' && <ViewErrorBoundary><History /></ViewErrorBoundary>}
-                {view === 'beans' && <ViewErrorBoundary><Beans onNavigate={setView} /></ViewErrorBoundary>}
-                {view === 'profiles' && <ViewErrorBoundary><Profiles onNavigate={setView} /></ViewErrorBoundary>}
-                {view === 'machines' && <ViewErrorBoundary><Machines onNavigate={setView} /></ViewErrorBoundary>}
+                {view === 'history' && (
+                    <ViewErrorBoundary>
+                        <History />
+                    </ViewErrorBoundary>
+                )}
+                {view === 'beans' && (
+                    <ViewErrorBoundary>
+                        <Beans onNavigate={setView} />
+                    </ViewErrorBoundary>
+                )}
+                {view === 'profiles' && (
+                    <ViewErrorBoundary>
+                        <Profiles onNavigate={setView} />
+                    </ViewErrorBoundary>
+                )}
+                {view === 'machines' && (
+                    <ViewErrorBoundary>
+                        <Machines onNavigate={setView} />
+                    </ViewErrorBoundary>
+                )}
             </div>
             <SettingsModal open={settingsOpen} initialTab={settingsInitialTab} onClose={() => setSettingsOpen(false)} />
         </div>

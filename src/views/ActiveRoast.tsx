@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
-import { Play, Square, Maximize2, Minimize2, Plug, Coffee } from 'lucide-react';
+import { Play, Square, Maximize2, Minimize2 } from 'lucide-react';
 import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
 import {
     RoastSummaryModal,
@@ -30,7 +30,7 @@ import {
 
 import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog } from '@widgets/active-roast';
 import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
-import useRoastingStore from '@features/active-roast/model/status';
+import { useRoastingStore } from '@features/active-roast/model/status';
 
 const TOGGLEABLE_LOG_EVENTS = new Set(['Yellow', 'FC Start', 'FC End', 'Drop']);
 
@@ -55,26 +55,23 @@ export const ActiveRoast = ({
         const stored = localStorage.getItem(DEFAULT_PROFILE_KEY);
         return stored ? Number(stored) : (roastProfiles[0]?.id ?? null);
     });
-    const [elapsed, setElapsed] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
     const isRunningRef = useRef(isRunning);
     isRunningRef.current = isRunning;
 
     // Phase machine: idle → preheating → standby → roasting → ended
-    const [phase, setPhase] = useState<'idle' | 'preheating' | 'standby' | 'roasting' | 'ended'>('idle');
-    const phaseRef = useRef(phase);
-    phaseRef.current = phase;
+    const phase = useRoastingStore((s) => s.phase);
+    const elapsed = useRoastingStore((s) => s.elapsed);
+    const liveData = useRoastingStore((s) => s.liveData);
+    const tick = useRoastingStore((s) => s.tick);
+    const enterPreheating = useRoastingStore((s) => s.enterPreheating);
+    const enterStandby = useRoastingStore((s) => s.enterStandby);
+    const storeStartCharge = useRoastingStore((s) => s.startCharge);
+    const storeEndRoast = useRoastingStore((s) => s.endRoast);
+    const resetStore = useRoastingStore((s) => s.reset);
 
     const charged = phase === 'roasting' || phase === 'ended';
     const roastEnded = phase === 'ended';
-
-    // Sync phase to global store so Dashboard indicator works
-    const storeStartCharge = useRoastingStore((s) => s.startCharge);
-    const storeEndRoast = useRoastingStore((s) => s.endRoast);
-    useEffect(() => {
-        if (phase === 'roasting') storeStartCharge();
-        else if (phase === 'ended') storeEndRoast();
-    }, [phase, storeStartCharge, storeEndRoast]);
 
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showEndRoastModal, setShowEndRoastModal] = useState(false);
@@ -83,17 +80,9 @@ export const ActiveRoast = ({
     const [roastNotes, setRoastNotes] = useState('');
     const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
     const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
-    const [liveData, setLiveData] = useState<{
-        bt: number | null;
-        et: number | null;
-        ror: number;
-        ror_et: number;
-        heater: number;
-        fan: number;
-        drum: number;
-    } | null>(null);
-    const [sidecarConnected, setSidecarConnected] = useState(false);
-    const [machineCapabilities, setMachineCapabilities] = useState<string[]>([]);
+    const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
+    const machineCapabilities = useRoastingStore((s) => s.machineCapabilities);
+    const setConnected = useRoastingStore((s) => s.setConnected);
     const [livePoints, setLivePoints] = useState<
         { time: number; label: string; bt: number; et: number | null; ror: number | null; ror_et: number | null }[]
     >([]);
@@ -113,7 +102,6 @@ export const ActiveRoast = ({
     const autoDroppedRef = useRef(false);
 
     const elapsedRef = useRef(0);
-    const chargedRef = useRef(false);
     const roastStartTimeRef = useRef(0);
     const tpTimeSecRef = useRef<number | null>(null);
     const chartAreaRef = useRef<HTMLDivElement>(null);
@@ -126,9 +114,6 @@ export const ActiveRoast = ({
     useEffect(() => {
         elapsedRef.current = elapsed;
     }, [elapsed]);
-    useEffect(() => {
-        chargedRef.current = charged;
-    }, [charged]);
 
     const toggleFullscreen = () => setIsFullscreen((prev) => !prev);
 
@@ -149,7 +134,7 @@ export const ActiveRoast = ({
     useEffect(() => {
         if (!isRunning) return;
         const interval = setInterval(() => {
-            setElapsed((e) => e + 1);
+            tick();
         }, 1000);
         return () => clearInterval(interval);
     }, [isRunning]);
@@ -182,19 +167,23 @@ export const ActiveRoast = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Initial connection check
+    // Initial connection check — re-run when view becomes active (CSS hide → show)
     useEffect(() => {
+        if (!isActive) return;
         sidecar
             .getStatus()
             .then((s) => {
-                setSidecarConnected(s.connected);
-                if (s.connected && phaseRef.current === 'idle') {
-                    setPhase('preheating');
-                    setMachineCapabilities(s.capabilities ?? []);
+                if (s.connected) {
+                    setConnected(true, s.capabilities);
+                    if (useRoastingStore.getState().phase === 'idle') {
+                        enterPreheating(s.capabilities);
+                    }
+                } else {
+                    setConnected(false);
                 }
             })
-            .catch(() => setSidecarConnected(false));
-    }, []);
+            .catch(() => setConnected(false));
+    }, [isActive]);
 
     // Sidecar polling — active during preheating, standby, and roasting
     useEffect(() => {
@@ -203,12 +192,20 @@ export const ActiveRoast = ({
         const poll = async () => {
             try {
                 const data = await sidecar.getTemperatures();
-                setLiveData(data);
-                setSidecarConnected(true);
+                // bt가 null이면 연결 끊김 → /status로 이중 확인
+                if (data.bt == null) {
+                    const status = await sidecar.getStatus().catch(() => null);
+                    if (!status?.connected) {
+                        setConnected(false);
+                        return;
+                    }
+                }
+                useRoastingStore.getState().updateLiveData(data);
+                setConnected(true);
                 const bt = data.bt;
 
                 // Auto-charge detection in standby phase
-                if (phaseRef.current === 'standby' && bt != null && !autoChargedRef.current) {
+                if (useRoastingStore.getState().phase === 'standby' && bt != null && !autoChargedRef.current) {
                     btWindowRef.current = [...btWindowRef.current.slice(-(AUTO_CHARGE_WINDOW - 1)), bt];
                     if (btWindowRef.current.length >= AUTO_CHARGE_WINDOW) {
                         const first = btWindowRef.current[0];
@@ -221,7 +218,7 @@ export const ActiveRoast = ({
                 }
 
                 // Record live points + auto-drop detection during roasting
-                if (phaseRef.current === 'roasting' && bt != null && roastStartTimeRef.current !== 0) {
+                if (useRoastingStore.getState().phase === 'roasting' && bt != null && roastStartTimeRef.current !== 0) {
                     const t = (Date.now() - roastStartTimeRef.current) / 1000;
                     setLivePoints((prev) => {
                         if (prev.length > 0 && t - prev[prev.length - 1].time < 0.4) return prev;
@@ -269,7 +266,7 @@ export const ActiveRoast = ({
                     }
                 }
             } catch {
-                setSidecarConnected(false);
+                setConnected(false);
             }
         };
 
@@ -581,33 +578,12 @@ export const ActiveRoast = ({
 
     const handleDrop = () => markEvent('Drop', 'Coffee dropped', 'Drop');
 
-    // Phase 1 → 2: Connect to machine
-    const handleConnect = async () => {
-        try {
-            const status = await sidecar.getStatus();
-            if (status.connected) {
-                setSidecarConnected(true);
-                setMachineCapabilities(status.capabilities ?? []);
-                setPhase('preheating');
-            } else {
-                if ('__TAURI_INTERNALS__' in window) {
-                    await message('머신이 연결되어 있지 않습니다. AddMachine에서 먼저 연결하세요.', {
-                        title: '머신 연결 필요',
-                        kind: 'warning',
-                    });
-                }
-            }
-        } catch {
-            setSidecarConnected(false);
-        }
-    };
-
     // Phase 2 → standby: user confirms ready to roast
     const handleEnterStandby = () => {
         if (phase !== 'preheating') return;
         btWindowRef.current = [];
         autoChargedRef.current = false;
-        setPhase('standby');
+        enterStandby();
     };
 
     // Charge trigger (manual or auto)
@@ -615,7 +591,7 @@ export const ActiveRoast = ({
         (btAtCharge?: number | null) => {
             sidecar.startRoast().catch(() => {});
             roastStartTimeRef.current = Date.now();
-            setPhase('roasting');
+            storeStartCharge();
             setIsRunning(true);
             const temp = btAtCharge != null ? formatTemp(btAtCharge, unit) : formatTemp(rawBT, unit);
             setLogEntries([{ time: '0:00', event: 'Charge', temp, note: 'Bean drop detected' }]);
@@ -628,7 +604,7 @@ export const ActiveRoast = ({
         if (charged) return;
         const status = await sidecar.getStatus().catch(() => null);
         if (!status?.connected) {
-            setSidecarConnected(false);
+            setConnected(false);
             if ('__TAURI_INTERNALS__' in window) {
                 await message('머신이 연결되어 있지 않습니다.', { title: '머신 연결 필요', kind: 'warning' });
             }
@@ -644,9 +620,9 @@ export const ActiveRoast = ({
         autoDroppedRef.current = false;
         btWindowRef.current = [];
         dropWindowRef.current = [];
-        setElapsed(0);
         setIsRunning(false);
-        setPhase(sidecarConnected ? 'preheating' : 'idle');
+        resetStore();
+        if (sidecarConnected) enterPreheating();
         setLogEntries([]);
         setLivePoints([]);
         setConfirmedTP(null);
@@ -666,7 +642,7 @@ export const ActiveRoast = ({
             finalBt: formatTemp(rawBT, unit),
             logEntries: completedLogEntries,
         });
-        setPhase('ended');
+        storeEndRoast();
         setIsRunning(false);
         setShowEndRoastModal(false);
         setRoastNotes('');
@@ -748,52 +724,9 @@ export const ActiveRoast = ({
         ];
     }, [logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName]);
 
-    // ─── Idle overlay ────────────────────────────────────────────────────────
-    if (phase === 'idle') {
-        return (
-            <div className="px-10 py-8 max-w-275 mx-auto">
-                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-surface flex items-center justify-center shadow-(--shadow-inset)">
-                        <Plug size={28} strokeWidth={1.5} color="var(--color-muted)" />
-                    </div>
-                    <div className="text-center">
-                        <h2 className="text-xl font-semibold text-primary mb-2">머신이 연결되어 있지 않습니다</h2>
-                        <p className="text-[13px] text-muted max-w-xs">
-                            로스팅을 시작하려면 먼저 로스터기를 연결하세요.
-                        </p>
-                    </div>
-                    <button
-                        onClick={handleConnect}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-white text-sm font-medium cursor-pointer border-0 shadow-(--shadow-card)"
-                    >
-                        <Plug size={14} />
-                        머신 연결
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    // ─── Standby overlay (before charge) ────────────────────────────────────
-    const standbyBanner = phase === 'standby' && (
-        <div className="mb-5 flex items-center gap-3 px-5 py-3.5 rounded-lg bg-[rgba(220,252,231,0.6)] border border-[rgba(34,197,94,0.2)]">
-            <Coffee size={16} color="#16a34a" />
-            <div>
-                <p className="text-[13px] font-medium text-[#16a34a]">생두를 투입해 주세요</p>
-                <p className="text-xs text-[#15803d] opacity-80">
-                    온도 강하 감지 시 자동으로 로스팅이 시작됩니다 (또는 ⌘↵ 수동 시작)
-                </p>
-            </div>
-        </div>
-    );
-
     return (
         <div className="px-10 py-8 max-w-275 mx-auto">
             <RoastHeader
-                roastEnded={roastEnded}
-                charged={charged}
-                sidecarConnected={sidecarConnected}
-                timeStr={charged ? timeStr : phase === 'preheating' ? 'Ready' : 'Standby'}
                 phase={roastPhaseName}
                 targetProfileId={targetProfileId}
                 onTargetProfileChange={setTargetProfileId}
@@ -815,8 +748,6 @@ export const ActiveRoast = ({
                 sidecarConnected={sidecarConnected}
                 liveData={liveData}
             />
-
-            {standbyBanner}
 
             {/* Temperature Chart */}
             <div
@@ -905,22 +836,15 @@ export const ActiveRoast = ({
                             showRoR={roastSettings.showRoRChart}
                             temperatureUnit={unit}
                         />
-                        {/* {livePoints.length === 0 && phase !== 'ended' && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <span className="text-[13px] text-muted bg-main-bg/80 px-3 py-1.5 rounded-full">
-                                    {phase === 'standby' ? '생두 투입 대기 중...' : '예열 중 — 실시간 온도 모니터링'}
-                                </span>
-                            </div>
-                        )} */}
                     </div>
 
                     {isFullscreen && (
                         <div className="w-50 flex flex-col gap-3 px-3 pb-5 border-l border-border-subtle overflow-hidden">
                             <div className="grid grid-cols-1 gap-3">
                                 {[
-                                    { label: 'Bean Temp', value: formatTemp(rawBT, unit), color: '#ea580c' },
+                                    { label: 'Bean Temp', value: formatTemp(rawBT, unit), color: '#0acc19' },
                                     { label: 'Env Temp', value: formatTemp(rawET, unit), color: '#2563eb' },
-                                    { label: 'ROR', value: `${displayRoR}°${unit}/min`, color: '#7c3aed' },
+                                    { label: 'ROR', value: `${displayRoR}°${unit}/min`, color: '#FFC107' },
                                     { label: 'Time', value: timeStr, color: 'var(--color-primary)' },
                                 ].map((stat) => (
                                     <div
@@ -956,7 +880,7 @@ export const ActiveRoast = ({
                                             className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold shadow-(--shadow-inset) bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
                                         >
                                             <Play size={12} />
-                                            수동 Charge
+                                            Charge
                                         </button>
                                     )}
                                     <button
@@ -1032,7 +956,7 @@ export const ActiveRoast = ({
                                 className="flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] shadow-(--shadow-inset) bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
                             >
                                 <Play size={15} strokeWidth={2} />
-                                로스팅 준비
+                                READY
                             </button>
                         )}
                         {phase === 'standby' && (
@@ -1042,7 +966,7 @@ export const ActiveRoast = ({
                                 className="flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] shadow-(--shadow-inset) bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
                             >
                                 <Play size={15} strokeWidth={2} />
-                                수동 Charge
+                                Charge
                             </button>
                         )}
                         {(phase === 'roasting' || phase === 'ended') && (

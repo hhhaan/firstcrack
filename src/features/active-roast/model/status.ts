@@ -43,7 +43,7 @@ const initialState = {
     charged: false,
 };
 
-const useRoastingStore = create<RoastingState>((set, get) => ({
+export const useRoastingStore = create<RoastingState>((set, get) => ({
     ...initialState,
 
     enterPreheating: (capabilities?: string[]) => {
@@ -69,7 +69,7 @@ const useRoastingStore = create<RoastingState>((set, get) => ({
     },
 
     tick: () => {
-        set((state) => state.isRoasting ? { elapsed: state.elapsed + 1 } : state);
+        set((state) => (state.isRoasting ? { elapsed: state.elapsed + 1 } : state));
     },
 
     setConnected: (connected: boolean, capabilities?: string[]) => {
@@ -91,13 +91,13 @@ const useRoastingStore = create<RoastingState>((set, get) => ({
             current.heater === data.heater &&
             current.fan === data.fan &&
             current.drum === data.drum
-        ) return;
+        )
+            return;
         set({ liveData: data });
     },
 
     reset: () => {
-        set(initialState);
+        const { sidecarConnected, machineCapabilities } = get();
+        set({ ...initialState, sidecarConnected, machineCapabilities });
     },
 }));
-
-export default useRoastingStore;
