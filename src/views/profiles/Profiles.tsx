@@ -169,7 +169,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             {/* Header */}
             <div className="flex items-end justify-between mb-7">
                 <div>
-                    <h1 className="font-display font-light text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1">
+                    <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
                         Roast Profiles
                     </h1>
                     <p className="text-sm text-muted tracking-[0.14px]">

@@ -111,7 +111,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
             {/* Header */}
             <div className="flex items-end justify-between mb-7">
                 <div>
-                    <h1 className="font-display font-light text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1">
+                    <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
                         {/* {t('machines.title')} */}
                         Machines
                     </h1>

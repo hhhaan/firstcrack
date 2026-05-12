@@ -254,7 +254,7 @@ export const History = () => {
         <div className="mx-auto max-w-7xl py-8 px-10 md:py-6 md:px-8 lg:py-8 lg:px-10">
             <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                    <h1 className="mb-1 text-[32px] font-light leading-[1.13] tracking-[-0.4px] text-primary font-display">
+                    <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
                         Roast History
                     </h1>
                     <p className="text-sm tracking-[0.14px] text-muted">

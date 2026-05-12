@@ -5,9 +5,7 @@ import { useAuthStore } from '@shared/store/auth';
 import { useProfile, useUpdateProfile } from '../../../entities/profile';
 
 const SectionCard = ({ children }: { children: React.ReactNode }) => (
-    <section className="rounded-[20px] p-5 bg-linear-to-b from-[rgba(245,242,239,0.75)] to-[rgba(255,255,255,0.92)] border border-[rgba(0,0,0,0.06)] shadow-warm">
-        {children}
-    </section>
+    <section className="bg-white border border-[#E5E7EB] rounded-xl p-5">{children}</section>
 );
 
 export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
@@ -19,7 +17,6 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // 프로필 로드 완료 시 displayName 초기화
     useEffect(() => {
         if (profile?.display_name) setDisplayName(profile.display_name);
     }, [profile?.display_name]);
@@ -39,20 +36,20 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
     return (
         <>
             <SectionCard>
-                <h4 className="text-base font-semibold text-primary mb-4">Profile</h4>
+                <h4 className="text-[15px] font-semibold text-[#111827] m-0 mb-4">Profile</h4>
                 <div className="flex items-center gap-4 mb-5">
                     <div className="relative shrink-0">
-                        <div className="w-16 h-16 rounded-full bg-surface-warm-solid flex items-center justify-center text-[22px] font-semibold text-primary shadow-inset select-none">
+                        <div className="w-16 h-16 rounded-full bg-[#111827] flex items-center justify-center text-2xl font-semibold text-white select-none">
                             {(displayName || user?.email || '').charAt(0).toUpperCase()}
                         </div>
-                        <button className="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-primary border-2 border-white flex items-center justify-center cursor-pointer">
+                        <button className="absolute -bottom-0.5 -right-0.5 w-7 h-7 rounded-full bg-[#111827] border-2 border-white flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer">
                             <Camera size={10} strokeWidth={2} color="white" />
                         </button>
                     </div>
                     <div>
-                        <div className="text-[15px] font-medium text-primary">{displayName || '—'}</div>
-                        <div className="text-[13px] text-muted mt-0.5">{user?.email || '—'}</div>
-                        <span className="inline-block mt-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[rgba(220,252,231,0.8)] text-green-700 tracking-[0.12px] capitalize">
+                        <div className="text-[15px] font-semibold text-[#111827]">{displayName || '—'}</div>
+                        <div className="text-[13px] text-[#6B7280] mt-1">{user?.email || '—'}</div>
+                        <span className="inline-block mt-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#F3F4F6] text-[#6B7280] capitalize">
                             {profile?.plan ?? 'free'}
                         </span>
                     </div>
@@ -60,22 +57,22 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
 
                 <div className="grid gap-3">
                     <div>
-                        <label className="block text-[13px] font-medium text-secondary mb-1.5">Display name</label>
+                        <label className="block text-[13px] font-medium text-[#374151] mb-1.5">Display name</label>
                         <input
                             type="text"
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
                             placeholder="Your name"
-                            className="w-full px-3.5 py-2.5 rounded-[10px] border-none bg-[rgba(255,255,255,0.88)] text-[14px] text-primary font-[inherit] shadow-inset outline-none focus:ring-2 focus:ring-blue-200/50"
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5E7EB] bg-white text-[14px] text-[#111827] font-normal outline-none focus:border-[#111827] focus:ring-1 focus:ring-[#111827] transition-colors"
                         />
                     </div>
                     <div>
-                        <label className="block text-[13px] font-medium text-secondary mb-1.5">Email</label>
+                        <label className="block text-[13px] font-medium text-[#374151] mb-1.5">Email</label>
                         <input
                             type="email"
                             value={user?.email ?? ''}
                             readOnly
-                            className="w-full px-3.5 py-2.5 rounded-[10px] border-none bg-[rgba(0,0,0,0.03)] text-[14px] text-muted font-[inherit] shadow-inset outline-none cursor-default select-none"
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] text-[14px] text-[#9CA3AF] font-normal outline-none cursor-default select-none"
                         />
                     </div>
                 </div>
@@ -84,20 +81,20 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                     <button
                         onClick={handleSaveProfile}
                         disabled={updateProfile.isPending}
-                        className="px-4.5 py-2 rounded-full bg-primary text-white text-[13px] font-semibold border-none cursor-pointer shadow-card disabled:opacity-50"
+                        className="px-4.5 py-2 rounded-lg bg-[#111827] text-white text-[13px] font-semibold border hover:opacity-90 active:opacity-80 disabled:opacity-50 transition-all"
                     >
                         {updateProfile.isPending ? 'Saving…' : 'Save changes'}
                     </button>
                     {saveStatus === 'saved' && <span className="text-[13px] text-green-600 font-medium">Saved</span>}
                     {saveStatus === 'error' && (
-                        <span className="text-[13px] text-red-500 font-medium">Failed to save</span>
+                        <span className="text-[13px] text-red-600 font-medium">Failed to save</span>
                     )}
                 </div>
             </SectionCard>
 
             <SectionCard>
-                <h4 className="text-base font-semibold text-primary mb-1">Connected account</h4>
-                <div className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] bg-[rgba(255,255,255,0.88)] shadow-inset">
+                <h4 className="text-[15px] font-semibold text-[#111827] m-0 mb-3">Connected account</h4>
+                <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] bg-white">
                     <svg width="16" height="16" viewBox="0 0 24 24">
                         <path
                             fill="#4285F4"
@@ -116,16 +113,16 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                         />
                     </svg>
-                    <span className="text-[13px] text-secondary">Google · {user?.email || '—'}</span>
+                    <span className="text-[13px] text-[#374151]">Google · {user?.email || '—'}</span>
                 </div>
             </SectionCard>
 
             <SectionCard>
-                <h4 className="text-base font-semibold text-primary mb-1">Session</h4>
-                <p className="text-[13px] text-secondary mb-4">Sign out of your account on this device.</p>
+                <h4 className="text-[15px] font-semibold text-[#111827] m-0 mb-1">Session</h4>
+                <p className="text-[13px] text-[#6B7280] m-0 mb-4">Sign out of your account on this device.</p>
                 <button
                     onClick={() => supabase.auth.signOut().then(() => onClose())}
-                    className="flex items-center gap-2 px-4.5 py-2 rounded-full bg-[rgba(254,226,226,0.8)] text-red-600 text-[13px] font-semibold border-none cursor-pointer"
+                    className="flex items-center gap-2 px-4.5 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700 text-[13px] font-semibold hover:bg-red-100 active:bg-red-200 transition-all"
                 >
                     <LogOut size={14} strokeWidth={2} />
                     Sign out

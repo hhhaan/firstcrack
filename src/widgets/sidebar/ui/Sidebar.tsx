@@ -54,12 +54,12 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                             }}
                         >
                             <div>
-                                <div className="font-display font-light text-base leading-[1.2] text-primary tracking-[-0.2px]">
+                                <div className="text-[16px] font-medium tracking-[-0.2px] leading-[1.2] text-primary">
                                     First Crack
                                 </div>
-                                <div className="text-[11px] text-muted tracking-[0.14px] font-medium">
+                                {/* <div className="text-[11px] text-muted tracking-[0.14px] font-medium">
                                     {t('sidebar.roasteryDashboard')}
-                                </div>
+                                </div> */}
                             </div>
                         </div>
                     )}
@@ -141,7 +141,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                     onClick={onOpenSettings}
                     aria-label={t('sidebar.settings')}
                     title={collapsed ? t('sidebar.settings') : undefined}
-                    className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-start'} gap-2.5 px-2.5 py-2 rounded-lg border-none bg-surface cursor-pointer shadow-(--shadow-inset)`}
+                    className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-start'} gap-2.5 px-2.5 py-2 rounded-lg border-none cursor-pointer shadow-(--shadow-inset)`}
                 >
                     <div className="w-7 h-7 rounded-full bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary shrink-0 shadow-(--shadow-inset)">
                         H
@@ -149,7 +149,9 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                     {!collapsed && (
                         <>
                             <div className="text-left flex-1 min-w-0">
-                                <div className="text-[13px] font-medium text-primary tracking-[0.14px]">{t('sidebar.settings')}</div>
+                                <div className="text-[13px] font-medium text-primary tracking-[0.14px]">
+                                    {t('sidebar.settings')}
+                                </div>
                                 <div className="text-[11px] text-muted tracking-[0.14px] overflow-hidden text-ellipsis whitespace-nowrap">
                                     {t('sidebar.workspacePreferences')}
                                 </div>

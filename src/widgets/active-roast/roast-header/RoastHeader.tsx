@@ -65,17 +65,7 @@ export const RoastHeader = ({
                                 : 'Live — Roast in Progress'}
                     </span>
                 </div>
-                <h1
-                    style={{
-                        fontFamily: 'var(--font-display)',
-                        fontWeight: 300,
-                        fontSize: 32,
-                        lineHeight: 1.13,
-                        color: 'var(--color-primary)',
-                        letterSpacing: '-0.4px',
-                        marginBottom: 4,
-                    }}
-                >
+                <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
                     Ethiopia Yirgacheffe
                 </h1>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
