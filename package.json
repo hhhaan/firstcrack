@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "types:gen": "supabase gen types typescript --linked 2>/dev/null > src/shared/types/database.types.ts",
-    "build:debug": "tauri build --debug && open 'src-tauri/target/debug/bundle/macos/First Crack.app'"
+    "build:sidecar": "bash scripts/build-sidecar.sh",
+    "build:debug": "npm run build:sidecar && tauri build --debug && open 'src-tauri/target/debug/bundle/macos/First Crack.app'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
