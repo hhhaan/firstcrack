@@ -8,6 +8,7 @@ import {
     MARKER_LABEL_FONT_CSS_PX,
     MARKER_LABEL_Y_OFFSET_CSS_PX,
 } from '@features/active-roast/lib/chart-config';
+import { SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import type { TurningPoint, TemperatureUnit } from '@features/active-roast';
 import { computeHitThreshSec, useMarkerDrag } from './useMarkerDrag';
 
@@ -212,7 +213,7 @@ export const RoastTempChart = ({
                             rows.push({
                                 name: 'Env Temp',
                                 val: `${etA.toFixed(1)}°${temperatureUnitRef.current}`,
-                                color: '#2563eb',
+                                color: SENSOR_COLORS.et,
                             });
                         if (btT != null)
                             rows.push({
@@ -221,7 +222,7 @@ export const RoastTempChart = ({
                                 color: CHART_COLORS.btTargetTooltip,
                             });
                         if (ror != null && u.series[4]?.show)
-                            rows.push({ name: 'BT RoR', val: `${ror.toFixed(1)}°/min`, color: '#FFC107' });
+                            rows.push({ name: 'BT RoR', val: `${ror.toFixed(1)}°/min`, color: SENSOR_COLORS.ror });
                         if (rows.length === 0) {
                             ttEl.style.display = 'none';
                             return;

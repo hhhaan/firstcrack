@@ -1,4 +1,5 @@
 import type { LogEntry } from '@shared/types/roast';
+import { STATUS_COLORS } from '@features/active-roast/lib/colors';
 
 export const RoastLog = ({
     entries,
@@ -72,12 +73,12 @@ export const RoastLog = ({
                                     height: isSidebar ? 6 : 7,
                                     borderRadius: '50%',
                                     background: entry.current
-                                        ? '#22c55e'
+                                        ? STATUS_COLORS.active
                                         : (eventMarkerColor[entry.event] ?? 'var(--color-border)'),
                                     boxShadow: entry.current
                                         ? isSidebar
-                                            ? '0 0 0 2px rgba(34,197,94,0.2)'
-                                            : '0 0 0 3px rgba(34,197,94,0.2)'
+                                            ? `0 0 0 2px ${STATUS_COLORS.activeGlow}`
+                                            : `0 0 0 3px ${STATUS_COLORS.activeGlow}`
                                         : 'none',
                                     flexShrink: isSidebar ? 0 : undefined,
                                 }}

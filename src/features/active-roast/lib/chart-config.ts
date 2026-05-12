@@ -1,21 +1,23 @@
+import { SENSOR_COLORS, PHASE_COLORS } from './colors';
+
 export const CHART_COLORS = {
-    btTarget: 'rgba(16,185,129,0.7)',
-    btTargetTooltip: 'rgba(16,185,129,0.8)',
-    btActual: '#0acc19',
-    etActual: 'rgba(37,99,235,0.7)',
-    rorActual: '#FFC107',
-    tp: '#16a34a',
+    btTarget: SENSOR_COLORS.btTarget,
+    btTargetTooltip: SENSOR_COLORS.btTargetHover,
+    btActual: SENSOR_COLORS.bt,
+    etActual: SENSOR_COLORS.etChart,
+    rorActual: SENSOR_COLORS.ror,
+    tp: PHASE_COLORS.ready,
     phaseLines: 'rgba(0,0,0,0.07)',
     currentTimeLine: 'rgba(0,0,0,0.3)',
 } as const;
 
 export const EVENT_MARKER_COLORS: Record<string, string> = {
     Yellow: '#ca8a04',
-    'FC Start': '#ea580c',
-    'FC End': '#dc2626',
+    'FC Start': PHASE_COLORS.development,
+    'FC End': PHASE_COLORS.danger,
     End: '#171717',
     Note: '#6b7280',
-    TP: '#16a34a',
+    TP: PHASE_COLORS.ready,
     Drop: '#78350f',
 };
 

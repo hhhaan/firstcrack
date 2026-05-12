@@ -1,6 +1,7 @@
 import { Settings2, ChevronDown } from 'lucide-react';
 import { roastProfiles, DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { STATUS_COLORS, PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 
 export const RoastHeader = ({
     phase,
@@ -39,9 +40,9 @@ export const RoastHeader = ({
                             width: 8,
                             height: 8,
                             borderRadius: '50%',
-                            background: roastEnded || !sidecarConnected ? '#6b7280' : charged ? '#22c55e' : '#22c55e',
+                            background: roastEnded || !sidecarConnected ? '#6b7280' : STATUS_COLORS.active,
                             boxShadow:
-                                !roastEnded && sidecarConnected && charged ? '0 0 0 3px rgba(34,197,94,0.2)' : 'none',
+                                !roastEnded && sidecarConnected && charged ? `0 0 0 3px ${STATUS_COLORS.activeGlow}` : 'none',
                             animation: sidecarConnected && charged && !roastEnded ? 'pulse 2s infinite' : 'none',
                         }}
                     />
@@ -49,7 +50,7 @@ export const RoastHeader = ({
                         style={{
                             fontSize: 12,
                             fontWeight: 500,
-                            color: roastEnded || !sidecarConnected ? '#6b7280' : '#16a34a',
+                            color: roastEnded || !sidecarConnected ? '#6b7280' : PHASE_COLORS.ready,
                             letterSpacing: '0.5px',
                             textTransform: 'uppercase',
                         }}
@@ -83,7 +84,7 @@ export const RoastHeader = ({
                                 border: 'none',
                                 fontSize: 13,
                                 fontWeight: 500,
-                                color: targetProfileId ? 'rgba(16,185,129,0.9)' : 'var(--color-muted)',
+                                color: targetProfileId ? SENSOR_COLORS.btTargetStrong : 'var(--color-muted)',
                                 cursor: charged ? 'default' : 'pointer',
                                 paddingRight: 16,
                                 letterSpacing: '0.14px',
@@ -104,7 +105,7 @@ export const RoastHeader = ({
                                     position: 'absolute',
                                     right: 0,
                                     pointerEvents: 'none',
-                                    color: 'rgba(16,185,129,0.7)',
+                                    color: SENSOR_COLORS.btTarget,
                                 }}
                             />
                         )}

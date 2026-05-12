@@ -1,8 +1,10 @@
+import { SENSOR_COLORS } from '@features/active-roast/lib/colors';
+
 const LEGEND_ITEMS: { color: string; label: string; dashed?: boolean }[] = [
-    { color: '#0acc19', label: 'BT' },
-    { color: '#2563eb', label: 'ET' },
-    { color: '#FFC107', label: 'RoR' },
-    { color: 'rgba(16,185,129,0.7)', label: 'Target', dashed: true },
+    { color: SENSOR_COLORS.bt, label: 'BT' },
+    { color: SENSOR_COLORS.et, label: 'ET' },
+    { color: SENSOR_COLORS.ror, label: 'RoR' },
+    { color: SENSOR_COLORS.btTarget, label: 'Target', dashed: true },
 ];
 
 export const ChartLegend = () => (

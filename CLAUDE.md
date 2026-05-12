@@ -16,6 +16,7 @@ Never manually edit `database.types.ts` above the `// ── Convenience aliases
 
 - All components and functions must be declared as `export const` arrow functions.
 - Use Tailwind CSS classes for styling. Do not use separate CSS files or inline style attributes.
+- `font-variant-numeric: tabular-nums` is set globally in `App.css` on `body`. Do not re-declare it per-component.
   ```tsx
   // Correct
   export const MyComponent = () => { ... }

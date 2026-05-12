@@ -57,6 +57,10 @@ body {
     line-height: 1.5;
     color: var(--color-primary);
     background: var(--color-surface);
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings:
+        'tnum' 1,
+        'lnum' 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -97,4 +101,9 @@ body {
     border-radius: 10px !important;
     font-family: var(--font-body) !important;
     font-size: 13px !important;
+}
+*,
+*::before,
+*::after {
+    font-variant-numeric: tabular-nums lining-nums;
 }

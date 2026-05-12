@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useRoastKeyboardShortcuts } from '@views/useRoastKeyboardShortcuts';
+import { useRoastActions } from '@views/useRoastActions';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { Play, Square, Maximize2, Minimize2 } from 'lucide-react';
@@ -9,6 +11,7 @@ import {
 } from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
 import { RoastTempChart, type RoastEventMarker } from '@widgets/active-roast/ui/RoastTempChart';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
+import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 
 import {
     roastProfiles,
@@ -17,9 +20,8 @@ import {
     DEFAULT_PROFILE_KEY,
 } from '@shared/data/roast-profiles';
 import type { LogEntry } from '@shared/types/roast';
-import { isEditableTarget } from '@shared/lib/dom';
 import { sidecar } from '@shared/lib/sidecar';
-import { useRoastSettings, toDisplayTemp, toDisplayRoR, formatTemp, type TurningPoint } from '@features/active-roast';
+import { useRoastSettings, toDisplayTemp, toDisplayRoR, formatTemp } from '@features/active-roast';
 
 import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog } from '@widgets/active-roast';
 import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
@@ -79,7 +81,6 @@ export const ActiveRoast = ({
     const [isChartDragging, setIsChartDragging] = useState(false);
     // const chartWrapperRef = useRef<HTMLDivElement>(null); // TODO: 높이 계산 방식 재검토
 
-    const elapsedRef = useRef(0);
     const roastStartTimeRef = useRef(0);
     const tpTimeSecRef = useRef<number | null>(null);
     const chartAreaRef = useRef<HTMLDivElement>(null);
@@ -89,11 +90,8 @@ export const ActiveRoast = ({
         startRange: { start: number; end: number };
     } | null>(null);
 
-    useEffect(() => {
-        elapsedRef.current = elapsed;
-    }, [elapsed]);
-
-    const toggleFullscreen = () => setIsFullscreen((prev) => !prev);
+    const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
+    const exitFullscreen = useCallback(() => setIsFullscreen(false), []);
 
     // TODO: 아래 접근 방식으로 다시 돌아옴 — chartWrapperRef(flex-1 min-h-0) 방식은
     // uPlot이 height를 JS로 강제 설정해서 div가 flex-1 할당 높이를 초과할 수 있음 → 루프
@@ -235,54 +233,15 @@ export const ActiveRoast = ({
 
     const { logEntries, pressedButtons, markEvent, handleDrop, setLogEntries } = useRoastLog(unit, rawBT, timeStr);
 
-    const triggerCharge = useCallback(
-        (btAtCharge?: number | null) => {
-            sidecar.startRoast().catch(() => {});
-            roastStartTimeRef.current = Date.now();
-            storeStartCharge();
-            setIsRunning(true);
-            const temp = btAtCharge != null ? formatTemp(btAtCharge, unit) : formatTemp(rawBT, unit);
-            setLogEntries([{ time: '0:00', event: 'Charge', temp, note: 'Bean drop detected' }]);
-        },
-        [unit, rawBT, setLogEntries],
-    );
-
-    const handleAutoDrop = useCallback(() => {
-        setLogEntries((prev) => {
-            if (prev.some((e) => e.event === 'Drop')) return prev;
-            const min2 = Math.floor(elapsedRef.current / 60);
-            const sec2 = elapsedRef.current % 60;
-            return [
-                ...prev,
-                {
-                    time: `${min2}:${String(sec2).padStart(2, '0')}`,
-                    event: 'Drop',
-                    temp: formatTemp(rawBT, unit),
-                    note: 'Bean drop detected',
-                },
-            ];
-        });
-        setShowEndRoastModal(true);
-    }, [rawBT, unit, setLogEntries]);
-
-    const handleTurningPoint = useCallback(
-        (tp: TurningPoint) => {
-            const timeMin = Math.floor(tp.timeSec / 60);
-            const tpSec = Math.floor(tp.timeSec % 60);
-            const tpTimeStr = `${timeMin}:${String(tpSec).padStart(2, '0')}`;
-            setLogEntries((prev) => {
-                if (prev.some((e) => e.event === 'TP')) return prev;
-                const newEntry = {
-                    time: tpTimeStr,
-                    event: 'TP',
-                    temp: formatTemp(tp.temp, unit),
-                    note: 'Turning Point detected',
-                };
-                return [...prev, newEntry].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
-            });
-        },
-        [unit, setLogEntries],
-    );
+    const { triggerCharge, handleAutoDrop, handleTurningPoint } = useRoastActions({
+        unit,
+        rawBT,
+        setLogEntries,
+        setIsRunning,
+        setShowEndRoastModal,
+        storeStartCharge,
+        roastStartTimeRef,
+    });
 
     const { turningPoints, resetAutoDetection, disableAutoCharge } = useAutoDetection(
         livePoints,
@@ -360,12 +319,12 @@ export const ActiveRoast = ({
         return 'Drying';
     })();
     const roastPhaseColor = !charged
-        ? '#16a34a' // green for READY/PREHEATING
+        ? PHASE_COLORS.ready
         : roastPhaseName === 'Development'
-          ? '#ea580c'
+          ? PHASE_COLORS.development
           : roastPhaseName === 'Maillard'
-            ? '#b45309'
-            : '#d97706';
+            ? PHASE_COLORS.maillard
+            : PHASE_COLORS.drying;
 
     const eventMarkerColor = EVENT_MARKER_COLORS;
 
@@ -532,13 +491,13 @@ export const ActiveRoast = ({
     };
 
     // Phase 2 → standby: user confirms ready to roast
-    const handleEnterStandby = () => {
+    const handleEnterStandby = useCallback(() => {
         if (phase !== 'preheating') return;
         enterStandby();
-    };
+    }, [phase, enterStandby]);
 
     // Phase standby → roasting: manual charge button
-    const handleManualCharge = async () => {
+    const handleManualCharge = useCallback(async () => {
         if (charged) return;
         const status = await sidecar.getStatus().catch(() => null);
         if (!status?.connected) {
@@ -550,7 +509,7 @@ export const ActiveRoast = ({
         }
         disableAutoCharge();
         triggerCharge(rawBT);
-    };
+    }, [charged, rawBT, triggerCharge]);
 
     const resetActiveRoast = () => {
         roastStartTimeRef.current = 0;
@@ -587,48 +546,18 @@ export const ActiveRoast = ({
         setShowEndRoastModal(true);
     };
 
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (!isActive) return;
-            if (isEditableTarget(event.target) || showEndRoastModal || showSummaryModal) return;
-            const shortcutModifier = event.metaKey || event.ctrlKey;
-
-            if (event.key === 'Escape' && isFullscreen) {
-                event.preventDefault();
-                setIsFullscreen(false);
-                return;
-            }
-            if (!shortcutModifier && event.code === 'KeyF') {
-                event.preventDefault();
-                toggleFullscreen();
-                return;
-            }
-            if (shortcutModifier && event.key === 'Enter') {
-                event.preventDefault();
-                if (phase === 'preheating') handleEnterStandby();
-                else if (phase === 'standby') handleManualCharge();
-                return;
-            }
-            if (!shortcutModifier) return;
-            if (event.key === '1') {
-                event.preventDefault();
-                markEvent('Yellow', 'Color change visible', 'Mark Yellow');
-                return;
-            }
-            if (event.key === '2') {
-                event.preventDefault();
-                markEvent('FC Start', 'First crack started', 'Mark FC Start');
-                return;
-            }
-            if (event.key === '3') {
-                event.preventDefault();
-                markEvent('FC End', 'First crack ended', 'Mark FC End');
-                return;
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isActive, phase, displayBT, isFullscreen, roastEnded, showEndRoastModal, showSummaryModal, timeStr]);
+    useRoastKeyboardShortcuts({
+        isActive,
+        isFullscreen,
+        showEndRoastModal,
+        showSummaryModal,
+        phase,
+        onToggleFullscreen: toggleFullscreen,
+        onExitFullscreen: exitFullscreen,
+        onEnterStandby: handleEnterStandby,
+        onManualCharge: handleManualCharge,
+        onMarkEvent: markEvent,
+    });
 
     const devTimeStr = (() => {
         if (!fcStartEntry) return '—';
@@ -692,7 +621,7 @@ export const ActiveRoast = ({
             >
                 <div className="mb-5">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Temperature Curve</h2>
+                        {/* <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Temperature Curve</h2> */}
                         <button
                             onClick={toggleFullscreen}
                             aria-label={
@@ -775,9 +704,9 @@ export const ActiveRoast = ({
                         <div className="w-50 flex flex-col gap-3 px-3 pb-5 border-l border-border-subtle overflow-hidden">
                             <div className="grid grid-cols-1 gap-3">
                                 {[
-                                    { label: 'Bean Temp', value: formatTemp(rawBT, unit), color: '#0acc19' },
-                                    { label: 'Env Temp', value: formatTemp(rawET, unit), color: '#2563eb' },
-                                    { label: 'ROR', value: `${displayRoR}°${unit}/min`, color: '#FFC107' },
+                                    { label: 'Bean Temp', value: formatTemp(rawBT, unit), color: SENSOR_COLORS.bt },
+                                    { label: 'Env Temp', value: formatTemp(rawET, unit), color: SENSOR_COLORS.et },
+                                    { label: 'ROR', value: `${displayRoR}°${unit}/min`, color: SENSOR_COLORS.ror },
                                     { label: 'Time', value: timeStr, color: 'var(--color-primary)' },
                                 ].map((stat) => (
                                     <div

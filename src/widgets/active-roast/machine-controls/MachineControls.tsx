@@ -1,3 +1,5 @@
+import { SENSOR_COLORS, PHASE_COLORS } from '@features/active-roast/lib/colors';
+
 export const MachineControls = ({
     machineCapabilities,
     sidecarConnected,
@@ -14,7 +16,7 @@ export const MachineControls = ({
             {(machineCapabilities.includes('heater') || !sidecarConnected) && (
                 <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
                     Heater{' '}
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#ea580c' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: PHASE_COLORS.development }}>
                         {liveData ? `${liveData.heater}%` : '—'}
                     </span>
                 </span>
@@ -22,7 +24,7 @@ export const MachineControls = ({
             {(machineCapabilities.includes('fan') || !sidecarConnected) && (
                 <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
                     Fan{' '}
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#2563eb' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: SENSOR_COLORS.et }}>
                         {liveData ? `${liveData.fan}%` : '—'}
                     </span>
                 </span>
@@ -30,7 +32,7 @@ export const MachineControls = ({
             {(machineCapabilities.includes('drum') || !sidecarConnected) && (
                 <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
                     Drum{' '}
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#16a34a' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: PHASE_COLORS.ready }}>
                         {liveData ? `${liveData.drum} RPM` : '—'}
                     </span>
                 </span>

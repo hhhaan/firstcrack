@@ -4,7 +4,7 @@ import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
 import { Login, LoadingSpinner } from './views/login';
 import { Dashboard } from './views/dashboard';
-import { ActiveRoast } from './views/ActiveRoast';
+import { ActiveRoast } from './views/active-roast';
 import { History } from './views/history';
 import { Beans } from './views/bean';
 import { Profiles } from './views/profiles';
