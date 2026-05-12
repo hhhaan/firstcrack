@@ -19,29 +19,18 @@ import {
 import type { LogEntry } from '@shared/types/roast';
 import { isEditableTarget } from '@shared/lib/dom';
 import { sidecar } from '@shared/lib/sidecar';
-import {
-    useRoastSettings,
-    detectTurningPoints,
-    toDisplayTemp,
-    toDisplayRoR,
-    formatTemp,
-    type TurningPoint,
-} from '@features/active-roast';
+import { useRoastSettings, toDisplayTemp, toDisplayRoR, formatTemp, type TurningPoint } from '@features/active-roast';
 
 import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog } from '@widgets/active-roast';
 import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
+import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 
-const TOGGLEABLE_LOG_EVENTS = new Set(['Yellow', 'FC Start', 'FC End', 'Drop']);
-
-// Auto-charge detection: BT drops ≥5°C over 5 readings
-const AUTO_CHARGE_DROP_C = 5;
-const AUTO_CHARGE_WINDOW = 5;
-
-// Auto-drop detection: BT drops ≥8°C over 5 readings, only after 3 min into roast
-const AUTO_DROP_DROP_C = 8;
-const AUTO_DROP_WINDOW = 5;
-const AUTO_DROP_MIN_ELAPSED_S = 180;
+const parseTimeSec = (t: string): number => {
+    const [m, s] = t.split(':').map(Number);
+    return (m || 0) * 60 + (s || 0);
+};
 
 export const ActiveRoast = ({
     isActive,
@@ -78,28 +67,17 @@ export const ActiveRoast = ({
     const [showSummaryModal, setShowSummaryModal] = useState(false);
     const [summaryData, setSummaryData] = useState<RoastSummaryData | null>(null);
     const [roastNotes, setRoastNotes] = useState('');
-    const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
-    const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const machineCapabilities = useRoastingStore((s) => s.machineCapabilities);
     const setConnected = useRoastingStore((s) => s.setConnected);
     const [livePoints, setLivePoints] = useState<
         { time: number; label: string; bt: number; et: number | null; ror: number | null; ror_et: number | null }[]
     >([]);
-    const [confirmedTP, setConfirmedTP] = useState<TurningPoint | null>(null);
     const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);
     const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
     const [mainChartHeight, setMainChartHeight] = useState(350);
     const [isChartDragging, setIsChartDragging] = useState(false);
     // const chartWrapperRef = useRef<HTMLDivElement>(null); // TODO: 높이 계산 방식 재검토
-
-    // Rolling BT window for auto-charge detection (standby phase)
-    const btWindowRef = useRef<number[]>([]);
-    const autoChargedRef = useRef(false);
-
-    // Rolling BT window for auto-drop detection (roasting phase)
-    const dropWindowRef = useRef<number[]>([]);
-    const autoDroppedRef = useRef(false);
 
     const elapsedRef = useRef(0);
     const roastStartTimeRef = useRef(0);
@@ -204,20 +182,7 @@ export const ActiveRoast = ({
                 setConnected(true);
                 const bt = data.bt;
 
-                // Auto-charge detection in standby phase
-                if (useRoastingStore.getState().phase === 'standby' && bt != null && !autoChargedRef.current) {
-                    btWindowRef.current = [...btWindowRef.current.slice(-(AUTO_CHARGE_WINDOW - 1)), bt];
-                    if (btWindowRef.current.length >= AUTO_CHARGE_WINDOW) {
-                        const first = btWindowRef.current[0];
-                        const last = btWindowRef.current[btWindowRef.current.length - 1];
-                        if (first - last >= AUTO_CHARGE_DROP_C) {
-                            autoChargedRef.current = true;
-                            triggerCharge(bt);
-                        }
-                    }
-                }
-
-                // Record live points + auto-drop detection during roasting
+                // Record live points during roasting
                 if (useRoastingStore.getState().phase === 'roasting' && bt != null && roastStartTimeRef.current !== 0) {
                     const t = (Date.now() - roastStartTimeRef.current) / 1000;
                     setLivePoints((prev) => {
@@ -237,33 +202,6 @@ export const ActiveRoast = ({
                             },
                         ];
                     });
-
-                    // Auto-drop detection — only after minimum elapsed time
-                    if (!autoDroppedRef.current && elapsedRef.current >= AUTO_DROP_MIN_ELAPSED_S) {
-                        dropWindowRef.current = [...dropWindowRef.current.slice(-(AUTO_DROP_WINDOW - 1)), bt];
-                        if (dropWindowRef.current.length >= AUTO_DROP_WINDOW) {
-                            const first = dropWindowRef.current[0];
-                            const last = dropWindowRef.current[dropWindowRef.current.length - 1];
-                            if (first - last >= AUTO_DROP_DROP_C) {
-                                autoDroppedRef.current = true;
-                                setLogEntries((prev) => {
-                                    if (prev.some((e) => e.event === 'Drop')) return prev;
-                                    const min2 = Math.floor(elapsedRef.current / 60);
-                                    const sec2 = elapsedRef.current % 60;
-                                    return [
-                                        ...prev,
-                                        {
-                                            time: `${min2}:${String(sec2).padStart(2, '0')}`,
-                                            event: 'Drop',
-                                            temp: formatTemp(bt, unit),
-                                            note: 'Bean drop detected',
-                                        },
-                                    ];
-                                });
-                                setShowEndRoastModal(true);
-                            }
-                        }
-                    }
                 }
             } catch {
                 setConnected(false);
@@ -290,6 +228,69 @@ export const ActiveRoast = ({
     const rawBT = liveData?.bt ?? null;
     const rawET = liveData?.et ?? null;
     const displayBT = rawBT != null ? toDisplayTemp(rawBT, unit) : null;
+
+    const elapsedMin = Math.floor(elapsed / 60);
+    const elapsedSec = elapsed % 60;
+    const timeStr = `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}`;
+
+    const { logEntries, pressedButtons, markEvent, handleDrop, setLogEntries } = useRoastLog(unit, rawBT, timeStr);
+
+    const triggerCharge = useCallback(
+        (btAtCharge?: number | null) => {
+            sidecar.startRoast().catch(() => {});
+            roastStartTimeRef.current = Date.now();
+            storeStartCharge();
+            setIsRunning(true);
+            const temp = btAtCharge != null ? formatTemp(btAtCharge, unit) : formatTemp(rawBT, unit);
+            setLogEntries([{ time: '0:00', event: 'Charge', temp, note: 'Bean drop detected' }]);
+        },
+        [unit, rawBT, setLogEntries],
+    );
+
+    const handleAutoDrop = useCallback(() => {
+        setLogEntries((prev) => {
+            if (prev.some((e) => e.event === 'Drop')) return prev;
+            const min2 = Math.floor(elapsedRef.current / 60);
+            const sec2 = elapsedRef.current % 60;
+            return [
+                ...prev,
+                {
+                    time: `${min2}:${String(sec2).padStart(2, '0')}`,
+                    event: 'Drop',
+                    temp: formatTemp(rawBT, unit),
+                    note: 'Bean drop detected',
+                },
+            ];
+        });
+        setShowEndRoastModal(true);
+    }, [rawBT, unit, setLogEntries]);
+
+    const handleTurningPoint = useCallback(
+        (tp: TurningPoint) => {
+            const timeMin = Math.floor(tp.timeSec / 60);
+            const tpSec = Math.floor(tp.timeSec % 60);
+            const tpTimeStr = `${timeMin}:${String(tpSec).padStart(2, '0')}`;
+            setLogEntries((prev) => {
+                if (prev.some((e) => e.event === 'TP')) return prev;
+                const newEntry = {
+                    time: tpTimeStr,
+                    event: 'TP',
+                    temp: formatTemp(tp.temp, unit),
+                    note: 'Turning Point detected',
+                };
+                return [...prev, newEntry].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
+            });
+        },
+        [unit, setLogEntries],
+    );
+
+    const { turningPoints, resetAutoDetection, disableAutoCharge } = useAutoDetection(
+        livePoints,
+        triggerCharge,
+        handleAutoDrop,
+        handleTurningPoint,
+    );
+    tpTimeSecRef.current = turningPoints[0]?.timeSec ?? null;
 
     const targetCurve = useMemo(() => {
         if (!targetProfileId) return null;
@@ -336,27 +337,35 @@ export const ActiveRoast = ({
         ? chartData.filter((p) => p.time >= effectiveZoomRange.start && p.time <= effectiveZoomRange.end)
         : chartData;
 
-    const elapsedMin = Math.floor(elapsed / 60);
-    const elapsedSec = elapsed % 60;
-    const timeStr = `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}`;
-
     const displayRoR = tpTimeSecRef.current == null ? '—' : toDisplayRoR(liveData?.ror ?? 0, unit).toFixed(1);
 
     // Phase label derived from event markers
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
     const yellowEntry = logEntries.find((e) => e.event === 'Yellow');
-    const parseTimeSec = (t: string) => {
-        const [m, s] = t.split(':').map(Number);
-        return m * 60 + s;
-    };
     const roastPhaseName = (() => {
-        if (!charged) return '—';
+        if (!charged) {
+            switch (phase) {
+                case 'standby':
+                    return 'READY';
+                case 'preheating':
+                    return 'PREHEATING';
+                case 'idle':
+                    return 'IDLE';
+                default:
+                    return phase;
+            }
+        }
         if (fcStartEntry && elapsed >= parseTimeSec(fcStartEntry.time)) return 'Development';
         if (yellowEntry && elapsed >= parseTimeSec(yellowEntry.time)) return 'Maillard';
         return 'Drying';
     })();
-    const roastPhaseColor =
-        roastPhaseName === 'Development' ? '#ea580c' : roastPhaseName === 'Maillard' ? '#b45309' : '#d97706';
+    const roastPhaseColor = !charged
+        ? '#16a34a' // green for READY/PREHEATING
+        : roastPhaseName === 'Development'
+          ? '#ea580c'
+          : roastPhaseName === 'Maillard'
+            ? '#b45309'
+            : '#d97706';
 
     const eventMarkerColor = EVENT_MARKER_COLORS;
 
@@ -372,36 +381,6 @@ export const ActiveRoast = ({
         [logEntries],
     );
 
-    const turningPoints = useMemo(() => {
-        if (confirmedTP) return [confirmedTP];
-        const pts = detectTurningPoints(
-            livePoints.map((p) => p.time),
-            livePoints.map((p) => p.bt),
-        );
-        if (pts.length > 0) setConfirmedTP(pts[0]);
-        return pts;
-    }, [livePoints, confirmedTP]);
-
-    useEffect(() => {
-        if (!confirmedTP) return;
-        const timeMin = Math.floor(confirmedTP.timeSec / 60);
-        const timeSec = Math.floor(confirmedTP.timeSec % 60);
-        const tpTimeStr = `${timeMin}:${String(timeSec).padStart(2, '0')}`;
-        setLogEntries((prev) => {
-            if (prev.some((e) => e.event === 'TP')) return prev;
-            const newEntry = {
-                time: tpTimeStr,
-                event: 'TP',
-                temp: formatTemp(confirmedTP.temp, unit),
-                note: 'Turning Point detected',
-            };
-            return [...prev, newEntry].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
-        });
-    }, [confirmedTP, unit]);
-
-    const tpTimeSec = turningPoints[0]?.timeSec ?? null;
-    tpTimeSecRef.current = tpTimeSec;
-
     const conv = (v: number | null) => (v != null ? toDisplayTemp(v, unit) : null);
     // chartData always contains null sentinels at t=0 and t=CHART_TOTAL_SECS,
     // so these arrays are never empty and uPlot always gets the full x-range.
@@ -413,19 +392,6 @@ export const ActiveRoast = ({
         () => visibleChartData.map((p) => (p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null)),
         [visibleChartData, unit],
     );
-
-    const flashButton = (label: string) => {
-        setPressedButtons((prev) => new Set(prev).add(label));
-        setTimeout(
-            () =>
-                setPressedButtons((prev) => {
-                    const n = new Set(prev);
-                    n.delete(label);
-                    return n;
-                }),
-            600,
-        );
-    };
 
     const handleChartWheel = (event: React.WheelEvent<HTMLDivElement>) => {
         if (MAX_TIME <= 0) return;
@@ -565,39 +531,11 @@ export const ActiveRoast = ({
         setLogEntries((prev) => prev.map((entry) => (entry.event === event ? { ...entry, time: newTimeStr } : entry)));
     };
 
-    const markEvent = (event: string, note: string, buttonLabel?: string) => {
-        const isRemoval = TOGGLEABLE_LOG_EVENTS.has(event) && logEntries.some((entry) => entry.event === event);
-        setLogEntries((prev) => {
-            if (TOGGLEABLE_LOG_EVENTS.has(event) && prev.some((entry) => entry.event === event)) {
-                return prev.filter((entry) => entry.event !== event);
-            }
-            return [...prev, { time: timeStr, event, temp: formatTemp(rawBT, unit), note }];
-        });
-        if (!isRemoval && buttonLabel) flashButton(buttonLabel);
-    };
-
-    const handleDrop = () => markEvent('Drop', 'Coffee dropped', 'Drop');
-
     // Phase 2 → standby: user confirms ready to roast
     const handleEnterStandby = () => {
         if (phase !== 'preheating') return;
-        btWindowRef.current = [];
-        autoChargedRef.current = false;
         enterStandby();
     };
-
-    // Charge trigger (manual or auto)
-    const triggerCharge = useCallback(
-        (btAtCharge?: number | null) => {
-            sidecar.startRoast().catch(() => {});
-            roastStartTimeRef.current = Date.now();
-            storeStartCharge();
-            setIsRunning(true);
-            const temp = btAtCharge != null ? formatTemp(btAtCharge, unit) : formatTemp(rawBT, unit);
-            setLogEntries([{ time: '0:00', event: 'Charge', temp, note: 'Bean drop detected' }]);
-        },
-        [unit, rawBT],
-    );
 
     // Phase standby → roasting: manual charge button
     const handleManualCharge = async () => {
@@ -610,25 +548,20 @@ export const ActiveRoast = ({
             }
             return;
         }
-        autoChargedRef.current = true; // prevent auto-charge racing
+        disableAutoCharge();
         triggerCharge(rawBT);
     };
 
     const resetActiveRoast = () => {
         roastStartTimeRef.current = 0;
-        autoChargedRef.current = false;
-        autoDroppedRef.current = false;
-        btWindowRef.current = [];
-        dropWindowRef.current = [];
+        resetAutoDetection();
         setIsRunning(false);
         resetStore();
         if (sidecarConnected) enterPreheating();
         setLogEntries([]);
         setLivePoints([]);
-        setConfirmedTP(null);
         setZoomRange(null);
         setHoveredChartIndex(null);
-        setPressedButtons(new Set());
     };
 
     const confirmEndRoast = () => {
@@ -871,7 +804,7 @@ export const ActiveRoast = ({
                                             className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold shadow-(--shadow-inset) bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
                                         >
                                             <Play size={12} />
-                                            로스팅 준비
+                                            Roast Ready
                                         </button>
                                     )}
                                     {phase === 'standby' && (

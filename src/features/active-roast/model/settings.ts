@@ -14,6 +14,13 @@ export type RoastSettings = {
     showTargetCurve: boolean;
     showRoRChart: boolean;
     showRoRET: boolean;
+    tempMinC: number;
+    tempMaxC: number;
+    rorYMin: number;
+    rorYMax: number;
+    yellowTempC: number;
+    fcStartTempC: number;
+    autoChargeDropC: number;
 };
 
 const DEFAULT_SETTINGS: RoastSettings = {
@@ -24,6 +31,13 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showTargetCurve: true,
     showRoRChart: true,
     showRoRET: false,
+    tempMinC: 130,
+    tempMaxC: 240,
+    rorYMin: -5,
+    rorYMax: 20,
+    yellowTempC: 150,
+    fcStartTempC: 200,
+    autoChargeDropC: 5,
 };
 
 const isPollIntervalMs = (value: unknown): value is PollIntervalMs =>

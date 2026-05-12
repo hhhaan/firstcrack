@@ -8,9 +8,9 @@ export const VIRTUAL_ID = '__virtual__';
 
 const VIRTUAL_MACHINE: Machine = {
     id: VIRTUAL_ID,
-    name: '가상 머신',
+    name: 'Virtual Machine',
     roasterKey: 'virtual',
-    displayName: '가상 머신',
+    displayName: 'Virtual Machine',
     brand: 'Internal',
     models: ['가상 머신'],
     protocol: 'virtual',
