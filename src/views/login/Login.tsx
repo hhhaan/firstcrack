@@ -3,7 +3,9 @@ import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { supabase } from '@shared/lib/supabase';
 import { openUrl } from '@tauri-apps/plugin-opener';
 
-const OAUTH_REDIRECT = 'firstcrack://auth/callback';
+const OAUTH_REDIRECT = import.meta.env.DEV
+    ? 'http://localhost:1420/auth/callback'
+    : 'firstcrack://auth/callback';
 
 interface LoginProps {
     onLogin?: () => void;
@@ -287,15 +289,21 @@ export const Login = ({ onLogin }: LoginProps) => {
                             console.log('[auth] starting Google OAuth...');
                             const { data, error } = await supabase.auth.signInWithOAuth({
                                 provider: 'google',
-                                options: { redirectTo: OAUTH_REDIRECT, skipBrowserRedirect: true },
+                                options: {
+                                    redirectTo: OAUTH_REDIRECT,
+                                    ...(import.meta.env.DEV ? {} : { skipBrowserRedirect: true }),
+                                },
                             });
                             console.log('[auth] signInWithOAuth result:', { url: data?.url, error });
                             if (error) { console.error('[auth] OAuth error:', error); return; }
-                            if (data?.url) {
-                                console.log('[auth] opening browser:', data.url);
-                                await openUrl(data.url);
+                            if (!data?.url) { console.warn('[auth] no URL returned'); return; }
+
+                            if (import.meta.env.DEV) {
+                                // dev: WebView가 직접 OAuth URL로 이동 → localhost:1420/?code=... 로 돌아옴
+                                window.location.href = data.url;
                             } else {
-                                console.warn('[auth] no URL returned from signInWithOAuth');
+                                // prod: 외부 브라우저 + 딥링크 콜백
+                                await openUrl(data.url);
                             }
                         }}
                         style={{

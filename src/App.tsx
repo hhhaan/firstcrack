@@ -22,6 +22,28 @@ export const App = () => {
 
     useEffect(() => init(), [init]);
 
+    // dev mode: Google OAuth 콜백 처리 (PKCE: ?code= / implicit: #access_token=)
+    useEffect(() => {
+        if (!import.meta.env.DEV) return;
+
+        const search = new URLSearchParams(window.location.search);
+        const hash = new URLSearchParams(window.location.hash.slice(1));
+
+        const code = search.get('code');
+        const accessToken = hash.get('access_token');
+        const refreshToken = hash.get('refresh_token');
+
+        if (code) {
+            window.history.replaceState({}, '', '/');
+            supabase.auth.exchangeCodeForSession(code)
+                .then(({ error }) => { if (error) console.error('[auth] dev exchangeCode failed:', error); });
+        } else if (accessToken && refreshToken) {
+            window.history.replaceState({}, '', '/');
+            supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+                .then(({ error }) => { if (error) console.error('[auth] dev setSession failed:', error); });
+        }
+    }, []);
+
     const handledRef = useRef(false);
     useEffect(() => {
         const handleCallback = async (url: string) => {
