@@ -37,6 +37,9 @@ dist-ssr
 
 config/machines/ 
 
+# Sidecar build output
+src-tauri/binaries/sidecar-*
+
 # Python sidecar
 __pycache__/
 *.py[cod]
