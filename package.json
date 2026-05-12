@@ -9,12 +9,14 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "types:gen": "supabase gen types typescript --linked 2>/dev/null > src/shared/types/database.types.ts"
+    "types:gen": "supabase gen types typescript --linked 2>/dev/null > src/shared/types/database.types.ts",
+    "build:debug": "tauri build --debug && open 'src-tauri/target/debug/bundle/macos/First Crack.app'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
     "@tanstack/react-query": "^5.100.9",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-deep-link": "^2.4.9",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-os": "^2.3.2",

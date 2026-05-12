@@ -225,8 +225,6 @@ export const ActiveRoast = ({
 
     const rawBT = liveData?.bt ?? null;
     const rawET = liveData?.et ?? null;
-    const displayBT = rawBT != null ? toDisplayTemp(rawBT, unit) : null;
-
     const elapsedMin = Math.floor(elapsed / 60);
     const elapsedSec = elapsed % 60;
     const timeStr = `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}`;

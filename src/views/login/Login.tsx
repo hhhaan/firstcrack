@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { supabase } from '@shared/lib/supabase';
+import { openUrl } from '@tauri-apps/plugin-opener';
+
+const OAUTH_REDIRECT = 'firstcrack://auth/callback';
 
 interface LoginProps {
     onLogin?: () => void;
@@ -280,12 +283,21 @@ export const Login = ({ onLogin }: LoginProps) => {
                     {/* Google SSO */}
                     <button
                         type="button"
-                        onClick={() =>
-                            supabase.auth.signInWithOAuth({
+                        onClick={async () => {
+                            console.log('[auth] starting Google OAuth...');
+                            const { data, error } = await supabase.auth.signInWithOAuth({
                                 provider: 'google',
-                                options: { redirectTo: `${window.location.origin}/auth/callback` },
-                            })
-                        }
+                                options: { redirectTo: OAUTH_REDIRECT, skipBrowserRedirect: true },
+                            });
+                            console.log('[auth] signInWithOAuth result:', { url: data?.url, error });
+                            if (error) { console.error('[auth] OAuth error:', error); return; }
+                            if (data?.url) {
+                                console.log('[auth] opening browser:', data.url);
+                                await openUrl(data.url);
+                            } else {
+                                console.warn('[auth] no URL returned from signInWithOAuth');
+                            }
+                        }}
                         style={{
                             width: '100%',
                             display: 'flex',

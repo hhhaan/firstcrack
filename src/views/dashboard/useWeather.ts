@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 
-const GEO_TTL = 24 * 60 * 60 * 1000;  // 24시간 — IP 위치는 거의 변하지 않음
-const WEATHER_TTL = 30 * 60 * 1000;   // 30분
+const GEO_TTL = 24 * 60 * 60 * 1000;
+const WEATHER_TTL = 30 * 60 * 1000;
 
 export interface WeatherData {
     temperature: number;
     humidity: number;
-    city: string; // 나중에 도시명 표시 등에 활용 가능
+    city: string;
 }
 
 interface GeoCoords {
@@ -16,7 +16,6 @@ interface GeoCoords {
 }
 
 const fetchGeo = async (): Promise<GeoCoords> => {
-    // ip-api.com: 무료, 키 없음, 월 한도 없음 (분당 45회 제한)
     const res = await fetch('http://ip-api.com/json/?fields=lat,lon,city');
     if (!res.ok) throw new Error('geo fetch failed');
     const json = await res.json();

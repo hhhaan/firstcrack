@@ -45,8 +45,6 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
     }
 
     const activeConfig = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
-    const ActiveIcon = activeConfig.icon;
-
     return (
         <ModalShell
             onClose={onClose}

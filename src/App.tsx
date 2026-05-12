@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { onOpenUrl, getCurrent } from '@tauri-apps/plugin-deep-link';
+import { supabase } from '@shared/lib/supabase';
 import './App.css';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
@@ -19,6 +21,50 @@ export const App = () => {
     const init = useAuthStore((s) => s.init);
 
     useEffect(() => init(), [init]);
+
+    const handledRef = useRef(false);
+    useEffect(() => {
+        const handleCallback = async (url: string) => {
+            console.log('[deep-link] received:', url);
+            if (!url.includes('auth/callback') || handledRef.current) return;
+            handledRef.current = true;
+
+            const parsed = new URL(url);
+            const code = parsed.searchParams.get('code');
+
+            if (code) {
+                console.log('[deep-link] exchanging PKCE code...');
+                const { error } = await supabase.auth.exchangeCodeForSession(code);
+                if (error) console.error('[deep-link] exchangeCodeForSession failed:', error);
+                else console.log('[deep-link] session exchanged successfully');
+                return;
+            }
+
+            // implicit flow 폴백: #access_token=...&refresh_token=...
+            const hash = new URLSearchParams(parsed.hash.slice(1));
+            const accessToken = hash.get('access_token');
+            const refreshToken = hash.get('refresh_token');
+            if (accessToken && refreshToken) {
+                console.log('[deep-link] setting session from hash tokens...');
+                const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+                if (error) console.error('[deep-link] setSession failed:', error);
+                else console.log('[deep-link] session set successfully');
+            }
+        };
+
+        getCurrent().then((urls) => {
+            console.log('[deep-link] getCurrent:', urls);
+            if (urls?.length) handleCallback(urls[0]);
+        });
+
+        let unlisten: (() => void) | undefined;
+        onOpenUrl((urls) => {
+            console.log('[deep-link] onOpenUrl:', urls);
+            if (urls.length) handleCallback(urls[0]);
+        }).then((fn) => { unlisten = fn; });
+
+        return () => unlisten?.();
+    }, []);
     const [view, setView] = useState<View>('dashboard');
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
