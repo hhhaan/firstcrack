@@ -6,6 +6,7 @@ import { getStatus } from '../../entities/bean/lib';
 import { BeanList } from '../../widgets/bean-list/ui/BeanList';
 import { BeanDetail } from '../../widgets/bean-detail/ui/BeanDetail';
 import { AddBeanModal } from '../../widgets/add-bean-modal/ui/AddBeanModal';
+import { PageLayout } from '../../shared/ui/PageLayout';
 import type { Bean } from '../../shared/types/database.types';
 import type { View } from '../../shared/types/view';
 
@@ -54,7 +55,7 @@ export const Beans = ({ onNavigate }: BeansProps) => {
     );
 
     return (
-        <div style={{ padding: '32px 40px', maxWidth: 1100, margin: '0 auto' }}>
+        <PageLayout>
             <AddBeanModal
                 open={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
@@ -133,6 +134,6 @@ export const Beans = ({ onNavigate }: BeansProps) => {
                     onStartRoast={() => onNavigate?.('roast')}
                 />
             </div>
-        </div>
+        </PageLayout>
     );
 };

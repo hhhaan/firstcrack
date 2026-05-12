@@ -6,6 +6,7 @@
 import { Plus, Copy, Pencil, Trash2, MoreHorizontal, Lock, Star } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { type View } from '@shared/types/view';
+import { PageLayout } from '@shared/ui/PageLayout';
 import uPlot from 'uplot';
 
 // Lightweight SVG sparkline — no axes, no tooltip
@@ -165,7 +166,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const curveYs = curveData.map((d) => d.bt);
 
     return (
-        <div className="px-10 py-8 max-w-275 mx-auto">
+        <PageLayout>
             {/* Header */}
             <div className="flex items-end justify-between mb-7">
                 <div>
@@ -344,6 +345,6 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                     </div>
                 </div>
             </div>
-        </div>
+        </PageLayout>
     );
 };

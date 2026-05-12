@@ -15,6 +15,7 @@ import { useDashboard } from './useDashboard';
 import { useWeather } from './useWeather';
 import { useRoastingStore } from '@features/active-roast';
 import { useAuthStore } from '@shared/store/auth';
+import { PageLayout } from '@shared/ui/PageLayout';
 
 interface DashboardProps {
     onNavigate: (view: View) => void;
@@ -240,7 +241,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
     ];
 
     return (
-        <div className="px-10 py-8 max-w-275 mx-auto">
+        <PageLayout>
             {/* Header */}
             <div className="mb-8 flex items-end justify-between">
                 <div>
@@ -523,6 +524,6 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     )}
                 </div>
             </div>
-        </div>
+        </PageLayout>
     );
 };

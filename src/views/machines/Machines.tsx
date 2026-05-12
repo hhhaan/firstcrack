@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AddMachineModal } from '../../widgets/add-machine-modal/ui/AddMachineModal';
 import { useMachines, VIRTUAL_ID } from '@entities/machine';
 import { sidecar } from '@shared/lib/sidecar';
+import { PageLayout } from '@shared/ui/PageLayout';
 import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
 import type { View } from '@shared/types/view';
 
@@ -105,7 +106,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
     const isSelectedConnected = selected ? isThisMachineConnected(selected) : false;
 
     return (
-        <div className="px-10 py-8 max-w-275 mx-auto">
+        <PageLayout>
             <AddMachineModal open={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdd={handleAdd} />
 
             {/* Header */}
@@ -350,6 +351,6 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                     )}
                 </div>
             )}
-        </div>
+        </PageLayout>
     );
 };

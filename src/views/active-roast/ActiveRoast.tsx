@@ -5,6 +5,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { Play, Square, Maximize2, Minimize2 } from 'lucide-react';
 import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
+import { PageLayout } from '@shared/ui/PageLayout';
 import {
     RoastSummaryModal,
     type RoastSummaryData,
@@ -585,7 +586,7 @@ export const ActiveRoast = ({
     }, [logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName]);
 
     return (
-        <div className="px-10 py-8 max-w-275 mx-auto">
+        <PageLayout>
             <RoastHeader
                 phase={roastPhaseName}
                 targetProfileId={targetProfileId}
@@ -917,6 +918,6 @@ export const ActiveRoast = ({
                     resetActiveRoast();
                 }}
             />
-        </div>
+        </PageLayout>
     );
 };

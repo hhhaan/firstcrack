@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { PackagePlus, X, Info, Scale, MapPin, Tag, Search, Check, Edit3 } from 'lucide-react';
-import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
-import { useCreateBean, useUpdateBean } from '../../../entities/bean/queries';
-import { useCreateBeanInventoryLog } from '../../../entities/bean-inventory/queries';
-import type { Bean } from '../../../shared/types/database.types';
+import { X, Info, Scale, MapPin, Tag, Search, Check } from 'lucide-react';
+import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { useCreateBean, useUpdateBean } from '@entities/bean/queries';
+import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
+import type { Bean } from '@shared/types/database.types';
 
 interface AddBeanModalProps {
     open: boolean;
@@ -199,9 +199,7 @@ export const AddBeanModal = ({
     });
 
     const isSubmitDisabled =
-        isSubmitting ||
-        (tab === 'restock' && (!selectedBeanId || !restockAmount)) ||
-        (tab === 'new' && !formData.name);
+        isSubmitting || (tab === 'restock' && (!selectedBeanId || !restockAmount)) || (tab === 'new' && !formData.name);
 
     return (
         <ModalShell
@@ -228,7 +226,7 @@ export const AddBeanModal = ({
                     }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                        <div
+                        {/* <div
                             style={{
                                 width: 44,
                                 height: 44,
@@ -242,7 +240,7 @@ export const AddBeanModal = ({
                             }}
                         >
                             {tab === 'edit' ? <Edit3 size={22} /> : <PackagePlus size={22} />}
-                        </div>
+                        </div> */}
                         <div>
                             <h2
                                 id="add-bean-modal-title"

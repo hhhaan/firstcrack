@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { Search, Filter, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { useRoastSessions } from '@entities/roast';
+import { PageLayout } from '@shared/ui/PageLayout';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { useAuthStore } from '@shared/store/auth';
 
@@ -251,7 +252,7 @@ export const History = () => {
     }, [rawSessions, search, sortKey, sortAsc]);
 
     return (
-        <div className="mx-auto max-w-7xl py-8 px-10 md:py-6 md:px-8 lg:py-8 lg:px-10">
+        <PageLayout>
             <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                     <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
@@ -312,6 +313,6 @@ export const History = () => {
                     onSort={handleSort}
                 />
             )}
-        </div>
+        </PageLayout>
     );
 };
