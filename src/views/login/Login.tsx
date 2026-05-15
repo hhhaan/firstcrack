@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { supabase } from '@shared/lib/supabase';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { useAuthStore } from '@shared/store/auth';
 
-const OAUTH_REDIRECT = import.meta.env.DEV
-    ? 'http://localhost:1420/auth/callback'
-    : 'firstcrack://auth/callback';
+const OAUTH_REDIRECT = import.meta.env.DEV ? 'http://localhost:1420/auth/callback' : 'firstcrack://auth/callback';
 
 interface LoginProps {
     onLogin?: () => void;
@@ -34,17 +33,24 @@ export const Login = ({ onLogin }: LoginProps) => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [testimonialIndex] = useState(() => Math.floor(Math.random() * testimonials.length));
 
+    const signInWithEmail = useAuthStore((s) => s.signInWithEmail);
     const testimonial = testimonials[testimonialIndex];
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
+        setError(null);
+        try {
+            await signInWithEmail(email, password);
             onLogin?.();
-        }, 900);
+        } catch (err: any) {
+            setError(err.message || 'Sign in failed. Please check your email and password.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -295,8 +301,14 @@ export const Login = ({ onLogin }: LoginProps) => {
                                 },
                             });
                             console.log('[auth] signInWithOAuth result:', { url: data?.url, error });
-                            if (error) { console.error('[auth] OAuth error:', error); return; }
-                            if (!data?.url) { console.warn('[auth] no URL returned'); return; }
+                            if (error) {
+                                console.error('[auth] OAuth error:', error);
+                                return;
+                            }
+                            if (!data?.url) {
+                                console.warn('[auth] no URL returned');
+                                return;
+                            }
 
                             if (import.meta.env.DEV) {
                                 // dev: WebView가 직접 OAuth URL로 이동 → localhost:1420/?code=... 로 돌아옴
@@ -380,7 +392,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                placeholder="jake@brewlabworks.com"
+                                placeholder="han@allyouneed.com"
                                 required
                                 style={{
                                     width: '100%',
@@ -427,6 +439,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                                 </label>
                                 <button
                                     type="button"
+                                    onClick={() => alert('Password reset coming soon.')}
                                     style={{
                                         fontSize: 12,
                                         color: 'var(--color-muted)',
@@ -495,6 +508,24 @@ export const Login = ({ onLogin }: LoginProps) => {
                             </div>
                         </div>
 
+                        {/* Error message */}
+                        {error && (
+                            <div
+                                style={{
+                                    marginBottom: 14,
+                                    padding: '10px 14px',
+                                    borderRadius: 10,
+                                    background: 'rgba(239,68,68,0.08)',
+                                    color: '#dc2626',
+                                    fontSize: 13,
+                                    letterSpacing: '0.14px',
+                                    lineHeight: 1.5,
+                                }}
+                            >
+                                {error}
+                            </div>
+                        )}
+
                         {/* Submit */}
                         <button
                             type="submit"
@@ -537,26 +568,31 @@ export const Login = ({ onLogin }: LoginProps) => {
                     <p
                         style={{
                             textAlign: 'center',
-                            fontSize: 13,
+                            fontSize: 12,
                             color: 'var(--color-muted)',
                             letterSpacing: '0.14px',
+                            lineHeight: 1.5,
                         }}
                     >
                         Don't have an account?{' '}
                         <button
+                            type="button"
+                            onClick={async () => {
+                                await openUrl('https://firstcrack.io');
+                            }}
                             style={{
                                 background: 'none',
                                 border: 'none',
                                 padding: 0,
-                                fontSize: 13,
+                                fontSize: 12,
                                 fontWeight: 500,
-                                color: 'var(--color-primary)',
+                                color: 'var(--color-muted)',
                                 cursor: 'pointer',
                                 fontFamily: 'var(--font-body)',
                                 letterSpacing: '0.14px',
                                 textDecoration: 'underline',
-                                textDecorationColor: 'var(--color-border)',
-                                textUnderlineOffset: '3px',
+                                textDecorationColor: 'var(--color-border-subtle)',
+                                textUnderlineOffset: '2px',
                             }}
                         >
                             Start free trial

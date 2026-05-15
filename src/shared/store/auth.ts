@@ -13,6 +13,10 @@ interface AuthState {
 interface AuthActions {
     /** App 최상단에서 한 번 호출. 반환값은 cleanup 함수. */
     init: () => () => void;
+    /** Email + Password 로그인. 실패 시 에러 throw. */
+    signInWithEmail: (email: string, password: string) => Promise<void>;
+    /** 로그아웃 */
+    signOut: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
@@ -28,7 +32,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
         // onAuthStateChange는 동기 콜백이어야 함 — async 사용 금지
         // Supabase v2: subscribe 시점에 INITIAL_SESSION으로 즉시 발화
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_, session) => {
             clearTimeout(timeout);
 
             const next = session?.user ?? null;
@@ -40,11 +46,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             if (next) {
                 void (async () => {
                     try {
-                        const { data } = await supabase
-                            .from('profiles')
-                            .select('plan')
-                            .eq('id', next.id)
-                            .single();
+                        const { data } = await supabase.from('profiles').select('plan').eq('id', next.id).single();
                         if (data?.plan) set({ plan: data.plan as Plan });
                     } catch (e) {
                         console.warn('[auth] plan fetch failed:', e);
@@ -57,6 +59,17 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             clearTimeout(timeout);
             subscription.unsubscribe();
         };
+    },
+
+    signInWithEmail: async (email, password) => {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+    },
+
+    signOut: async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        set({ user: null, plan: 'free' });
     },
 }));
 
