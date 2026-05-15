@@ -12,27 +12,27 @@ export const MachineControls = ({
     if (machineCapabilities.length === 0 && sidecarConnected) return null;
 
     return (
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 10, paddingLeft: 2 }}>
+        <div className="flex items-center gap-4 mb-2.5 pl-0.5">
             {(machineCapabilities.includes('heater') || !sidecarConnected) && (
-                <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
+                <span className="text-[13px] text-muted">
                     Heater{' '}
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: PHASE_COLORS.development }}>
+                    <span className="font-mono font-normal" style={{ color: PHASE_COLORS.development }}>
                         {liveData ? `${liveData.heater}%` : '—'}
                     </span>
                 </span>
             )}
             {(machineCapabilities.includes('fan') || !sidecarConnected) && (
-                <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
+                <span className="text-[13px] text-muted">
                     Fan{' '}
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: SENSOR_COLORS.et }}>
+                    <span className="font-mono font-normal" style={{ color: SENSOR_COLORS.et }}>
                         {liveData ? `${liveData.fan}%` : '—'}
                     </span>
                 </span>
             )}
             {(machineCapabilities.includes('drum') || !sidecarConnected) && (
-                <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
+                <span className="text-[13px] text-muted">
                     Drum{' '}
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: PHASE_COLORS.ready }}>
+                    <span className="font-mono font-normal" style={{ color: PHASE_COLORS.ready }}>
                         {liveData ? `${liveData.drum} RPM` : '—'}
                     </span>
                 </span>

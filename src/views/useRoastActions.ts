@@ -2,12 +2,8 @@ import { useCallback } from 'react';
 import { sidecar } from '@shared/lib/sidecar';
 import { formatTemp, type TemperatureUnit, type TurningPoint } from '@features/active-roast';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { parseTimeSec } from '@features/active-roast/lib/time';
 import type { LogEntry } from '@shared/types/roast';
-
-const parseTimeSec = (t: string): number => {
-    const [m, s] = t.split(':').map(Number);
-    return (m || 0) * 60 + (s || 0);
-};
 
 interface UseRoastActionsParams {
     unit: TemperatureUnit;

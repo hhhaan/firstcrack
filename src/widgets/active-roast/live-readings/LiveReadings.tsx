@@ -46,7 +46,7 @@ export const LiveReadings = ({
                     <span className="block text-xs text-muted font-medium tracking-[0.7px] uppercase mb-2">
                         {label}
                     </span>
-                    <div className="font-mono text-[26px] font-bold tracking-[-0.5px]" style={{ color }}>
+                    <div className="font-mono text-[26px] font-medium tracking-[-0.5px]" style={{ color }}>
                         {value}
                     </div>
                 </div>

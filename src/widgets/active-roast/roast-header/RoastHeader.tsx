@@ -2,22 +2,30 @@ import { Settings2, ChevronDown } from 'lucide-react';
 import { roastProfiles, DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { STATUS_COLORS, PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
+import { useBeans } from '@entities/bean/queries';
+import { useAuthStore } from '@shared/store/auth';
 
 export const RoastHeader = ({
     phase,
     targetProfileId,
+    selectedBeanId,
     onTargetProfileChange,
+    onBeanChange,
     onOpenRoastSettings,
 }: {
     phase: string;
     targetProfileId: number | null;
+    selectedBeanId: string | null;
     onTargetProfileChange: (id: number | null) => void;
+    onBeanChange: (id: string | null) => void;
     onOpenRoastSettings?: () => void;
 }) => {
     const roastEnded = useRoastingStore((s) => s.phase === 'ended');
     const charged = useRoastingStore((s) => s.charged);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const elapsed = useRoastingStore((s) => s.elapsed);
+    const user = useAuthStore((s) => s.user);
+    const { data: beans = [] } = useBeans(user?.id ?? '');
 
     const elapsedMin = Math.floor(elapsed / 60);
     const elapsedSec = elapsed % 60;
@@ -31,65 +39,75 @@ export const RoastHeader = ({
         else localStorage.removeItem(DEFAULT_PROFILE_KEY);
     };
 
+    const handleBeanChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const val = e.target.value;
+        onBeanChange(val === '' ? null : val);
+        if (val) localStorage.setItem('fc_default_bean_id', val);
+        else localStorage.removeItem('fc_default_bean_id');
+    };
+
+    const isDisconnected = roastEnded || !sidecarConnected;
+    const canPulse = sidecarConnected && charged && !roastEnded;
+    const statusColor = isDisconnected ? '#6b7280' : PHASE_COLORS.ready;
+    const dotStyle = {
+        background: isDisconnected ? '#6b7280' : STATUS_COLORS.active,
+        boxShadow: canPulse ? `0 0 0 3px ${STATUS_COLORS.activeGlow}` : 'none',
+        animation: canPulse ? 'pulse 2s infinite' : 'none',
+    };
+
+    const statusText = roastEnded
+        ? 'Roast Complete'
+        : !sidecarConnected
+          ? charged
+              ? 'Mock — Roast in Progress'
+              : 'Disconnected'
+          : !charged
+            ? 'Machine Connected · Ready to Roast'
+            : 'Live — Roast in Progress';
+
+    const selectedBean = beans.find((b) => b.id === selectedBeanId);
+    const beanDetails = [selectedBean?.process, selectedBean?.region, selectedBean?.origin].filter(Boolean).join(' · ');
+
     return (
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28 }}>
+        <div className="flex items-end justify-between mb-7">
             <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                    <div
-                        style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            background: roastEnded || !sidecarConnected ? '#6b7280' : STATUS_COLORS.active,
-                            boxShadow:
-                                !roastEnded && sidecarConnected && charged ? `0 0 0 3px ${STATUS_COLORS.activeGlow}` : 'none',
-                            animation: sidecarConnected && charged && !roastEnded ? 'pulse 2s infinite' : 'none',
-                        }}
-                    />
-                    <span
-                        style={{
-                            fontSize: 12,
-                            fontWeight: 500,
-                            color: roastEnded || !sidecarConnected ? '#6b7280' : PHASE_COLORS.ready,
-                            letterSpacing: '0.5px',
-                            textTransform: 'uppercase',
-                        }}
-                    >
-                        {roastEnded
-                            ? 'Roast Complete'
-                            : !sidecarConnected
-                              ? charged
-                                  ? 'Mock — Roast in Progress'
-                                  : 'Disconnected'
-                              : !charged
-                                ? 'Machine Connected · Ready to Roast'
-                                : 'Live — Roast in Progress'}
+                <div className="flex items-center gap-2.5 mb-1.5">
+                    <div className="w-2 h-2 rounded-full" style={dotStyle} />
+                    <span className="text-xs font-normal tracking-[0.5px] uppercase" style={{ color: statusColor }}>
+                        {statusText}
                     </span>
                 </div>
-                <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
-                    Ethiopia Yirgacheffe
-                </h1>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 13, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
-                        Natural · Guji Zone · Target:
+
+                <div className="relative inline-flex items-center mb-1.5">
+                    <select
+                        value={selectedBeanId ?? ''}
+                        onChange={handleBeanChange}
+                        disabled={charged}
+                        className={`appearance-none bg-transparent border-none font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] outline-none pr-7 ${charged ? 'cursor-default' : 'cursor-pointer'}`}
+                    >
+                        <option value="" style={{ fontSize: '14px' }}>
+                            No Bean Selected
+                        </option>
+                        {beans.map((b) => (
+                            <option key={b.id} value={b.id} style={{ fontSize: '14px' }}>
+                                {b.name}
+                            </option>
+                        ))}
+                    </select>
+                    {!charged && <ChevronDown size={18} className="absolute right-0 pointer-events-none text-muted" />}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                    <span className="text-[13px] text-muted tracking-[0.14px]">
+                        {beanDetails ? `${beanDetails} · Target:` : 'Target:'}
                     </span>
-                    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                    <div className="relative inline-flex items-center">
                         <select
                             value={targetProfileId ?? ''}
                             onChange={handleProfileChange}
                             disabled={charged}
-                            style={{
-                                appearance: 'none',
-                                background: 'transparent',
-                                border: 'none',
-                                fontSize: 13,
-                                fontWeight: 500,
-                                color: targetProfileId ? SENSOR_COLORS.btTargetStrong : 'var(--color-muted)',
-                                cursor: charged ? 'default' : 'pointer',
-                                paddingRight: 16,
-                                letterSpacing: '0.14px',
-                                outline: 'none',
-                            }}
+                            className={`appearance-none bg-transparent border-none text-[13px] font-medium pr-4 tracking-[0.14px] outline-none ${charged ? 'cursor-default' : 'cursor-pointer'}`}
+                            style={{ color: targetProfileId ? SENSOR_COLORS.btTargetStrong : 'var(--color-muted)' }}
                         >
                             <option value="">No Target</option>
                             {roastProfiles.map((p) => (
@@ -101,57 +119,28 @@ export const RoastHeader = ({
                         {!charged && (
                             <ChevronDown
                                 size={12}
-                                style={{
-                                    position: 'absolute',
-                                    right: 0,
-                                    pointerEvents: 'none',
-                                    color: SENSOR_COLORS.btTarget,
-                                }}
+                                className="absolute right-0 pointer-events-none"
+                                style={{ color: SENSOR_COLORS.btTarget }}
                             />
                         )}
                     </div>
                 </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                <div style={{ textAlign: 'right' }}>
-                    <div
-                        style={{
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: 44,
-                            fontWeight: 600,
-                            color: 'var(--color-primary)',
-                            letterSpacing: '-2px',
-                            lineHeight: 1,
-                            marginBottom: 4,
-                        }}
-                    >
+            <div className="flex items-start gap-3">
+                <div className="text-right">
+                    <div className="font-mono text-[44px] font-semibold text-primary tracking-[-2px] leading-none mb-1">
                         {timeStr}
                     </div>
-                    <div style={{ fontSize: 13, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
-                        {phase} phase
-                    </div>
+                    <div className="text-[13px] text-muted tracking-[0.14px]">{phase} phase</div>
                 </div>
                 {onOpenRoastSettings && (
                     <button
                         onClick={onOpenRoastSettings}
                         aria-label="Open roast settings"
                         title="Roast settings"
-                        style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 10,
-                            border: 'none',
-                            background: 'var(--color-surface)',
-                            color: 'var(--color-muted)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            flexShrink: 0,
-                            boxShadow: 'var(--shadow-inset)',
-                            marginTop: 6,
-                        }}
+                        className="w-8.5 h-8.5 rounded-[10px] border-none bg-surface text-muted flex items-center justify-center cursor-pointer shrink-0 mt-1.5"
+                        style={{ boxShadow: 'var(--shadow-inset)' }}
                     >
                         <Settings2 size={15} strokeWidth={1.9} />
                     </button>

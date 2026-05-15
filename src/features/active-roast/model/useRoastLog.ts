@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
 import { formatTemp } from '../lib/temperature';
+import { parseTimeSec } from '../lib/time';
 import type { TemperatureUnit } from './settings';
 import type { LogEntry } from '@shared/types/roast';
 
@@ -57,9 +58,4 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, timeStr
         handleDrop,
         setLogEntries, // reset할 때 필요
     };
-};
-
-const parseTimeSec = (t: string): number => {
-    const [m, s] = t.split(':').map(Number);
-    return (m || 0) * 60 + (s || 0);
 };

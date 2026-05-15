@@ -1,21 +1,26 @@
-import { useEffect, useRef } from 'react';
-import uPlot from 'uplot';
+import React, { useEffect, useRef, useMemo } from 'react';
+import * as echarts from 'echarts';
+import type { EChartsOption } from 'echarts';
 import {
     CHART_COLORS,
+    CONTROL_COLORS,
     PHASE_SECS,
     ROR_Y_MIN,
     ROR_Y_MAX,
-    MARKER_LABEL_FONT_CSS_PX,
-    MARKER_LABEL_Y_OFFSET_CSS_PX,
 } from '@features/active-roast/lib/chart-config';
-import { SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import type { TurningPoint, TemperatureUnit } from '@features/active-roast';
-import { computeHitThreshSec, useMarkerDrag } from './useMarkerDrag';
 
 export interface RoastEventMarker {
     timeSec: number;
     event: string;
     color: string;
+}
+
+interface ControlData {
+    xs: number[];
+    drumTemp: (number | null)[];
+    heatPower: (number | null)[];
+    fanSpeed: (number | null)[];
 }
 
 interface Props {
@@ -34,6 +39,7 @@ interface Props {
     showET?: boolean;
     showTargetCurve?: boolean;
     showRoR?: boolean;
+    controlData?: ControlData;
 }
 
 const fmtSec = (v: number) => {
@@ -42,7 +48,7 @@ const fmtSec = (v: number) => {
     return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-export const RoastTempChart = ({
+export const RoastTempChart: React.FC<Props> = ({
     xs,
     btTarget,
     btActual,
@@ -54,339 +60,472 @@ export const RoastTempChart = ({
     temperatureUnit = 'C',
     height,
     onCursorIdx,
-    onEventMarkerDrag,
+    onEventMarkerDrag: _onEventMarkerDrag,
     showET = true,
     showTargetCurve = true,
     showRoR = true,
-}: Props) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const plotRef = useRef<uPlot | null>(null);
+    controlData,
+}) => {
+    const chartRef = useRef<HTMLDivElement>(null);
+    const chartInstanceRef = useRef<echarts.ECharts | null>(null);
 
-    const currentTimeRef = useRef(currentTimeSec);
-    const eventMarkersRef = useRef(eventMarkers);
-    const turningPointsRef = useRef(turningPoints);
-    const onCursorIdxRef = useRef(onCursorIdx);
-    const temperatureUnitRef = useRef(temperatureUnit);
-    const onEventMarkerDragRef = useRef(onEventMarkerDrag);
-    currentTimeRef.current = currentTimeSec;
-    eventMarkersRef.current = eventMarkers;
-    turningPointsRef.current = turningPoints;
-    onCursorIdxRef.current = onCursorIdx;
-    temperatureUnitRef.current = temperatureUnit;
-    onEventMarkerDragRef.current = onEventMarkerDrag;
-
-    const { isDraggingRef, isNearMarkerRef, hoveredMarkerRef, setupDrag } = useMarkerDrag(
-        eventMarkersRef,
-        onEventMarkerDragRef,
-    );
-
+    // TP 디버그 로그 (콘솔에서 확인 필수!)
     useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
+        if (turningPoints.length > 0) {
+            console.log('🔥 TP 감지됨!', turningPoints);
+        }
+    }, [turningPoints]);
 
-        const cs = getComputedStyle(document.documentElement);
-        const colorPrimary = cs.getPropertyValue('--color-primary').trim() || '#171717';
-        const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#9ca3af';
-        const colorSecondary = cs.getPropertyValue('--color-secondary').trim() || '#6b7280';
+    // ECharts 초기화
+    useEffect((): (() => void) | undefined => {
+        const container = chartRef.current;
+        if (!container) return undefined;
 
-        const ttEl = document.createElement('div');
-        Object.assign(ttEl.style, {
-            position: 'absolute',
-            pointerEvents: 'none',
-            display: 'none',
-            background: 'white',
-            borderRadius: '10px',
-            padding: '10px 14px',
-            boxShadow: 'rgba(0,0,0,0.4) 0px 0px 1px, rgba(0,0,0,0.04) 0px 4px 4px',
-            fontSize: '12px',
-            zIndex: '10',
-            whiteSpace: 'nowrap',
+        const chart = echarts.init(container, undefined, {
+            renderer: 'canvas',
+            useDirtyRect: true,
         });
+        chartInstanceRef.current = chart;
 
-        const refLinePlugin: uPlot.Plugin = {
-            hooks: {
-                draw: [
-                    (u) => {
-                        const { ctx } = u;
-                        const { top, height: bh, left, width: bw } = u.bbox;
-                        ctx.save();
-
-                        ctx.strokeStyle = CHART_COLORS.phaseLines;
-                        ctx.setLineDash([3, 3]);
-                        ctx.lineWidth = 1;
-                        for (const sec of PHASE_SECS) {
-                            const x = u.valToPos(sec, 'x', true);
-                            if (x < left || x > left + bw) continue;
-                            ctx.beginPath();
-                            ctx.moveTo(x, top);
-                            ctx.lineTo(x, top + bh);
-                            ctx.stroke();
-                        }
-
-                        const ct = currentTimeRef.current;
-                        if (ct > 0) {
-                            const cx = u.valToPos(ct, 'x', true);
-                            if (cx >= left && cx <= left + bw) {
-                                ctx.strokeStyle = CHART_COLORS.currentTimeLine;
-                                ctx.setLineDash([4, 3]);
-                                ctx.lineWidth = 1.5;
-                                ctx.beginPath();
-                                ctx.moveTo(cx, top);
-                                ctx.lineTo(cx, top + bh);
-                                ctx.stroke();
-                            }
-                        }
-
-                        const dpr = devicePixelRatio;
-                        ctx.setLineDash([]);
-                        ctx.lineWidth = 4;
-                        ctx.font = `bold ${Math.round(MARKER_LABEL_FONT_CSS_PX * dpr)}px monospace`;
-                        const labelY = top + MARKER_LABEL_Y_OFFSET_CSS_PX * dpr;
-                        const hovered = hoveredMarkerRef.current;
-                        const hasHover = hovered != null && !isDraggingRef.current;
-                        for (const m of eventMarkersRef.current) {
-                            const ex = u.valToPos(m.timeSec, 'x', true);
-                            if (ex < left || ex > left + bw) continue;
-                            ctx.globalAlpha = hasHover && m.event !== hovered ? 0.2 : 1;
-                            ctx.strokeStyle = m.color;
-                            ctx.fillStyle = m.color;
-                            ctx.beginPath();
-                            ctx.moveTo(ex, top);
-                            ctx.lineTo(ex, top + bh);
-                            ctx.stroke();
-                            ctx.fillText(m.event, ex + 3, labelY);
-                        }
-                        ctx.globalAlpha = 1;
-
-                        for (const tp of turningPointsRef.current) {
-                            const tx = u.valToPos(tp.timeSec, 'x', true);
-                            if (tx < left || tx > left + bw) continue;
-                            ctx.strokeStyle = CHART_COLORS.tp;
-                            ctx.fillStyle = CHART_COLORS.tp;
-                            ctx.beginPath();
-                            ctx.moveTo(tx, top);
-                            ctx.lineTo(tx, top + bh);
-                            ctx.stroke();
-                            ctx.fillText('TP', tx + 3, labelY);
-                        }
-
-                        ctx.restore();
-                    },
-                ],
-            },
-        };
-
-        const tooltipPlugin: uPlot.Plugin = {
-            hooks: {
-                init: [
-                    (u) => {
-                        u.root.style.position = 'relative';
-                        u.root.appendChild(ttEl);
-                    },
-                ],
-                setCursor: [
-                    (u) => {
-                        if (isDraggingRef.current || isNearMarkerRef.current) {
-                            ttEl.style.display = 'none';
-                            return;
-                        }
-                        const { idx, left: cx, top: cy } = u.cursor;
-                        if (idx == null || cx == null || cy == null) {
-                            ttEl.style.display = 'none';
-                            return;
-                        }
-
-                        const xSec = (u.data[0] as number[])[idx] ?? 0;
-                        const btA = (u.data[2] as (number | null)[])[idx];
-                        const etA = (u.data[3] as (number | null)[])[idx];
-                        const btT = (u.data[1] as (number | null)[])[idx];
-                        const ror = (u.data[4] as (number | null)[])[idx];
-
-                        const rows: { name: string; val: string; color: string }[] = [];
-                        if (btA != null)
-                            rows.push({
-                                name: 'Bean Temp',
-                                val: `${btA.toFixed(1)}°${temperatureUnitRef.current}`,
-                                color: CHART_COLORS.btActual,
-                            });
-                        if (etA != null)
-                            rows.push({
-                                name: 'Env Temp',
-                                val: `${etA.toFixed(1)}°${temperatureUnitRef.current}`,
-                                color: SENSOR_COLORS.et,
-                            });
-                        if (btT != null)
-                            rows.push({
-                                name: 'Target BT',
-                                val: `${btT.toFixed(1)}°${temperatureUnitRef.current}`,
-                                color: CHART_COLORS.btTargetTooltip,
-                            });
-                        if (ror != null && u.series[4]?.show)
-                            rows.push({ name: 'BT RoR', val: `${ror.toFixed(1)}°/min`, color: SENSOR_COLORS.ror });
-                        if (rows.length === 0) {
-                            ttEl.style.display = 'none';
-                            return;
-                        }
-
-                        ttEl.innerHTML = `
-                        <div style="font-weight:500;color:${colorMuted};margin-bottom:6px;letter-spacing:0.14px">${fmtSec(xSec)}</div>
-                        ${rows
-                            .map(
-                                (r) => `
-                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-                                <div style="width:8px;height:8px;border-radius:2px;background:${r.color};flex-shrink:0"></div>
-                                <span style="color:${colorSecondary}">${r.name}:</span>
-                                <span style="font-weight:600;color:${colorPrimary}">${r.val}</span>
-                            </div>`,
-                            )
-                            .join('')}
-                    `;
-
-                        const tw = ttEl.offsetWidth || 140;
-                        const offsetX = cx + 12 + tw > u.width ? cx - tw - 12 : cx + 12;
-                        ttEl.style.display = 'block';
-                        ttEl.style.left = `${offsetX}px`;
-                        ttEl.style.top = `${Math.max(0, cy - 20)}px`;
-                    },
-                ],
-            },
-        };
-
-        const opts: uPlot.Options = {
-            width: el.offsetWidth,
-            height,
-            padding: [12, 12, 0, 0],
-            cursor: { focus: { prox: 16 }, drag: { x: false, y: false } },
-            legend: { show: false },
-            axes: [
-                {
-                    stroke: colorMuted,
-                    grid: { stroke: 'rgba(0,0,0,0.1)', width: 1 },
-                    ticks: { show: false },
-                    border: { show: false },
-                    font: `11px monospace`,
-                    size: 28,
-                    incrs: [60, 120, 180, 240, 300, 360, 420, 480, 540, 600, 660, 720],
-                    values: (_, vals) => vals.map((v) => fmtSec(v)),
-                },
-                {
-                    stroke: colorMuted,
-                    grid: { stroke: 'rgba(0,0,0,0.1)', width: 1 },
-                    ticks: { show: false },
-                    border: { show: false },
-                    font: `11px monospace`,
-                    size: 38,
-                    incrs: [10, 20, 25, 50],
-                    values: (_, vals) => vals.map((v) => (v === 130 ? '' : `${v}°${temperatureUnit}`)),
-                },
-                {
-                    scale: 'ror',
-                    side: 1,
-                    stroke: CHART_COLORS.rorActual,
-                    grid: { show: false },
-                    ticks: { show: false },
-                    border: { show: false },
-                    font: `10px monospace`,
-                    size: 25,
-                    splits: [0, 10, 20],
-                    values: (_, vals) => vals.map((v) => `${v}`),
-                },
-            ],
-            scales: {
-                x: { time: false },
-                y: { range: temperatureUnit === 'F' ? [266, 464] : [130, 240] },
-                ror: { range: [ROR_Y_MIN, ROR_Y_MAX] },
-            },
-            series: [
-                {},
-                { stroke: CHART_COLORS.btTarget, width: 2.0, dash: [6, 4], points: { show: false } },
-                { stroke: CHART_COLORS.btActual, width: 3.0, points: { show: false } },
-                { stroke: CHART_COLORS.etActual, width: 3.0, points: { show: false } },
-                {
-                    scale: 'ror',
-                    stroke: CHART_COLORS.rorActual,
-                    width: 3.0,
-                    points: { show: false },
-                    show: showRoR,
-                },
-            ],
-            plugins: [refLinePlugin, tooltipPlugin],
-            hooks: {
-                setCursor: [
-                    (u) => {
-                        onCursorIdxRef.current?.(u.cursor.idx ?? null);
-
-                        if (isDraggingRef.current) return;
-                        const cx = u.cursor.left;
-                        if (cx == null) return;
-                        const cursorTime = u.posToVal(cx, 'x');
-                        const thresh = computeHitThreshSec(u);
-                        const hovered =
-                            eventMarkersRef.current.find((m) => Math.abs(cursorTime - m.timeSec) <= thresh) ?? null;
-                        const nextHovered = hovered?.event ?? null;
-
-                        isNearMarkerRef.current = nextHovered != null;
-                        (u.over as HTMLElement).style.cursor = nextHovered != null ? 'pointer' : '';
-
-                        if (nextHovered !== hoveredMarkerRef.current) {
-                            hoveredMarkerRef.current = nextHovered;
-                            u.redraw(false);
-                        }
-                    },
-                ],
-            },
-        };
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        plotRef.current = new uPlot(opts, [xs, btTarget, btActual, etActual, rorActual] as any, el);
-
-        const teardownDrag = setupDrag(plotRef.current);
-
-        const obs = new ResizeObserver(() => {
-            if (plotRef.current && el) {
-                const newW = el.offsetWidth;
-                if (newW !== plotRef.current.width) {
-                    plotRef.current.setSize({ width: newW, height: plotRef.current.height });
-                }
-            }
-        });
-        obs.observe(el);
+        const resizeObserver = new ResizeObserver(() => chart.resize());
+        resizeObserver.observe(container);
 
         return () => {
-            teardownDrag();
-            obs.disconnect();
-            plotRef.current?.destroy();
-            plotRef.current = null;
+            resizeObserver.disconnect();
+            if (chartInstanceRef.current) {
+                chartInstanceRef.current.dispose();
+                chartInstanceRef.current = null;
+            }
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    useEffect(() => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        plotRef.current?.setData([xs, btTarget, btActual, etActual, rorActual] as any);
-    }, [xs, btTarget, btActual, etActual, rorActual]);
+    const option = useMemo((): EChartsOption => {
+        const unitLabel = temperatureUnit === 'C' ? '℃' : '℉';
+        const rorUnit = temperatureUnit === 'C' ? '℃/min' : '℉/min';
 
-    useEffect(() => {
-        plotRef.current?.redraw(false);
-    }, [currentTimeSec, eventMarkers, turningPoints]);
+        // 🔥 TypeError: undefined is not an object (data.getRawIndex) 해결
+        const makeSeriesData = (arr: (number | null)[]) => xs.map((x, i) => [x, arr[i] ?? null]);
 
-    useEffect(() => {
-        if (plotRef.current) {
-            plotRef.current.setSize({ width: containerRef.current?.offsetWidth ?? plotRef.current.width, height });
+        /**
+         * 커피 로스팅 차트에 최적화된 스무딩 설정
+         * - BT: 0.42 (자연스러운 곡선)
+         * - ET: 0.38 (BT보다 약간 덜 휘게)
+         * - RoR: 0.28 (노이즈 많아서 더 부드럽게)
+         */
+        const getSmoothConfig = (strength: number = 0.4) => ({
+            smooth: strength,
+            smoothMonotone: 'x' as const, // 시간축 방향으로만 스무딩 (역행 방지)
+            sampling: 'lttb' as const,
+        });
+        const phaseMarkLines = PHASE_SECS.map((sec) => ({
+            xAxis: sec,
+            lineStyle: { color: CHART_COLORS.phaseLines, width: 1, type: 'dashed' as const },
+        }));
+
+        const currentTimeMarkLine = {
+            data: [
+                {
+                    xAxis: currentTimeSec,
+                    lineStyle: { color: CHART_COLORS.currentTimeLine, width: 2, type: 'solid' as const },
+                    label: {
+                        formatter: `NOW\n${fmtSec(currentTimeSec)}`,
+                        position: 'top',
+                        color: CHART_COLORS.nowLabel,
+                        fontWeight: 700,
+                        fontSize: 11,
+                    },
+                },
+            ],
+        };
+
+        // 🔥 TP 수직선 — 매우 두껍고 선명하게
+        const tpMarkLines = turningPoints.map((tp) => ({
+            xAxis: tp.timeSec,
+            lineStyle: {
+                color: CHART_COLORS.tp,
+                width: 4.5,
+                type: 'solid' as const,
+                opacity: 1,
+            },
+            label: {
+                show: true,
+                position: 'top',
+                formatter: 'TP',
+                color: CHART_COLORS.markerLabelColor,
+                backgroundColor: CHART_COLORS.tp,
+                padding: [4, 8],
+                fontSize: 12,
+                fontWeight: 700,
+            },
+        }));
+
+        const markPointData = [
+            ...eventMarkers.map((m) => ({
+                name: m.event,
+                value: [m.timeSec, null],
+                xAxis: m.timeSec,
+                symbol: 'circle',
+                symbolSize: 10,
+                itemStyle: { color: m.color, borderColor: CHART_COLORS.markerLabelColor, borderWidth: 2 },
+                label: {
+                    show: true,
+                    position: 'top',
+                    formatter: m.event,
+                    fontSize: 10,
+                    color: CHART_COLORS.markerLabelColor,
+                    backgroundColor: m.color,
+                    padding: [2, 4],
+                    borderRadius: 2,
+                },
+            })),
+            ...turningPoints.map((tp) => ({
+                name: 'TP',
+                value: [tp.timeSec, null],
+                xAxis: tp.timeSec,
+                symbol: 'diamond',
+                symbolSize: 16,
+                itemStyle: { color: CHART_COLORS.tp, borderColor: CHART_COLORS.markerLabelColor, borderWidth: 2 },
+                label: {
+                    show: true,
+                    position: 'top',
+                    formatter: 'TP',
+                    fontSize: 10,
+                    color: CHART_COLORS.markerLabelColor,
+                },
+            })),
+        ];
+
+        const xMin = xs[0] ?? 0;
+        const xMax = xs[xs.length - 1] ?? 1200;
+        const rightMargin = showRoR ? 65 : 65;
+
+        const tempSeries = [
+            showTargetCurve && {
+                name: 'BT Target',
+                type: 'line',
+                xAxisIndex: 0,
+                yAxisIndex: 0,
+                data: makeSeriesData(btTarget),
+                lineStyle: { color: CHART_COLORS.btTarget, width: 2, type: 'dashed' },
+                showSymbol: false,
+                smooth: false,
+            },
+            {
+                name: 'BT Actual',
+                type: 'line',
+                xAxisIndex: 0,
+                yAxisIndex: 0,
+                data: xs.map((x, i) => [x, btActual[i]]),
+                lineStyle: { color: CHART_COLORS.btActual, width: 2.8 },
+                showSymbol: false,
+                ...getSmoothConfig(0.42), // BT — 가장 자연스러운 곡선
+            },
+            showET && {
+                name: 'ET Actual',
+                type: 'line',
+                xAxisIndex: 0,
+                yAxisIndex: 0,
+                data: xs.map((x, i) => [x, etActual[i]]),
+                lineStyle: { color: CHART_COLORS.etActual, width: 2.2 },
+                showSymbol: false,
+                ...getSmoothConfig(0.38), // ET — BT보다 살짝 덜 강하게
+            },
+            showRoR && {
+                name: 'RoR',
+                type: 'line',
+                xAxisIndex: 0,
+                yAxisIndex: 1,
+                data: xs.map((x, i) => [x, rorActual[i]]),
+                lineStyle: { color: CHART_COLORS.rorActual, width: 2 },
+                showSymbol: false,
+                ...getSmoothConfig(0.28), // RoR — 노이즈 많아서 더 부드럽게
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: `${CHART_COLORS.rorActual}33` },
+                        { offset: 1, color: `${CHART_COLORS.rorActual}00` },
+                    ]),
+                },
+            },
+        ].filter(Boolean) as any[];
+
+        if (controlData) {
+            const { xs: cxs, drumTemp, heatPower, fanSpeed } = controlData;
+            return {
+                backgroundColor: 'transparent',
+                animation: false,
+                axisPointer: { link: [{ xAxisIndex: 'all' }], label: { show: false } },
+                grid: [
+                    { left: 55, right: rightMargin, top: 20, height: '61%' },
+                    { left: 55, right: rightMargin, top: '68%', bottom: 40 },
+                ],
+                xAxis: [
+                    {
+                        gridIndex: 0,
+                        type: 'value',
+                        min: xMin,
+                        max: xMax,
+                        axisLabel: { show: false },
+                        axisTick: { show: false },
+                        axisLine: { show: false },
+                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 1 } },
+                        interval: 60,
+                        splitNumber: 15,
+                    },
+                    {
+                        gridIndex: 1,
+                        type: 'value',
+                        min: xMin,
+                        max: xMax,
+                        axisLabel: { formatter: fmtSec, fontSize: 11, fontFamily: 'monospace' },
+                        interval: 60,
+                        splitNumber: 15,
+                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 1 } },
+                    },
+                ],
+                yAxis: [
+                    {
+                        gridIndex: 0,
+                        type: 'value',
+                        name: `Temperature (${unitLabel})`,
+                        nameGap: 35,
+                        axisLabel: { fontSize: 11, fontFamily: 'monospace' },
+                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
+                        minorTick: { show: true, splitNumber: 2 },
+                        minorSplitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLineMinor, width: 1 } },
+                        min: temperatureUnit === 'F' ? 266 : 130,
+                        max: temperatureUnit === 'F' ? 464 : 240,
+                        interval: 20,
+                    },
+                    {
+                        gridIndex: 0,
+                        type: 'value',
+                        name: `RoR (${rorUnit})`,
+                        nameGap: 35,
+                        position: 'right',
+                        axisLabel: { fontSize: 11, fontFamily: 'monospace' },
+                        splitLine: { show: false },
+                        min: ROR_Y_MIN,
+                        max: ROR_Y_MAX,
+                        interval: 20,
+                    },
+                    {
+                        gridIndex: 1,
+                        type: 'value',
+                        // TODO: RoastSettings에서 Drum 축 범위(min/max)를 사용자 설정 가능하게 연결
+                        name: 'Drum (rpm)',
+                        position: 'left',
+                        axisLabel: { fontSize: 10, fontFamily: 'monospace' },
+                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
+                        min: 0,
+                        max: 100,
+                    },
+                    {
+                        gridIndex: 1,
+                        type: 'value',
+                        name: 'Power / Speed (%)',
+                        position: 'right',
+                        axisLabel: { fontSize: 10, fontFamily: 'monospace' },
+                        splitLine: { show: false },
+                        min: 0,
+                        max: 100,
+                    },
+                ],
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'line', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
+                },
+                series: [
+                    ...tempSeries,
+                    {
+                        name: 'Drum',
+                        type: 'line',
+                        color: CONTROL_COLORS.drum,
+                        xAxisIndex: 1,
+                        yAxisIndex: 2,
+                        data: cxs.map((x, i) => [x, drumTemp[i]]),
+                        lineStyle: { color: CONTROL_COLORS.drum, width: 3 },
+                        showSymbol: false,
+                        smooth: 0.3,
+                    },
+                    {
+                        name: 'Heat',
+                        type: 'line',
+                        color: CONTROL_COLORS.heat,
+                        xAxisIndex: 1,
+                        yAxisIndex: 3,
+                        data: cxs.map((x, i) => [x, heatPower[i]]),
+                        lineStyle: { color: CONTROL_COLORS.heat, width: 3 },
+                        showSymbol: false,
+                        step: 'end',
+                        smooth: false,
+                        // areaStyle: { color: CONTROL_COLORS.heatArea },
+                    },
+                    {
+                        name: 'Fan',
+                        type: 'line',
+                        color: CONTROL_COLORS.fan,
+                        xAxisIndex: 1,
+                        yAxisIndex: 3,
+                        data: cxs.map((x, i) => [x, fanSpeed[i]]),
+                        lineStyle: { color: CONTROL_COLORS.fan, width: 3 },
+                        showSymbol: false,
+                        step: 'end',
+                        smooth: false,
+                        // areaStyle: { color: CONTROL_COLORS.fanArea },
+                    },
+                ],
+                markLine: {
+                    silent: true,
+                    data: [...phaseMarkLines, currentTimeMarkLine.data[0], ...tpMarkLines],
+                },
+                markPoint: { data: markPointData },
+                dataZoom: [
+                    { type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true },
+                    { type: 'inside', xAxisIndex: 1, zoomOnMouseWheel: true, moveOnMouseMove: true },
+                ],
+            };
         }
+
+        return {
+            backgroundColor: 'transparent',
+            animation: false,
+            grid: { left: 55, right: showRoR ? 65 : 25, top: 20, bottom: 65 },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'cross', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
+                formatter: (params: any) => {
+                    const timeSec = params[0]?.axisValue ?? 0;
+                    let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
+                    params.forEach((p: any) => {
+                        if (p.seriesName === 'BT Target')
+                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget};border-radius:2px"></div>Target BT: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
+                        if (p.seriesName === 'BT Actual')
+                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual};border-radius:2px"></div>Bean Temp: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
+                        if (p.seriesName === 'ET Actual' && showET)
+                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual};border-radius:2px"></div>Env Temp: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
+                        if (p.seriesName === 'RoR' && showRoR)
+                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual};border-radius:2px"></div>RoR: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${rorUnit}</span></div>`;
+                    });
+                    return html;
+                },
+            },
+            xAxis: {
+                type: 'value',
+                name: 'Time (min)',
+                nameLocation: 'middle',
+                nameGap: 35,
+                min: xMin,
+                max: xMax,
+                axisLabel: { formatter: (v: number) => fmtSec(v), fontSize: 11, fontFamily: 'monospace' },
+                interval: 60,
+                splitNumber: 15,
+                splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 1 } },
+            },
+            yAxis: [
+                {
+                    type: 'value',
+                    name: `Temperature (${unitLabel})`,
+                    nameGap: 35,
+                    axisLabel: { fontSize: 11, fontFamily: 'monospace' },
+                    splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
+                    min: temperatureUnit === 'F' ? 266 : 130,
+                    max: temperatureUnit === 'F' ? 464 : 240,
+                    interval: 20,
+                },
+                {
+                    type: 'value',
+                    name: `RoR (${rorUnit})`,
+                    nameGap: 35,
+                    position: 'right',
+                    axisLabel: { fontSize: 11, fontFamily: 'monospace' },
+                    splitLine: { show: false },
+                    min: ROR_Y_MIN,
+                    max: ROR_Y_MAX,
+                    interval: 20,
+                },
+            ],
+            series: tempSeries,
+            markLine: {
+                silent: true,
+                data: [...phaseMarkLines, currentTimeMarkLine.data[0], ...tpMarkLines],
+            },
+            markPoint: { data: markPointData },
+            dataZoom: [{ type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true }],
+        };
+    }, [
+        xs,
+        btTarget,
+        btActual,
+        etActual,
+        rorActual,
+        currentTimeSec,
+        eventMarkers,
+        turningPoints,
+        temperatureUnit,
+        showET,
+        showTargetCurve,
+        showRoR,
+        controlData,
+    ]);
+
+    // 옵션 적용 — controlData 유무가 바뀌면 (single↔combined) notMerge로 완전 교체
+    const prevHasControlData = useRef(!!controlData);
+    useEffect(() => {
+        const chart = chartInstanceRef.current;
+        if (!chart) return;
+        const structureChanged = prevHasControlData.current !== !!controlData;
+        prevHasControlData.current = !!controlData;
+        chart.setOption(option, {
+            notMerge: structureChanged,
+            lazyUpdate: !structureChanged,
+            replaceMerge: structureChanged ? undefined : ['series', 'markLine', 'markPoint'],
+        });
+    }, [option]);
+
+    // 마우스 호버
+    useEffect(() => {
+        const chart = chartInstanceRef.current;
+        if (!chart || !onCursorIdx) return;
+
+        const handleMouseMove = (e: any) => {
+            const pixel: [number, number] = [e.offsetX, e.offsetY];
+            const point = chart.convertFromPixel({ xAxisIndex: 0 }, pixel);
+            if (point && xs.length) {
+                const idx = xs.reduce(
+                    (prev, curr, i) => (Math.abs(curr - point[0]) < Math.abs(xs[prev] - point[0]) ? i : prev),
+                    0,
+                );
+                onCursorIdx(idx);
+            }
+        };
+
+        chart.on('mousemove', handleMouseMove);
+        return () => {
+            chart.off('mousemove', handleMouseMove);
+        };
+    }, [xs, onCursorIdx]);
+
+    useEffect(() => {
+        chartInstanceRef.current?.resize({ height });
     }, [height]);
 
-    useEffect(() => {
-        plotRef.current?.setSeries(1, { show: showTargetCurve });
-    }, [showTargetCurve]);
-
-    useEffect(() => {
-        plotRef.current?.setSeries(3, { show: showET });
-    }, [showET]);
-
-    useEffect(() => {
-        plotRef.current?.setSeries(4, { show: showRoR });
-    }, [showRoR]);
-
-    return <div ref={containerRef} className="w-full" />;
+    return (
+        <div style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}>
+            <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
+            {controlData && (
+                <div className="absolute flex items-center gap-4" style={{ bottom: -5, left: 25 }}>
+                    {[
+                        { color: CONTROL_COLORS.drum, label: 'Drum' },
+                        { color: CONTROL_COLORS.heat, label: 'Heat' },
+                        { color: CONTROL_COLORS.fan, label: 'Fan' },
+                    ].map(({ color, label }) => (
+                        <div key={label} className="flex items-center gap-1.5">
+                            <div style={{ width: 16, height: 2, borderRadius: 1, background: color }} />
+                            <span className="text-[11px] text-muted tracking-[0.14px]">{label}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 };

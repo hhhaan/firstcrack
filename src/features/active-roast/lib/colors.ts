@@ -12,7 +12,6 @@ export const SENSOR_COLORS = {
     rorBg: 'rgba(255,235,59,0.5)',
 } as const;
 
-// Roast phase / action colors
 export const PHASE_COLORS = {
     ready: '#16a34a',
     readyBg: 'rgba(220,252,231,0.8)',
