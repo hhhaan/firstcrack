@@ -10,7 +10,7 @@
 - Base URL: `http://127.0.0.1:9999`
 - Content-Type: JSON 요청은 `application/json`
 - CORS: 모든 origin 허용
-- Startup behavior: 서버 시작 시 개발용 `virtual` (가상 머신) 로스터에 자동 연결한다.
+- Startup behavior: 서버 시작 시 아무 로스터에도 자동 연결하지 않는다. 프론트엔드가 `POST /connect`를 호출해야 연결이 시작된다.
 
 ```py
 web.run_app(create_app(), host="127.0.0.1", port=9999, print=None)
@@ -471,6 +471,25 @@ const BASE = 'http://127.0.0.1:9999';
 - 공통 reading shape: `src-tauri/sidecar/adapters/base.py`
 - 프론트 타입: `src/shared/types/machine.ts`
 - 프론트 API wrapper: `src/shared/lib/sidecar.ts`
+
+## Packaging & Deployment
+
+프로덕션 배포 시 Python 런타임 없이 동작하도록 PyInstaller로 단일 바이너리를 빌드한다.
+
+```bash
+npm run build:sidecar   # → src-tauri/binaries/sidecar-aarch64-apple-darwin
+npm run tauri build     # Tauri가 위 바이너리를 앱 번들에 포함
+```
+
+빌드 관련 파일:
+
+| 파일 | 역할 |
+| ---- | ---- |
+| `src-tauri/sidecar/sidecar.spec` | PyInstaller spec — `main.py` 기준, arm64 타겟, 의존성 전체 포함 |
+| `scripts/build-sidecar.sh` | `pyinstaller sidecar.spec` 실행 후 rustc target triple 이름으로 `src-tauri/binaries/`에 복사 |
+| `src-tauri/src/lib.rs` | Tauri 앱 시작 시 `tauri_plugin_shell`로 sidecar 프로세스 spawn, stdout/stderr drain |
+
+바이너리(`src-tauri/binaries/sidecar-*`)는 `.gitignore`에 등록되어 있으므로 배포 전 반드시 `npm run build:sidecar`를 먼저 실행해야 한다.
 
 ## Known Behavior To Preserve
 
