@@ -158,7 +158,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
 
     // mode 값에 따라 TCP 전용 / RTU 전용 필드 토글
     const TCP_ONLY = new Set(['host', 'port']);
-    const RTU_ONLY = new Set(['comport', 'baudrate']);
+    const RTU_ONLY = new Set(['comport', 'baudrate', 'bytesize', 'parity', 'stopbits']);
 
     const isFieldVisible = (fieldKey: string): boolean => {
         const mode = params['mode']?.toLowerCase() ?? '';
@@ -535,7 +535,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                                         {field.label}
                                         {field.required && <span style={{ color: '#e55' }}> *</span>}
                                     </label>
-                                    {field.type === 'select' && field.options ? (
+                                    {field.options ? (
                                         <div style={{ position: 'relative' }}>
                                             <select
                                                 style={{

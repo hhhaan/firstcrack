@@ -113,6 +113,13 @@ class RoasterManager:
                 await self._adapter.connect()
                 self._connected = True
                 self._start_time = time.monotonic()
+                # Warmup read: _data_ok를 connect 응답 전에 설정해 프론트엔드가 즉시 connected를 볼 수 있게 함
+                try:
+                    reading = await self._adapter.read()
+                    if reading.bt > 0:
+                        self._data_ok = True
+                except Exception:
+                    pass
             except Exception as exc:
                 self._error = _format_connection_error(exc, protocol, merged)
                 self._connected = False

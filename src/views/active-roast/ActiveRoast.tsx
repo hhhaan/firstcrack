@@ -62,9 +62,7 @@ export const ActiveRoast = ({
         const stored = localStorage.getItem('fc_default_profile_id');
         return stored ? Number(stored) : null;
     });
-    const [selectedBeanId, setSelectedBeanId] = useState<string | null>(() => {
-        return localStorage.getItem('fc_default_bean_id') ?? null;
-    });
+    const [selectedBeanId, setSelectedBeanId] = useState<string | null>(null);
     const [isRunning, setIsRunning] = useState(false);
     const isRunningRef = useRef(isRunning);
     isRunningRef.current = isRunning;
@@ -82,6 +80,16 @@ export const ActiveRoast = ({
     useEffect(() => {
         if (isFullscreen) setZoomRange(null);
     }, [isFullscreen]);
+
+    // isActive가 true가 될 때마다 store의 pendingBeanId를 소비
+    useEffect(() => {
+        if (!isActive) return;
+        const { pendingBeanId, setPendingBean } = useRoastingStore.getState();
+        if (pendingBeanId) {
+            setSelectedBeanId(pendingBeanId);
+            setPendingBean(null);
+        }
+    }, [isActive]);
 
     // ── 공유 ref (여러 훅·핸들러에서 참조) ───────────────────────
     /** Charge 순간의 Date.now() (ms). 0이면 로스팅 미시작 */
@@ -138,7 +146,13 @@ export const ActiveRoast = ({
             etActual.push(p.etActual != null ? toDisplayTemp(p.etActual, unit) : null);
             rorActual.push(p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null);
         }
-        return { visibleXs: xs, visibleBtTarget: btTarget, visibleBtActual: btActual, visibleEtActual: etActual, visibleRorActual: rorActual };
+        return {
+            visibleXs: xs,
+            visibleBtTarget: btTarget,
+            visibleBtActual: btActual,
+            visibleEtActual: etActual,
+            visibleRorActual: rorActual,
+        };
     }, [visibleChartData, unit]);
 
     const { visibleControlXs, visibleDrumTemp, visibleHeatPower, visibleFanSpeed } = useMemo(() => {

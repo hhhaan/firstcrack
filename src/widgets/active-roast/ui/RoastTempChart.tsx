@@ -1,13 +1,7 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import * as echarts from 'echarts';
 import type { EChartsOption } from 'echarts';
-import {
-    CHART_COLORS,
-    CONTROL_COLORS,
-    PHASE_SECS,
-    ROR_Y_MIN,
-    ROR_Y_MAX,
-} from '@features/active-roast/lib/chart-config';
+import { CHART_COLORS, CONTROL_COLORS, ROR_Y_MIN, ROR_Y_MAX } from '@features/active-roast/lib/chart-config';
 import type { TurningPoint, TemperatureUnit } from '@features/active-roast';
 
 export interface RoastEventMarker {
@@ -117,11 +111,6 @@ export const RoastTempChart: React.FC<Props> = ({
             smoothMonotone: 'x' as const, // 시간축 방향으로만 스무딩 (역행 방지)
             sampling: 'lttb' as const,
         });
-        const phaseMarkLines = PHASE_SECS.map((sec) => ({
-            xAxis: sec,
-            lineStyle: { color: CHART_COLORS.phaseLines, width: 1, type: 'dashed' as const },
-        }));
-
         const currentTimeMarkLine = {
             data: [
                 {
@@ -138,24 +127,39 @@ export const RoastTempChart: React.FC<Props> = ({
             ],
         };
 
-        // 🔥 TP 수직선 — 매우 두껍고 선명하게
         const tpMarkLines = turningPoints.map((tp) => ({
             xAxis: tp.timeSec,
             lineStyle: {
                 color: CHART_COLORS.tp,
-                width: 4.5,
+                width: 1.5,
                 type: 'solid' as const,
                 opacity: 1,
             },
             label: {
                 show: true,
-                position: 'top',
+                position: 'end',
                 formatter: 'TP',
-                color: CHART_COLORS.markerLabelColor,
-                backgroundColor: CHART_COLORS.tp,
-                padding: [4, 8],
+                color: CHART_COLORS.tp,
                 fontSize: 12,
                 fontWeight: 700,
+            },
+        }));
+
+        const eventMarkLines = eventMarkers.map((m) => ({
+            xAxis: m.timeSec,
+            lineStyle: {
+                color: m.color,
+                width: 1.5,
+                type: 'solid' as const,
+                opacity: 0.8,
+            },
+            label: {
+                show: true,
+                position: 'end',
+                formatter: m.event,
+                color: m.color,
+                fontSize: 11,
+                fontWeight: 600,
             },
         }));
 
@@ -178,21 +182,6 @@ export const RoastTempChart: React.FC<Props> = ({
                     borderRadius: 2,
                 },
             })),
-            ...turningPoints.map((tp) => ({
-                name: 'TP',
-                value: [tp.timeSec, null],
-                xAxis: tp.timeSec,
-                symbol: 'diamond',
-                symbolSize: 16,
-                itemStyle: { color: CHART_COLORS.tp, borderColor: CHART_COLORS.markerLabelColor, borderWidth: 2 },
-                label: {
-                    show: true,
-                    position: 'top',
-                    formatter: 'TP',
-                    fontSize: 10,
-                    color: CHART_COLORS.markerLabelColor,
-                },
-            })),
         ];
 
         const xMin = xs[0] ?? 0;
@@ -206,7 +195,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 data: makeSeriesData(btTarget),
-                lineStyle: { color: CHART_COLORS.btTarget, width: 2, type: 'dashed' },
+                lineStyle: { color: CHART_COLORS.btTarget, width: 1.5, type: 'dashed' },
                 showSymbol: false,
                 smooth: false,
             },
@@ -216,9 +205,15 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 data: xs.map((x, i) => [x, btActual[i]]),
-                lineStyle: { color: CHART_COLORS.btActual, width: 2.8 },
+                lineStyle: { color: CHART_COLORS.btActual, width: 1.8 },
                 showSymbol: false,
                 ...getSmoothConfig(0.42), // BT — 가장 자연스러운 곡선
+                markLine: {
+                    silent: true,
+                    symbol: 'none',
+                    data: [...eventMarkLines, ...tpMarkLines],
+                },
+                markPoint: { data: markPointData },
             },
             showET && {
                 name: 'ET Actual',
@@ -226,7 +221,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 data: xs.map((x, i) => [x, etActual[i]]),
-                lineStyle: { color: CHART_COLORS.etActual, width: 2.2 },
+                lineStyle: { color: CHART_COLORS.etActual, width: 1.5 },
                 showSymbol: false,
                 ...getSmoothConfig(0.38), // ET — BT보다 살짝 덜 강하게
             },
@@ -236,7 +231,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 1,
                 data: xs.map((x, i) => [x, rorActual[i]]),
-                lineStyle: { color: CHART_COLORS.rorActual, width: 2 },
+                lineStyle: { color: CHART_COLORS.rorActual, width: 1.2 },
                 showSymbol: false,
                 ...getSmoothConfig(0.28), // RoR — 노이즈 많아서 더 부드럽게
                 areaStyle: {
@@ -267,7 +262,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         axisLabel: { show: false },
                         axisTick: { show: false },
                         axisLine: { show: false },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 1 } },
+                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
                         interval: 60,
                         splitNumber: 15,
                     },
@@ -279,7 +274,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         axisLabel: { formatter: fmtSec, fontSize: 11, fontFamily: 'monospace' },
                         interval: 60,
                         splitNumber: 15,
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 1 } },
+                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
                     },
                 ],
                 yAxis: [
@@ -289,9 +284,9 @@ export const RoastTempChart: React.FC<Props> = ({
                         name: `Temperature (${unitLabel})`,
                         nameGap: 35,
                         axisLabel: { fontSize: 11, fontFamily: 'monospace' },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
+                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
                         minorTick: { show: true, splitNumber: 2 },
-                        minorSplitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLineMinor, width: 1 } },
+                        minorSplitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLineMinor, width: 0.5 } },
                         min: temperatureUnit === 'F' ? 266 : 130,
                         max: temperatureUnit === 'F' ? 464 : 240,
                         interval: 20,
@@ -343,7 +338,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         xAxisIndex: 1,
                         yAxisIndex: 2,
                         data: cxs.map((x, i) => [x, drumTemp[i]]),
-                        lineStyle: { color: CONTROL_COLORS.drum, width: 3 },
+                        lineStyle: { color: CONTROL_COLORS.drum, width: 1.5 },
                         showSymbol: false,
                         smooth: 0.3,
                     },
@@ -354,7 +349,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         xAxisIndex: 1,
                         yAxisIndex: 3,
                         data: cxs.map((x, i) => [x, heatPower[i]]),
-                        lineStyle: { color: CONTROL_COLORS.heat, width: 3 },
+                        lineStyle: { color: CONTROL_COLORS.heat, width: 1.5 },
                         showSymbol: false,
                         step: 'end',
                         smooth: false,
@@ -367,18 +362,13 @@ export const RoastTempChart: React.FC<Props> = ({
                         xAxisIndex: 1,
                         yAxisIndex: 3,
                         data: cxs.map((x, i) => [x, fanSpeed[i]]),
-                        lineStyle: { color: CONTROL_COLORS.fan, width: 3 },
+                        lineStyle: { color: CONTROL_COLORS.fan, width: 1.5 },
                         showSymbol: false,
                         step: 'end',
                         smooth: false,
                         // areaStyle: { color: CONTROL_COLORS.fanArea },
                     },
                 ],
-                markLine: {
-                    silent: true,
-                    data: [...phaseMarkLines, currentTimeMarkLine.data[0], ...tpMarkLines],
-                },
-                markPoint: { data: markPointData },
                 dataZoom: [
                     { type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true },
                     { type: 'inside', xAxisIndex: 1, zoomOnMouseWheel: true, moveOnMouseMove: true },
@@ -445,11 +435,6 @@ export const RoastTempChart: React.FC<Props> = ({
                 },
             ],
             series: tempSeries,
-            markLine: {
-                silent: true,
-                data: [...phaseMarkLines, currentTimeMarkLine.data[0], ...tpMarkLines],
-            },
-            markPoint: { data: markPointData },
             dataZoom: [{ type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true }],
         };
     }, [
@@ -478,7 +463,6 @@ export const RoastTempChart: React.FC<Props> = ({
         chart.setOption(option, {
             notMerge: structureChanged,
             lazyUpdate: !structureChanged,
-            replaceMerge: structureChanged ? undefined : ['series', 'markLine', 'markPoint'],
         });
     }, [option]);
 

@@ -26,7 +26,7 @@ from aiohttp import web
 from manager import RoasterManager
 from roaster_registry import ROASTER_REGISTRY, PROTOCOL_FORM_FIELDS
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 _log = logging.getLogger(__name__)
 
 

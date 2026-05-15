@@ -10,7 +10,13 @@ import type { View } from '@shared/types/view';
 
 const POLL_INTERVAL_MS = 3000;
 
-export const Machines = ({ isActive = false, onNavigate }: { isActive?: boolean; onNavigate?: (view: View) => void }) => {
+export const Machines = ({
+    isActive = false,
+    onNavigate,
+}: {
+    isActive?: boolean;
+    onNavigate?: (view: View) => void;
+}) => {
     const { t } = useTranslation();
     const { machines, addMachine, removeMachine } = useMachines();
     const [search, setSearch] = useState('');
@@ -231,33 +237,33 @@ export const Machines = ({ isActive = false, onNavigate }: { isActive?: boolean;
 
                             {/* Temperature cards — 항상 표시, 선택된 머신이 연결된 머신일 때만 실제 값 표시 */}
                             <div className="grid grid-cols-3 gap-3.5 mb-6">
-                                    {[
-                                        {
-                                            label: t('machines.temperature.bean'),
-                                            value: isSelectedConnected && temps?.bt != null ? `${temps.bt}°C` : '—',
-                                            sub: 'BT',
-                                        },
-                                        {
-                                            label: t('machines.temperature.environment'),
-                                            value: isSelectedConnected && temps?.et != null ? `${temps.et}°C` : '—',
-                                            sub: 'ET',
-                                        },
-                                        {
-                                            label: t('machines.temperature.ror'),
-                                            value: isSelectedConnected && temps ? `${temps.ror} °C/min` : '—',
-                                            sub: t('machines.temperature.rateOfRise'),
-                                        },
-                                    ].map((s) => (
-                                        <div key={s.label} className="bg-surface px-4 py-3.5 rounded-lg shadow-inset">
-                                            <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.5px] mb-1.5">
-                                                {s.label}
-                                            </div>
-                                            <div className="text-[22px] font-light text-primary tracking-[-0.3px]">
-                                                {s.value}
-                                            </div>
-                                            <div className="text-[11px] text-muted mt-0.5">{s.sub}</div>
+                                {[
+                                    {
+                                        label: t('machines.temperature.bean'),
+                                        value: isSelectedConnected && temps?.bt != null ? `${temps.bt}°C` : '—',
+                                        sub: 'BT',
+                                    },
+                                    {
+                                        label: t('machines.temperature.environment'),
+                                        value: isSelectedConnected && temps?.et != null ? `${temps.et}°C` : '—',
+                                        sub: 'ET',
+                                    },
+                                    // {
+                                    //     label: t('machines.temperature.ror'),
+                                    //     value: isSelectedConnected && temps ? `${temps.ror} °C/min` : '—',
+                                    //     sub: t('machines.temperature.rateOfRise'),
+                                    // },
+                                ].map((s) => (
+                                    <div key={s.label} className="bg-surface px-4 py-3.5 rounded-lg shadow-inset">
+                                        <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.5px] mb-1.5">
+                                            {s.label}
                                         </div>
-                                    ))}
+                                        <div className="text-[22px] font-light text-primary tracking-[-0.3px]">
+                                            {s.value}
+                                        </div>
+                                        <div className="text-[11px] text-muted mt-0.5">{s.sub}</div>
+                                    </div>
+                                ))}
                             </div>
 
                             {/* Connection params */}

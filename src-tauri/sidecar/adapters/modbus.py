@@ -1,4 +1,3 @@
-import asyncio
 import struct
 import time
 import logging
@@ -47,6 +46,10 @@ class ModbusAdapter:
         port: int = 502,
         comport: str = "",
         baudrate: int = 9600,
+        bytesize: int = 8,
+        parity: str = "N",
+        stopbits: float = 1,
+        interval: float = 1.0,
         modbus_registers: dict[str, Any] | None = None,
         **_: Any,
     ) -> None:
@@ -55,6 +58,10 @@ class ModbusAdapter:
         self._port = port
         self._comport = comport
         self._baudrate = baudrate
+        self._bytesize = bytesize
+        self._parity = parity
+        self._stopbits = stopbits
+        self._interval = interval
         self._regs: dict[str, Any] = modbus_registers or {}
         self._client: Any = None
         self._read_retries: int = 1
@@ -63,7 +70,9 @@ class ModbusAdapter:
         from pymodbus.client import AsyncModbusTcpClient, AsyncModbusSerialClient  # type: ignore[import]
 
         if not self._regs:
-            raise ValueError("modbus_registers가 비어 있음. roaster_registry 확인 필요.")
+            raise ValueError(
+                "modbus_registers가 비어 있음. roaster_registry 확인 필요."
+            )
 
         if self._mode == "tcp":
             self._client = AsyncModbusTcpClient(host=self._host, port=self._port)
@@ -71,19 +80,31 @@ class ModbusAdapter:
             self._client = AsyncModbusSerialClient(
                 port=self._comport,
                 baudrate=self._baudrate,
-                bytesize=8,
-                parity="N",
-                stopbits=1,
-                timeout=3,
+                bytesize=self._bytesize,
+                parity=self._parity,
+                stopbits=self._stopbits,
+                timeout=10,
             )
 
+        if self._mode == "tcp":
+            _log.info("ModbusAdapter connecting: TCP %s:%d", self._host, self._port)
+        else:
+            _log.info(
+                "ModbusAdapter connecting: RTU port=%s baudrate=%d bytesize=%d parity=%s stopbits=%g timeout=%ds",
+                self._comport,
+                self._baudrate,
+                self._bytesize,
+                self._parity,
+                self._stopbits,
+                10,
+            )
         await self._client.connect()
         if not self._client.connected:
             raise ConnectionError(
                 f"MODBUS 연결 실패: "
                 f"{'%s:%d' % (self._host, self._port) if self._mode == 'tcp' else self._comport}"
             )
-        _log.info("ModbusAdapter connected (mode=%s)", self._mode)
+        _log.info("ModbusAdapter connected OK (mode=%s)", self._mode)
 
     async def disconnect(self) -> None:
         if self._client is not None:
@@ -103,16 +124,36 @@ class ModbusAdapter:
         last_exc: Exception = RuntimeError("MODBUS 읽기 실패")
         for attempt in range(self._read_retries + 1):
             try:
+                _log.debug(
+                    "READ attempt %d: func=%d register=%d(0x%04X) count=%d unit=%d",
+                    attempt + 1,
+                    func,
+                    register,
+                    register,
+                    count,
+                    unit_id,
+                )
                 if func == 3:
-                    result = await self._client.read_holding_registers(register, count, slave=unit_id)
+                    result = await self._client.read_holding_registers(
+                        register,
+                        count,
+                        slave=unit_id,
+                        # register, count=count, device_id=unit_id
+                    )
                 else:
-                    result = await self._client.read_input_registers(register, count, slave=unit_id)
+                    result = await self._client.read_input_registers(
+                        register,
+                        count,
+                        slave=unit_id,
+                        # register, count=count, device_id=unit_id
+                    )
 
                 if result.isError():
                     raise IOError(
                         f"MODBUS 오류 응답: func={func} register={register} unit={unit_id} → {result}"
                     )
 
+                _log.debug("READ OK: registers=%s", result.registers)
                 if is_float:
                     raw = struct.pack(">HH", result.registers[0], result.registers[1])
                     value = struct.unpack(">f", raw)[0]
@@ -132,8 +173,14 @@ class ModbusAdapter:
                 return round(value, 1)
             except Exception as exc:
                 last_exc = exc
-                _log.warning("MODBUS 읽기 실패 (attempt %d/%d): register=%d unit=%d — %s",
-                             attempt + 1, self._read_retries + 1, register, unit_id, exc)
+                _log.warning(
+                    "MODBUS 읽기 실패 (attempt %d/%d): register=%d unit=%d — %s",
+                    attempt + 1,
+                    self._read_retries + 1,
+                    register,
+                    unit_id,
+                    exc,
+                )
         raise last_exc
 
     async def read(self) -> Reading:
@@ -146,9 +193,16 @@ class ModbusAdapter:
         bt = await self._read_channel(bt_cfg) if bt_cfg else -1.0
         et = await self._read_channel(et_cfg) if et_cfg else -1.0
         drum = await self._read_channel(drum_cfg) if drum_cfg else 0.0
-        return Reading(bt=bt, et=et, heater=0.0, fan=0.0, drum=drum, timestamp=time.monotonic())
+        return Reading(
+            bt=bt, et=et, heater=0.0, fan=0.0, drum=drum, timestamp=time.monotonic()
+        )
 
-    async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
+    async def control(
+        self,
+        heater: float | None = None,
+        fan: float | None = None,
+        drum: float | None = None,
+    ) -> None:
         pass  # 대부분 읽기 전용. 제어 필요 시 write_register 확장.
 
     @property

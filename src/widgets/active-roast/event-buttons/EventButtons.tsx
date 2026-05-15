@@ -39,26 +39,22 @@ export const EventButtons = ({
                             gap: isSidebar ? 2 : 0,
                             padding: isSidebar ? '8px 4px' : '9px 12px',
                             borderRadius: 6,
-                            border: registered && !pressed ? '1.5px solid var(--color-primary)' : 'none',
-                            background: pressed ? 'var(--color-primary)' : 'var(--color-surface)',
-                            color: pressed ? 'white' : registered ? 'var(--color-primary)' : 'var(--color-secondary)',
+                            border: 'none',
+                            background: registered || pressed ? 'var(--color-primary)' : 'var(--color-surface)',
+                            color: registered || pressed ? 'white' : 'var(--color-secondary)',
                             fontSize: isSidebar ? 11 : 13,
                             fontWeight: registered || pressed ? 600 : 500,
                             cursor: 'pointer',
                             letterSpacing: isSidebar ? 'normal' : '0.14px',
                             boxShadow: pressed || registered ? 'none' : 'var(--shadow-inset)',
-                            transition: 'background 0s, color 0s, border 0s',
+                            transition: 'background 0s, color 0s',
                         }}
                     >
                         <span>{label}</span>
                         <span
                             style={{
                                 fontSize: isSidebar ? 10 : 11,
-                                color: pressed
-                                    ? 'rgba(255,255,255,0.6)'
-                                    : registered
-                                      ? 'var(--color-secondary)'
-                                      : 'var(--color-muted)',
+                                color: registered || pressed ? 'rgba(255,255,255,0.6)' : 'var(--color-muted)',
                                 fontFamily: 'var(--font-mono)',
                                 transition: 'color 0.15s',
                             }}

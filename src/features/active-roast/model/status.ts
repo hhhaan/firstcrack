@@ -18,6 +18,7 @@ export interface RoastingState {
     sidecarConnected: boolean;
     machineCapabilities: string[];
     liveData: LiveData | null;
+    pendingBeanId: string | null;
 
     // derived convenience
     isRoasting: boolean;
@@ -30,6 +31,7 @@ export interface RoastingState {
     tick: () => void;
     setConnected: (connected: boolean, capabilities?: string[]) => void;
     updateLiveData: (data: LiveData) => void;
+    setPendingBean: (beanId: string | null) => void;
     reset: () => void;
 }
 
@@ -39,6 +41,7 @@ const initialState = {
     sidecarConnected: false,
     machineCapabilities: [] as string[],
     liveData: null as LiveData | null,
+    pendingBeanId: null as string | null,
     isRoasting: false,
     charged: false,
 };
@@ -78,6 +81,10 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             ...(capabilities && { machineCapabilities: capabilities }),
             ...(!connected && { phase: get().phase === 'idle' ? 'idle' : get().phase }),
         });
+    },
+
+    setPendingBean: (beanId) => {
+        set({ pendingBeanId: beanId });
     },
 
     updateLiveData: (data) => {

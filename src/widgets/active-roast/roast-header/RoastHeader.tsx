@@ -1,9 +1,21 @@
 import { Settings2, ChevronDown } from 'lucide-react';
-import { roastProfiles, DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
 import { useRoastingStore } from '@features/active-roast/model/status';
-import { STATUS_COLORS, PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
+import { STATUS_COLORS, PHASE_COLORS } from '@features/active-roast/lib/colors';
 import { useBeans } from '@entities/bean/queries';
 import { useAuthStore } from '@shared/store/auth';
+import { roastProfiles, DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
+
+const joinDisplay = (parts: (string | null | undefined)[], sep = ' · ') => parts.filter(Boolean).join(sep);
+
+type BeanOptionDisplay = (bean: {
+    origin: string | null;
+    region: string | null;
+    farm: string | null;
+    variety: string | null;
+    name: string;
+}) => string;
+
+const beanOptionDisplay: BeanOptionDisplay = (b) => joinDisplay([b.origin, b.region, b.farm, b.variety]) || b.name;
 
 export const RoastHeader = ({
     phase,
@@ -55,18 +67,19 @@ export const RoastHeader = ({
         animation: canPulse ? 'pulse 2s infinite' : 'none',
     };
 
-    const statusText = roastEnded
-        ? 'Roast Complete'
-        : !sidecarConnected
-          ? charged
-              ? 'Mock — Roast in Progress'
-              : 'Disconnected'
-          : !charged
-            ? 'Machine Connected · Ready to Roast'
-            : 'Live — Roast in Progress';
+    const statusText = (() => {
+        if (roastEnded) return 'Roast Complete';
+        if (!sidecarConnected) return charged ? 'Mock — Roast in Progress' : 'Disconnected';
+        return charged ? 'Live — Roast in Progress' : 'Machine Connected · Ready to Roast';
+    })();
 
     const selectedBean = beans.find((b) => b.id === selectedBeanId);
-    const beanDetails = [selectedBean?.process, selectedBean?.region, selectedBean?.origin].filter(Boolean).join(' · ');
+    const beanSecondary = joinDisplay([selectedBean?.farm, selectedBean?.variety]);
+    const beanMeta = selectedBean?.process ?? '';
+
+    // No Bean Selected와 완전히 동일한 구조로 Target도 만듦
+    const selectedProfile = roastProfiles.find((p) => p.id === targetProfileId);
+    const profileDisplay = selectedProfile?.name ?? 'No Target';
 
     return (
         <div className="flex items-end justify-between mb-7">
@@ -78,36 +91,56 @@ export const RoastHeader = ({
                     </span>
                 </div>
 
-                <div className="relative inline-flex items-center mb-1.5">
+                <div className="relative inline-flex items-center mb-1 min-w-0">
+                    <span className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
+                        {selectedBean
+                            ? joinDisplay([selectedBean.origin, selectedBean.region], ' ')
+                            : 'No Bean Selected'}
+                    </span>
+
                     <select
                         value={selectedBeanId ?? ''}
                         onChange={handleBeanChange}
                         disabled={charged}
-                        className={`appearance-none bg-transparent border-none font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] outline-none pr-7 ${charged ? 'cursor-default' : 'cursor-pointer'}`}
+                        className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'cursor-default' : 'cursor-pointer'}`}
                     >
-                        <option value="" style={{ fontSize: '14px' }}>
-                            No Bean Selected
-                        </option>
+                        <option value="">No Bean Selected</option>
                         {beans.map((b) => (
-                            <option key={b.id} value={b.id} style={{ fontSize: '14px' }}>
-                                {b.name}
+                            <option key={b.id} value={b.id}>
+                                {beanOptionDisplay(b)}
                             </option>
                         ))}
                     </select>
-                    {!charged && <ChevronDown size={18} className="absolute right-0 pointer-events-none text-muted" />}
+
+                    {!charged && (
+                        <ChevronDown
+                            size={18}
+                            className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-muted"
+                        />
+                    )}
                 </div>
+
+                {beanSecondary && <p className="text-[15px] text-primary tracking-[-0.1px] mb-1">{beanSecondary}</p>}
 
                 <div className="flex items-center gap-1.5">
                     <span className="text-[13px] text-muted tracking-[0.14px]">
-                        {beanDetails ? `${beanDetails} · Target:` : 'Target:'}
+                        {beanMeta ? `${beanMeta} · Target:` : 'Target:'}
                     </span>
+                    {/* ← No Bean Selected와 **완전히 동일한 구조** 복사 (글자 크기만 13px로 변경) */}
                     <div className="relative inline-flex items-center">
+                        <div className="flex items-center gap-1">
+                            <span className="text-[13px] font-medium tracking-[0.14px] pointer-events-none">
+                                {profileDisplay}
+                            </span>
+
+                            {!charged && <ChevronDown size={12} className="text-muted flex-shrink-0" />}
+                        </div>
+
                         <select
                             value={targetProfileId ?? ''}
                             onChange={handleProfileChange}
                             disabled={charged}
-                            className={`appearance-none bg-transparent border-none text-[13px] font-medium pr-4 tracking-[0.14px] outline-none ${charged ? 'cursor-default' : 'cursor-pointer'}`}
-                            style={{ color: targetProfileId ? SENSOR_COLORS.btTargetStrong : 'var(--color-muted)' }}
+                            className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'cursor-default' : 'cursor-pointer'}`}
                         >
                             <option value="">No Target</option>
                             {roastProfiles.map((p) => (
@@ -116,13 +149,6 @@ export const RoastHeader = ({
                                 </option>
                             ))}
                         </select>
-                        {!charged && (
-                            <ChevronDown
-                                size={12}
-                                className="absolute right-0 pointer-events-none"
-                                style={{ color: SENSOR_COLORS.btTarget }}
-                            />
-                        )}
                     </div>
                 </div>
             </div>
