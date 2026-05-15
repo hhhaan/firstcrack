@@ -79,18 +79,16 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                 <button
                     aria-label={t('sidebar.workspaceSelector')}
                     title={collapsed ? t('sidebar.workspace') : undefined}
-                    className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-[10px] py-2 rounded-lg border-none bg-surface cursor-pointer shadow-(--shadow-inset)`}
+                    className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-2.5 py-2 rounded-lg border-none bg-surface cursor-pointer shadow-(--shadow-inset)`}
                 >
                     <div className="flex items-center gap-2">
                         <div className="w-5.5 h-5.5 rounded-[5px] bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary">
-                            B
+                            A
                         </div>
                         {!collapsed && (
                             // TODO: 카페 이름 동적 설정 지원 — 현재 하드코딩됨.
                             // 팀/멀티 테넌트 지원 시 사용자 설정(settings store)에서 읽어오도록 교체 필요.
-                            <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
-                                Brewlab Works
-                            </span>
+                            <span className="text-[13px] font-medium text-primary tracking-[0.14px]">All You Need</span>
                         )}
                     </div>
                     {!collapsed && <ChevronDown size={14} strokeWidth={2} color="var(--color-muted)" />}
