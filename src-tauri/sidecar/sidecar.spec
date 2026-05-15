@@ -20,7 +20,6 @@ hiddenimports += [
     'adapters.s7',
     'adapters.kaleido',
     'adapters.probat_ws',
-    'extern.simulator',
     'extern.atypes',
     'extern.util',
     'extern.async_comm',

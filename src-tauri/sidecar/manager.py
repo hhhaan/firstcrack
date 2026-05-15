@@ -82,6 +82,7 @@ class RoasterManager:
         self._protocol: str = ""
         self._merged_params: dict[str, Any] = {}
         self._connected: bool = False
+        self._data_ok: bool = False  # 실제 bt/et 값이 읽힌 적 있어야 connected로 판단
         self._error: str | None = None
         self._start_time: float = 0.0
         self._ror_window: deque[tuple[float, float]] = deque()
@@ -129,6 +130,7 @@ class RoasterManager:
                 pass
         self._adapter = None
         self._connected = False
+        self._data_ok = False
         self._roaster_key = ""
         self._protocol = ""
         self._merged_params = {}
@@ -147,6 +149,7 @@ class RoasterManager:
             return {"bt": None, "et": None, "ror": 0.0, "ror_et": 0.0, "heater": 0, "fan": 0, "drum": 0, "timestamp": time.monotonic()}
 
         if reading.bt > 0:
+            self._data_ok = True
             self._add_to_ror_window(reading.timestamp, reading.bt)
         if reading.et > 0:
             self._add_to_et_ror_window(reading.timestamp, reading.et)
@@ -178,7 +181,7 @@ class RoasterManager:
         uptime = round(time.monotonic() - self._start_time, 1) if self._connected else 0
         reg = ROASTER_REGISTRY.get(self._roaster_key, {})
         return {
-            "connected": self._connected,
+            "connected": self._connected and self._data_ok,
             "roaster": self._roaster_key,
             "display_name": reg.get("display_name", ""),
             "brand": reg.get("brand", ""),
