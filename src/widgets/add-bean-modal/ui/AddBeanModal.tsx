@@ -1,9 +1,72 @@
 import { useEffect, useState } from 'react';
 import { X, Info, Scale, MapPin, Tag, Search, Check } from 'lucide-react';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
-import { useCreateBean, useUpdateBean } from '@entities/bean/queries';
-import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
 import type { Bean } from '@shared/types/database.types';
+import {
+    COMMON_ORIGINS,
+    REGIONS_BY_ORIGIN,
+    FARMS_BY_REGION,
+    COMMON_PROCESSES,
+    VARIETIES_BY_ORIGIN,
+    buildAutoName,
+} from '@entities/bean/lib/coffee-origins';
+import { useAddBeanSubmit } from './useAddBeanSubmit';
+
+// ── 모듈 레벨 상수 ──────────────────────────────────────────
+
+const NUMERIC_INPUT_PROPS = {
+    type: 'text' as const,
+    inputMode: 'numeric' as const,
+    pattern: '[0-9]*',
+} satisfies Partial<React.InputHTMLAttributes<HTMLInputElement>>;
+
+const chipCls = (selected: boolean) =>
+    `px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all duration-150 border ${
+        selected ? 'border-primary bg-primary text-white' : 'border-black/10 bg-white/70 text-secondary'
+    }`;
+
+const tabCls = (active: boolean) =>
+    `flex-1 py-3 rounded-xl border-none text-sm cursor-pointer transition-all duration-200 ${
+        active
+            ? 'bg-white font-semibold text-primary shadow-[0_4px_12px_rgba(0,0,0,0.08)]'
+            : 'bg-transparent font-medium text-muted'
+    }`;
+
+// ── 공통 입력 필드 ───────────────────────────────────────────
+
+const inputCls =
+    'w-full px-3.5 py-3 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary outline-none transition-all';
+const labelCls = 'flex items-center gap-1.5 text-xs font-semibold text-muted mb-2 tracking-[0.02em] uppercase';
+
+const ChipGroup = ({
+    items,
+    renderItem,
+    limit = 6,
+}: {
+    items: string[];
+    renderItem: (item: string) => React.ReactNode;
+    limit?: number;
+}) => {
+    const [expanded, setExpanded] = useState(false);
+    const visible = !expanded && items.length > limit ? items.slice(0, limit) : items;
+    const hiddenCount = items.length - limit;
+    return (
+        <>
+            {visible.map(renderItem)}
+            {!expanded && hiddenCount > 0 && (
+                <button
+                    type="button"
+                    onClick={() => setExpanded(true)}
+                    className="px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer border border-black/10 bg-white/70 text-muted"
+                >
+                    +{hiddenCount}
+                </button>
+            )}
+        </>
+    );
+};
+
+// ──────────────────────────────────────────────────────────────
 
 interface AddBeanModalProps {
     open: boolean;
@@ -15,6 +78,20 @@ interface AddBeanModalProps {
     initialData?: Bean | null;
     onSuccess?: (bean: Bean | null) => void;
 }
+
+const EMPTY_FORM = {
+    name: '',
+    origin: '',
+    region: '',
+    farm: '',
+    process: 'Washed',
+    variety: '',
+    altitude: '',
+    stock: '',
+    capacity: '5000',
+    costPerKg: '',
+    tastingNotes: '',
+};
 
 export const AddBeanModal = ({
     open,
@@ -29,177 +106,80 @@ export const AddBeanModal = ({
     const [tab, setTab] = useState<'new' | 'restock' | 'edit'>(initialTab);
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(initialBeanId);
     const [restockAmount, setRestockAmount] = useState('');
-    const [formData, setFormData] = useState({
-        name: '',
-        origin: '',
-        region: '',
-        farm: '',
-        process: 'Washed',
-        variety: '',
-        altitude: '',
-        stock: '',
-        capacity: '5000',
-        tastingNotes: '',
+    const [nameIsAuto, setNameIsAuto] = useState(true);
+    const [formData, setFormData] = useState(EMPTY_FORM);
+    const [showAllBeans, setShowAllBeans] = useState(false);
+
+    const { handleSubmit, isSubmitting } = useAddBeanSubmit({
+        userId,
+        tab,
+        formData,
+        selectedBeanId,
+        restockAmount,
+        existingBeans,
+        initialData: initialData ?? null,
+        onSuccess,
+        onClose,
     });
 
-    const createBean = useCreateBean(userId);
-    const updateBean = useUpdateBean(userId);
-    const createInventoryLog = useCreateBeanInventoryLog(userId);
-
     useEffect(() => {
-        if (open) {
-            setTab(initialTab);
-            setSelectedBeanId(initialBeanId);
-            setRestockAmount('');
-
-            if (initialData && (initialTab === 'edit' || initialTab === 'new')) {
-                setFormData({
-                    name: initialData.name ?? '',
-                    origin: initialData.origin ?? '',
-                    region: initialData.region ?? '',
-                    farm: initialData.farm ?? '',
-                    process: initialData.process ?? 'Washed',
-                    variety: initialData.variety ?? '',
-                    altitude: initialData.altitude_masl?.toString() ?? '',
-                    stock: initialData.stock_grams?.toString() ?? '',
-                    capacity: initialData.capacity_grams?.toString() ?? '5000',
-                    tastingNotes: initialData.tasting_notes ?? '',
-                });
-            } else if (!initialData) {
-                setFormData({
-                    name: '',
-                    origin: '',
-                    region: '',
-                    farm: '',
-                    process: 'Washed',
-                    variety: '',
-                    altitude: '',
-                    stock: '',
-                    capacity: '5000',
-                    tastingNotes: '',
-                });
-            }
-        }
+        if (!open) return;
+        setTab(initialTab);
+        setSelectedBeanId(initialBeanId);
+        setRestockAmount('');
+        setShowAllBeans(false);
+        const hasData = initialData && (initialTab === 'edit' || initialTab === 'new');
+        setNameIsAuto(!hasData);
+        setFormData(
+            hasData
+                ? {
+                      name: initialData.name ?? '',
+                      origin: initialData.origin ?? '',
+                      region: initialData.region ?? '',
+                      farm: initialData.farm ?? '',
+                      process: initialData.process ?? 'Washed',
+                      variety: initialData.variety ?? '',
+                      altitude: initialData.altitude_masl?.toString() ?? '',
+                      stock: initialData.stock_grams?.toString() ?? '',
+                      capacity: initialData.capacity_grams?.toString() ?? '5000',
+                      costPerKg: initialData.cost_per_kg?.toString() ?? '',
+                      tastingNotes: initialData.tasting_notes ?? '',
+                  }
+                : EMPTY_FORM,
+        );
     }, [open, initialTab, initialBeanId, initialData]);
 
     useEffect(() => {
         if (!open) return;
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') onClose();
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [open, onClose]);
 
+    const handleNumericBeforeInput = (e: React.FormEvent<HTMLInputElement>) => {
+        const ev = e.nativeEvent as InputEvent;
+        if (ev.data && !/^\d*$/.test(ev.data)) e.preventDefault();
+    };
+
+    const handleNumericPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        if (!/^\d+$/.test(e.clipboardData.getData('text/plain'))) e.preventDefault();
+    };
+
+    const numericProps = {
+        ...NUMERIC_INPUT_PROPS,
+        onBeforeInput: handleNumericBeforeInput,
+        onPaste: handleNumericPaste,
+    };
+
+    const isSubmitDisabled = isSubmitting || (tab === 'restock' && (!selectedBeanId || !restockAmount));
+
+    const BEAN_LIMIT = 4;
+    const visibleBeans = showAllBeans ? existingBeans : existingBeans.slice(0, BEAN_LIMIT);
+    const hiddenBeanCount = existingBeans.length - BEAN_LIMIT;
+
     if (!open) return null;
-
-    const isSubmitting = createBean.isPending || updateBean.isPending || createInventoryLog.isPending;
-
-    const handleSubmit = async () => {
-        if (isSubmitting) return;
-        try {
-            if (tab === 'new') {
-                const stockGrams = parseInt(formData.stock) || 0;
-                const newBean = await createBean.mutateAsync({
-                    user_id: userId,
-                    name: formData.name,
-                    origin: formData.origin || null,
-                    region: formData.region || null,
-                    farm: formData.farm || null,
-                    process: formData.process || null,
-                    variety: formData.variety || null,
-                    altitude_masl: formData.altitude ? parseInt(formData.altitude) : null,
-                    stock_grams: stockGrams,
-                    capacity_grams: parseInt(formData.capacity) || 5000,
-                    tasting_notes: formData.tastingNotes || null,
-                    purchase_date: new Date().toISOString().split('T')[0],
-                });
-                if (stockGrams > 0) {
-                    await createInventoryLog.mutateAsync({
-                        user_id: userId,
-                        bean_id: newBean.id,
-                        change_grams: stockGrams,
-                        type: 'purchase',
-                    });
-                }
-                onSuccess?.(newBean);
-            } else if (tab === 'edit' && initialData) {
-                const updated = await updateBean.mutateAsync({
-                    id: initialData.id,
-                    name: formData.name,
-                    origin: formData.origin || null,
-                    region: formData.region || null,
-                    farm: formData.farm || null,
-                    process: formData.process || null,
-                    variety: formData.variety || null,
-                    altitude_masl: formData.altitude ? parseInt(formData.altitude) : null,
-                    stock_grams: parseInt(formData.stock) || 0,
-                    capacity_grams: parseInt(formData.capacity) || 5000,
-                    tasting_notes: formData.tastingNotes || null,
-                });
-                onSuccess?.(updated);
-            } else if (tab === 'restock' && selectedBeanId && restockAmount) {
-                const amount = parseInt(restockAmount);
-                const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
-                const updated = await updateBean.mutateAsync({
-                    id: selectedBeanId,
-                    stock_grams: (currentBean?.stock_grams ?? 0) + amount,
-                });
-                await createInventoryLog.mutateAsync({
-                    user_id: userId,
-                    bean_id: selectedBeanId,
-                    change_grams: amount,
-                    type: 'purchase',
-                });
-                onSuccess?.(updated);
-            }
-            onClose();
-        } catch (err) {
-            console.error('AddBeanModal submit error:', err);
-        }
-    };
-
-    const inputStyle: React.CSSProperties = {
-        width: '100%',
-        padding: '12px 14px',
-        borderRadius: 12,
-        border: '1px solid rgba(0,0,0,0.08)',
-        background: 'rgba(255,255,255,0.8)',
-        boxShadow: 'var(--shadow-inset)',
-        fontSize: 14,
-        color: 'var(--color-primary)',
-        outline: 'none',
-        transition: 'all 0.2s',
-    };
-
-    const labelStyle: React.CSSProperties = {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        fontSize: 12,
-        fontWeight: 600,
-        color: 'var(--color-muted)',
-        marginBottom: 8,
-        letterSpacing: '0.02em',
-        textTransform: 'uppercase',
-    };
-
-    const tabStyle = (active: boolean): React.CSSProperties => ({
-        flex: 1,
-        padding: '12px',
-        borderRadius: 12,
-        border: 'none',
-        background: active ? 'white' : 'transparent',
-        color: active ? 'var(--color-primary)' : 'var(--color-muted)',
-        fontSize: 14,
-        fontWeight: active ? 600 : 500,
-        cursor: 'pointer',
-        transition: 'all 0.2s',
-        boxShadow: active ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
-    });
-
-    const isSubmitDisabled =
-        isSubmitting || (tab === 'restock' && (!selectedBeanId || !restockAmount)) || (tab === 'new' && !formData.name);
 
     return (
         <ModalShell
@@ -207,96 +187,32 @@ export const AddBeanModal = ({
             labelledBy="add-bean-modal-title"
             contentClassName="max-w-[640px] w-full max-h-[min(860px,calc(100vh-64px))] flex flex-col rounded-[28px] bg-[rgba(255,255,255,0.96)] backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white overflow-hidden"
         >
-            {/* Sticky Header */}
-            <div
-                style={{
-                    flexShrink: 0,
-                    background: 'rgba(255,255,255,0.6)',
-                    backdropFilter: 'blur(8px)',
-                    zIndex: 10,
-                    borderBottom: '1px solid rgba(0,0,0,0.04)',
-                }}
-            >
-                <div
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '24px 32px 16px',
-                    }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                        {/* <div
-                            style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 14,
-                                background: 'var(--color-primary)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'white',
-                                boxShadow: '0 8px 20px rgba(0,0,0,0.12)',
-                            }}
+            {/* Header */}
+            <div className="shrink-0 bg-white/60 backdrop-blur-sm z-10 border-b border-black/4">
+                <div className="flex items-center justify-between px-8 pt-6 pb-4">
+                    <div className="flex items-center gap-3.5">
+                        <h2
+                            id="add-bean-modal-title"
+                            className="font-(--font-display) text-2xl text-primary tracking-[-0.02em] m-0"
                         >
-                            {tab === 'edit' ? <Edit3 size={22} /> : <PackagePlus size={22} />}
-                        </div> */}
-                        <div>
-                            <h2
-                                id="add-bean-modal-title"
-                                style={{
-                                    fontFamily: 'var(--font-display)',
-                                    fontSize: 24,
-                                    fontWeight: 400,
-                                    color: 'var(--color-primary)',
-                                    letterSpacing: '-0.02em',
-                                    margin: 0,
-                                }}
-                            >
-                                {tab === 'new'
-                                    ? 'New Bean Lot'
-                                    : tab === 'edit'
-                                      ? 'Edit Bean Details'
-                                      : 'Restock Existing'}
-                            </h2>
-                        </div>
+                            {tab === 'new' ? 'New Bean Lot' : tab === 'edit' ? 'Edit Bean Details' : 'Restock Existing'}
+                        </h2>
                     </div>
                     <button
                         onClick={onClose}
-                        style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 12,
-                            border: 'none',
-                            background: 'var(--color-surface)',
-                            color: 'var(--color-muted)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                        }}
+                        className="w-9 h-9 rounded-xl border-none bg-surface text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
                     >
                         <X size={18} strokeWidth={2.5} />
                     </button>
                 </div>
 
-                {/* Tabs - Only show if not in Edit mode */}
                 {tab !== 'edit' && (
-                    <div style={{ padding: '0 32px 20px' }}>
-                        <div
-                            style={{
-                                display: 'flex',
-                                background: 'var(--color-surface)',
-                                padding: 4,
-                                borderRadius: 16,
-                                boxShadow: 'var(--shadow-inset)',
-                            }}
-                        >
-                            <button onClick={() => setTab('new')} style={tabStyle(tab === 'new')}>
+                    <div className="px-8 pb-5">
+                        <div className="flex bg-surface p-1 rounded-2xl shadow-(--shadow-inset)">
+                            <button onClick={() => setTab('new')} className={tabCls(tab === 'new')}>
                                 New Arrival
                             </button>
-                            <button onClick={() => setTab('restock')} style={tabStyle(tab === 'restock')}>
+                            <button onClick={() => setTab('restock')} className={tabCls(tab === 'restock')}>
                                 Restock Existing
                             </button>
                         </div>
@@ -305,145 +221,296 @@ export const AddBeanModal = ({
             </div>
 
             {/* Scrollable Body */}
-            <div style={{ padding: '32px', overflowY: 'auto', flex: 1 }}>
+            <div className="p-8 overflow-y-auto flex-1">
                 {tab === 'new' || tab === 'edit' ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-                        <div style={{ gridColumn: 'span 2' }}>
-                            <label style={labelStyle}>
+                    <div className="grid grid-cols-2 gap-6">
+                        {/* Lot Name */}
+                        <div className="col-span-2">
+                            <label className={labelCls}>
                                 <Info size={14} /> Lot Name
                             </label>
                             <input
-                                style={inputStyle}
-                                placeholder="e.g. Ethiopia Yirgacheffe G1"
+                                className={inputCls}
+                                placeholder="Origin 선택 시 자동 입력됩니다"
                                 value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                onChange={(e) => {
+                                    setNameIsAuto(false);
+                                    setFormData({ ...formData, name: e.target.value });
+                                }}
                             />
                         </div>
 
+                        {/* Origin */}
                         <div>
-                            <label style={labelStyle}>
+                            <label className={labelCls}>
                                 <MapPin size={14} /> Origin Country
                             </label>
                             <input
-                                style={inputStyle}
+                                className={inputCls}
                                 placeholder="e.g. Ethiopia"
                                 value={formData.origin}
                                 onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
                             />
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                {COMMON_ORIGINS.map((country) => {
+                                    const selected = formData.origin === country;
+                                    return (
+                                        <button
+                                            key={country}
+                                            type="button"
+                                            onClick={() => {
+                                                const newOrigin = selected ? '' : country;
+                                                const newRegion = selected ? formData.region : '';
+                                                const newFarm = selected ? formData.farm : '';
+                                                const newVariety = selected ? formData.variety : '';
+                                                setFormData({
+                                                    ...formData,
+                                                    origin: newOrigin,
+                                                    region: newRegion,
+                                                    farm: newFarm,
+                                                    variety: newVariety,
+                                                    name: nameIsAuto
+                                                        ? buildAutoName(newOrigin, newRegion, newFarm, newVariety)
+                                                        : formData.name,
+                                                });
+                                            }}
+                                            className={chipCls(selected)}
+                                        >
+                                            {country}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
 
+                        {/* Region */}
                         <div>
-                            <label style={labelStyle}>
+                            <label className={labelCls}>
                                 <MapPin size={14} /> Region
                             </label>
                             <input
-                                style={inputStyle}
+                                className={inputCls}
                                 placeholder="e.g. Guji Zone"
                                 value={formData.region}
                                 onChange={(e) => setFormData({ ...formData, region: e.target.value })}
                             />
+                            {REGIONS_BY_ORIGIN[formData.origin] && (
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {REGIONS_BY_ORIGIN[formData.origin].map((region) => {
+                                        const selected = formData.region === region;
+                                        return (
+                                            <button
+                                                key={region}
+                                                type="button"
+                                                onClick={() => {
+                                                    const newRegion = selected ? '' : region;
+                                                    const newFarm = selected ? formData.farm : '';
+                                                    setFormData({
+                                                        ...formData,
+                                                        region: newRegion,
+                                                        farm: newFarm,
+                                                        name: nameIsAuto
+                                                            ? buildAutoName(
+                                                                  formData.origin,
+                                                                  newRegion,
+                                                                  newFarm,
+                                                                  formData.variety,
+                                                              )
+                                                            : formData.name,
+                                                    });
+                                                }}
+                                                className={chipCls(selected)}
+                                            >
+                                                {region}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
 
+                        {/* Farm */}
                         <div>
-                            <label style={labelStyle}>
-                                <MapPin size={14} /> Farm
+                            <label className={labelCls}>
+                                <MapPin size={14} /> Farm / Washing Station
                             </label>
                             <input
-                                style={inputStyle}
+                                className={inputCls}
                                 placeholder="e.g. Shakiso Cooperative"
                                 value={formData.farm}
                                 onChange={(e) => setFormData({ ...formData, farm: e.target.value })}
                             />
-                        </div>
-
-                        <div>
-                            <label style={labelStyle}>
-                                <MapPin size={14} /> Altitude (masl)
-                            </label>
-                            <input
-                                type="number"
-                                style={inputStyle}
-                                placeholder="e.g. 2100"
-                                value={formData.altitude}
-                                onChange={(e) => setFormData({ ...formData, altitude: e.target.value })}
-                            />
-                        </div>
-
-                        <div>
-                            <label style={labelStyle}>
-                                <Tag size={14} /> Process
-                            </label>
-                            <div style={{ position: 'relative' }}>
-                                <select
-                                    style={{ ...inputStyle, appearance: 'none' }}
-                                    value={formData.process}
-                                    onChange={(e) => setFormData({ ...formData, process: e.target.value })}
-                                >
-                                    <option value="Washed">Washed</option>
-                                    <option value="Natural">Natural</option>
-                                    <option value="Honey">Honey</option>
-                                    <option value="Anaerobic">Anaerobic</option>
-                                    <option value="Experimental">Experimental</option>
-                                </select>
-                                <div
-                                    style={{
-                                        position: 'absolute',
-                                        right: 14,
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        pointerEvents: 'none',
-                                        opacity: 0.5,
-                                    }}
-                                >
-                                    <Tag size={14} />
+                            {FARMS_BY_REGION[formData.region] && (
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {FARMS_BY_REGION[formData.region].map((farmName) => {
+                                        const selected = formData.farm === farmName;
+                                        return (
+                                            <button
+                                                key={farmName}
+                                                type="button"
+                                                onClick={() => {
+                                                    const newFarm = selected ? '' : farmName;
+                                                    setFormData({
+                                                        ...formData,
+                                                        farm: newFarm,
+                                                        name: nameIsAuto
+                                                            ? buildAutoName(
+                                                                  formData.origin,
+                                                                  formData.region,
+                                                                  newFarm,
+                                                                  formData.variety,
+                                                              )
+                                                            : formData.name,
+                                                    });
+                                                }}
+                                                className={chipCls(selected)}
+                                            >
+                                                {farmName}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                            </div>
+                            )}
                         </div>
 
+                        {/* Variety */}
                         <div>
-                            <label style={labelStyle}>
+                            <label className={labelCls}>
                                 <Tag size={14} /> Variety
                             </label>
                             <input
-                                style={inputStyle}
+                                className={inputCls}
                                 placeholder="e.g. Heirloom, SL28"
                                 value={formData.variety}
                                 onChange={(e) => setFormData({ ...formData, variety: e.target.value })}
                             />
+                            {VARIETIES_BY_ORIGIN[formData.origin] && (
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                    <ChipGroup
+                                        items={VARIETIES_BY_ORIGIN[formData.origin]}
+                                        renderItem={(varietyName) => {
+                                            const selected = formData.variety === varietyName;
+                                            return (
+                                                <button
+                                                    key={varietyName}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newVariety = selected ? '' : varietyName;
+                                                        setFormData({
+                                                            ...formData,
+                                                            variety: newVariety,
+                                                            name: nameIsAuto
+                                                                ? buildAutoName(
+                                                                      formData.origin,
+                                                                      formData.region,
+                                                                      formData.farm,
+                                                                      newVariety,
+                                                                  )
+                                                                : formData.name,
+                                                        });
+                                                    }}
+                                                    className={chipCls(selected)}
+                                                >
+                                                    {varietyName}
+                                                </button>
+                                            );
+                                        }}
+                                    />
+                                </div>
+                            )}
                         </div>
 
+                        {/* Process */}
                         <div>
-                            <label style={labelStyle}>
+                            <label className={labelCls}>
+                                <Tag size={14} /> Process
+                            </label>
+                            <div className="flex flex-wrap gap-1.5">
+                                {COMMON_PROCESSES.map((process) => {
+                                    const selected = formData.process === process;
+                                    return (
+                                        <button
+                                            key={process}
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, process })}
+                                            className={chipCls(selected)}
+                                        >
+                                            {process}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Altitude */}
+                        <div>
+                            <label className={labelCls}>
+                                <MapPin size={14} /> Altitude (masl)
+                            </label>
+                            <input
+                                {...numericProps}
+                                className={inputCls}
+                                placeholder="e.g. 2100"
+                                value={formData.altitude}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, altitude: e.target.value.replace(/\D/g, '') })
+                                }
+                            />
+                        </div>
+
+                        {/* Stock */}
+                        <div>
+                            <label className={labelCls}>
                                 <Scale size={14} /> {tab === 'edit' ? 'Current Stock (g)' : 'Initial Stock (g)'}
                             </label>
                             <input
-                                type="number"
-                                style={inputStyle}
+                                {...numericProps}
+                                className={inputCls}
                                 placeholder="5000"
                                 value={formData.stock}
-                                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                                onChange={(e) => setFormData({ ...formData, stock: e.target.value.replace(/\D/g, '') })}
                             />
                         </div>
 
+                        {/* Capacity */}
                         <div>
-                            <label style={labelStyle}>
+                            <label className={labelCls}>
                                 <Scale size={14} /> Bag Capacity (g)
                             </label>
                             <input
-                                type="number"
-                                style={inputStyle}
+                                {...numericProps}
+                                className={inputCls}
                                 placeholder="5000"
                                 value={formData.capacity}
-                                onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, capacity: e.target.value.replace(/\D/g, '') })
+                                }
                             />
                         </div>
 
-                        <div style={{ gridColumn: 'span 2' }}>
-                            <label style={labelStyle}>
+                        {/* Cost per kg */}
+                        <div>
+                            <label className={labelCls}>
+                                <Scale size={14} /> 원가 (원/kg)
+                            </label>
+                            <input
+                                {...numericProps}
+                                className={inputCls}
+                                placeholder="예: 32000"
+                                value={formData.costPerKg}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, costPerKg: e.target.value.replace(/\D/g, '') })
+                                }
+                            />
+                        </div>
+
+                        {/* Tasting Notes */}
+                        <div className="col-span-2">
+                            <label className={labelCls}>
                                 <Info size={14} /> Tasting Notes
                             </label>
                             <textarea
-                                style={{ ...inputStyle, minHeight: 100, resize: 'none' }}
+                                className={`${inputCls} min-h-25 resize-none`}
                                 placeholder="e.g. Jasmine, Blueberry, Milk Chocolate"
                                 value={formData.tastingNotes}
                                 onChange={(e) => setFormData({ ...formData, tastingNotes: e.target.value })}
@@ -451,128 +518,120 @@ export const AddBeanModal = ({
                         </div>
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                    <div className="flex flex-col gap-6">
+                        {/* Bean selector */}
                         <div>
-                            <label style={labelStyle}>
+                            <label className={labelCls}>
                                 <Search size={14} /> Select Bean to Restock
                             </label>
-                            <div style={{ display: 'grid', gap: 10, padding: '4px' }}>
-                                {existingBeans.map((bean) => (
-                                    <div
-                                        key={bean.id}
-                                        onClick={() => setSelectedBeanId(bean.id)}
-                                        style={{
-                                            padding: '14px 18px',
-                                            borderRadius: 16,
-                                            background:
-                                                selectedBeanId === bean.id
-                                                    ? 'var(--color-primary)'
-                                                    : 'rgba(255,255,255,0.7)',
-                                            color: selectedBeanId === bean.id ? 'white' : 'var(--color-primary)',
-                                            border: '1px solid rgba(0,0,0,0.06)',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            transition: 'all 0.2s',
-                                            boxShadow:
-                                                selectedBeanId === bean.id
-                                                    ? '0 8px 20px rgba(0,0,0,0.12)'
-                                                    : 'var(--shadow-ring)',
-                                        }}
-                                    >
-                                        <div>
-                                            <div style={{ fontSize: 14, fontWeight: 600 }}>{bean.name}</div>
-                                            <div style={{ fontSize: 12, opacity: 0.7 }}>
-                                                {bean.origin ?? '—'} · {bean.process ?? '—'}
+                            <div className="grid gap-2.5 p-1">
+                                {visibleBeans.map((bean) => {
+                                    const isSelected = selectedBeanId === bean.id;
+                                    return (
+                                        <div
+                                            key={bean.id}
+                                            onClick={() => setSelectedBeanId(bean.id)}
+                                            className={`px-4.5 py-3.5 rounded-2xl border border-black/6 flex items-center justify-between cursor-pointer transition-all duration-200 ${
+                                                isSelected
+                                                    ? 'bg-primary text-white shadow-[0_8px_20px_rgba(0,0,0,0.12)]'
+                                                    : 'bg-white/70 text-primary shadow-(--shadow-ring)'
+                                            }`}
+                                        >
+                                            <div>
+                                                <div className="text-sm font-semibold">{bean.name}</div>
+                                                <div className="text-xs opacity-70">
+                                                    {bean.origin ?? '—'} · {bean.process ?? '—'}
+                                                </div>
                                             </div>
+                                            {isSelected ? (
+                                                <Check size={18} strokeWidth={2.5} />
+                                            ) : (
+                                                <div className="text-[13px] font-mono opacity-60">
+                                                    {bean.stock_grams.toLocaleString()}g
+                                                </div>
+                                            )}
                                         </div>
-                                        {selectedBeanId === bean.id ? (
-                                            <Check size={18} strokeWidth={2.5} />
-                                        ) : (
-                                            <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', opacity: 0.6 }}>
-                                                {bean.stock_grams.toLocaleString()}g
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
+                                    );
+                                })}
+                                {!showAllBeans && hiddenBeanCount > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllBeans(true)}
+                                        className="py-2.5 rounded-2xl border border-black/6 bg-white/50 text-sm font-medium text-muted cursor-pointer hover:bg-white/80 transition-all duration-200"
+                                    >
+                                        +{hiddenBeanCount} more
+                                    </button>
+                                )}
                             </div>
                         </div>
 
+                        {/* Restock amount */}
                         <div
+                            className="p-6 rounded-[20px] transition-opacity duration-200"
                             style={{
                                 background: 'var(--color-surface-warm-solid)',
-                                padding: '24px',
-                                borderRadius: 20,
                                 boxShadow: 'var(--shadow-warm)',
                                 opacity: selectedBeanId ? 1 : 0.5,
                                 pointerEvents: selectedBeanId ? 'auto' : 'none',
-                                transition: 'opacity 0.2s',
                             }}
                         >
-                            <label style={labelStyle}>
+                            <label className={labelCls}>
                                 <Scale size={14} /> Weight to Add (g)
                             </label>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div className="flex items-center gap-3">
                                 <input
-                                    type="number"
-                                    style={{ ...inputStyle, fontSize: 24, fontWeight: 600, padding: '16px' }}
+                                    {...numericProps}
+                                    className={`${inputCls} text-2xl font-semibold p-4`}
                                     placeholder="0"
                                     value={restockAmount}
-                                    onChange={(e) => setRestockAmount(e.target.value)}
+                                    onChange={(e) => setRestockAmount(e.target.value.replace(/\D/g, ''))}
                                 />
-                                <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--color-muted)' }}>grams</div>
+                                <div className="text-lg font-medium text-muted">grams</div>
+                            </div>
+
+                            <div className="flex gap-2 mt-4">
+                                {[
+                                    { label: '+500g', amount: 500 },
+                                    { label: '+1kg', amount: 1000 },
+                                ].map(({ label, amount }) => (
+                                    <button
+                                        key={amount}
+                                        type="button"
+                                        onClick={() => {
+                                            const parsed = parseInt(restockAmount) || 0;
+                                            setRestockAmount((parsed + amount).toString());
+                                        }}
+                                        className="flex-1 py-3 px-4 rounded-xl border border-black/12 bg-white text-primary text-sm font-semibold cursor-pointer transition-all duration-200"
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={() => setRestockAmount('')}
+                                    className="py-3 px-5 rounded-xl border border-black/12 bg-white text-[#e74c3c] text-sm font-semibold cursor-pointer"
+                                >
+                                    Clear
+                                </button>
                             </div>
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* Sticky Footer */}
-            <div
-                style={{
-                    padding: '20px 32px 32px',
-                    background: 'rgba(255,255,255,0.8)',
-                    backdropFilter: 'blur(8px)',
-                    borderTop: '1px solid rgba(0,0,0,0.04)',
-                    flexShrink: 0,
-                }}
-            >
-                <div style={{ display: 'flex', gap: 12 }}>
+            {/* Footer */}
+            <div className="px-8 pt-5 pb-8 bg-white/80 backdrop-blur-sm border-t border-black/4 shrink-0">
+                <div className="flex gap-3">
                     <button
                         onClick={onClose}
-                        style={{
-                            flex: 1,
-                            padding: '14px',
-                            borderRadius: 16,
-                            border: 'none',
-                            background: 'var(--color-surface)',
-                            color: 'var(--color-secondary)',
-                            fontSize: 15,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            boxShadow: 'var(--shadow-inset)',
-                        }}
+                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface text-secondary text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
                     >
                         Cancel
                     </button>
                     <button
                         disabled={isSubmitDisabled}
                         onClick={handleSubmit}
-                        style={{
-                            flex: 2,
-                            padding: '14px',
-                            borderRadius: 16,
-                            border: 'none',
-                            background: 'var(--color-primary)',
-                            color: 'white',
-                            fontSize: 15,
-                            fontWeight: 600,
-                            cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
-                            boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                            opacity: isSubmitDisabled ? 0.6 : 1,
-                            transition: 'opacity 0.2s',
-                        }}
+                        className="flex-2 py-3.5 rounded-2xl border-none bg-primary text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {isSubmitting
                             ? 'Saving...'

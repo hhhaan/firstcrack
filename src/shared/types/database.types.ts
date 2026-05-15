@@ -98,6 +98,7 @@ export type Database = {
         Row: {
           altitude_masl: number | null
           capacity_grams: number
+          cost_per_kg: number | null
           created_at: string
           farm: string | null
           id: string
@@ -116,6 +117,7 @@ export type Database = {
         Insert: {
           altitude_masl?: number | null
           capacity_grams?: number
+          cost_per_kg?: number | null
           created_at?: string
           farm?: string | null
           id?: string
@@ -134,6 +136,7 @@ export type Database = {
         Update: {
           altitude_masl?: number | null
           capacity_grams?: number
+          cost_per_kg?: number | null
           created_at?: string
           farm?: string | null
           id?: string
