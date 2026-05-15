@@ -10,7 +10,7 @@ import type { View } from '@shared/types/view';
 
 const POLL_INTERVAL_MS = 3000;
 
-export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
+export const Machines = ({ isActive = false, onNavigate }: { isActive?: boolean; onNavigate?: (view: View) => void }) => {
     const { t } = useTranslation();
     const { machines, addMachine, removeMachine } = useMachines();
     const [search, setSearch] = useState('');
@@ -22,16 +22,17 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
     const [connecting, setConnecting] = useState(false);
     // 마운트 시 & 모달 닫힐 때 status fetch — "Add & Connect" 흐름에서 연결 상태 즉시 반영
     useEffect(() => {
+        if (!isActive) return;
         if (!isAddModalOpen) {
             sidecar
                 .getStatus()
                 .then(setSidecarStatus)
                 .catch(() => null);
         }
-    }, [isAddModalOpen]);
+    }, [isActive, isAddModalOpen]);
 
     useEffect(() => {
-        if (!sidecarStatus?.connected) {
+        if (!isActive || !sidecarStatus?.connected) {
             setTemps(null);
             return;
         }
@@ -47,7 +48,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
         poll();
         const id = setInterval(poll, POLL_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [sidecarStatus?.connected]);
+    }, [isActive, sidecarStatus?.connected]);
 
     // 연결 상태가 바뀔 때만 자동 select — 사용자가 수동으로 다른 카드를 클릭할 수 있음
     useEffect(() => {
@@ -228,23 +229,22 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                 </div>
                             </div>
 
-                            {/* Temperature cards (when connected, 가상 머신 제외) */}
-                            {isSelectedConnected && temps && selected.id !== VIRTUAL_ID ? (
-                                <div className="grid grid-cols-3 gap-3.5 mb-6">
+                            {/* Temperature cards — 항상 표시, 선택된 머신이 연결된 머신일 때만 실제 값 표시 */}
+                            <div className="grid grid-cols-3 gap-3.5 mb-6">
                                     {[
                                         {
                                             label: t('machines.temperature.bean'),
-                                            value: temps.bt != null ? `${temps.bt}°C` : '—',
+                                            value: isSelectedConnected && temps?.bt != null ? `${temps.bt}°C` : '—',
                                             sub: 'BT',
                                         },
                                         {
                                             label: t('machines.temperature.environment'),
-                                            value: temps.et != null ? `${temps.et}°C` : '—',
+                                            value: isSelectedConnected && temps?.et != null ? `${temps.et}°C` : '—',
                                             sub: 'ET',
                                         },
                                         {
                                             label: t('machines.temperature.ror'),
-                                            value: `${temps.ror} °C/min`,
+                                            value: isSelectedConnected && temps ? `${temps.ror} °C/min` : '—',
                                             sub: t('machines.temperature.rateOfRise'),
                                         },
                                     ].map((s) => (
@@ -258,19 +258,7 @@ export const Machines = ({ onNavigate }: { onNavigate?: (view: View) => void }) 
                                             <div className="text-[11px] text-muted mt-0.5">{s.sub}</div>
                                         </div>
                                     ))}
-                                </div>
-                            ) : (
-                                <div className="bg-surface rounded-lg px-4 py-5 mb-6 flex items-center gap-3 shadow-inset">
-                                    {isSelectedConnected ? (
-                                        <Wifi size={18} color="#16a34a" />
-                                    ) : (
-                                        <WifiOff size={18} color="var(--color-muted)" />
-                                    )}
-                                    <span className="text-[13px] text-muted)">
-                                        {isSelectedConnected ? t('common.connected') : t('machines.notConnectedHint')}
-                                    </span>
-                                </div>
-                            )}
+                            </div>
 
                             {/* Connection params */}
                             {Object.keys(selected.connectionParams).length > 0 && (

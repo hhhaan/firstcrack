@@ -150,11 +150,11 @@ export const App = () => {
                         <Profiles onNavigate={setView} />
                     </ViewErrorBoundary>
                 )}
-                {view === 'machines' && (
+                <div style={{ display: view === 'machines' ? 'block' : 'none' }}>
                     <ViewErrorBoundary>
-                        <Machines onNavigate={setView} />
+                        <Machines isActive={view === 'machines'} onNavigate={setView} />
                     </ViewErrorBoundary>
-                )}
+                </div>
             </div>
             <SettingsModal open={settingsOpen} initialTab={settingsInitialTab} onClose={() => setSettingsOpen(false)} />
         </div>

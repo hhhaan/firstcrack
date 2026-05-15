@@ -4,7 +4,8 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { useTranslation } from 'react-i18next';
 import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
 import { sidecar } from '../../../shared/lib/sidecar';
-import type { RoasterDef, RoastersResponse, SerialPort } from '@entities/machine';
+import { ROASTER_REGISTRY } from '@entities/machine/roasterRegistry';
+import type { RoasterDef, SerialPort } from '@entities/machine';
 
 interface AddMachineModalProps {
     open: boolean;
@@ -88,8 +89,6 @@ const ComportSelect = ({
 
 export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) => {
     const { t } = useTranslation();
-    const [roasters, setRoasters] = useState<RoastersResponse>({});
-    const [loading, setLoading] = useState(false);
     const [selectedKey, setSelectedKey] = useState('');
     const [params, setParams] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
@@ -105,21 +104,13 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
 
     useEffect(() => {
         if (!open) return;
-        // 모달 열릴 때 상태 초기화
         setSelectedKey('');
         setParams({});
         setError('');
         setTestState('idle');
         setTestMessage('');
         testConnectedRef.current = false;
-        // 로스터 목록 + 시리얼 포트 병렬 fetch
-        setLoading(true);
-        Promise.all([sidecar.getRoasters().catch(() => ({})), sidecar.getSerialPorts().catch(() => [])])
-            .then(([roasters, ports]) => {
-                setRoasters(roasters as RoastersResponse);
-                setSerialPorts(ports as SerialPort[]);
-            })
-            .finally(() => setLoading(false));
+        sidecar.getSerialPorts().catch(() => []).then((ports) => setSerialPorts(ports as SerialPort[]));
     }, [open]);
 
     // 모달 닫기: 라이브 테스트 연결이 있으면 disconnect 후 닫기
@@ -143,27 +134,27 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
 
     // 로스터 선택 시 폼 파라미터 초기화
     useEffect(() => {
-        if (!selectedKey || !roasters[selectedKey]) return;
-        const def = roasters[selectedKey];
+        if (!selectedKey || !ROASTER_REGISTRY[selectedKey]) return;
+        const def = ROASTER_REGISTRY[selectedKey];
         const initial: Record<string, string> = {};
         for (const field of def.form_fields) {
             const defaultVal = def.default_params[field.key];
             initial[field.key] = defaultVal != null ? String(defaultVal) : '';
         }
         setParams(initial);
-    }, [selectedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [selectedKey]);
 
     if (!open) return null;
 
     // 브랜드별 그룹핑
     const brands: Record<string, { key: string; def: RoasterDef }[]> = {};
-    for (const [key, def] of Object.entries(roasters)) {
+    for (const [key, def] of Object.entries(ROASTER_REGISTRY)) {
         if (def.brand === 'Internal') continue; // Simulator 숨김
         if (!brands[def.brand]) brands[def.brand] = [];
         brands[def.brand].push({ key, def });
     }
 
-    const selectedDef = selectedKey ? roasters[selectedKey] : null;
+    const selectedDef = selectedKey ? ROASTER_REGISTRY[selectedKey] : null;
 
     // mode 값에 따라 TCP 전용 / RTU 전용 필드 토글
     const TCP_ONLY = new Set(['host', 'port']);
@@ -392,43 +383,37 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                 {/* Roaster select */}
                 <div>
                     <label style={labelStyle}>{t('addMachine.roasterModel')}</label>
-                    {loading ? (
-                        <div style={{ fontSize: 13, color: 'var(--color-muted)', padding: '10px 0' }}>
-                            {t('addMachine.loadingRoasters')}
-                        </div>
-                    ) : (
-                        <div style={{ position: 'relative' }}>
-                            <select
-                                style={{ ...inputStyle, appearance: 'none', paddingRight: 36, cursor: 'pointer' }}
-                                value={selectedKey}
-                                onChange={(e) => setSelectedKey(e.target.value)}
-                            >
-                                <option value="">{t('addMachine.selectRoaster')}</option>
-                                {Object.entries(brands)
-                                    .sort(([a], [b]) => a.localeCompare(b))
-                                    .map(([brand, items]) => (
-                                        <optgroup key={brand} label={brand}>
-                                            {items.map(({ key, def }) => (
-                                                <option key={key} value={key}>
-                                                    {def.display_name}
-                                                </option>
-                                            ))}
-                                        </optgroup>
-                                    ))}
-                            </select>
-                            <ChevronDown
-                                size={14}
-                                style={{
-                                    position: 'absolute',
-                                    right: 12,
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    color: 'var(--color-muted)',
-                                    pointerEvents: 'none',
-                                }}
-                            />
-                        </div>
-                    )}
+                    <div style={{ position: 'relative' }}>
+                        <select
+                            style={{ ...inputStyle, appearance: 'none', paddingRight: 36, cursor: 'pointer' }}
+                            value={selectedKey}
+                            onChange={(e) => setSelectedKey(e.target.value)}
+                        >
+                            <option value="">{t('addMachine.selectRoaster')}</option>
+                            {Object.entries(brands)
+                                .sort(([a], [b]) => a.localeCompare(b))
+                                .map(([brand, items]) => (
+                                    <optgroup key={brand} label={brand}>
+                                        {items.map(({ key, def }) => (
+                                            <option key={key} value={key}>
+                                                {def.display_name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                ))}
+                        </select>
+                        <ChevronDown
+                            size={14}
+                            style={{
+                                position: 'absolute',
+                                right: 12,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: 'var(--color-muted)',
+                                pointerEvents: 'none',
+                            }}
+                        />
+                    </div>
                 </div>
 
                 {/* 선택된 로스터 정보 */}

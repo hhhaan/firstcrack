@@ -8,3 +8,4 @@ export type {
     TemperatureReading,
 } from './types';
 export { useMachines, VIRTUAL_ID } from './model';
+export { ROASTER_REGISTRY } from './roasterRegistry';
