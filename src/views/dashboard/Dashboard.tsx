@@ -278,7 +278,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-0 bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
                 >
                     <span
-                        className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-green-400' : 'bg-white/40'}`}
+                        className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-green-400 animate-pulse' : 'bg-white/40'}`}
                     />
                     View Active Roast
                     <ArrowRight size={14} strokeWidth={2} />
