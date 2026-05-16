@@ -60,7 +60,9 @@ body {
     color: var(--color-primary);
     background: var(--color-surface);
     font-variant-numeric: tabular-nums lining-nums;
+    font-kerning: normal;
     font-feature-settings:
+        'kern' 1,
         'tnum' 1,
         'lnum' 1,
         'zero' 1;
