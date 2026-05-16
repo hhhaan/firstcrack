@@ -41,7 +41,7 @@ const labelCls = 'flex items-center gap-1.5 text-xs font-semibold text-muted mb-
 const ChipGroup = ({
     items,
     renderItem,
-    limit = 6,
+    limit = 5,
 }: {
     items: string[];
     renderItem: (item: string) => React.ReactNode;
@@ -252,34 +252,37 @@ export const AddBeanModal = ({
                                 onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
                             />
                             <div className="flex flex-wrap gap-1.5 mt-2">
-                                {COMMON_ORIGINS.map((country) => {
-                                    const selected = formData.origin === country;
-                                    return (
-                                        <button
-                                            key={country}
-                                            type="button"
-                                            onClick={() => {
-                                                const newOrigin = selected ? '' : country;
-                                                const newRegion = selected ? formData.region : '';
-                                                const newFarm = selected ? formData.farm : '';
-                                                const newVariety = selected ? formData.variety : '';
-                                                setFormData({
-                                                    ...formData,
-                                                    origin: newOrigin,
-                                                    region: newRegion,
-                                                    farm: newFarm,
-                                                    variety: newVariety,
-                                                    name: nameIsAuto
-                                                        ? buildAutoName(newOrigin, newRegion, newFarm, newVariety)
-                                                        : formData.name,
-                                                });
-                                            }}
-                                            className={chipCls(selected)}
-                                        >
-                                            {country}
-                                        </button>
-                                    );
-                                })}
+                                <ChipGroup
+                                    items={[...COMMON_ORIGINS]}
+                                    renderItem={(country) => {
+                                        const selected = formData.origin === country;
+                                        return (
+                                            <button
+                                                key={country}
+                                                type="button"
+                                                onClick={() => {
+                                                    const newOrigin = selected ? '' : country;
+                                                    const newRegion = selected ? formData.region : '';
+                                                    const newFarm = selected ? formData.farm : '';
+                                                    const newVariety = selected ? formData.variety : '';
+                                                    setFormData({
+                                                        ...formData,
+                                                        origin: newOrigin,
+                                                        region: newRegion,
+                                                        farm: newFarm,
+                                                        variety: newVariety,
+                                                        name: nameIsAuto
+                                                            ? buildAutoName(newOrigin, newRegion, newFarm, newVariety)
+                                                            : formData.name,
+                                                    });
+                                                }}
+                                                className={chipCls(selected)}
+                                            >
+                                                {country}
+                                            </button>
+                                        );
+                                    }}
+                                />
                             </div>
                         </div>
 
@@ -426,19 +429,22 @@ export const AddBeanModal = ({
                                 <Tag size={14} /> Process
                             </label>
                             <div className="flex flex-wrap gap-1.5">
-                                {COMMON_PROCESSES.map((process) => {
-                                    const selected = formData.process === process;
-                                    return (
-                                        <button
-                                            key={process}
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, process })}
-                                            className={chipCls(selected)}
-                                        >
-                                            {process}
-                                        </button>
-                                    );
-                                })}
+                                <ChipGroup
+                                    items={COMMON_PROCESSES}
+                                    renderItem={(process) => {
+                                        const selected = formData.process === process;
+                                        return (
+                                            <button
+                                                key={process}
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, process: selected ? '' : process })}
+                                                className={chipCls(selected)}
+                                            >
+                                                {process}
+                                            </button>
+                                        );
+                                    }}
+                                />
                             </div>
                         </div>
 
