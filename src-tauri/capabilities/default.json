@@ -8,6 +8,7 @@
     "core:default",
     "deep-link:default",
     "opener:default",
+    "store:default",
     "shell:allow-spawn",
     "shell:allow-kill",
     "dialog:allow-message",

@@ -1,19 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
 import { useProfile, useUpdateProfile } from '../../../entities/profile';
+import { locationStore, parseLocationString } from '@shared/lib/locationStore';
+import { useQueryClient } from '@tanstack/react-query';
 
 const SectionCard = ({ children }: { children: React.ReactNode }) => (
     <section className="bg-white border border-[#E5E7EB] rounded-xl p-5">{children}</section>
 );
 
 export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
+    const qc = useQueryClient();
     const user = useAuthStore((s) => s.user);
     const { data: profile } = useProfile(user?.id ?? '');
     const updateProfile = useUpdateProfile(user?.id ?? '');
 
     const [displayName, setDisplayName] = useState('');
+    const [location, setLocation] = useState('');
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -21,12 +26,26 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
         if (profile?.display_name) setDisplayName(profile.display_name);
     }, [profile?.display_name]);
 
+    useEffect(() => {
+        locationStore.get()
+            .then((loc) => { if (loc) setLocation(`${loc.lat}, ${loc.lng}`); })
+            .catch((e) => console.error('[settings] failed to load location:', e));
+    }, []);
+
+    useEffect(() => () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); }, []);
+
     const handleSaveProfile = async () => {
         if (!user) return;
         try {
-            await updateProfile.mutateAsync({ display_name: displayName.trim() });
+            const coords = parseLocationString(location);
+            await Promise.all([
+                updateProfile.mutateAsync({ display_name: displayName.trim() }),
+                coords ? locationStore.set(coords) : Promise.resolve(),
+            ]);
+            if (coords) qc.invalidateQueries({ queryKey: ['weather', 'coords'] });
             setSaveStatus('saved');
-        } catch {
+        } catch (e) {
+            console.error('[AccountSettingsTab] save failed:', e);
             setSaveStatus('error');
         }
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -42,9 +61,6 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                         <div className="w-16 h-16 rounded-full bg-[#111827] flex items-center justify-center text-2xl font-semibold text-white select-none">
                             {(displayName || user?.email || '').charAt(0).toUpperCase()}
                         </div>
-                        <button className="absolute -bottom-0.5 -right-0.5 w-7 h-7 rounded-full bg-[#111827] border-2 border-white flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer">
-                            <Camera size={10} strokeWidth={2} color="white" />
-                        </button>
                     </div>
                     <div>
                         <div className="text-[15px] font-semibold text-[#111827]">{displayName || '—'}</div>
@@ -73,6 +89,25 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                             value={user?.email ?? ''}
                             readOnly
                             className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] text-[14px] text-[#9CA3AF] font-normal outline-none cursor-default select-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[13px] font-medium text-[#374151] mb-1.5">
+                            Location
+                            <button
+                                type="button"
+                                onClick={() => openUrl('https://maps.google.com')}
+                                className="ml-1.5 text-[11px] font-normal text-[#6B7280] underline underline-offset-2 hover:text-[#111827] transition-colors cursor-pointer"
+                            >
+                                Google Maps에서 복사
+                            </button>
+                        </label>
+                        <input
+                            type="text"
+                            value={location}
+                            onChange={(e) => setLocation(e.target.value)}
+                            placeholder="36.632661, 127.464867"
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5E7EB] bg-white text-[14px] text-[#111827] font-normal outline-none focus:border-[#111827] focus:ring-1 focus:ring-[#111827] transition-colors"
                         />
                     </div>
                 </div>
