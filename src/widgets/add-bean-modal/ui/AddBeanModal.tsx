@@ -88,7 +88,7 @@ const EMPTY_FORM = {
     variety: '',
     altitude: '',
     stock: '',
-    capacity: '5000',
+    capacity: '5',
     costPerKg: '',
     tastingNotes: '',
 };
@@ -140,8 +140,8 @@ export const AddBeanModal = ({
                       process: initialData.process ?? 'Washed',
                       variety: initialData.variety ?? '',
                       altitude: initialData.altitude_masl?.toString() ?? '',
-                      stock: initialData.stock_grams?.toString() ?? '',
-                      capacity: initialData.capacity_grams?.toString() ?? '5000',
+                      stock: initialData.stock_grams ? (initialData.stock_grams / 1000).toString() : '',
+                      capacity: initialData.capacity_grams ? (initialData.capacity_grams / 1000).toString() : '5',
                       costPerKg: initialData.cost_per_kg?.toString() ?? '',
                       tastingNotes: initialData.tasting_notes ?? '',
                   }
@@ -469,29 +469,29 @@ export const AddBeanModal = ({
                         {/* Stock */}
                         <div>
                             <label className={labelCls}>
-                                <Scale size={14} /> {tab === 'edit' ? 'Current Stock (g)' : 'Initial Stock (g)'}
+                                <Scale size={14} /> {tab === 'edit' ? 'Current Stock (kg)' : 'Initial Stock (kg)'}
                             </label>
                             <input
                                 {...numericProps}
                                 className={inputCls}
-                                placeholder="5000"
+                                placeholder="5"
                                 value={formData.stock}
-                                onChange={(e) => setFormData({ ...formData, stock: e.target.value.replace(/\D/g, '') })}
+                                onChange={(e) => setFormData({ ...formData, stock: e.target.value.replace(/[^0-9.]/g, '') })}
                             />
                         </div>
 
                         {/* Capacity */}
                         <div>
                             <label className={labelCls}>
-                                <Scale size={14} /> Bag Capacity (g)
+                                <Scale size={14} /> Bag Capacity (kg)
                             </label>
                             <input
                                 {...numericProps}
                                 className={inputCls}
-                                placeholder="5000"
+                                placeholder="5"
                                 value={formData.capacity}
                                 onChange={(e) =>
-                                    setFormData({ ...formData, capacity: e.target.value.replace(/\D/g, '') })
+                                    setFormData({ ...formData, capacity: e.target.value.replace(/[^0-9.]/g, '') })
                                 }
                             />
                         </div>
@@ -555,7 +555,7 @@ export const AddBeanModal = ({
                                                 <Check size={18} strokeWidth={2.5} />
                                             ) : (
                                                 <div className="text-[13px] font-mono opacity-60">
-                                                    {bean.stock_grams.toLocaleString()}g
+                                                    {(bean.stock_grams / 1000).toFixed(2)}kg
                                                 </div>
                                             )}
                                         </div>
@@ -584,7 +584,7 @@ export const AddBeanModal = ({
                             }}
                         >
                             <label className={labelCls}>
-                                <Scale size={14} /> Weight to Add (g)
+                                <Scale size={14} /> Weight to Add (kg)
                             </label>
                             <div className="flex items-center gap-3">
                                 <input
@@ -592,22 +592,22 @@ export const AddBeanModal = ({
                                     className={`${inputCls} text-2xl font-semibold p-4`}
                                     placeholder="0"
                                     value={restockAmount}
-                                    onChange={(e) => setRestockAmount(e.target.value.replace(/\D/g, ''))}
+                                    onChange={(e) => setRestockAmount(e.target.value.replace(/[^0-9.]/g, ''))}
                                 />
-                                <div className="text-lg font-medium text-muted">grams</div>
+                                <div className="text-lg font-medium text-muted">kg</div>
                             </div>
 
                             <div className="flex gap-2 mt-4">
                                 {[
-                                    { label: '+500g', amount: 500 },
-                                    { label: '+1kg', amount: 1000 },
+                                    { label: '+0.5kg', amount: 0.5 },
+                                    { label: '+1kg', amount: 1 },
                                 ].map(({ label, amount }) => (
                                     <button
                                         key={amount}
                                         type="button"
                                         onClick={() => {
-                                            const parsed = parseInt(restockAmount) || 0;
-                                            setRestockAmount((parsed + amount).toString());
+                                            const parsed = parseFloat(restockAmount) || 0;
+                                            setRestockAmount((Math.round((parsed + amount) * 1000) / 1000).toString());
                                         }}
                                         className="flex-1 py-3 px-4 rounded-xl border border-black/12 bg-white text-primary text-sm font-semibold cursor-pointer transition-all duration-200"
                                     >

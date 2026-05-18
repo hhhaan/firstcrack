@@ -91,7 +91,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast }:
                         value: bean.altitude_masl ? `${bean.altitude_masl.toLocaleString()} masl` : '—',
                     },
                     { label: 'Received', value: bean.purchase_date ?? '—' },
-                    { label: 'Current Stock', value: `${bean.stock_grams.toLocaleString()}g` },
+                    { label: 'Current Stock', value: `${(bean.stock_grams / 1000).toFixed(2)}kg` },
                 ].map(({ label, value }) => (
                     <div key={label}>
                         <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-0.75">
@@ -124,7 +124,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast }:
                 <div className="flex justify-between mb-1.5">
                     <span className="text-xs font-medium text-secondary tracking-[0.14px]">Stock Level</span>
                     <span className="text-xs text-muted font-mono">
-                        {bean.stock_grams.toLocaleString()}g / {bean.capacity_grams.toLocaleString()}g
+                        {(bean.stock_grams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
                     </span>
                 </div>
                 <div className="h-1.5 bg-surface rounded-full overflow-hidden shadow-(--shadow-inset)">

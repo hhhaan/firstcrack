@@ -49,7 +49,7 @@ export const useAddBeanSubmit = ({
         if (isSubmitting) return;
         try {
             if (tab === 'new') {
-                const stockGrams = parseInt(formData.stock) || 0;
+                const stockGrams = Math.round(parseFloat(formData.stock) * 1000) || 0;
                 const newBean = await createBean.mutateAsync({
                     user_id: userId,
                     name: formData.name,
@@ -60,7 +60,7 @@ export const useAddBeanSubmit = ({
                     variety: formData.variety || null,
                     altitude_masl: formData.altitude ? parseInt(formData.altitude) : null,
                     stock_grams: 0,
-                    capacity_grams: parseInt(formData.capacity) || 5000,
+                    capacity_grams: Math.round(parseFloat(formData.capacity) * 1000) || 5000,
                     cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg) : null,
                     tasting_notes: formData.tastingNotes || null,
                     purchase_date: new Date().toISOString().split('T')[0],
@@ -84,14 +84,14 @@ export const useAddBeanSubmit = ({
                     process: formData.process || null,
                     variety: formData.variety || null,
                     altitude_masl: formData.altitude ? parseInt(formData.altitude) : null,
-                    stock_grams: parseInt(formData.stock) || 0,
-                    capacity_grams: parseInt(formData.capacity) || 5000,
+                    stock_grams: Math.round(parseFloat(formData.stock) * 1000) || 0,
+                    capacity_grams: Math.round(parseFloat(formData.capacity) * 1000) || 5000,
                     cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg) : null,
                     tasting_notes: formData.tastingNotes || null,
                 });
                 onSuccess?.(updated);
             } else if (tab === 'restock' && selectedBeanId && restockAmount) {
-                const amount = parseInt(restockAmount);
+                const amount = Math.round(parseFloat(restockAmount) * 1000);
                 const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
                 await createInventoryLog.mutateAsync({
                     user_id: userId,

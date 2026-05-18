@@ -199,7 +199,7 @@ export const BeanList = ({ beans, isLoading, selectedId, onSelect, search, onSea
                                         fontFamily: 'var(--font-mono)',
                                     }}
                                 >
-                                    {bean.stock_grams.toLocaleString()}g / {bean.capacity_grams.toLocaleString()}g
+                                    {(bean.stock_grams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
                                 </div>
                             </div>
                         );

@@ -509,7 +509,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                             {item.name}
                                         </div>
                                         <div className="text-xs text-muted tracking-[0.14px]">
-                                            {item.stock_grams}g remaining
+                                            {(item.stock_grams / 1000).toFixed(2)}kg remaining
                                         </div>
                                     </div>
                                     <span
