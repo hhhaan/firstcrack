@@ -16,7 +16,6 @@ import { AddBatchModal, type NewBatchData } from '@widgets/add-batch-modal';
 
 interface Batch {
     id: string;
-    time: string;
     beanName: string;
     beanType: string;
     profile: string;
@@ -46,7 +45,6 @@ const INITIAL_MACHINES: Record<MachineId, Batch[]> = {
     machine1: [
         {
             id: 'b1',
-            time: '09:00',
             beanName: 'Colombia Excelso',
             beanType: 'Single Origin',
             profile: 'City+ Omni',
@@ -62,7 +60,6 @@ const INITIAL_MACHINES: Record<MachineId, Batch[]> = {
         },
         {
             id: 'b2',
-            time: '10:45',
             beanName: 'Brazil Cerrado Blend',
             beanType: 'Pre-roast',
             profile: 'Medium Roast',
@@ -76,7 +73,6 @@ const INITIAL_MACHINES: Record<MachineId, Batch[]> = {
         },
         {
             id: 'b3',
-            time: '13:00',
             beanName: 'Ethiopia Yirgacheffe',
             beanType: 'Single Origin',
             profile: 'Light Filter',
@@ -92,7 +88,6 @@ const INITIAL_MACHINES: Record<MachineId, Batch[]> = {
     machine2: [
         {
             id: 'b4',
-            time: '09:30',
             beanName: 'Kenya AA',
             beanType: 'Single Origin',
             profile: 'Light Filter',
@@ -229,9 +224,6 @@ const MachineSection = ({
         <div className="space-y-3">
             {batches.map((batch, index) => (
                 <div key={batch.id}>
-                    <div className="text-[12px] font-medium text-muted mb-2 pl-8 tabular-nums">
-                        {batch.time}
-                    </div>
                     <BatchCard
                         batch={batch}
                         index={index}
@@ -309,7 +301,6 @@ export const Schedule = () => {
     const handleAddBatch = (data: NewBatchData) => {
         const newBatch: Batch = {
             id: uid(),
-            time: '',
             beanName: data.beanName || data.batchType,
             beanType: data.batchType,
             profile: data.profileName,

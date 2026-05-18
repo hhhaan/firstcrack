@@ -12,13 +12,14 @@ export const Calendar = ({ className, classNames, showOutsideDays = true, ...pro
             classNames={{
                 months: 'flex flex-col',
                 month: 'space-y-3',
-                month_caption: 'grid grid-cols-[28px_1fr_28px] items-center h-8',
-                caption_label: 'col-start-2 text-center text-[13px] font-semibold text-primary',
-                nav: 'contents',
+
+                month_caption: 'relative flex items-center justify-center h-8 px-1',
+                caption_label: 'text-[13px] font-semibold text-primary',
+                nav: 'absolute inset-x-0 flex items-center justify-between pt-1 px-8 z-10',
                 button_previous:
-                    'col-start-1 w-7 h-7 rounded-lg bg-surface border-none cursor-pointer flex items-center justify-center text-muted hover:text-primary shadow-(--shadow-inset) transition-colors',
+                    'w-6 h-6 rounded-md bg-surface border-none cursor-pointer flex items-center justify-center text-muted hover:text-primary shadow-(--shadow-inset) transition-colors',
                 button_next:
-                    'col-start-3 w-7 h-7 rounded-lg bg-surface border-none cursor-pointer flex items-center justify-center text-muted hover:text-primary shadow-(--shadow-inset) transition-colors',
+                    'w-6 h-6 rounded-md bg-surface border-none cursor-pointer flex items-center justify-center text-muted hover:text-primary shadow-(--shadow-inset) transition-colors',
                 month_grid: 'w-full border-collapse',
                 weekdays: 'flex',
                 weekday: 'w-9 text-[11px] font-medium text-muted text-center py-1',
@@ -33,9 +34,6 @@ export const Calendar = ({ className, classNames, showOutsideDays = true, ...pro
                 outside: '[&>button]:text-muted [&>button]:opacity-40',
                 disabled: '[&>button]:opacity-25 [&>button]:cursor-not-allowed',
                 hidden: 'invisible',
-                range_start: '[&>button]:bg-primary [&>button]:text-white [&>button]:rounded-r-none',
-                range_middle: '[&>button]:bg-surface [&>button]:rounded-none',
-                range_end: '[&>button]:bg-primary [&>button]:text-white [&>button]:rounded-l-none',
                 ...classNames,
             }}
             components={{
