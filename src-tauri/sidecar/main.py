@@ -36,6 +36,13 @@ _log = logging.getLogger(__name__)
 
 
 async def handle_roasters(request: web.Request) -> web.Response:
+    INTERNAL_KEYS = {
+        "channels",
+        "channel_nodes",
+        "pid_db",
+        "pid_sv_register",
+        "modbus_registers",
+    }
     result: dict[str, Any] = {}
     for key, reg in ROASTER_REGISTRY.items():
         protocol = reg["protocol"]
@@ -48,16 +55,7 @@ async def handle_roasters(request: web.Request) -> web.Response:
             "pid": reg.get("pid"),
             "form_fields": PROTOCOL_FORM_FIELDS.get(protocol, []),
             "default_params": {
-                k: v
-                for k, v in reg["default_params"].items()
-                if k
-                not in (
-                    "channels",
-                    "channel_nodes",
-                    "pid_db",
-                    "pid_sv_register",
-                    "modbus_registers",
-                )
+                k: v for k, v in reg["default_params"].items() if k not in INTERNAL_KEYS
             },
         }
     return web.json_response(result)
@@ -161,6 +159,8 @@ async def cors_middleware(request: web.Request, handler: Any) -> web.Response:
 def create_app() -> web.Application:
     app = web.Application(middlewares=[cors_middleware])
     app["manager"] = RoasterManager()
+    # 클라이언트는 src/entities/machine/roasterRegistry.ts (정적 복사본)를 사용.
+    # GET /roasters는 현재 호출되지 않음 — 향후 단일화 시 활성화.
     app.router.add_get("/roasters", handle_roasters)
     app.router.add_get("/serial-ports", handle_serial_ports)
     app.router.add_get("/status", handle_status)

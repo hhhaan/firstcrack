@@ -1,6 +1,7 @@
 import asyncio
 import json
 import random
+import socket
 import time
 import logging
 from typing import Any
@@ -58,6 +59,9 @@ class ProbatWSAdapter:
                 ping_interval=20,
                 ping_timeout=20,
                 open_timeout=self._CONNECT_TIMEOUT,
+                compression="deflate",
+                origin=websockets.Origin(f"http://{socket.gethostname()}"),
+                user_agent_header="FC-Desktop/1.0 websockets",
             ),
             timeout=self._CONNECT_TIMEOUT,
         )
@@ -73,6 +77,12 @@ class ProbatWSAdapter:
             self._ws = None
         self._connected = False
 
+    def _on_ws_error(self, exc: Exception) -> ConnectionError:
+        """WS 오류 시 상태를 정리하고 ConnectionError로 변환."""
+        self._ws = None
+        self._connected = False
+        return ConnectionError(f"Probat WS 연결 끊김: {exc}")
+
     async def read(self) -> Reading:
         if self._ws is None:
             raise ConnectionError("WebSocket이 연결되지 않음")
@@ -82,14 +92,22 @@ class ProbatWSAdapter:
             {"command": "getData", "id": msg_id, "roasterID": 0},
             separators=(",", ":"),
         )
-        await self._ws.send(request)
+        try:
+            await self._ws.send(request)
+        except Exception as exc:
+            raise self._on_ws_error(exc) from exc
 
         deadline = time.monotonic() + self._REQUEST_TIMEOUT
         while time.monotonic() < deadline:
-            raw = await asyncio.wait_for(
-                self._ws.recv(),
-                timeout=max(0.1, deadline - time.monotonic()),
-            )
+            try:
+                raw = await asyncio.wait_for(
+                    self._ws.recv(),
+                    timeout=max(0.1, deadline - time.monotonic()),
+                )
+            except asyncio.TimeoutError:
+                break
+            except Exception as exc:
+                raise self._on_ws_error(exc) from exc
             try:
                 j = json.loads(raw)
             except json.JSONDecodeError:

@@ -57,11 +57,12 @@ class S7Adapter:
         def _connect() -> None:
             self._plc = snap7.client.Client()
             self._plc.connect(self._host, self._rack, self._slot, self._port)
+            time.sleep(0.2)  # Artisan: wait after connect for slow PLCs
 
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _connect)
 
-        if not self._plc.get_connected():
+        if not self.connected:
             raise ConnectionError(
                 f"S7 연결 실패: {self._host}:{self._port} (rack={self._rack}, slot={self._slot})"
             )
@@ -123,7 +124,7 @@ class S7Adapter:
         raise last_exc
 
     async def read(self) -> Reading:
-        if self._plc is None or not self._plc.get_connected():
+        if not self.connected:
             raise ConnectionError("S7 PLC가 연결되지 않음")
 
         def _read_all() -> tuple[float, float, float, float, float]:
@@ -143,4 +144,11 @@ class S7Adapter:
 
     @property
     def connected(self) -> bool:
-        return self._plc is not None and self._plc.get_connected()
+        # get_connected() can return True after peer-terminated connections (snap7 bug);
+        # CPU state check is the reliable signal — from Artisan s7port.py
+        try:
+            return (self._plc is not None and
+                    self._plc.get_connected() and
+                    str(self._plc.get_cpu_state()) == "S7CpuStatusRun")
+        except Exception:
+            return False

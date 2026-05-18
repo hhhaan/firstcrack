@@ -26,27 +26,3 @@ def encodeLocalStrict(x: Any | None, default: str = "") -> str:
         return codecs.unicode_escape_encode(str(x))[0].decode("utf8")
     except Exception:
         return default
-
-
-def fromFtoCstrict(Ffloat: float) -> float:
-    if Ffloat == -1:
-        return Ffloat
-    return (Ffloat - 32.0) * (5.0 / 9.0)
-
-
-def fromCtoFstrict(Cfloat: float) -> float:
-    if Cfloat == -1:
-        return Cfloat
-    return (Cfloat * 9.0 / 5.0) + 32.0
-
-
-def RoRfromCtoFstrict(CRoR: float) -> float:
-    if CRoR == -1:
-        return CRoR
-    return CRoR * 9.0 / 5.0
-
-
-def RoRfromFtoCstrict(FRoR: float) -> float:
-    if FRoR == -1:
-        return FRoR
-    return FRoR * (5.0 / 9.0)

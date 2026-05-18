@@ -664,7 +664,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "models": ["Probatone"],
         "protocol": "modbus",
         "default_params": {
-            "mode": "rtu",
+            "mode": "tcp",
             "host": "127.0.0.1",
             "port": 502,
             "comport": "",
@@ -692,7 +692,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "models": ['Probatone 7"'],
         "protocol": "modbus",
         "default_params": {
-            "mode": "rtu",
+            "mode": "tcp",
             "host": "127.0.0.1",
             "port": 502,
             "comport": "",
@@ -860,11 +860,13 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "models": ["2Temp", "3Temp", "AirPressure"],
         "protocol": "modbus",
         "default_params": {
-            "mode": "tcp",
+            "mode": "rtu",
             "host": "127.0.0.1",
             "port": 502,
             "comport": "",
             "baudrate": 9600,
+            "stopbits": 2,
+            "word_order": "big",
             "modbus_registers": {
                 "BT": {
                     "register": 1000,
@@ -936,11 +938,13 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "models": ["2Temp", "3Temp", "AirPressure"],
         "protocol": "modbus",
         "default_params": {
-            "mode": "tcp",
+            "mode": "rtu",
             "host": "127.0.0.1",
             "port": 502,
             "comport": "",
             "baudrate": 9600,
+            "stopbits": 2,
+            "word_order": "big",
             "modbus_registers": {
                 "BT": {
                     "register": 1000,
@@ -976,6 +980,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 502,
             "comport": "",
             "baudrate": 38400,
+            "word_order": "big",
             "modbus_registers": {
                 "BT": {
                     "register": 0,
@@ -1011,11 +1016,12 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "models": ["T2", "T2 Air", "T2 Legacy"],
         "protocol": "modbus",
         "default_params": {
-            "mode": "tcp",
+            "mode": "rtu",
             "host": "127.0.0.1",
             "port": 502,
             "comport": "",
             "baudrate": 9600,
+            "stopbits": 2,
             "modbus_registers": {
                 "BT": {
                     "register": 1000,
@@ -1046,7 +1052,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "models": ["T7", "T7 Gas", "T7 Legacy"],
         "protocol": "modbus",
         "default_params": {
-            "mode": "tcp",
+            "mode": "rtu",
             "host": "127.0.0.1",
             "port": 502,
             "comport": "",

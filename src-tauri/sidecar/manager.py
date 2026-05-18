@@ -10,7 +10,9 @@ from roaster_registry import ROASTER_REGISTRY
 _log = logging.getLogger(__name__)
 
 
-def _format_connection_error(exc: Exception, protocol: str, params: dict[str, Any]) -> str:
+def _format_connection_error(
+    exc: Exception, protocol: str, params: dict[str, Any]
+) -> str:
     """Python 예외를 사용자 친화적인 연결 오류 메시지로 변환."""
     msg = str(exc)
     exc_type = type(exc).__name__
@@ -26,7 +28,10 @@ def _format_connection_error(exc: Exception, protocol: str, params: dict[str, An
         return "websockets 라이브러리가 설치되지 않았습니다."
 
     # ── 시리얼 포트 (MODBUS RTU, Kaleido Serial) ────────────────────────
-    if protocol in ("modbus", "kaleido") and params.get("mode", "").lower() in ("rtu", "serial"):
+    if protocol in ("modbus", "kaleido") and params.get("mode", "").lower() in (
+        "rtu",
+        "serial",
+    ):
         comport = params.get("comport", "")
         if "No such file or directory" in msg or "could not open port" in msg:
             return f"시리얼 포트 '{comport}'를 찾을 수 없습니다. 포트 이름과 케이블 연결을 확인하세요."
@@ -48,10 +53,15 @@ def _format_connection_error(exc: Exception, protocol: str, params: dict[str, An
         if protocol == "s7":
             return f"PLC({host}:{port})가 연결을 거부했습니다. 머신 전원과 S7 통신 설정을 확인하세요."
         if protocol in ("modbus", "probat_ws", "kaleido"):
-            return f"{host}:{port} 연결이 거부됐습니다. 머신 전원과 IP/포트를 확인하세요."
+            return (
+                f"{host}:{port} 연결이 거부됐습니다. 머신 전원과 IP/포트를 확인하세요."
+            )
         return f"연결이 거부됐습니다 ({host}:{port}). 머신 전원과 네트워크 설정을 확인하세요."
 
-    if "timed out" in msg.lower() or exc_type in ("TimeoutError", "asyncio.TimeoutError"):
+    if "timed out" in msg.lower() or exc_type in (
+        "TimeoutError",
+        "asyncio.TimeoutError",
+    ):
         host = params.get("host", "")
         if protocol == "s7":
             return f"PLC({host}) 응답 없음. 같은 네트워크에 있는지, IP 주소가 맞는지 확인하세요."
@@ -69,7 +79,9 @@ def _format_connection_error(exc: Exception, protocol: str, params: dict[str, An
     if "MODBUS 연결 실패" in msg:
         if params.get("mode", "tcp").lower() == "tcp":
             return f"MODBUS TCP 연결 실패 ({params.get('host')}:{params.get('port')}). IP와 포트를 확인하세요."
-        return f"MODBUS RTU 연결 실패 ({params.get('comport')}). 시리얼 포트를 확인하세요."
+        return (
+            f"MODBUS RTU 연결 실패 ({params.get('comport')}). 시리얼 포트를 확인하세요."
+        )
 
     # ── fallback: 원본 메시지 ────────────────────────────────────────────
     return msg
@@ -88,6 +100,7 @@ class RoasterManager:
         self._ror_window: deque[tuple[float, float]] = deque()
         self._et_ror_window: deque[tuple[float, float]] = deque()
         self._lock: asyncio.Lock = asyncio.Lock()
+        self._reconnect_task: asyncio.Task[None] | None = None
 
     async def connect(self, roaster_key: str, params: dict[str, Any]) -> None:
         async with self._lock:
@@ -130,6 +143,9 @@ class RoasterManager:
             await self._disconnect_internal()
 
     async def _disconnect_internal(self) -> None:
+        if self._reconnect_task is not None and not self._reconnect_task.done():
+            self._reconnect_task.cancel()
+            self._reconnect_task = None
         if self._adapter is not None:
             try:
                 await self._adapter.disconnect()
@@ -144,16 +160,62 @@ class RoasterManager:
         self._ror_window.clear()
         self._et_ror_window.clear()
 
+    async def _reconnect_loop(self) -> None:
+        """읽기 실패 후 백그라운드 자동 재연결 (3회, 지수 백오프)."""
+        for attempt, delay in enumerate([2.0, 5.0, 10.0]):
+            await asyncio.sleep(delay)
+            if self._connected or self._adapter is None:
+                return
+            async with self._lock:
+                if self._connected or self._adapter is None:
+                    return
+                try:
+                    _log.info("자동 재연결 시도 (%d/3): %s", attempt + 1, self._roaster_key)
+                    try:
+                        await self._adapter.disconnect()
+                    except Exception:
+                        pass
+                    await self._adapter.connect()
+                    self._connected = True
+                    self._error = None
+                    _log.info("자동 재연결 성공: %s", self._roaster_key)
+                    return
+                except Exception as exc:
+                    _log.warning("재연결 실패 (%d/3): %s", attempt + 1, exc)
+        _log.error("자동 재연결 3회 모두 실패: %s", self._roaster_key)
+
     async def read_temperatures(self) -> dict[str, Any]:
         if not self._connected or self._adapter is None:
-            return {"bt": None, "et": None, "ror": 0.0, "ror_et": 0.0, "heater": 0, "fan": 0, "drum": 0, "timestamp": time.monotonic()}
+            return {
+                "bt": None,
+                "et": None,
+                "ror": 0.0,
+                "ror_et": 0.0,
+                "heater": 0,
+                "fan": 0,
+                "drum": 0,
+                "timestamp": time.monotonic(),
+            }
         try:
             reading = await self._adapter.read()
         except Exception as exc:
-            self._error = _format_connection_error(exc, self._protocol, self._merged_params)
+            self._error = _format_connection_error(
+                exc, self._protocol, self._merged_params
+            )
             self._connected = False
             _log.error("읽기 실패: %s", exc)
-            return {"bt": None, "et": None, "ror": 0.0, "ror_et": 0.0, "heater": 0, "fan": 0, "drum": 0, "timestamp": time.monotonic()}
+            if self._reconnect_task is None or self._reconnect_task.done():
+                self._reconnect_task = asyncio.create_task(self._reconnect_loop())
+            return {
+                "bt": None,
+                "et": None,
+                "ror": 0.0,
+                "ror_et": 0.0,
+                "heater": 0,
+                "fan": 0,
+                "drum": 0,
+                "timestamp": time.monotonic(),
+            }
 
         if reading.bt > 0:
             self._data_ok = True
@@ -166,8 +228,8 @@ class RoasterManager:
             "et": round(reading.et, 1),
             "ror": round(self._compute_ror(), 2),
             "ror_et": round(self._compute_et_ror(), 2),
-            "heater": int(reading.heater),
-            "fan": int(reading.fan),
+            "heater": int(round(reading.heater)),
+            "fan": int(round(reading.fan)),
             "drum": round(reading.drum, 1),
             "timestamp": reading.timestamp,
         }
@@ -180,7 +242,12 @@ class RoasterManager:
             if self._adapter is not None and hasattr(self._adapter, "start_roast"):
                 await self._adapter.start_roast()
 
-    async def send_control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
+    async def send_control(
+        self,
+        heater: float | None = None,
+        fan: float | None = None,
+        drum: float | None = None,
+    ) -> None:
         if self._connected and self._adapter is not None:
             await self._adapter.control(heater=heater, fan=fan, drum=drum)
 
