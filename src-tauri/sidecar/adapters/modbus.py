@@ -8,8 +8,11 @@ from adapters.base import Reading
 
 _log = logging.getLogger(__name__)
 
-# 500ms 폴링 기준 timeout 상수
-_TCP_TIMEOUT = 0.2
+# 500ms 폴링 기준으로 artisan 공식 min(delay/2000, 0.4)에 정렬.
+# delay=500ms → cap=0.25s. TCP는 0.25s, RTU는 0.3s(시리얼 응답 지연 여유).
+# 한 폴링 사이클에서 채널 3개(BT/ET/drum)를 순차 read하므로,
+# 채널당 worst-case = timeout × (1 + retries) 가 사이클 예산을 너무 넘기지 않게 한다.
+_TCP_TIMEOUT = 0.25
 _RTU_TIMEOUT = 0.3
 _RTU_CONNECT_DELAY = 0.5  # Artisan modbus_serial_connect_delay — 느린 RTU 장비 대응
 
@@ -81,9 +84,15 @@ class ModbusAdapter:
         self._word_order = word_order.lower()  # "little" | "big"
         self._regs: dict[str, Any] = modbus_registers or {}
         self._client: Any = None
-        self._read_retries: int = 1  # 500ms 폴링: retry 최소화
+        # Artisan 기본값: TCP readRetries=0, serial_readRetries=1.
+        # 우리도 동일하게 모드별 차등 — 500ms 폴링 사이클 안에 들어오도록.
+        # TODO(T36): RTU는 시리얼 응답이 본질적으로 느려서 500ms 폴링에는 빠듯함.
+        #   채널 3개 retry 한 번 들어가면 worst-case 1.8s → 폴링 cycle 누락 가능.
+        #   UI에서 RTU 머신 선택 시 pollIntervalMs를 자동으로 1000ms로 올리는 옵션 필요.
+        #   (artisan 권장도 RTU=1s 폴링)
+        self._read_retries: int = 0 if self._mode == "tcp" else 1
         self._consecutive_errors: int = 0
-        self._acceptable_errors: int = 3  # Artisan 기준: 3회 연속 실패 후 disconnect
+        self._acceptable_errors: int = 3  # 3회 연속 실패까지 last-reading 유지, 그 뒤 disconnect
         self._last_reading: Reading | None = None
 
     async def connect(self) -> None:
@@ -169,19 +178,19 @@ class ModbusAdapter:
                 )
                 if func == 1:
                     result = await self._client.read_coils(
-                        register, count, device_id=unit_id
+                        register, count=count, device_id=unit_id
                     )
                 elif func == 2:
                     result = await self._client.read_discrete_inputs(
-                        register, count, device_id=unit_id
+                        register, count=count, device_id=unit_id
                     )
                 elif func == 3:
                     result = await self._client.read_holding_registers(
-                        register, count, device_id=unit_id
+                        register, count=count, device_id=unit_id
                     )
                 else:
                     result = await self._client.read_input_registers(
-                        register, count, device_id=unit_id
+                        register, count=count, device_id=unit_id
                     )
 
                 if result.isError():

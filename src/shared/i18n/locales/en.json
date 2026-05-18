@@ -22,7 +22,8 @@
       "history": "Roast History",
       "beans": "Bean Inventory",
       "profiles": "Profiles",
-      "machines": "Machines"
+      "machines": "Machines",
+      "schedule": "Roast Schedule"
     }
   },
   "settings": {

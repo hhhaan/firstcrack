@@ -1,6 +1,6 @@
-import { Bell, Database, Flame, LayoutDashboard, PlayCircle, User } from 'lucide-react';
+import { Bell, Building2, Database, Flame, LayoutDashboard, PlayCircle, User } from 'lucide-react';
 
-export type SettingsTabId = 'general' | 'notifications' | 'session' | 'system' | 'roast' | 'account';
+export type SettingsTabId = 'general' | 'notifications' | 'session' | 'system' | 'roast' | 'account' | 'workspace';
 
 export interface TabConfig {
     id: SettingsTabId;
@@ -138,6 +138,14 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => [
         icon: User,
         title: 'Account',
         description: 'Manage your profile information and account settings.',
+        cards: [],
+    },
+    {
+        id: 'workspace',
+        label: 'Workspace',
+        icon: Building2,
+        title: 'Workspace',
+        description: 'Configure your workspace name and team settings.',
         cards: [],
     },
 ];

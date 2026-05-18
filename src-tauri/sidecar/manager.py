@@ -9,6 +9,12 @@ from roaster_registry import ROASTER_REGISTRY
 
 _log = logging.getLogger(__name__)
 
+# EMA 평활화 계수: 낮을수록 더 부드럽고 lag 증가 (0 < α < 1)
+# 0.2 = 매우 부드러움, 0.5 = 균형, 0.8 = 거의 raw
+_EMA_ALPHA = 0.2
+
+_DISPLAY_ALPHA = 0.16
+
 
 def _format_connection_error(
     exc: Exception, protocol: str, params: dict[str, Any]
@@ -99,6 +105,10 @@ class RoasterManager:
         self._start_time: float = 0.0
         self._ror_window: deque[tuple[float, float]] = deque()
         self._et_ror_window: deque[tuple[float, float]] = deque()
+        self._bt_ema: float | None = None
+        self._et_ema: float | None = None
+        self._bt_display_ema: float | None = None
+        self._et_display_ema: float | None = None
         self._lock: asyncio.Lock = asyncio.Lock()
         self._reconnect_task: asyncio.Task[None] | None = None
 
@@ -120,6 +130,10 @@ class RoasterManager:
             self._merged_params = merged
             self._ror_window.clear()
             self._et_ror_window.clear()
+            self._bt_ema = None
+            self._et_ema = None
+            self._bt_display_ema = None
+            self._et_display_ema = None
             self._error = None
 
             try:
@@ -159,6 +173,10 @@ class RoasterManager:
         self._merged_params = {}
         self._ror_window.clear()
         self._et_ror_window.clear()
+        self._bt_ema = None
+        self._et_ema = None
+        self._bt_display_ema = None
+        self._et_display_ema = None
 
     async def _reconnect_loop(self) -> None:
         """읽기 실패 후 백그라운드 자동 재연결 (3회, 지수 백오프)."""
@@ -170,7 +188,9 @@ class RoasterManager:
                 if self._connected or self._adapter is None:
                     return
                 try:
-                    _log.info("자동 재연결 시도 (%d/3): %s", attempt + 1, self._roaster_key)
+                    _log.info(
+                        "자동 재연결 시도 (%d/3): %s", attempt + 1, self._roaster_key
+                    )
                     try:
                         await self._adapter.disconnect()
                     except Exception:
@@ -224,8 +244,8 @@ class RoasterManager:
             self._add_to_et_ror_window(reading.timestamp, reading.et)
 
         return {
-            "bt": round(reading.bt, 1),
-            "et": round(reading.et, 1),
+            "bt": round(self._bt_display_ema if self._bt_display_ema is not None else reading.bt, 1),
+            "et": round(self._et_display_ema if self._et_display_ema is not None else reading.et, 1),
             "ror": round(self._compute_ror(), 2),
             "ror_et": round(self._compute_et_ror(), 2),
             "heater": int(round(reading.heater)),
@@ -239,6 +259,10 @@ class RoasterManager:
         async with self._lock:
             self._ror_window.clear()
             self._et_ror_window.clear()
+            self._bt_ema = None
+            self._et_ema = None
+            self._bt_display_ema = None
+            self._et_display_ema = None
             if self._adapter is not None and hasattr(self._adapter, "start_roast"):
                 await self._adapter.start_roast()
 
@@ -265,13 +289,29 @@ class RoasterManager:
         }
 
     def _add_to_ror_window(self, ts: float, bt: float) -> None:
-        self._ror_window.append((ts, bt))
+        if self._bt_ema is None:
+            self._bt_ema = bt
+        else:
+            self._bt_ema = _EMA_ALPHA * bt + (1.0 - _EMA_ALPHA) * self._bt_ema
+        if self._bt_display_ema is None:
+            self._bt_display_ema = bt
+        else:
+            self._bt_display_ema = _DISPLAY_ALPHA * bt + (1.0 - _DISPLAY_ALPHA) * self._bt_display_ema
+        self._ror_window.append((ts, self._bt_ema))
         cutoff = ts - 30.0
         while self._ror_window and self._ror_window[0][0] < cutoff:
             self._ror_window.popleft()
 
     def _add_to_et_ror_window(self, ts: float, et: float) -> None:
-        self._et_ror_window.append((ts, et))
+        if self._et_ema is None:
+            self._et_ema = et
+        else:
+            self._et_ema = _EMA_ALPHA * et + (1.0 - _EMA_ALPHA) * self._et_ema
+        if self._et_display_ema is None:
+            self._et_display_ema = et
+        else:
+            self._et_display_ema = _DISPLAY_ALPHA * et + (1.0 - _DISPLAY_ALPHA) * self._et_display_ema
+        self._et_ror_window.append((ts, self._et_ema))
         cutoff = ts - 30.0
         while self._et_ror_window and self._et_ror_window[0][0] < cutoff:
             self._et_ror_window.popleft()

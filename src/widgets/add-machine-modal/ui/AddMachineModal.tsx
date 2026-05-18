@@ -530,7 +530,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                         {selectedDef.form_fields
                             .filter((f) => isFieldVisible(f.key))
                             .map((field) => (
-                                <div key={field.key} style={field.type === 'select' ? { gridColumn: '1 / -1' } : {}}>
+                                <div key={field.key} style={field.key === 'mode' ? { gridColumn: '1 / -1' } : {}}>
                                     <label style={labelStyle}>
                                         {field.label}
                                         {field.required && <span style={{ color: '#e55' }}> *</span>}

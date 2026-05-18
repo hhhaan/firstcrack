@@ -30,6 +30,10 @@ class KaleidoAdapter:
         path: str = "ws",
         comport: str = "",
         baudrate: int = 57600,
+        bytesize: int = 8,
+        parity: str = "N",
+        stopbits: int = 1,
+        timeout: float = 0.6,
         **_: Any,
     ) -> None:
         from extern.kaleido import KaleidoPort
@@ -40,14 +44,33 @@ class KaleidoAdapter:
         self._path = path
         self._comport = comport
         self._baudrate = baudrate
+        self._bytesize = bytesize
+        self._parity = parity
+        self._stopbits = stopbits
+        self._timeout = timeout
         self._connected: bool = False
 
     async def connect(self) -> None:
+        serial = None
+        if self._mode.lower() == "serial":
+            if not self._comport:
+                raise ValueError("Kaleido Serial 모드: comport가 비어 있음.")
+            # extern/kaleido.py의 SerialSettings TypedDict 필드와 1:1 매칭.
+            serial = {
+                "port": self._comport,
+                "baudrate": self._baudrate,
+                "bytesize": self._bytesize,
+                "stopbits": self._stopbits,
+                "parity": self._parity,
+                "timeout": self._timeout,
+                "clear_HUPCL": False,
+            }
         self._driver.start(
-            mode=self._mode,
+            mode="C",  # 온도 단위(C/F): roaster registry에서 항상 C 모드 가정
             host=self._host,
             port=self._port,
             path=self._path,
+            serial=serial,
         )
         # ws_initialize()가 Ping→TU→SC 핸드셰이크를 백그라운드에서 수행.
         # sid와 TU가 모두 설정되면 초기화 완료.
@@ -81,8 +104,13 @@ class KaleidoAdapter:
         return Reading(bt=bt, et=et, heater=hp, fan=fc, drum=drum, timestamp=time.monotonic())
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
+        # Artisan kaleidoSendMessage(target, value): HP=화력, FC=팬, RC=드럼 (모두 정수 %)
         if heater is not None:
-            self._driver.setSV(float(heater))
+            self._driver.send_msg("HP", str(int(round(float(heater)))))
+        if fan is not None:
+            self._driver.send_msg("FC", str(int(round(float(fan)))))
+        if drum is not None:
+            self._driver.send_msg("RC", str(int(round(float(drum)))))
 
     @property
     def connected(self) -> bool:

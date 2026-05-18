@@ -111,21 +111,21 @@ export const RoastTempChart: React.FC<Props> = ({
             smoothMonotone: 'x' as const, // 시간축 방향으로만 스무딩 (역행 방지)
             sampling: 'lttb' as const,
         });
-        const currentTimeMarkLine = {
-            data: [
-                {
-                    xAxis: currentTimeSec,
-                    lineStyle: { color: CHART_COLORS.currentTimeLine, width: 2, type: 'solid' as const },
-                    label: {
-                        formatter: `NOW\n${fmtSec(currentTimeSec)}`,
-                        position: 'top',
-                        color: CHART_COLORS.nowLabel,
-                        fontWeight: 700,
-                        fontSize: 11,
-                    },
-                },
-            ],
-        };
+        // const currentTimeMarkLine = {
+        //     data: [
+        //         {
+        //             xAxis: currentTimeSec,
+        //             lineStyle: { color: CHART_COLORS.currentTimeLine, width: 2, type: 'solid' as const },
+        //             label: {
+        //                 formatter: `NOW\n${fmtSec(currentTimeSec)}`,
+        //                 position: 'top',
+        //                 color: CHART_COLORS.nowLabel,
+        //                 fontWeight: 700,
+        //                 fontSize: 11,
+        //             },
+        //         },
+        //     ],
+        // };
 
         const tpMarkLines = turningPoints.map((tp) => ({
             xAxis: tp.timeSec,
@@ -207,7 +207,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 data: xs.map((x, i) => [x, btActual[i]]),
                 lineStyle: { color: CHART_COLORS.btActual, width: 1.8 },
                 showSymbol: false,
-                ...getSmoothConfig(0.42), // BT — 가장 자연스러운 곡선
+                ...getSmoothConfig(0.7),
                 markLine: {
                     silent: true,
                     symbol: 'none',
@@ -223,7 +223,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 data: xs.map((x, i) => [x, etActual[i]]),
                 lineStyle: { color: CHART_COLORS.etActual, width: 1.5 },
                 showSymbol: false,
-                ...getSmoothConfig(0.38), // ET — BT보다 살짝 덜 강하게
+                ...getSmoothConfig(0.65),
             },
             showRoR && {
                 name: 'RoR',

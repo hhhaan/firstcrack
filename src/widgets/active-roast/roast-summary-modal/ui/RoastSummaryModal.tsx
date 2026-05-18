@@ -22,6 +22,9 @@ interface RoastSummaryModalProps {
     onRoastNotesChange: (notes: string) => void;
     onClose: () => void;
     onDiscard: () => void;
+    onSave: (notes: string) => void;
+    ambientTemp?: number | null;
+    ambientHumidity?: number | null;
 }
 
 export const RoastSummaryModal = ({
@@ -32,6 +35,9 @@ export const RoastSummaryModal = ({
     onRoastNotesChange,
     onClose,
     onDiscard,
+    onSave,
+    ambientTemp,
+    ambientHumidity,
 }: RoastSummaryModalProps) => {
     if (!open || !summaryData) {
         return null;
@@ -82,6 +88,19 @@ export const RoastSummaryModal = ({
                 ))}
             </div>
 
+            {ambientTemp != null && ambientHumidity != null && (
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                    <div className="bg-surface rounded-lg px-2.5 py-2.5 shadow-(--shadow-inset)">
+                        <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">Temperature</div>
+                        <div className="font-(--font-mono) text-sm text-primary">{ambientTemp}°C</div>
+                    </div>
+                    <div className="bg-surface rounded-lg px-2.5 py-2.5 shadow-(--shadow-inset)">
+                        <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">Humidity</div>
+                        <div className="font-(--font-mono) text-sm text-primary">{ambientHumidity}%</div>
+                    </div>
+                </div>
+            )}
+
             <div className="mb-5">
                 <div className="text-[11px] font-semibold text-muted uppercase tracking-[0.4px] mb-2.5">Log</div>
                 <div className="flex flex-wrap gap-y-1.5">
@@ -120,7 +139,7 @@ export const RoastSummaryModal = ({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button
-                    onClick={onClose}
+                    onClick={() => onSave(roastNotes)}
                     className="w-full py-3 rounded-lg border-none bg-[rgba(220,252,231,0.9)] text-[#16a34a] text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
                 >
                     저장

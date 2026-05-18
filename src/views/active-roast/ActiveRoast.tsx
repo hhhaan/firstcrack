@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useWeather } from '@views/dashboard/useWeather';
+import { useAuthStore } from '@shared/store/auth';
+import { useCreateRoastSession } from '@entities/roast';
 import { useRoastKeyboardShortcuts } from '@views/useRoastKeyboardShortcuts';
 import { useRoastActions } from '@views/useRoastActions';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -304,6 +307,13 @@ export const ActiveRoast = ({
         handleAutoDrop,
         handleTurningPoint,
     );
+
+    // ── 날씨 데이터 ───────────────────────────────────────────────
+    const { data: weatherData } = useWeather();
+
+    // ── 사용자 인증 + 로스팅 저장 ─────────────────────────────────
+    const user = useAuthStore((s) => s.user);
+    const { mutate: saveRoastSession } = useCreateRoastSession(user?.id ?? '');
     tpTimeSecRef.current = turningPoints[0]?.timeSec ?? null;
 
     // ── 로스팅 단계 표시 ──────────────────────────────────────────
@@ -351,7 +361,8 @@ export const ActiveRoast = ({
         [logEntries],
     );
 
-    const displayRoR = tpTimeSecRef.current == null ? '—' : toDisplayRoR(liveData?.ror ?? 0, unit).toFixed(1);
+    const rawRoR = liveData?.ror ?? 0;
+    const displayRoR = rawRoR < 0 ? '—' : toDisplayRoR(rawRoR, unit).toFixed(1);
 
     // ── 로스트 라이프사이클 핸들러 ────────────────────────────────
 
@@ -852,11 +863,37 @@ export const ActiveRoast = ({
                 roastNotes={roastNotes}
                 eventMarkerColor={eventMarkerColor}
                 onRoastNotesChange={setRoastNotes}
+                ambientTemp={weatherData?.temperature}
+                ambientHumidity={weatherData?.humidity}
                 onClose={() => {
                     setShowSummaryModal(false);
                     setSummaryData(null);
                 }}
                 onDiscard={() => {
+                    setShowSummaryModal(false);
+                    setSummaryData(null);
+                    resetActiveRoast();
+                }}
+                onSave={(notes) => {
+                    if (!user) return;
+                    const durationSeconds = elapsed;
+                    const roastedAt =
+                        roastStartTimeRef.current > 0 ? new Date(roastStartTimeRef.current).toISOString() : null;
+                    saveRoastSession({
+                        user_id: user.id,
+                        weight_grams: 0,
+                        status: 'completed',
+                        roasted_at: roastedAt,
+                        duration_seconds: durationSeconds,
+                        drop_temp_celsius: rawBT,
+                        roast_level: null,
+                        scheduled_at: null,
+                        notes: notes || null,
+                        ambient_temp_celsius: weatherData?.temperature ?? null,
+                        ambient_humidity_pct: weatherData?.humidity ?? null,
+                        bean_id: selectedBeanId,
+                        profile_id: targetProfileId != null ? String(targetProfileId) : null,
+                    });
                     setShowSummaryModal(false);
                     setSummaryData(null);
                     resetActiveRoast();

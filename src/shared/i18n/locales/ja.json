@@ -22,7 +22,8 @@
       "history": "ロースト履歴",
       "beans": "豆在庫",
       "profiles": "プロファイル",
-      "machines": "マシン"
+      "machines": "マシン",
+      "schedule": "ロースト予定"
     }
   },
   "settings": {

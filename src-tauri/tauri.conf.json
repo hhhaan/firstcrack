@@ -30,6 +30,11 @@
             "desktop": {
                 "schemes": ["firstcrack"]
             }
+        },
+        "updater": {
+            "createUpdaterArtifacts": true,
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlBODIzMjY0MjMyNzJCQjQKUldTMEt5Y2paREtDbW1WZU1XSWpvYTF3Q0ZVRW9BWGFlZ0ZYWE5IWFc5RG0xWkNid3ZyS1ZPdSsK",
+            "endpoints": ["https://github.com/hhhaan/first-crack-agent/releases/latest/download/latest.json"]
         }
     },
     "bundle": {

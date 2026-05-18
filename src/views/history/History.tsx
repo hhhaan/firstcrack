@@ -1,7 +1,10 @@
-import { Fragment, useMemo, useState, type ReactNode } from 'react';
-import { Search, Filter, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Search, Filter, ChevronDown, ChevronUp, Download, FileText, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRoastSessions } from '@entities/roast';
+import { useProfile } from '@entities/profile';
 import { PageLayout } from '@shared/ui/PageLayout';
+import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { useAuthStore } from '@shared/store/auth';
 
@@ -128,96 +131,241 @@ const ExpandedRow = ({ session }: { session: RoastSessionWithRelations }): React
 const HistoryTable = ({
     sessions,
     total,
+    filteredTotal,
     expandedId,
     onRowClick,
     sortKey,
     sortAsc,
     onSort,
+    page,
+    totalPages,
+    pageSize,
+    onPageChange,
 }: {
     sessions: RoastSessionWithRelations[];
     total: number;
+    filteredTotal: number;
     expandedId: string | null;
     onRowClick: (id: string) => void;
     sortKey: SortKey;
     sortAsc: boolean;
     onSort: (key: SortKey) => void;
-}): ReactNode => (
-    <div className="overflow-x-auto rounded-lg bg-main-bg shadow-ring [-webkit-overflow-scrolling:touch]">
-        <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
-            <thead>
-                <tr className="border-b border-border-subtle">
-                    {columns.map((col) => {
-                        const responsiveClass = col.label === 'Profile' ? 'md:hidden lg:table-cell' : '';
+    page: number;
+    totalPages: number;
+    pageSize: number;
+    onPageChange: (p: number) => void;
+}): ReactNode => {
+    const start = (page - 1) * pageSize + 1;
+    const end = Math.min(page * pageSize, filteredTotal);
+
+    return (
+        <div className="overflow-x-auto rounded-lg bg-main-bg shadow-ring [-webkit-overflow-scrolling:touch]">
+            <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
+                <thead>
+                    <tr className="border-b border-border-subtle">
+                        {columns.map((col) => {
+                            const responsiveClass = col.label === 'Profile' ? 'md:hidden lg:table-cell' : '';
+                            return (
+                                <th
+                                    key={col.label}
+                                    onClick={() => col.sortable && col.key && onSort(col.key as SortKey)}
+                                    className={`px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[0.5px] text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'}`}
+                                    style={{ width: col.width }}
+                                >
+                                    <span className="flex items-center gap-1 whitespace-nowrap">
+                                        {col.label}
+                                        {col.sortable && col.key && (
+                                            <SortIcon col={col.key as SortKey} sortKey={sortKey} sortAsc={sortAsc} />
+                                        )}
+                                    </span>
+                                </th>
+                            );
+                        })}
+                    </tr>
+                </thead>
+                <tbody>
+                    {sessions.map((session) => {
+                        const isExpanded = expandedId === session.id;
                         return (
-                            <th
-                                key={col.label}
-                                onClick={() => col.sortable && col.key && onSort(col.key as SortKey)}
-                                className={`px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[0.5px] text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'}`}
-                                style={{ width: col.width }}
-                            >
-                                <span className="flex items-center gap-1 whitespace-nowrap">
-                                    {col.label}
-                                    {col.sortable && col.key && (
-                                        <SortIcon col={col.key as SortKey} sortKey={sortKey} sortAsc={sortAsc} />
-                                    )}
-                                </span>
-                            </th>
+                            <Fragment key={session.id}>
+                                <tr
+                                    onClick={() => onRowClick(session.id)}
+                                    className={`cursor-pointer border-b border-border-subtle transition ${isExpanded ? 'bg-[rgba(245,245,245,0.5)]' : 'hover:bg-[rgba(245,242,239,0.45)]'}`}
+                                >
+                                    {columns.map((col, idx) => {
+                                        const cellClass =
+                                            col.key === 'date'
+                                                ? 'font-mono text-muted'
+                                                : col.key === 'bean'
+                                                  ? 'font-medium tracking-[0.14px] text-primary'
+                                                  : 'tracking-[0.14px] text-secondary';
+                                        const responsiveClass =
+                                            col.label === 'Profile' ? 'md:hidden lg:table-cell' : '';
+                                        return (
+                                            <td
+                                                key={col.key || idx}
+                                                className={`px-3 py-3 text-[13px] whitespace-nowrap ${cellClass} ${responsiveClass}`}
+                                                style={{ width: col.width }}
+                                            >
+                                                {col.render(session)}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                                {isExpanded && <ExpandedRow session={session} />}
+                            </Fragment>
                         );
                     })}
-                </tr>
-            </thead>
-            <tbody>
-                {sessions.map((session) => {
-                    const isExpanded = expandedId === session.id;
-                    return (
-                        <Fragment key={session.id}>
-                            <tr
-                                onClick={() => onRowClick(session.id)}
-                                className={`cursor-pointer border-b border-border-subtle transition ${isExpanded ? 'bg-[rgba(245,245,245,0.5)]' : 'hover:bg-[rgba(245,242,239,0.45)]'}`}
-                            >
-                                {columns.map((col, idx) => {
-                                    const cellClass =
-                                        col.key === 'date'
-                                            ? 'font-mono text-muted'
-                                            : col.key === 'bean'
-                                              ? 'font-medium tracking-[0.14px] text-primary'
-                                              : 'tracking-[0.14px] text-secondary';
-                                    const responsiveClass = col.label === 'Profile' ? 'md:hidden lg:table-cell' : '';
-                                    return (
-                                        <td
-                                            key={col.key || idx}
-                                            className={`px-3 py-3 text-[13px] whitespace-nowrap ${cellClass} ${responsiveClass}`}
-                                            style={{ width: col.width }}
-                                        >
-                                            {col.render(session)}
-                                        </td>
-                                    );
-                                })}
-                            </tr>
-                            {isExpanded && <ExpandedRow session={session} />}
-                        </Fragment>
-                    );
-                })}
-            </tbody>
-        </table>
+                </tbody>
+            </table>
 
-        <div className="flex flex-col gap-3 border-t border-border-subtle px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs tracking-[0.14px] text-muted">
-                Showing {sessions.length} of {total} sessions
-            </span>
+            <div className="flex flex-col gap-3 border-t border-border-subtle px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-xs tracking-[0.14px] text-muted">
+                    {filteredTotal === 0
+                        ? 'No sessions found'
+                        : `${start}–${end} of ${filteredTotal}${filteredTotal < total ? ` (filtered from ${total})` : ''}`}
+                </span>
+
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => onPageChange(page - 1)}
+                        disabled={page === 1}
+                        className="flex h-6 w-6 items-center justify-center rounded text-muted transition hover:bg-surface hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        <ChevronLeft size={13} strokeWidth={2} />
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                        .reduce<(number | '…')[]>((acc, p, i, arr) => {
+                            if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('…');
+                            acc.push(p);
+                            return acc;
+                        }, [])
+                        .map((item, i) =>
+                            item === '…' ? (
+                                <span key={`ellipsis-${i}`} className="px-1 text-xs text-muted">
+                                    …
+                                </span>
+                            ) : (
+                                <button
+                                    key={item}
+                                    onClick={() => onPageChange(item as number)}
+                                    className={`h-6 min-w-6 rounded px-1.5 text-xs font-medium transition ${
+                                        page === item
+                                            ? 'bg-surface-warm-solid text-primary'
+                                            : 'text-muted hover:bg-surface hover:text-secondary'
+                                    }`}
+                                >
+                                    {item}
+                                </button>
+                            ),
+                        )}
+
+                    <button
+                        onClick={() => onPageChange(page + 1)}
+                        disabled={page === totalPages || totalPages === 0}
+                        className="flex h-6 w-6 items-center justify-center rounded text-muted transition hover:bg-surface hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        <ChevronRight size={13} strokeWidth={2} />
+                    </button>
+                </div>
+            </div>
         </div>
-    </div>
-);
+    );
+};
+
+const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
+
+const FilterDropdown = ({
+    label,
+    value,
+    options,
+    onSelect,
+}: {
+    label: string;
+    value: string;
+    options: string[];
+    onSelect: (v: string) => void;
+}): ReactNode => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+    const isActive = value !== 'all';
+
+    useEffect(() => {
+        if (!open) return;
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [open]);
+
+    return (
+        <div ref={ref} className="relative">
+            <button
+                onClick={() => setOpen((o) => !o)}
+                className={`inline-flex items-center gap-1 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
+                    isActive
+                        ? 'bg-surface-warm-solid text-primary shadow-(--shadow-inset)'
+                        : 'bg-surface text-secondary shadow-(--shadow-inset) hover:bg-surface-warm-solid hover:text-primary'
+                }`}
+            >
+                <Filter size={12} strokeWidth={2} className={isActive ? 'text-primary' : 'text-muted'} />
+                {isActive ? value : label}
+                <ChevronDown size={11} strokeWidth={2} className={isActive ? 'text-primary' : 'text-muted'} />
+            </button>
+
+            {open && (
+                <div className="absolute top-full left-0 z-50 mt-1 min-w-35 rounded-lg bg-main-bg py-1 shadow-ring">
+                    <button
+                        onClick={() => {
+                            onSelect('all');
+                            setOpen(false);
+                        }}
+                        className={`w-full px-3 py-1.5 text-left text-[13px] tracking-[0.14px] transition hover:bg-surface ${value === 'all' ? 'font-medium text-primary' : 'text-secondary'}`}
+                    >
+                        {label}
+                    </button>
+                    {options.map((opt) => (
+                        <button
+                            key={opt}
+                            onClick={() => {
+                                onSelect(opt);
+                                setOpen(false);
+                            }}
+                            className={`w-full px-3 py-1.5 text-left text-[13px] tracking-[0.14px] transition hover:bg-surface ${value === opt ? 'font-medium text-primary' : 'text-secondary'}`}
+                        >
+                            {opt}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const History = () => {
     const [search, setSearch] = useState<string>('');
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [sortKey, setSortKey] = useState<SortKey>('date');
     const [sortAsc, setSortAsc] = useState<boolean>(false);
+    const [showReport, setShowReport] = useState(false);
+    const [levelFilter, setLevelFilter] = useState<string>('all');
+    const [originFilter, setOriginFilter] = useState<string>('all');
+    const [monthFilter, setMonthFilter] = useState<boolean>(false);
+    const [page, setPage] = useState<number>(1);
+    const PAGE_SIZE = 10;
 
     const user = useAuthStore((s) => s.user);
+    const { data: profile } = useProfile(user?.id ?? '');
 
     const { data: rawSessions = [], isLoading, isError } = useRoastSessions(user?.id ?? '', 'completed');
+
+    const uniqueOrigins = useMemo(
+        () => [...new Set(rawSessions.map((s) => s.beans?.origin).filter(Boolean) as string[])].sort(),
+        [rawSessions],
+    );
 
     const handleSort = (key: SortKey): void => {
         if (sortKey === key) {
@@ -226,21 +374,56 @@ export const History = () => {
             setSortKey(key);
             setSortAsc(false);
         }
+        setPage(1);
     };
 
     const handleRowClick = (id: string): void => {
         setExpandedId(expandedId === id ? null : id);
     };
 
+    const handleLevelFilter = (v: string) => {
+        setLevelFilter(v);
+        setPage(1);
+    };
+    const handleOriginFilter = (v: string) => {
+        setOriginFilter(v);
+        setPage(1);
+    };
+    const handleMonthFilter = () => {
+        setMonthFilter((p) => !p);
+        setPage(1);
+    };
+    const handleSearch = (v: string) => {
+        setSearch(v);
+        setPage(1);
+    };
+
     const filtered = useMemo((): RoastSessionWithRelations[] => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
         const q = search.toLowerCase();
+
         return rawSessions
-            .filter(
-                (s) =>
-                    (s.beans?.name ?? '').toLowerCase().includes(q) ||
-                    (s.roast_profiles?.name ?? '').toLowerCase().includes(q) ||
-                    (s.beans?.origin ?? '').toLowerCase().includes(q),
-            )
+            .filter((s) => {
+                if (
+                    q &&
+                    !(
+                        (s.beans?.name ?? '').toLowerCase().includes(q) ||
+                        (s.roast_profiles?.name ?? '').toLowerCase().includes(q) ||
+                        (s.beans?.origin ?? '').toLowerCase().includes(q)
+                    )
+                )
+                    return false;
+                if (levelFilter !== 'all' && s.roast_level !== levelFilter) return false;
+                if (originFilter !== 'all' && s.beans?.origin !== originFilter) return false;
+                if (monthFilter) {
+                    if (!s.roasted_at) return false;
+                    const d = new Date(s.roasted_at);
+                    if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return false;
+                }
+                return true;
+            })
             .sort((a, b): number => {
                 const dir = sortAsc ? 1 : -1;
                 if (sortKey === 'date') return dir * ((a.roasted_at ?? '') < (b.roasted_at ?? '') ? -1 : 1);
@@ -249,7 +432,62 @@ export const History = () => {
                 if (sortKey === 'drop') return dir * ((a.drop_temp_celsius ?? 0) - (b.drop_temp_celsius ?? 0));
                 return dir * (a.roast_level ?? '').localeCompare(b.roast_level ?? '');
             });
-    }, [rawSessions, search, sortKey, sortAsc]);
+    }, [rawSessions, search, sortKey, sortAsc, levelFilter, originFilter, monthFilter]);
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    const safePage = Math.min(page, totalPages);
+
+    const paginated = useMemo((): RoastSessionWithRelations[] => {
+        const start = (safePage - 1) * PAGE_SIZE;
+        return filtered.slice(start, start + PAGE_SIZE);
+    }, [filtered, safePage]);
+
+    const reportData = useMemo(() => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const workerName = profile?.display_name || user?.email || '';
+
+        const monthSessions = rawSessions.filter((s) => {
+            if (!s.roasted_at) return false;
+            const d = new Date(s.roasted_at);
+            return d.getFullYear() === year && d.getMonth() + 1 === month;
+        });
+
+        const sessions = monthSessions.map((s) => {
+            const outputKg = (s.weight_grams ?? 0) / 1000;
+            const inputKg = outputKg / 0.82;
+            const lossRate = inputKg > 0 ? ((inputKg - outputKg) / inputKg) * 100 : 0;
+            return {
+                date: s.roasted_at ? s.roasted_at.slice(0, 10) : '',
+                beanLot: s.beans?.name ?? '—',
+                inputKg: Math.round(inputKg * 1000) / 1000,
+                outputKg: Math.round(outputKg * 1000) / 1000,
+                lossRate: Math.round(lossRate * 10) / 10,
+                profile: s.roast_profiles?.name ?? '—',
+                worker: workerName,
+            };
+        });
+
+        const totalInputKg = sessions.reduce((sum, s) => sum + s.inputKg, 0);
+        const totalOutputKg = sessions.reduce((sum, s) => sum + s.outputKg, 0);
+        const avgLossRate = totalInputKg > 0 ? ((totalInputKg - totalOutputKg) / totalInputKg) * 100 : 0;
+
+        return {
+            year,
+            month,
+            businessName: 'First Crack',
+            ownerName: 'Admin',
+            totalRoasts: sessions.length,
+            totalInputKg: Math.round(totalInputKg * 1000) / 1000,
+            totalOutputKg: Math.round(totalOutputKg * 1000) / 1000,
+            avgLossRate: Math.round(avgLossRate * 10) / 10,
+            sessions,
+        };
+    }, [rawSessions, profile, user]);
+
+    const handleOpenReport = useCallback(() => setShowReport(true), []);
+    const handleCloseReport = useCallback(() => setShowReport(false), []);
 
     return (
         <PageLayout>
@@ -262,10 +500,19 @@ export const History = () => {
                         {isLoading ? 'Loading…' : `${rawSessions.length} sessions recorded`}
                     </p>
                 </div>
-                <button className="inline-flex items-center gap-1.5 self-start rounded-full border-0 bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary shadow-card transition hover:-translate-y-px hover:text-primary">
-                    <Download size={14} strokeWidth={2} />
-                    Export CSV
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleOpenReport}
+                        className="inline-flex items-center gap-1.5 self-start rounded-full border-0 bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary shadow-card transition hover:-translate-y-px hover:text-primary"
+                    >
+                        <FileText size={14} strokeWidth={2} />
+                        월간 보고서
+                    </button>
+                    <button className="inline-flex items-center gap-1.5 self-start rounded-full border-0 bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary shadow-card transition hover:-translate-y-px hover:text-primary">
+                        <Download size={14} strokeWidth={2} />
+                        Export CSV
+                    </button>
+                </div>
             </div>
 
             <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg p-4 shadow-ring lg:flex-row lg:items-center lg:gap-3 lg:px-5">
@@ -274,21 +521,51 @@ export const History = () => {
                     <input
                         className="w-full border-none bg-transparent text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted font-body"
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => handleSearch(e.target.value)}
                         placeholder="Search by bean, profile, or origin..."
                     />
                 </div>
-                <div className="flex flex-wrap gap-2">
-                    {['All Levels', 'All Origins', 'This Month'].map((label) => (
-                        <button
-                            key={label}
-                            className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border-0 bg-surface px-3 py-2 text-[13px] font-medium tracking-[0.14px] text-secondary shadow-(--shadow-inset) transition hover:bg-surface-warm-solid hover:text-primary"
-                        >
-                            <Filter size={12} strokeWidth={2} className="text-muted" />
-                            {label}
-                            <ChevronDown size={11} strokeWidth={2} className="text-muted" />
-                        </button>
-                    ))}
+                <div className="flex flex-wrap items-center gap-2">
+                    <FilterDropdown
+                        label="All Levels"
+                        value={levelFilter}
+                        options={ROAST_LEVELS.filter((l) => rawSessions.some((s) => s.roast_level === l))}
+                        onSelect={handleLevelFilter}
+                    />
+                    <FilterDropdown
+                        label="All Origins"
+                        value={originFilter}
+                        options={uniqueOrigins}
+                        onSelect={handleOriginFilter}
+                    />
+                    <button
+                        onClick={handleMonthFilter}
+                        className={`inline-flex items-center gap-1 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
+                            monthFilter
+                                ? 'bg-surface-warm-solid text-primary shadow-(--shadow-inset)'
+                                : 'bg-surface text-secondary shadow-(--shadow-inset) hover:bg-surface-warm-solid hover:text-primary'
+                        }`}
+                    >
+                        <Filter size={12} strokeWidth={2} className={monthFilter ? 'text-primary' : 'text-muted'} />
+                        This Month
+                    </button>
+
+                    {/* <div className="ml-auto flex items-center gap-1 rounded-lg bg-surface px-2 py-1.5 shadow-(--shadow-inset)">
+                        <span className="text-[12px] text-muted mr-0.5">Show</span>
+                        {([10, 20] as PageSize[]).map((s) => (
+                            <button
+                                key={s}
+                                onClick={() => handlePageSizeChange(s)}
+                                className={`rounded px-2 py-0.5 text-[12px] font-medium transition ${
+                                    pageSize === s
+                                        ? 'bg-main-bg text-primary shadow-card'
+                                        : 'text-muted hover:text-secondary'
+                                }`}
+                            >
+                                {s}
+                            </button>
+                        ))}
+                    </div> */}
                 </div>
             </div>
 
@@ -298,20 +575,34 @@ export const History = () => {
                 </div>
             ) : isLoading ? (
                 <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted shadow-ring">Loading…</div>
-            ) : filtered.length === 0 ? (
-                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted shadow-ring">
-                    No sessions found.
-                </div>
             ) : (
                 <HistoryTable
-                    sessions={filtered}
+                    sessions={paginated}
                     total={rawSessions.length}
+                    filteredTotal={filtered.length}
                     expandedId={expandedId}
                     onRowClick={handleRowClick}
                     sortKey={sortKey}
                     sortAsc={sortAsc}
                     onSort={handleSort}
+                    page={safePage}
+                    totalPages={totalPages}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setPage}
                 />
+            )}
+            {showReport && (
+                <ModalShell onClose={handleCloseReport} labelledBy="monthly-report-title">
+                    <div className="relative max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
+                        <button
+                            onClick={handleCloseReport}
+                            className="fixed top-6 right-6 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 shadow-md backdrop-blur-sm hover:bg-white"
+                        >
+                            <X size={16} strokeWidth={2} />
+                        </button>
+                        <MonthlyProductionReport {...reportData} />
+                    </div>
+                </ModalShell>
             )}
         </PageLayout>
     );

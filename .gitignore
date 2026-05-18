@@ -51,3 +51,8 @@ sidecar/extern/
 # Documentation and planning
 plans/
 docs/
+
+extern/
+screenshots/
+
+.roo*

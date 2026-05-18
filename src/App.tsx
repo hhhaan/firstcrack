@@ -11,6 +11,7 @@ import { History } from './views/history';
 import { Beans } from './views/bean';
 import { Profiles } from './views/profiles';
 import { Machines } from './views/machines';
+import { Schedule } from './views/schedule';
 import { type View } from './shared/types/view';
 import { useAuthStore } from './shared/store/auth';
 import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
@@ -35,12 +36,14 @@ export const App = () => {
 
         if (code) {
             window.history.replaceState({}, '', '/');
-            supabase.auth.exchangeCodeForSession(code)
-                .then(({ error }) => { if (error) console.error('[auth] dev exchangeCode failed:', error); });
+            supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+                if (error) console.error('[auth] dev exchangeCode failed:', error);
+            });
         } else if (accessToken && refreshToken) {
             window.history.replaceState({}, '', '/');
-            supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-                .then(({ error }) => { if (error) console.error('[auth] dev setSession failed:', error); });
+            supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+                if (error) console.error('[auth] dev setSession failed:', error);
+            });
         }
     }, []);
 
@@ -68,7 +71,10 @@ export const App = () => {
             const refreshToken = hash.get('refresh_token');
             if (accessToken && refreshToken) {
                 console.log('[deep-link] setting session from hash tokens...');
-                const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+                const { error } = await supabase.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken,
+                });
                 if (error) console.error('[deep-link] setSession failed:', error);
                 else console.log('[deep-link] session set successfully');
             }
@@ -83,7 +89,9 @@ export const App = () => {
         onOpenUrl((urls) => {
             console.log('[deep-link] onOpenUrl:', urls);
             if (urls.length) handleCallback(urls[0]);
-        }).then((fn) => { unlisten = fn; });
+        }).then((fn) => {
+            unlisten = fn;
+        });
 
         return () => unlisten?.();
     }, []);
@@ -91,7 +99,6 @@ export const App = () => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>('general');
-
     const openSettings = (tab: SettingsTabId = 'general') => {
         setSettingsInitialTab(tab);
         setSettingsOpen(true);
@@ -120,7 +127,7 @@ export const App = () => {
                 onNavigate={setView}
                 collapsed={sidebarCollapsed}
                 onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
-                onOpenSettings={() => openSettings()}
+                onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
             />
             <div style={{ flex: 1, overflow: 'auto', background: 'var(--color-surface)' }}>
                 {view === 'dashboard' && (
@@ -155,6 +162,11 @@ export const App = () => {
                         <Machines isActive={view === 'machines'} onNavigate={setView} />
                     </ViewErrorBoundary>
                 </div>
+                {view === 'schedule' && (
+                    <ViewErrorBoundary>
+                        <Schedule />
+                    </ViewErrorBoundary>
+                )}
             </div>
             <SettingsModal open={settingsOpen} initialTab={settingsInitialTab} onClose={() => setSettingsOpen(false)} />
         </div>

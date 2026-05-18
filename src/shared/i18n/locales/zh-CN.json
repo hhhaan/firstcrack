@@ -22,7 +22,8 @@
       "history": "烘焙记录",
       "beans": "生豆库存",
       "profiles": "曲线",
-      "machines": "设备"
+      "machines": "设备",
+      "schedule": "烘焙计划"
     }
   },
   "settings": {

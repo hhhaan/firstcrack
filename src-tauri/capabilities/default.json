@@ -13,6 +13,7 @@
     "shell:allow-kill",
     "dialog:allow-message",
     "dialog:allow-ask",
-    "dialog:allow-confirm"
+    "dialog:allow-confirm",
+    "dialog:allow-save"
   ]
 }

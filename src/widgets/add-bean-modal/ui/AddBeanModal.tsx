@@ -43,7 +43,7 @@ const ChipGroup = ({
     renderItem,
     limit = 5,
 }: {
-    items: string[];
+    items: readonly string[];
     renderItem: (item: string) => React.ReactNode;
     limit?: number;
 }) => {
@@ -437,7 +437,9 @@ export const AddBeanModal = ({
                                             <button
                                                 key={process}
                                                 type="button"
-                                                onClick={() => setFormData({ ...formData, process: selected ? '' : process })}
+                                                onClick={() =>
+                                                    setFormData({ ...formData, process: selected ? '' : process })
+                                                }
                                                 className={chipCls(selected)}
                                             >
                                                 {process}

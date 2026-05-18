@@ -1,20 +1,17 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
-import { useAuthStore } from '../../shared/store/auth';
-import { useBeans } from '../../entities/bean/queries';
-import { getStatus } from '../../entities/bean/lib';
-import { BeanList } from '../../widgets/bean-list/ui/BeanList';
-import { BeanDetail } from '../../widgets/bean-detail/ui/BeanDetail';
-import { AddBeanModal } from '../../widgets/add-bean-modal/ui/AddBeanModal';
-import { PageLayout } from '../../shared/ui/PageLayout';
-import type { Bean } from '../../shared/types/database.types';
-import type { View } from '../../shared/types/view';
+import { useAuthStore } from '@shared/store/auth';
+import { useBeans } from '@entities/bean/queries';
+import { getStatus } from '@entities/bean/lib';
+import { BeanList } from '@widgets/bean-list/ui/BeanList';
+import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
+import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
+import { PageLayout } from '@shared/ui/PageLayout';
+import type { Bean } from '@shared/types/database.types';
+import type { View } from '@shared/types/view';
+import { useRoastingStore } from '@features/active-roast/model/status';
 
-interface BeansProps {
-    onNavigate?: (view: View) => void;
-}
-
-export const Beans = ({ onNavigate }: BeansProps) => {
+export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
     const userId = useAuthStore((s) => s.user?.id ?? '');
     const { data: beans = [], isLoading } = useBeans(userId);
 
@@ -131,7 +128,10 @@ export const Beans = ({ onNavigate }: BeansProps) => {
                     isLoading={isLoading}
                     onEdit={(bean) => openModal('edit', bean.id, bean)}
                     onRestock={(id) => openModal('restock', id)}
-                    onStartRoast={() => onNavigate?.('roast')}
+                    onStartRoast={() => {
+                        if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
+                        onNavigate?.('roast');
+                    }}
                 />
             </div>
         </PageLayout>

@@ -9,16 +9,19 @@ import {
     ChevronDown,
     Menu,
     Cpu,
+    CalendarDays,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { type View } from '../../../shared/types/view';
+import { type View } from '@shared/types/view';
+import { useAuthStore } from '@shared/store/auth';
+import { useProfile } from '../../../entities/profile';
 
 interface SidebarProps {
     activeView: View;
     onNavigate: (view: View) => void;
     collapsed: boolean;
     onToggleCollapse: () => void;
-    onOpenSettings: () => void;
+    onOpenSettings: (tab?: string) => void;
 }
 
 const navItems: { id: View; labelKey: string; icon: FC<{ size?: number; strokeWidth?: number; color?: string }> }[] = [
@@ -28,10 +31,15 @@ const navItems: { id: View; labelKey: string; icon: FC<{ size?: number; strokeWi
     { id: 'beans', labelKey: 'sidebar.nav.beans', icon: Coffee },
     { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: BookOpen },
     { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Cpu },
+    { id: 'schedule', labelKey: 'sidebar.nav.schedule', icon: CalendarDays },
 ];
 
 export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, onOpenSettings }: SidebarProps) => {
     const { t } = useTranslation();
+    const user = useAuthStore((s) => s.user);
+    const { data: profile } = useProfile(user?.id ?? '');
+    const workspaceName = profile?.business_name || 'My Roastery';
+    const workspaceInitial = workspaceName.charAt(0).toUpperCase();
 
     return (
         <aside
@@ -55,7 +63,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                         >
                             <div>
                                 <div className="text-[16px] font-medium tracking-[-0.2px] leading-[1.2] text-primary">
-                                    First Crack
+                                    FC
                                 </div>
                                 {/* <div className="text-[11px] text-muted tracking-[0.14px] font-medium">
                                     {t('sidebar.roasteryDashboard')}
@@ -77,18 +85,17 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             {/* Workspace selector */}
             <div className={collapsed ? 'px-2.5 pt-3 pb-2' : 'px-3 pt-3 pb-2'}>
                 <button
+                    onClick={() => onOpenSettings('workspace')}
                     aria-label={t('sidebar.workspaceSelector')}
                     title={collapsed ? t('sidebar.workspace') : undefined}
                     className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-2.5 py-2 rounded-lg border-none bg-surface cursor-pointer shadow-(--shadow-inset)`}
                 >
                     <div className="flex items-center gap-2">
                         <div className="w-5.5 h-5.5 rounded-[5px] bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary">
-                            A
+                            {workspaceInitial}
                         </div>
                         {!collapsed && (
-                            // TODO: 카페 이름 동적 설정 지원 — 현재 하드코딩됨.
-                            // 팀/멀티 테넌트 지원 시 사용자 설정(settings store)에서 읽어오도록 교체 필요.
-                            <span className="text-[13px] font-medium text-primary tracking-[0.14px]">All You Need</span>
+                            <span className="text-[13px] font-medium text-primary tracking-[0.14px]">{workspaceName}</span>
                         )}
                     </div>
                     {!collapsed && <ChevronDown size={14} strokeWidth={2} color="var(--color-muted)" />}
@@ -136,7 +143,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             {/* Footer */}
             <div className="p-3 border-t border-border-subtle">
                 <button
-                    onClick={onOpenSettings}
+                    onClick={() => onOpenSettings()}
                     aria-label={t('sidebar.settings')}
                     title={collapsed ? t('sidebar.settings') : undefined}
                     className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-start'} gap-2.5 px-2.5 py-2 rounded-lg border-none cursor-pointer shadow-(--shadow-inset)`}

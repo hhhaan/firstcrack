@@ -18,6 +18,8 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
     const updateProfile = useUpdateProfile(user?.id ?? '');
 
     const [displayName, setDisplayName] = useState('');
+    const [businessName, setBusinessName] = useState('');
+    const [businessRegNumber, setBusinessRegNumber] = useState('');
     const [location, setLocation] = useState('');
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -27,19 +29,39 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
     }, [profile?.display_name]);
 
     useEffect(() => {
-        locationStore.get()
-            .then((loc) => { if (loc) setLocation(`${loc.lat}, ${loc.lng}`); })
+        if (profile?.business_name) setBusinessName(profile.business_name);
+    }, [profile?.business_name]);
+
+    useEffect(() => {
+        if (profile?.business_registration_number) setBusinessRegNumber(profile.business_registration_number);
+    }, [profile?.business_registration_number]);
+
+    useEffect(() => {
+        locationStore
+            .get()
+            .then((loc) => {
+                if (loc) setLocation(`${loc.lat}, ${loc.lng}`);
+            })
             .catch((e) => console.error('[settings] failed to load location:', e));
     }, []);
 
-    useEffect(() => () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); }, []);
+    useEffect(
+        () => () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        },
+        [],
+    );
 
     const handleSaveProfile = async () => {
         if (!user) return;
         try {
             const coords = parseLocationString(location);
             await Promise.all([
-                updateProfile.mutateAsync({ display_name: displayName.trim() }),
+                updateProfile.mutateAsync({
+                    display_name: displayName.trim(),
+                    business_name: businessName.trim() || null,
+                    business_registration_number: businessRegNumber.trim() || null,
+                }),
                 coords ? locationStore.set(coords) : Promise.resolve(),
             ]);
             if (coords) qc.invalidateQueries({ queryKey: ['weather', 'coords'] });
@@ -79,6 +101,28 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
                             placeholder="Your name"
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5E7EB] bg-white text-[14px] text-[#111827] font-normal outline-none focus:border-[#111827] focus:ring-1 focus:ring-[#111827] transition-colors"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[13px] font-medium text-[#374151] mb-1.5">Business name</label>
+                        <input
+                            type="text"
+                            value={businessName}
+                            onChange={(e) => setBusinessName(e.target.value)}
+                            placeholder="Your business name"
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5E7EB] bg-white text-[14px] text-[#111827] font-normal outline-none focus:border-[#111827] focus:ring-1 focus:ring-[#111827] transition-colors"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[13px] font-medium text-[#374151] mb-1.5">
+                            Business registration number
+                        </label>
+                        <input
+                            type="text"
+                            value={businessRegNumber}
+                            onChange={(e) => setBusinessRegNumber(e.target.value)}
+                            placeholder="000-00-00000"
                             className="w-full px-3.5 py-2.5 rounded-lg border border-[#E5E7EB] bg-white text-[14px] text-[#111827] font-normal outline-none focus:border-[#111827] focus:ring-1 focus:ring-[#111827] transition-colors"
                         />
                     </div>

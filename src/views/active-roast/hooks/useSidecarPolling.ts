@@ -27,7 +27,7 @@ interface Params {
     setConnected: (connected: boolean, capabilities?: string[]) => void;
     /** Charge 시각 (ms). 0이면 로스팅 미시작 */
     roastStartTimeRef: MutableRefObject<number>;
-    /** Turning Point 확정 시각 (초). null이면 TP 미확정 → RoR 비표시 */
+    /** TP 확정 시각 (초). null이면 미확정 */
     tpTimeSecRef: MutableRefObject<number | null>;
 }
 
@@ -45,7 +45,6 @@ export const useSidecarPolling = ({
     enterPreheating,
     setConnected,
     roastStartTimeRef,
-    tpTimeSecRef,
 }: Params) => {
     const [livePoints, setLivePoints] = useState<LiveRoastPoint[]>([]);
 
@@ -88,18 +87,13 @@ export const useSidecarPolling = ({
                 const bt = data.bt;
 
                 // 로스팅 단계에서만 측정값을 livePoints에 기록한다.
-                if (
-                    useRoastingStore.getState().phase === 'roasting' &&
-                    bt != null &&
-                    roastStartTimeRef.current !== 0
-                ) {
+                if (useRoastingStore.getState().phase === 'roasting' && bt != null && roastStartTimeRef.current !== 0) {
                     const t = (Date.now() - roastStartTimeRef.current) / 1000;
                     setLivePoints((prev) => {
                         // 폴링 주기보다 짧은 간격은 무시해 중복 포인트를 방지한다.
                         if (prev.length > 0 && t - prev[prev.length - 1].time < 0.4) return prev;
                         const min = Math.floor(t / 60);
                         const sec = Math.floor(t % 60);
-                        const tpConfirmed = tpTimeSecRef.current != null;
                         return [
                             ...prev,
                             {
@@ -107,9 +101,8 @@ export const useSidecarPolling = ({
                                 label: `${min}:${String(sec).padStart(2, '0')}`,
                                 bt,
                                 et: data.et ?? null,
-                                // TP 확정 전에는 RoR을 숨겨 초반 노이즈를 차트에 그리지 않는다.
-                                ror: tpConfirmed ? data.ror : null,
-                                ror_et: tpConfirmed ? (data.ror_et ?? null) : null,
+                                ror: data.ror,
+                                ror_et: data.ror_et ?? null,
                                 heater: data.heater ?? 0,
                                 fan: data.fan ?? 0,
                                 drum: data.drum ?? 0,
