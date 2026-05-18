@@ -6,6 +6,8 @@ import { useRoastKeyboardShortcuts } from '@views/useRoastKeyboardShortcuts';
 import { useRoastActions } from '@views/useRoastActions';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
+import { readTextFile, remove, BaseDirectory } from '@tauri-apps/plugin-fs';
+import { supabase } from '@shared/lib/supabase';
 import { Play, Square } from 'lucide-react';
 import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
 import { PageLayout } from '@shared/ui/PageLayout';
@@ -53,6 +55,7 @@ export const ActiveRoast = ({
     const storeStartCharge = useRoastingStore((s) => s.startCharge);
     const storeEndRoast = useRoastingStore((s) => s.endRoast);
     const resetStore = useRoastingStore((s) => s.reset);
+    const sessionId = useRoastingStore((s) => s.sessionId);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const machineCapabilities = useRoastingStore((s) => s.machineCapabilities);
     const setConnected = useRoastingStore((s) => s.setConnected);
@@ -109,6 +112,7 @@ export const ActiveRoast = ({
         setConnected,
         roastStartTimeRef,
         tpTimeSecRef,
+        sessionId,
     });
 
     // ── 차트 데이터 파이프라인 ────────────────────────────────────
@@ -874,11 +878,35 @@ export const ActiveRoast = ({
                     setSummaryData(null);
                     resetActiveRoast();
                 }}
-                onSave={(notes) => {
+                onSave={async (notes) => {
                     if (!user) return;
                     const durationSeconds = elapsed;
                     const roastedAt =
                         roastStartTimeRef.current > 0 ? new Date(roastStartTimeRef.current).toISOString() : null;
+
+                    // TSV 파일을 Supabase Storage에 업로드한다.
+                    let tsvPath: string | null = null;
+                    if (sessionId && '__TAURI_INTERNALS__' in window) {
+                        try {
+                            const tsvContent = await readTextFile(`session_${sessionId}.tsv`, {
+                                baseDir: BaseDirectory.AppLocalData,
+                            });
+                            const blob = new Blob([tsvContent], { type: 'text/tab-separated-values' });
+                            const storagePath = `${user.id}/${sessionId}.tsv`;
+                            const { error: uploadError } = await supabase.storage
+                                .from('roast-curves')
+                                .upload(storagePath, blob, { contentType: 'text/tab-separated-values' });
+                            if (!uploadError) {
+                                tsvPath = storagePath;
+                                remove(`session_${sessionId}.tsv`, {
+                                    baseDir: BaseDirectory.AppLocalData,
+                                }).catch(() => {});
+                            }
+                        } catch {
+                            // 파일이 없거나 업로드 실패 시 tsv_path 없이 저장 진행
+                        }
+                    }
+
                     saveRoastSession({
                         user_id: user.id,
                         weight_grams: 0,
@@ -893,6 +921,7 @@ export const ActiveRoast = ({
                         ambient_humidity_pct: weatherData?.humidity ?? null,
                         bean_id: selectedBeanId,
                         profile_id: targetProfileId != null ? String(targetProfileId) : null,
+                        tsv_path: tsvPath,
                     });
                     setShowSummaryModal(false);
                     setSummaryData(null);

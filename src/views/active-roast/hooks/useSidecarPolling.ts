@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import { sidecar } from '@shared/lib/sidecar';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
 
 /** 폴링 중 누적하는 실시간 측정 포인트 */
 export interface LiveRoastPoint {
@@ -16,6 +17,9 @@ export interface LiveRoastPoint {
     drum: number;
 }
 
+const TAURI = '__TAURI_INTERNALS__' in window;
+const TSV_HEADER = 'time\tbt\tet\tror\theater\tfan\tdrum\n';
+
 interface Params {
     /** 뷰가 화면에 노출되어 있는지 여부 (CSS hide → show 전환 감지) */
     isActive: boolean;
@@ -29,6 +33,8 @@ interface Params {
     roastStartTimeRef: MutableRefObject<number>;
     /** TP 확정 시각 (초). null이면 미확정 */
     tpTimeSecRef: MutableRefObject<number | null>;
+    /** Charge 시 생성된 세션 UUID. null이면 미시작 */
+    sessionId: string | null;
 }
 
 /**
@@ -37,6 +43,8 @@ interface Params {
  *
  * livePoints는 차트·자동감지 훅에서 공유되므로 이 훅에서 소유한다.
  * resetActiveRoast 등 외부에서 초기화가 필요할 때를 위해 setLivePoints도 반환한다.
+ *
+ * sessionId가 설정되면 AppLocalData/session_{sessionId}.tsv에 커브 데이터를 기록한다.
  */
 export const useSidecarPolling = ({
     isActive,
@@ -45,8 +53,22 @@ export const useSidecarPolling = ({
     enterPreheating,
     setConnected,
     roastStartTimeRef,
+    sessionId,
 }: Params) => {
     const [livePoints, setLivePoints] = useState<LiveRoastPoint[]>([]);
+    // TSV 파일 헤더가 작성됐는지 추적 — sessionId가 바뀌면 다시 false로 리셋된다.
+    const tsvInitializedRef = useRef(false);
+
+    // sessionId가 새로 설정되면 TSV 파일을 헤더로 초기화한다.
+    useEffect(() => {
+        if (!sessionId || !TAURI) return;
+        tsvInitializedRef.current = false;
+        writeTextFile(`session_${sessionId}.tsv`, TSV_HEADER, { baseDir: BaseDirectory.AppLocalData })
+            .then(() => {
+                tsvInitializedRef.current = true;
+            })
+            .catch(() => {});
+    }, [sessionId]);
 
     // 뷰가 활성화될 때 연결 상태를 확인하고 idle 상태면 예열 단계로 진입한다.
     useEffect(() => {
@@ -94,20 +116,29 @@ export const useSidecarPolling = ({
                         if (prev.length > 0 && t - prev[prev.length - 1].time < 0.4) return prev;
                         const min = Math.floor(t / 60);
                         const sec = Math.floor(t % 60);
-                        return [
-                            ...prev,
-                            {
-                                time: t,
-                                label: `${min}:${String(sec).padStart(2, '0')}`,
-                                bt,
-                                et: data.et ?? null,
-                                ror: data.ror,
-                                ror_et: data.ror_et ?? null,
-                                heater: data.heater ?? 0,
-                                fan: data.fan ?? 0,
-                                drum: data.drum ?? 0,
-                            },
-                        ];
+                        const point: LiveRoastPoint = {
+                            time: t,
+                            label: `${min}:${String(sec).padStart(2, '0')}`,
+                            bt,
+                            et: data.et ?? null,
+                            ror: data.ror,
+                            ror_et: data.ror_et ?? null,
+                            heater: data.heater ?? 0,
+                            fan: data.fan ?? 0,
+                            drum: data.drum ?? 0,
+                        };
+
+                        // TSV에 데이터 포인트 추가
+                        const currentSessionId = useRoastingStore.getState().sessionId;
+                        if (TAURI && tsvInitializedRef.current && currentSessionId) {
+                            const row = `${t.toFixed(2)}\t${bt}\t${data.et ?? ''}\t${data.ror ?? ''}\t${data.heater ?? 0}\t${data.fan ?? 0}\t${data.drum ?? 0}\n`;
+                            writeTextFile(`session_${currentSessionId}.tsv`, row, {
+                                baseDir: BaseDirectory.AppLocalData,
+                                append: true,
+                            }).catch(() => {});
+                        }
+
+                        return [...prev, point];
                     });
                 }
             } catch {

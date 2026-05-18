@@ -19,6 +19,7 @@ export interface RoastingState {
     machineCapabilities: string[];
     liveData: LiveData | null;
     pendingBeanId: string | null;
+    sessionId: string | null;
 
     // derived convenience
     isRoasting: boolean;
@@ -42,6 +43,7 @@ const initialState = {
     machineCapabilities: [] as string[],
     liveData: null as LiveData | null,
     pendingBeanId: null as string | null,
+    sessionId: null as string | null,
     isRoasting: false,
     charged: false,
 };
@@ -64,7 +66,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     },
 
     startCharge: () => {
-        set({ phase: 'roasting', charged: true, isRoasting: true });
+        set({ phase: 'roasting', charged: true, isRoasting: true, sessionId: crypto.randomUUID() });
     },
 
     endRoast: () => {
