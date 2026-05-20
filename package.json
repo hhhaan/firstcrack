@@ -11,7 +11,10 @@
     "tauri": "tauri",
     "types:gen": "supabase gen types typescript --linked 2>/dev/null > src/shared/types/database.types.ts && node scripts/append-db-aliases.mjs",
     "build:sidecar": "bash scripts/build-sidecar.sh",
-    "build:debug": "npm run build:sidecar && tauri build --debug && open 'src-tauri/target/debug/bundle/macos/First Crack.app'"
+    "build:debug": "npm run build:sidecar && tauri build --debug && open 'src-tauri/target/debug/bundle/macos/First Crack.app'",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "prepare": "husky"
   },
   "dependencies": {
     "@radix-ui/react-popover": "^1.1.15",
@@ -45,14 +48,25 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.2.4",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "concurrently": "^9.2.1",
+    "eslint": "^10.4.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5",
     "tailwindcss": "^4.2.4",
     "typescript": "~5.8.3",
+    "typescript-eslint": "^8.59.4",
     "vite": "^7.0.4"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": "eslint --max-warnings=0"
   }
 }

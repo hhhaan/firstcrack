@@ -198,6 +198,101 @@ export type Database = {
         }
         Relationships: []
       }
+      roast_day_plans: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          notes: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          notes?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roast_day_plans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roast_plan_batches: {
+        Row: {
+          batch_count: number
+          batch_size_kg: number
+          bean_name: string
+          created_at: string
+          id: string
+          machine_id: string | null
+          order_index: number
+          plan_id: string
+          roast_profile_id: string | null
+          status: string
+          target_roasted_kg: number
+          updated_at: string
+        }
+        Insert: {
+          batch_count?: number
+          batch_size_kg: number
+          bean_name: string
+          created_at?: string
+          id?: string
+          machine_id?: string | null
+          order_index?: number
+          plan_id: string
+          roast_profile_id?: string | null
+          status?: string
+          target_roasted_kg: number
+          updated_at?: string
+        }
+        Update: {
+          batch_count?: number
+          batch_size_kg?: number
+          bean_name?: string
+          created_at?: string
+          id?: string
+          machine_id?: string | null
+          order_index?: number
+          plan_id?: string
+          roast_profile_id?: string | null
+          status?: string
+          target_roasted_kg?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roast_plan_batches_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "roast_day_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roast_plan_batches_roast_profile_id_fkey"
+            columns: ["roast_profile_id"]
+            isOneToOne: false
+            referencedRelation: "roast_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roast_profiles: {
         Row: {
           created_at: string
@@ -246,6 +341,7 @@ export type Database = {
           duration_seconds: number | null
           id: string
           notes: string | null
+          plan_batch_id: string | null
           profile_id: string | null
           roast_level: string | null
           roasted_at: string | null
@@ -265,6 +361,7 @@ export type Database = {
           duration_seconds?: number | null
           id?: string
           notes?: string | null
+          plan_batch_id?: string | null
           profile_id?: string | null
           roast_level?: string | null
           roasted_at?: string | null
@@ -284,6 +381,7 @@ export type Database = {
           duration_seconds?: number | null
           id?: string
           notes?: string | null
+          plan_batch_id?: string | null
           profile_id?: string | null
           roast_level?: string | null
           roasted_at?: string | null
@@ -300,6 +398,13 @@ export type Database = {
             columns: ["bean_id"]
             isOneToOne: false
             referencedRelation: "beans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roast_sessions_plan_batch_id_fkey"
+            columns: ["plan_batch_id"]
+            isOneToOne: false
+            referencedRelation: "roast_plan_batches"
             referencedColumns: ["id"]
           },
           {
