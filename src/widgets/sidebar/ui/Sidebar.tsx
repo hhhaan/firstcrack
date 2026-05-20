@@ -26,12 +26,12 @@ interface SidebarProps {
 
 const navItems: { id: View; labelKey: string; icon: FC<{ size?: number; strokeWidth?: number; color?: string }> }[] = [
     { id: 'dashboard', labelKey: 'sidebar.nav.dashboard', icon: LayoutDashboard },
+    { id: 'schedule', labelKey: 'sidebar.nav.schedule', icon: CalendarDays },
     { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Flame },
     { id: 'history', labelKey: 'sidebar.nav.history', icon: ClipboardList },
     { id: 'beans', labelKey: 'sidebar.nav.beans', icon: Coffee },
     { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: BookOpen },
     { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Cpu },
-    { id: 'schedule', labelKey: 'sidebar.nav.schedule', icon: CalendarDays },
 ];
 
 export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, onOpenSettings }: SidebarProps) => {
