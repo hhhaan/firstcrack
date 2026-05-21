@@ -7,6 +7,16 @@ export interface MonthlyBatch {
     batches: number
 }
 
+export interface UpcomingBatch {
+    id: string
+    bean_name: string
+    batch_type: string
+    batch_count: number
+    target_roasted_kg: number
+    status: string
+    date: string
+}
+
 export interface DashboardData {
     batchesThisMonth: number
     batchesLastMonth: number
@@ -15,7 +25,7 @@ export interface DashboardData {
     avgDurationSeconds: number
     avgDurationLastMonthSeconds: number
     recentSessions: RoastSessionWithRelations[]
-    upcomingSessions: RoastSessionWithRelations[]
+    upcomingBatches: UpcomingBatch[]
     inventoryAlerts: Bean[]
     monthlyBatches: MonthlyBatch[]
     loading: boolean
@@ -26,11 +36,12 @@ const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 
 const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'loading' | 'error'>> => {
     const now = new Date()
+    const today = now.toISOString().slice(0, 10)
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString()
 
-    const [completedRes, upcomingRes, alertsRes, monthlyRes] = await Promise.all([
+    const [completedRes, upcomingPlansRes, alertsRes, monthlyRes] = await Promise.all([
         supabase
             .from('roast_sessions')
             .select('*, beans(name, origin), roast_profiles(name, target_level)')
@@ -40,13 +51,12 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
             .order('roasted_at', { ascending: false }),
 
         supabase
-            .from('roast_sessions')
-            .select('*, beans(name, origin), roast_profiles(name, target_level)')
+            .from('roast_day_plans')
+            .select('id, date')
             .eq('user_id', userId)
-            .eq('status', 'scheduled')
-            .gte('scheduled_at', now.toISOString())
-            .order('scheduled_at', { ascending: true })
-            .limit(3),
+            .gte('date', today)
+            .order('date')
+            .limit(14),
 
         // 전체 가져와서 클라이언트에서 필터 (PostgREST는 컬럼 간 비교 미지원)
         supabase
@@ -64,9 +74,31 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     ])
 
     if (completedRes.error) throw completedRes.error
-    if (upcomingRes.error) throw upcomingRes.error
+    if (upcomingPlansRes.error) throw upcomingPlansRes.error
     if (alertsRes.error) throw alertsRes.error
     if (monthlyRes.error) throw monthlyRes.error
+
+    let upcomingBatches: UpcomingBatch[] = []
+    if (upcomingPlansRes.data && upcomingPlansRes.data.length > 0) {
+        const planIds = upcomingPlansRes.data.map((p) => p.id)
+        const planDateMap = new Map(upcomingPlansRes.data.map((p) => [p.id, p.date]))
+        const { data: batchData } = await supabase
+            .from('roast_plan_batches')
+            .select('id, plan_id, bean_name, batch_type, batch_count, target_roasted_kg, status, order_index')
+            .in('plan_id', planIds)
+            .in('status', ['pending', 'in-progress'])
+            .order('order_index')
+            .limit(5)
+        upcomingBatches = (batchData ?? []).map((b) => ({
+            id: b.id,
+            bean_name: b.bean_name,
+            batch_type: b.batch_type,
+            batch_count: b.batch_count,
+            target_roasted_kg: b.target_roasted_kg,
+            status: b.status,
+            date: planDateMap.get(b.plan_id) ?? today,
+        }))
+    }
 
     const completed = completedRes.data as RoastSessionWithRelations[]
     const thisMonth = completed.filter((s) => s.roasted_at! >= thisMonthStart)
@@ -107,7 +139,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         avgDurationSeconds: avgDuration(thisMonth),
         avgDurationLastMonthSeconds: avgDuration(lastMonth),
         recentSessions: completed.slice(0, 5),
-        upcomingSessions: upcomingRes.data as RoastSessionWithRelations[],
+        upcomingBatches,
         inventoryAlerts,
         monthlyBatches,
     }
@@ -121,7 +153,7 @@ const EMPTY: Omit<DashboardData, 'loading' | 'error'> = {
     avgDurationSeconds: 0,
     avgDurationLastMonthSeconds: 0,
     recentSessions: [],
-    upcomingSessions: [],
+    upcomingBatches: [],
     inventoryAlerts: [],
     monthlyBatches: [],
 }

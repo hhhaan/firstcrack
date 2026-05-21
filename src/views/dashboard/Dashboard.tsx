@@ -183,18 +183,6 @@ const formatDate = (iso: string) => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-const formatScheduled = (iso: string) => {
-    const d = new Date(iso);
-    const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(now.getDate() + 1);
-    const isTomorrow = d.toDateString() === tomorrow.toDateString();
-    const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    if (isToday) return `Today, ${timeStr}`;
-    if (isTomorrow) return `Tomorrow, ${timeStr}`;
-    return `${formatDate(iso)}, ${timeStr}`;
-};
 
 const pctChange = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? '+∞%' : '0%';
@@ -256,8 +244,8 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     </h1>
                     <p className="text-[15px] text-secondary tracking-[0.15px] font-normal flex items-center gap-2.5">
                         {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                        {db.upcomingSessions.length > 0 &&
-                            ` · ${db.upcomingSessions.length} roast${db.upcomingSessions.length > 1 ? 's' : ''} scheduled`}
+                        {db.upcomingBatches.length > 0 &&
+                            ` · ${db.upcomingBatches.length}개 배치 예정`}
                         {weather.data && (
                             <>
                                 <span className="text-muted/40">·</span>
@@ -452,13 +440,13 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     <h2 className="text-[15px] font-medium text-primary tracking-[0.15px] mb-3.5">Upcoming Batches</h2>
                     {db.loading ? (
                         <p className="text-[13px] text-muted py-2">Loading...</p>
-                    ) : db.upcomingSessions.length === 0 ? (
-                        <p className="text-[13px] text-muted py-2">No upcoming batches</p>
+                    ) : db.upcomingBatches.length === 0 ? (
+                        <p className="text-[13px] text-muted py-2">예정된 배치가 없습니다</p>
                     ) : (
-                        db.upcomingSessions.map((item, i) => (
+                        db.upcomingBatches.map((item, i) => (
                             <div
                                 key={item.id}
-                                className={`flex items-center gap-3 py-2.5 ${i < db.upcomingSessions.length - 1 ? 'border-b border-border-subtle' : ''}`}
+                                className={`flex items-center gap-3 py-2.5 ${i < db.upcomingBatches.length - 1 ? 'border-b border-border-subtle' : ''}`}
                             >
                                 <div className="w-8.5 h-8.5 rounded-lg bg-surface-warm-solid flex items-center justify-center shrink-0 shadow-(--shadow-inset)">
                                     <Calendar size={14} strokeWidth={1.5} color="var(--color-secondary)" />
@@ -466,16 +454,14 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5">
                                         <span className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
-                                            {item.beans?.name ?? '—'}
+                                            {item.bean_name}
                                         </span>
                                         <span className="shrink-0 text-[11px] font-medium text-secondary bg-surface px-1.5 py-0.5 rounded border border-border">
-                                            {item.weight_grams >= 1000
-                                                ? `${item.weight_grams / 1000}kg`
-                                                : `${item.weight_grams}g`}
+                                            {item.batch_count}회 · {item.target_roasted_kg}kg
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted tracking-[0.14px]">
-                                        {item.scheduled_at ? formatScheduled(item.scheduled_at) : '—'} · {item.roast_profiles?.name ?? '—'}
+                                        {item.date === new Date().toISOString().slice(0, 10) ? '오늘' : item.date} · {item.batch_type}
                                     </div>
                                 </div>
                             </div>
