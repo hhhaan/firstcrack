@@ -21,7 +21,7 @@
 @theme {
     --font-display: 'Inter', 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     --font-body: 'Inter', 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-mono: 'IBM Plex Mono', monospace;
+    --font-mono: monospace;
 
     --color-main-bg: #ffffff;
     --color-roast-bg: #ffffff;
@@ -109,3 +109,19 @@ html[lang='en'] {
 *::after {
     font-variant-numeric: tabular-nums lining-nums;
 }
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    [data-report='true'],
+    [data-report='true'] * {
+        visibility: visible;
+    }
+    [data-report='true'] {
+        position: fixed;
+        top: 0;
+        left: 0;
+    }
+}
+

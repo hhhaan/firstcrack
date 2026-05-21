@@ -48,13 +48,11 @@ export const RoastTempChart: React.FC<Props> = ({
     btActual,
     etActual,
     rorActual,
-    currentTimeSec,
     eventMarkers,
     turningPoints = [],
     temperatureUnit = 'C',
     height,
     onCursorIdx,
-    onEventMarkerDrag: _onEventMarkerDrag,
     showET = true,
     showTargetCurve = true,
     showRoR = true,
@@ -241,7 +239,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     ]),
                 },
             },
-        ].filter(Boolean) as any[];
+        ].filter(Boolean) as object[];
 
         if (controlData) {
             const { xs: cxs, drumTemp, heatPower, fanSpeed } = controlData;
@@ -282,20 +280,20 @@ export const RoastTempChart: React.FC<Props> = ({
                         gridIndex: 0,
                         type: 'value',
                         name: `Temperature (${unitLabel})`,
-                        nameGap: 35,
+                        nameGap: 16,
                         axisLabel: { fontSize: 11, fontFamily: 'monospace' },
                         splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
                         minorTick: { show: true, splitNumber: 2 },
                         minorSplitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLineMinor, width: 0.5 } },
                         min: temperatureUnit === 'F' ? 266 : 130,
-                        max: temperatureUnit === 'F' ? 464 : 240,
+                        max: temperatureUnit === 'F' ? 482 : 250,
                         interval: 20,
                     },
                     {
                         gridIndex: 0,
                         type: 'value',
                         name: `RoR (${rorUnit})`,
-                        nameGap: 35,
+                        nameGap: 16,
                         position: 'right',
                         axisLabel: { fontSize: 11, fontFamily: 'monospace' },
                         splitLine: { show: false },
@@ -383,9 +381,11 @@ export const RoastTempChart: React.FC<Props> = ({
             tooltip: {
                 trigger: 'axis',
                 axisPointer: { type: 'cross', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 formatter: (params: any) => {
                     const timeSec = params[0]?.axisValue ?? 0;
                     let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     params.forEach((p: any) => {
                         if (p.seriesName === 'BT Target')
                             html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget};border-radius:2px"></div>Target BT: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
@@ -403,7 +403,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 type: 'value',
                 name: 'Time (min)',
                 nameLocation: 'middle',
-                nameGap: 35,
+                nameGap: 16,
                 min: xMin,
                 max: xMax,
                 axisLabel: { formatter: (v: number) => fmtSec(v), fontSize: 11, fontFamily: 'monospace' },
@@ -415,17 +415,17 @@ export const RoastTempChart: React.FC<Props> = ({
                 {
                     type: 'value',
                     name: `Temperature (${unitLabel})`,
-                    nameGap: 35,
+                    nameGap: 16,
                     axisLabel: { fontSize: 11, fontFamily: 'monospace' },
                     splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
                     min: temperatureUnit === 'F' ? 266 : 130,
-                    max: temperatureUnit === 'F' ? 464 : 240,
+                    max: temperatureUnit === 'F' ? 482 : 250,
                     interval: 20,
                 },
                 {
                     type: 'value',
                     name: `RoR (${rorUnit})`,
-                    nameGap: 35,
+                    nameGap: 16,
                     position: 'right',
                     axisLabel: { fontSize: 11, fontFamily: 'monospace' },
                     splitLine: { show: false },
@@ -443,7 +443,6 @@ export const RoastTempChart: React.FC<Props> = ({
         btActual,
         etActual,
         rorActual,
-        currentTimeSec,
         eventMarkers,
         turningPoints,
         temperatureUnit,
@@ -464,6 +463,7 @@ export const RoastTempChart: React.FC<Props> = ({
             notMerge: structureChanged,
             lazyUpdate: !structureChanged,
         });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [option]);
 
     // 마우스 호버
@@ -471,6 +471,7 @@ export const RoastTempChart: React.FC<Props> = ({
         const chart = chartInstanceRef.current;
         if (!chart || !onCursorIdx) return;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const handleMouseMove = (e: any) => {
             const pixel: [number, number] = [e.offsetX, e.offsetY];
             const point = chart.convertFromPixel({ xAxisIndex: 0 }, pixel);

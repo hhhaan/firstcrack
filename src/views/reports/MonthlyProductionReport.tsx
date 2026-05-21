@@ -1,8 +1,5 @@
-import { useRef, useState, useMemo } from 'react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import { save } from '@tauri-apps/plugin-dialog';
-import { invoke } from '@tauri-apps/api/core';
+import { useState, useMemo } from 'react';
+import { saveMonthlyReportPdf } from './saveMonthlyReportPdf';
 
 interface RoastSession {
     date: string;
@@ -28,9 +25,6 @@ interface MonthlyReportProps {
     sessions: RoastSession[];
 }
 
-const A4_W = 210;
-const A4_H = 297;
-
 export const MonthlyProductionReport = ({
     year,
     month,
@@ -39,8 +33,7 @@ export const MonthlyProductionReport = ({
     bizNumber: initialBizNumber = '',
     sessions: initialSessions,
 }: MonthlyReportProps) => {
-    const reportRef = useRef<HTMLDivElement>(null);
-    const [saving, setSaving] = useState(false);
+    const [savingReactPdf, setSavingReactPdf] = useState(false);
 
     // 상단 정보 (편집 가능)
     const [businessName, setBusinessName] = useState(initialBusinessName);
@@ -70,91 +63,33 @@ export const MonthlyProductionReport = ({
         };
     }, [sessions]);
 
-    const handleSavePdf = async () => {
-        if (!reportRef.current || saving) return;
-        setSaving(true);
-
-        try {
-            const canvas = await html2canvas(reportRef.current, {
-                scale: 3,
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                onclone: (clonedDoc) => {
-                    const style = clonedDoc.createElement('style');
-                    style.textContent = `
-                        * {
-                            -webkit-print-color-adjust: exact !important;
-                            color-adjust: exact !important;
-                            font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif !important;
-                        }
-                        table { border-collapse: collapse !important; }
-                        th, td { vertical-align: middle !important; }
-                        [contenteditable] {
-                            font-family: inherit !important;
-                            font-size: inherit !important;
-                            color: #000000 !important;
-                            outline: none !important;
-                        }
-                    `;
-                    clonedDoc.head.appendChild(style);
-                },
-            });
-
-            const imgW = A4_W;
-            const imgH = (canvas.height * A4_W) / canvas.width;
-
-            const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-
-            let remainingH = imgH;
-            let srcY = 0;
-            let pageNum = 1;
-            const totalPages = Math.ceil(imgH / A4_H);
-
-            while (remainingH > 0) {
-                const sliceH = Math.min(remainingH, A4_H);
-                const srcYpx = (srcY / imgH) * canvas.height;
-                const sliceHpx = (sliceH / imgH) * canvas.height;
-
-                const pageCanvas = document.createElement('canvas');
-                pageCanvas.width = canvas.width;
-                pageCanvas.height = sliceHpx;
-                const ctx = pageCanvas.getContext('2d')!;
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(canvas, 0, srcYpx, canvas.width, sliceHpx, 0, 0, canvas.width, sliceHpx);
-
-                if (srcY > 0) pdf.addPage();
-                pdf.addImage(pageCanvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, imgW, sliceH);
-
-                pdf.setFontSize(10);
-                pdf.setTextColor(80);
-                pdf.text(`${pageNum} / ${totalPages}`, A4_W - 15, A4_H - 8, { align: 'right' });
-
-                pageNum++;
-                srcY += sliceH;
-                remainingH -= sliceH;
-            }
-
-            const defaultName = `${year}년_${String(month).padStart(2, '0')}월_생산보고서.pdf`;
-            const path = await save({
-                defaultPath: defaultName,
-                filters: [{ name: 'PDF 문서', extensions: ['pdf'] }],
-            });
-
-            if (!path) return;
-
-            const bytes = Array.from(new Uint8Array(pdf.output('arraybuffer')));
-            await invoke('save_pdf', { path, data: bytes });
-        } finally {
-            setSaving(false);
-        }
-    };
 
     const today = new Date().toLocaleDateString('ko-KR', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
     });
+
+    const handleSaveReactPdf = async () => {
+        if (savingReactPdf) return;
+        setSavingReactPdf(true);
+        try {
+            await saveMonthlyReportPdf({
+                year,
+                month,
+                businessName,
+                ownerName,
+                bizNumber,
+                writer,
+                reviewer,
+                representative,
+                sessions,
+                today,
+            });
+        } finally {
+            setSavingReactPdf(false);
+        }
+    };
 
     const inputStyle = {
         width: '100%',
@@ -179,10 +114,9 @@ export const MonthlyProductionReport = ({
     return (
         <div className="font-sans">
             <div
-                ref={reportRef}
                 data-report="true"
                 style={{
-                    width: '198.5mm',
+                    width: '210mm',
                     margin: '0 auto',
                     backgroundColor: '#ffffff',
                     padding: '18.75mm 18.75mm',
@@ -669,18 +603,18 @@ export const MonthlyProductionReport = ({
             {/* 저장 버튼 */}
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
                 <button
-                    onClick={handleSavePdf}
-                    disabled={saving}
+                    onClick={handleSaveReactPdf}
+                    disabled={savingReactPdf}
                     style={{
                         padding: '10px 24px',
                         border: '1px solid #000',
                         fontSize: '14px',
-                        backgroundColor: saving ? '#f3f4f6' : '#ffffff',
-                        cursor: saving ? 'not-allowed' : 'pointer',
-                        opacity: saving ? 0.6 : 1,
+                        backgroundColor: savingReactPdf ? '#f3f4f6' : '#ffffff',
+                        cursor: savingReactPdf ? 'not-allowed' : 'pointer',
+                        opacity: savingReactPdf ? 0.6 : 1,
                     }}
                 >
-                    {saving ? 'PDF 생성 중...' : 'PDF 저장'}
+                    {savingReactPdf ? 'PDF 생성 중...' : 'PDF 저장'}
                 </button>
             </div>
         </div>
