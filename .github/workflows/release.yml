@@ -81,26 +81,25 @@ jobs:
         with:
           path: artifacts
 
-      - name: Install wrangler
-        run: npm install -g wrangler
-
       - name: Upload binaries & latest.json to R2
         env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_R2_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_R2_API_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
           VERSION: ${{ steps.version.outputs.VERSION }}
           R2_BUCKET: first-crack
-          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
         run: |
           set -e
 
           # Upload all binaries under releases/{version}/
           find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.sig" \) | while read FILE; do
             FILENAME=$(basename "$FILE")
-            wrangler r2 object put "$R2_BUCKET/releases/$VERSION/$FILENAME" --file "$FILE" --remote
+            aws s3 cp "$FILE" "s3://$R2_BUCKET/releases/$VERSION/$FILENAME" \
+              --endpoint-url "$R2_ENDPOINT" --region auto
           done
 
-          # Read sig file contents
+          # Build latest.json
           AARCH64_SIG=$(find artifacts -name "*aarch64.app.tar.gz.sig" | head -1)
           X64_SIG=$(find artifacts -name "*x64.app.tar.gz.sig" | head -1)
           AARCH64_DMG_NAME=$(find artifacts -name "*aarch64.dmg" -exec basename {} \; | head -1)
@@ -124,4 +123,5 @@ jobs:
           }
           EOF
 
-          wrangler r2 object put "$R2_BUCKET/releases/latest.json" --file latest.json --remote
+          aws s3 cp latest.json "s3://$R2_BUCKET/releases/latest.json" \
+            --endpoint-url "$R2_ENDPOINT" --region auto
