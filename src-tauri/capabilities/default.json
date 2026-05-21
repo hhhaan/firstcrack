@@ -15,12 +15,12 @@
     "dialog:allow-ask",
     "dialog:allow-confirm",
     "dialog:allow-save",
-    "fs:allow-applocaldatadir",
-    "fs:allow-applocaldatadir-read-recursive",
-    "fs:allow-applocaldatadir-write-recursive",
+    "updater:default",
+    "process:allow-restart",
+    "fs:allow-applocaldata-read-recursive",
+    "fs:allow-applocaldata-write-recursive",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
-    "fs:allow-append-text-file",
-    "fs:allow-remove-file"
+    "fs:allow-remove"
   ]
 }

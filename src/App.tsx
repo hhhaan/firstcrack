@@ -1,5 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { onOpenUrl, getCurrent } from '@tauri-apps/plugin-deep-link';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
+import { confirm } from '@tauri-apps/plugin-dialog';
 import { supabase } from '@shared/lib/supabase';
 import './App.css';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
@@ -13,6 +16,7 @@ import { Profiles } from './views/profiles';
 import { Machines } from './views/machines';
 import { Schedule } from './views/schedule';
 import { type View } from './shared/types/view';
+import { type PlanBatchHandoff } from './shared/types/database.types';
 import { useAuthStore } from './shared/store/auth';
 import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
 
@@ -22,6 +26,33 @@ export const App = () => {
     const init = useAuthStore((s) => s.init);
 
     useEffect(() => init(), [init]);
+
+    // Auto-updater: check for updates on startup
+    useEffect(() => {
+        const checkForUpdates = async () => {
+            if (import.meta.env.DEV) return;
+
+            try {
+                const update = await check();
+                if (update) {
+                    console.log(`[updater] new version found: ${update.version}`);
+                    const confirmed = await confirm(
+                        `새로운 버전(${update.version})이 준비되었습니다. 지금 업데이트하고 다시 시작할까요?`,
+                        { title: '업데이트 알림', kind: 'info' }
+                    );
+
+                    if (confirmed) {
+                        await update.downloadAndInstall();
+                        await relaunch();
+                    }
+                }
+            } catch (error) {
+                console.error('[updater] failed to check for updates:', error);
+            }
+        };
+
+        checkForUpdates();
+    }, []);
 
     // dev mode: Google OAuth 콜백 처리 (PKCE: ?code= / implicit: #access_token=)
     useEffect(() => {
@@ -99,10 +130,22 @@ export const App = () => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>('general');
+    const [planBatchHandoff, setPlanBatchHandoff] = useState<PlanBatchHandoff | null>(null);
+
     const openSettings = (tab: SettingsTabId = 'general') => {
         setSettingsInitialTab(tab);
         setSettingsOpen(true);
     };
+
+    const handleStartBatch = useCallback((handoff: PlanBatchHandoff) => {
+        setPlanBatchHandoff(handoff);
+        setView('roast');
+    }, []);
+
+    const handlePlanBatchComplete = useCallback(() => {
+        setPlanBatchHandoff(null);
+        setView('schedule');
+    }, []);
 
     if (loading)
         return (
@@ -139,7 +182,12 @@ export const App = () => {
             TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
                 <div style={{ display: view === 'roast' ? 'block' : 'none' }}>
                     <ViewErrorBoundary>
-                        <ActiveRoast isActive={view === 'roast'} onOpenRoastSettings={() => openSettings('roast')} />
+                        <ActiveRoast
+                            isActive={view === 'roast'}
+                            onOpenRoastSettings={() => openSettings('roast')}
+                            planBatchHandoff={planBatchHandoff}
+                            onPlanBatchComplete={handlePlanBatchComplete}
+                        />
                     </ViewErrorBoundary>
                 </div>
                 {view === 'history' && (
@@ -164,7 +212,7 @@ export const App = () => {
                 </div>
                 {view === 'schedule' && (
                     <ViewErrorBoundary>
-                        <Schedule />
+                        <Schedule onStartBatch={handleStartBatch} />
                     </ViewErrorBoundary>
                 )}
             </div>
