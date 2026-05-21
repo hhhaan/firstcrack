@@ -463,16 +463,19 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                 <div className="w-8.5 h-8.5 rounded-lg bg-surface-warm-solid flex items-center justify-center shrink-0 shadow-(--shadow-inset)">
                                     <Calendar size={14} strokeWidth={1.5} color="var(--color-secondary)" />
                                 </div>
-                                <div className="flex-1">
-                                    <div className="text-[13px] font-medium text-primary tracking-[0.14px]">
-                                        {item.beans?.name ?? '—'}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
+                                            {item.beans?.name ?? '—'}
+                                        </span>
+                                        <span className="shrink-0 text-[11px] font-medium text-secondary bg-surface px-1.5 py-0.5 rounded border border-border">
+                                            {item.weight_grams >= 1000
+                                                ? `${item.weight_grams / 1000}kg`
+                                                : `${item.weight_grams}g`}
+                                        </span>
                                     </div>
                                     <div className="text-xs text-muted tracking-[0.14px]">
-                                        {item.scheduled_at ? formatScheduled(item.scheduled_at) : '—'} ·{' '}
-                                        {item.weight_grams >= 1000
-                                            ? `${item.weight_grams / 1000}kg`
-                                            : `${item.weight_grams}g`}{' '}
-                                        · {item.roast_profiles?.name ?? '—'}
+                                        {item.scheduled_at ? formatScheduled(item.scheduled_at) : '—'} · {item.roast_profiles?.name ?? '—'}
                                     </div>
                                 </div>
                             </div>
