@@ -244,8 +244,6 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     </h1>
                     <p className="text-[15px] text-secondary tracking-[0.15px] font-normal flex items-center gap-2.5">
                         {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                        {db.upcomingBatches.length > 0 &&
-                            ` · ${db.upcomingBatches.length}개 배치 예정`}
                         {weather.data && (
                             <>
                                 <span className="text-muted/40">·</span>
