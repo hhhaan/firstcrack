@@ -23,9 +23,10 @@ import {
     Play,
     Trash2,
     Package,
+    Pencil,
 } from 'lucide-react';
 import { useAuthStore } from '@shared/store/auth';
-import { AddBatchModal, type NewBatchData } from '@widgets/add-batch-modal';
+import { AddBatchModal, EditBatchModal, type NewBatchData } from '@widgets/add-batch-modal';
 import {
     useDayPlan,
     usePlanBatches,
@@ -111,6 +112,7 @@ const BatchCard = ({
     onMove,
     onDelete,
     onStart,
+    onEdit,
 }: {
     batch: PlanBatchWithProgress;
     index: number;
@@ -118,6 +120,7 @@ const BatchCard = ({
     onMove: (dir: 'up' | 'down') => void;
     onDelete: () => void;
     onStart: () => void;
+    onEdit: () => void;
 }) => {
     const status = batchStatus(batch);
     const canStart = status === 'pending' || status === 'in-progress';
@@ -158,6 +161,12 @@ const BatchCard = ({
                                 시작
                             </button>
                         )}
+                        <button
+                            onClick={onEdit}
+                            className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-transparent text-muted cursor-pointer hover:text-primary transition-colors"
+                        >
+                            <Pencil size={12} strokeWidth={1.5} />
+                        </button>
                         <button
                             onClick={onDelete}
                             className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-transparent text-muted cursor-pointer hover:text-red-500 transition-colors"
@@ -435,6 +444,7 @@ const DayView = ({
 }) => {
     const dateKey = toDateKey(selectedDate);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [editingBatch, setEditingBatch] = useState<PlanBatchWithProgress | null>(null);
 
     const { data: dayPlan, isLoading: isDayPlanLoading } = useDayPlan(userId, dateKey);
     const planId = dayPlan?.id ?? '';
@@ -532,6 +542,7 @@ const DayView = ({
                                 onMove={(dir) => handleMove(index, dir)}
                                 onDelete={() => deleteBatch.mutate(batch.id)}
                                 onStart={() => handleStart(batch)}
+                                onEdit={() => setEditingBatch(batch)}
                             />
                         ))}
                     </div>
@@ -541,6 +552,14 @@ const DayView = ({
                 open={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onAdd={handleAddBatch}
+            />
+            <EditBatchModal
+                key={editingBatch?.id ?? 'none'}
+                open={editingBatch !== null}
+                batch={editingBatch}
+                currentDateKey={dateKey}
+                onClose={() => setEditingBatch(null)}
+                onSaved={() => setEditingBatch(null)}
             />
         </>
     );

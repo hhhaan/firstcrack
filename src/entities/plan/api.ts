@@ -153,6 +153,14 @@ export const planBatchApi = {
         return data;
     },
 
+    move: async (id: string, newPlanId: string): Promise<void> => {
+        const { error } = await supabase
+            .from('roast_plan_batches')
+            .update({ plan_id: newPlanId })
+            .eq('id', id);
+        if (error) throw error;
+    },
+
     delete: async (id: string): Promise<void> => {
         const { error } = await supabase.from('roast_plan_batches').delete().eq('id', id);
         if (error) throw error;
