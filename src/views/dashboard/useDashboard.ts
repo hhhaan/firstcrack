@@ -89,15 +89,20 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
             .in('status', ['pending', 'in-progress'])
             .order('order_index')
             .limit(5)
-        upcomingBatches = (batchData ?? []).map((b) => ({
-            id: b.id,
-            bean_name: b.bean_name,
-            batch_type: b.batch_type,
-            batch_count: b.batch_count,
-            target_roasted_kg: b.target_roasted_kg,
-            status: b.status,
-            date: planDateMap.get(b.plan_id) ?? today,
-        }))
+        upcomingBatches = (batchData ?? [])
+            .map((b) => ({
+                id: b.id,
+                bean_name: b.bean_name,
+                batch_type: b.batch_type,
+                batch_count: b.batch_count,
+                target_roasted_kg: b.target_roasted_kg,
+                status: b.status,
+                date: planDateMap.get(b.plan_id) ?? today,
+                order_index: b.order_index,
+            }))
+            .sort((a, b) => a.date.localeCompare(b.date) || a.order_index - b.order_index)
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            .map(({ order_index: _, ...rest }) => rest)
     }
 
     const completed = completedRes.data as RoastSessionWithRelations[]

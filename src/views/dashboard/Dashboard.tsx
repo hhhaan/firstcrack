@@ -437,7 +437,15 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             <div className="grid grid-cols-2 gap-5">
                 {/* Upcoming */}
                 <div className="bg-main-bg rounded-lg px-6 py-5 shadow-(--shadow-ring)">
-                    <h2 className="text-[15px] font-medium text-primary tracking-[0.15px] mb-3.5">Upcoming Batches</h2>
+                    <div className="flex items-center justify-between mb-3.5">
+                        <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Upcoming Batches</h2>
+                        <button
+                            onClick={() => onNavigate('schedule')}
+                            className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface text-muted cursor-pointer shadow-(--shadow-inset) hover:text-primary transition-colors"
+                        >
+                            <ChevronRight size={13} strokeWidth={2} />
+                        </button>
+                    </div>
                     {db.loading ? (
                         <p className="text-[13px] text-muted py-2">Loading...</p>
                     ) : db.upcomingBatches.length === 0 ? (
