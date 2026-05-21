@@ -441,7 +441,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Upcoming Batches</h2>
                         <button
                             onClick={() => onNavigate('schedule')}
-                            className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface text-muted cursor-pointer shadow-(--shadow-inset) hover:text-primary transition-colors"
+                            className="w-6 h-6 flex items-center justify-center border-none bg-transparent text-muted cursor-pointer hover:text-primary transition-colors"
                         >
                             <ChevronRight size={13} strokeWidth={2} />
                         </button>
