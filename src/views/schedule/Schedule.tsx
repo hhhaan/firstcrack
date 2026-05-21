@@ -354,23 +354,35 @@ const WeekDayColumn = ({
                     <span className="text-[11px] text-muted">{format(day, 'eee', { locale: ko })}</span>
                 </div>
             </div>
-            {/* Batch summary */}
-            <div className="px-3 py-2 flex-1">
+            {/* Batch event pills */}
+            <div className="px-2 py-2 flex-1 flex flex-col gap-0.5 overflow-hidden">
                 {totalBatches === 0 ? (
-                    <span className="text-[10px] text-muted/50 select-none">—</span>
-                ) : (
-                    <div className="space-y-1">
-                        {summary && summary.done > 0 && (
-                            <div className="text-[10px] text-green-600 font-medium">{summary.done} 완료</div>
-                        )}
-                        {summary && summary.in_progress > 0 && (
-                            <div className="text-[10px] text-amber-600 font-medium">{summary.in_progress} 진행</div>
-                        )}
-                        {summary && summary.pending > 0 && (
-                            <div className="text-[10px] text-muted">{summary.pending} 대기</div>
-                        )}
-                    </div>
-                )}
+                    <span className="text-[10px] text-muted/40 select-none px-1">—</span>
+                ) : summary?.batches.map((b) => {
+                    const pillStyle =
+                        b.status === 'done'
+                            ? 'bg-green-50 text-green-700'
+                            : b.status === 'in-progress'
+                              ? 'bg-amber-100 text-amber-700'
+                              : b.status === 'skipped'
+                                ? 'bg-surface text-muted/50 line-through'
+                                : 'bg-surface text-secondary border border-border';
+                    const dotColor =
+                        b.status === 'done'
+                            ? 'bg-green-400'
+                            : b.status === 'in-progress'
+                              ? 'bg-amber-400'
+                              : 'bg-border-strong';
+                    return (
+                        <div
+                            key={b.id}
+                            className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium w-full ${pillStyle}`}
+                        >
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+                            <span className="truncate">{b.bean_name}</span>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
