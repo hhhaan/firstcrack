@@ -307,6 +307,7 @@ const MonthView = ({
                                             >
                                                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
                                                 <span className="truncate">{b.bean_name}</span>
+                                                <span className="shrink-0 opacity-60">{b.batch_count}회·{b.target_roasted_kg}kg</span>
                                             </div>
                                         );
                                     })}
@@ -389,6 +390,7 @@ const WeekDayColumn = ({
                         >
                             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
                             <span className="truncate">{b.bean_name}</span>
+                            <span className="shrink-0 opacity-60">{b.batch_count}회·{b.target_roasted_kg}kg</span>
                         </div>
                     );
                 })}
