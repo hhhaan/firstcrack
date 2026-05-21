@@ -10,6 +10,12 @@ fn save_pdf(path: String, data: Vec<u8>) -> Result<(), String> {
     std::fs::write(&path, data).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.print().map_err(|e| e.to_string())
+}
+
+
 /// 포트 9999를 점유한 프로세스가 우리 사이드카 바이너리인지 확인 후 kill.
 /// 정상 twin이 없다고 single-instance 플러그인이 이미 보장한 상태에서만 호출된다.
 fn kill_zombie_sidecar() {
@@ -61,7 +67,17 @@ fn sidecar_healthy() -> bool {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let client = sentry::Client::from((
+        "https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944",
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            ..Default::default()
+        },
+    ));
+    sentry::Hub::main().bind_client(Some(std::sync::Arc::new(client.clone())));
+
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_sentry::init(&client))
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             // 두 번째 실행 시 기존 창을 앞으로 가져옴
             if let Some(w) = app.get_webview_window("main") {
@@ -113,7 +129,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![save_pdf])
+        .invoke_handler(tauri::generate_handler![save_pdf, print_window])
         .build(tauri::generate_context!())
         .expect("error while running tauri application");
 

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { saveMonthlyReportPdf } from './saveMonthlyReportPdf';
+import { invoke } from '@tauri-apps/api/core';
 
 interface RoastSession {
     date: string;
@@ -33,7 +33,27 @@ export const MonthlyProductionReport = ({
     bizNumber: initialBizNumber = '',
     sessions: initialSessions,
 }: MonthlyReportProps) => {
-    const [savingReactPdf, setSavingReactPdf] = useState(false);
+    const handlePrint = () => {
+        const el = document.querySelector('[data-report="true"]') as HTMLElement;
+        if (!el) return;
+
+        const clone = el.cloneNode(true) as HTMLElement;
+        el.querySelectorAll<HTMLInputElement>('input').forEach((src, i) => {
+            (clone.querySelectorAll('input')[i] as HTMLInputElement).value = src.value;
+        });
+
+        const printRoot = document.createElement('div');
+        printRoot.id = 'print-root';
+        printRoot.appendChild(clone);
+        document.body.appendChild(printRoot);
+
+        const cleanup = () => {
+            if (document.body.contains(printRoot)) document.body.removeChild(printRoot);
+        };
+        window.addEventListener('afterprint', cleanup, { once: true });
+
+        invoke('print_window').catch(cleanup);
+    };
 
     // 상단 정보 (편집 가능)
     const [businessName, setBusinessName] = useState(initialBusinessName);
@@ -70,27 +90,6 @@ export const MonthlyProductionReport = ({
         day: '2-digit',
     });
 
-    const handleSaveReactPdf = async () => {
-        if (savingReactPdf) return;
-        setSavingReactPdf(true);
-        try {
-            await saveMonthlyReportPdf({
-                year,
-                month,
-                businessName,
-                ownerName,
-                bizNumber,
-                writer,
-                reviewer,
-                representative,
-                sessions,
-                today,
-            });
-        } finally {
-            setSavingReactPdf(false);
-        }
-    };
-
     const inputStyle = {
         width: '100%',
         height: '100%',
@@ -126,11 +125,6 @@ export const MonthlyProductionReport = ({
                     color: '#000000',
                 }}
             >
-                {/* 문서 번호 */}
-                <div style={{ textAlign: 'right', fontSize: '11px', marginBottom: '16px' }}>
-                    문서번호: {year}-{String(month).padStart(2, '0')}-PROD
-                </div>
-
                 {/* 제목 */}
                 <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                     <div style={{ fontSize: '20px', fontWeight: '700', letterSpacing: '0.5em', marginBottom: '4px' }}>
@@ -603,18 +597,16 @@ export const MonthlyProductionReport = ({
             {/* 저장 버튼 */}
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
                 <button
-                    onClick={handleSaveReactPdf}
-                    disabled={savingReactPdf}
+                    onClick={handlePrint}
                     style={{
                         padding: '10px 24px',
                         border: '1px solid #000',
                         fontSize: '14px',
-                        backgroundColor: savingReactPdf ? '#f3f4f6' : '#ffffff',
-                        cursor: savingReactPdf ? 'not-allowed' : 'pointer',
-                        opacity: savingReactPdf ? 0.6 : 1,
+                        backgroundColor: '#ffffff',
+                        cursor: 'pointer',
                     }}
                 >
-                    {savingReactPdf ? 'PDF 생성 중...' : 'PDF 저장'}
+                    PDF 저장
                 </button>
             </div>
         </div>
