@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-macos:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - runner: macos-latest        # x86_64
+            target: x86_64-apple-darwin
+          - runner: macos-14            # aarch64 (Apple Silicon)
+            target: aarch64-apple-darwin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend deps
+        run: pnpm install
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_R2_ACCOUNT_ID: ${{ secrets.VITE_R2_ACCOUNT_ID }}
+          VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+          VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+          VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
+        with:
+          args: --target ${{ matrix.target }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.target }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
+
+  publish-r2:
+    needs: build-macos
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Install wrangler
+        run: npm install -g wrangler
+
+      - name: Upload binaries & latest.json to R2
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_R2_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_R2_API_TOKEN }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          R2_BUCKET: first-crack
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          set -e
+
+          # Upload all binaries under releases/{version}/
+          find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.sig" \) | while read FILE; do
+            FILENAME=$(basename "$FILE")
+            wrangler r2 object put "$R2_BUCKET/releases/$VERSION/$FILENAME" --file "$FILE" --remote
+          done
+
+          # Read sig file contents
+          AARCH64_SIG=$(find artifacts -name "*aarch64.app.tar.gz.sig" | head -1)
+          X64_SIG=$(find artifacts -name "*x64.app.tar.gz.sig" | head -1)
+          AARCH64_DMG_NAME=$(find artifacts -name "*aarch64.dmg" -exec basename {} \; | head -1)
+          X64_DMG_NAME=$(find artifacts -name "*x64.dmg" -exec basename {} \; | head -1)
+
+          cat > latest.json << EOF
+          {
+            "version": "$VERSION",
+            "notes": "",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "darwin-aarch64": {
+                "signature": "$(cat $AARCH64_SIG)",
+                "url": "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_DMG_NAME"
+              },
+              "darwin-x86_64": {
+                "signature": "$(cat $X64_SIG)",
+                "url": "$R2_PUBLIC_URL/releases/$VERSION/$X64_DMG_NAME"
+              }
+            }
+          }
+          EOF
+
+          wrangler r2 object put "$R2_BUCKET/releases/latest.json" --file latest.json --remote

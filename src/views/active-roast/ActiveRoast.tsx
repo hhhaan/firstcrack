@@ -7,7 +7,7 @@ import { useRoastActions } from '@views/useRoastActions';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { readTextFile, remove, BaseDirectory } from '@tauri-apps/plugin-fs';
-import { supabase } from '@shared/lib/supabase';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { Play, Square } from 'lucide-react';
 import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
 import { PageLayout } from '@shared/ui/PageLayout';
@@ -37,9 +37,13 @@ import { parseTimeSec } from '@features/active-roast/lib/time';
 export const ActiveRoast = ({
     isActive,
     onOpenRoastSettings,
+    planBatchHandoff,
+    onPlanBatchComplete,
 }: {
     isActive: boolean;
     onOpenRoastSettings?: () => void;
+    planBatchHandoff?: { planBatchId: string; beanName: string; batchSizeKg: number; profileId: string | null } | null;
+    onPlanBatchComplete?: () => void;
 }) => {
     // ── 설정 ──────────────────────────────────────────────────────
     const roastSettings = useRoastSettings();
@@ -71,27 +75,26 @@ export const ActiveRoast = ({
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(null);
     const [isRunning, setIsRunning] = useState(false);
     const isRunningRef = useRef(isRunning);
-    isRunningRef.current = isRunning;
+    useEffect(() => {
+        isRunningRef.current = isRunning;
+    }, [isRunning]);
 
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showEndRoastModal, setShowEndRoastModal] = useState(false);
     const [showSummaryModal, setShowSummaryModal] = useState(false);
     const [summaryData, setSummaryData] = useState<RoastSummaryData | null>(null);
     const [roastNotes, setRoastNotes] = useState('');
+    const [showContinueModal, setShowContinueModal] = useState(false);
 
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
     const exitFullscreen = useCallback(() => setIsFullscreen(false), []);
-
-    // fullscreen 진입 시 외부 줌 리셋 — ECharts 내부 zoom이 독립적으로 동작한다
-    useEffect(() => {
-        if (isFullscreen) setZoomRange(null);
-    }, [isFullscreen]);
 
     // isActive가 true가 될 때마다 store의 pendingBeanId를 소비
     useEffect(() => {
         if (!isActive) return;
         const { pendingBeanId, setPendingBean } = useRoastingStore.getState();
         if (pendingBeanId) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSelectedBeanId(pendingBeanId);
             setPendingBean(null);
         }
@@ -134,6 +137,11 @@ export const ActiveRoast = ({
         handleChartPointerMove,
         endChartDrag,
     } = useChartZoom(MAX_TIME);
+
+    // fullscreen 진입 시 외부 줌 리셋 — ECharts 내부 zoom이 독립적으로 동작한다
+    useEffect(() => {
+        if (isFullscreen) setZoomRange(null);
+    }, [isFullscreen, setZoomRange]);
 
     // ── 차트 가시 영역 데이터 ────────────────────────────────────
     const visibleChartData = effectiveZoomRange
@@ -243,7 +251,7 @@ export const ActiveRoast = ({
         if (!isRunning) return;
         const interval = setInterval(() => tick(), 1000);
         return () => clearInterval(interval);
-    }, [isRunning]);
+    }, [isRunning, tick]);
 
     // 로스팅 중 창 닫기 시 확인 다이얼로그를 표시한다.
     useEffect(() => {
@@ -265,13 +273,16 @@ export const ActiveRoast = ({
                 win.close();
             }
         }).then((fn) => {
-            active ? (unlisten = fn) : fn();
+            if (active) {
+                unlisten = fn;
+            } else {
+                fn();
+            }
         });
         return () => {
             active = false;
             unlisten?.();
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // EndRoast 모달이 열려 있을 때 Escape로 닫는다.
@@ -317,8 +328,10 @@ export const ActiveRoast = ({
 
     // ── 사용자 인증 + 로스팅 저장 ─────────────────────────────────
     const user = useAuthStore((s) => s.user);
-    const { mutate: saveRoastSession } = useCreateRoastSession(user?.id ?? '');
-    tpTimeSecRef.current = turningPoints[0]?.timeSec ?? null;
+    const { mutateAsync: saveRoastSession } = useCreateRoastSession(user?.id ?? '');
+    useEffect(() => {
+        tpTimeSecRef.current = turningPoints[0]?.timeSec ?? null;
+    }, [turningPoints]);
 
     // ── 로스팅 단계 표시 ──────────────────────────────────────────
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
@@ -362,7 +375,7 @@ export const ActiveRoast = ({
                     const timeSec = Math.max(0, min * 60 + sec);
                     return { timeSec, event: e.event, color: eventMarkerColor[e.event] };
                 }),
-        [logEntries],
+        [logEntries, eventMarkerColor],
     );
 
     const rawRoR = liveData?.ror ?? 0;
@@ -389,7 +402,7 @@ export const ActiveRoast = ({
         }
         disableAutoCharge();
         triggerCharge(rawBT);
-    }, [charged, rawBT, triggerCharge]);
+    }, [charged, rawBT, triggerCharge, setConnected, disableAutoCharge]);
 
     /** 로스팅을 처음 상태로 되돌린다. 사이드카가 연결되어 있으면 예열 단계로 재진입 */
     const resetActiveRoast = () => {
@@ -496,7 +509,7 @@ export const ActiveRoast = ({
                   ]
                 : []),
         ];
-    }, [logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName]);
+    }, [logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit]);
 
     // ── 렌더 ──────────────────────────────────────────────────────
     return (
@@ -884,30 +897,40 @@ export const ActiveRoast = ({
                     const roastedAt =
                         roastStartTimeRef.current > 0 ? new Date(roastStartTimeRef.current).toISOString() : null;
 
-                    // TSV 파일을 Supabase Storage에 업로드한다.
+                    // TSV 파일을 Cloudflare R2에 업로드한다.
                     let tsvPath: string | null = null;
                     if (sessionId && '__TAURI_INTERNALS__' in window) {
                         try {
                             const tsvContent = await readTextFile(`session_${sessionId}.tsv`, {
                                 baseDir: BaseDirectory.AppLocalData,
                             });
-                            const blob = new Blob([tsvContent], { type: 'text/tab-separated-values' });
-                            const storagePath = `${user.id}/${sessionId}.tsv`;
-                            const { error: uploadError } = await supabase.storage
-                                .from('roast-curves')
-                                .upload(storagePath, blob, { contentType: 'text/tab-separated-values' });
-                            if (!uploadError) {
-                                tsvPath = storagePath;
-                                remove(`session_${sessionId}.tsv`, {
-                                    baseDir: BaseDirectory.AppLocalData,
-                                }).catch(() => {});
-                            }
+                            const r2Key = `profiles/${user.id}/${sessionId}.tsv`;
+                            const r2 = new S3Client({
+                                region: 'auto',
+                                endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+                                credentials: {
+                                    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
+                                    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
+                                },
+                            });
+                            await r2.send(
+                                new PutObjectCommand({
+                                    Bucket: import.meta.env.VITE_R2_BUCKET_NAME,
+                                    Key: r2Key,
+                                    Body: tsvContent,
+                                    ContentType: 'text/tab-separated-values',
+                                }),
+                            );
+                            tsvPath = r2Key;
+                            remove(`session_${sessionId}.tsv`, {
+                                baseDir: BaseDirectory.AppLocalData,
+                            }).catch(() => {});
                         } catch {
                             // 파일이 없거나 업로드 실패 시 tsv_path 없이 저장 진행
                         }
                     }
 
-                    saveRoastSession({
+                    await saveRoastSession({
                         user_id: user.id,
                         weight_grams: 0,
                         status: 'completed',
@@ -922,12 +945,49 @@ export const ActiveRoast = ({
                         bean_id: selectedBeanId,
                         profile_id: targetProfileId != null ? String(targetProfileId) : null,
                         tsv_path: tsvPath,
+                        plan_batch_id: planBatchHandoff?.planBatchId ?? null,
                     });
                     setShowSummaryModal(false);
                     setSummaryData(null);
                     resetActiveRoast();
+                    if (planBatchHandoff) {
+                        setShowContinueModal(true);
+                    }
                 }}
             />
+
+            {/* Plan batch continue modal */}
+            {showContinueModal && planBatchHandoff && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.18)] border border-black/8 p-8 w-[360px] flex flex-col gap-5">
+                        <div>
+                            <p className="text-[15px] font-semibold text-primary">
+                                {planBatchHandoff.beanName}
+                            </p>
+                            <p className="text-[13px] text-secondary mt-1">
+                                세션이 완료되었습니다. 계속 진행하시겠어요?
+                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowContinueModal(false);
+                                    onPlanBatchComplete?.();
+                                }}
+                                className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-surface text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors"
+                            >
+                                오늘은 여기까지
+                            </button>
+                            <button
+                                onClick={() => setShowContinueModal(false)}
+                                className="flex-1 px-4 py-2.5 rounded-xl border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
+                            >
+                                다음 세션 시작
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </PageLayout>
     );
 };
