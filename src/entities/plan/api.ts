@@ -43,6 +43,14 @@ export const dayPlanApi = {
 
 // ── Day Plan Range Summary ────────────────────────────────────────────────────
 
+export type DayPlanBatchItem = {
+    id: string;
+    bean_name: string;
+    batch_type: string;
+    status: string;
+    order_index: number;
+};
+
 export type DayPlanSummary = {
     date: string;
     plan_id: string;
@@ -50,6 +58,7 @@ export type DayPlanSummary = {
     in_progress: number;
     done: number;
     skipped: number;
+    batches: DayPlanBatchItem[];
 };
 
 export const dayPlanRangeApi = {
@@ -66,20 +75,22 @@ export const dayPlanRangeApi = {
         const planIds = plans.map((p) => p.id);
         const { data: batches, error: batchError } = await supabase
             .from('roast_plan_batches')
-            .select('plan_id, status')
-            .in('plan_id', planIds);
+            .select('id, plan_id, bean_name, batch_type, status, order_index')
+            .in('plan_id', planIds)
+            .order('order_index');
         if (batchError) throw batchError;
 
         const planMap = new Map(plans.map((p) => [p.id, p.date]));
         const summaryMap = new Map<string, DayPlanSummary>();
         for (const plan of plans) {
-            summaryMap.set(plan.date, { date: plan.date, plan_id: plan.id, pending: 0, in_progress: 0, done: 0, skipped: 0 });
+            summaryMap.set(plan.date, { date: plan.date, plan_id: plan.id, pending: 0, in_progress: 0, done: 0, skipped: 0, batches: [] });
         }
         for (const batch of batches ?? []) {
             const date = planMap.get(batch.plan_id);
             if (!date) continue;
             const s = summaryMap.get(date);
             if (!s) continue;
+            s.batches.push({ id: batch.id, bean_name: batch.bean_name, batch_type: batch.batch_type, status: batch.status, order_index: batch.order_index });
             if (batch.status === 'pending') s.pending++;
             else if (batch.status === 'in-progress') s.in_progress++;
             else if (batch.status === 'done') s.done++;

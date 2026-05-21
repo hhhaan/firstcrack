@@ -273,25 +273,37 @@ const MonthView = ({
                                 </span>
                             </div>
 
-                            {/* Batch pills */}
-                            {totalBatches > 0 && isCurrentMonth && (
-                                <div className="flex flex-col gap-0.5 w-full">
-                                    {summary && summary.in_progress > 0 && (
-                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-medium truncate">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                                            진행중 {summary.in_progress}
-                                        </div>
-                                    )}
-                                    {summary && summary.done > 0 && (
-                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-50 text-green-700 text-[10px] font-medium truncate">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
-                                            완료 {summary.done}
-                                        </div>
-                                    )}
-                                    {summary && summary.pending > 0 && (
-                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface text-muted text-[10px] font-medium truncate border border-border">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-border-strong shrink-0" />
-                                            대기 {summary.pending}
+                            {/* Batch event pills — one per batch, bean name */}
+                            {totalBatches > 0 && isCurrentMonth && summary && (
+                                <div className="flex flex-col gap-0.5 w-full overflow-hidden">
+                                    {summary.batches.slice(0, 4).map((b) => {
+                                        const pillStyle =
+                                            b.status === 'done'
+                                                ? 'bg-green-50 text-green-700'
+                                                : b.status === 'in-progress'
+                                                  ? 'bg-amber-100 text-amber-700'
+                                                  : b.status === 'skipped'
+                                                    ? 'bg-surface text-muted/50 line-through'
+                                                    : 'bg-surface text-secondary border border-border';
+                                        const dotColor =
+                                            b.status === 'done'
+                                                ? 'bg-green-400'
+                                                : b.status === 'in-progress'
+                                                  ? 'bg-amber-400'
+                                                  : 'bg-border-strong';
+                                        return (
+                                            <div
+                                                key={b.id}
+                                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium w-full ${pillStyle}`}
+                                            >
+                                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+                                                <span className="truncate">{b.bean_name}</span>
+                                            </div>
+                                        );
+                                    })}
+                                    {summary.batches.length > 4 && (
+                                        <div className="text-[10px] text-muted px-1.5">
+                                            +{summary.batches.length - 4}개 더
                                         </div>
                                     )}
                                 </div>

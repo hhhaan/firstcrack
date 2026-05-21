@@ -1,5 +1,5 @@
 export { dayPlanApi, dayPlanRangeApi, planBatchApi } from './api';
-export type { DayPlanSummary } from './api';
+export type { DayPlanSummary, DayPlanBatchItem } from './api';
 export {
     planKeys,
     useDayPlan,
