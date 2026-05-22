@@ -48,8 +48,16 @@ export const useDeleteBean = (userId: string) => {
     const qc = useQueryClient()
     return useMutation({
         mutationFn: beanApi.delete,
-        onSuccess: (_, id) => {
-            qc.setQueryData<Bean[]>(beanKeys.all(userId), (prev = []) => prev.filter((b) => b.id !== id))
+        onMutate: async (id) => {
+            await qc.cancelQueries({ queryKey: beanKeys.all(userId) })
+            const prev = qc.getQueryData<Bean[]>(beanKeys.all(userId))
+            qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) => old.filter((b) => b.id !== id))
+            return { prev }
+        },
+        onError: (_err, _id, ctx) => {
+            if (ctx?.prev) qc.setQueryData(beanKeys.all(userId), ctx.prev)
+        },
+        onSuccess: (_data, id) => {
             qc.removeQueries({ queryKey: beanKeys.detail(id) })
         },
     })

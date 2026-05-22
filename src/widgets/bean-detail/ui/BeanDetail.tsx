@@ -1,5 +1,7 @@
-import { Edit3 } from 'lucide-react';
+import { useState } from 'react';
+import { Edit3, Trash2 } from 'lucide-react';
 import { getStatus, statusConfig, processColor } from '@entities/bean/lib';
+import { DeleteBeanModal } from './DeleteBeanModal';
 import type { Bean } from '@shared/types/database.types';
 
 interface BeanDetailProps {
@@ -8,6 +10,7 @@ interface BeanDetailProps {
     onEdit: (bean: Bean) => void;
     onRestock: (id: string) => void;
     onStartRoast: () => void;
+    onDelete: (id: string) => void;
 }
 
 const Skeleton = () => (
@@ -41,7 +44,9 @@ const Empty = ({ hasAny }: { hasAny: boolean }) => (
     </div>
 );
 
-export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast }: BeanDetailProps) => {
+export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, onDelete }: BeanDetailProps) => {
+    const [confirming, setConfirming] = useState(false);
+
     if (isLoading) return <Skeleton />;
     if (!bean) return <Empty hasAny={false} />;
 
@@ -49,13 +54,32 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast }:
     const cfg = statusConfig[status];
 
     return (
+        <>
+            <DeleteBeanModal
+                open={confirming}
+                beanName={bean.name}
+                onClose={() => setConfirming(false)}
+                onConfirm={() => {
+                    onDelete(bean.id);
+                    setConfirming(false);
+                }}
+            />
         <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring) h-fit relative">
-            <button
-                onClick={() => onEdit(bean)}
-                className="absolute top-6 right-6 w-9 h-9 rounded-[10px] border border-black/6 bg-white text-muted flex items-center justify-center cursor-pointer shadow-(--shadow-button) z-2 transition-all duration-200"
-            >
-                <Edit3 size={16} />
-            </button>
+            <div className="absolute top-6 right-6 flex gap-2 z-2">
+                <button
+                    onClick={() => onEdit(bean)}
+                    className="w-9 h-9 rounded-[10px] border border-black/6 bg-white text-muted flex items-center justify-center cursor-pointer shadow-(--shadow-button) transition-all duration-200"
+                >
+                    <Edit3 size={16} />
+                </button>
+                <button
+                    onClick={() => setConfirming(true)}
+                    className="w-9 h-9 rounded-[10px] border border-black/6 bg-white flex items-center justify-center cursor-pointer shadow-(--shadow-button) transition-all duration-200"
+                    style={{ color: '#dc2626' }}
+                >
+                    <Trash2 size={16} />
+                </button>
+            </div>
 
             <div className="mb-6 pr-10">
                 <h2 className="font-(--font-display) text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
@@ -153,5 +177,6 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast }:
                 </button>
             </div>
         </div>
+        </>
     );
 };

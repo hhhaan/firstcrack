@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useAuthStore } from '@shared/store/auth';
-import { useBeans } from '@entities/bean/queries';
+import { useBeans, useDeleteBean } from '@entities/bean/queries';
 import { getStatus } from '@entities/bean/lib';
 import { BeanList } from '@widgets/bean-list/ui/BeanList';
 import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
@@ -14,6 +14,7 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
     const userId = useAuthStore((s) => s.user?.id ?? '');
     const { data: beans = [], isLoading } = useBeans(userId);
+    const { mutate: deleteBean } = useDeleteBean(userId);
 
     const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -131,6 +132,9 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                     onStartRoast={() => {
                         if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
                         onNavigate?.('roast');
+                    }}
+                    onDelete={(id) => {
+                        deleteBean(id, { onSuccess: () => setSelectedId(null) });
                     }}
                 />
             </div>
