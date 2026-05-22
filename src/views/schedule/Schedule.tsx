@@ -148,7 +148,6 @@ const BatchCard = ({
                     <div className="flex items-center gap-2">
                         <Package size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 mt-[1px]" />
                         <span className="text-[14px] font-semibold text-primary">{batch.bean_name}</span>
-                        <span className="text-[12px] text-muted">({batch.batch_type})</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         <StatusBadge batch={batch} />
@@ -473,7 +472,6 @@ const DayView = ({
                     target_roasted_kg: data.targetRoasted,
                     batch_size_kg: data.batchSize,
                     yield_pct: data.yieldPct,
-                    batch_type: data.batchType,
                     notes: data.notes,
                     green_lot: data.greenLot,
                     status: 'pending',
@@ -504,6 +502,8 @@ const DayView = ({
             updateBatch.mutate({ id: batch.id, status: 'in-progress' });
             onStartBatch({
                 planBatchId: batch.id,
+                planId: batch.plan_id,
+                beanId: batch.bean_id,
                 beanName: batch.bean_name,
                 batchSizeKg: Number(batch.batch_size_kg),
                 profileId: batch.roast_profile_id,
