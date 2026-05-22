@@ -8,14 +8,12 @@ on:
 
 jobs:
   build-macos:
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-15                   # arm64 (Apple Silicon) — 무료 러너
     strategy:
       matrix:
         include:
-          - runner: macos-13             # x86_64 (Intel) — macos-latest는 arm64
-            target: x86_64-apple-darwin
-          - runner: macos-14            # aarch64 (Apple Silicon)
-            target: aarch64-apple-darwin
+          - target: aarch64-apple-darwin
+          - target: x86_64-apple-darwin  # arm64 러너에서 Rosetta 2 크로스빌드
 
     steps:
       - uses: actions/checkout@v4
@@ -42,15 +40,29 @@ jobs:
       - name: Install frontend deps
         run: pnpm install
 
-      - name: Set up Python
+      # ── arm64: 네이티브 Python ───────────────────────────────────────────────
+      - name: Set up Python (arm64)
+        if: matrix.target == 'aarch64-apple-darwin'
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: pip
           cache-dependency-path: src-tauri/sidecar/requirements.txt
 
-      - name: Install sidecar dependencies
+      - name: Install sidecar dependencies (arm64)
+        if: matrix.target == 'aarch64-apple-darwin'
         run: pip install pyinstaller -r src-tauri/sidecar/requirements.txt
+
+      # ── x86_64: Rosetta 2 + x86_64 Homebrew Python ──────────────────────────
+      - name: Install Rosetta 2 (x86_64)
+        if: matrix.target == 'x86_64-apple-darwin'
+        run: softwareupdate --install-rosetta --agree-to-license
+
+      - name: Set up Python x86_64 via Rosetta
+        if: matrix.target == 'x86_64-apple-darwin'
+        run: |
+          arch -x86_64 /usr/local/bin/brew install python@3.13
+          arch -x86_64 /usr/local/opt/python@3.13/bin/pip3 install pyinstaller -r src-tauri/sidecar/requirements.txt
 
       - name: Cache sidecar binary
         id: sidecar-cache
@@ -59,9 +71,20 @@ jobs:
           path: src-tauri/binaries
           key: sidecar-${{ matrix.target }}-${{ hashFiles('src-tauri/sidecar/requirements.txt', 'src-tauri/sidecar/**/*.py', 'src-tauri/sidecar/sidecar.spec') }}
 
-      - name: Build sidecar binary
-        if: steps.sidecar-cache.outputs.cache-hit != 'true'
+      - name: Build sidecar binary (arm64)
+        if: steps.sidecar-cache.outputs.cache-hit != 'true' && matrix.target == 'aarch64-apple-darwin'
         run: npm run build:sidecar
+
+      - name: Build sidecar binary (x86_64 via Rosetta)
+        if: steps.sidecar-cache.outputs.cache-hit != 'true' && matrix.target == 'x86_64-apple-darwin'
+        run: |
+          arch -x86_64 /usr/local/opt/python@3.13/bin/pyinstaller \
+            src-tauri/sidecar/sidecar.spec \
+            --distpath src-tauri/sidecar/dist \
+            --workpath src-tauri/sidecar/build \
+            --noconfirm
+          mkdir -p src-tauri/binaries
+          cp src-tauri/sidecar/dist/sidecar src-tauri/binaries/sidecar-x86_64-apple-darwin
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
