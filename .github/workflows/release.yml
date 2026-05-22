@@ -160,3 +160,18 @@ jobs:
 
           aws s3 cp latest.json "s3://$R2_BUCKET/releases/latest.json" \
             --endpoint-url "$R2_ENDPOINT" --region auto
+
+          # Upload fixed-name aliases to releases/latest/ for landing page links
+          AARCH64_DMG=$(find artifacts -name "*aarch64.dmg" | head -1)
+          X64_DMG=$(find artifacts -name "*x64.dmg" | head -1)
+          WIN_MSI=$(find artifacts -name "*.msi" | head -1)
+          WIN_NSIS=$(find artifacts -name "*.nsis.zip" -not -name "*.sig" | head -1)
+
+          aws s3 cp "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" \
+            --endpoint-url "$R2_ENDPOINT" --region auto
+          aws s3 cp "$X64_DMG"    "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" \
+            --endpoint-url "$R2_ENDPOINT" --region auto
+          aws s3 cp "$WIN_MSI"    "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" \
+            --endpoint-url "$R2_ENDPOINT" --region auto
+          aws s3 cp "$WIN_NSIS"   "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.nsis.zip" \
+            --endpoint-url "$R2_ENDPOINT" --region auto
