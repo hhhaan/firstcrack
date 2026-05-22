@@ -53,16 +53,19 @@ jobs:
         if: matrix.target == 'aarch64-apple-darwin'
         run: pip install pyinstaller -r src-tauri/sidecar/requirements.txt
 
-      # ── x86_64: Rosetta 2 + x86_64 Homebrew Python ──────────────────────────
+      # ── x86_64: Rosetta 2 + Python.org universal2 pkg ───────────────────────
       - name: Install Rosetta 2 (x86_64)
         if: matrix.target == 'x86_64-apple-darwin'
         run: softwareupdate --install-rosetta --agree-to-license
 
-      - name: Set up Python x86_64 via Rosetta
+      - name: Set up Python x86_64 (Python.org universal2)
         if: matrix.target == 'x86_64-apple-darwin'
         run: |
-          arch -x86_64 /usr/local/bin/brew install python@3.13
-          arch -x86_64 /usr/local/opt/python@3.13/bin/pip3 install pyinstaller -r src-tauri/sidecar/requirements.txt
+          curl -fsSLo /tmp/python3.pkg \
+            https://www.python.org/ftp/python/3.13.0/python-3.13.0-macos11.pkg
+          sudo installer -pkg /tmp/python3.pkg -target /
+          arch -x86_64 /Library/Frameworks/Python.framework/Versions/3.13/bin/pip3 \
+            install pyinstaller -r src-tauri/sidecar/requirements.txt
 
       - name: Cache sidecar binary
         id: sidecar-cache
@@ -78,7 +81,7 @@ jobs:
       - name: Build sidecar binary (x86_64 via Rosetta)
         if: steps.sidecar-cache.outputs.cache-hit != 'true' && matrix.target == 'x86_64-apple-darwin'
         run: |
-          arch -x86_64 /usr/local/opt/python@3.13/bin/pyinstaller \
+          arch -x86_64 /Library/Frameworks/Python.framework/Versions/3.13/bin/pyinstaller \
             src-tauri/sidecar/sidecar.spec \
             --distpath src-tauri/sidecar/dist \
             --workpath src-tauri/sidecar/build \
