@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: macos-15-large       # x86_64 (Intel) — macos-latest는 arm64
+          - runner: macos-13             # x86_64 (Intel) — macos-latest는 arm64
             target: x86_64-apple-darwin
           - runner: macos-14            # aarch64 (Apple Silicon)
             target: aarch64-apple-darwin
