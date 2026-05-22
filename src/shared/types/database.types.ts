@@ -113,6 +113,7 @@ export type Database = {
           updated_at: string
           user_id: string
           variety: string | null
+          vendor: string | null
         }
         Insert: {
           altitude_masl?: number | null
@@ -132,6 +133,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           variety?: string | null
+          vendor?: string | null
         }
         Update: {
           altitude_masl?: number | null
@@ -151,6 +153,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           variety?: string | null
+          vendor?: string | null
         }
         Relationships: [
           {
@@ -237,46 +240,68 @@ export type Database = {
         Row: {
           batch_count: number
           batch_size_kg: number
+          batch_type: string
+          bean_id: string | null
           bean_name: string
           created_at: string
+          green_lot: string
           id: string
           machine_id: string | null
+          notes: string
           order_index: number
           plan_id: string
           roast_profile_id: string | null
           status: string
           target_roasted_kg: number
           updated_at: string
+          yield_pct: number
         }
         Insert: {
           batch_count?: number
           batch_size_kg: number
+          batch_type?: string
+          bean_id?: string | null
           bean_name: string
           created_at?: string
+          green_lot?: string
           id?: string
           machine_id?: string | null
+          notes?: string
           order_index?: number
           plan_id: string
           roast_profile_id?: string | null
           status?: string
           target_roasted_kg: number
           updated_at?: string
+          yield_pct?: number
         }
         Update: {
           batch_count?: number
           batch_size_kg?: number
+          batch_type?: string
+          bean_id?: string | null
           bean_name?: string
           created_at?: string
+          green_lot?: string
           id?: string
           machine_id?: string | null
+          notes?: string
           order_index?: number
           plan_id?: string
           roast_profile_id?: string | null
           status?: string
           target_roasted_kg?: number
           updated_at?: string
+          yield_pct?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "roast_plan_batches_bean_id_fkey"
+            columns: ["bean_id"]
+            isOneToOne: false
+            referencedRelation: "beans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "roast_plan_batches_plan_id_fkey"
             columns: ["plan_id"]
@@ -727,3 +752,21 @@ export type BeanInventoryLogInsert = Database['public']['Tables']['bean_inventor
 export type BeanInventoryLogUpdate = Database['public']['Tables']['bean_inventory_logs']['Update']
 
 export type BeanInventoryLogType = 'purchase' | 'roast' | 'adjustment' | 'waste'
+
+export type DayPlan = Database['public']['Tables']['roast_day_plans']['Row']
+export type DayPlanInsert = Database['public']['Tables']['roast_day_plans']['Insert']
+
+export type PlanBatch = Database['public']['Tables']['roast_plan_batches']['Row']
+export type PlanBatchInsert = Omit<Database['public']['Tables']['roast_plan_batches']['Insert'], 'batch_count'>
+export type PlanBatchUpdate = { id: string } & Partial<Omit<PlanBatchInsert, 'plan_id'>>
+
+export type PlanBatchWithProgress = PlanBatch & { completed_sessions: number }
+
+export interface PlanBatchHandoff {
+  planBatchId: string
+  planId: string
+  beanId: string | null
+  beanName: string
+  batchSizeKg: number
+  profileId: string | null
+}
