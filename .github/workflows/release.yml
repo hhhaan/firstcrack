@@ -120,23 +120,15 @@ jobs:
           AARCH64_TAR_NAME=$(find artifacts -name "*aarch64.app.tar.gz" -exec basename {} \; | head -1)
           X64_TAR_NAME=$(find artifacts -name "*x64.app.tar.gz" -exec basename {} \; | head -1)
 
-          cat > latest.json << EOF
-{
-  "version": "$VERSION",
-  "notes": "",
-  "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "platforms": {
-    "darwin-aarch64": {
-      "signature": "$(cat "$AARCH64_SIG")",
-      "url": "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_NAME"
-    },
-    "darwin-x86_64": {
-      "signature": "$(cat "$X64_SIG")",
-      "url": "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_NAME"
-    }
-  }
-}
-EOF
+          jq --null-input \
+            --arg version "$VERSION" \
+            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg aarch64_sig "$(cat "$AARCH64_SIG")" \
+            --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_NAME" \
+            --arg x64_sig "$(cat "$X64_SIG")" \
+            --arg x64_url "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_NAME" \
+            '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url}}}' \
+            > latest.json
 
           aws s3 cp latest.json "s3://$R2_BUCKET/releases/latest.json" \
             --endpoint-url "$R2_ENDPOINT" --region auto
