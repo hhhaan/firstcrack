@@ -52,7 +52,15 @@ jobs:
       - name: Install sidecar dependencies
         run: pip install pyinstaller -r src-tauri/sidecar/requirements.txt
 
+      - name: Cache sidecar binary
+        id: sidecar-cache
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/binaries
+          key: sidecar-${{ matrix.target }}-${{ hashFiles('src-tauri/sidecar/requirements.txt', 'src-tauri/sidecar/**/*.py', 'src-tauri/sidecar/sidecar.spec') }}
+
       - name: Build sidecar binary
+        if: steps.sidecar-cache.outputs.cache-hit != 'true'
         run: npm run build:sidecar
 
       - name: Build Tauri app
@@ -67,6 +75,7 @@ jobs:
           VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
           VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
           VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
+          CARGO_INCREMENTAL: "0"
         with:
           args: --target ${{ matrix.target }}
 
@@ -79,8 +88,82 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
 
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend deps
+        run: pnpm install
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: src-tauri/sidecar/requirements.txt
+
+      - name: Install sidecar dependencies
+        run: pip install pyinstaller -r src-tauri/sidecar/requirements.txt
+
+      - name: Cache sidecar binary
+        id: sidecar-cache
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/binaries
+          key: sidecar-x86_64-pc-windows-msvc-${{ hashFiles('src-tauri/sidecar/requirements.txt', 'src-tauri/sidecar/**/*.py', 'src-tauri/sidecar/sidecar.spec') }}
+
+      - name: Build sidecar binary
+        if: steps.sidecar-cache.outputs.cache-hit != 'true'
+        run: npm run build:sidecar
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_R2_ACCOUNT_ID: ${{ secrets.VITE_R2_ACCOUNT_ID }}
+          VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+          VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+          VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
+          CARGO_INCREMENTAL: "0"
+        with:
+          args: --target x86_64-pc-windows-msvc
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64-pc-windows-msvc
+          path: |
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.nsis.zip.sig
+
   publish-r2:
-    needs: build-macos
+    needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
 
     steps:
@@ -107,18 +190,19 @@ jobs:
           set -e
 
           # Upload all binaries under releases/{version}/
-          find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.sig" \) | while read FILE; do
+          find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.sig" -o -name "*.msi" -o -name "*.nsis.zip" \) | while read FILE; do
             FILENAME=$(basename "$FILE")
             aws s3 cp "$FILE" "s3://$R2_BUCKET/releases/$VERSION/$FILENAME" \
               --endpoint-url "$R2_ENDPOINT" --region auto
           done
 
           # Build latest.json
-          # URL은 .app.tar.gz (업데이터가 실제로 다운로드하는 파일), .dmg 아님
           AARCH64_SIG=$(find artifacts -name "*aarch64.app.tar.gz.sig" | head -1)
           X64_SIG=$(find artifacts -name "*x64.app.tar.gz.sig" | head -1)
+          WIN_SIG=$(find artifacts -name "*.nsis.zip.sig" | head -1)
           AARCH64_TAR_NAME=$(find artifacts -name "*aarch64.app.tar.gz" -exec basename {} \; | head -1)
           X64_TAR_NAME=$(find artifacts -name "*x64.app.tar.gz" -exec basename {} \; | head -1)
+          WIN_ZIP_NAME=$(find artifacts -name "*.nsis.zip" -not -name "*.sig" -exec basename {} \; | head -1)
 
           jq --null-input \
             --arg version "$VERSION" \
@@ -127,7 +211,9 @@ jobs:
             --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_NAME" \
             --arg x64_sig "$(cat "$X64_SIG")" \
             --arg x64_url "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_NAME" \
-            '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url}}}' \
+            --arg win_sig "$(cat "$WIN_SIG")" \
+            --arg win_url "$R2_PUBLIC_URL/releases/$VERSION/$WIN_ZIP_NAME" \
+            '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
             > latest.json
 
           aws s3 cp latest.json "s3://$R2_BUCKET/releases/latest.json" \
