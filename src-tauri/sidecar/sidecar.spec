@@ -52,7 +52,7 @@ exe = EXE(
     strip=False,
     upx=False,
     console=True,
-    target_arch='arm64',
+    target_arch=None,  # 빌드 머신 네이티브 아키텍처 사용 (CI 매트릭스에서 aarch64/x86_64 각자 빌드)
     codesign_identity=None,
     entitlements_file=None,
 )

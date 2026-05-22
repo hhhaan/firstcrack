@@ -21,13 +21,16 @@ else:
 
 echo "▶ Building sidecar for target: $TARGET"
 
-# PyInstaller
+# PyInstaller — venv 우선, 없으면 PATH (CI: pip install pyinstaller 후 사용)
 cd "$SIDECAR_DIR"
 PYINSTALLER="$SIDECAR_DIR/.venv/bin/pyinstaller"
 if [ ! -f "$PYINSTALLER" ]; then
     PYINSTALLER="$SIDECAR_DIR/venv/bin/pyinstaller"
 fi
 if [ ! -f "$PYINSTALLER" ]; then
+    PYINSTALLER=$(command -v pyinstaller 2>/dev/null || true)
+fi
+if [ -z "$PYINSTALLER" ]; then
     echo "❌ PyInstaller not found. Run: cd src-tauri/sidecar && python -m venv .venv && .venv/bin/pip install pyinstaller -r requirements.txt"
     exit 1
 fi

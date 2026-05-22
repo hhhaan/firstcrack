@@ -150,6 +150,9 @@ async def cors_middleware(request: web.Request, handler: Any) -> web.Response:
         resp = web.Response()
     else:
         resp = await handler(request)
+    # TODO (T8): 프로덕션에서는 "tauri://localhost" 로 제한 필요.
+    # dev: "http://localhost:1420", prod: "tauri://localhost"
+    # Tauri sidecar 번들링 완료 후 실제 origin 확인 뒤 교체.
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type"

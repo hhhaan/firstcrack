@@ -17,8 +17,7 @@
                 "width": 1400,
                 "height": 900,
                 "center": true,
-                "resizable": true,
-                "devtools": true
+                "resizable": true
             }
         ],
         "security": {
@@ -32,7 +31,6 @@
             }
         },
         "updater": {
-            "createUpdaterArtifacts": true,
             "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlBODIzMjY0MjMyNzJCQjQKUldTMEt5Y2paREtDbW1WZU1XSWpvYTF3Q0ZVRW9BWGFlZ0ZYWE5IWFc5RG0xWkNid3ZyS1ZPdSsK",
             "endpoints": ["https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev/releases/latest.json"]
         }
@@ -40,6 +38,7 @@
     "bundle": {
         "active": true,
         "targets": "all",
+        "createUpdaterArtifacts": true,
         "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
         "externalBin": ["binaries/sidecar"],
         "macOS": {
