@@ -77,7 +77,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                     isHeaderHovered ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-90 invisible',
                                 )}
                             >
-                                <PanelLeft size={18} strokeWidth={2.1} />
+                                <PanelLeft size={18} strokeWidth={1.9} />
                             </button>
                         </div>
                     ) : (
@@ -101,7 +101,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 title={t('sidebar.collapse')}
                                 className="w-9 h-9 rounded-lg border-none bg-transparent text-muted flex items-center justify-center cursor-pointer shrink-0 transition-all duration-200 hover:bg-surface hover:shadow-(--shadow-inset) hover:text-primary"
                             >
-                                <PanelLeft size={18} strokeWidth={2.1} />
+                                <PanelLeft size={18} strokeWidth={1.9} />
                             </button>
                         </>
                     )}
@@ -109,33 +109,43 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             </div>
 
             {/* Workspace selector */}
-            <div className={collapsed ? 'px-2 pt-3 pb-2' : 'px-3 pt-3 pb-2'}>
+            <div className="px-4 pt-3 pb-2">
                 <button
                     onClick={() => onOpenSettings('workspace')}
                     aria-label={t('sidebar.workspaceSelector')}
                     title={collapsed ? t('sidebar.workspace') : undefined}
-                    className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'} px-2.5 py-2 rounded-lg border-none bg-surface cursor-pointer shadow-(--shadow-inset)`}
+                    className="w-full flex items-center rounded-lg border-none bg-surface cursor-pointer shadow-(--shadow-inset) h-9 overflow-hidden"
                 >
-                    <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 shrink-0 flex items-center justify-center">
                         <div className="w-5.5 h-5.5 rounded-[5px] bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary">
                             {workspaceInitial}
                         </div>
-                        {!collapsed && (
-                            <span className="text-[13px] font-medium text-primary tracking-[0.14px]">{workspaceName}</span>
-                        )}
                     </div>
-                    {!collapsed && <ChevronDown size={14} strokeWidth={2} color="var(--color-muted)" />}
+                    <div
+                        className={cn(
+                            'flex-1 flex items-center justify-between pr-2.5 transition-all duration-220 overflow-hidden whitespace-nowrap',
+                            collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[160px]',
+                        )}
+                    >
+                        <span className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
+                            {workspaceName}
+                        </span>
+                        <ChevronDown size={14} strokeWidth={1.9} color="var(--color-muted)" className="shrink-0 ml-1" />
+                    </div>
                 </button>
             </div>
 
             {/* Nav */}
-            <nav className={`flex-1 overflow-y-auto ${collapsed ? 'px-2 py-1' : 'px-3 py-1'}`}>
+            <nav className="flex-1 overflow-y-auto px-4 py-1">
                 <div className="mb-1">
-                    {!collapsed && (
-                        <div className="text-[11px] font-medium text-muted tracking-[0.7px] uppercase px-2.5 pt-2 pb-1">
-                            {t('sidebar.workspace')}
-                        </div>
-                    )}
+                    <div
+                        className={cn(
+                            'text-[11px] font-medium text-muted tracking-[0.7px] uppercase transition-all duration-220 overflow-hidden whitespace-nowrap',
+                            collapsed ? 'opacity-0 h-0 pt-0 pb-0 px-0' : 'opacity-100 h-7 pt-2 pb-1 px-2.5',
+                        )}
+                    >
+                        {t('sidebar.workspace')}
+                    </div>
                     {navItems.map(({ id, labelKey, icon: Icon }) => {
                         const isActive = activeView === id;
                         const label = t(labelKey);
@@ -145,24 +155,30 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 onClick={() => onNavigate(id)}
                                 aria-label={label}
                                 title={collapsed ? label : undefined}
-                                className={cn(
-                                    'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-surface/50',
-                                    collapsed ? 'justify-center' : 'justify-start',
-                                )}
+                                className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-surface/50 h-9 overflow-hidden"
                             >
-                                <Icon
-                                    size={16}
-                                    strokeWidth={isActive ? 2.2 : 1.5}
-                                    color={isActive ? 'var(--color-primary)' : 'var(--color-muted)'}
-                                />
-                                {!collapsed && (
+                                <div className="w-9 h-9 shrink-0 flex items-center justify-center">
+                                    <Icon
+                                        size={18}
+                                        strokeWidth={isActive ? 1.9 : 1.5}
+                                        color={isActive ? 'var(--color-primary)' : 'var(--color-muted)'}
+                                    />
+                                </div>
+                                <div
+                                    className={cn(
+                                        'transition-all duration-220 overflow-hidden whitespace-nowrap',
+                                        collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[150px]',
+                                    )}
+                                >
                                     <span
-                                        className={`text-[14px] tracking-[0.14px] ${isActive ? 'font-semibold' : 'font-normal'}`}
-                                        style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-secondary)' }}
+                                        className={cn(
+                                            'text-[14px] tracking-[0.14px]',
+                                            isActive ? 'font-medium text-primary' : 'font-normal text-secondary',
+                                        )}
                                     >
                                         {label}
                                     </span>
-                                )}
+                                </div>
                             </button>
                         );
                     })}
@@ -170,30 +186,34 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             </nav>
 
             {/* Footer */}
-            <div className="p-3 border-t border-border-subtle">
+            <div className="p-4 border-t border-border-subtle">
                 <button
                     onClick={() => onOpenSettings()}
                     aria-label={t('sidebar.settings')}
                     title={collapsed ? t('sidebar.settings') : undefined}
-                    className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-start'} gap-2.5 px-2.5 py-2 rounded-lg border-none cursor-pointer shadow-(--shadow-inset)`}
+                    className="w-full flex items-center rounded-lg border-none cursor-pointer shadow-(--shadow-inset) bg-transparent hover:bg-surface/50 transition-colors h-11 overflow-hidden"
                 >
-                    <div className="w-7 h-7 rounded-full bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary shrink-0 shadow-(--shadow-inset)">
-                        H
+                    <div className="w-9 h-11 shrink-0 flex items-center justify-center">
+                        <div className="w-7 h-7 rounded-full bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary shrink-0 shadow-(--shadow-inset)">
+                            H
+                        </div>
                     </div>
-                    {!collapsed && (
-                        <>
-                            <div className="text-left flex-1 min-w-0">
-                                <div className="text-[13px] font-medium text-primary tracking-[0.14px]">
-                                    {t('sidebar.settings')}
-                                </div>
-                                <div className="text-[11px] text-muted tracking-[0.14px] overflow-hidden text-ellipsis whitespace-nowrap">
-                                    {t('sidebar.workspacePreferences')}
-                                </div>
+                    <div
+                        className={cn(
+                            'flex-1 flex items-center justify-between pr-2.5 transition-all duration-220 overflow-hidden whitespace-nowrap',
+                            collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[160px]',
+                        )}
+                    >
+                        <div className="text-left min-w-0 flex-1">
+                            <div className="text-[13px] font-medium text-primary tracking-[0.14px]">
+                                {t('sidebar.settings')}
                             </div>
-                            <Settings size={14} strokeWidth={1.5} color="var(--color-muted)" />
-                        </>
-                    )}
-                    {collapsed && <Settings size={14} strokeWidth={1.5} color="var(--color-muted)" />}
+                            <div className="text-[11px] text-muted tracking-[0.14px] truncate">
+                                {t('sidebar.workspacePreferences')}
+                            </div>
+                        </div>
+                        <Settings size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 ml-1" />
+                    </div>
                 </button>
             </div>
         </aside>

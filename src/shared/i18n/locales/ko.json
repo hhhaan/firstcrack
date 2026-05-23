@@ -10,8 +10,8 @@
   },
   "sidebar": {
     "roasteryDashboard": "로스터리 대시보드",
-    "expand": "사이드바 펼치기",
-    "collapse": "사이드바 접기",
+    "expand": "사이드바 열기",
+    "collapse": "사이드바 닫기",
     "workspaceSelector": "워크스페이스 선택",
     "workspace": "워크스페이스",
     "settings": "설정",
@@ -45,7 +45,7 @@
         "weightUnit": "무게 단위",
         "displayTitle": "표시 기본값",
         "displayDescription": "대시보드와 내비게이션 동작을 세션 간 일관되게 유지합니다.",
-        "expandedSidebar": "기본으로 사이드바 펼치기",
+        "expandedSidebar": "기본으로 사이드바 열린 상태 유지",
         "liveMetricsPanel": "실시간 지표 패널 표시",
         "compactDataCards": "촘촘한 데이터 카드 사용"
       },
