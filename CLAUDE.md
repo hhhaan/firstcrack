@@ -1,4 +1,36 @@
 
+## Project Architecture (FSD)
+
+This project follows Feature-Slice Design. Layers import only from layers below:
+```
+views → widgets → features → entities → shared
+```
+
+Never import from the same layer across slices (e.g., one entity importing another entity directly). Always go through the slice's public API (`index.ts`).
+
+Layer responsibilities:
+- **shared** — reusable UI, utilities, types, i18n, Zustand stores (no business logic)
+- **entities** — domain objects: `api.ts` (Supabase calls), `queries.ts` (React Query hooks), `index.ts`
+- **features** — user-facing behaviors: `lib/` (pure logic), `model/` (hooks + state), `index.ts`
+- **widgets** — composite UI sections: `ui/` (components + co-located hooks), `index.ts`
+- **views** — page-level: one component + `hooks/` subdirectory for complex pages
+
+## SRP and Hook Separation
+
+Every custom hook lives in its own file. Never define a hook inline inside a component file.
+
+Split hooks by responsibility — one hook, one job:
+- Data fetching / React Query → `entities/*/queries.ts` or `features/*/model/use*.ts`
+- Derived UI state, local state → a dedicated `use*.ts` next to the component
+- Side effects (keyboard shortcuts, polling, subscriptions) → separate `use*.ts`
+
+Components only call hooks and return JSX. If a component has more than one `useState`/`useEffect` concern, extract each into its own hook.
+
+Hook file placement:
+- features: `src/features/<slice>/model/use*.ts`
+- widgets: `src/widgets/<slice>/ui/use*.ts` (co-located with the component)
+- views: `src/views/<page>/hooks/use*.ts` (use `hooks/` subdir when a page has multiple hooks)
+
 ## Database Rules
 
 When making **any schema change** (new table, new column, index, RLS policy, etc.):
