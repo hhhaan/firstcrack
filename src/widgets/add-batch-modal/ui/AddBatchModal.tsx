@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { X, CalendarIcon, Cpu, Package, AlertTriangle, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, CalendarIcon, Cpu, Package, AlertTriangle, Check, ChevronUp, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
@@ -171,6 +171,86 @@ const SearchableSelect = ({
                     )}
                 </div>
             )}
+        </div>
+    );
+};
+
+// ── Counter input ─────────────────────────────────────────────────────────────
+
+const CounterInput = ({
+    label,
+    value,
+    onChange,
+    placeholder,
+    step = 0.1,
+}: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    placeholder?: string;
+    step?: number;
+}) => {
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const handleAdjust = (delta: number) => {
+        onChange(prev => {
+            const current = parseFloat(prev) || 0;
+            const next = Math.max(0, Math.round((current + delta) * 100) / 100);
+            return String(next);
+        });
+    };
+
+    const stop = () => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+
+    const start = (delta: number) => {
+        stop();
+        handleAdjust(delta);
+        timerRef.current = setTimeout(() => {
+            intervalRef.current = setInterval(() => handleAdjust(delta), 60);
+        }, 300);
+    };
+
+    useEffect(() => {
+        return stop;
+    }, []);
+
+    return (
+        <div>
+            <label className={labelCls}>{label}</label>
+            <div className="relative group">
+                <input
+                    className={cn(inputCls, 'pr-10')}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(e) => onChange(sanitizeDecimal(e.target.value))}
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-1">
+                    <button
+                        type="button"
+                        onMouseDown={() => start(step)}
+                        onMouseUp={stop}
+                        onMouseLeave={stop}
+                        className="text-muted/40 hover:text-primary transition-colors outline-none"
+                    >
+                        <ChevronUp size={12} strokeWidth={3} />
+                    </button>
+                    <button
+                        type="button"
+                        onMouseDown={() => start(-step)}
+                        onMouseUp={stop}
+                        onMouseLeave={stop}
+                        className="text-muted/40 hover:text-primary transition-colors outline-none"
+                    >
+                        <ChevronDown size={12} strokeWidth={3} />
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };
@@ -439,37 +519,25 @@ export const AddBatchModal = ({ open, onClose, onAdd }: AddBatchModalProps) => {
 
                 {/* 수량 — 목표 + Batch Size + Yield */}
                 <div className="grid grid-cols-3 gap-4">
-                    <div>
-                        <label className={labelCls}>목표 Roasted (kg)</label>
-                        <input
-                            className={inputCls}
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="0"
-                            value={targetRoasted}
-                            onChange={(e) => setTargetRoasted(sanitizeDecimal(e.target.value))}
-                        />
-                    </div>
-                    <div>
-                        <label className={labelCls}>Batch Size (kg)</label>
-                        <input
-                            className={inputCls}
-                            type="text"
-                            inputMode="decimal"
-                            value={batchSize}
-                            onChange={(e) => setBatchSize(sanitizeDecimal(e.target.value))}
-                        />
-                    </div>
-                    <div>
-                        <label className={labelCls}>Yield (%)</label>
-                        <input
-                            className={inputCls}
-                            type="text"
-                            inputMode="decimal"
-                            value={yieldPct}
-                            onChange={(e) => setYieldPct(sanitizeDecimal(e.target.value))}
-                        />
-                    </div>
+                    <CounterInput
+                        label="목표 Roasted (kg)"
+                        placeholder="0"
+                        value={targetRoasted}
+                        onChange={setTargetRoasted}
+                        step={0.1}
+                    />
+                    <CounterInput
+                        label="Batch Size (kg)"
+                        value={batchSize}
+                        onChange={setBatchSize}
+                        step={1}
+                    />
+                    <CounterInput
+                        label="Yield (%)"
+                        value={yieldPct}
+                        onChange={setYieldPct}
+                        step={1}
+                    />
                 </div>
 
                 {/* 자동 계산 summary */}
