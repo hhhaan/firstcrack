@@ -3,6 +3,7 @@ import { Search, Filter, ChevronDown, ChevronUp, Download, FileText, X, ChevronL
 import { useRoastSessions } from '@entities/roast';
 import { useProfile } from '@entities/profile';
 import { PageLayout } from '@shared/ui/PageLayout';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -345,6 +346,204 @@ const FilterDropdown = ({
     );
 };
 
+type DatePreset = 'all' | 'this-month' | 'last-month' | '3-months' | '6-months' | 'this-year' | 'custom';
+
+const DATE_PRESETS: { value: DatePreset; label: string }[] = [
+    { value: 'all', label: 'All Time' },
+    { value: 'this-month', label: 'This Month' },
+    { value: 'last-month', label: 'Last Month' },
+    { value: '3-months', label: 'Last 3 Months' },
+    { value: '6-months', label: 'Last 6 Months' },
+    { value: 'this-year', label: 'This Year' },
+    { value: 'custom', label: 'Custom Range' },
+];
+
+const getPresetYMRange = (preset: DatePreset): { fromYM: string; toYM: string } | null => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const fmt = (year: number, month: number) => `${year}-${String(month + 1).padStart(2, '0')}`;
+    if (preset === 'this-month') return { fromYM: fmt(y, m), toYM: fmt(y, m) };
+    if (preset === 'last-month') {
+        const d = new Date(y, m - 1, 1);
+        return { fromYM: fmt(d.getFullYear(), d.getMonth()), toYM: fmt(d.getFullYear(), d.getMonth()) };
+    }
+    if (preset === '3-months') {
+        const d = new Date(y, m - 2, 1);
+        return { fromYM: fmt(d.getFullYear(), d.getMonth()), toYM: fmt(y, m) };
+    }
+    if (preset === '6-months') {
+        const d = new Date(y, m - 5, 1);
+        return { fromYM: fmt(d.getFullYear(), d.getMonth()), toYM: fmt(y, m) };
+    }
+    if (preset === 'this-year') return { fromYM: fmt(y, 0), toYM: fmt(y, m) };
+    return null;
+};
+
+const MONTHS_KO = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+
+const DateRangeFilter = ({
+    preset,
+    fromYM,
+    toYM,
+    monthOptions,
+    onPresetChange,
+    onFromYM,
+    onToYM,
+}: {
+    preset: DatePreset;
+    fromYM: string;
+    toYM: string;
+    monthOptions: string[];
+    onPresetChange: (p: DatePreset) => void;
+    onFromYM: (v: string) => void;
+    onToYM: (v: string) => void;
+}): ReactNode => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+    const isActive = preset !== 'all';
+
+    const initFrom = fromYM || (monthOptions[0] ?? '');
+    const initTo = toYM || (monthOptions[monthOptions.length - 1] ?? '');
+    const [draftFrom, setDraftFrom] = useState(initFrom);
+    const [draftTo, setDraftTo] = useState(initTo);
+
+    useEffect(() => {
+        if (!open) return;
+        const handler = (e: MouseEvent) => {
+            const target = e.target as Element;
+            const inPanel = ref.current?.contains(target);
+            const inPortal = !!target?.closest('[data-radix-popper-content-wrapper]');
+            if (!inPanel && !inPortal) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [open]);
+
+    const years = useMemo(
+        () => [...new Set(monthOptions.map((ym) => ym.split('-')[0]))].sort((a, b) => Number(b) - Number(a)),
+        [monthOptions],
+    );
+
+    const fmtLabel = (ym: string) => {
+        if (!ym) return '—';
+        const [y, m] = ym.split('-');
+        return `${y}년 ${parseInt(m)}월`;
+    };
+
+    const triggerLabel = (() => {
+        if (preset === 'custom' && (fromYM || toYM)) return `${fmtLabel(fromYM)} – ${fmtLabel(toYM)}`;
+        return DATE_PRESETS.find((p) => p.value === preset)?.label ?? 'Period';
+    })();
+
+    const handlePresetClick = (p: DatePreset) => {
+        if (p === 'custom') {
+            setDraftFrom(fromYM || initFrom);
+            setDraftTo(toYM || initTo);
+        }
+        onPresetChange(p);
+        if (p !== 'custom') setOpen(false);
+    };
+
+    const handleApply = () => {
+        let f = draftFrom;
+        let t = draftTo;
+        if (f && t && f > t) { [f, t] = [t, f]; }
+        onFromYM(f);
+        onToYM(t);
+        setOpen(false);
+    };
+
+    return (
+        <div ref={ref} className="relative">
+            <button
+                onClick={() => setOpen((o) => !o)}
+                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
+                    isActive
+                        ? 'bg-surface-warm-solid text-primary shadow-(--shadow-inset)'
+                        : 'bg-surface text-secondary shadow-(--shadow-inset) hover:bg-surface-warm-solid hover:text-primary'
+                }`}
+            >
+                {triggerLabel}
+                {isActive ? (
+                    <X
+                        size={11}
+                        strokeWidth={2.5}
+                        className="text-muted hover:text-primary"
+                        onClick={(e) => { e.stopPropagation(); onPresetChange('all'); setOpen(false); }}
+                    />
+                ) : (
+                    <ChevronDown size={11} strokeWidth={2} className="text-muted" />
+                )}
+            </button>
+
+            {open && (
+                <div className="absolute top-full left-0 z-50 mt-1 flex rounded-lg bg-main-bg shadow-ring overflow-hidden">
+                    {/* 프리셋 목록 */}
+                    <div className="flex shrink-0 flex-col gap-0.5 py-2 px-2 w-36">
+                        {DATE_PRESETS.map((p) => (
+                            <button
+                                key={p.value}
+                                onClick={() => handlePresetClick(p.value)}
+                                className={`w-full rounded-md px-2.5 py-1.5 text-left text-[13px] tracking-[0.14px] transition hover:bg-surface cursor-pointer border-none bg-transparent ${
+                                    preset === p.value ? 'font-semibold text-primary' : 'text-secondary'
+                                }`}
+                            >
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* 커스텀 범위 — draft 상태로 관리, Apply 버튼으로만 반영 */}
+                    {preset === 'custom' && (
+                        <div className="flex flex-col justify-center gap-3 border-l border-border-subtle px-5 py-4 self-stretch">
+                            {([
+                                { label: '시작', val: draftFrom, set: setDraftFrom },
+                                { label: '종료', val: draftTo, set: setDraftTo },
+                            ] as const).map(({ label, val, set }) => {
+                                const yr = val ? val.split('-')[0] : '';
+                                const mo = val ? val.split('-')[1] : '';
+                                return (
+                                    <div key={label} className="flex items-center gap-2">
+                                        <span className="w-7 shrink-0 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">{label}</span>
+                                        <Select value={yr} onValueChange={(v) => set(mo ? `${v}-${mo}` : v)}>
+                                            <SelectTrigger className="w-24">
+                                                <SelectValue placeholder="년도" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {years.map((y) => (
+                                                    <SelectItem key={y} value={y}>{y}년</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Select value={mo} onValueChange={(v) => set(yr ? `${yr}-${v}` : v)}>
+                                            <SelectTrigger className="w-20">
+                                                <SelectValue placeholder="월" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {MONTHS_KO.map((name, i) => (
+                                                    <SelectItem key={i} value={String(i + 1).padStart(2, '0')}>{name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                );
+                            })}
+                            <button
+                                onClick={handleApply}
+                                disabled={!draftFrom || !draftTo}
+                                className="mt-1 ml-auto rounded-lg border-none bg-primary px-4 py-1.5 text-[13px] font-medium text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                적용
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 export const History = () => {
     const [search, setSearch] = useState<string>('');
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -353,7 +552,9 @@ export const History = () => {
     const [showReport, setShowReport] = useState(false);
     const [levelFilter, setLevelFilter] = useState<string>('all');
     const [originFilter, setOriginFilter] = useState<string>('all');
-    const [monthFilter, setMonthFilter] = useState<boolean>(false);
+    const [datePreset, setDatePreset] = useState<DatePreset>('all');
+    const [fromYM, setFromYM] = useState<string>('');
+    const [toYM, setToYM] = useState<string>('');
     const [page, setPage] = useState<number>(1);
     const PAGE_SIZE = 10;
 
@@ -366,6 +567,19 @@ export const History = () => {
         () => [...new Set(rawSessions.map((s) => s.beans?.origin).filter(Boolean) as string[])].sort(),
         [rawSessions],
     );
+
+    const monthOptions = useMemo(() => {
+        const set = new Set<string>();
+        const now = new Date();
+        set.add(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+        rawSessions.forEach((s) => {
+            if (s.roasted_at) {
+                const d = new Date(s.roasted_at);
+                set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+            }
+        });
+        return [...set].sort();
+    }, [rawSessions]);
 
     const handleSort = (key: SortKey): void => {
         if (sortKey === key) {
@@ -389,19 +603,23 @@ export const History = () => {
         setOriginFilter(v);
         setPage(1);
     };
-    const handleMonthFilter = () => {
-        setMonthFilter((p) => !p);
+    const handlePresetChange = (p: DatePreset) => {
+        setDatePreset(p);
         setPage(1);
+        if (p === 'all') { setFromYM(''); setToYM(''); }
+        else if (p !== 'custom') {
+            const range = getPresetYMRange(p);
+            if (range) { setFromYM(range.fromYM); setToYM(range.toYM); }
+        }
     };
+    const handleFromYM = (v: string) => { setFromYM(v); setPage(1); };
+    const handleToYM = (v: string) => { setToYM(v); setPage(1); };
     const handleSearch = (v: string) => {
         setSearch(v);
         setPage(1);
     };
 
     const filtered = useMemo((): RoastSessionWithRelations[] => {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1;
         const q = search.toLowerCase();
 
         return rawSessions
@@ -417,10 +635,12 @@ export const History = () => {
                     return false;
                 if (levelFilter !== 'all' && s.roast_level !== levelFilter) return false;
                 if (originFilter !== 'all' && s.beans?.origin !== originFilter) return false;
-                if (monthFilter) {
+                if (fromYM || toYM) {
                     if (!s.roasted_at) return false;
                     const d = new Date(s.roasted_at);
-                    if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return false;
+                    const sessionYM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    if (fromYM && sessionYM < fromYM) return false;
+                    if (toYM && sessionYM > toYM) return false;
                 }
                 return true;
             })
@@ -432,7 +652,7 @@ export const History = () => {
                 if (sortKey === 'drop') return dir * ((a.drop_temp_celsius ?? 0) - (b.drop_temp_celsius ?? 0));
                 return dir * (a.roast_level ?? '').localeCompare(b.roast_level ?? '');
             });
-    }, [rawSessions, search, sortKey, sortAsc, levelFilter, originFilter, monthFilter]);
+    }, [rawSessions, search, sortKey, sortAsc, levelFilter, originFilter, fromYM, toYM]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     const safePage = Math.min(page, totalPages);
@@ -538,17 +758,15 @@ export const History = () => {
                         options={uniqueOrigins}
                         onSelect={handleOriginFilter}
                     />
-                    <button
-                        onClick={handleMonthFilter}
-                        className={`inline-flex items-center gap-1 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
-                            monthFilter
-                                ? 'bg-surface-warm-solid text-primary shadow-(--shadow-inset)'
-                                : 'bg-surface text-secondary shadow-(--shadow-inset) hover:bg-surface-warm-solid hover:text-primary'
-                        }`}
-                    >
-                        <Filter size={12} strokeWidth={2} className={monthFilter ? 'text-primary' : 'text-muted'} />
-                        This Month
-                    </button>
+                    <DateRangeFilter
+                        preset={datePreset}
+                        fromYM={fromYM}
+                        toYM={toYM}
+                        monthOptions={monthOptions}
+                        onPresetChange={handlePresetChange}
+                        onFromYM={handleFromYM}
+                        onToYM={handleToYM}
+                    />
 
                     {/* <div className="ml-auto flex items-center gap-1 rounded-lg bg-surface px-2 py-1.5 shadow-(--shadow-inset)">
                         <span className="text-[12px] text-muted mr-0.5">Show</span>

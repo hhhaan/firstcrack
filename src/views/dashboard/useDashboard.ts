@@ -44,7 +44,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     const [completedRes, upcomingPlansRes, alertsRes, monthlyRes] = await Promise.all([
         supabase
             .from('roast_sessions')
-            .select('*, beans(name, origin), roast_profiles(name, target_level)')
+            .select('*, beans(name, origin), roast_profiles!profile_id(name, target_level)')
             .eq('user_id', userId)
             .eq('status', 'completed')
             .gte('roasted_at', lastMonthStart)

@@ -1,7 +1,7 @@
 import { supabase } from '@shared/lib/supabase';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 
-const SELECT_WITH_RELATIONS = '*, beans(name, origin), roast_profiles(name, target_level)';
+const SELECT_WITH_RELATIONS = '*, beans(name, origin), roast_profiles!profile_id(name, target_level)';
 
 type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at'>;
 type RoastSessionUpdate = { id: string } & Partial<Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;
