@@ -519,7 +519,7 @@ const DayView = ({
                 <button
                     onClick={() => setIsAddModalOpen(true)}
                     disabled={isDayPlanLoading}
-                    className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-3 py-1.5 rounded-lg border border-border bg-surface shadow-(--shadow-inset) cursor-pointer hover:bg-surface-raised transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-3 py-1.5 rounded-lg bg-surface cursor-pointer hover:bg-surface-raised transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                     <Plus size={13} strokeWidth={2} />
                     새 배치 추가
@@ -530,8 +530,18 @@ const DayView = ({
                 {isLoading ? (
                     <div className="text-[13px] text-muted text-center py-12">불러오는 중...</div>
                 ) : batches.length === 0 ? (
-                    <div className="border border-dashed border-border rounded-xl px-4 py-10 text-[13px] text-muted text-center select-none">
-                        오늘의 배치가 없습니다. "+ 새 배치 추가"로 시작하세요.
+                    <div className="border border-dashed border-border rounded-xl px-4 py-12 flex flex-col items-center justify-center gap-4 select-none">
+                        <div className="text-[13px] text-muted text-center">
+                            오늘의 배치가 없습니다.<br />
+                            새 배치를 추가하여 일정을 시작하세요.
+                        </div>
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface cursor-pointer hover:bg-surface-raised transition-colors"
+                        >
+                            <Plus size={14} strokeWidth={2} />
+                            새 배치 추가
+                        </button>
                     </div>
                 ) : (
                     <div className="space-y-3">
@@ -624,7 +634,7 @@ export const Schedule = ({ onStartBatch }: ScheduleProps) => {
                     {!isToday(selectedDate) && (
                         <button
                             onClick={() => setSelectedDate(new Date())}
-                            className="text-[11px] font-medium text-muted border border-border rounded-md px-2 py-0.5 bg-surface shadow-(--shadow-inset) cursor-pointer hover:text-primary transition-colors"
+                            className="text-[11px] font-medium text-muted rounded-md px-2 py-0.5 bg-surface cursor-pointer hover:text-primary transition-colors"
                         >
                             오늘
                         </button>
