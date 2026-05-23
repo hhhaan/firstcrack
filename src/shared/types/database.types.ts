@@ -320,33 +320,58 @@ export type Database = {
       }
       roast_profiles: {
         Row: {
+          charge_temp_celsius: number | null
           created_at: string
           description: string | null
+          dev_pct: number | null
+          dev_time_sec: number | null
+          drop_temp_celsius: number | null
+          duration_sec: number | null
           id: string
           name: string
+          source_session_id: string | null
           target_level: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          charge_temp_celsius?: number | null
           created_at?: string
           description?: string | null
+          dev_pct?: number | null
+          dev_time_sec?: number | null
+          drop_temp_celsius?: number | null
+          duration_sec?: number | null
           id?: string
           name: string
+          source_session_id?: string | null
           target_level: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          charge_temp_celsius?: number | null
           created_at?: string
           description?: string | null
+          dev_pct?: number | null
+          dev_time_sec?: number | null
+          drop_temp_celsius?: number | null
+          duration_sec?: number | null
           id?: string
           name?: string
+          source_session_id?: string | null
           target_level?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "roast_profiles_source_session_id_fkey"
+            columns: ["source_session_id"]
+            isOneToOne: false
+            referencedRelation: "roast_sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "roast_profiles_user_id_fkey"
             columns: ["user_id"]
@@ -754,19 +779,17 @@ export type BeanInventoryLogUpdate = Database['public']['Tables']['bean_inventor
 export type BeanInventoryLogType = 'purchase' | 'roast' | 'adjustment' | 'waste'
 
 export type DayPlan = Database['public']['Tables']['roast_day_plans']['Row']
-export type DayPlanInsert = Database['public']['Tables']['roast_day_plans']['Insert']
 
 export type PlanBatch = Database['public']['Tables']['roast_plan_batches']['Row']
-export type PlanBatchInsert = Omit<Database['public']['Tables']['roast_plan_batches']['Insert'], 'batch_count'>
-export type PlanBatchUpdate = { id: string } & Partial<Omit<PlanBatchInsert, 'plan_id'>>
-
+export type PlanBatchInsert = Database['public']['Tables']['roast_plan_batches']['Insert']
+export type PlanBatchUpdate = Database['public']['Tables']['roast_plan_batches']['Update'] & { id: string }
 export type PlanBatchWithProgress = PlanBatch & { completed_sessions: number }
 
-export interface PlanBatchHandoff {
-  planBatchId: string
-  planId: string
-  beanId: string | null
-  beanName: string
-  batchSizeKg: number
-  profileId: string | null
+export type PlanBatchHandoff = {
+    planBatchId: string
+    planId: string
+    beanId: string | null
+    beanName: string
+    batchSizeKg: number
+    profileId: string | null
 }

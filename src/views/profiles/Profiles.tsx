@@ -1,35 +1,33 @@
 // Data architecture:
-// - Profile data (name, temps, curve, etc.) → server (Supabase) when ready
+// - Profile data → Supabase (roast_profiles table)
 // - defaultProfileId → localStorage only (per-device preference, not synced)
-//   If cross-device sync becomes a requirement, move to a user_preferences table.
 
-import { Plus, Copy, Pencil, Trash2, MoreHorizontal, Lock, Star, GitCompare, Check } from 'lucide-react';
+import { Plus, Copy, Pencil, Trash2, MoreHorizontal, Star, GitCompare, Check } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { type View } from '@shared/types/view';
 import { PageLayout } from '@shared/ui/PageLayout';
 import uPlot from 'uplot';
-import {
-    roastProfiles as profiles,
-    generateProfileCurve,
-    DEFAULT_PROFILE_KEY,
-    type RoastProfile,
-} from '@shared/data/roast-profiles';
+import { generateProfileCurve, DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
+import { useRoastProfiles, useCreateRoastProfile, useDeleteRoastProfile } from '@entities/roast-profile';
+import { useAuthStore } from '@shared/store/auth';
+import { NewProfileModal } from './NewProfileModal';
+import type { RoastProfile } from '@shared/types/database.types';
 
 const COMPARE_COLORS = ['#171717', '#dc2626', '#0ea5e9', '#16a34a'] as const;
 
-// Pre-computed once — profiles is a static import, curves never change
-const SPARKLINE_CACHE = new Map(
-    profiles.map((p) => [p.id, generateProfileCurve(p.dropVal, p.durationSec)]),
-);
+const fmtDuration = (sec: number | null): string => {
+    if (sec == null) return '—';
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+};
 
-// Resolves 'var(--name)' CSS variable strings to their computed hex values for uPlot
 const resolveColor = (color: string): string => {
     if (!color.startsWith('var(')) return color;
     const name = color.slice(4, -1).trim();
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#171717';
 };
 
-// Lightweight SVG sparkline — no axes, no tooltip
 const Sparkline = ({ data, color }: { data: { bt: number }[]; color: string }) => {
     const W = 200;
     const H = 44;
@@ -47,28 +45,27 @@ const Sparkline = ({ data, color }: { data: { bt: number }[]; color: string }) =
 
 interface SeriesData {
     curve: { t: number; bt: number }[];
-    color: string; // supports 'var(--css-var)' or hex
+    color: string;
     label: string;
 }
 
 const TABLE_ROWS: { label: string; getValue: (p: RoastProfile) => string }[] = [
-    { label: 'Duration', getValue: (p) => p.duration },
-    { label: 'Drop Temp', getValue: (p) => p.dropTemp },
-    { label: 'Charge Temp', getValue: (p) => `${p.charge_temp}°C` },
-    { label: 'Dev Time', getValue: (p) => p.devTime },
-    { label: 'Dev %', getValue: (p) => p.devPct },
-    { label: 'Batches', getValue: (p) => `${p.batches} runs` },
+    { label: 'Duration', getValue: (p) => fmtDuration(p.duration_sec) },
+    { label: 'Drop Temp', getValue: (p) => p.drop_temp_celsius != null ? `${p.drop_temp_celsius}°C` : '—' },
+    { label: 'Charge Temp', getValue: (p) => p.charge_temp_celsius != null ? `${p.charge_temp_celsius}°C` : '—' },
+    { label: 'Dev Time', getValue: (p) => fmtDuration(p.dev_time_sec) },
+    { label: 'Dev %', getValue: (p) => p.dev_pct != null ? `${p.dev_pct.toFixed(1)}%` : '—' },
+    { label: 'Target Level', getValue: (p) => p.target_level },
 ];
 
-// Default/Set Default badge — shared between single and compare panels
 const DefaultBadge = ({
     id,
     defaultId,
     onSetDefault,
 }: {
-    id: number;
-    defaultId: number;
-    onSetDefault: (id: number) => void;
+    id: string;
+    defaultId: string | null;
+    onSetDefault: (id: string) => void;
 }) => {
     if (defaultId === id) {
         return (
@@ -90,7 +87,6 @@ const DefaultBadge = ({
     );
 };
 
-// uPlot-based profile curve chart — supports 1-4 overlaid series
 const ProfileCurveChart = ({ series }: { series: SeriesData[] }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const plotRef = useRef<uPlot | null>(null);
@@ -102,19 +98,16 @@ const ProfileCurveChart = ({ series }: { series: SeriesData[] }) => {
         const cs = getComputedStyle(document.documentElement);
         const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#9ca3af';
 
-        // Build unified x-axis (all series use 30s intervals; align to longest)
         const maxT = Math.max(...series.map((s) => s.curve[s.curve.length - 1]?.t ?? 0));
         const xs: number[] = [];
         for (let t = 0; t <= maxT; t += 30) xs.push(t);
 
-        // Per-series ys — null-padded for series shorter than maxT
         const ysArrays = series.map((s) => {
             const map = new Map(s.curve.map((pt) => [pt.t, pt.bt]));
             return xs.map((t) => map.get(t) ?? null);
         });
 
         const isMulti = series.length > 1;
-        // Resolve once at init so setCursor doesn't call getComputedStyle on every mousemove
         const resolvedColors = series.map((s) => resolveColor(s.color));
 
         const ttEl = document.createElement('div');
@@ -133,23 +126,14 @@ const ProfileCurveChart = ({ series }: { series: SeriesData[] }) => {
 
         const tooltipPlugin: uPlot.Plugin = {
             hooks: {
-                init: [
-                    (u) => {
-                        u.root.style.position = 'relative';
-                        u.root.appendChild(ttEl);
-                    },
-                ],
+                init: [(u) => { u.root.style.position = 'relative'; u.root.appendChild(ttEl); }],
                 setCursor: [
                     (u) => {
                         const { idx, left: cx, top: cy } = u.cursor;
-                        if (idx == null || cx == null || cy == null) {
-                            ttEl.style.display = 'none';
-                            return;
-                        }
+                        if (idx == null || cx == null || cy == null) { ttEl.style.display = 'none'; return; }
                         const xSec = (u.data[0] as number[])[idx];
                         const m = Math.floor(xSec / 60);
                         const s = Math.round(xSec % 60);
-
                         let html = `<div style="font-weight:500;color:${colorMuted};margin-bottom:4px">${m}:${String(s).padStart(2, '0')}</div>`;
                         series.forEach((ser, i) => {
                             const val = (u.data[i + 1] as (number | null)[])[idx];
@@ -160,7 +144,6 @@ const ProfileCurveChart = ({ series }: { series: SeriesData[] }) => {
                                 <span style="font-weight:600;color:#171717">${val.toFixed(1)}°C</span>
                             </div>`;
                         });
-
                         const tw = ttEl.offsetWidth || 160;
                         ttEl.innerHTML = html;
                         ttEl.style.display = 'block';
@@ -199,10 +182,7 @@ const ProfileCurveChart = ({ series }: { series: SeriesData[] }) => {
                 },
             ],
             scales: { x: { time: false }, y: { range: [140, 230] } },
-            series: [
-                {},
-                ...resolvedColors.map((c) => ({ stroke: c, width: 2, points: { show: false } })),
-            ],
+            series: [{}, ...resolvedColors.map((c) => ({ stroke: c, width: 2, points: { show: false } }))],
             plugins: [tooltipPlugin],
         };
 
@@ -230,24 +210,37 @@ interface ProfilesProps {
 }
 
 export const Profiles = ({ onNavigate }: ProfilesProps) => {
-    const [selectedId, setSelectedId] = useState<number>(1);
-    const [defaultId, setDefaultId] = useState<number>(() => {
-        const stored = localStorage.getItem(DEFAULT_PROFILE_KEY);
-        return stored ? Number(stored) : 1;
-    });
+    const user = useAuthStore((s) => s.user);
+    const { data: profiles = [], isLoading } = useRoastProfiles(user?.id ?? '');
+    const { mutateAsync: createProfile } = useCreateRoastProfile(user?.id ?? '');
+    const { mutate: deleteProfile } = useDeleteRoastProfile(user?.id ?? '');
+
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [defaultId, setDefaultId] = useState<string | null>(() => localStorage.getItem(DEFAULT_PROFILE_KEY));
     const [compareMode, setCompareMode] = useState(false);
-    const [compareIds, setCompareIds] = useState<number[]>([]);
+    const [compareIds, setCompareIds] = useState<string[]>([]);
+    const [showNewModal, setShowNewModal] = useState(false);
 
-    const selected = profiles.find((p) => p.id === selectedId)!;
+    // Select first profile when list loads
+    useEffect(() => {
+        if (profiles.length > 0 && !selectedId) {
+            setSelectedId(profiles[0].id);
+        }
+    }, [profiles, selectedId]);
 
-    const setDefault = (id: number) => {
+    const selected = profiles.find((p) => p.id === selectedId) ?? null;
+
+    const curveFor = (p: RoastProfile) =>
+        generateProfileCurve(p.drop_temp_celsius ?? 200, p.duration_sec ?? 720);
+
+    const setDefault = (id: string) => {
         setDefaultId(id);
-        localStorage.setItem(DEFAULT_PROFILE_KEY, String(id));
+        localStorage.setItem(DEFAULT_PROFILE_KEY, id);
     };
 
     const enterCompareMode = () => {
         setCompareMode(true);
-        setCompareIds([selectedId]);
+        if (selectedId) setCompareIds([selectedId]);
     };
 
     const exitCompareMode = () => {
@@ -255,372 +248,315 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         setCompareIds([]);
     };
 
-    const toggleCompareId = (id: number) => {
-        setCompareIds((prev) => {
-            if (prev.includes(id)) return prev.filter((x) => x !== id);
-            if (prev.length >= 4) return prev;
-            return [...prev, id];
-        });
+    const toggleCompareId = (id: string) => {
+        setCompareIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 4 ? prev : [...prev, id],
+        );
     };
 
-    const handleProfileClick = (id: number, shiftKey: boolean) => {
-        if (compareMode) {
-            toggleCompareId(id);
-            return;
-        }
-        // Shift+click auto-enters compare mode with current + clicked
+    const handleProfileClick = (id: string, shiftKey: boolean) => {
+        if (compareMode) { toggleCompareId(id); return; }
         if (shiftKey && id !== selectedId) {
             setCompareMode(true);
-            setCompareIds([selectedId, id]);
+            setCompareIds([selectedId ?? id, id]);
             return;
         }
         setSelectedId(id);
     };
 
-    // First selected profile is the "primary" for fallback actions in compare mode
-    const primaryId = compareMode ? (compareIds[0] ?? selectedId) : selectedId;
+    const handleCreated = async (profileData: RoastProfile) => {
+        const { id: _id, created_at: _ca, updated_at: _ua, ...insert } = profileData;
+        const created = await createProfile(insert);
+        setSelectedId(created.id);
+    };
 
-    // Only populated in compare mode — single panel uses `selected` directly
+    const handleDelete = (id: string) => {
+        deleteProfile(id);
+        if (selectedId === id) setSelectedId(profiles.find((p) => p.id !== id)?.id ?? null);
+    };
+
+    const primaryId = compareMode ? (compareIds[0] ?? selectedId ?? '') : selectedId ?? '';
     const compareProfiles = compareMode
         ? (compareIds.map((id) => profiles.find((p) => p.id === id)).filter(Boolean) as RoastProfile[])
         : [];
 
     const chartSeries: SeriesData[] = compareProfiles.map((p, i) => ({
-        curve: SPARKLINE_CACHE.get(p.id)!,
+        curve: curveFor(p),
         color: COMPARE_COLORS[i],
         label: p.name,
     }));
 
-    const chartKey = compareMode ? compareIds.join(',') : String(selectedId);
+    const chartKey = compareMode ? compareIds.join(',') : (selectedId ?? '');
+
+    if (isLoading) {
+        return (
+            <PageLayout>
+                <div className="flex items-center justify-center h-64 text-sm text-muted">Loading…</div>
+            </PageLayout>
+        );
+    }
 
     return (
         <PageLayout>
-            {/* Header */}
             <div className="flex items-end justify-between mb-7">
                 <div>
                     <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
                         Roast Profiles
                     </h1>
                     <p className="text-sm text-muted tracking-[0.14px]">
-                        {profiles.length} profiles · {profiles.filter((p) => p.locked).length} locked
+                        {profiles.length} profile{profiles.length !== 1 ? 's' : ''}
                     </p>
                 </div>
                 <div className="flex gap-2 items-center">
+                    {profiles.length > 1 && (
+                        <button
+                            onClick={compareMode ? exitCompareMode : enterCompareMode}
+                            className={`flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none text-sm font-medium cursor-pointer tracking-[0.14px] transition-colors ${
+                                compareMode
+                                    ? 'bg-primary text-white shadow-(--shadow-card)'
+                                    : 'bg-surface text-secondary shadow-(--shadow-inset) hover:text-primary'
+                            }`}
+                        >
+                            <GitCompare size={14} strokeWidth={2} />
+                            {compareMode ? '비교 모드 종료' : '비교하기'}
+                        </button>
+                    )}
                     <button
-                        onClick={compareMode ? exitCompareMode : enterCompareMode}
-                        className={`flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none text-sm font-medium cursor-pointer tracking-[0.14px] transition-colors ${
-                            compareMode
-                                ? 'bg-primary text-white shadow-(--shadow-card)'
-                                : 'bg-surface text-secondary shadow-(--shadow-inset) hover:text-primary'
-                        }`}
+                        onClick={() => setShowNewModal(true)}
+                        className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer shadow-(--shadow-card) tracking-[0.14px]"
                     >
-                        <GitCompare size={14} strokeWidth={2} />
-                        {compareMode ? '비교 모드 종료' : '비교하기'}
-                    </button>
-                    <button className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer shadow-(--shadow-card) tracking-[0.14px]">
                         <Plus size={15} strokeWidth={2.5} />
                         New Profile
                     </button>
                 </div>
             </div>
 
-            <div className="grid gap-5" style={{ gridTemplateColumns: '300px 1fr' }}>
-                {/* Profile list */}
-                <div className="flex flex-col gap-2">
-                    {compareMode && (
-                        <p className="text-[11px] font-medium text-muted tracking-[0.4px] px-1 mb-0.5">
-                            {compareIds.length === 0
-                                ? '비교할 프로파일을 선택하세요'
-                                : compareIds.length >= 4
-                                  ? '최대 4개 선택됨'
-                                  : `${compareIds.length}개 선택됨 · 최대 4개`}
-                        </p>
-                    )}
-                    {profiles.map((profile) => {
-                        const isSelected = !compareMode && selectedId === profile.id;
-                        const compareIdx = compareMode ? compareIds.indexOf(profile.id) : -1;
-                        const isCompareSelected = compareIdx !== -1;
-                        const atCapacity = compareMode && compareIds.length >= 4 && !isCompareSelected;
-                        const sparkColor = isCompareSelected
-                            ? COMPARE_COLORS[compareIdx]
-                            : isSelected
-                              ? 'var(--color-primary)'
-                              : '#b3b0aa';
-
-                        return (
-                            <div
-                                key={profile.id}
-                                onClick={(e) => !atCapacity && handleProfileClick(profile.id, e.shiftKey)}
-                                className={`bg-main-bg rounded-lg p-4 transition-all duration-150 ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border border-black/8 shadow-[rgba(0,0,0,0.4)_0px_0px_1px,rgba(0,0,0,0.06)_0px_2px_8px]' : 'border border-transparent shadow-(--shadow-ring)'}`}
-                            >
-                                {compareMode && (
-                                    <div className="flex justify-end -mt-1 mb-1">
-                                        <div
-                                            className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface shadow-(--shadow-inset)'}`}
-                                            style={
-                                                isCompareSelected
-                                                    ? { backgroundColor: COMPARE_COLORS[compareIdx] }
-                                                    : undefined
-                                            }
-                                        >
-                                            {isCompareSelected && <Check size={9} strokeWidth={3} />}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <Sparkline data={SPARKLINE_CACHE.get(profile.id)!} color={sparkColor} />
-
-                                <div className="flex items-start justify-between">
-                                    <div>
-                                        <div className="flex items-center gap-1.25 mb-0.5">
-                                            <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
-                                                {profile.name}
-                                            </span>
-                                            {profile.locked && (
-                                                <Lock size={11} strokeWidth={2} color="var(--color-muted)" />
-                                            )}
-                                            {defaultId === profile.id && (
-                                                <Star
-                                                    size={11}
-                                                    strokeWidth={2}
-                                                    fill="currentColor"
-                                                    className="text-amber-400"
-                                                />
-                                            )}
-                                        </div>
-                                        <div className="text-[12px] text-muted tracking-[0.14px]">
-                                            Drop {profile.dropTemp} · {profile.batches} batches
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
+            {profiles.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-lg bg-main-bg shadow-(--shadow-ring)">
+                    <p className="text-sm text-muted tracking-[0.14px]">아직 프로파일이 없습니다.</p>
+                    <button
+                        onClick={() => setShowNewModal(true)}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer shadow-(--shadow-card) tracking-[0.14px]"
+                    >
+                        <Plus size={14} strokeWidth={2.5} />
+                        첫 프로파일 만들기
+                    </button>
                 </div>
-
-                {/* Detail panel */}
-                {compareMode ? (
-                    compareIds.length === 0 ? (
-                        <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring) flex flex-col items-center justify-center gap-3 min-h-[320px]">
-                            <GitCompare size={32} strokeWidth={1.5} color="var(--color-muted)" />
-                            <p className="text-sm text-muted tracking-[0.14px]">
-                                좌측 리스트에서 프로파일을 선택하세요
+            ) : (
+                <div className="grid gap-5" style={{ gridTemplateColumns: '300px 1fr' }}>
+                    {/* Profile list */}
+                    <div className="flex flex-col gap-2">
+                        {compareMode && (
+                            <p className="text-[11px] font-medium text-muted tracking-[0.4px] px-1 mb-0.5">
+                                {compareIds.length === 0
+                                    ? '비교할 프로파일을 선택하세요'
+                                    : compareIds.length >= 4
+                                      ? '최대 4개 선택됨'
+                                      : `${compareIds.length}개 선택됨 · 최대 4개`}
                             </p>
-                        </div>
-                    ) : (
-                        /* ── Compare mode detail panel ── */
-                        <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring)">
-                            {/* Badge row */}
-                            <div className="flex items-center justify-between mb-5">
-                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface shadow-(--shadow-inset)">
-                                    <GitCompare size={11} strokeWidth={2} color="var(--color-secondary)" />
-                                    <span className="text-[11px] font-medium text-secondary tracking-[0.3px]">
-                                        비교 모드 · {compareIds.length}개 선택됨
-                                    </span>
-                                </div>
-                                <div className="flex gap-1.5 items-center">
-                                    <DefaultBadge id={primaryId} defaultId={defaultId} onSetDefault={setDefault} />
-                                    <button
-                                        disabled
-                                        title="다중 선택 시 편집 불가"
-                                        className="w-8 h-8 rounded-lg border-none bg-surface/50 flex items-center justify-center cursor-not-allowed opacity-35 shadow-(--shadow-inset)"
-                                    >
-                                        <Pencil size={14} strokeWidth={1.5} color="var(--color-secondary)" />
-                                    </button>
-                                    <button
-                                        title="More"
-                                        className="w-8 h-8 rounded-lg border-none bg-surface flex items-center justify-center cursor-pointer shadow-(--shadow-inset)"
-                                    >
-                                        <MoreHorizontal size={14} strokeWidth={1.5} color="var(--color-secondary)" />
-                                    </button>
-                                </div>
-                            </div>
+                        )}
+                        {profiles.map((profile) => {
+                            const isSelected = !compareMode && selectedId === profile.id;
+                            const compareIdx = compareMode ? compareIds.indexOf(profile.id) : -1;
+                            const isCompareSelected = compareIdx !== -1;
+                            const atCapacity = compareMode && compareIds.length >= 4 && !isCompareSelected;
+                            const sparkColor = isCompareSelected
+                                ? COMPARE_COLORS[compareIdx]
+                                : isSelected
+                                  ? 'var(--color-primary)'
+                                  : '#b3b0aa';
 
-                            {/* Overlay chart */}
-                            <div className="bg-surface rounded-lg px-4 pt-4 pb-2 mb-3 shadow-(--shadow-inset)">
-                                <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
-                                    Curve Overlay
-                                </div>
-                                <ProfileCurveChart key={chartKey} series={chartSeries} />
-                            </div>
-
-                            {/* Legend chips */}
-                            <div className="flex flex-wrap gap-2 mb-5">
-                                {compareProfiles.map((p, i) => (
-                                    <div
-                                        key={p.id}
-                                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface shadow-(--shadow-inset)"
-                                    >
-                                        <div
-                                            className="w-2 h-2 rounded-full flex-shrink-0"
-                                            style={{ backgroundColor: COMPARE_COLORS[i] }}
-                                        />
-                                        <span className="text-[12px] font-medium text-secondary tracking-[0.14px]">
-                                            {p.name}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Comparison table */}
-                            <div className="bg-surface rounded-lg shadow-(--shadow-inset) overflow-hidden mb-5">
+                            return (
                                 <div
-                                    className="grid"
-                                    style={{
-                                        gridTemplateColumns: `140px repeat(${compareProfiles.length}, 1fr)`,
-                                    }}
+                                    key={profile.id}
+                                    onClick={(e) => !atCapacity && handleProfileClick(profile.id, e.shiftKey)}
+                                    className={`bg-main-bg rounded-lg p-4 transition-all duration-150 ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border border-black/8 shadow-[rgba(0,0,0,0.4)_0px_0px_1px,rgba(0,0,0,0.06)_0px_2px_8px]' : 'border border-transparent shadow-(--shadow-ring)'}`}
                                 >
-                                    <div className="px-3.5 py-2.5 border-b border-black/5" />
-                                    {compareProfiles.map((p, i) => (
-                                        <div
-                                            key={p.id}
-                                            className="px-3.5 py-2.5 border-b border-black/5 border-l border-l-black/5"
-                                        >
-                                            <div className="flex items-center gap-1.5">
-                                                <div
-                                                    className="w-2 h-2 rounded-full flex-shrink-0"
-                                                    style={{ backgroundColor: COMPARE_COLORS[i] }}
-                                                />
-                                                <span className="text-[11px] font-semibold text-primary tracking-[0.14px] truncate">
-                                                    {p.name}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {TABLE_ROWS.flatMap(({ label, getValue }, rowIdx) => [
-                                        <div
-                                            key={`lbl-${label}`}
-                                            className={`px-3.5 py-2.5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5' : ''}`}
-                                        >
-                                            <span className="text-[11px] font-medium text-muted tracking-[0.4px] uppercase">
-                                                {label}
-                                            </span>
-                                        </div>,
-                                        ...compareProfiles.map((p) => (
+                                    {compareMode && (
+                                        <div className="flex justify-end -mt-1 mb-1">
                                             <div
-                                                key={`${p.id}-${label}`}
-                                                className={`px-3.5 py-2.5 border-l border-l-black/5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5' : ''}`}
+                                                className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface shadow-(--shadow-inset)'}`}
+                                                style={isCompareSelected ? { backgroundColor: COMPARE_COLORS[compareIdx] } : undefined}
                                             >
-                                                <span className="text-[12px] font-semibold text-primary font-mono tracking-[-0.2px]">
-                                                    {getValue(p)}
-                                                </span>
+                                                {isCompareSelected && <Check size={9} strokeWidth={3} />}
                                             </div>
-                                        )),
-                                    ])}
-                                </div>
-                            </div>
-                        </div>
-                    )
-                ) : (
-                    /* ── Single-select detail panel ── */
-                    <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring)">
-                        <div className="flex items-start justify-between mb-5">
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px]">
-                                        {selected.name}
-                                    </h2>
-                                    {selected.locked && (
-                                        <div className="flex items-center gap-1 px-2.25 py-0.75 rounded-full bg-surface shadow-(--shadow-inset)">
-                                            <Lock size={11} strokeWidth={2} color="var(--color-muted)" />
-                                            <span className="text-[11px] font-medium text-muted tracking-[0.3px]">
-                                                Locked
-                                            </span>
                                         </div>
                                     )}
-                                </div>
-                                <p className="text-sm text-secondary tracking-[0.14px] leading-normal">
-                                    {selected.description}
-                                </p>
-                            </div>
-                            <div className="flex gap-1.5 items-center">
-                                <DefaultBadge id={selected.id} defaultId={defaultId} onSetDefault={setDefault} />
-                                {[
-                                    { icon: Copy, label: 'Duplicate' },
-                                    { icon: Pencil, label: 'Edit' },
-                                    { icon: MoreHorizontal, label: 'More' },
-                                ].map(({ icon: Icon, label }) => (
-                                    <button
-                                        key={label}
-                                        title={label}
-                                        className="w-8 h-8 rounded-lg border-none bg-surface flex items-center justify-center cursor-pointer shadow-(--shadow-inset)"
-                                    >
-                                        <Icon size={14} strokeWidth={1.5} color="var(--color-secondary)" />
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
 
-                        {/* Temperature curve chart */}
-                        <div className="bg-surface rounded-lg px-4 pt-4 pb-2 mb-5 shadow-(--shadow-inset)">
-                            <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
-                                Profile Curve
-                            </div>
-                            <ProfileCurveChart
-                                key={chartKey}
-                                series={[
-                                    {
-                                        curve: SPARKLINE_CACHE.get(selectedId)!,
-                                        color: 'var(--color-primary)',
-                                        label: selected.name,
-                                    },
-                                ]}
-                            />
-                        </div>
+                                    <Sparkline data={curveFor(profile)} color={sparkColor} />
 
-                        {/* Profile parameters */}
-                        <div className="grid grid-cols-3 gap-3 mb-5">
-                            {[
-                                { label: 'Total Duration', value: selected.duration },
-                                { label: 'Drop Temperature', value: selected.dropTemp },
-                                { label: 'Charge Temperature', value: `${selected.charge_temp}°C` },
-                                { label: 'Development Time', value: selected.devTime },
-                                { label: 'Dev/Total %', value: selected.devPct },
-                                { label: 'Total Batches', value: `${selected.batches} runs` },
-                            ].map(({ label, value }) => (
-                                <div key={label} className="bg-surface rounded-lg px-3.5 py-3 shadow-(--shadow-inset)">
-                                    <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-1">
-                                        {label}
-                                    </div>
-                                    <div className="text-sm font-semibold text-primary font-mono tracking-[-0.2px]">
-                                        {value}
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <div className="flex items-center gap-1.25 mb-0.5">
+                                                <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
+                                                    {profile.name}
+                                                </span>
+                                                {defaultId === profile.id && (
+                                                    <Star size={11} strokeWidth={2} fill="currentColor" className="text-amber-400" />
+                                                )}
+                                            </div>
+                                            <div className="text-[12px] text-muted tracking-[0.14px]">
+                                                {profile.drop_temp_celsius != null ? `Drop ${profile.drop_temp_celsius}°C` : profile.target_level}
+                                                {profile.duration_sec != null && ` · ${fmtDuration(profile.duration_sec)}`}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-
-                        {/* Used for */}
-                        <div>
-                            <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
-                                Used For
-                            </div>
-                            <div className="flex gap-1.5 flex-wrap mb-5">
-                                {selected.usedFor.map((bean) => (
-                                    <span
-                                        key={bean}
-                                        className="text-[12px] font-medium text-secondary bg-surface px-2.5 py-1 rounded-full tracking-[0.14px] shadow-(--shadow-inset)"
-                                    >
-                                        {bean}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2.5">
-                            <button
-                                onClick={() => onNavigate('roast')}
-                                className="flex-1 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
-                            >
-                                Start with this Profile
-                            </button>
-                            <button className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border-none bg-[rgba(254,226,226,0.8)] text-[#dc2626] text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-inset)">
-                                <Trash2 size={14} strokeWidth={2} />
-                                Delete
-                            </button>
-                        </div>
+                            );
+                        })}
                     </div>
-                )}
-            </div>
+
+                    {/* Detail panel */}
+                    {compareMode ? (
+                        compareIds.length === 0 ? (
+                            <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring) flex flex-col items-center justify-center gap-3 min-h-[320px]">
+                                <GitCompare size={32} strokeWidth={1.5} color="var(--color-muted)" />
+                                <p className="text-sm text-muted tracking-[0.14px]">좌측 리스트에서 프로파일을 선택하세요</p>
+                            </div>
+                        ) : (
+                            <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring)">
+                                <div className="flex items-center justify-between mb-5">
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface shadow-(--shadow-inset)">
+                                        <GitCompare size={11} strokeWidth={2} color="var(--color-secondary)" />
+                                        <span className="text-[11px] font-medium text-secondary tracking-[0.3px]">
+                                            비교 모드 · {compareIds.length}개 선택됨
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-1.5 items-center">
+                                        <DefaultBadge id={primaryId} defaultId={defaultId} onSetDefault={setDefault} />
+                                        <button
+                                            disabled
+                                            title="다중 선택 시 편집 불가"
+                                            className="w-8 h-8 rounded-lg border-none bg-surface/50 flex items-center justify-center cursor-not-allowed opacity-35 shadow-(--shadow-inset)"
+                                        >
+                                            <Pencil size={14} strokeWidth={1.5} color="var(--color-secondary)" />
+                                        </button>
+                                        <button
+                                            title="More"
+                                            className="w-8 h-8 rounded-lg border-none bg-surface flex items-center justify-center cursor-pointer shadow-(--shadow-inset)"
+                                        >
+                                            <MoreHorizontal size={14} strokeWidth={1.5} color="var(--color-secondary)" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="bg-surface rounded-lg px-4 pt-4 pb-2 mb-3 shadow-(--shadow-inset)">
+                                    <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">Curve Overlay</div>
+                                    <ProfileCurveChart key={chartKey} series={chartSeries} />
+                                </div>
+
+                                <div className="flex flex-wrap gap-2 mb-5">
+                                    {compareProfiles.map((p, i) => (
+                                        <div key={p.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface shadow-(--shadow-inset)">
+                                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COMPARE_COLORS[i] }} />
+                                            <span className="text-[12px] font-medium text-secondary tracking-[0.14px]">{p.name}</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="bg-surface rounded-lg shadow-(--shadow-inset) overflow-hidden mb-5">
+                                    <div className="grid" style={{ gridTemplateColumns: `140px repeat(${compareProfiles.length}, 1fr)` }}>
+                                        <div className="px-3.5 py-2.5 border-b border-black/5" />
+                                        {compareProfiles.map((p, i) => (
+                                            <div key={p.id} className="px-3.5 py-2.5 border-b border-black/5 border-l border-l-black/5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COMPARE_COLORS[i] }} />
+                                                    <span className="text-[11px] font-semibold text-primary tracking-[0.14px] truncate">{p.name}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {TABLE_ROWS.flatMap(({ label, getValue }, rowIdx) => [
+                                            <div key={`lbl-${label}`} className={`px-3.5 py-2.5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5' : ''}`}>
+                                                <span className="text-[11px] font-medium text-muted tracking-[0.4px] uppercase">{label}</span>
+                                            </div>,
+                                            ...compareProfiles.map((p) => (
+                                                <div key={`${p.id}-${label}`} className={`px-3.5 py-2.5 border-l border-l-black/5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5' : ''}`}>
+                                                    <span className="text-[12px] font-semibold text-primary font-mono tracking-[-0.2px]">{getValue(p)}</span>
+                                                </div>
+                                            )),
+                                        ])}
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    ) : selected ? (
+                        <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring)">
+                            <div className="flex items-start justify-between mb-5">
+                                <div>
+                                    <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
+                                        {selected.name}
+                                    </h2>
+                                    {selected.description && (
+                                        <p className="text-sm text-secondary tracking-[0.14px] leading-normal">{selected.description}</p>
+                                    )}
+                                </div>
+                                <div className="flex gap-1.5 items-center">
+                                    <DefaultBadge id={selected.id} defaultId={defaultId} onSetDefault={setDefault} />
+                                    {[
+                                        { icon: Copy, label: 'Duplicate' },
+                                        { icon: Pencil, label: 'Edit' },
+                                        { icon: MoreHorizontal, label: 'More' },
+                                    ].map(({ icon: Icon, label }) => (
+                                        <button
+                                            key={label}
+                                            title={label}
+                                            className="w-8 h-8 rounded-lg border-none bg-surface flex items-center justify-center cursor-pointer shadow-(--shadow-inset)"
+                                        >
+                                            <Icon size={14} strokeWidth={1.5} color="var(--color-secondary)" />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-surface rounded-lg px-4 pt-4 pb-2 mb-5 shadow-(--shadow-inset)">
+                                <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">Profile Curve</div>
+                                <ProfileCurveChart
+                                    key={chartKey}
+                                    series={[{ curve: curveFor(selected), color: 'var(--color-primary)', label: selected.name }]}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3 mb-5">
+                                {[
+                                    { label: 'Total Duration', value: fmtDuration(selected.duration_sec) },
+                                    { label: 'Drop Temperature', value: selected.drop_temp_celsius != null ? `${selected.drop_temp_celsius}°C` : '—' },
+                                    { label: 'Charge Temperature', value: selected.charge_temp_celsius != null ? `${selected.charge_temp_celsius}°C` : '—' },
+                                    { label: 'Development Time', value: fmtDuration(selected.dev_time_sec) },
+                                    { label: 'Dev/Total %', value: selected.dev_pct != null ? `${selected.dev_pct.toFixed(1)}%` : '—' },
+                                    { label: 'Target Level', value: selected.target_level },
+                                ].map(({ label, value }) => (
+                                    <div key={label} className="bg-surface rounded-lg px-3.5 py-3 shadow-(--shadow-inset)">
+                                        <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-1">{label}</div>
+                                        <div className="text-sm font-semibold text-primary font-mono tracking-[-0.2px]">{value}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="flex gap-2.5">
+                                <button
+                                    onClick={() => onNavigate('roast')}
+                                    className="flex-1 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
+                                >
+                                    Start with this Profile
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(selected.id)}
+                                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border-none bg-[rgba(254,226,226,0.8)] text-[#dc2626] text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-inset)"
+                                >
+                                    <Trash2 size={14} strokeWidth={2} />
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
+            )}
+
+            <NewProfileModal
+                open={showNewModal}
+                onClose={() => setShowNewModal(false)}
+                onCreated={handleCreated}
+            />
         </PageLayout>
     );
 };
