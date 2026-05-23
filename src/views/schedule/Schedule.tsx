@@ -530,8 +530,8 @@ const DayView = ({
                 {isLoading ? (
                     <div className="text-[13px] text-muted text-center py-12">불러오는 중...</div>
                 ) : batches.length === 0 ? (
-                    <div className="border border-dashed border-border rounded-xl px-4 py-12 flex flex-col items-center justify-center gap-4 select-none">
-                        <div className="text-[13px] text-muted text-center">
+                    <div className="bg-main-bg rounded-xl px-4 py-12 flex flex-col items-center justify-center gap-4 select-none">
+                        <div className="text-[13px] text-muted text-center leading-relaxed">
                             오늘의 배치가 없습니다.<br />
                             새 배치를 추가하여 일정을 시작하세요.
                         </div>

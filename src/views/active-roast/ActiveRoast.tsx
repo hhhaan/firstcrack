@@ -42,7 +42,7 @@ export const ActiveRoast = ({
 }: {
     isActive: boolean;
     onOpenRoastSettings?: () => void;
-    planBatchHandoff?: { planBatchId: string; beanName: string; batchSizeKg: number; profileId: string | null } | null;
+    planBatchHandoff?: { planBatchId: string; beanId: string | null; beanName: string; batchSizeKg: number; profileId: string | null } | null;
     onPlanBatchComplete?: () => void;
 }) => {
     // ── 설정 ──────────────────────────────────────────────────────
@@ -99,6 +99,12 @@ export const ActiveRoast = ({
             setPendingBean(null);
         }
     }, [isActive]);
+
+    // planBatchHandoff가 바뀌면 bean을 자동 적용
+    useEffect(() => {
+        if (!planBatchHandoff?.beanId) return;
+        setSelectedBeanId(planBatchHandoff.beanId);
+    }, [planBatchHandoff?.beanId]);
 
     // ── 공유 ref (여러 훅·핸들러에서 참조) ───────────────────────
     /** Charge 순간의 Date.now() (ms). 0이면 로스팅 미시작 */
