@@ -48,31 +48,35 @@ const BarCanvas = ({ data, height = 160 }: BarCanvasProps) => {
         const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#9ca3af';
 
         const maxVal = Math.max(...data.map((d) => d.batches), 1);
-        const padL = 28;
-        const padR = 8;
+        const padL = 32;
+        const padR = 32;
         const padT = 8;
         const padB = 28;
         const plotW = W - padL - padR;
         const plotH = H - padT - padB;
-        const barW = Math.min(20, (plotW / data.length) * 0.5);
+        const barW = Math.min(24, (plotW / data.length) * 0.4);
         const gap = plotW / data.length;
 
         ctx.strokeStyle = 'rgba(0,0,0,0.05)';
         ctx.lineWidth = 1;
+        ctx.fillStyle = colorMuted;
+        ctx.font = '11px sans-serif';
         for (let i = 0; i <= 3; i++) {
             const y = padT + plotH - (i / 3) * plotH;
             ctx.beginPath();
             ctx.moveTo(padL, y);
             ctx.lineTo(padL + plotW, y);
             ctx.stroke();
-            ctx.fillStyle = colorMuted;
-            ctx.font = '11px sans-serif';
             ctx.textAlign = 'right';
-            ctx.fillText(String(Math.round((i / 3) * maxVal)), padL - 4, y + 4);
+            ctx.fillText(String(Math.round((i / 3) * maxVal)), padL - 8, y + 4);
         }
 
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+
         data.forEach((d, i) => {
-            const x = padL + gap * i + gap / 2 - barW / 2;
+            const centerX = padL + gap * i + gap / 2;
+            const x = centerX - barW / 2;
             const barH = (d.batches / maxVal) * plotH;
             const y = padT + plotH - barH;
             const r = 4;
@@ -90,9 +94,7 @@ const BarCanvas = ({ data, height = 160 }: BarCanvasProps) => {
             ctx.fill();
 
             ctx.fillStyle = colorMuted;
-            ctx.font = '12px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(d.month, padL + gap * i + gap / 2, H - 6);
+            ctx.fillText(d.month.trim(), centerX, H - 6);
         });
     };
 
