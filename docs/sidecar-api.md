@@ -335,6 +335,24 @@ Adapter별 원천:
 | `kaleido`   | `KaleidoPort.getBTET()`                                       | `HP`, `SM`, `RL` 상태값                         |
 | `probat_ws` | `channel_nodes.BT/ET`가 가리키는 WebSocket data field         | `channel_nodes.heater/fan/drum`                 |
 
+### POST /standby
+
+READY 버튼과 연동되는 대기 진입 신호다.
+
+Request body: 없음
+
+Response:
+
+```json
+{ "ok": true }
+```
+
+Behavior:
+
+- 현재 adapter에 `enter_standby()` 메서드가 있으면 호출한다.
+- virtual adapter는 이 호출 시점을 기준으로 `_BEAN_LOAD_DELAY`(기본 8초) 후 생두 투입 시뮬레이션(BT 급강하)을 시작한다.
+- 프론트엔드는 standby 단계 진입 시 이 엔드포인트를 호출해 자동 Charge 감지 루프를 활성화한다.
+
 ### POST /start
 
 Charge 버튼과 연동되는 시작 신호다.
@@ -458,6 +476,7 @@ const BASE = 'http://127.0.0.1:9999';
 | `sidecar.connect(roasterKey, params)` | `POST /connect`     |
 | `sidecar.disconnect()`                | `POST /disconnect`  |
 | `sidecar.getTemperatures()`           | `GET /temperatures` |
+| `sidecar.enterStandby()`             | `POST /standby`     |
 | `sidecar.startRoast()`                | `POST /start`       |
 | `sidecar.control(params)`             | `POST /control`     |
 | `sidecar.getSerialPorts()`            | `GET /serial-ports` |
