@@ -10,6 +10,52 @@ import { useRoastProfiles } from '@entities/roast-profile';
 
 const joinDisplay = (parts: (string | null | undefined)[], sep = ' · ') => parts.filter(Boolean).join(sep);
 
+/** localStorage에 선택값 저장/삭제 */
+const persistSelection = (key: string, val: string | null) => {
+    if (val) localStorage.setItem(key, val);
+    else localStorage.removeItem(key);
+};
+
+/** 화살표 아이콘이 있는 hidden select overlay. Target/profile 선택에 공통 사용 */
+const OverlaySelect = <T extends string>({
+    value,
+    onChange,
+    disabled,
+    options,
+    placeholder,
+}: {
+    value: T | null;
+    onChange: (val: T | null) => void;
+    disabled: boolean;
+    options: { value: T; label: string }[];
+    placeholder: string;
+}) => (
+    <div className="relative inline-flex items-center">
+        <div className="flex items-center gap-1">
+            <span className="text-[13px] font-medium tracking-[0.14px] pointer-events-none">
+                {options.find((o) => o.value === value)?.label ?? placeholder}
+            </span>
+            {!disabled && <ChevronDown size={12} className="text-muted flex-shrink-0" />}
+        </div>
+        <select
+            value={value ?? ''}
+            onChange={(e) => {
+                const v = e.target.value;
+                onChange(v === '' ? null : (v as T));
+            }}
+            disabled={disabled}
+            className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+        >
+            <option value="">{placeholder}</option>
+            {options.map((o) => (
+                <option key={o.value} value={o.value}>
+                    {o.label}
+                </option>
+            ))}
+        </select>
+    </div>
+);
+
 type BeanOptionDisplay = (bean: {
     origin: string | null;
     region: string | null;
@@ -50,19 +96,14 @@ export const RoastHeader = ({
     const elapsedSec = elapsed % 60;
     const timeStr = charged ? `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}` : '—';
 
-    const handleProfileChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const val = e.target.value;
-        const id = val === '' ? null : val;
+    const handleProfileChange = (id: string | null) => {
         onTargetProfileChange(id);
-        if (id != null) localStorage.setItem(DEFAULT_PROFILE_KEY, id);
-        else localStorage.removeItem(DEFAULT_PROFILE_KEY);
+        persistSelection(DEFAULT_PROFILE_KEY, id);
     };
 
-    const handleBeanChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const val = e.target.value;
-        onBeanChange(val === '' ? null : val);
-        if (val) localStorage.setItem('fc_default_bean_id', val);
-        else localStorage.removeItem('fc_default_bean_id');
+    const handleBeanChange = (id: string | null) => {
+        onBeanChange(id);
+        persistSelection('fc_default_bean_id', id);
     };
 
     const isDisconnected = roastEnded || !sidecarConnected;
@@ -82,8 +123,7 @@ export const RoastHeader = ({
 
     const selectedBean = beans.find((b) => b.id === selectedBeanId);
     const beanSecondary = joinDisplay([selectedBean?.farm, selectedBean?.variety, selectedBean?.process]);
-    const selectedProfile = dbProfiles.find((p) => p.id === targetProfileId);
-    const profileDisplay = selectedProfile?.name ?? 'No Target';
+    const profileOptions = dbProfiles.map((p) => ({ value: p.id, label: p.name }));
 
     return (
         <div className="flex items-end justify-between mb-7">
@@ -104,7 +144,7 @@ export const RoastHeader = ({
 
                     <select
                         value={selectedBeanId ?? ''}
-                        onChange={handleBeanChange}
+                        onChange={(e) => handleBeanChange(e.target.value || null)}
                         disabled={charged}
                         className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'cursor-default' : 'cursor-pointer'}`}
                     >
@@ -130,29 +170,13 @@ export const RoastHeader = ({
                 {/* ─── Target profile selector ───────────────────────────── */}
                 <div className="flex items-center gap-1.5">
                     <span className="text-[13px] text-muted tracking-[0.14px]">Target:</span>
-                    <div className="relative inline-flex items-center">
-                        <div className="flex items-center gap-1">
-                            <span className="text-[13px] font-medium tracking-[0.14px] pointer-events-none">
-                                {profileDisplay}
-                            </span>
-
-                            {!charged && <ChevronDown size={12} className="text-muted flex-shrink-0" />}
-                        </div>
-
-                        <select
-                            value={targetProfileId ?? ''}
-                            onChange={handleProfileChange}
-                            disabled={charged}
-                            className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'cursor-default' : 'cursor-pointer'}`}
-                        >
-                            <option value="">No Target</option>
-                            {dbProfiles.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    <OverlaySelect
+                        value={targetProfileId}
+                        onChange={handleProfileChange}
+                        disabled={charged}
+                        options={profileOptions}
+                        placeholder="No Target"
+                    />
                 </div>
             </div>
 
