@@ -140,9 +140,14 @@ export const ActiveRoast = ({
         () => dbProfiles.find((p) => p.id === targetProfileId) ?? null,
         [dbProfiles, targetProfileId],
     );
-    // charge 전: 세션 상대 시간(양수)으로 표시 → 음수 공간 없음
-    // charge 후: 음수 pre-charge 구간 표시
-    const effectivePreChargeDisplaySec = charged ? roastSettings.preChargeDisplaySec : 0;
+    // charge 후: 실제 버퍼에 쌓인 구간과 설정값 중 짧은 쪽을 사용
+    // (ready → charge 대기 시간이 설정값보다 짧으면 빈 공간 없이 딱 맞게)
+    const actualPreSec = charged && livePoints.length > 0 && livePoints[0].time < 0
+        ? Math.ceil(Math.abs(livePoints[0].time))
+        : 0;
+    const effectivePreChargeDisplaySec = charged
+        ? Math.min(roastSettings.preChargeDisplaySec, actualPreSec)
+        : 0;
 
     const { chartData } = useChartData({
         livePoints,
