@@ -507,6 +507,8 @@ const DayView = ({
                 beanName: batch.bean_name,
                 batchSizeKg: Number(batch.batch_size_kg),
                 profileId: batch.roast_profile_id,
+                batchCount: batch.batch_count,
+                completedSessions: batch.completed_sessions,
             });
         },
         [updateBatch, onStartBatch],

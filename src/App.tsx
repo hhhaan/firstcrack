@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRoastSessionStore } from './shared/store/roastSession';
+import { type PlanBatchHandoff } from './shared/types/database.types';
 import { onOpenUrl, getCurrent } from '@tauri-apps/plugin-deep-link';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
@@ -16,7 +18,6 @@ import { Profiles } from './views/profiles';
 import { Machines } from './views/machines';
 import { Schedule } from './views/schedule';
 import { type View } from './shared/types/view';
-import { type PlanBatchHandoff } from './shared/types/database.types';
 import { useAuthStore } from './shared/store/auth';
 import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
 
@@ -130,7 +131,8 @@ export const App = () => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>('general');
-    const [planBatchHandoff, setPlanBatchHandoff] = useState<PlanBatchHandoff | null>(null);
+    const startBatch = useRoastSessionStore((s) => s.startBatch);
+    const completeBatch = useRoastSessionStore((s) => s.completeBatch);
 
     const openSettings = (tab: SettingsTabId = 'general') => {
         setSettingsInitialTab(tab);
@@ -138,14 +140,14 @@ export const App = () => {
     };
 
     const handleStartBatch = useCallback((handoff: PlanBatchHandoff) => {
-        setPlanBatchHandoff(handoff);
+        startBatch(handoff);
         setView('roast');
-    }, []);
+    }, [startBatch]);
 
     const handlePlanBatchComplete = useCallback(() => {
-        setPlanBatchHandoff(null);
+        completeBatch();
         setView('schedule');
-    }, []);
+    }, [completeBatch]);
 
     if (loading)
         return (
@@ -185,7 +187,6 @@ export const App = () => {
                         <ActiveRoast
                             isActive={view === 'roast'}
                             onOpenRoastSettings={() => openSettings('roast')}
-                            planBatchHandoff={planBatchHandoff}
                             onPlanBatchComplete={handlePlanBatchComplete}
                         />
                     </ViewErrorBoundary>

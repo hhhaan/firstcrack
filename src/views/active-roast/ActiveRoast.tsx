@@ -28,6 +28,9 @@ import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
+import { useRoastProfiles } from '@entities/roast-profile';
+import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
+import { useRoastSessionStore } from '@shared/store/roastSession';
 
 import { useSidecarPolling } from './hooks/useSidecarPolling';
 import { useChartData, CHART_TOTAL_SECS } from './hooks/useChartData';
@@ -37,12 +40,10 @@ import { parseTimeSec } from '@features/active-roast/lib/time';
 export const ActiveRoast = ({
     isActive,
     onOpenRoastSettings,
-    planBatchHandoff,
     onPlanBatchComplete,
 }: {
     isActive: boolean;
     onOpenRoastSettings?: () => void;
-    planBatchHandoff?: { planBatchId: string; beanId: string | null; beanName: string; batchSizeKg: number; profileId: string | null } | null;
     onPlanBatchComplete?: () => void;
 }) => {
     // ── 설정 ──────────────────────────────────────────────────────
@@ -67,10 +68,18 @@ export const ActiveRoast = ({
     const charged = phase === 'roasting' || phase === 'ended';
     const roastEnded = phase === 'ended';
 
+    // ── 유저 + DB 프로파일 ────────────────────────────────────────
+    const user = useAuthStore((s) => s.user);
+    const { data: dbProfiles = [] } = useRoastProfiles(user?.id ?? '');
+
+    // ── 배치 핸드오프 ─────────────────────────────────────────────
+    const planBatchHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
+    const sessionsAfter = planBatchHandoff ? planBatchHandoff.completedSessions + 1 : 0;
+    const batchDone = planBatchHandoff ? sessionsAfter >= planBatchHandoff.batchCount : false;
+
     // ── UI 상태 ───────────────────────────────────────────────────
-    const [targetProfileId, setTargetProfileId] = useState<number | null>(() => {
-        const stored = localStorage.getItem('fc_default_profile_id');
-        return stored ? Number(stored) : null;
+    const [targetProfileId, setTargetProfileId] = useState<string | null>(() => {
+        return localStorage.getItem('fc_default_profile_id');
     });
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(null);
     const [isRunning, setIsRunning] = useState(false);
@@ -100,11 +109,12 @@ export const ActiveRoast = ({
         }
     }, [isActive]);
 
-    // planBatchHandoff가 바뀌면 bean을 자동 적용
+    // planBatchHandoff 객체가 바뀔 때마다 bean/profile 적용 (같은 beanId여도 재발동)
     useEffect(() => {
-        if (!planBatchHandoff?.beanId) return;
-        setSelectedBeanId(planBatchHandoff.beanId);
-    }, [planBatchHandoff?.beanId]);
+        if (!planBatchHandoff) return;
+        if (planBatchHandoff.beanId) setSelectedBeanId(planBatchHandoff.beanId);
+        if (planBatchHandoff.profileId) setTargetProfileId(planBatchHandoff.profileId);
+    }, [planBatchHandoff]);
 
     // ── 공유 ref (여러 훅·핸들러에서 참조) ───────────────────────
     /** Charge 순간의 Date.now() (ms). 0이면 로스팅 미시작 */
@@ -125,7 +135,11 @@ export const ActiveRoast = ({
     });
 
     // ── 차트 데이터 파이프라인 ────────────────────────────────────
-    const { chartData } = useChartData({ livePoints, targetProfileId });
+    const targetProfile = useMemo(
+        () => dbProfiles.find((p) => p.id === targetProfileId) ?? null,
+        [dbProfiles, targetProfileId],
+    );
+    const { chartData } = useChartData({ livePoints, targetProfile });
     /** 차트 x축 끝값. 데이터가 없으면 전체 범위로 고정 */
     const MAX_TIME = chartData.length > 0 ? chartData[chartData.length - 1].time : CHART_TOTAL_SECS;
 
@@ -333,8 +347,8 @@ export const ActiveRoast = ({
     const { data: weatherData } = useWeather();
 
     // ── 사용자 인증 + 로스팅 저장 ─────────────────────────────────
-    const user = useAuthStore((s) => s.user);
     const { mutateAsync: saveRoastSession } = useCreateRoastSession(user?.id ?? '');
+    const { mutateAsync: createInventoryLog } = useCreateBeanInventoryLog(user?.id ?? '');
     useEffect(() => {
         tpTimeSecRef.current = turningPoints[0]?.timeSec ?? null;
     }, [turningPoints]);
@@ -936,7 +950,7 @@ export const ActiveRoast = ({
                         }
                     }
 
-                    await saveRoastSession({
+                    const savedSession = await saveRoastSession({
                         user_id: user.id,
                         weight_grams: 0,
                         status: 'completed',
@@ -949,10 +963,19 @@ export const ActiveRoast = ({
                         ambient_temp_celsius: weatherData?.temperature ?? null,
                         ambient_humidity_pct: weatherData?.humidity ?? null,
                         bean_id: selectedBeanId,
-                        profile_id: targetProfileId != null ? String(targetProfileId) : null,
+                        profile_id: targetProfileId,
                         tsv_path: tsvPath,
                         plan_batch_id: planBatchHandoff?.planBatchId ?? null,
                     });
+                    if (selectedBeanId && planBatchHandoff?.batchSizeKg && user) {
+                        await createInventoryLog({
+                            user_id: user.id,
+                            bean_id: selectedBeanId,
+                            change_grams: -Math.round(planBatchHandoff.batchSizeKg * 1000),
+                            type: 'roast',
+                            roast_session_id: savedSession.id,
+                        });
+                    }
                     setShowSummaryModal(false);
                     setSummaryData(null);
                     resetActiveRoast();
@@ -971,7 +994,9 @@ export const ActiveRoast = ({
                                 {planBatchHandoff.beanName}
                             </p>
                             <p className="text-[13px] text-secondary mt-1">
-                                세션이 완료되었습니다. 계속 진행하시겠어요?
+                                {batchDone
+                                    ? `배치 완료 (${sessionsAfter}/${planBatchHandoff.batchCount})`
+                                    : `세션 ${sessionsAfter}/${planBatchHandoff.batchCount} 완료. 다음 세션을 진행할까요?`}
                             </p>
                         </div>
                         <div className="flex gap-2">
@@ -982,14 +1007,16 @@ export const ActiveRoast = ({
                                 }}
                                 className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-surface text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors"
                             >
-                                오늘은 여기까지
+                                {batchDone ? '일정으로 돌아가기' : '오늘은 여기까지'}
                             </button>
-                            <button
-                                onClick={() => setShowContinueModal(false)}
-                                className="flex-1 px-4 py-2.5 rounded-xl border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
-                            >
-                                다음 세션 시작
-                            </button>
+                            {!batchDone && (
+                                <button
+                                    onClick={() => setShowContinueModal(false)}
+                                    className="flex-1 px-4 py-2.5 rounded-xl border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
+                                >
+                                    다음 세션 시작
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

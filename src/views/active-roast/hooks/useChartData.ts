@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { roastProfiles, generateProfileCurve, interpolateProfileBT } from '@shared/data/roast-profiles';
+import { generateProfileCurve, interpolateProfileBT } from '@shared/data/roast-profiles';
 import type { LiveRoastPoint } from './useSidecarPolling';
 
 /** 차트 전체 x축 범위(초). uPlot에 항상 이 길이를 보장한다. */
@@ -18,17 +18,15 @@ export const CHART_TOTAL_SECS = 780;
  */
 export const useChartData = ({
     livePoints,
-    targetProfileId,
+    targetProfile,
 }: {
     livePoints: LiveRoastPoint[];
-    targetProfileId: number | null;
+    targetProfile: { drop_temp_celsius: number | null; duration_sec: number | null } | null;
 }) => {
     const targetCurve = useMemo(() => {
-        if (!targetProfileId) return null;
-        const profile = roastProfiles.find((p) => p.id === targetProfileId);
-        if (!profile) return null;
-        return generateProfileCurve(profile.dropVal, profile.durationSec);
-    }, [targetProfileId]);
+        if (!targetProfile?.drop_temp_celsius || !targetProfile?.duration_sec) return null;
+        return generateProfileCurve(targetProfile.drop_temp_celsius, targetProfile.duration_sec);
+    }, [targetProfile?.drop_temp_celsius, targetProfile?.duration_sec]);
 
     // generateProfileCurve가 이미 30초 간격으로 샘플링된 {t, bt}[] 를 반환하므로
     // 별도 루프 없이 직접 매핑해 차트 포인트 형태로 변환한다.

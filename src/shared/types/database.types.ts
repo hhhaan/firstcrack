@@ -792,4 +792,6 @@ export type PlanBatchHandoff = {
     beanName: string
     batchSizeKg: number
     profileId: string | null
+    batchCount: number
+    completedSessions: number
 }

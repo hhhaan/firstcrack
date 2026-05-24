@@ -1,3 +1,6 @@
+export const sanitizeDecimal = (v: string) =>
+    v.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+
 export const formatDuration = (seconds: number | null): string => {
     if (seconds == null) return '—';
     const m = Math.floor(seconds / 60);
