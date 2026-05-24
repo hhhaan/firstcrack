@@ -268,7 +268,7 @@ export const Machines = ({
 
                             {/* Connection params */}
                             {Object.keys(selected.connectionParams).length > 0 && (
-                                <div className="bg-surface-warm-solid rounded-lg px-4.5 py-4 mb-6 border border-[#E5E5E5]">
+                                <div className="bg-surface-warm-solid rounded-lg px-4.5 py-4 mb-6 ]">
                                     <div className="text-[12px] font-semibold text-secondary mb-2.5">
                                         {t('machines.connection')}
                                     </div>
