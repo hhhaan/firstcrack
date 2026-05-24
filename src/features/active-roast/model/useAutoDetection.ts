@@ -4,7 +4,6 @@ import { useRoastingStore } from './status';
 import { detectTurningPoints } from '@features/active-roast';
 import type { TurningPoint } from '@features/active-roast';
 
-const AUTO_CHARGE_DROP_C = 5;
 const AUTO_CHARGE_WINDOW = 5;
 
 const AUTO_DROP_DROP_C = 8;
@@ -16,6 +15,7 @@ export const useAutoDetection = (
     onAutoCharge: (bt: number) => void,
     onAutoDrop: () => void,
     onTurningPoint: (tp: TurningPoint) => void,
+    autoChargeDropC: number = 5,
 ) => {
     const btWindowRef = useRef<number[]>([]);
     const dropWindowRef = useRef<number[]>([]);
@@ -39,7 +39,7 @@ export const useAutoDetection = (
         if (btWindowRef.current.length >= AUTO_CHARGE_WINDOW) {
             const first = btWindowRef.current[0];
             const last = btWindowRef.current[btWindowRef.current.length - 1];
-            if (first - last >= AUTO_CHARGE_DROP_C) {
+            if (first - last >= autoChargeDropC) {
                 autoChargedRef.current = true;
                 onAutoCharge(bt);
             }

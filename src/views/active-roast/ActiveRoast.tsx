@@ -356,6 +356,7 @@ export const ActiveRoast = ({
         triggerCharge,
         handleAutoDrop,
         handleTurningPoint,
+        roastSettings.autoChargeDropC,
     );
 
     // ── 날씨 데이터 ───────────────────────────────────────────────
