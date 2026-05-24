@@ -160,7 +160,7 @@ const HistoryTable = ({
     const end = Math.min(page * pageSize, filteredTotal);
 
     return (
-        <div className="overflow-x-auto rounded-lg bg-main-bg shadow-ring [-webkit-overflow-scrolling:touch]">
+        <div className="overflow-x-auto rounded-lg bg-main-bg border border-[#E5E5E5] [-webkit-overflow-scrolling:touch]">
             <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
                 <thead>
                     <tr className="border-b border-border-subtle">
@@ -308,8 +308,8 @@ const FilterDropdown = ({
                 onClick={() => setOpen((o) => !o)}
                 className={`inline-flex items-center gap-1 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
                     isActive
-                        ? 'bg-surface-warm-solid text-primary shadow-(--shadow-inset)'
-                        : 'bg-surface text-secondary shadow-(--shadow-inset) hover:bg-surface-warm-solid hover:text-primary'
+                        ? 'bg-surface-warm-solid text-primary'
+                        : 'bg-surface text-secondary hover:bg-surface-warm-solid hover:text-primary'
                 }`}
             >
                 <Filter size={12} strokeWidth={2} className={isActive ? 'text-primary' : 'text-muted'} />
@@ -318,7 +318,7 @@ const FilterDropdown = ({
             </button>
 
             {open && (
-                <div className="absolute top-full left-0 z-50 mt-1 min-w-35 rounded-lg bg-main-bg py-1 shadow-ring">
+                <div className="absolute top-full left-0 z-50 mt-1 min-w-35 rounded-lg bg-main-bg py-1 border border-[#E5E5E5]">
                     <button
                         onClick={() => {
                             onSelect('all');
@@ -460,8 +460,8 @@ const DateRangeFilter = ({
                 onClick={() => setOpen((o) => !o)}
                 className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
                     isActive
-                        ? 'bg-surface-warm-solid text-primary shadow-(--shadow-inset)'
-                        : 'bg-surface text-secondary shadow-(--shadow-inset) hover:bg-surface-warm-solid hover:text-primary'
+                        ? 'bg-surface-warm-solid text-primary'
+                        : 'bg-surface text-secondary hover:bg-surface-warm-solid hover:text-primary'
                 }`}
             >
                 {triggerLabel}
@@ -478,7 +478,7 @@ const DateRangeFilter = ({
             </button>
 
             {open && (
-                <div className="absolute top-full left-0 z-50 mt-1 flex rounded-lg bg-main-bg shadow-ring overflow-hidden">
+                <div className="absolute top-full left-0 z-50 mt-1 flex rounded-lg bg-main-bg border border-[#E5E5E5] overflow-hidden">
                     {/* 프리셋 목록 */}
                     <div className="flex shrink-0 flex-col gap-0.5 py-2 px-2 w-36">
                         {DATE_PRESETS.map((p) => (
@@ -723,20 +723,20 @@ export const History = () => {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleOpenReport}
-                        className="inline-flex items-center gap-1.5 self-start rounded-full border-0 bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary shadow-card transition hover:-translate-y-px hover:text-primary"
+                        className="inline-flex items-center gap-1.5 self-start rounded-full border-0 bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary"
                     >
                         <FileText size={14} strokeWidth={2} />
                         월간 보고서
                     </button>
-                    <button className="inline-flex items-center gap-1.5 self-start rounded-full border-0 bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary shadow-card transition hover:-translate-y-px hover:text-primary">
+                    <button className="inline-flex items-center gap-1.5 self-start rounded-full border-0 bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary">
                         <Download size={14} strokeWidth={2} />
                         Export CSV
                     </button>
                 </div>
             </div>
 
-            <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg p-4 shadow-ring lg:flex-row lg:items-center lg:gap-3 lg:px-5">
-                <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface px-3 py-2 shadow-inset">
+            <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg p-4 border border-[#E5E5E5] lg:flex-row lg:items-center lg:gap-3 lg:px-5">
+                <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface px-3 py-2">
                     <Search size={14} strokeWidth={2} className="text-muted" />
                     <input
                         className="w-full border-none bg-transparent text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted font-body"
@@ -788,11 +788,11 @@ export const History = () => {
             </div>
 
             {isError ? (
-                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted shadow-ring">
+                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted border border-[#E5E5E5]">
                     Failed to load sessions. Please try again.
                 </div>
             ) : isLoading ? (
-                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted shadow-ring">Loading…</div>
+                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted border border-[#E5E5E5]">Loading…</div>
             ) : (
                 <HistoryTable
                     sessions={paginated}

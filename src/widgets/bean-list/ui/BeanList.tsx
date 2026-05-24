@@ -20,7 +20,7 @@ const Skeleton = () => (
                     background: 'var(--color-main-bg)',
                     borderRadius: 8,
                     padding: '14px 16px',
-                    boxShadow: 'var(--shadow-ring)',
+                    border: '1px solid #E5E5E5',
                 }}
             >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -75,7 +75,7 @@ export const BeanList = ({ beans, isLoading, selectedId, onSelect, search, onSea
                     borderRadius: 8,
                     padding: '9px 12px',
                     marginBottom: 10,
-                    boxShadow: 'var(--shadow-ring)',
+                    border: '1px solid #E5E5E5',
                 }}
             >
                 <Search size={14} strokeWidth={2} color="var(--color-muted)" />
@@ -115,10 +115,7 @@ export const BeanList = ({ beans, isLoading, selectedId, onSelect, search, onSea
                                     borderRadius: 8,
                                     padding: '14px 16px',
                                     cursor: 'pointer',
-                                    boxShadow: isSelected
-                                        ? 'rgba(0,0,0,0.4) 0px 0px 1px, rgba(0,0,0,0.06) 0px 2px 8px'
-                                        : 'var(--shadow-ring)',
-                                    border: isSelected ? '1px solid rgba(0,0,0,0.08)' : '1px solid transparent',
+                                    border: isSelected ? '1px solid rgba(0,0,0,0.08)' : '1px solid #E5E5E5',
                                     transition: 'all 0.15s',
                                 }}
                             >

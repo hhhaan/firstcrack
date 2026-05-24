@@ -46,7 +46,7 @@ export const EventButtons = ({
                             fontWeight: registered || pressed ? 600 : 500,
                             cursor: 'pointer',
                             letterSpacing: isSidebar ? 'normal' : '0.14px',
-                            boxShadow: pressed || registered ? 'none' : 'var(--shadow-inset)',
+                            // boxShadow: pressed || registered ? 'none' : 'var(--shadow-inset)',
                             transition: 'background 0s, color 0s',
                         }}
                     >

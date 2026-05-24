@@ -564,7 +564,7 @@ export const ActiveRoast = ({
                 className={`bg-(--color-roast-bg) flex flex-col mb-5 ${
                     isFullscreen
                         ? 'rounded-none fixed inset-0 z-9999 h-screen w-screen p-10'
-                        : 'rounded-lg relative z-1 shadow-(--shadow-ring) px-6 pb-4 pt-6'
+                        : 'rounded-lg relative z-1 border border-[#E5E5E5] px-6 pb-4 pt-6'
                 }`}
             >
                 <div className={`flex gap-6 flex-1 min-h-0 ${isFullscreen ? 'flex-row' : 'flex-col'}`}>
@@ -602,7 +602,7 @@ export const ActiveRoast = ({
                                     className={`px-2.5 py-1 rounded-full text-[11px] font-medium tracking-[0.3px] transition-all duration-300 ${
                                         active
                                             ? 'bg-primary text-white'
-                                            : 'bg-surface text-muted shadow-(--shadow-inset)'
+                                            : 'bg-surface text-muted'
                                     }`}
                                 >
                                     {label}
@@ -721,7 +721,7 @@ export const ActiveRoast = ({
                                     {phase === 'preheating' && (
                                         <button
                                             onClick={handleEnterStandby}
-                                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold shadow-(--shadow-inset) bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
+                                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
                                         >
                                             <Play size={12} />
                                             Roast Ready
@@ -730,7 +730,7 @@ export const ActiveRoast = ({
                                     {phase === 'standby' && (
                                         <button
                                             onClick={handleManualCharge}
-                                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold shadow-(--shadow-inset) bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
+                                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
                                         >
                                             <Play size={12} />
                                             Charge
@@ -740,7 +740,7 @@ export const ActiveRoast = ({
                                         onClick={handleEndRoastClick}
                                         disabled={roastEnded || !charged}
                                         aria-label="End roast"
-                                        className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold shadow-(--shadow-inset) ${
+                                        className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
                                             roastEnded || !charged
                                                 ? 'bg-surface text-muted cursor-default'
                                                 : 'bg-[rgba(254,226,226,0.8)] text-[#dc2626] cursor-pointer'
@@ -799,14 +799,14 @@ export const ActiveRoast = ({
 
             {/* 컨트롤 + 로그 행 */}
             <div className="grid grid-cols-2 gap-5">
-                <div className="bg-main-bg rounded-lg px-6 py-5 shadow-(--shadow-ring)">
+                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
                     <h3 className="text-sm font-medium text-primary tracking-[0.14px] mb-4">Roast Controls</h3>
                     <div className="flex gap-2.5 mb-5">
                         {phase === 'preheating' && (
                             <button
                                 onClick={handleEnterStandby}
                                 aria-keyshortcuts="Meta+Enter Control+Enter"
-                                className="flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] shadow-(--shadow-inset) bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
+                                className="flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
                             >
                                 <Play size={15} strokeWidth={2} />
                                 READY
@@ -816,7 +816,7 @@ export const ActiveRoast = ({
                             <button
                                 onClick={handleManualCharge}
                                 aria-keyshortcuts="Meta+Enter Control+Enter"
-                                className="flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] shadow-(--shadow-inset) bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
+                                className="flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
                             >
                                 <Play size={15} strokeWidth={2} />
                                 Charge
@@ -825,7 +825,7 @@ export const ActiveRoast = ({
                         {(phase === 'roasting' || phase === 'ended') && (
                             <button
                                 disabled={true}
-                                className="flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] shadow-(--shadow-inset) bg-surface text-muted cursor-default"
+                                className="flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] bg-surface text-muted cursor-default"
                             >
                                 <Play size={15} strokeWidth={2} />
                                 Charged
@@ -837,8 +837,8 @@ export const ActiveRoast = ({
                             aria-label="End roast"
                             className={`flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] ${
                                 roastEnded || !charged
-                                    ? 'bg-surface text-muted cursor-default shadow-(--shadow-inset)'
-                                    : 'bg-[rgba(254,226,226,0.8)] text-[#dc2626] cursor-pointer shadow-(--shadow-card)'
+                                    ? 'bg-surface text-muted cursor-default'
+                                    : 'bg-[rgba(254,226,226,0.8)] text-[#dc2626] cursor-pointer'
                             }`}
                         >
                             <Square size={14} strokeWidth={2} />
@@ -882,7 +882,7 @@ export const ActiveRoast = ({
                     />
                 </div>
 
-                <div className="bg-main-bg rounded-lg px-6 py-5 shadow-(--shadow-ring)">
+                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
                     <h3 className="text-sm font-medium text-primary tracking-[0.14px] mb-3.5">Roast Log</h3>
                     <RoastLog variant="main" entries={roastLogDisplayEntries} eventMarkerColor={eventMarkerColor} />
                 </div>

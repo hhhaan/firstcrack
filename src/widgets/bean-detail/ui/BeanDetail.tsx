@@ -14,7 +14,7 @@ interface BeanDetailProps {
 }
 
 const Skeleton = () => (
-    <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring)">
+    <div className="bg-main-bg rounded-lg px-8 py-7 border border-[#E5E5E5]">
         <div className="mb-6">
             <div className="w-50 h-8 rounded-lg bg-surface mb-2.5 animate-pulse" />
             <div className="flex gap-1.5">
@@ -39,7 +39,7 @@ const Skeleton = () => (
 );
 
 const Empty = ({ hasAny }: { hasAny: boolean }) => (
-    <div className="bg-main-bg rounded-lg px-8 py-15 shadow-(--shadow-ring) flex items-center justify-center text-sm text-muted tracking-[0.14px]">
+    <div className="bg-main-bg rounded-lg px-8 py-15 border border-[#E5E5E5] flex items-center justify-center text-sm text-muted tracking-[0.14px]">
         {hasAny ? 'Select a bean to view details' : 'Add your first bean lot to get started.'}
     </div>
 );
@@ -64,17 +64,17 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                     setConfirming(false);
                 }}
             />
-        <div className="bg-main-bg rounded-lg px-8 py-7 shadow-(--shadow-ring) h-fit relative">
+        <div className="bg-main-bg rounded-lg px-8 py-7 border border-[#E5E5E5] h-fit relative">
             <div className="absolute top-6 right-6 flex gap-2 z-2">
                 <button
                     onClick={() => onEdit(bean)}
-                    className="w-9 h-9 rounded-[10px] border border-black/6 bg-white text-muted flex items-center justify-center cursor-pointer shadow-(--shadow-button) transition-all duration-200"
+                    className="w-9 h-9 rounded-[10px] border border-black/6 bg-white text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
                 >
                     <Edit3 size={16} />
                 </button>
                 <button
                     onClick={() => setConfirming(true)}
-                    className="w-9 h-9 rounded-[10px] border border-black/6 bg-white flex items-center justify-center cursor-pointer shadow-(--shadow-button) transition-all duration-200"
+                    className="w-9 h-9 rounded-[10px] border border-black/6 bg-white flex items-center justify-center cursor-pointer transition-all duration-200"
                     style={{ color: '#dc2626' }}
                 >
                     <Trash2 size={16} />
@@ -98,7 +98,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                         </span>
                     )}
                     {bean.variety && (
-                        <span className="text-xs font-medium text-secondary bg-surface px-2.25 py-0.75 rounded-full shadow-(--shadow-inset)">
+                        <span className="text-xs font-medium text-secondary bg-surface px-2.25 py-0.75 rounded-full">
                             {bean.variety}
                         </span>
                     )}
@@ -127,7 +127,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
             </div>
 
             {bean.tasting_notes && (
-                <div className="bg-surface-warm-solid rounded-lg px-4 py-3.5 mb-6 shadow-(--shadow-warm)">
+                <div className="bg-surface-warm-solid rounded-lg px-4 py-3.5 mb-6 border border-[#E5E5E5]">
                     <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
                         Tasting Notes
                     </div>
@@ -135,7 +135,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                         {bean.tasting_notes.split(', ').map((note) => (
                             <span
                                 key={note}
-                                className="text-xs font-medium text-secondary bg-white/70 px-2.5 py-1 rounded-full tracking-[0.14px] shadow-(--shadow-inset)"
+                                className="text-xs font-medium text-secondary bg-white/70 px-2.5 py-1 rounded-full tracking-[0.14px]"
                             >
                                 {note}
                             </span>
@@ -151,7 +151,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                         {(bean.stock_grams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
                     </span>
                 </div>
-                <div className="h-1.5 bg-surface rounded-full overflow-hidden shadow-(--shadow-inset)">
+                <div className="h-1.5 bg-surface rounded-full overflow-hidden">
                     <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{
@@ -165,13 +165,13 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
             <div className="flex gap-2.5">
                 <button
                     onClick={onStartRoast}
-                    className="flex-1 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
+                    className="flex-1 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
                 >
                     Start Roast
                 </button>
                 <button
                     onClick={() => onRestock(bean.id)}
-                    className="flex-1 py-2.5 rounded-full border-none bg-surface text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-inset)"
+                    className="flex-1 py-2.5 rounded-full border-none bg-surface text-secondary text-sm font-medium cursor-pointer tracking-[0.14px]"
                 >
                     Restock
                 </button>

@@ -81,7 +81,7 @@ export const RoastSummaryModal = ({
                     { label: 'Development', value: summaryData.development },
                     { label: 'Final BT', value: summaryData.finalBt },
                 ].map(({ label, value }) => (
-                    <div key={label} className="bg-surface rounded-lg px-2.5 py-2.5 shadow-(--shadow-inset)">
+                    <div key={label} className="bg-surface rounded-lg px-2.5 py-2.5 ">
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">{label}</div>
                         <div className="font-(--font-mono) text-sm text-primary">{value}</div>
                     </div>
@@ -90,11 +90,11 @@ export const RoastSummaryModal = ({
 
             {ambientTemp != null && ambientHumidity != null && (
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                    <div className="bg-surface rounded-lg px-2.5 py-2.5 shadow-(--shadow-inset)">
+                    <div className="bg-surface rounded-lg px-2.5 py-2.5 ">
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">Temperature</div>
                         <div className="font-(--font-mono) text-sm text-primary">{ambientTemp}°C</div>
                     </div>
-                    <div className="bg-surface rounded-lg px-2.5 py-2.5 shadow-(--shadow-inset)">
+                    <div className="bg-surface rounded-lg px-2.5 py-2.5 ">
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">Humidity</div>
                         <div className="font-(--font-mono) text-sm text-primary">{ambientHumidity}%</div>
                     </div>
@@ -133,20 +133,20 @@ export const RoastSummaryModal = ({
                     onChange={(event) => onRoastNotesChange(event.target.value)}
                     placeholder="Flavor notes, observations, adjustments for next time..."
                     rows={3}
-                    className="w-full px-3.5 py-2.5 rounded-lg border-none bg-surface text-primary text-[13px] font-(--font-body) resize-none shadow-(--shadow-inset) outline-none box-border"
+                    className="w-full px-3.5 py-2.5 rounded-lg border-none bg-surface text-primary text-[13px] font-(--font-body) resize-none  outline-none box-border"
                 />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button
                     onClick={() => onSave(roastNotes)}
-                    className="w-full py-3 rounded-lg border-none bg-[rgba(220,252,231,0.9)] text-[#16a34a] text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
+                    className="w-full py-3 rounded-lg border-none bg-[rgba(220,252,231,0.9)] text-[#16a34a] text-sm font-medium cursor-pointer tracking-[0.14px]"
                 >
                     저장
                 </button>
                 <button
                     onClick={onDiscard}
-                    className="w-full py-3 rounded-lg border-none bg-surface text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-inset)"
+                    className="w-full py-3 rounded-lg border-none bg-surface text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] "
                 >
                     저장 안 함
                 </button>

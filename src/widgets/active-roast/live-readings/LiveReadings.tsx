@@ -42,7 +42,7 @@ export const LiveReadings = ({
                     color: connected ? phaseColor : 'var(--color-muted)',
                 },
             ].map(({ label, value, color }) => (
-                <div key={label} className="bg-main-bg rounded-lg px-4.5 py-3.5 shadow-ring">
+                <div key={label} className="bg-main-bg rounded-lg px-4.5 py-3.5 border border-[#E5E5E5]">
                     <span className="block text-xs text-muted font-medium tracking-[0.7px] uppercase mb-2">
                         {label}
                     </span>

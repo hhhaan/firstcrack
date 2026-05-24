@@ -106,7 +106,6 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                         fontSize: 14,
                         fontWeight: 500,
                         cursor: 'pointer',
-                        boxShadow: 'var(--shadow-card)',
                         letterSpacing: '0.14px',
                     }}
                 >

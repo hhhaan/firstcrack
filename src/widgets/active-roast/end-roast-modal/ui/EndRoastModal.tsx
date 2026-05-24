@@ -36,13 +36,13 @@ export const EndRoastModal = ({ open, timeStr, onClose, onConfirm }: EndRoastMod
             <div className="grid grid-cols-2 gap-2">
                 <button
                     onClick={onClose}
-                    className="w-full py-3 rounded-lg border-none bg-surface text-secondary text-sm font-(--font-mono) cursor-pointer tracking-[0.14px] shadow-(--shadow-inset)"
+                    className="w-full py-3 rounded-lg border-none bg-surface text-secondary text-sm font-(--font-mono) cursor-pointer tracking-[0.14px]"
                 >
                     아니오
                 </button>
                 <button
                     onClick={onConfirm}
-                    className="w-full py-3 rounded-lg border-none bg-[rgba(254,226,226,0.8)] text-[#dc2626] text-sm font-(--font-mono) cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
+                    className="w-full py-3 rounded-lg border-none bg-[rgba(254,226,226,0.8)] text-[#dc2626] text-sm font-(--font-mono) cursor-pointer tracking-[0.14px]"
                 >
                     예
                 </button>

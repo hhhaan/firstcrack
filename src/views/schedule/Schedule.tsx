@@ -64,7 +64,7 @@ const batchStatus = (b: PlanBatchWithProgress): 'pending' | 'in-progress' | 'don
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 const ViewToggle = ({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode) => void }) => (
-    <div className="flex items-center gap-0.5 bg-surface rounded-lg p-0.5 shadow-(--shadow-inset)">
+    <div className="flex items-center gap-0.5 bg-surface rounded-lg p-0.5">
         {(['day', 'week', 'month'] as ViewMode[]).map((v) => {
             const label = v === 'day' ? '일' : v === 'week' ? '주' : '월';
             return (
@@ -73,7 +73,7 @@ const ViewToggle = ({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
                     onClick={() => onChange(v)}
                     className={`text-[12px] font-medium px-3 py-1 rounded-md border-none cursor-pointer transition-colors duration-150 ${
                         view === v
-                            ? 'bg-main-bg text-primary shadow-sm'
+                            ? 'bg-main-bg text-primary'
                             : 'bg-transparent text-muted hover:text-secondary'
                     }`}
                 >
@@ -87,10 +87,10 @@ const ViewToggle = ({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
 const StatusBadge = ({ batch }: { batch: PlanBatchWithProgress }) => {
     const status = batchStatus(batch);
     const styles: Record<string, string> = {
-        pending: 'bg-surface text-muted border border-border',
+        pending: 'bg-surface text-muted',
         'in-progress': 'bg-amber-50 text-amber-700 border border-amber-200',
         done: 'bg-green-50 text-green-700 border border-green-200',
-        skipped: 'bg-surface text-muted border border-border line-through',
+        skipped: 'bg-surface text-muted line-through',
     };
     const labels: Record<string, string> = {
         pending: '대기',
@@ -131,19 +131,19 @@ const BatchCard = ({
                 <button
                     onClick={() => onMove('up')}
                     disabled={index === 0}
-                    className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface text-muted cursor-pointer shadow-(--shadow-inset) hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface text-muted cursor-pointer  hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                     <ChevronUp size={13} strokeWidth={2} />
                 </button>
                 <button
                     onClick={() => onMove('down')}
                     disabled={index === total - 1}
-                    className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface text-muted cursor-pointer shadow-(--shadow-inset) hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface text-muted cursor-pointer  hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                     <ChevronDown size={13} strokeWidth={2} />
                 </button>
             </div>
-            <div className="flex-1 border border-border rounded-xl p-4 bg-main-bg hover:border-border-strong transition-colors duration-150">
+            <div className="flex-1 rounded-xl p-4 bg-main-bg transition-colors duration-150">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <Package size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 mt-[1px]" />
@@ -223,7 +223,7 @@ const MonthView = ({
     const dayHeaders = ['월', '화', '수', '목', '금', '토', '일'];
 
     return (
-        <div className="flex-1 flex flex-col overflow-hidden border-t border-border-subtle">
+        <div className="flex-1 flex flex-col overflow-hidden">
             {/* Day-of-week header row */}
             <div className="grid grid-cols-7 border-b border-border-subtle shrink-0">
                 {dayHeaders.map((d, i) => (
@@ -347,12 +347,12 @@ const WeekDayColumn = ({
         <div
             onClick={onSelect}
             className={`
-                flex-1 flex flex-col border rounded-xl cursor-pointer transition-colors duration-100
-                ${isSelected ? 'border-primary/40 bg-primary/5' : 'border-border hover:border-border-strong bg-main-bg'}
+                flex-1 flex flex-col rounded-xl cursor-pointer transition-colors duration-100
+                ${isSelected ? 'bg-primary/5' : 'bg-main-bg'}
             `}
         >
             {/* Day header */}
-            <div className={`px-3 py-2.5 border-b ${isSelected ? 'border-primary/20' : 'border-border'}`}>
+            <div className="px-3 py-2.5">
                 <div className="flex items-center gap-1.5">
                     <span className={`
                         text-[11px] font-medium w-5 h-5 flex items-center justify-center rounded-full shrink-0
@@ -620,7 +620,7 @@ export const Schedule = ({ onStartBatch }: ScheduleProps) => {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => handleNav(-1)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center border-none bg-surface text-muted cursor-pointer shadow-(--shadow-inset) hover:text-primary transition-colors"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center border-none bg-surface text-muted cursor-pointer  hover:text-primary transition-colors"
                     >
                         <ChevronLeft size={14} strokeWidth={2} />
                     </button>
@@ -629,7 +629,7 @@ export const Schedule = ({ onStartBatch }: ScheduleProps) => {
                     </span>
                     <button
                         onClick={() => handleNav(1)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center border-none bg-surface text-muted cursor-pointer shadow-(--shadow-inset) hover:text-primary transition-colors"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center border-none bg-surface text-muted cursor-pointer  hover:text-primary transition-colors"
                     >
                         <ChevronRight size={14} strokeWidth={2} />
                     </button>

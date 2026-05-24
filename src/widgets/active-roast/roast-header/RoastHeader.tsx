@@ -194,7 +194,6 @@ export const RoastHeader = ({
                         aria-label="Open roast settings"
                         title="Roast settings"
                         className="w-8.5 h-8.5 rounded-[10px] border-none bg-surface text-muted flex items-center justify-center cursor-pointer shrink-0 mt-1.5"
-                        style={{ boxShadow: 'var(--shadow-inset)' }}
                     >
                         <Settings2 size={15} strokeWidth={1.9} />
                     </button>

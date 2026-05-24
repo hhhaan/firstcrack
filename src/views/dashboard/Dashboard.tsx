@@ -151,7 +151,6 @@ const BarCanvas = ({ data, height = 160 }: BarCanvasProps) => {
                 className="absolute pointer-events-none bg-white rounded-[10px] px-3 py-1.5 text-[13px] whitespace-nowrap z-10"
                 style={{
                     display: 'none',
-                    boxShadow: 'rgba(0,0,0,0.4) 0px 0px 1px, rgba(0,0,0,0.04) 0px 4px 4px',
                 }}
             />
         </div>
@@ -263,7 +262,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </div>
                 <button
                     onClick={() => onNavigate('roast')}
-                    className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-0 bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
+                    className="flex items-center gap-2 px-4.5 py-2.5 rounded-full bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
                 >
                     <span
                         className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-green-400 animate-pulse' : 'bg-white/40'}`}
@@ -279,9 +278,9 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     const isPositive = change.startsWith('+');
                     const isNeutral = change === '';
                     return (
-                        <div key={label} className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5 shadow-(--shadow-ring)">
+                        <div key={label} className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5 border border-[#E5E5E5]">
                             <div className="flex items-start justify-between mb-3.5">
-                                <div className="w-8.5 h-8.5 rounded-lg bg-surface flex items-center justify-center shadow-(--shadow-inset)">
+                                <div className="w-8.5 h-8.5 rounded-lg bg-surface flex items-center justify-center">
                                     <Icon size={16} strokeWidth={1.5} color="var(--color-secondary)" />
                                 </div>
                                 {!isNeutral && (
@@ -308,8 +307,8 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             {/* Main Grid */}
             <div className="grid grid-cols-[1fr_340px] gap-5 mb-5">
                 {/* Recent Sessions */}
-                <div className="bg-main-bg rounded-lg shadow-(--shadow-ring) overflow-hidden">
-                    <div className="px-6 pt-4.5 pb-3.5 flex items-center justify-between border-b border-border-subtle">
+                <div className="bg-main-bg rounded-lg overflow-hidden border border-[#E5E5E5]">
+                    <div className="px-6 pt-4.5 pb-3.5 flex items-center justify-between border-b border-[#E5E5E5]">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Recent Sessions</h2>
                         <button
                             onClick={() => onNavigate('history')}
@@ -320,7 +319,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     </div>
                     <table className="w-full border-collapse">
                         <thead>
-                            <tr className="border-b border-border-subtle">
+                            <tr className="border-b border-[#E5E5E5]">
                                 {['Date', 'Bean', 'Profile', 'Weight', 'Drop Temp', 'Duration', 'Level'].map((h) => (
                                     <th
                                         key={h}
@@ -351,7 +350,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                         <tr
                                             key={session.id}
                                             className={
-                                                i < db.recentSessions.length - 1 ? 'border-b border-border-subtle' : ''
+                                                i < db.recentSessions.length - 1 ? 'border-b border-[#E5E5E5]' : ''
                                             }
                                         >
                                             <td className="px-6 py-3 text-[13px] text-muted font-normal whitespace-nowrap">
@@ -398,14 +397,14 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </div>
 
                 {/* Monthly chart */}
-                <div className="bg-main-bg rounded-lg px-6 py-5 shadow-(--shadow-ring)">
+                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
                     <div className="flex items-center justify-between mb-5">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Monthly Batches</h2>
                         <Calendar size={15} strokeWidth={1.5} color="var(--color-muted)" />
                     </div>
                     <BarCanvas data={db.monthlyBatches} height={160} />
 
-                    <div className="mt-5 pt-4 border-t border-border-subtle">
+                    <div className="mt-5 pt-4 border-t border-[#E5E5E5]">
                         <div className="text-xs text-muted mb-2 tracking-[0.5px] uppercase font-medium">This Month</div>
                         <div className="flex gap-5">
                             <div>
@@ -436,7 +435,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             {/* Upcoming + Inventory Alerts */}
             <div className="grid grid-cols-2 gap-5">
                 {/* Upcoming */}
-                <div className="bg-main-bg rounded-lg px-6 py-5 shadow-(--shadow-ring)">
+                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
                     <div className="flex items-center justify-between mb-3.5">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Upcoming Batches</h2>
                         <button
@@ -454,9 +453,9 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         db.upcomingBatches.map((item, i) => (
                             <div
                                 key={item.id}
-                                className={`flex items-center gap-3 py-2.5 ${i < db.upcomingBatches.length - 1 ? 'border-b border-border-subtle' : ''}`}
+                                className={`flex items-center gap-3 py-2.5 ${i < db.upcomingBatches.length - 1 ? 'border-b border-[#E5E5E5]' : ''}`}
                             >
-                                <div className="w-8.5 h-8.5 rounded-lg bg-surface-warm-solid flex items-center justify-center shrink-0 shadow-(--shadow-inset)">
+                                <div className="w-8.5 h-8.5 rounded-lg bg-surface-warm-solid flex items-center justify-center shrink-0">
                                     <Calendar size={14} strokeWidth={1.5} color="var(--color-secondary)" />
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -464,7 +463,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                         <span className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
                                             {item.bean_name}
                                         </span>
-                                        <span className="shrink-0 text-[11px] font-medium text-secondary bg-surface px-1.5 py-0.5 rounded border border-border">
+                                        <span className="shrink-0 text-[11px] font-medium text-secondary bg-surface px-1.5 py-0.5 rounded">
                                             {item.batch_count}회 · {item.target_roasted_kg}kg
                                         </span>
                                     </div>
@@ -478,7 +477,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </div>
 
                 {/* Inventory Alerts */}
-                <div className="bg-main-bg rounded-lg px-6 py-5 shadow-(--shadow-ring)">
+                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
                     <h2 className="text-[15px] font-medium text-primary tracking-[0.15px] mb-3.5">Inventory Alerts</h2>
                     {db.loading ? (
                         <p className="text-[13px] text-muted py-2">Loading...</p>
@@ -493,7 +492,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                             return (
                                 <div
                                     key={item.id}
-                                    className={`flex items-center gap-3 py-2.5 ${i < db.inventoryAlerts.length - 1 ? 'border-b border-border-subtle' : ''}`}
+                                    className={`flex items-center gap-3 py-2.5 ${i < db.inventoryAlerts.length - 1 ? 'border-b border-[#E5E5E5]' : ''}`}
                                 >
                                     <div
                                         className="w-8.5 h-8.5 rounded-lg flex items-center justify-center shrink-0"
