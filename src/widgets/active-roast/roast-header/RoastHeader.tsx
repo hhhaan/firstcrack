@@ -3,7 +3,10 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { STATUS_COLORS, PHASE_COLORS } from '@features/active-roast/lib/colors';
 import { useBeans } from '@entities/bean/queries';
 import { useAuthStore } from '@shared/store/auth';
-import { roastProfiles, DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
+import { DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
+import { useRoastProfiles } from '@entities/roast-profile';
+
+// ─── Utility ──────────────────────────────────────────────────────────────────
 
 const joinDisplay = (parts: (string | null | undefined)[], sep = ' · ') => parts.filter(Boolean).join(sep);
 
@@ -17,6 +20,7 @@ type BeanOptionDisplay = (bean: {
 
 const beanOptionDisplay: BeanOptionDisplay = (b) => joinDisplay([b.origin, b.region, b.farm, b.variety]) || b.name;
 
+// ─── Component ────────────────────────────────────────────────────────────────
 export const RoastHeader = ({
     phase,
     targetProfileId,
@@ -26,28 +30,31 @@ export const RoastHeader = ({
     onOpenRoastSettings,
 }: {
     phase: string;
-    targetProfileId: number | null;
+    targetProfileId: string | null;
     selectedBeanId: string | null;
-    onTargetProfileChange: (id: number | null) => void;
+    onTargetProfileChange: (id: string | null) => void;
     onBeanChange: (id: string | null) => void;
     onOpenRoastSettings?: () => void;
 }) => {
+    // ─── Store state ─────────────────────────────────────────────────────────
     const roastEnded = useRoastingStore((s) => s.phase === 'ended');
     const charged = useRoastingStore((s) => s.charged);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const elapsed = useRoastingStore((s) => s.elapsed);
     const user = useAuthStore((s) => s.user);
     const { data: beans = [] } = useBeans(user?.id ?? '');
+    const { data: dbProfiles = [] } = useRoastProfiles(user?.id ?? '');
 
+    // ─── Derived values ──────────────────────────────────────────────────────
     const elapsedMin = Math.floor(elapsed / 60);
     const elapsedSec = elapsed % 60;
     const timeStr = charged ? `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}` : '—';
 
     const handleProfileChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const val = e.target.value;
-        const id = val === '' ? null : Number(val);
+        const id = val === '' ? null : val;
         onTargetProfileChange(id);
-        if (id != null) localStorage.setItem(DEFAULT_PROFILE_KEY, String(id));
+        if (id != null) localStorage.setItem(DEFAULT_PROFILE_KEY, id);
         else localStorage.removeItem(DEFAULT_PROFILE_KEY);
     };
 
@@ -74,11 +81,8 @@ export const RoastHeader = ({
     })();
 
     const selectedBean = beans.find((b) => b.id === selectedBeanId);
-    const beanSecondary = joinDisplay([selectedBean?.farm, selectedBean?.variety]);
-    const beanMeta = selectedBean?.process ?? '';
-
-    // No Bean Selected와 완전히 동일한 구조로 Target도 만듦
-    const selectedProfile = roastProfiles.find((p) => p.id === targetProfileId);
+    const beanSecondary = joinDisplay([selectedBean?.farm, selectedBean?.variety, selectedBean?.process]);
+    const selectedProfile = dbProfiles.find((p) => p.id === targetProfileId);
     const profileDisplay = selectedProfile?.name ?? 'No Target';
 
     return (
@@ -120,13 +124,12 @@ export const RoastHeader = ({
                     )}
                 </div>
 
-                {beanSecondary && <p className="text-[15px] text-primary tracking-[-0.1px] mb-1">{beanSecondary}</p>}
+                {/* ─── Bean secondary info: farm · variety · process ───── */}
+                {beanSecondary && <p className="text-[15px] text-primary tracking-[-0.1px] mb-0.5">{beanSecondary} </p>}
 
+                {/* ─── Target profile selector ───────────────────────────── */}
                 <div className="flex items-center gap-1.5">
-                    <span className="text-[13px] text-muted tracking-[0.14px]">
-                        {beanMeta ? `${beanMeta} · Target:` : 'Target:'}
-                    </span>
-                    {/* ← No Bean Selected와 **완전히 동일한 구조** 복사 (글자 크기만 13px로 변경) */}
+                    <span className="text-[13px] text-muted tracking-[0.14px]">Target:</span>
                     <div className="relative inline-flex items-center">
                         <div className="flex items-center gap-1">
                             <span className="text-[13px] font-medium tracking-[0.14px] pointer-events-none">
@@ -143,7 +146,7 @@ export const RoastHeader = ({
                             className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'cursor-default' : 'cursor-pointer'}`}
                         >
                             <option value="">No Target</option>
-                            {roastProfiles.map((p) => (
+                            {dbProfiles.map((p) => (
                                 <option key={p.id} value={p.id}>
                                     {p.name}
                                 </option>
@@ -153,6 +156,7 @@ export const RoastHeader = ({
                 </div>
             </div>
 
+            {/* ─── Right side: elapsed time + settings ────────────────────── */}
             <div className="flex items-start gap-3">
                 <div className="text-right">
                     <div className="font-mono text-[44px] font-semibold text-primary tracking-[-2px] leading-none mb-1">
