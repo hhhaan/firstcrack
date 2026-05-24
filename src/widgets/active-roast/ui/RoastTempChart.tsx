@@ -33,6 +33,8 @@ interface Props {
     showET?: boolean;
     showTargetCurve?: boolean;
     showRoR?: boolean;
+    showRoRET?: boolean;
+    rorEtActual?: (number | null)[];
     controlData?: ControlData;
 }
 
@@ -58,6 +60,8 @@ export const RoastTempChart: React.FC<Props> = ({
     showET = true,
     showTargetCurve = true,
     showRoR = true,
+    showRoRET = false,
+    rorEtActual = [],
     controlData,
 }) => {
     const chartRef = useRef<HTMLDivElement>(null);
@@ -233,13 +237,23 @@ export const RoastTempChart: React.FC<Props> = ({
                 data: xs.map((x, i) => [x, rorActual[i]]),
                 lineStyle: { color: CHART_COLORS.rorActual, width: 1.2 },
                 showSymbol: false,
-                ...getSmoothConfig(0.28), // RoR — 노이즈 많아서 더 부드럽게
+                ...getSmoothConfig(0.28),
                 areaStyle: {
                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
                         { offset: 0, color: `${CHART_COLORS.rorActual}33` },
                         { offset: 1, color: `${CHART_COLORS.rorActual}00` },
                     ]),
                 },
+            },
+            showRoR && showRoRET && {
+                name: 'ET RoR',
+                type: 'line',
+                xAxisIndex: 0,
+                yAxisIndex: 1,
+                data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
+                lineStyle: { color: CHART_COLORS.etActual, width: 1.0, type: 'dashed' },
+                showSymbol: false,
+                ...getSmoothConfig(0.28),
             },
         ].filter(Boolean) as object[];
 
@@ -459,6 +473,8 @@ export const RoastTempChart: React.FC<Props> = ({
         showET,
         showTargetCurve,
         showRoR,
+        showRoRET,
+        rorEtActual,
         controlData,
     ]);
 

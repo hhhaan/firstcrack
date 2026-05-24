@@ -23,6 +23,7 @@ const visibilityOptions = [
         description: 'Rate of Rise sub-chart below the temperature curve',
     },
     { key: 'showRoRET' as const, label: 'ET Rate of Rise', description: 'ET RoR line in the RoR sub-chart' },
+    { key: 'showControlChart' as const, label: 'Control Chart', description: 'Drum / Heat / Fan bottom chart (fullscreen only)' },
 ];
 
 const NumberInput = ({

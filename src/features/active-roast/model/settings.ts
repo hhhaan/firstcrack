@@ -14,6 +14,7 @@ export type RoastSettings = {
     showTargetCurve: boolean;
     showRoRChart: boolean;
     showRoRET: boolean;
+    showControlChart: boolean;
     tempMinC: number;
     tempMaxC: number;
     rorYMin: number;
@@ -32,6 +33,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showTargetCurve: true,
     showRoRChart: true,
     showRoRET: false,
+    showControlChart: true,
     tempMinC: 130,
     tempMaxC: 240,
     rorYMin: -5,

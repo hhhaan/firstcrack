@@ -183,18 +183,20 @@ export const ActiveRoast = ({
         ? chartData.filter((p) => p.time >= effectiveZoomRange.start && p.time <= effectiveZoomRange.end)
         : chartData;
 
-    const { visibleXs, visibleBtTarget, visibleBtActual, visibleEtActual, visibleRorActual } = useMemo(() => {
+    const { visibleXs, visibleBtTarget, visibleBtActual, visibleEtActual, visibleRorActual, visibleRorEtActual } = useMemo(() => {
         const xs: number[] = [];
         const btTarget: (number | null)[] = [];
         const btActual: (number | null)[] = [];
         const etActual: (number | null)[] = [];
         const rorActual: (number | null)[] = [];
+        const rorEtActual: (number | null)[] = [];
         for (const p of visibleChartData) {
             xs.push(p.time);
             btTarget.push(p.btTarget != null ? toDisplayTemp(p.btTarget, unit) : null);
             btActual.push(p.btActual != null ? toDisplayTemp(p.btActual, unit) : null);
             etActual.push(p.etActual != null ? toDisplayTemp(p.etActual, unit) : null);
             rorActual.push(p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null);
+            rorEtActual.push(p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null);
         }
         return {
             visibleXs: xs,
@@ -202,6 +204,7 @@ export const ActiveRoast = ({
             visibleBtActual: btActual,
             visibleEtActual: etActual,
             visibleRorActual: rorActual,
+            visibleRorEtActual: rorEtActual,
         };
     }, [visibleChartData, unit]);
 
@@ -646,9 +649,11 @@ export const ActiveRoast = ({
                             showET={roastSettings.showET}
                             showTargetCurve={roastSettings.showTargetCurve}
                             showRoR={roastSettings.showRoRChart}
+                            showRoRET={roastSettings.showRoRET}
+                            rorEtActual={visibleRorEtActual}
                             temperatureUnit={unit}
                             controlData={
-                                isFullscreen
+                                isFullscreen && roastSettings.showControlChart
                                     ? {
                                           xs: visibleControlXs,
                                           drumTemp: visibleDrumTemp,
