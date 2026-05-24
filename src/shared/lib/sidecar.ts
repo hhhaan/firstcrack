@@ -46,6 +46,10 @@ export const sidecar = {
   startRoast: () =>
     request<{ ok: boolean }>('/start', { method: 'POST' }),
 
+  // 로스트 종료/리셋 — 어댑터 상태를 초기화해 다음 로스트를 예열 상태에서 시작
+  resetRoast: () =>
+    request<{ ok: boolean }>('/reset', { method: 'POST' }),
+
   control: (params: { heater?: number; fan?: number; drum?: number }) =>
     request<{ ok: boolean }>('/control', {
       method: 'POST',

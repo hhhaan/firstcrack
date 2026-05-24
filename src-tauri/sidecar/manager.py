@@ -271,6 +271,18 @@ class RoasterManager:
             if self._adapter is not None and hasattr(self._adapter, "start_roast"):
                 await self._adapter.start_roast()
 
+    async def reset_roast(self) -> None:
+        """로스트 종료 후 어댑터 상태를 초기화한다 (connect() 재호출). RoR 윈도우도 클리어."""
+        async with self._lock:
+            self._ror_window.clear()
+            self._et_ror_window.clear()
+            self._bt_ema = None
+            self._et_ema = None
+            self._bt_display_ema = None
+            self._et_display_ema = None
+            if self._adapter is not None and self._connected:
+                await self._adapter.connect()
+
     async def send_control(
         self,
         heater: float | None = None,

@@ -106,6 +106,12 @@ async def handle_start(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+async def handle_reset(request: web.Request) -> web.Response:
+    manager: RoasterManager = request.app["manager"]
+    await manager.reset_roast()
+    return web.json_response({"ok": True})
+
+
 def _is_na(s: str) -> bool:
     return not s or s.lower() == "n/a"
 
@@ -178,6 +184,7 @@ def create_app() -> web.Application:
     app.router.add_get("/temperatures", handle_temperatures)
     app.router.add_post("/standby", handle_standby)
     app.router.add_post("/start", handle_start)
+    app.router.add_post("/reset", handle_reset)
     app.router.add_post("/control", handle_control)
     app.router.add_route("OPTIONS", "/{path_info:.*}", lambda r: web.Response())
     return app

@@ -451,7 +451,10 @@ export const ActiveRoast = ({
         resetAutoDetection();
         setIsRunning(false);
         resetStore();
-        if (sidecarConnected) enterPreheating();
+        if (sidecarConnected) {
+            sidecar.resetRoast().catch(() => {});
+            enterPreheating();
+        }
         setLogEntries([]);
         setLivePoints([]);
         setZoomRange(null);
