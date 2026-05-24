@@ -37,8 +37,9 @@ export interface ChartZoom {
  * 이 훅에서 분리할 수 없으므로 컴포넌트에 유지한다.
  *
  * @param MAX_TIME 현재 chartData의 마지막 시간(초). 줌 범위 클램핑에 사용.
+ * @param minTime x축 최솟값(초). pre-charge 구간이 있을 때 음수. 기본값 0.
  */
-export const useChartZoom = (MAX_TIME: number): ChartZoom => {
+export const useChartZoom = (MAX_TIME: number, minTime: number = 0): ChartZoom => {
     const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);
     const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
     const [isChartDragging, setIsChartDragging] = useState(false);
@@ -52,7 +53,7 @@ export const useChartZoom = (MAX_TIME: number): ChartZoom => {
     } | null>(null);
 
     const effectiveZoomRange = zoomRange
-        ? { start: Math.max(0, zoomRange.start), end: Math.min(MAX_TIME, zoomRange.end) }
+        ? { start: Math.max(minTime, zoomRange.start), end: Math.min(MAX_TIME, zoomRange.end) }
         : null;
 
     // uPlot이 height를 JS로 강제 설정하므로 flex-1 방식 대신 ResizeObserver로 높이를 계산한다.
@@ -74,7 +75,7 @@ export const useChartZoom = (MAX_TIME: number): ChartZoom => {
         const currentEnd = effectiveZoomRange?.end ?? MAX_TIME;
         const currentDuration = currentEnd - currentStart;
         if (event.deltaY < 0 && currentDuration <= MIN_VISIBLE_SECS) return;
-        if (event.deltaY > 0 && currentStart === 0 && currentEnd === MAX_TIME) return;
+        if (event.deltaY > 0 && currentStart === minTime && currentEnd === MAX_TIME) return;
         const rect = event.currentTarget.getBoundingClientRect();
         const dataWidth = rect.width - Y_AXIS_WIDTH - RIGHT_PAD;
         const mouseX = event.clientX - rect.left - Y_AXIS_WIDTH;
@@ -88,9 +89,9 @@ export const useChartZoom = (MAX_TIME: number): ChartZoom => {
         }
         let nextStart = focusTime - pointerRatio * nextDuration;
         let nextEnd = nextStart + nextDuration;
-        if (nextStart < 0) {
-            nextStart = 0;
-            nextEnd = nextDuration;
+        if (nextStart < minTime) {
+            nextStart = minTime;
+            nextEnd = minTime + nextDuration;
         }
         if (nextEnd > MAX_TIME) {
             nextEnd = MAX_TIME;
@@ -121,7 +122,7 @@ export const useChartZoom = (MAX_TIME: number): ChartZoom => {
         const dataWidth = getChartDataWidth(rect);
         const deltaPx = event.clientX - drag.startX;
         const deltaTime = -(deltaPx / dataWidth) * duration;
-        const nextStart = Math.max(0, Math.min(MAX_TIME - duration, drag.startRange.start + deltaTime));
+        const nextStart = Math.max(minTime, Math.min(MAX_TIME - duration, drag.startRange.start + deltaTime));
         setZoomRange({ start: nextStart, end: nextStart + duration });
         event.preventDefault();
     };

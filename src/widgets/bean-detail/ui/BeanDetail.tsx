@@ -127,7 +127,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
             </div>
 
             {bean.tasting_notes && (
-                <div className="bg-surface-warm-solid rounded-lg px-4 py-3.5 mb-6 border border-[#E5E5E5]">
+                <div className="bg-surface-warm-solid rounded-lg px-4 py-3.5 mb-6">
                     <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
                         Tasting Notes
                     </div>

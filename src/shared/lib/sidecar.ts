@@ -38,6 +38,10 @@ export const sidecar = {
   getTemperatures: () =>
     request<TemperatureReading>('/temperatures'),
 
+  // READY 버튼과 연동 — 가상 머신에 standby 진입 알림 (생두 투입 시뮬레이션 시작)
+  enterStandby: () =>
+    request<{ ok: boolean }>('/standby', { method: 'POST' }),
+
   // Charge 버튼과 연동 — 시뮬레이터 타이머 리셋 + RoR 윈도우 초기화
   startRoast: () =>
     request<{ ok: boolean }>('/start', { method: 'POST' }),

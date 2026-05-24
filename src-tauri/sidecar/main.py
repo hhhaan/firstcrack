@@ -94,6 +94,12 @@ async def handle_temperatures(request: web.Request) -> web.Response:
     return web.json_response(data)
 
 
+async def handle_standby(request: web.Request) -> web.Response:
+    manager: RoasterManager = request.app["manager"]
+    await manager.enter_standby()
+    return web.json_response({"ok": True})
+
+
 async def handle_start(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
     await manager.start_roast()
@@ -170,6 +176,7 @@ def create_app() -> web.Application:
     app.router.add_post("/connect", handle_connect)
     app.router.add_post("/disconnect", handle_disconnect)
     app.router.add_get("/temperatures", handle_temperatures)
+    app.router.add_post("/standby", handle_standby)
     app.router.add_post("/start", handle_start)
     app.router.add_post("/control", handle_control)
     app.router.add_route("OPTIONS", "/{path_info:.*}", lambda r: web.Response())

@@ -132,6 +132,7 @@ export const ActiveRoast = ({
         roastStartTimeRef,
         tpTimeSecRef,
         sessionId,
+        preChargeDisplaySec: roastSettings.preChargeDisplaySec,
     });
 
     // ── 차트 데이터 파이프라인 ────────────────────────────────────
@@ -139,9 +140,18 @@ export const ActiveRoast = ({
         () => dbProfiles.find((p) => p.id === targetProfileId) ?? null,
         [dbProfiles, targetProfileId],
     );
-    const { chartData } = useChartData({ livePoints, targetProfile });
+    // charge 전: 세션 상대 시간(양수)으로 표시 → 음수 공간 없음
+    // charge 후: 음수 pre-charge 구간 표시
+    const effectivePreChargeDisplaySec = charged ? roastSettings.preChargeDisplaySec : 0;
+
+    const { chartData } = useChartData({
+        livePoints,
+        targetProfile,
+        preChargeDisplaySec: effectivePreChargeDisplaySec,
+    });
     /** 차트 x축 끝값. 데이터가 없으면 전체 범위로 고정 */
     const MAX_TIME = chartData.length > 0 ? chartData[chartData.length - 1].time : CHART_TOTAL_SECS;
+    const MIN_TIME = -effectivePreChargeDisplaySec;
 
     // ── 차트 줌·패닝·드래그 ──────────────────────────────────────
     const {
@@ -156,7 +166,7 @@ export const ActiveRoast = ({
         handleChartPointerDown,
         handleChartPointerMove,
         endChartDrag,
-    } = useChartZoom(MAX_TIME);
+    } = useChartZoom(MAX_TIME, MIN_TIME);
 
     // fullscreen 진입 시 외부 줌 리셋 — ECharts 내부 zoom이 독립적으로 동작한다
     useEffect(() => {
@@ -205,11 +215,11 @@ export const ActiveRoast = ({
     // ── 키보드 줌·패닝 (visibleChartData 참조로 인해 훅으로 분리 불가) ──
     const zoomChart = (zoomFactor: number) => {
         if (MAX_TIME <= 0) return;
-        const currentStart = effectiveZoomRange?.start ?? 0;
+        const currentStart = effectiveZoomRange?.start ?? MIN_TIME;
         const currentEnd = effectiveZoomRange?.end ?? MAX_TIME;
         const currentDuration = currentEnd - currentStart;
-        const nextDuration = Math.max(MIN_VISIBLE_SECS, Math.min(MAX_TIME, currentDuration * zoomFactor));
-        if (nextDuration >= MAX_TIME) {
+        const nextDuration = Math.max(MIN_VISIBLE_SECS, Math.min(MAX_TIME - MIN_TIME, currentDuration * zoomFactor));
+        if (nextDuration >= MAX_TIME - MIN_TIME) {
             setZoomRange(null);
             return;
         }
@@ -220,9 +230,9 @@ export const ActiveRoast = ({
         const ratio = currentDuration > 0 ? (focusTime - currentStart) / currentDuration : 0.5;
         let nextStart = focusTime - ratio * nextDuration;
         let nextEnd = nextStart + nextDuration;
-        if (nextStart < 0) {
-            nextStart = 0;
-            nextEnd = nextDuration;
+        if (nextStart < MIN_TIME) {
+            nextStart = MIN_TIME;
+            nextEnd = MIN_TIME + nextDuration;
         }
         if (nextEnd > MAX_TIME) {
             nextEnd = MAX_TIME;
@@ -235,7 +245,7 @@ export const ActiveRoast = ({
         if (!effectiveZoomRange) return;
         const duration = effectiveZoomRange.end - effectiveZoomRange.start;
         const step = Math.max(1, duration * 0.2);
-        const nextStart = Math.max(0, Math.min(MAX_TIME - duration, effectiveZoomRange.start + step * direction));
+        const nextStart = Math.max(MIN_TIME, Math.min(MAX_TIME - duration, effectiveZoomRange.start + step * direction));
         setZoomRange({ start: nextStart, end: nextStart + duration });
     };
 
@@ -407,6 +417,8 @@ export const ActiveRoast = ({
     const handleEnterStandby = useCallback(() => {
         if (phase !== 'preheating') return;
         enterStandby();
+        // 가상 머신에 standby 진입 알림 — 생두 투입 시뮬레이션 트리거
+        sidecar.enterStandby().catch(() => {});
     }, [phase, enterStandby]);
 
     /** Phase standby → roasting: 수동 Charge 버튼 */
@@ -493,12 +505,13 @@ export const ActiveRoast = ({
         };
     }, [fcStartEntry, elapsed]);
 
-    /** ΔBT, ΔET — 30초 전 대비 현재 온도 변화량 */
+    /** ΔBT, ΔET — 30초 전 대비 현재 온도 변화량 (pre-charge 포인트 제외) */
     const { deltaBT, deltaET } = useMemo(() => {
-        if (livePoints.length < 2) return { deltaBT: null, deltaET: null };
-        const current = livePoints[livePoints.length - 1];
+        const postChargePoints = livePoints.filter((p) => p.time >= 0);
+        if (postChargePoints.length < 2) return { deltaBT: null, deltaET: null };
+        const current = postChargePoints[postChargePoints.length - 1];
         const targetTime = current.time - 30;
-        const past = livePoints.reduce((prev, curr) =>
+        const past = postChargePoints.reduce((prev, curr) =>
             Math.abs(curr.time - targetTime) < Math.abs(prev.time - targetTime) ? curr : prev,
         );
         if (past === current) return { deltaBT: null, deltaET: null };

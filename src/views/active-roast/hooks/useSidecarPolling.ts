@@ -35,6 +35,8 @@ interface Params {
     tpTimeSecRef: MutableRefObject<number | null>;
     /** Charge 시 생성된 세션 UUID. null이면 미시작 */
     sessionId: string | null;
+    /** Charge 이전 그래프에 표시할 구간 (초) */
+    preChargeDisplaySec: number;
 }
 
 /**
@@ -54,10 +56,16 @@ export const useSidecarPolling = ({
     setConnected,
     roastStartTimeRef,
     sessionId,
+    preChargeDisplaySec,
 }: Params) => {
     const [livePoints, setLivePoints] = useState<LiveRoastPoint[]>([]);
     // TSV 파일 헤더가 작성됐는지 추적 — sessionId가 바뀌면 다시 false로 리셋된다.
     const tsvInitializedRef = useRef(false);
+    // pre-charge 버퍼: absTime으로 누적 (charge 시 음수 상대 시간으로 변환에 사용)
+    const preChargeBufferRef = useRef<(Omit<LiveRoastPoint, 'time' | 'label'> & { absTime: number })[]>([]);
+    // preheating 첫 폴링 시각 — livePoints 실시간 표시용 세션 기준점
+    const preChargeStartRef = useRef<number>(0);
+    const prevPhaseRef = useRef(phase);
 
     // sessionId가 새로 설정되면 TSV 파일을 헤더로 초기화한다.
     useEffect(() => {
@@ -69,6 +77,37 @@ export const useSidecarPolling = ({
             })
             .catch(() => {});
     }, [sessionId]);
+
+    // phase → 'roasting' 전환 감지:
+    // 버퍼를 음수 상대 시간으로 변환 후 livePoints를 교체한다.
+    // (preheating 중 세션 상대 시간으로 쌓인 display 포인트는 버퍼 기반으로 덮어쓴다)
+    useEffect(() => {
+        if (prevPhaseRef.current !== 'roasting' && phase === 'roasting') {
+            const chargeTime = roastStartTimeRef.current;
+            let prePoints: LiveRoastPoint[] = [];
+            if (chargeTime !== 0 && preChargeBufferRef.current.length > 0) {
+                const cutoff = chargeTime - preChargeDisplaySec * 1000;
+                prePoints = preChargeBufferRef.current
+                    .filter((p) => p.absTime >= cutoff)
+                    .map((p) => {
+                        const relSec = (p.absTime - chargeTime) / 1000; // 음수
+                        const absT = Math.abs(relSec);
+                        const m = Math.floor(absT / 60);
+                        const s = Math.floor(absT % 60);
+                        return {
+                            ...p,
+                            time: relSec,
+                            label: `-${m}:${String(s).padStart(2, '0')}`,
+                        };
+                    });
+            }
+            // 세션 상대 시간 display 포인트를 버퍼 기반 음수 포인트로 완전 교체
+            setLivePoints(prePoints);
+            preChargeBufferRef.current = [];
+            preChargeStartRef.current = 0;
+        }
+        prevPhaseRef.current = phase;
+    }, [phase, roastStartTimeRef, preChargeDisplaySec]);
 
     // 뷰가 활성화될 때 연결 상태를 확인하고 idle 상태면 예열 단계로 진입한다.
     useEffect(() => {
@@ -107,9 +146,12 @@ export const useSidecarPolling = ({
                 useRoastingStore.getState().updateLiveData(data);
                 setConnected(true);
                 const bt = data.bt;
+                if (bt == null) return;
 
-                // 로스팅 단계에서만 측정값을 livePoints에 기록한다.
-                if (useRoastingStore.getState().phase === 'roasting' && bt != null && roastStartTimeRef.current !== 0) {
+                const currentPhase = useRoastingStore.getState().phase;
+
+                if (currentPhase === 'roasting' && roastStartTimeRef.current !== 0) {
+                    // post-charge: 기존 livePoints 기록 로직
                     const t = (Date.now() - roastStartTimeRef.current) / 1000;
                     setLivePoints((prev) => {
                         // 폴링 주기보다 짧은 간격은 무시해 중복 포인트를 방지한다.
@@ -140,6 +182,43 @@ export const useSidecarPolling = ({
 
                         return [...prev, point];
                     });
+                } else if (currentPhase === 'standby') {
+                    // pre-charge: 버퍼(absTime)와 livePoints(세션 상대 시간) 동시 기록
+                    const absTime = Date.now();
+                    const buf = preChargeBufferRef.current;
+                    if (buf.length > 0 && absTime - buf[buf.length - 1].absTime < 400) return;
+
+                    // 첫 폴링 시 세션 기준점 설정
+                    if (preChargeStartRef.current === 0) {
+                        preChargeStartRef.current = absTime;
+                    }
+
+                    const pointData = {
+                        bt,
+                        et: data.et ?? null,
+                        ror: data.ror,
+                        ror_et: data.ror_et ?? null,
+                        heater: data.heater ?? 0,
+                        fan: data.fan ?? 0,
+                        drum: data.drum ?? 0,
+                    };
+
+                    // 버퍼: charge 시 음수 상대 시간 변환에 사용
+                    buf.push({ absTime, ...pointData });
+                    if (buf.length > 1200) buf.splice(0, buf.length - 1200);
+
+                    // livePoints: 세션 상대 시간으로 차트에 실시간 표시
+                    const sessionTime = (absTime - preChargeStartRef.current) / 1000;
+                    const m = Math.floor(sessionTime / 60);
+                    const s = Math.floor(sessionTime % 60);
+                    setLivePoints((prev) => [
+                        ...prev,
+                        {
+                            time: sessionTime,
+                            label: `${m}:${String(s).padStart(2, '0')}`,
+                            ...pointData,
+                        },
+                    ]);
                 }
             } catch {
                 setConnected(false);

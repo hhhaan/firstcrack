@@ -37,9 +37,11 @@ interface Props {
 }
 
 const fmtSec = (v: number) => {
-    const m = Math.floor(v / 60);
-    const s = Math.round(v % 60);
-    return `${m}:${String(s).padStart(2, '0')}`;
+    const sign = v < 0 ? '-' : '';
+    const abs = Math.abs(v);
+    const m = Math.floor(abs / 60);
+    const s = Math.round(abs % 60);
+    return `${sign}${m}:${String(s).padStart(2, '0')}`;
 };
 
 export const RoastTempChart: React.FC<Props> = ({
@@ -184,7 +186,7 @@ export const RoastTempChart: React.FC<Props> = ({
 
         const xMin = xs[0] ?? 0;
         const xMax = xs[xs.length - 1] ?? 1200;
-        const rightMargin = showRoR ? 65 : 65;
+        const rightMargin = showRoR ? 65 : 25;
 
         const tempSeries = [
             showTargetCurve && {
@@ -281,6 +283,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'value',
                         name: `Temperature (${unitLabel})`,
                         nameGap: 16,
+                        axisLine: { onZero: false },
                         axisLabel: { fontSize: 11, fontFamily: 'monospace' },
                         splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
                         minorTick: { show: true, splitNumber: 2 },
@@ -295,6 +298,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         name: `RoR (${rorUnit})`,
                         nameGap: 16,
                         position: 'right',
+                        axisLine: { onZero: false },
                         axisLabel: { fontSize: 11, fontFamily: 'monospace' },
                         splitLine: { show: false },
                         min: ROR_Y_MIN,
@@ -307,6 +311,8 @@ export const RoastTempChart: React.FC<Props> = ({
                         // TODO: RoastSettings에서 Drum 축 범위(min/max)를 사용자 설정 가능하게 연결
                         name: 'Drum (rpm)',
                         position: 'left',
+                        // onZero: false — x축에 음수 구간이 생겨도 y축 선이 x=0으로 이동하지 않고 좌측 끝에 고정. 절대 제거 금지.
+                        axisLine: { onZero: false },
                         axisLabel: { fontSize: 10, fontFamily: 'monospace' },
                         splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
                         min: 0,
@@ -317,6 +323,8 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'value',
                         name: 'Power / Speed (%)',
                         position: 'right',
+                        // onZero: false — x축에 음수 구간이 생겨도 y축 선이 x=0으로 이동하지 않고 우측 끝에 고정. 절대 제거 금지.
+                        axisLine: { onZero: false },
                         axisLabel: { fontSize: 10, fontFamily: 'monospace' },
                         splitLine: { show: false },
                         min: 0,
@@ -416,6 +424,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     type: 'value',
                     name: `Temperature (${unitLabel})`,
                     nameGap: 16,
+                    axisLine: { onZero: false },
                     axisLabel: { fontSize: 11, fontFamily: 'monospace' },
                     splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
                     min: temperatureUnit === 'F' ? 266 : 130,
@@ -427,6 +436,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     name: `RoR (${rorUnit})`,
                     nameGap: 16,
                     position: 'right',
+                    axisLine: { onZero: false },
                     axisLabel: { fontSize: 11, fontFamily: 'monospace' },
                     splitLine: { show: false },
                     min: ROR_Y_MIN,

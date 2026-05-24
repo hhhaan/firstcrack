@@ -21,6 +21,7 @@ export type RoastSettings = {
     yellowTempC: number;
     fcStartTempC: number;
     autoChargeDropC: number;
+    preChargeDisplaySec: number;
 };
 
 const DEFAULT_SETTINGS: RoastSettings = {
@@ -38,6 +39,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     yellowTempC: 150,
     fcStartTempC: 200,
     autoChargeDropC: 5,
+    preChargeDisplaySec: 60,
 };
 
 const isPollIntervalMs = (value: unknown): value is PollIntervalMs =>

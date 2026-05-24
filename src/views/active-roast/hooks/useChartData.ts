@@ -19,9 +19,11 @@ export const CHART_TOTAL_SECS = 780;
 export const useChartData = ({
     livePoints,
     targetProfile,
+    preChargeDisplaySec,
 }: {
     livePoints: LiveRoastPoint[];
     targetProfile: { drop_temp_celsius: number | null; duration_sec: number | null } | null;
+    preChargeDisplaySec: number;
 }) => {
     const targetCurve = useMemo(() => {
         if (!targetProfile?.drop_temp_celsius || !targetProfile?.duration_sec) return null;
@@ -83,14 +85,15 @@ export const useChartData = ({
         }
         deduped.sort((a, b) => a.time - b.time);
 
-        const needsStart = deduped.length === 0 || deduped[0].time > 0.5;
+        const xMin = -preChargeDisplaySec;
+        const needsStart = deduped.length === 0 || deduped[0].time > xMin + 0.5;
         const needsEnd = deduped.length === 0 || deduped[deduped.length - 1].time < CHART_TOTAL_SECS - 1;
         return [
-            ...(needsStart ? [sentinel(0)] : []),
+            ...(needsStart ? [sentinel(xMin)] : []),
             ...deduped,
             ...(needsEnd ? [sentinel(CHART_TOTAL_SECS)] : []),
         ];
-    }, [livePoints, targetCurve, targetSamples]);
+    }, [livePoints, targetCurve, targetSamples, preChargeDisplaySec]);
 
     return { targetCurve, chartData };
 };
