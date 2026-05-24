@@ -2,13 +2,20 @@
 // - Profile data → Supabase (roast_profiles table)
 // - defaultProfileId → localStorage only (per-device preference, not synced)
 
-import { Plus, Copy, Pencil, Trash2, MoreHorizontal, Star, GitCompare, Check } from 'lucide-react';
+import { Plus, Copy, Pencil, Trash2, MoreHorizontal, Star, GitCompare, Check, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { type View } from '@shared/types/view';
 import { PageLayout } from '@shared/ui/PageLayout';
 import uPlot from 'uplot';
 import { generateProfileCurve, DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
-import { useRoastProfiles, useCreateRoastProfile, useDeleteRoastProfile } from '@entities/roast-profile';
+import {
+    useRoastProfiles,
+    useCreateRoastProfile,
+    useDeleteRoastProfile,
+    useRoastProfileCurve,
+    useRoastProfileCurves,
+    type RoastProfileWithSource,
+} from '@entities/roast-profile';
 import { useAuthStore } from '@shared/store/auth';
 import { NewProfileModal } from './NewProfileModal';
 import type { RoastProfile } from '@shared/types/database.types';
@@ -49,7 +56,7 @@ interface SeriesData {
     label: string;
 }
 
-const TABLE_ROWS: { label: string; getValue: (p: RoastProfile) => string }[] = [
+const TABLE_ROWS: { label: string; getValue: (p: RoastProfileWithSource) => string }[] = [
     { label: 'Duration', getValue: (p) => fmtDuration(p.duration_sec) },
     { label: 'Drop Temp', getValue: (p) => p.drop_temp_celsius != null ? `${p.drop_temp_celsius}°C` : '—' },
     { label: 'Charge Temp', getValue: (p) => p.charge_temp_celsius != null ? `${p.charge_temp_celsius}°C` : '—' },
@@ -230,8 +237,14 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
     const selected = profiles.find((p) => p.id === selectedId) ?? null;
 
-    const curveFor = (p: RoastProfile) =>
+    // Sparkline은 항상 합성 곡선(R2 fetch 회피, 리스트 진입 비용 절감).
+    const syntheticCurve = (p: RoastProfileWithSource) =>
         generateProfileCurve(p.drop_temp_celsius ?? 200, p.duration_sec ?? 720);
+
+    // 단일 상세: selected의 source_session.tsv_path가 있을 때만 R2에서 실측 fetch.
+    const selectedTsvPath = selected?.source_session?.tsv_path ?? null;
+    const { data: selectedRealCurve = [] } = useRoastProfileCurve(selectedTsvPath);
+    const selectedHasReal = selectedRealCurve.length > 0;
 
     const setDefault = (id: string) => {
         setDefaultId(id);
@@ -277,16 +290,27 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
     const primaryId = compareMode ? (compareIds[0] ?? selectedId ?? '') : selectedId ?? '';
     const compareProfiles = compareMode
-        ? (compareIds.map((id) => profiles.find((p) => p.id === id)).filter(Boolean) as RoastProfile[])
+        ? (compareIds.map((id) => profiles.find((p) => p.id === id)).filter(Boolean) as RoastProfileWithSource[])
         : [];
 
-    const chartSeries: SeriesData[] = compareProfiles.map((p, i) => ({
-        curve: curveFor(p),
-        color: COMPARE_COLORS[i],
-        label: p.name,
-    }));
+    // 비교 모드: 각 프로파일의 실측 곡선을 독립적으로 fetch.
+    const compareCurveQueries = useRoastProfileCurves(
+        compareProfiles.map((p) => p.source_session?.tsv_path),
+        compareProfiles.map((p) => p.id),
+    );
 
-    const chartKey = compareMode ? compareIds.join(',') : (selectedId ?? '');
+    const chartSeries: SeriesData[] = compareProfiles.map((p, i) => {
+        const real = compareCurveQueries[i]?.data ?? [];
+        const curve = real.length > 0
+            ? real.map((pt) => ({ t: pt.t, bt: pt.bt }))
+            : syntheticCurve(p);
+        return { curve, color: COMPARE_COLORS[i], label: p.name };
+    });
+
+    // chartKey에 데이터 길이를 포함 — 비동기 fetch 완료 시 ProfileCurveChart remount.
+    const chartKey = compareMode
+        ? `${compareIds.join(',')}|${compareCurveQueries.map((q) => q.data?.length ?? 0).join(',')}`
+        : `${selectedId ?? ''}|${selectedRealCurve.length}`;
 
     if (isLoading) {
         return (
@@ -383,7 +407,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                         </div>
                                     )}
 
-                                    <Sparkline data={curveFor(profile)} color={sparkColor} />
+                                    <Sparkline data={syntheticCurve(profile)} color={sparkColor} />
 
                                     <div className="flex items-start justify-between">
                                         <div>
@@ -446,12 +470,20 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 </div>
 
                                 <div className="flex flex-wrap gap-2 mb-5">
-                                    {compareProfiles.map((p, i) => (
-                                        <div key={p.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface ">
-                                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COMPARE_COLORS[i] }} />
-                                            <span className="text-[12px] font-medium text-secondary tracking-[0.14px]">{p.name}</span>
-                                        </div>
-                                    ))}
+                                    {compareProfiles.map((p, i) => {
+                                        const hasReal = (compareCurveQueries[i]?.data?.length ?? 0) > 0;
+                                        return (
+                                            <div key={p.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface ">
+                                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COMPARE_COLORS[i] }} />
+                                                <span className="text-[12px] font-medium text-secondary tracking-[0.14px]">{p.name}</span>
+                                                {!hasReal && (
+                                                    <span title="기록된 데이터 없음 · 참고용 곡선" className="flex items-center">
+                                                        <AlertCircle size={10} strokeWidth={2} className="text-amber-500" />
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
 
                                 <div className="bg-surface rounded-lg  overflow-hidden mb-5">
@@ -509,10 +541,26 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                             </div>
 
                             <div className="bg-surface rounded-lg px-4 pt-4 pb-2 mb-5 ">
-                                <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">Profile Curve</div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase">Profile Curve</div>
+                                    {!selectedHasReal && (
+                                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50">
+                                            <AlertCircle size={10} strokeWidth={2} className="text-amber-500" />
+                                            <span className="text-[10px] font-medium text-amber-700 tracking-[0.2px]">
+                                                기록된 데이터 없음 · 참고용 곡선
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
                                 <ProfileCurveChart
                                     key={chartKey}
-                                    series={[{ curve: curveFor(selected), color: 'var(--color-primary)', label: selected.name }]}
+                                    series={[{
+                                        curve: selectedHasReal
+                                            ? selectedRealCurve.map((pt) => ({ t: pt.t, bt: pt.bt }))
+                                            : syntheticCurve(selected),
+                                        color: 'var(--color-primary)',
+                                        label: selected.name,
+                                    }]}
                                 />
                             </div>
 

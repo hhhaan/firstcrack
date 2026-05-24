@@ -4,15 +4,21 @@ import type { RoastProfile } from '@shared/types/database.types';
 type RoastProfileInsert = Omit<RoastProfile, 'id' | 'created_at' | 'updated_at'>;
 type RoastProfileUpdate = { id: string } & Partial<Omit<RoastProfile, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;
 
+export type RoastProfileWithSource = RoastProfile & {
+    source_session: { tsv_path: string | null } | null;
+};
+
+const SELECT_WITH_SOURCE = '*, source_session:roast_sessions!source_session_id(tsv_path)';
+
 export const roastProfileApi = {
-    list: async (userId: string): Promise<RoastProfile[]> => {
+    list: async (userId: string): Promise<RoastProfileWithSource[]> => {
         const { data, error } = await supabase
             .from('roast_profiles')
-            .select('*')
+            .select(SELECT_WITH_SOURCE)
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
         if (error) throw error;
-        return data ?? [];
+        return (data ?? []) as unknown as RoastProfileWithSource[];
     },
 
     create: async (profile: RoastProfileInsert): Promise<RoastProfile> => {
