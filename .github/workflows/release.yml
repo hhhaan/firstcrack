@@ -112,7 +112,7 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.sig
 
   publish-r2:
-    needs: [build]
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
