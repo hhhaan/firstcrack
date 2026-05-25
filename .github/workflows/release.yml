@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v2
         with:
           version: 10
 
@@ -70,7 +70,7 @@ jobs:
         run: npm run build:sidecar
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v0.5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -81,7 +81,7 @@ jobs:
           VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
           VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
           VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
-          CARGO_INCREMENTAL: "0"
+          CARGO_INCREMENTAL: "1"
           # macOS 코드 사이닝 & 노타리제이션 (Apple Developer Program)
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -110,8 +110,6 @@ jobs:
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.sig
-            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.nsis.zip
-            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.nsis.zip.sig
 
   publish-r2:
     needs: [build]
@@ -140,30 +138,32 @@ jobs:
         run: |
           set -e
 
-          # Upload all binaries under releases/{version}/
-          find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.sig" -o -name "*.msi" -o -name "*.nsis.zip" \) | while IFS= read -r FILE; do
-            FILENAME=$(basename "$FILE")
-            aws s3 cp "$FILE" "s3://$R2_BUCKET/releases/$VERSION/$FILENAME" \
-              --endpoint-url "$R2_ENDPOINT" --region auto
-          done
+          # Upload all binaries under releases/{version}/ (parallel)
+          find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.sig" -o -name "*.msi" \) | \
+            xargs -I {} -P 4 bash -c 'aws s3 cp "$1" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$1")" --endpoint-url "$R2_ENDPOINT" --region auto' _ {}
 
           # Build latest.json
           AARCH64_SIG=$(find artifacts -name "*aarch64.app.tar.gz.sig" | head -1)
           X64_SIG=$(find artifacts -name "*x64.app.tar.gz.sig" | head -1)
-          WIN_SIG=$(find artifacts -name "*.nsis.zip.sig" | head -1)
+          WIN_MSI_SIG=$(find artifacts -name "*.msi.sig" | head -1)
           AARCH64_TAR_NAME=$(find artifacts -name "*aarch64.app.tar.gz" -exec basename {} \; | head -1)
           X64_TAR_NAME=$(find artifacts -name "*x64.app.tar.gz" -exec basename {} \; | head -1)
-          WIN_ZIP_NAME=$(find artifacts -name "*.nsis.zip" -not -name "*.sig" -exec basename {} \; | head -1)
+          WIN_MSI_NAME=$(find artifacts -name "*.msi" -not -name "*.sig" -exec basename {} \; | head -1)
+
+          # Validate critical artifacts exist
+          [ -z "$AARCH64_TAR_NAME" ] && echo "ERROR: macOS arm64 artifact not found" && exit 1
+          [ -z "$X64_TAR_NAME" ] && echo "ERROR: macOS x64 artifact not found" && exit 1
+          [ -z "$WIN_MSI_NAME" ] && echo "ERROR: Windows MSI artifact not found" && exit 1
 
           jq --null-input \
             --arg version "$VERSION" \
             --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg aarch64_sig "$(cat "$AARCH64_SIG")" \
+            --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
             --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_NAME" \
-            --arg x64_sig "$(cat "$X64_SIG")" \
+            --arg x64_sig "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
             --arg x64_url "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_NAME" \
-            --arg win_sig "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
-            --arg win_url "$R2_PUBLIC_URL/releases/$VERSION/$WIN_ZIP_NAME" \
+            --arg win_sig "$([ -n "$WIN_MSI_SIG" ] && cat "$WIN_MSI_SIG" || echo "")" \
+            --arg win_url "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_NAME" \
             '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
             > latest.json
 
@@ -173,11 +173,11 @@ jobs:
           # Upload fixed-name aliases to releases/latest/ for landing page links
           AARCH64_DMG=$(find artifacts -name "*aarch64.dmg" | head -1)
           X64_DMG=$(find artifacts -name "*x64.dmg" | head -1)
-          WIN_MSI=$(find artifacts -name "*.msi" | head -1)
+          WIN_MSI=$(find artifacts -name "*.msi" -not -name "*.sig" | head -1)
 
-          aws s3 cp "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" \
+          [ -n "$AARCH64_DMG" ] && aws s3 cp "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" \
             --endpoint-url "$R2_ENDPOINT" --region auto
-          aws s3 cp "$X64_DMG"    "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" \
+          [ -n "$X64_DMG" ] && aws s3 cp "$X64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" \
             --endpoint-url "$R2_ENDPOINT" --region auto
-          aws s3 cp "$WIN_MSI"    "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" \
+          [ -n "$WIN_MSI" ] && aws s3 cp "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" \
             --endpoint-url "$R2_ENDPOINT" --region auto
