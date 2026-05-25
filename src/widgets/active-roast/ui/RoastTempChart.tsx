@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import * as echarts from 'echarts';
 import type { EChartsOption } from 'echarts';
 import { CHART_COLORS, CONTROL_COLORS, ROR_Y_MIN, ROR_Y_MAX } from '@features/active-roast/lib/chart-config';
-import type { TurningPoint, TemperatureUnit } from '@features/active-roast';
+import type { TurningPoint, TemperatureUnit, PhaseSegment } from '@features/active-roast';
 
 export interface RoastEventMarker {
     timeSec: number;
@@ -36,6 +36,7 @@ interface Props {
     showRoRET?: boolean;
     rorEtActual?: (number | null)[];
     controlData?: ControlData;
+    phaseSegments?: PhaseSegment[];
 }
 
 const fmtSec = (v: number) => {
@@ -63,16 +64,10 @@ export const RoastTempChart: React.FC<Props> = ({
     showRoRET = false,
     rorEtActual = [],
     controlData,
+    phaseSegments = [],
 }) => {
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
-
-    // TP 디버그 로그 (콘솔에서 확인 필수!)
-    useEffect(() => {
-        if (turningPoints.length > 0) {
-            console.log('🔥 TP 감지됨!', turningPoints);
-        }
-    }, [turningPoints]);
 
     // ECharts 초기화
     useEffect((): (() => void) | undefined => {
@@ -101,35 +96,22 @@ export const RoastTempChart: React.FC<Props> = ({
         const unitLabel = temperatureUnit === 'C' ? '℃' : '℉';
         const rorUnit = temperatureUnit === 'C' ? '℃/min' : '℉/min';
 
-        // 🔥 TypeError: undefined is not an object (data.getRawIndex) 해결
+        // 🔥 TypeError 해결: ECharts가 undefined 값을 처리 못해서
+        // 명시적으로 [x값, y값] 튜플로 변환하면 getRawIndex 에러 방지
+        // arr[i]가 undefined면 null로 변환하여 ECharts 렌더링 안정화
         const makeSeriesData = (arr: (number | null)[]) => xs.map((x, i) => [x, arr[i] ?? null]);
 
-        /**
-         * 커피 로스팅 차트에 최적화된 스무딩 설정
-         * - BT: 0.42 (자연스러운 곡선)
-         * - ET: 0.38 (BT보다 약간 덜 휘게)
-         * - RoR: 0.28 (노이즈 많아서 더 부드럽게)
-         */
+        // 커피 로스팅 차트에 최적화된 스무딩 설정
+        // - BT(Bean Temp): 0.42 → 자연스러운 곡선, 노이즈 최소화
+        // - ET(Environment Temp): 0.38 → BT보다 약간 덜 휘게 (안정적 표현)
+        // - RoR(Rate of Rise): 0.28 → 센서 노이즈 많아서 더 부드럽게
+        // - smoothMonotone 'x' → 시간축 방향으로만 스무딩 (역행 방지)
+        // - sampling 'lttb' → Largest-Triangle-Three-Buckets 알고리즘 (성능 + 품질)
         const getSmoothConfig = (strength: number = 0.4) => ({
             smooth: strength,
-            smoothMonotone: 'x' as const, // 시간축 방향으로만 스무딩 (역행 방지)
+            smoothMonotone: 'x' as const,
             sampling: 'lttb' as const,
         });
-        // const currentTimeMarkLine = {
-        //     data: [
-        //         {
-        //             xAxis: currentTimeSec,
-        //             lineStyle: { color: CHART_COLORS.currentTimeLine, width: 2, type: 'solid' as const },
-        //             label: {
-        //                 formatter: `NOW\n${fmtSec(currentTimeSec)}`,
-        //                 position: 'top',
-        //                 color: CHART_COLORS.nowLabel,
-        //                 fontWeight: 700,
-        //                 fontSize: 11,
-        //             },
-        //         },
-        //     ],
-        // };
 
         const tpMarkLines = turningPoints.map((tp) => ({
             xAxis: tp.timeSec,
@@ -167,8 +149,7 @@ export const RoastTempChart: React.FC<Props> = ({
             },
         }));
 
-        const markPointData = [
-            ...eventMarkers.map((m) => ({
+        const markPointData = eventMarkers.map((m) => ({
                 name: m.event,
                 value: [m.timeSec, null],
                 xAxis: m.timeSec,
@@ -185,8 +166,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     padding: [2, 4],
                     borderRadius: 2,
                 },
-            })),
-        ];
+        }));
 
         const xMin = xs[0] ?? 0;
         const xMax = xs[xs.length - 1] ?? 1200;
@@ -257,15 +237,132 @@ export const RoastTempChart: React.FC<Props> = ({
             },
         ].filter(Boolean) as object[];
 
+        // ── Phase bar (로스팅 단계 시각화) ────────────────────────────────────
+        // 로스팅 프로필을 "Dry", "Development", "Cooling" 등의 단계로 나누어
+        // 차트 하단에 색상 막대로 표시하고 각 단계의 시간과 비율을 표기.
+        // - phaseSegments가 있을 때만 활성화
+        // - 활성화 시 하단에 별도 grid(3번째)를 추가하고 시간 축 라벨을 그쪽으로 이동
+        const hasPhaseBar = phaseSegments.length > 0;
+        const PHASE_BAR_HEIGHT = 26;
+        const PHASE_BAR_BOTTOM = 40; // 하단 시간 라벨 영역 확보용
+
+        const buildPhaseSeries = (xAxisIdx: number, yAxisIdx: number) => ({
+            type: 'custom' as const,
+            xAxisIndex: xAxisIdx,
+            yAxisIndex: yAxisIdx,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            renderItem: (params: any, api: any) => {
+                // 시간축(x) 데이터를 픽셀 좌표로 변환
+                const startPx = api.coord([api.value(0), 0])[0];
+                const endPx = api.coord([api.value(1), 0])[0];
+                const width = Math.max(0, endPx - startPx);
+                const { y, height: h } = params.coordSys;
+
+                // 각 단계의 메타데이터
+                const durSec = api.value(2) as number;
+                const pct = api.value(3) as number;
+                const color = api.value(4) as string;
+                const name = api.value(5) as string;
+                const durMin = Math.floor(durSec / 60);
+                const durS = String(durSec % 60).padStart(2, '0');
+                const durLabel = `${durMin}:${durS}  ${pct}%`;
+
+                // 단계별 배경 박스 생성
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const children: any[] = [
+                    {
+                        type: 'rect',
+                        shape: { x: startPx, y, width, height: h },
+                        style: { fill: color, stroke: 'rgba(0,0,0,0.08)', lineWidth: 0.5 },
+                        silent: true,
+                    },
+                ];
+
+                // 너비에 따라 텍스트 배치 전략 변경
+                // - width > 70px: 단계명 좌측 + 시간 우측 (여유있음)
+                // - width > 30px: 시간을 중앙에 (공간 제한)
+                // - width ≤ 30px: 텍스트 생략 (너무 좁음)
+                if (width > 70) {
+                    children.push({
+                        type: 'text',
+                        style: {
+                            text: name,
+                            x: startPx + 6,
+                            y: y + h / 2,
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                            fontWeight: 600,
+                            fill: '#444',
+                            textVerticalAlign: 'middle',
+                        },
+                        silent: true,
+                    });
+                    children.push({
+                        type: 'text',
+                        style: {
+                            text: durLabel,
+                            x: endPx - 6,
+                            y: y + h / 2,
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                            fill: '#555',
+                            textAlign: 'right',
+                            textVerticalAlign: 'middle',
+                        },
+                        silent: true,
+                    });
+                } else if (width > 30) {
+                    children.push({
+                        type: 'text',
+                        style: {
+                            text: durLabel,
+                            x: (startPx + endPx) / 2,
+                            y: y + h / 2,
+                            fontSize: 9,
+                            fontFamily: 'monospace',
+                            fill: '#555',
+                            textAlign: 'center',
+                            textVerticalAlign: 'middle',
+                        },
+                        silent: true,
+                    });
+                }
+
+                return { type: 'group', children };
+            },
+            // 각 단계 데이터: [startSec, endSec, durationSec, percentage, color, name]
+            data: phaseSegments.map((seg) => [
+                seg.startSec,
+                seg.endSec,
+                seg.durationSec,
+                seg.pct,
+                seg.color,
+                seg.name,
+            ]),
+            z: 5,
+        });
+
         if (controlData) {
             const { xs: cxs, drumTemp, heatPower, fanSpeed } = controlData;
+            // Grid 레이아웃:
+            // [0] 온도 차트 (BT, ET, RoR) - 상단 61%
+            // [1] 제어 데이터 (Heat Power, Fan Speed) - 중단 이후 하단까지
+            // [2] Phase bar (선택) - 맨 하단 26px (있을 때만)
+            //
+            // 시간 축 라벨은:
+            // - Phase bar 있으면 → grid[2] 하단에 표시
+            // - Phase bar 없으면 → grid[1] 하단에 표시
+            const controlBottom = hasPhaseBar ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + 6 : 40;
             return {
                 backgroundColor: 'transparent',
                 animation: false,
                 axisPointer: { link: [{ xAxisIndex: 'all' }], label: { show: false } },
                 grid: [
                     { left: 55, right: rightMargin, top: 20, height: '61%' },
-                    { left: 55, right: rightMargin, top: '68%', bottom: 40 },
+                    { left: 55, right: rightMargin, top: '68%', bottom: controlBottom },
+                    ...(hasPhaseBar
+                        ? [{ left: 55, right: rightMargin, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
+                        : []),
                 ],
                 xAxis: [
                     {
@@ -285,11 +382,28 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'value',
                         min: xMin,
                         max: xMax,
-                        axisLabel: { formatter: fmtSec, fontSize: 11, fontFamily: 'monospace' },
+                        axisLabel: hasPhaseBar
+                            ? { show: false }
+                            : { formatter: fmtSec, fontSize: 11, fontFamily: 'monospace' },
+                        axisTick: hasPhaseBar ? { show: false } : undefined,
                         interval: 60,
                         splitNumber: 15,
                         splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
                     },
+                    ...(hasPhaseBar
+                        ? [{
+                              gridIndex: 2,
+                              type: 'value' as const,
+                              min: xMin,
+                              max: xMax,
+                              axisLabel: { formatter: fmtSec, fontSize: 11, fontFamily: 'monospace' as const },
+                              axisTick: { show: false },
+                              axisLine: { show: false },
+                              splitLine: { show: false },
+                              interval: 60,
+                              splitNumber: 15,
+                          }]
+                        : []),
                 ],
                 yAxis: [
                     {
@@ -344,6 +458,15 @@ export const RoastTempChart: React.FC<Props> = ({
                         min: 0,
                         max: 100,
                     },
+                    ...(hasPhaseBar
+                        ? [{
+                              gridIndex: 2,
+                              type: 'value' as const,
+                              min: 0,
+                              max: 1,
+                              show: false,
+                          }]
+                        : []),
                 ],
                 tooltip: {
                     trigger: 'axis',
@@ -386,8 +509,8 @@ export const RoastTempChart: React.FC<Props> = ({
                         showSymbol: false,
                         step: 'end',
                         smooth: false,
-                        // areaStyle: { color: CONTROL_COLORS.fanArea },
                     },
+                    ...(hasPhaseBar ? [buildPhaseSeries(2, 4)] : []),
                 ],
                 dataZoom: [
                     { type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true },
@@ -396,10 +519,16 @@ export const RoastTempChart: React.FC<Props> = ({
             };
         }
 
+        const singleBottom = hasPhaseBar ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + 6 : 65;
         return {
             backgroundColor: 'transparent',
             animation: false,
-            grid: { left: 55, right: showRoR ? 65 : 25, top: 20, bottom: 65 },
+            grid: [
+                { left: 55, right: showRoR ? 65 : 25, top: 20, bottom: singleBottom },
+                ...(hasPhaseBar
+                    ? [{ left: 55, right: showRoR ? 65 : 25, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
+                    : []),
+            ],
             tooltip: {
                 trigger: 'axis',
                 axisPointer: { type: 'cross', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
@@ -421,20 +550,41 @@ export const RoastTempChart: React.FC<Props> = ({
                     return html;
                 },
             },
-            xAxis: {
-                type: 'value',
-                name: 'Time (min)',
-                nameLocation: 'middle',
-                nameGap: 16,
-                min: xMin,
-                max: xMax,
-                axisLabel: { formatter: (v: number) => fmtSec(v), fontSize: 11, fontFamily: 'monospace' },
-                interval: 60,
-                splitNumber: 15,
-                splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 1 } },
-            },
+            xAxis: [
+                {
+                    gridIndex: 0,
+                    type: 'value',
+                    name: hasPhaseBar ? undefined : 'Time (min)',
+                    nameLocation: 'middle',
+                    nameGap: 16,
+                    min: xMin,
+                    max: xMax,
+                    axisLabel: hasPhaseBar
+                        ? { show: false }
+                        : { formatter: (v: number) => fmtSec(v), fontSize: 11, fontFamily: 'monospace' },
+                    axisTick: hasPhaseBar ? { show: false } : undefined,
+                    interval: 60,
+                    splitNumber: 15,
+                    splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 1 } },
+                },
+                ...(hasPhaseBar
+                    ? [{
+                          gridIndex: 1,
+                          type: 'value' as const,
+                          min: xMin,
+                          max: xMax,
+                          axisLabel: { formatter: fmtSec, fontSize: 11, fontFamily: 'monospace' as const },
+                          axisTick: { show: false },
+                          axisLine: { show: false },
+                          splitLine: { show: false },
+                          interval: 60,
+                          splitNumber: 15,
+                      }]
+                    : []),
+            ],
             yAxis: [
                 {
+                    gridIndex: 0,
                     type: 'value',
                     name: `Temperature (${unitLabel})`,
                     nameGap: 16,
@@ -446,6 +596,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     interval: 20,
                 },
                 {
+                    gridIndex: 0,
                     type: 'value',
                     name: `RoR (${rorUnit})`,
                     nameGap: 16,
@@ -457,8 +608,17 @@ export const RoastTempChart: React.FC<Props> = ({
                     max: ROR_Y_MAX,
                     interval: 20,
                 },
+                ...(hasPhaseBar
+                    ? [{
+                          gridIndex: 1,
+                          type: 'value' as const,
+                          min: 0,
+                          max: 1,
+                          show: false,
+                      }]
+                    : []),
             ],
-            series: tempSeries,
+            series: [...tempSeries, ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : [])],
             dataZoom: [{ type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true }],
         };
     }, [
@@ -476,15 +636,20 @@ export const RoastTempChart: React.FC<Props> = ({
         showRoRET,
         rorEtActual,
         controlData,
+        phaseSegments,
     ]);
 
-    // 옵션 적용 — controlData 유무가 바뀌면 (single↔combined) notMerge로 완전 교체
+    // 옵션 적용 — controlData/phaseBar 유무가 바뀌면 grid/axis 구조가 달라지므로 notMerge로 완전 교체
     const prevHasControlData = useRef(!!controlData);
+    const prevHasPhaseBar = useRef(phaseSegments.length > 0);
     useEffect(() => {
         const chart = chartInstanceRef.current;
         if (!chart) return;
-        const structureChanged = prevHasControlData.current !== !!controlData;
+        const hasPhaseBar = phaseSegments.length > 0;
+        const structureChanged =
+            prevHasControlData.current !== !!controlData || prevHasPhaseBar.current !== hasPhaseBar;
         prevHasControlData.current = !!controlData;
+        prevHasPhaseBar.current = hasPhaseBar;
         chart.setOption(option, {
             notMerge: structureChanged,
             lazyUpdate: !structureChanged,

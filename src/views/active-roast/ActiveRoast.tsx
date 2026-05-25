@@ -21,7 +21,7 @@ import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 
 import type { LogEntry } from '@shared/types/roast';
 import { sidecar } from '@shared/lib/sidecar';
-import { useRoastSettings, toDisplayTemp, toDisplayRoR, formatTemp } from '@features/active-roast';
+import { useRoastSettings, toDisplayTemp, toDisplayRoR, formatTemp, computePhaseSegments } from '@features/active-roast';
 
 import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog } from '@widgets/active-roast';
 import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
@@ -30,6 +30,7 @@ import { useAutoDetection } from '@features/active-roast/model/useAutoDetection'
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
+import { useUpdatePlanBatch } from '@entities/plan';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 
 import { useSidecarPolling } from './hooks/useSidecarPolling';
@@ -130,7 +131,6 @@ export const ActiveRoast = ({
         enterPreheating,
         setConnected,
         roastStartTimeRef,
-        tpTimeSecRef,
         sessionId,
         preChargeDisplaySec: roastSettings.preChargeDisplaySec,
     });
@@ -179,9 +179,13 @@ export const ActiveRoast = ({
     }, [isFullscreen, setZoomRange]);
 
     // ── 차트 가시 영역 데이터 ────────────────────────────────────
-    const visibleChartData = effectiveZoomRange
-        ? chartData.filter((p) => p.time >= effectiveZoomRange.start && p.time <= effectiveZoomRange.end)
-        : chartData;
+    const visibleChartData = useMemo(
+        () =>
+            effectiveZoomRange
+                ? chartData.filter((p) => p.time >= effectiveZoomRange.start && p.time <= effectiveZoomRange.end)
+                : chartData,
+        [chartData, effectiveZoomRange],
+    );
 
     const { visibleXs, visibleBtTarget, visibleBtActual, visibleEtActual, visibleRorActual, visibleRorEtActual } = useMemo(() => {
         const xs: number[] = [];
@@ -368,6 +372,7 @@ export const ActiveRoast = ({
     // ── 사용자 인증 + 로스팅 저장 ─────────────────────────────────
     const { mutateAsync: saveRoastSession } = useCreateRoastSession(user?.id ?? '');
     const { mutateAsync: createInventoryLog } = useCreateBeanInventoryLog(user?.id ?? '');
+    const { mutateAsync: updatePlanBatch } = useUpdatePlanBatch(planBatchHandoff?.planId ?? '');
     useEffect(() => {
         tpTimeSecRef.current = turningPoints[0]?.timeSec ?? null;
     }, [turningPoints]);
@@ -403,18 +408,24 @@ export const ActiveRoast = ({
             ? PHASE_COLORS.maillard
             : PHASE_COLORS.drying;
 
-    const eventMarkerColor = EVENT_MARKER_COLORS;
-
     const eventMarkers = useMemo(
         (): RoastEventMarker[] =>
             logEntries
-                .filter((e) => eventMarkerColor[e.event] && e.event !== 'TP')
+                .filter((e) => EVENT_MARKER_COLORS[e.event] && e.event !== 'TP')
                 .map((e) => {
                     const [min, sec] = e.time.split(':').map(Number);
                     const timeSec = Math.max(0, min * 60 + sec);
-                    return { timeSec, event: e.event, color: eventMarkerColor[e.event] };
+                    return { timeSec, event: e.event, color: EVENT_MARKER_COLORS[e.event] };
                 }),
-        [logEntries, eventMarkerColor],
+        [logEntries],
+    );
+
+    const phaseSegments = useMemo(
+        () =>
+            roastSettings.showPhaseBar
+                ? computePhaseSegments(logEntries, elapsed, charged)
+                : [],
+        [roastSettings.showPhaseBar, logEntries, elapsed, charged],
     );
 
     const rawRoR = liveData?.ror ?? 0;
@@ -665,6 +676,7 @@ export const ActiveRoast = ({
                                       }
                                     : undefined
                             }
+                            phaseSegments={phaseSegments}
                         />
                     </div>
 
@@ -817,7 +829,7 @@ export const ActiveRoast = ({
                             <RoastLog
                                 variant="sidebar"
                                 entries={roastLogDisplayEntries}
-                                eventMarkerColor={eventMarkerColor}
+                                eventMarkerColor={EVENT_MARKER_COLORS}
                             />
                         </div>
                     )}
@@ -911,7 +923,7 @@ export const ActiveRoast = ({
 
                 <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
                     <h3 className="text-sm font-medium text-primary tracking-[0.14px] mb-3.5">Roast Log</h3>
-                    <RoastLog variant="main" entries={roastLogDisplayEntries} eventMarkerColor={eventMarkerColor} />
+                    <RoastLog variant="main" entries={roastLogDisplayEntries} eventMarkerColor={EVENT_MARKER_COLORS} />
                 </div>
             </div>
 
@@ -925,7 +937,7 @@ export const ActiveRoast = ({
                 open={showSummaryModal}
                 summaryData={summaryData}
                 roastNotes={roastNotes}
-                eventMarkerColor={eventMarkerColor}
+                eventMarkerColor={EVENT_MARKER_COLORS}
                 onRoastNotesChange={setRoastNotes}
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
@@ -979,12 +991,12 @@ export const ActiveRoast = ({
 
                     const savedSession = await saveRoastSession({
                         user_id: user.id,
-                        weight_grams: 0,
+                        weight_grams: 0, // TODO: UI에서 로스트 전 또는 후 무게 입력받기
                         status: 'completed',
                         roasted_at: roastedAt,
                         duration_seconds: durationSeconds,
                         drop_temp_celsius: rawBT,
-                        roast_level: null,
+                        roast_level: null, // TODO: UI에서 로스트 레벨(light/medium/dark) 선택받기
                         scheduled_at: null,
                         notes: notes || null,
                         ambient_temp_celsius: weatherData?.temperature ?? null,
@@ -1002,6 +1014,13 @@ export const ActiveRoast = ({
                             type: 'roast',
                             roast_session_id: savedSession.id,
                         });
+                    }
+                    // TODO: 일반 로스팅(배치 없음) 시에도 생두 재고 감소 처리 필요.
+                    //       weight_grams UI 입력 기능 구현 후 여기서 createInventoryLog 호출 추가.
+
+                    // 배치의 모든 세션이 완료되면 status를 'done'으로 업데이트한다.
+                    if (batchDone && planBatchHandoff) {
+                        await updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' });
                     }
                     setShowSummaryModal(false);
                     setSummaryData(null);

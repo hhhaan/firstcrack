@@ -24,6 +24,11 @@ const visibilityOptions = [
     },
     { key: 'showRoRET' as const, label: 'ET Rate of Rise', description: 'ET RoR line in the RoR sub-chart' },
     { key: 'showControlChart' as const, label: 'Control Chart', description: 'Drum / Heat / Fan bottom chart (fullscreen only)' },
+    {
+        key: 'showPhaseBar' as const,
+        label: 'Phase Bar',
+        description: 'Bottom strip showing Drying / Maillard / Development with duration and percentage',
+    },
 ];
 
 const NumberInput = ({

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { RefObject } from 'react';
 
 /** 줌 시 보장하는 최소 표시 구간 (초) */
@@ -52,9 +52,13 @@ export const useChartZoom = (MAX_TIME: number, minTime: number = 0): ChartZoom =
         startRange: { start: number; end: number };
     } | null>(null);
 
-    const effectiveZoomRange = zoomRange
-        ? { start: Math.max(minTime, zoomRange.start), end: Math.min(MAX_TIME, zoomRange.end) }
-        : null;
+    const effectiveZoomRange = useMemo(
+        () =>
+            zoomRange
+                ? { start: Math.max(minTime, zoomRange.start), end: Math.min(MAX_TIME, zoomRange.end) }
+                : null,
+        [zoomRange, minTime, MAX_TIME],
+    );
 
     // uPlot이 height를 JS로 강제 설정하므로 flex-1 방식 대신 ResizeObserver로 높이를 계산한다.
     // ChartLegend는 absolute(0px 플로우), phase pill(~22px) + mb-3(12px) ≈ 36px를 뺀다.
@@ -77,7 +81,7 @@ export const useChartZoom = (MAX_TIME: number, minTime: number = 0): ChartZoom =
         if (event.deltaY < 0 && currentDuration <= MIN_VISIBLE_SECS) return;
         if (event.deltaY > 0 && currentStart === minTime && currentEnd === MAX_TIME) return;
         const rect = event.currentTarget.getBoundingClientRect();
-        const dataWidth = rect.width - Y_AXIS_WIDTH - RIGHT_PAD;
+        const dataWidth = getChartDataWidth(rect);
         const mouseX = event.clientX - rect.left - Y_AXIS_WIDTH;
         const pointerRatio = dataWidth > 0 ? Math.max(0, Math.min(1, mouseX / dataWidth)) : 0.5;
         const focusTime = currentStart + pointerRatio * currentDuration;

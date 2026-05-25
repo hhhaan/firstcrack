@@ -8,3 +8,5 @@ export type { RoastingState, RoastPhase } from './model/status';
 export { toDisplayTemp, formatTemp, toDisplayRoR } from './lib/temperature';
 export { detectTurningPoints } from './lib/turningPoints';
 export type { TurningPoint } from './lib/turningPoints';
+export { computePhaseSegments } from './lib/phases';
+export type { PhaseSegment } from './lib/phases';

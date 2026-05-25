@@ -31,8 +31,6 @@ interface Params {
     setConnected: (connected: boolean, capabilities?: string[]) => void;
     /** Charge 시각 (ms). 0이면 로스팅 미시작 */
     roastStartTimeRef: MutableRefObject<number>;
-    /** TP 확정 시각 (초). null이면 미확정 */
-    tpTimeSecRef: MutableRefObject<number | null>;
     /** Charge 시 생성된 세션 UUID. null이면 미시작 */
     sessionId: string | null;
     /** Charge 이전 그래프에 표시할 구간 (초) */
