@@ -41,6 +41,7 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          key: rust-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'src-tauri/tauri.conf.json') }}
 
       - name: Install frontend deps
         run: pnpm install
