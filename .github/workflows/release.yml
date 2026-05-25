@@ -81,7 +81,8 @@ jobs:
           VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
           VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
           VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
-          CARGO_INCREMENTAL: "1"
+          CARGO_INCREMENTAL: "0"
+          RUSTFLAGS: "-C debuginfo=0"
           # macOS 코드 사이닝 & 노타리제이션 (Apple Developer Program)
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -101,6 +102,7 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
+          retention-days: 7
 
       - name: Upload Windows artifacts
         if: runner.os == 'Windows'
@@ -110,6 +112,7 @@ jobs:
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.sig
+          retention-days: 7
 
   publish-r2:
     needs: build
@@ -144,10 +147,10 @@ jobs:
 
           # Build latest.json
           AARCH64_SIG=$(find artifacts -name "*aarch64.app.tar.gz.sig" | head -1)
-          X64_SIG=$(find artifacts -name "*x64.app.tar.gz.sig" | head -1)
+          X64_SIG=$(find artifacts -name "*x86_64.app.tar.gz.sig" | head -1)
           WIN_MSI_SIG=$(find artifacts -name "*.msi.sig" | head -1)
           AARCH64_TAR_NAME=$(find artifacts -name "*aarch64.app.tar.gz" -exec basename {} \; | head -1)
-          X64_TAR_NAME=$(find artifacts -name "*x64.app.tar.gz" -exec basename {} \; | head -1)
+          X64_TAR_NAME=$(find artifacts -name "*x86_64.app.tar.gz" -exec basename {} \; | head -1)
           WIN_MSI_NAME=$(find artifacts -name "*.msi" -not -name "*.sig" -exec basename {} \; | head -1)
 
           # Validate critical artifacts exist
@@ -172,7 +175,7 @@ jobs:
 
           # Upload fixed-name aliases to releases/latest/ for landing page links
           AARCH64_DMG=$(find artifacts -name "*aarch64.dmg" | head -1)
-          X64_DMG=$(find artifacts -name "*x64.dmg" | head -1)
+          X64_DMG=$(find artifacts -name "*x86_64.dmg" | head -1)
           WIN_MSI=$(find artifacts -name "*.msi" -not -name "*.sig" | head -1)
 
           [ -n "$AARCH64_DMG" ] && aws s3 cp "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" \
