@@ -23,7 +23,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 10
 
       - uses: actions/setup-node@v4
         with:
@@ -42,7 +44,7 @@ jobs:
           key: rust-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'src-tauri/tauri.conf.json') }}
 
       - name: Install frontend deps
-        run: pnpm install --allow-scripts
+        run: pnpm install
 
       - name: Cache sidecar binary
         id: sidecar-cache
