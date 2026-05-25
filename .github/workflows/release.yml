@@ -138,47 +138,55 @@ jobs:
           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
         run: |
           set -e
+          S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
 
-          # Upload all binaries under releases/{version}/ (parallel)
-          find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.sig" -o -name "*.msi" \) | \
-            xargs -I {} -P 4 bash -c 'aws s3 cp "$1" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$1")" --endpoint-url "$R2_ENDPOINT" --region auto' _ {}
+          # Tauri 2.x app target produces "AppName.app.tar.gz" (no arch/version in name).
+          # Look up per-arch artifact directory to distinguish aarch64 vs x64.
+          AARCH64_TAR=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+          AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+          X64_TAR=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+          X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+          WIN_MSI=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi" ! -name "*.sig" | head -1)
+          WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
+          AARCH64_DMG=$(find artifacts/macos-aarch64-apple-darwin -name "*.dmg" | head -1)
+          X64_DMG=$(find artifacts/macos-x86_64-apple-darwin -name "*.dmg" | head -1)
+
+          # Validate
+          [ -z "$AARCH64_TAR" ] && echo "ERROR: macOS arm64 .app.tar.gz not found" && exit 1
+          [ -z "$X64_TAR" ]     && echo "ERROR: macOS x64 .app.tar.gz not found"   && exit 1
+          [ -z "$WIN_MSI" ]     && echo "ERROR: Windows MSI not found"              && exit 1
+
+          # Canonical R2 names (arch-suffixed to avoid collision)
+          AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
+          X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
+          WIN_MSI_R2=$(basename "$WIN_MSI")
+
+          # Upload updater artifacts with canonical names
+          $S3 "$AARCH64_TAR" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2"
+          [ -n "$AARCH64_SIG" ] && $S3 "$AARCH64_SIG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2.sig"
+          $S3 "$X64_TAR"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2"
+          [ -n "$X64_SIG" ]     && $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig"
+          $S3 "$WIN_MSI"    "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2"
+          [ -n "$WIN_SIG" ]     && $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig"
+          [ -n "$AARCH64_DMG" ] && $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")"
+          [ -n "$X64_DMG" ]     && $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")"
 
           # Build latest.json
-          AARCH64_SIG=$(find artifacts -name "*aarch64.app.tar.gz.sig" | head -1)
-          X64_SIG=$(find artifacts -name "*x86_64.app.tar.gz.sig" | head -1)
-          WIN_MSI_SIG=$(find artifacts -name "*.msi.sig" | head -1)
-          AARCH64_TAR_NAME=$(find artifacts -name "*aarch64.app.tar.gz" -exec basename {} \; | head -1)
-          X64_TAR_NAME=$(find artifacts -name "*x86_64.app.tar.gz" -exec basename {} \; | head -1)
-          WIN_MSI_NAME=$(find artifacts -name "*.msi" -not -name "*.sig" -exec basename {} \; | head -1)
-
-          # Validate critical artifacts exist
-          [ -z "$AARCH64_TAR_NAME" ] && echo "ERROR: macOS arm64 artifact not found" && exit 1
-          [ -z "$X64_TAR_NAME" ] && echo "ERROR: macOS x64 artifact not found" && exit 1
-          [ -z "$WIN_MSI_NAME" ] && echo "ERROR: Windows MSI artifact not found" && exit 1
-
           jq --null-input \
             --arg version "$VERSION" \
             --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
-            --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_NAME" \
+            --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
             --arg x64_sig "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
-            --arg x64_url "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_NAME" \
-            --arg win_sig "$([ -n "$WIN_MSI_SIG" ] && cat "$WIN_MSI_SIG" || echo "")" \
-            --arg win_url "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_NAME" \
+            --arg x64_url "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
+            --arg win_sig "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
+            --arg win_url "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
             '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
             > latest.json
 
-          aws s3 cp latest.json "s3://$R2_BUCKET/releases/latest.json" \
-            --endpoint-url "$R2_ENDPOINT" --region auto
+          $S3 latest.json "s3://$R2_BUCKET/releases/latest.json"
 
-          # Upload fixed-name aliases to releases/latest/ for landing page links
-          AARCH64_DMG=$(find artifacts -name "*aarch64.dmg" | head -1)
-          X64_DMG=$(find artifacts -name "*x86_64.dmg" | head -1)
-          WIN_MSI=$(find artifacts -name "*.msi" -not -name "*.sig" | head -1)
-
-          [ -n "$AARCH64_DMG" ] && aws s3 cp "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" \
-            --endpoint-url "$R2_ENDPOINT" --region auto
-          [ -n "$X64_DMG" ] && aws s3 cp "$X64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" \
-            --endpoint-url "$R2_ENDPOINT" --region auto
-          [ -n "$WIN_MSI" ] && aws s3 cp "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" \
-            --endpoint-url "$R2_ENDPOINT" --region auto
+          # Landing page fixed-name aliases
+          [ -n "$AARCH64_DMG" ] && $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg"
+          [ -n "$X64_DMG" ]     && $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg"
+          $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi"
