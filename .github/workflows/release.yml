@@ -42,7 +42,7 @@ jobs:
           key: rust-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'src-tauri/tauri.conf.json') }}
 
       - name: Install frontend deps
-        run: pnpm install
+        run: pnpm install --allow-scripts
 
       - name: Cache sidecar binary
         id: sidecar-cache
