@@ -21,13 +21,13 @@ jobs:
             target: x86_64-pc-windows-msvc
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.7
 
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v4
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4.0.2
         with:
           node-version: 22
           cache: pnpm
@@ -41,21 +41,21 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          key: rust-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'src-tauri/tauri.conf.json') }}
+          key: rust-${{ matrix.target }}-${{ hashFiles('Cargo.lock') }}
 
       - name: Install frontend deps
         run: pnpm install
 
       - name: Cache sidecar binary
         id: sidecar-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v4.0.2
         with:
           path: src-tauri/binaries
           key: sidecar-${{ matrix.target }}-${{ hashFiles('src-tauri/sidecar/requirements.txt', 'src-tauri/sidecar/**/*.py', 'src-tauri/sidecar/sidecar.spec') }}
 
       - name: Set up Python
         if: steps.sidecar-cache.outputs.cache-hit != 'true'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.1.1
         with:
           python-version: '3.13'
           cache: pip
@@ -70,7 +70,7 @@ jobs:
         run: npm run build:sidecar
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0.5
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -81,7 +81,7 @@ jobs:
           VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
           VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
           VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
-          CARGO_INCREMENTAL: "1"
+          CARGO_INCREMENTAL: "0"
           # macOS 코드 사이닝 & 노타리제이션 (Apple Developer Program)
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -94,7 +94,7 @@ jobs:
 
       - name: Upload macOS artifacts
         if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.3.6
         with:
           name: macos-${{ matrix.target }}
           path: |
@@ -104,7 +104,7 @@ jobs:
 
       - name: Upload Windows artifacts
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.3.6
         with:
           name: windows-${{ matrix.target }}
           path: |
@@ -123,7 +123,7 @@ jobs:
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.7
         with:
           path: artifacts
 
