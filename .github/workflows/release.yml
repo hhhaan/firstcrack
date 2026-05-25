@@ -174,11 +174,11 @@ jobs:
           WIN_MSI=$(find artifacts -name "*.msi" | head -1)
           WIN_NSIS=$(find artifacts -name "*.nsis.zip" -not -name "*.sig" | head -1)
 
-          aws s3 cp "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" \
-            --endpoint-url "$R2_ENDPOINT" --region auto
-          aws s3 cp "$X64_DMG"    "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" \
-            --endpoint-url "$R2_ENDPOINT" --region auto
-          aws s3 cp "$WIN_MSI"    "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" \
-            --endpoint-url "$R2_ENDPOINT" --region auto
-          aws s3 cp "$WIN_NSIS"   "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.nsis.zip" \
-            --endpoint-url "$R2_ENDPOINT" --region auto
+          [ -n "$AARCH64_DMG" ] && aws s3 cp "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" \
+            --endpoint-url "$R2_ENDPOINT" --region auto || true
+          [ -n "$X64_DMG" ] && aws s3 cp "$X64_DMG"    "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" \
+            --endpoint-url "$R2_ENDPOINT" --region auto || true
+          [ -n "$WIN_MSI" ] && aws s3 cp "$WIN_MSI"    "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" \
+            --endpoint-url "$R2_ENDPOINT" --region auto || true
+          [ -n "$WIN_NSIS" ] && aws s3 cp "$WIN_NSIS"   "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.nsis.zip" \
+            --endpoint-url "$R2_ENDPOINT" --region auto || true
