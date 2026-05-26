@@ -29,6 +29,13 @@ from roaster_registry import ROASTER_REGISTRY, PROTOCOL_FORM_FIELDS
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 _log = logging.getLogger(__name__)
 
+class _SilencePolling(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        return "/temperatures" not in msg and "/status" not in msg
+
+logging.getLogger("aiohttp.access").addFilter(_SilencePolling())
+
 
 # ---------------------------------------------------------------------------
 # Route handlers
