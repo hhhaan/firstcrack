@@ -9,7 +9,8 @@ import { supabase } from '@shared/lib/supabase';
 import './App.css';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
-import { Login, LoadingSpinner } from './views/login';
+import { Login } from './views/login';
+import { Spinner } from '@shared/ui/Spinner';
 import { Dashboard } from './views/dashboard';
 import { ActiveRoast } from './views/active-roast';
 import { History } from './views/history';
@@ -160,7 +161,7 @@ export const App = () => {
                     background: 'var(--color-surface)',
                 }}
             >
-                <LoadingSpinner />
+                <Spinner size={24} />
             </div>
         );
     if (!user) return <Login />;

@@ -3,6 +3,7 @@ import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { supabase } from '@shared/lib/supabase';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useAuthStore } from '@shared/store/auth';
+import { Spinner } from '@shared/ui/Spinner';
 
 const OAUTH_REDIRECT = import.meta.env.DEV ? 'http://localhost:1420/auth/callback' : 'firstcrack://auth/callback';
 
@@ -552,7 +553,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                         >
                             {loading ? (
                                 <>
-                                    <LoadingSpinner />
+                                    <Spinner />
                                     Signing in...
                                 </>
                             ) : (
@@ -642,23 +643,5 @@ export const Login = ({ onLogin }: LoginProps) => {
                 </div>
             </div>
         </div>
-    );
-};
-
-export const LoadingSpinner = () => {
-    return (
-        <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            style={{ animation: 'spin 0.75s linear infinite' }}
-        >
-            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-        </svg>
     );
 };

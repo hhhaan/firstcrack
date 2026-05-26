@@ -29,6 +29,7 @@ export const useCreateRoastSession = (userId: string) => {
         mutationFn: roastSessionApi.create,
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
+            qc.invalidateQueries({ queryKey: ['dashboard', userId] });
         },
     });
 };

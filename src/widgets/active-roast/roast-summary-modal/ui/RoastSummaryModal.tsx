@@ -1,4 +1,5 @@
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { Spinner } from '@shared/ui/Spinner';
 
 export interface RoastLogEntry {
     time: string;
@@ -22,7 +23,8 @@ interface RoastSummaryModalProps {
     onRoastNotesChange: (notes: string) => void;
     onClose: () => void;
     onDiscard: () => void;
-    onSave: (notes: string) => void;
+    onSave: (notes: string) => Promise<void>;
+    isSaving?: boolean;
     ambientTemp?: number | null;
     ambientHumidity?: number | null;
 }
@@ -36,6 +38,7 @@ export const RoastSummaryModal = ({
     onClose,
     onDiscard,
     onSave,
+    isSaving = false,
     ambientTemp,
     ambientHumidity,
 }: RoastSummaryModalProps) => {
@@ -140,8 +143,10 @@ export const RoastSummaryModal = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button
                     onClick={() => onSave(roastNotes)}
-                    className="w-full py-3 rounded-lg border-none bg-[rgba(220,252,231,0.9)] text-[#16a34a] text-sm font-medium cursor-pointer tracking-[0.14px]"
+                    disabled={isSaving}
+                    className="w-full py-3 rounded-lg border-none bg-[rgba(220,252,231,0.9)] text-[#16a34a] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
+                    {isSaving && <Spinner />}
                     저장
                 </button>
                 <button

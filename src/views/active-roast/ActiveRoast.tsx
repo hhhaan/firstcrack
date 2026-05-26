@@ -28,7 +28,7 @@ import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
-import { useRoastProfiles } from '@entities/roast-profile';
+import { useRoastProfiles, useRoastProfileCurve } from '@entities/roast-profile';
 import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
 import { useUpdatePlanBatch } from '@entities/plan';
 import { useRoastSessionStore } from '@shared/store/roastSession';
@@ -140,6 +140,10 @@ export const ActiveRoast = ({
         () => dbProfiles.find((p) => p.id === targetProfileId) ?? null,
         [dbProfiles, targetProfileId],
     );
+    const { data: targetCurvePoints = [] } = useRoastProfileCurve(
+        targetProfile?.source_session?.tsv_path ?? null,
+    );
+
     // charge 후: 실제 버퍼에 쌓인 구간과 설정값 중 짧은 쪽을 사용
     // (ready → charge 대기 시간이 설정값보다 짧으면 빈 공간 없이 딱 맞게)
     const actualPreSec = charged && livePoints.length > 0 && livePoints[0].time < 0
@@ -151,7 +155,7 @@ export const ActiveRoast = ({
 
     const { chartData } = useChartData({
         livePoints,
-        targetProfile,
+        targetCurvePoints,
         preChargeDisplaySec: effectivePreChargeDisplaySec,
     });
     /** 차트 x축 끝값. 데이터가 없으면 전체 범위로 고정 */
@@ -370,7 +374,7 @@ export const ActiveRoast = ({
     const { data: weatherData } = useWeather();
 
     // ── 사용자 인증 + 로스팅 저장 ─────────────────────────────────
-    const { mutateAsync: saveRoastSession } = useCreateRoastSession(user?.id ?? '');
+    const { mutateAsync: saveRoastSession, isPending: isSaving } = useCreateRoastSession(user?.id ?? '');
     const { mutateAsync: createInventoryLog } = useCreateBeanInventoryLog(user?.id ?? '');
     const { mutateAsync: updatePlanBatch } = useUpdatePlanBatch(planBatchHandoff?.planId ?? '');
     useEffect(() => {
@@ -939,6 +943,7 @@ export const ActiveRoast = ({
                 roastNotes={roastNotes}
                 eventMarkerColor={EVENT_MARKER_COLORS}
                 onRoastNotesChange={setRoastNotes}
+                isSaving={isSaving}
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
                 onClose={() => {
@@ -956,77 +961,84 @@ export const ActiveRoast = ({
                     const roastedAt =
                         roastStartTimeRef.current > 0 ? new Date(roastStartTimeRef.current).toISOString() : null;
 
-                    // TSV 파일을 Cloudflare R2에 업로드한다.
-                    let tsvPath: string | null = null;
-                    if (sessionId && '__TAURI_INTERNALS__' in window) {
-                        try {
-                            const tsvContent = await readTextFile(`session_${sessionId}.tsv`, {
-                                baseDir: BaseDirectory.AppLocalData,
-                            });
-                            const r2Key = `profiles/${user.id}/${sessionId}.tsv`;
-                            const r2 = new S3Client({
-                                region: 'auto',
-                                endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-                                credentials: {
-                                    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
-                                    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
-                                },
-                            });
-                            await r2.send(
-                                new PutObjectCommand({
-                                    Bucket: import.meta.env.VITE_R2_BUCKET_NAME,
-                                    Key: r2Key,
-                                    Body: tsvContent,
-                                    ContentType: 'text/tab-separated-values',
-                                }),
-                            );
-                            tsvPath = r2Key;
-                            remove(`session_${sessionId}.tsv`, {
-                                baseDir: BaseDirectory.AppLocalData,
-                            }).catch(() => {});
-                        } catch {
-                            // 파일이 없거나 업로드 실패 시 tsv_path 없이 저장 진행
+                    try {
+                        let tsvPath: string | null = null;
+                        if (sessionId && '__TAURI_INTERNALS__' in window) {
+                            try {
+                                const tsvContent = await readTextFile(`session_${sessionId}.tsv`, {
+                                    baseDir: BaseDirectory.AppLocalData,
+                                });
+                                const r2Key = `profiles/${user.id}/${sessionId}.tsv`;
+                                const r2 = new S3Client({
+                                    region: 'auto',
+                                    endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+                                    credentials: {
+                                        accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
+                                        secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
+                                    },
+                                });
+                                await r2.send(
+                                    new PutObjectCommand({
+                                        Bucket: import.meta.env.VITE_R2_BUCKET_NAME,
+                                        Key: r2Key,
+                                        Body: tsvContent,
+                                        ContentType: 'text/tab-separated-values',
+                                    }),
+                                );
+                                tsvPath = r2Key;
+                                remove(`session_${sessionId}.tsv`, {
+                                    baseDir: BaseDirectory.AppLocalData,
+                                }).catch(() => {});
+                            } catch {
+                                // 파일이 없거나 업로드 실패 시 tsv_path 없이 저장 진행
+                            }
                         }
-                    }
 
-                    const savedSession = await saveRoastSession({
-                        user_id: user.id,
-                        weight_grams: 0, // TODO: UI에서 로스트 전 또는 후 무게 입력받기
-                        status: 'completed',
-                        roasted_at: roastedAt,
-                        duration_seconds: durationSeconds,
-                        drop_temp_celsius: rawBT,
-                        roast_level: null, // TODO: UI에서 로스트 레벨(light/medium/dark) 선택받기
-                        scheduled_at: null,
-                        notes: notes || null,
-                        ambient_temp_celsius: weatherData?.temperature ?? null,
-                        ambient_humidity_pct: weatherData?.humidity ?? null,
-                        bean_id: selectedBeanId,
-                        profile_id: targetProfileId,
-                        tsv_path: tsvPath,
-                        plan_batch_id: planBatchHandoff?.planBatchId ?? null,
-                    });
-                    if (selectedBeanId && planBatchHandoff?.batchSizeKg && user) {
-                        await createInventoryLog({
+                        const savedSession = await saveRoastSession({
                             user_id: user.id,
+                            weight_grams: 0, // TODO: UI에서 로스트 전 또는 후 무게 입력받기
+                            status: 'completed',
+                            roasted_at: roastedAt,
+                            duration_seconds: durationSeconds,
+                            drop_temp_celsius: rawBT != null ? Math.round(rawBT) : null,
+                            roast_level: null, // TODO: UI에서 로스트 레벨(light/medium/dark) 선택받기
+                            scheduled_at: null,
+                            notes: notes || null,
+                            ambient_temp_celsius: weatherData?.temperature ?? null,
+                            ambient_humidity_pct: weatherData?.humidity ?? null,
                             bean_id: selectedBeanId,
-                            change_grams: -Math.round(planBatchHandoff.batchSizeKg * 1000),
-                            type: 'roast',
-                            roast_session_id: savedSession.id,
+                            profile_id: targetProfileId,
+                            tsv_path: tsvPath,
+                            plan_batch_id: planBatchHandoff?.planBatchId ?? null,
                         });
-                    }
-                    // TODO: 일반 로스팅(배치 없음) 시에도 생두 재고 감소 처리 필요.
-                    //       weight_grams UI 입력 기능 구현 후 여기서 createInventoryLog 호출 추가.
-
-                    // 배치의 모든 세션이 완료되면 status를 'done'으로 업데이트한다.
-                    if (batchDone && planBatchHandoff) {
-                        await updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' });
-                    }
-                    setShowSummaryModal(false);
-                    setSummaryData(null);
-                    resetActiveRoast();
-                    if (planBatchHandoff) {
-                        setShowContinueModal(true);
+                        // TODO: 일반 로스팅(배치 없음) 시에도 생두 재고 감소 처리 필요.
+                        //       weight_grams UI 입력 기능 구현 후 여기서 createInventoryLog 호출 추가.
+                        await Promise.all([
+                            selectedBeanId && planBatchHandoff?.batchSizeKg && user
+                                ? createInventoryLog({
+                                      user_id: user.id,
+                                      bean_id: selectedBeanId,
+                                      change_grams: -Math.round(planBatchHandoff.batchSizeKg * 1000),
+                                      type: 'roast',
+                                      roast_session_id: savedSession.id,
+                                  })
+                                : null,
+                            batchDone && planBatchHandoff
+                                ? updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' })
+                                : null,
+                        ]);
+                        setShowSummaryModal(false);
+                        setSummaryData(null);
+                        resetActiveRoast();
+                        if (planBatchHandoff) {
+                            setShowContinueModal(true);
+                        }
+                    } catch (err) {
+                        console.error('[RoastSummary] 저장 실패:', err);
+                        await message(`저장에 실패했습니다.\n\n${err instanceof Error ? err.message : String(err)}`, {
+                            title: '저장 실패',
+                            kind: 'error',
+                        });
                     }
                 }}
             />
