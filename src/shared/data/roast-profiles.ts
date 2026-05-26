@@ -82,8 +82,6 @@ export const roastProfiles: RoastProfile[] = [
     },
 ];
 
-export const DEFAULT_PROFILE_KEY = 'fc_default_profile_id';
-
 /** BT 커브를 30초 간격으로 생성. dropTemp와 총 duration(초)를 기반으로 계산. */
 export const generateProfileCurve = (dropTemp: number, duration: number): { t: number; bt: number }[] => {
     const points: { t: number; bt: number }[] = [];

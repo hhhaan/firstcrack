@@ -171,6 +171,7 @@ export type Database = {
           business_name: string | null
           business_registration_number: string | null
           created_at: string
+          default_roast_profile_id: string | null
           display_name: string | null
           id: string
           plan: string
@@ -182,6 +183,7 @@ export type Database = {
           business_name?: string | null
           business_registration_number?: string | null
           created_at?: string
+          default_roast_profile_id?: string | null
           display_name?: string | null
           id: string
           plan?: string
@@ -193,13 +195,22 @@ export type Database = {
           business_name?: string | null
           business_registration_number?: string | null
           created_at?: string
+          default_roast_profile_id?: string | null
           display_name?: string | null
           id?: string
           plan?: string
           polar_customer_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_default_roast_profile_id_fkey"
+            columns: ["default_roast_profile_id"]
+            isOneToOne: false
+            referencedRelation: "roast_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       roast_day_plans: {
         Row: {

@@ -170,7 +170,9 @@ export const RoastTempChart: React.FC<Props> = ({
 
         const xMin = xs[0] ?? 0;
         const xMax = xs[xs.length - 1] ?? 1200;
-        const rightMargin = showRoR ? 65 : 25;
+        const rightMargin = showRoR ? 50 : 12;
+        const leftMargin = 45;
+        const topMargin = 10;
 
         const tempSeries = [
             showTargetCurve && {
@@ -345,26 +347,63 @@ export const RoastTempChart: React.FC<Props> = ({
         if (controlData) {
             const { xs: cxs, drumTemp, heatPower, fanSpeed } = controlData;
             // Grid 레이아웃:
-            // [0] 온도 차트 (BT, ET, RoR) - 상단 61%
-            // [1] 제어 데이터 (Heat Power, Fan Speed) - 중단 이후 하단까지
-            // [2] Phase bar (선택) - 맨 하단 26px (있을 때만)
+            // [0] 온도 차트 (BT, ET, RoR) - 상단 48%
+            // [1] Phase bar (Drying/Maillard/Development) - 중간 (있을 때만)
+            // [2] 제어 데이터 (Drum, Heat, Fan) - 하단
             //
             // 시간 축 라벨은:
-            // - Phase bar 있으면 → grid[2] 하단에 표시
-            // - Phase bar 없으면 → grid[1] 하단에 표시
+            // - Phase bar 있으면 → grid[1] 하단에 표시
+            // - Phase bar 없으면 → grid[2] 하단에 표시
             const controlBottom = hasPhaseBar ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + 6 : 40;
-            return {
-                backgroundColor: 'transparent',
-                animation: false,
-                axisPointer: { link: [{ xAxisIndex: 'all' }], label: { show: false } },
-                grid: [
-                    { left: 55, right: rightMargin, top: 20, height: '61%' },
-                    { left: 55, right: rightMargin, top: '68%', bottom: controlBottom },
-                    ...(hasPhaseBar
-                        ? [{ left: 55, right: rightMargin, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
-                        : []),
-                ],
-                xAxis: [
+            const grids: { left: number; right: number; top: string | number; height?: string; bottom?: string | number }[] = hasPhaseBar
+                ? [
+                    { left: leftMargin, right: rightMargin, top: topMargin, height: '48%' },
+                    { left: leftMargin, right: rightMargin, top: '52%', height: `${PHASE_BAR_HEIGHT}px` },
+                    { left: leftMargin, right: rightMargin, top: '58%', bottom: controlBottom },
+                  ]
+                : [
+                    { left: leftMargin, right: rightMargin, top: topMargin, height: '65%' },
+                    { left: leftMargin, right: rightMargin, top: '68%', bottom: controlBottom },
+                  ];
+            const xAxes = hasPhaseBar
+                ? [
+                    {
+                        gridIndex: 0,
+                        type: 'value' as const,
+                        min: xMin,
+                        max: xMax,
+                        axisLabel: { show: false },
+                        axisTick: { show: false },
+                        axisLine: { show: false },
+                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
+                        interval: 60,
+                        splitNumber: 15,
+                    },
+                    {
+                        gridIndex: 1,
+                        type: 'value',
+                        min: xMin,
+                        max: xMax,
+                        axisLabel: { show: false },
+                        axisTick: { show: false },
+                        axisLine: { show: false },
+                        splitLine: { show: false },
+                        interval: 60,
+                        splitNumber: 15,
+                    },
+                    {
+                        gridIndex: 2,
+                        type: 'value',
+                        min: xMin,
+                        max: xMax,
+                        axisLabel: { formatter: fmtSec, fontSize: 11, fontFamily: 'monospace' },
+                        axisTick: { show: false },
+                        interval: 60,
+                        splitNumber: 15,
+                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
+                    },
+                  ]
+                : [
                     {
                         gridIndex: 0,
                         type: 'value',
@@ -382,41 +421,27 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'value',
                         min: xMin,
                         max: xMax,
-                        axisLabel: hasPhaseBar
-                            ? { show: false }
-                            : { formatter: fmtSec, fontSize: 11, fontFamily: 'monospace' },
-                        axisTick: hasPhaseBar ? { show: false } : undefined,
+                        axisLabel: { formatter: fmtSec, fontSize: 11, fontFamily: 'monospace' },
+                        axisTick: { show: false },
                         interval: 60,
                         splitNumber: 15,
                         splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
                     },
-                    ...(hasPhaseBar
-                        ? [{
-                              gridIndex: 2,
-                              type: 'value' as const,
-                              min: xMin,
-                              max: xMax,
-                              axisLabel: { formatter: fmtSec, fontSize: 11, fontFamily: 'monospace' as const },
-                              axisTick: { show: false },
-                              axisLine: { show: false },
-                              splitLine: { show: false },
-                              interval: 60,
-                              splitNumber: 15,
-                          }]
-                        : []),
-                ],
-                yAxis: [
+                  ];
+            const yAxes = hasPhaseBar
+                ? [
                     {
                         gridIndex: 0,
                         type: 'value',
                         name: `Temperature (${unitLabel})`,
+                        nameLocation: 'middle',
                         nameGap: 16,
                         axisLine: { onZero: false },
                         axisLabel: { fontSize: 11, fontFamily: 'monospace' },
                         splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
                         minorTick: { show: true, splitNumber: 2 },
                         minorSplitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLineMinor, width: 0.5 } },
-                        min: temperatureUnit === 'F' ? 266 : 130,
+                        min: temperatureUnit === 'F' ? 122 : 50,
                         max: temperatureUnit === 'F' ? 482 : 250,
                         interval: 20,
                     },
@@ -424,6 +449,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         gridIndex: 0,
                         type: 'value',
                         name: `RoR (${rorUnit})`,
+                        nameLocation: 'middle',
                         nameGap: 16,
                         position: 'right',
                         axisLine: { onZero: false },
@@ -436,10 +462,71 @@ export const RoastTempChart: React.FC<Props> = ({
                     {
                         gridIndex: 1,
                         type: 'value',
-                        // TODO: RoastSettings에서 Drum 축 범위(min/max)를 사용자 설정 가능하게 연결
+                        min: 0,
+                        max: 1,
+                        show: false,
+                    },
+                    {
+                        gridIndex: 2,
+                        type: 'value',
                         name: 'Drum (rpm)',
+                        nameLocation: 'middle',
                         position: 'left',
-                        // onZero: false — x축에 음수 구간이 생겨도 y축 선이 x=0으로 이동하지 않고 좌측 끝에 고정. 절대 제거 금지.
+                        axisLine: { onZero: false },
+                        axisLabel: { fontSize: 10, fontFamily: 'monospace' },
+                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
+                        min: 0,
+                        max: 100,
+                    },
+                    {
+                        gridIndex: 2,
+                        type: 'value',
+                        name: 'Power / Speed (%)',
+                        nameLocation: 'middle',
+                        position: 'right',
+                        axisLine: { onZero: false },
+                        axisLabel: { fontSize: 10, fontFamily: 'monospace' },
+                        splitLine: { show: false },
+                        min: 0,
+                        max: 100,
+                    },
+                  ]
+                : [
+                    {
+                        gridIndex: 0,
+                        type: 'value',
+                        name: `Temperature (${unitLabel})`,
+                        nameLocation: 'middle',
+                        nameGap: 16,
+                        axisLine: { onZero: false },
+                        axisLabel: { fontSize: 11, fontFamily: 'monospace' },
+                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
+                        minorTick: { show: true, splitNumber: 2 },
+                        minorSplitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLineMinor, width: 0.5 } },
+                        min: temperatureUnit === 'F' ? 122 : 50,
+                        max: temperatureUnit === 'F' ? 482 : 250,
+                        interval: 20,
+                    },
+                    {
+                        gridIndex: 0,
+                        type: 'value',
+                        name: `RoR (${rorUnit})`,
+                        nameLocation: 'middle',
+                        nameGap: 16,
+                        position: 'right',
+                        axisLine: { onZero: false },
+                        axisLabel: { fontSize: 11, fontFamily: 'monospace' },
+                        splitLine: { show: false },
+                        min: ROR_Y_MIN,
+                        max: ROR_Y_MAX,
+                        interval: 20,
+                    },
+                    {
+                        gridIndex: 1,
+                        type: 'value',
+                        name: 'Drum (rpm)',
+                        nameLocation: 'middle',
+                        position: 'left',
                         axisLine: { onZero: false },
                         axisLabel: { fontSize: 10, fontFamily: 'monospace' },
                         splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
@@ -450,24 +537,22 @@ export const RoastTempChart: React.FC<Props> = ({
                         gridIndex: 1,
                         type: 'value',
                         name: 'Power / Speed (%)',
+                        nameLocation: 'middle',
                         position: 'right',
-                        // onZero: false — x축에 음수 구간이 생겨도 y축 선이 x=0으로 이동하지 않고 우측 끝에 고정. 절대 제거 금지.
                         axisLine: { onZero: false },
                         axisLabel: { fontSize: 10, fontFamily: 'monospace' },
                         splitLine: { show: false },
                         min: 0,
                         max: 100,
                     },
-                    ...(hasPhaseBar
-                        ? [{
-                              gridIndex: 2,
-                              type: 'value' as const,
-                              min: 0,
-                              max: 1,
-                              show: false,
-                          }]
-                        : []),
-                ],
+                  ];
+            return {
+                backgroundColor: 'transparent',
+                animation: false,
+                axisPointer: { link: [{ xAxisIndex: 'all' }], label: { show: false } },
+                grid: grids,
+                xAxis: xAxes as EChartsOption['xAxis'],
+                yAxis: yAxes as EChartsOption['yAxis'],
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: { type: 'line', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
@@ -478,8 +563,8 @@ export const RoastTempChart: React.FC<Props> = ({
                         name: 'Drum',
                         type: 'line',
                         color: CONTROL_COLORS.drum,
-                        xAxisIndex: 1,
-                        yAxisIndex: 2,
+                        xAxisIndex: hasPhaseBar ? 2 : 1,
+                        yAxisIndex: hasPhaseBar ? 3 : 2,
                         data: cxs.map((x, i) => [x, drumTemp[i]]),
                         lineStyle: { color: CONTROL_COLORS.drum, width: 1.5 },
                         showSymbol: false,
@@ -489,32 +574,35 @@ export const RoastTempChart: React.FC<Props> = ({
                         name: 'Heat',
                         type: 'line',
                         color: CONTROL_COLORS.heat,
-                        xAxisIndex: 1,
-                        yAxisIndex: 3,
+                        xAxisIndex: hasPhaseBar ? 2 : 1,
+                        yAxisIndex: hasPhaseBar ? 4 : 3,
                         data: cxs.map((x, i) => [x, heatPower[i]]),
                         lineStyle: { color: CONTROL_COLORS.heat, width: 1.5 },
                         showSymbol: false,
                         step: 'end',
                         smooth: false,
-                        // areaStyle: { color: CONTROL_COLORS.heatArea },
                     },
                     {
                         name: 'Fan',
                         type: 'line',
                         color: CONTROL_COLORS.fan,
-                        xAxisIndex: 1,
-                        yAxisIndex: 3,
+                        xAxisIndex: hasPhaseBar ? 2 : 1,
+                        yAxisIndex: hasPhaseBar ? 4 : 3,
                         data: cxs.map((x, i) => [x, fanSpeed[i]]),
                         lineStyle: { color: CONTROL_COLORS.fan, width: 1.5 },
                         showSymbol: false,
                         step: 'end',
                         smooth: false,
                     },
-                    ...(hasPhaseBar ? [buildPhaseSeries(2, 4)] : []),
+                    ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : []),
                 ],
                 dataZoom: [
-                    { type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true },
-                    { type: 'inside', xAxisIndex: 1, zoomOnMouseWheel: true, moveOnMouseMove: true },
+                    {
+                        type: 'inside',
+                        xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1],
+                        zoomOnMouseWheel: true,
+                        moveOnMouseMove: true,
+                    },
                 ],
             };
         }
@@ -524,9 +612,9 @@ export const RoastTempChart: React.FC<Props> = ({
             backgroundColor: 'transparent',
             animation: false,
             grid: [
-                { left: 55, right: showRoR ? 65 : 25, top: 20, bottom: singleBottom },
+                { left: leftMargin, right: showRoR ? 50 : 12, top: topMargin, bottom: singleBottom },
                 ...(hasPhaseBar
-                    ? [{ left: 55, right: showRoR ? 65 : 25, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
+                    ? [{ left: leftMargin, right: showRoR ? 50 : 12, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
                     : []),
             ],
             tooltip: {
@@ -587,11 +675,12 @@ export const RoastTempChart: React.FC<Props> = ({
                     gridIndex: 0,
                     type: 'value',
                     name: `Temperature (${unitLabel})`,
+                    nameLocation: 'middle',
                     nameGap: 16,
                     axisLine: { onZero: false },
                     axisLabel: { fontSize: 11, fontFamily: 'monospace' },
                     splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
-                    min: temperatureUnit === 'F' ? 266 : 130,
+                    min: temperatureUnit === 'F' ? 122 : 50,
                     max: temperatureUnit === 'F' ? 482 : 250,
                     interval: 20,
                 },
@@ -599,6 +688,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     gridIndex: 0,
                     type: 'value',
                     name: `RoR (${rorUnit})`,
+                    nameLocation: 'middle',
                     nameGap: 16,
                     position: 'right',
                     axisLine: { onZero: false },

@@ -4,7 +4,7 @@ import { CounterInput } from '@shared/ui/CounterInput';
 import { SearchableSelect } from './SearchableSelect';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Calendar } from '@shared/ui/calendar/Calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
@@ -12,9 +12,9 @@ import { useAuthStore } from '@shared/store/auth';
 import { useBeans } from '@entities/bean/queries';
 import { useMachines, type Machine } from '@entities/machine';
 import { dayPlanApi, planBatchApi, planKeys } from '@entities/plan';
-import { supabase } from '@shared/lib/supabase';
+import { useRoastProfiles } from '@entities/roast-profile';
 import { cn } from '@shared/lib/cn';
-import type { RoastProfile, Bean, PlanBatchWithProgress } from '@shared/types/database.types';
+import type { Bean, RoastProfile, PlanBatchWithProgress } from '@shared/types/database.types';
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
@@ -47,16 +47,7 @@ export const EditBatchModal = ({ open, batch, currentDateKey, onClose, onSaved }
     const { data: beans = [] } = useBeans(userId);
     const { machines } = useMachines();
 
-    const { data: profiles = [] } = useQuery({
-        queryKey: ['roast_profiles', userId],
-        queryFn: async () => {
-            const { data, error } = await supabase.from('roast_profiles').select('*').eq('user_id', userId).order('name');
-            if (error) throw error;
-            return (data ?? []) as RoastProfile[];
-        },
-        enabled: !!userId && open,
-        staleTime: 60_000,
-    });
+    const { data: profiles = [] } = useRoastProfiles(userId);
 
     // Initial values from batch — component is re-keyed by batch.id so no effect needed
     const [saving, setSaving] = useState(false);

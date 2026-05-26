@@ -26,6 +26,7 @@ export const Machines = ({
     const [sidecarStatus, setSidecarStatus] = useState<SidecarStatus | null>(null);
     const [temps, setTemps] = useState<TemperatureReading | null>(null);
     const [connecting, setConnecting] = useState(false);
+    
     // 마운트 시 & 모달 닫힐 때 status fetch — "Add & Connect" 흐름에서 연결 상태 즉시 반영
     useEffect(() => {
         if (!isActive) return;
@@ -248,11 +249,6 @@ export const Machines = ({
                                         value: isSelectedConnected && temps?.et != null ? `${temps.et}°C` : '—',
                                         sub: 'ET',
                                     },
-                                    // {
-                                    //     label: t('machines.temperature.ror'),
-                                    //     value: isSelectedConnected && temps ? `${temps.ror} °C/min` : '—',
-                                    //     sub: t('machines.temperature.rateOfRise'),
-                                    // },
                                 ].map((s) => (
                                     <div key={s.label} className="bg-surface px-4 py-3.5 rounded-lg">
                                         <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.5px] mb-1.5">

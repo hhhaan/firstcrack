@@ -29,6 +29,7 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { useRoastProfiles, useRoastProfileCurve } from '@entities/roast-profile';
+import { useProfile } from '@entities/profile';
 import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
 import { useUpdatePlanBatch } from '@entities/plan';
 import { useRoastSessionStore } from '@shared/store/roastSession';
@@ -72,6 +73,7 @@ export const ActiveRoast = ({
     // ── 유저 + DB 프로파일 ────────────────────────────────────────
     const user = useAuthStore((s) => s.user);
     const { data: dbProfiles = [] } = useRoastProfiles(user?.id ?? '');
+    const { data: userProfile } = useProfile(user?.id ?? '');
 
     // ── 배치 핸드오프 ─────────────────────────────────────────────
     const planBatchHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
@@ -79,9 +81,7 @@ export const ActiveRoast = ({
     const batchDone = planBatchHandoff ? sessionsAfter >= planBatchHandoff.batchCount : false;
 
     // ── UI 상태 ───────────────────────────────────────────────────
-    const [targetProfileId, setTargetProfileId] = useState<string | null>(() => {
-        return localStorage.getItem('fc_default_profile_id');
-    });
+    const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(null);
     const [isRunning, setIsRunning] = useState(false);
     const isRunningRef = useRef(isRunning);
@@ -98,6 +98,16 @@ export const ActiveRoast = ({
 
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
     const exitFullscreen = useCallback(() => setIsFullscreen(false), []);
+
+    // 로그인 후 DB에서 기본 프로파일 ID를 가져와서 targetProfileId에 세팅.
+    // charged 상태(로스팅 진행 중)에서는 절대 덮어쓰면 안 됨 → 로스팅 중 쿼리 refetch가 일어나도 선택 유지.
+    // userProfile이 undefined이면 아직 로딩 중이므로 null로 덮어쓰는 오류 방지.
+    useEffect(() => {
+        if (charged) return;
+        if (userProfile !== undefined) {
+            setTargetProfileId(userProfile?.default_roast_profile_id ?? null);
+        }
+    }, [userProfile?.default_roast_profile_id]);
 
     // isActive가 true가 될 때마다 store의 pendingBeanId를 소비
     useEffect(() => {
@@ -630,8 +640,8 @@ export const ActiveRoast = ({
                     >
                         <ChartLegend />
 
-                        {/* 이벤트 기반 단계 표시 pill */}
-                        <div className="flex gap-2 mb-3">
+                        {/* TODO: 필요 시 주석 해제 — 이벤트 기반 단계 표시 pill */}
+                        {/* <div className="flex gap-2 mb-3">
                             {[
                                 { label: 'Drying', active: roastPhaseName === 'Drying' && charged },
                                 { label: 'Maillard', active: roastPhaseName === 'Maillard' },
@@ -648,7 +658,7 @@ export const ActiveRoast = ({
                                     {label}
                                 </div>
                             ))}
-                        </div>
+                        </div> */}
 
                         <RoastTempChart
                             xs={visibleXs}

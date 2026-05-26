@@ -1,20 +1,15 @@
 import { Settings2, ChevronDown } from 'lucide-react';
+import { useRef, useEffect } from 'react';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { STATUS_COLORS, PHASE_COLORS } from '@features/active-roast/lib/colors';
 import { useBeans } from '@entities/bean/queries';
 import { useAuthStore } from '@shared/store/auth';
-import { DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
 import { useRoastProfiles } from '@entities/roast-profile';
+import { useUpdateProfile } from '@entities/profile';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
 const joinDisplay = (parts: (string | null | undefined)[], sep = ' · ') => parts.filter(Boolean).join(sep);
-
-/** localStorage에 선택값 저장/삭제 */
-const persistSelection = (key: string, val: string | null) => {
-    if (val) localStorage.setItem(key, val);
-    else localStorage.removeItem(key);
-};
 
 /** 화살표 아이콘이 있는 hidden select overlay. Target/profile 선택에 공통 사용 */
 const OverlaySelect = <T extends string>({
@@ -90,6 +85,11 @@ export const RoastHeader = ({
     const user = useAuthStore((s) => s.user);
     const { data: beans = [] } = useBeans(user?.id ?? '');
     const { data: dbProfiles = [] } = useRoastProfiles(user?.id ?? '');
+    const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
+    // 드롭다운을 빠르게 바꿀 때 매번 DB 쓰기가 발생하는 걸 막기 위한 디바운스 타이머.
+    // 300ms 안에 다시 바뀌면 이전 요청은 취소되고 마지막 값만 저장됨.
+    const profileSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => { if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current); }, []);
 
     // ─── Derived values ──────────────────────────────────────────────────────
     const elapsedMin = Math.floor(elapsed / 60);
@@ -97,13 +97,21 @@ export const RoastHeader = ({
     const timeStr = charged ? `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}` : '—';
 
     const handleProfileChange = (id: string | null) => {
+        // 같은 값이면 DB 쓰기 스킵 (no-op guard)
+        if (id === targetProfileId) return;
         onTargetProfileChange(id);
-        persistSelection(DEFAULT_PROFILE_KEY, id);
+        // UI는 즉시 반응, DB 저장은 300ms 디바운스 → 빠른 변경 시 마지막 값만 기록
+        if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current);
+        profileSaveTimer.current = setTimeout(() => {
+            updateProfile({ default_roast_profile_id: id ?? null });
+        }, 300);
     };
 
     const handleBeanChange = (id: string | null) => {
         onBeanChange(id);
-        persistSelection('fc_default_bean_id', id);
+        // 원두 기본값은 기기별 취향이라 localStorage에만 저장 (프로파일과 달리 DB 동기화 불필요)
+        if (id) localStorage.setItem('fc_default_bean_id', id);
+        else localStorage.removeItem('fc_default_bean_id');
     };
 
     const isDisconnected = roastEnded || !sidecarConnected;

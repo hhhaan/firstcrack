@@ -22,6 +22,24 @@ export type BeanInventoryLogInsert = Database['public']['Tables']['bean_inventor
 export type BeanInventoryLogUpdate = Database['public']['Tables']['bean_inventory_logs']['Update']
 
 export type BeanInventoryLogType = 'purchase' | 'roast' | 'adjustment' | 'waste'
+
+export type DayPlan = Database['public']['Tables']['roast_day_plans']['Row']
+
+export type PlanBatch = Database['public']['Tables']['roast_plan_batches']['Row']
+export type PlanBatchInsert = Database['public']['Tables']['roast_plan_batches']['Insert']
+export type PlanBatchUpdate = Database['public']['Tables']['roast_plan_batches']['Update'] & { id: string }
+export type PlanBatchWithProgress = PlanBatch & { completed_sessions: number }
+
+export type PlanBatchHandoff = {
+    planBatchId: string
+    planId: string
+    beanId: string | null
+    beanName: string
+    batchSizeKg: number
+    profileId: string | null
+    batchCount: number
+    completedSessions: number
+}
 `;
 
 appendFileSync('src/shared/types/database.types.ts', ALIASES);

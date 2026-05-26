@@ -1,13 +1,9 @@
-// Data architecture:
-// - Profile data → Supabase (roast_profiles table)
-// - defaultProfileId → localStorage only (per-device preference, not synced)
-
 import { Plus, Copy, Pencil, Trash2, MoreHorizontal, Star, GitCompare, Check, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { type View } from '@shared/types/view';
 import { PageLayout } from '@shared/ui/PageLayout';
 import uPlot from 'uplot';
-import { generateProfileCurve, DEFAULT_PROFILE_KEY } from '@shared/data/roast-profiles';
+import { generateProfileCurve } from '@shared/data/roast-profiles';
 import {
     useRoastProfiles,
     useCreateRoastProfile,
@@ -16,6 +12,7 @@ import {
     useRoastProfileCurves,
     type RoastProfileWithSource,
 } from '@entities/roast-profile';
+import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useAuthStore } from '@shared/store/auth';
 import { NewProfileModal } from './NewProfileModal';
 import type { RoastProfile } from '@shared/types/database.types';
@@ -221,19 +218,31 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const { data: profiles = [], isLoading } = useRoastProfiles(user?.id ?? '');
     const { mutateAsync: createProfile } = useCreateRoastProfile(user?.id ?? '');
     const { mutate: deleteProfile } = useDeleteRoastProfile(user?.id ?? '');
+    const { data: userProfile } = useProfile(user?.id ?? '');
+    const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
 
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [defaultId, setDefaultId] = useState<string | null>(() => localStorage.getItem(DEFAULT_PROFILE_KEY));
+    const [defaultId, setDefaultId] = useState<string | null>(null);
     const [compareMode, setCompareMode] = useState(false);
     const [compareIds, setCompareIds] = useState<string[]>([]);
     const [showNewModal, setShowNewModal] = useState(false);
 
-    // Select first profile when list loads
+    // 프로파일 목록이 처음 로드됐을 때 첫 번째 항목을 자동 선택.
+    // selectedId가 이미 있으면 (예: 뒤로가기 후 재진입) 덮어쓰지 않음.
     useEffect(() => {
         if (profiles.length > 0 && !selectedId) {
             setSelectedId(profiles[0].id);
         }
     }, [profiles, selectedId]);
+
+    // DB에서 userProfile이 로드되면 defaultId를 동기화.
+    // 예전엔 localStorage로 관리했는데, 기기 간 동기화가 안 돼서 Supabase profiles.default_roast_profile_id로 이전함.
+    // userProfile이 undefined이면 아직 로딩 중이므로 null로 덮어쓰면 안 됨 → 체크 후 실행.
+    useEffect(() => {
+        if (userProfile !== undefined) {
+            setDefaultId(userProfile?.default_roast_profile_id ?? null);
+        }
+    }, [userProfile?.default_roast_profile_id]);
 
     const selected = profiles.find((p) => p.id === selectedId) ?? null;
 
@@ -248,7 +257,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
     const setDefault = (id: string) => {
         setDefaultId(id);
-        localStorage.setItem(DEFAULT_PROFILE_KEY, id);
+        updateProfile({ default_roast_profile_id: id });
     };
 
     const enterCompareMode = () => {
@@ -285,6 +294,10 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
     const handleDelete = (id: string) => {
         deleteProfile(id);
+        if (id === defaultId) {
+            setDefaultId(null);
+            updateProfile({ default_roast_profile_id: null });
+        }
         if (selectedId === id) setSelectedId(profiles.find((p) => p.id !== id)?.id ?? null);
     };
 
@@ -356,7 +369,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             </div>
 
             {profiles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-lg bg-main-bg border border-[#E5E5E5]">
+                <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-lg bg-main-bg">
                     <p className="text-sm text-muted tracking-[0.14px]">아직 프로파일이 없습니다.</p>
                     <button
                         onClick={() => setShowNewModal(true)}
