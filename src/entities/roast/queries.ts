@@ -12,7 +12,7 @@ export const useRoastSessions = (userId: string, status?: RoastSession['status']
     useQuery({
         queryKey: status ? roastSessionKeys.byStatus(userId, status) : roastSessionKeys.all(userId),
         queryFn: () => roastSessionApi.list(userId, status),
-        staleTime: 30_000,
+        staleTime: Infinity,
         enabled: !!userId,
     });
 
