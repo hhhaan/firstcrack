@@ -68,6 +68,8 @@ export const ActiveRoast = ({
     const setConnected = useRoastingStore((s) => s.setConnected);
 
     const charged = phase === 'roasting' || phase === 'ended';
+    const chargedRef = useRef(charged);
+    chargedRef.current = charged;
     const roastEnded = phase === 'ended';
 
     // ── 유저 + DB 프로파일 ────────────────────────────────────────
@@ -102,8 +104,9 @@ export const ActiveRoast = ({
     // 로그인 후 DB에서 기본 프로파일 ID를 가져와서 targetProfileId에 세팅.
     // charged 상태(로스팅 진행 중)에서는 절대 덮어쓰면 안 됨 → 로스팅 중 쿼리 refetch가 일어나도 선택 유지.
     // userProfile이 undefined이면 아직 로딩 중이므로 null로 덮어쓰는 오류 방지.
+    // chargedRef: deps 배열에 charged 없이 최신 값을 읽어 stale closure 버그 방지.
     useEffect(() => {
-        if (charged) return;
+        if (chargedRef.current) return;
         if (userProfile !== undefined) {
             setTargetProfileId(userProfile?.default_roast_profile_id ?? null);
         }
@@ -301,6 +304,14 @@ export const ActiveRoast = ({
             panChart(1);
         }
     };
+
+    // 머신 disconnect 시 진행 중인 로스트를 초기화한다.
+    useEffect(() => {
+        if (sidecarConnected) return;
+        if (phase === 'idle' || phase === 'ended') return;
+        resetActiveRoast();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sidecarConnected]);
 
     // ── 타이머 ────────────────────────────────────────────────────
     useEffect(() => {
