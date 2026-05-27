@@ -24,7 +24,7 @@ fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
 fn kill_zombie_sidecar() {
     #[cfg(not(target_os = "windows"))]
     {
-        // lsof로 PID를 구한 뒤 프로세스 이름이 "sidecar"를 포함할 때만 kill
+        // lsof -t: PID만 출력, -i tcp:9999: 해당 포트 리스너/연결만 필터
         let pid_output = std::process::Command::new("sh")
             .args(["-c", "lsof -ti tcp:9999 2>/dev/null"])
             .output();
@@ -32,6 +32,9 @@ fn kill_zombie_sidecar() {
         if let Ok(out) = pid_output {
             let pids = String::from_utf8_lossy(&out.stdout);
             for pid_str in pids.split_whitespace() {
+                // ps -o comm=: 실행 파일 basename만 출력 (경로 없음).
+                // Tauri externalBin 규약상 바이너리는 "sidecar-<target-triple>" 형태이므로
+                // contains("sidecar")가 확실히 매칭된다.
                 let name_check = std::process::Command::new("sh")
                     .args(["-c", &format!("ps -p {pid_str} -o comm= 2>/dev/null")])
                     .output();
@@ -49,7 +52,9 @@ fn kill_zombie_sidecar() {
     }
     #[cfg(target_os = "windows")]
     {
-        // netstat으로 PID 후보 추출 → tasklist로 이미지 이름 검증 → 우리 사이드카일 때만 taskkill
+        // netstat -ano: 모든 TCP/UDP 포트 + PID 출력.
+        // findstr :9999 — ":9999" 리터럴 검색이므로 :19999, :29999는 매칭되지 않는다.
+        // (콜론이 포트 경계 역할을 함: "127.0.0.1:19999"에서 ':' 다음 문자는 '1'이라 불일치)
         let netstat = std::process::Command::new("cmd")
             .args(["/C", "netstat -ano | findstr :9999"])
             .output();
@@ -57,16 +62,19 @@ fn kill_zombie_sidecar() {
             let text = String::from_utf8_lossy(&out.stdout);
             let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
             for line in text.lines() {
+                // netstat 출력의 마지막 컬럼이 PID
                 let pid = match line.split_whitespace().last() {
                     Some(p) => p.to_string(),
                     None => continue,
                 };
+                // 숫자가 아닌 토큰(헤더 행 등) 제외
                 if pid.is_empty() || !pid.chars().all(|c| c.is_ascii_digit()) {
                     continue;
                 }
                 if !seen.insert(pid.clone()) {
                     continue;
                 }
+                // tasklist: 프로세스 이름 검증 후 우리 사이드카일 때만 kill
                 let tasklist = std::process::Command::new("cmd")
                     .args([
                         "/C",
@@ -111,6 +119,9 @@ fn sidecar_healthy() -> bool {
         return false;
     }
 
+    // 16바이트면 "HTTP/1.X 200 OK\r" 전체를 수신하기에 충분하다.
+    // windows(3)으로 "200" substring을 찾는 것이 naive해 보이지만,
+    // 응답 시작 16바이트 안에는 HTTP 버전 + 상태코드만 존재하므로 오탐 없음.
     let mut buf = [0u8; 16];
     let n = match stream.read(&mut buf) {
         Ok(n) => n,
