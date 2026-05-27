@@ -58,3 +58,6 @@ screenshots/
 .roo*
 
 artifacts/
+
+# Serena MCP
+.serena/
