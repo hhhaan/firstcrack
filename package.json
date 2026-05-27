@@ -14,7 +14,13 @@
     "build:debug": "npm run build:sidecar && tauri build --debug && open 'src-tauri/target/debug/bundle/macos/First Crack.app'",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "prepare": "husky"
+    "prepare": "husky",
+    "doctor": "react-doctor",
+    "doctor:fast": "react-doctor --diff",
+    "doctor:fix": "react-doctor --fix",
+    "doctor:strict": "react-doctor --fail-on-warnings",
+    "doctor:report": "react-doctor --format json > react-doctor-report.json"
+  
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1050.0",
@@ -63,6 +69,7 @@
     "globals": "^17.6.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.5",
+    "react-doctor": "^0.2.8",
     "tailwindcss": "^4.2.4",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.59.4",
