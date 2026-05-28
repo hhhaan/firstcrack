@@ -111,6 +111,7 @@ class RoasterManager:
         self._et_display_ema: float | None = None
         self._lock: asyncio.Lock = asyncio.Lock()
         self._reconnect_task: asyncio.Task[None] | None = None
+        self._reconnect_attempt: int = 0
 
     async def connect(self, roaster_key: str, params: dict[str, Any]) -> None:
         async with self._lock:
@@ -150,7 +151,7 @@ class RoasterManager:
             except Exception as exc:
                 self._error = _format_connection_error(exc, protocol, merged)
                 self._connected = False
-                _log.error("연결 실패 [%s]: %s", roaster_key, exc)
+                _log.error("연결 실패 [%s]: %s", roaster_key, exc, exc_info=True)
 
     async def disconnect(self) -> None:
         async with self._lock:
@@ -181,11 +182,14 @@ class RoasterManager:
     async def _reconnect_loop(self) -> None:
         """읽기 실패 후 백그라운드 자동 재연결 (3회, 지수 백오프)."""
         for attempt, delay in enumerate([2.0, 5.0, 10.0]):
+            self._reconnect_attempt = attempt + 1
             await asyncio.sleep(delay)
             if self._connected or self._adapter is None:
+                self._reconnect_attempt = 0
                 return
             async with self._lock:
                 if self._connected or self._adapter is None:
+                    self._reconnect_attempt = 0
                     return
                 try:
                     _log.info(
@@ -198,10 +202,12 @@ class RoasterManager:
                     await self._adapter.connect()
                     self._connected = True
                     self._error = None
+                    self._reconnect_attempt = 0
                     _log.info("자동 재연결 성공: %s", self._roaster_key)
                     return
                 except Exception as exc:
-                    _log.warning("재연결 실패 (%d/3): %s", attempt + 1, exc)
+                    _log.error("재연결 실패 (%d/3): %s", attempt + 1, exc, exc_info=True)
+        self._reconnect_attempt = 0
         _log.error("자동 재연결 3회 모두 실패: %s", self._roaster_key)
 
     async def read_temperatures(self) -> dict[str, Any]:
@@ -223,7 +229,7 @@ class RoasterManager:
                 exc, self._protocol, self._merged_params
             )
             self._connected = False
-            _log.error("읽기 실패: %s", exc)
+            _log.error("읽기 실패: %s", exc, exc_info=True)
             if self._reconnect_task is None or self._reconnect_task.done():
                 self._reconnect_task = asyncio.create_task(self._reconnect_loop())
             return {
@@ -295,8 +301,11 @@ class RoasterManager:
     def status(self) -> dict[str, Any]:
         uptime = round(time.monotonic() - self._start_time, 1) if self._connected else 0
         reg = ROASTER_REGISTRY.get(self._roaster_key, {})
+        reconnecting = self._reconnect_task is not None and not self._reconnect_task.done()
         return {
             "connected": self._connected and self._data_ok,
+            "reconnecting": reconnecting,
+            "reconnect_attempt": self._reconnect_attempt,
             "roaster": self._roaster_key,
             "display_name": reg.get("display_name", ""),
             "brand": reg.get("brand", ""),

@@ -81,6 +81,7 @@ export const RoastHeader = ({
     const roastEnded = useRoastingStore((s) => s.phase === 'ended');
     const charged = useRoastingStore((s) => s.charged);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
+    const sidecarError = useRoastingStore((s) => s.sidecarError);
     const elapsed = useRoastingStore((s) => s.elapsed);
     const user = useAuthStore((s) => s.user);
     const { data: beans = [] } = useBeans(user?.id ?? '');
@@ -142,6 +143,9 @@ export const RoastHeader = ({
                         {statusText}
                     </span>
                 </div>
+                {!sidecarConnected && sidecarError && (
+                    <p className="text-xs text-red-400 mb-1.5 max-w-xs">{sidecarError}</p>
+                )}
 
                 <div className="relative inline-flex items-center mb-1 min-w-0">
                     <span className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">

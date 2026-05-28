@@ -43,6 +43,8 @@ export type RoastersResponse = Record<string, RoasterDef>;
 // GET /status 응답
 export interface SidecarStatus {
   connected: boolean;
+  reconnecting?: boolean;
+  reconnect_attempt?: number;
   roaster: string;
   display_name: string;
   brand: string;

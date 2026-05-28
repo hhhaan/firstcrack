@@ -8,15 +8,24 @@ import type {
 const BASE = 'http://127.0.0.1:9999';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...init,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...init,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const msg = (body as { error?: string }).error ?? `HTTP ${res.status}`;
+      console.error(`[sidecar] ${init?.method ?? 'GET'} ${path} 실패:`, msg);
+      throw new Error(msg);
+    }
+    return res.json() as Promise<T>;
+  } catch (err) {
+    if (!(err instanceof Error && err.message.startsWith('HTTP'))) {
+      console.error(`[sidecar] ${path} 네트워크 오류:`, err);
+    }
+    throw err;
   }
-  return res.json() as Promise<T>;
 }
 
 export const sidecar = {
