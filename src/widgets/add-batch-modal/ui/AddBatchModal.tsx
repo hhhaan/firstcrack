@@ -4,14 +4,13 @@ import { CounterInput } from '@shared/ui/CounterInput';
 import { SearchableSelect } from './SearchableSelect';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { useQuery } from '@tanstack/react-query';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Calendar } from '@shared/ui/calendar/Calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
 import { useAuthStore } from '@shared/store/auth';
 import { useBeans } from '@entities/bean/queries';
 import { useMachines, type Machine } from '@entities/machine';
-import { supabase } from '@shared/lib/supabase';
+import { useRoastProfiles } from '@entities/roast-profile/queries';
 import { cn } from '@shared/lib/cn';
 import type { RoastProfile, Bean } from '@shared/types/database.types';
 
@@ -71,25 +70,12 @@ export const AddBatchModal = ({ open, onClose, onAdd }: AddBatchModalProps) => {
     const { data: beans = [] } = useBeans(userId);
     const { machines } = useMachines();
 
-    const { data: profiles = [] } = useQuery({
-        queryKey: ['roast_profiles', userId],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('roast_profiles')
-                .select('*')
-                .eq('user_id', userId)
-                .order('name');
-            if (error) throw error;
-            return (data ?? []) as RoastProfile[];
-        },
-        enabled: !!userId && open,
-        staleTime: 60_000,
-    });
+    const { data: profiles = [] } = useRoastProfiles(userId);
 
-    // Form state
+    // Form state — initializes fresh on each mount (parent passes key={open} to remount)
     const [date, setDate] = useState<Date | undefined>(todayDate);
     const [calendarOpen, setCalendarOpen] = useState(false);
-    const [machineId, setMachineId] = useState('');
+    const [machineId, setMachineId] = useState(() => machines[0]?.id ?? '');
     const [batchType, setBatchType] = useState<BatchType>('Single Origin');
     const [profileId, setProfileId] = useState('');
     const [beanId, setBeanId] = useState('');
@@ -97,21 +83,6 @@ export const AddBatchModal = ({ open, onClose, onAdd }: AddBatchModalProps) => {
     const [batchSize, setBatchSize] = useState(String(DEFAULT_BATCH_SIZE));
     const [yieldPct, setYieldPct] = useState(String(DEFAULT_YIELD));
     const [notes, setNotes] = useState('');
-
-    // Reset on open
-    useEffect(() => {
-        if (!open) return;
-        setDate(todayDate());
-        setMachineId(machines[0]?.id ?? '');
-        setBatchType('Single Origin');
-        setProfileId('');
-        setBeanId('');
-        setTargetRoasted('');
-        setBatchSize(String(DEFAULT_BATCH_SIZE));
-        setYieldPct(String(DEFAULT_YIELD));
-        setNotes('');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
 
     useEffect(() => {
         if (!open) return;

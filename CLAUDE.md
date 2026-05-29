@@ -31,6 +31,117 @@ Hook file placement:
 - widgets: `src/widgets/<slice>/ui/use*.ts` (co-located with the component)
 - views: `src/views/<page>/hooks/use*.ts` (use `hooks/` subdir when a page has multiple hooks)
 
+## State Management Strategy
+
+### Decision tree — what to use
+
+| 데이터 성격 | 도구 |
+|---|---|
+| 서버 데이터 (DB 읽기/쓰기) | React Query |
+| 앱 설정 · 사용자 환경설정 (앱 재시작 후에도 유지) | Tauri Store (`LazyStore`) |
+| 구조화된 엔티티 목록 (복잡한 로컬 CRUD) | Zustand + persist middleware |
+| 세션 중 임시 상태 (로스팅 진행, auth, 라이브 데이터) | 순수 Zustand (no persist) |
+
+### Tauri Store — user preferences & settings
+
+앱 설정, 환경설정처럼 앱 재시작 후에도 살아남아야 하는 key-value 데이터.
+
+```ts
+// src/shared/lib/myStore.ts
+import { LazyStore } from '@tauri-apps/plugin-store'
+
+const store = new LazyStore('settings.json')   // 모든 설정은 settings.json 하나에 집중
+
+export const myStore = {
+  get: () => store.get<MyType>('my.key'),
+  set: (val: MyType) => store.set('my.key', val).then(() => store.save()),
+}
+```
+
+**규칙:**
+- 파일 하나에 `LazyStore` 인스턴스 하나 (싱글턴). 여러 곳에서 `new LazyStore` 금지.
+- 스토어 파일은 `settings.json` 하나에 집중. 키는 `domain.field` 형식 (`roast.settings`, `roastery.location`, `language`).
+- 쓰기 고빈도 필드(차트 설정 등)는 debounce 200ms 후 `store.save()`.
+- Tauri 환경이 아닌 경우(개발 웹)를 위해 localStorage fallback 제공.
+
+### Zustand persist middleware — structured entity lists
+
+앱 재시작 후에도 필요하지만 단순 key-value가 아닌 구조화된 목록 (예: 머신 목록).
+
+```ts
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+
+export const useMachinesStore = create<MachinesState>()(
+  persist(
+    (set) => ({ ... }),
+    {
+      name: 'fc_machines',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (s) => ({ machines: s.machines.filter(m => !m.isVirtual) }),
+      merge: (persisted, current) => ({ ...current, machines: [...virtualMachines, ...(persisted as MachinesState).machines] }),
+    }
+  )
+)
+```
+
+**규칙:**
+- localStorage 키는 `fc_` prefix (`fc_machines`, `fc_*`).
+- 스토어에서 persist에 저장하지 않을 필드는 `partialize`로 제외.
+- hydration 시점에 재주입이 필요한 파생 데이터(virtual 항목 등)는 `merge`에서 처리.
+
+### Pure Zustand — ephemeral session state
+
+서버가 source of truth이거나 앱 재시작 시 초기화되어야 하는 상태.
+
+```ts
+// auth: Supabase가 source of truth → persist 불필요
+// roasting: 진행 중 세션 → 앱 재시작 시 초기화가 맞음
+// live data: 하드웨어에서 실시간 수신 → 저장 불필요
+```
+
+**규칙:**
+- 스토어 파일 위치: `src/shared/store/*.ts` (cross-cutting) 또는 `src/entities/<slice>/model.ts` (entity-scoped).
+- 스토어 하나에 단일 도메인만. 여러 도메인이 섞이면 파일 분리.
+
+## Data Fetching Strategy
+
+All server state is managed with **React Query + axios**. Never use `useEffect` to fetch data.
+
+### Layer placement
+- Raw axios calls → `entities/<slice>/api.ts`
+- React Query hooks → `entities/<slice>/queries.ts` (reads) or `features/<slice>/model/use<Mutation>.ts` (writes)
+
+### Query key factory
+Every entity exports a key factory so invalidation is predictable:
+
+```ts
+// entities/roast-log/queries.ts
+export const roastLogKeys = {
+  all: ['roast-logs'] as const,
+  list: () => [...roastLogKeys.all, 'list'] as const,
+  detail: (id: string) => [...roastLogKeys.all, 'detail', id] as const,
+}
+```
+
+### Mutation → invalidation rule
+After every mutation, invalidate via `queryClient.invalidateQueries`. Never call `refetch()` manually or re-trigger queries in `useEffect`.
+
+```ts
+useMutation({
+  mutationFn: saveRoastLog,
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: roastLogKeys.list() })
+  },
+})
+```
+
+### staleTime
+Global default is `staleTime: Infinity` (set in QueryClient). Data only refreshes on explicit invalidation — no silent background refetches. Override per-query only when real-time freshness is required (e.g., live hardware readings).
+
+### axios singleton
+One axios instance lives at `src/shared/lib/axios.ts` with `baseURL` and auth interceptors. Never create a second `axios.create()` elsewhere.
+
 ## Database Rules
 
 When making **any schema change** (new table, new column, index, RLS policy, etc.):

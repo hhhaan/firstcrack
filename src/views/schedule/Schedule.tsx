@@ -563,6 +563,7 @@ const DayView = ({
                 )}
             </div>
             <AddBatchModal
+                key={String(isAddModalOpen)}
                 open={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onAdd={handleAddBatch}
