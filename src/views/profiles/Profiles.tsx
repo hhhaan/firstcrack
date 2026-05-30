@@ -380,7 +380,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                     </button>
                 </div>
             ) : (
-                <div className="grid gap-5" style={{ gridTemplateColumns: '300px 1fr' }}>
+                <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
                     {/* Profile list */}
                     <div className="flex flex-col gap-2">
                         {compareMode && (

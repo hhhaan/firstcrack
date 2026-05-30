@@ -152,7 +152,7 @@ export const Machines = ({
                     </button>
                 </div>
             ) : (
-                <div className="grid gap-5" style={{ gridTemplateColumns: '300px 1fr' }}>
+                <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
                     {/* List */}
                     <div>
                         <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5 border border-[#E5E5E5]">
