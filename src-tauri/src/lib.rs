@@ -52,16 +52,24 @@ fn kill_zombie_sidecar() {
     }
     #[cfg(target_os = "windows")]
     {
-        // netstat -ano: 모든 TCP/UDP 포트 + PID 출력.
-        // findstr :9999 — ":9999" 리터럴 검색이므로 :19999, :29999는 매칭되지 않는다.
+        use std::os::windows::process::CommandExt;
+
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        // netstat -ano 출력을 받아 Rust에서 직접 ":9999" 필터링.
         // (콜론이 포트 경계 역할을 함: "127.0.0.1:19999"에서 ':' 다음 문자는 '1'이라 불일치)
-        let netstat = std::process::Command::new("cmd")
-            .args(["/C", "netstat -ano | findstr :9999"])
+        let netstat = std::process::Command::new("netstat")
+            .args(["-ano"])
+            .creation_flags(CREATE_NO_WINDOW)
             .output();
         if let Ok(out) = netstat {
             let text = String::from_utf8_lossy(&out.stdout);
             let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
             for line in text.lines() {
+                // ":9999"를 포함하지 않는 라인은 스킵 (findstr :9999 대체)
+                if !line.contains(":9999") {
+                    continue;
+                }
                 // netstat 출력의 마지막 컬럼이 PID
                 let pid = match line.split_whitespace().last() {
                     Some(p) => p.to_string(),
@@ -74,18 +82,17 @@ fn kill_zombie_sidecar() {
                 if !seen.insert(pid.clone()) {
                     continue;
                 }
-                // tasklist: 프로세스 이름 검증 후 우리 사이드카일 때만 kill
-                let tasklist = std::process::Command::new("cmd")
-                    .args([
-                        "/C",
-                        &format!("tasklist /FI \"PID eq {pid}\" /FO CSV /NH"),
-                    ])
+                // tasklist: 프로세스 이름 검증 후 우리 사이드카일 때만 kill (직접 호출)
+                let tasklist = std::process::Command::new("tasklist")
+                    .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
+                    .creation_flags(CREATE_NO_WINDOW)
                     .output();
                 if let Ok(t) = tasklist {
                     let name = String::from_utf8_lossy(&t.stdout).to_lowercase();
                     if name.contains("sidecar") || name.contains("python") {
-                        let _ = std::process::Command::new("cmd")
-                            .args(["/C", &format!("taskkill /F /PID {pid}")])
+                        let _ = std::process::Command::new("taskkill")
+                            .args(["/F", "/PID", &pid])
+                            .creation_flags(CREATE_NO_WINDOW)
                             .output();
                         eprintln!("[sidecar-guard] Windows 좀비 사이드카 kill: PID {pid}");
                     }
