@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Plus, History, Pencil, ChevronRight } from 'lucide-react';
+import { X, Plus, History, Pencil, ChevronRight, Check } from 'lucide-react';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { useRoastSessions } from '@entities/roast';
 import { useAuthStore } from '@shared/store/auth';
 import type { RoastProfile } from '@shared/types/database.types';
+import type { RoastProfileWithSource } from '@entities/roast-profile';
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 
@@ -47,9 +48,11 @@ interface NewProfileModalProps {
     open: boolean;
     onClose: () => void;
     onCreated: (profile: RoastProfile) => void;
+    editingProfile?: RoastProfileWithSource | null;
+    onUpdated?: (profile: RoastProfile) => void;
 }
 
-export const NewProfileModal = ({ open, onClose, onCreated }: NewProfileModalProps) => {
+export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUpdated }: NewProfileModalProps) => {
     const [mode, setMode] = useState<Mode>('pick');
     const [form, setForm] = useState<FormState>(INITIAL_FORM);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -58,13 +61,31 @@ export const NewProfileModal = ({ open, onClose, onCreated }: NewProfileModalPro
     const user = useAuthStore((s) => s.user);
     const { data: sessions = [] } = useRoastSessions(user?.id ?? '', 'completed');
 
-    useEffect(() => {
-        if (open) {
+    // Derive initial state from props during render to avoid stale UI commits
+    const [prevOpen, setPrevOpen] = useState(open);
+    const [prevEditingProfile, setPrevEditingProfile] = useState(editingProfile);
+    if (open && (open !== prevOpen || editingProfile !== prevEditingProfile)) {
+        setPrevOpen(open);
+        setPrevEditingProfile(editingProfile);
+        if (editingProfile) {
+            setMode('manual');
+            setForm({
+                name: editingProfile.name ?? '',
+                description: editingProfile.description ?? '',
+                target_level: editingProfile.target_level ?? 'Medium',
+                charge_temp_celsius: editingProfile.charge_temp_celsius != null ? String(editingProfile.charge_temp_celsius) : '',
+                drop_temp_celsius: editingProfile.drop_temp_celsius != null ? String(editingProfile.drop_temp_celsius) : '',
+                duration_sec: editingProfile.duration_sec != null ? String(editingProfile.duration_sec) : '',
+                dev_time_sec: editingProfile.dev_time_sec != null ? String(editingProfile.dev_time_sec) : '',
+                dev_pct: editingProfile.dev_pct != null ? String(editingProfile.dev_pct) : '',
+            });
+            setSelectedSessionId(editingProfile.source_session_id ?? null);
+        } else {
             setMode('pick');
             setForm(INITIAL_FORM);
             setSelectedSessionId(null);
         }
-    }, [open]);
+    }
 
     useEffect(() => {
         if (!open) return undefined;
@@ -77,7 +98,8 @@ export const NewProfileModal = ({ open, onClose, onCreated }: NewProfileModalPro
 
     useEffect(() => {
         if (mode === 'manual' || mode === 'from-session') {
-            setTimeout(() => nameRef.current?.focus(), 50);
+            const id = setTimeout(() => nameRef.current?.focus(), 50);
+            return () => clearTimeout(id);
         }
     }, [mode]);
 
@@ -112,20 +134,34 @@ export const NewProfileModal = ({ open, onClose, onCreated }: NewProfileModalPro
         e.preventDefault();
         if (!isValid || !user) return;
 
-        const profile: Omit<RoastProfile, 'id' | 'created_at' | 'updated_at'> = {
-            user_id: user.id,
-            name: form.name.trim(),
-            description: form.description.trim() || null,
-            target_level: form.target_level,
-            charge_temp_celsius: Number(form.charge_temp_celsius) || null,
-            drop_temp_celsius: Number(form.drop_temp_celsius) || null,
-            duration_sec: Number(form.duration_sec) || null,
-            dev_time_sec: Number(form.dev_time_sec) || null,
-            dev_pct: Number(form.dev_pct) || null,
-            source_session_id: mode === 'from-session' ? selectedSessionId : null,
-        };
+        if (editingProfile) {
+            const patch: Partial<Omit<RoastProfile, 'id' | 'created_at' | 'updated_at' | 'user_id'>> = {
+                name: form.name.trim(),
+                description: form.description.trim() || null,
+                target_level: form.target_level,
+                charge_temp_celsius: Number(form.charge_temp_celsius) || null,
+                drop_temp_celsius: Number(form.drop_temp_celsius) || null,
+                duration_sec: Number(form.duration_sec) || null,
+                dev_time_sec: Number(form.dev_time_sec) || null,
+                dev_pct: Number(form.dev_pct) || null,
+            };
+            onUpdated?.({ id: editingProfile.id, ...patch } as RoastProfile);
+        } else {
+            const profile: Omit<RoastProfile, 'id' | 'created_at' | 'updated_at'> = {
+                user_id: user.id,
+                name: form.name.trim(),
+                description: form.description.trim() || null,
+                target_level: form.target_level,
+                charge_temp_celsius: Number(form.charge_temp_celsius) || null,
+                drop_temp_celsius: Number(form.drop_temp_celsius) || null,
+                duration_sec: Number(form.duration_sec) || null,
+                dev_time_sec: Number(form.dev_time_sec) || null,
+                dev_pct: Number(form.dev_pct) || null,
+                source_session_id: mode === 'from-session' ? selectedSessionId : null,
+            };
 
-        onCreated(profile as RoastProfile);
+            onCreated(profile as RoastProfile);
+        }
         onClose();
     };
 
@@ -141,7 +177,7 @@ export const NewProfileModal = ({ open, onClose, onCreated }: NewProfileModalPro
                         <ChevronRight size={12} strokeWidth={2} color="var(--color-muted)" className="rotate-180" />
                     </button>
                     <h2 id="new-profile-modal-title" className="text-[15px] font-semibold text-primary tracking-[-0.2px] m-0">
-                        {mode === 'from-session' ? 'Profile from Session' : 'New Roast Profile'}
+                        {editingProfile ? 'Edit Roast Profile' : mode === 'from-session' ? 'Profile from Session' : 'New Roast Profile'}
                     </h2>
                 </div>
                 <button
@@ -290,8 +326,11 @@ export const NewProfileModal = ({ open, onClose, onCreated }: NewProfileModalPro
                     disabled={!isValid}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer shadow-(--shadow-card) tracking-[0.14px] disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
                 >
-                    <Plus size={14} strokeWidth={2.5} />
-                    Create Profile
+                    {editingProfile ? (
+                        <><Check size={14} strokeWidth={2.5} /> Save Profile</>
+                    ) : (
+                        <><Plus size={14} strokeWidth={2.5} /> Create Profile</>
+                    )}
                 </button>
             </div>
         </form>
@@ -353,9 +392,9 @@ export const NewProfileModal = ({ open, onClose, onCreated }: NewProfileModalPro
     const renderPicker = () => (
         <div>
             <div className="flex items-center justify-between px-7 pt-6 pb-5 border-b border-black/6">
-                <h2 id="new-profile-modal-title" className="text-[15px] font-semibold text-primary tracking-[-0.2px] m-0">
-                    New Roast Profile
-                </h2>
+                    <h2 id="new-profile-modal-title" className="text-[15px] font-semibold text-primary tracking-[-0.2px] m-0">
+                        {editingProfile ? 'Edit Roast Profile' : 'New Roast Profile'}
+                    </h2>
                 <button
                     type="button"
                     onClick={onClose}
@@ -427,8 +466,8 @@ export const NewProfileModal = ({ open, onClose, onCreated }: NewProfileModalPro
             labelledBy="new-profile-modal-title"
             contentClassName="w-full max-w-[520px] bg-white rounded-2xl shadow-2xl border border-black/8 overflow-hidden"
         >
-            {mode === 'pick' && renderPicker()}
-            {mode === 'session-list' && renderSessionPicker()}
+            {mode === 'pick' && !editingProfile && renderPicker()}
+            {mode === 'session-list' && !editingProfile && renderSessionPicker()}
             {(mode === 'manual' || mode === 'from-session') && renderForm()}
         </ModalShell>
     );

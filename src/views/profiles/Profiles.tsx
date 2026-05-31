@@ -7,6 +7,7 @@ import { generateProfileCurve } from '@shared/data/roast-profiles';
 import {
     useRoastProfiles,
     useCreateRoastProfile,
+    useUpdateRoastProfile,
     useDeleteRoastProfile,
     useRoastProfileCurve,
     useRoastProfileCurves,
@@ -226,22 +227,24 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const [compareMode, setCompareMode] = useState(false);
     const [compareIds, setCompareIds] = useState<string[]>([]);
     const [showNewModal, setShowNewModal] = useState(false);
+    const [editingProfile, setEditingProfile] = useState<RoastProfileWithSource | null>(null);
 
     // 프로파일 목록이 처음 로드됐을 때 첫 번째 항목을 자동 선택.
-    // selectedId가 이미 있으면 (예: 뒤로가기 후 재진입) 덮어쓰지 않음.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => {
         if (profiles.length > 0 && !selectedId) {
             setSelectedId(profiles[0].id);
         }
-    }, [profiles, selectedId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profiles.length, selectedId]);
 
     // DB에서 userProfile이 로드되면 defaultId를 동기화.
-    // 예전엔 localStorage로 관리했는데, 기기 간 동기화가 안 돼서 Supabase profiles.default_roast_profile_id로 이전함.
-    // userProfile이 undefined이면 아직 로딩 중이므로 null로 덮어쓰면 안 됨 → 체크 후 실행.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => {
         if (userProfile !== undefined) {
             setDefaultId(userProfile?.default_roast_profile_id ?? null);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.default_roast_profile_id]);
 
     const selected = profiles.find((p) => p.id === selectedId) ?? null;
@@ -287,7 +290,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     };
 
     const handleCreated = async (profileData: RoastProfile) => {
-        const { id: _id, created_at: _ca, updated_at: _ua, ...insert } = profileData;
+        const { id: _ignoreId, created_at: _ignoreCa, updated_at: _ignoreUa, ...insert } = profileData;
         const created = await createProfile(insert);
         setSelectedId(created.id);
     };

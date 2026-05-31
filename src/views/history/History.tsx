@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Search, Filter, ChevronDown, ChevronUp, Download, FileText, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useRoastSessions } from '@entities/roast';
+import { useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
 import { useProfile } from '@entities/profile';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
@@ -159,6 +159,14 @@ const HistoryTable = ({
     const start = (page - 1) * pageSize + 1;
     const end = Math.min(page * pageSize, filteredTotal);
 
+    const getCellTitle = (col: Column, session: RoastSessionWithRelations): string | undefined => {
+        if (col.key === 'level') {
+            return session.roast_level ?? '—';
+        }
+        const rendered = col.render(session);
+        return typeof rendered === 'string' ? rendered : undefined;
+    };
+
     return (
         <div className="overflow-x-auto rounded-lg bg-main-bg border border-[#E5E5E5] [-webkit-overflow-scrolling:touch]">
             <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
@@ -202,10 +210,12 @@ const HistoryTable = ({
                                                   : 'tracking-[0.14px] text-secondary';
                                         const responsiveClass =
                                             col.label === 'Profile' ? 'md:hidden lg:table-cell' : '';
+                                        const cellTitle = getCellTitle(col, session);
                                         return (
                                             <td
                                                 key={col.key || idx}
-                                                className={`px-3 py-3 text-[13px] whitespace-nowrap ${cellClass} ${responsiveClass}`}
+                                                title={cellTitle}
+                                                className={`overflow-hidden px-3 py-3 text-[13px] whitespace-nowrap ${cellClass} ${responsiveClass}`}
                                                 style={{ width: col.width }}
                                             >
                                                 {col.render(session)}
@@ -228,11 +238,12 @@ const HistoryTable = ({
                 </span>
 
                 <div className="flex items-center gap-1">
-                    <button
-                        onClick={() => onPageChange(page - 1)}
-                        disabled={page === 1}
-                        className="flex h-6 w-6 items-center justify-center rounded text-muted transition hover:bg-surface hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
+                <button
+                    type="button"
+                    onClick={() => onPageChange(page - 1)}
+                    disabled={page === 1}
+                    className="flex h-6 w-6 items-center justify-center rounded text-muted transition hover:bg-surface hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                >
                         <ChevronLeft size={13} strokeWidth={2} />
                     </button>
 
@@ -305,6 +316,7 @@ const FilterDropdown = ({
     return (
         <div ref={ref} className="relative">
             <button
+                type="button"
                 onClick={() => setOpen((o) => !o)}
                 className={`inline-flex items-center gap-1 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
                     isActive
@@ -561,7 +573,24 @@ export const History = () => {
     const user = useAuthStore((s) => s.user);
     const { data: profile } = useProfile(user?.id ?? '');
 
-    const { data: rawSessions = [], isLoading, isError } = useRoastSessions(user?.id ?? '', 'completed');
+    // --- Server-side paginated query for table data ---
+    const { data: paginatedResult, isLoading, isError } = useRoastSessionsPaginated({
+        userId: user?.id ?? '',
+        status: 'completed',
+        page: Math.min(page, Math.max(1, Math.ceil(page))),
+        pageSize: PAGE_SIZE,
+        sortKey: sortKey === 'bean' ? 'date' : sortKey, // bean sorting happens client-side
+        sortAsc,
+        level: levelFilter,
+        fromYM: fromYM || null,
+        toYM: toYM || null,
+    });
+
+    const sessions = paginatedResult?.data ?? [];
+    const filteredTotal = paginatedResult?.total ?? 0;
+
+    // --- Client-side query for filter metadata (origins, month range) ---
+    const { data: rawSessions = [] } = useRoastSessions(user?.id ?? '', 'completed');
 
     const uniqueOrigins = useMemo(
         () => [...new Set(rawSessions.map((s) => s.beans?.origin).filter(Boolean) as string[])].sort(),
@@ -580,6 +609,8 @@ export const History = () => {
         });
         return [...set].sort();
     }, [rawSessions]);
+
+    const totalSessions = rawSessions.length;
 
     const handleSort = (key: SortKey): void => {
         if (sortKey === key) {
@@ -619,48 +650,69 @@ export const History = () => {
         setPage(1);
     };
 
-    const filtered = useMemo((): RoastSessionWithRelations[] => {
+    // Client-side search + origin filter (can't be done server-side on joined table)
+    const filteredForDisplay = useMemo((): RoastSessionWithRelations[] => {
+        if (!search && originFilter === 'all') return sessions;
         const q = search.toLowerCase();
-
-        return rawSessions
-            .filter((s) => {
-                if (
-                    q &&
-                    !(
-                        (s.beans?.name ?? '').toLowerCase().includes(q) ||
-                        (s.roast_profiles?.name ?? '').toLowerCase().includes(q) ||
-                        (s.beans?.origin ?? '').toLowerCase().includes(q)
-                    )
+        return sessions.filter((s) => {
+            if (
+                q &&
+                !(
+                    (s.beans?.name ?? '').toLowerCase().includes(q) ||
+                    (s.roast_profiles?.name ?? '').toLowerCase().includes(q) ||
+                    (s.beans?.origin ?? '').toLowerCase().includes(q)
                 )
-                    return false;
-                if (levelFilter !== 'all' && s.roast_level !== levelFilter) return false;
-                if (originFilter !== 'all' && s.beans?.origin !== originFilter) return false;
-                if (fromYM || toYM) {
-                    if (!s.roasted_at) return false;
-                    const d = new Date(s.roasted_at);
-                    const sessionYM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                    if (fromYM && sessionYM < fromYM) return false;
-                    if (toYM && sessionYM > toYM) return false;
-                }
-                return true;
-            })
-            .sort((a, b): number => {
-                const dir = sortAsc ? 1 : -1;
-                if (sortKey === 'date') return dir * ((a.roasted_at ?? '') < (b.roasted_at ?? '') ? -1 : 1);
-                if (sortKey === 'bean') return dir * (a.beans?.name ?? '').localeCompare(b.beans?.name ?? '');
-                if (sortKey === 'duration') return dir * ((a.duration_seconds ?? 0) - (b.duration_seconds ?? 0));
-                if (sortKey === 'drop') return dir * ((a.drop_temp_celsius ?? 0) - (b.drop_temp_celsius ?? 0));
-                return dir * (a.roast_level ?? '').localeCompare(b.roast_level ?? '');
-            });
-    }, [rawSessions, search, sortKey, sortAsc, levelFilter, originFilter, fromYM, toYM]);
+            )
+                return false;
+            if (originFilter !== 'all' && s.beans?.origin !== originFilter) return false;
+            return true;
+        });
+    }, [sessions, search, originFilter]);
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    // Sort 'bean' column client-side since the server sorts by date as fallback
+    const displaySessions = useMemo((): RoastSessionWithRelations[] => {
+        if (sortKey !== 'bean') return filteredForDisplay;
+        const dir = sortAsc ? 1 : -1;
+        return [...filteredForDisplay].sort((a, b) =>
+            dir * (a.beans?.name ?? '').localeCompare(b.beans?.name ?? ''),
+        );
+    }, [filteredForDisplay, sortKey, sortAsc]);
+
+    // Compute effective total for "X–Y of Z" display
+    // When search or origin filter is active, we need the real count from rawSessions
+    const displayTotal = useMemo(() => {
+        if (!search && originFilter === 'all') return filteredTotal;
+
+        const q = search.toLowerCase();
+        const filtered = rawSessions.filter((s) => {
+            // Level filter
+            if (levelFilter !== 'all' && s.roast_level !== levelFilter) return false;
+            // Date range filter
+            if (fromYM || toYM) {
+                if (!s.roasted_at) return false;
+                const d = new Date(s.roasted_at);
+                const sessionYM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                if (fromYM && sessionYM < fromYM) return false;
+                if (toYM && sessionYM > toYM) return false;
+            }
+            // Search filter
+            if (
+                q &&
+                !(
+                    (s.beans?.name ?? '').toLowerCase().includes(q) ||
+                    (s.roast_profiles?.name ?? '').toLowerCase().includes(q) ||
+                    (s.beans?.origin ?? '').toLowerCase().includes(q)
+                )
+            ) return false;
+            // Origin filter
+            if (originFilter !== 'all' && s.beans?.origin !== originFilter) return false;
+            return true;
+        });
+        return filtered.length;
+    }, [search, originFilter, filteredTotal, displaySessions, rawSessions, levelFilter, fromYM, toYM]);
+
+    const totalPages = Math.max(1, Math.ceil(displayTotal / PAGE_SIZE));
     const safePage = Math.min(page, totalPages);
-
-    const paginated = useMemo((): RoastSessionWithRelations[] => {
-        const start = (safePage - 1) * PAGE_SIZE;
-        return filtered.slice(start, start + PAGE_SIZE);
-    }, [filtered, safePage]);
 
     const reportData = useMemo(() => {
         const now = new Date();
@@ -717,7 +769,7 @@ export const History = () => {
                         Roast History
                     </h1>
                     <p className="text-sm tracking-[0.14px] text-muted">
-                        {isLoading ? 'Loading…' : `${rawSessions.length} sessions recorded`}
+                        {isLoading ? 'Loading…' : `${totalSessions} sessions recorded`}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -767,23 +819,6 @@ export const History = () => {
                         onFromYM={handleFromYM}
                         onToYM={handleToYM}
                     />
-
-                    {/* <div className="ml-auto flex items-center gap-1 rounded-lg bg-surface px-2 py-1.5 shadow-(--shadow-inset)">
-                        <span className="text-[12px] text-muted mr-0.5">Show</span>
-                        {([10, 20] as PageSize[]).map((s) => (
-                            <button
-                                key={s}
-                                onClick={() => handlePageSizeChange(s)}
-                                className={`rounded px-2 py-0.5 text-[12px] font-medium transition ${
-                                    pageSize === s
-                                        ? 'bg-main-bg text-primary shadow-card'
-                                        : 'text-muted hover:text-secondary'
-                                }`}
-                            >
-                                {s}
-                            </button>
-                        ))}
-                    </div> */}
                 </div>
             </div>
 
@@ -795,9 +830,9 @@ export const History = () => {
                 <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted border border-[#E5E5E5]">Loading…</div>
             ) : (
                 <HistoryTable
-                    sessions={paginated}
-                    total={rawSessions.length}
-                    filteredTotal={filtered.length}
+                    sessions={displaySessions}
+                    total={totalSessions}
+                    filteredTotal={displayTotal}
                     expandedId={expandedId}
                     onRowClick={handleRowClick}
                     sortKey={sortKey}

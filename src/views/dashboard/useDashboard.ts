@@ -10,7 +10,6 @@ export interface MonthlyBatch {
 export interface UpcomingBatch {
     id: string
     bean_name: string
-    batch_type: string
     batch_count: number
     target_roasted_kg: number
     status: string
@@ -84,7 +83,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         const planDateMap = new Map(upcomingPlansRes.data.map((p) => [p.id, p.date]))
         const { data: batchData } = await supabase
             .from('roast_plan_batches')
-            .select('id, plan_id, bean_name, batch_type, batch_count, target_roasted_kg, status, order_index')
+            .select('id, plan_id, bean_name, batch_count, target_roasted_kg, status, order_index')
             .in('plan_id', planIds)
             .in('status', ['pending', 'in-progress'])
             .order('order_index')
@@ -93,7 +92,6 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
             .map((b) => ({
                 id: b.id,
                 bean_name: b.bean_name,
-                batch_type: b.batch_type,
                 batch_count: b.batch_count,
                 target_roasted_kg: b.target_roasted_kg,
                 status: b.status,

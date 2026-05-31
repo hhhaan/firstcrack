@@ -46,7 +46,6 @@ export const dayPlanApi = {
 export type DayPlanBatchItem = {
     id: string;
     bean_name: string;
-    batch_type: string;
     status: string;
     order_index: number;
     batch_count: number;
@@ -77,7 +76,7 @@ export const dayPlanRangeApi = {
         const planIds = plans.map((p) => p.id);
         const { data: batches, error: batchError } = await supabase
             .from('roast_plan_batches')
-            .select('id, plan_id, bean_name, batch_type, status, order_index, batch_count, target_roasted_kg')
+            .select('id, plan_id, bean_name, status, order_index, batch_count, target_roasted_kg')
             .in('plan_id', planIds)
             .order('order_index');
         if (batchError) throw batchError;
@@ -92,7 +91,7 @@ export const dayPlanRangeApi = {
             if (!date) continue;
             const s = summaryMap.get(date);
             if (!s) continue;
-            s.batches.push({ id: batch.id, bean_name: batch.bean_name, batch_type: batch.batch_type, status: batch.status, order_index: batch.order_index, batch_count: batch.batch_count, target_roasted_kg: batch.target_roasted_kg });
+            s.batches.push({ id: batch.id, bean_name: batch.bean_name, status: batch.status, order_index: batch.order_index, batch_count: batch.batch_count, target_roasted_kg: batch.target_roasted_kg });
             if (batch.status === 'pending') s.pending++;
             else if (batch.status === 'in-progress') s.in_progress++;
             else if (batch.status === 'done') s.done++;

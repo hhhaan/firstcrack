@@ -93,28 +93,16 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                     </p>
                 </div>
                 <button
+                    type="button"
                     onClick={() => openModal('new')}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '10px 18px',
-                        borderRadius: 9999,
-                        border: 'none',
-                        background: 'var(--color-primary)',
-                        color: 'white',
-                        fontSize: 14,
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                        letterSpacing: '0.14px',
-                    }}
+                    className="flex items-center gap-2 px-[18px] py-[10px] rounded-full border-none bg-(--color-primary) text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
                 >
                     <Plus size={15} strokeWidth={2.5} />
                     Add Bean Lot
                 </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: 20 }}>
                 <BeanList
                     beans={beans}
                     isLoading={isLoading}
