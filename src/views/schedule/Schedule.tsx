@@ -26,7 +26,7 @@ import {
     Pencil,
 } from 'lucide-react';
 import { useAuthStore } from '@shared/store/auth';
-import { AddBatchModal, EditBatchModal, type NewBatchData } from '@widgets/add-batch-modal';
+import { AddBatchModal, type NewBatchData } from '@widgets/add-batch-modal';
 import {
     useDayPlan,
     usePlanBatches,
@@ -563,17 +563,12 @@ const DayView = ({
                 )}
             </div>
             <AddBatchModal
-                key={String(isAddModalOpen)}
-                open={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
+                key={String(isAddModalOpen) + (editingBatch?.id ?? '')}
+                open={isAddModalOpen || editingBatch !== null}
+                onClose={() => { setIsAddModalOpen(false); setEditingBatch(null); }}
                 onAdd={handleAddBatch}
-            />
-            <EditBatchModal
-                key={editingBatch?.id ?? 'none'}
-                open={editingBatch !== null}
-                batch={editingBatch}
+                editingBatch={editingBatch}
                 currentDateKey={dateKey}
-                onClose={() => setEditingBatch(null)}
                 onSaved={() => setEditingBatch(null)}
             />
         </>

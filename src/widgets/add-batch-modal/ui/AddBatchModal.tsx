@@ -4,6 +4,7 @@ import { CounterInput } from '@shared/ui/CounterInput';
 import { SearchableSelect } from './SearchableSelect';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { useQueryClient } from '@tanstack/react-query';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Calendar } from '@shared/ui/calendar/Calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
@@ -11,8 +12,9 @@ import { useAuthStore } from '@shared/store/auth';
 import { useBeans } from '@entities/bean/queries';
 import { useMachines, type Machine } from '@entities/machine';
 import { useRoastProfiles } from '@entities/roast-profile/queries';
+import { dayPlanApi, planBatchApi, planKeys } from '@entities/plan';
 import { cn } from '@shared/lib/cn';
-import type { RoastProfile, Bean } from '@shared/types/database.types';
+import type { RoastProfile, Bean, PlanBatchWithProgress } from '@shared/types/database.types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -39,7 +41,10 @@ export interface NewBatchData {
 interface AddBatchModalProps {
     open: boolean;
     onClose: () => void;
-    onAdd: (data: NewBatchData) => void;
+    onAdd?: (data: NewBatchData) => void;
+    editingBatch?: PlanBatchWithProgress | null;
+    currentDateKey?: string;
+    onSaved?: () => void;
 }
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
@@ -64,25 +69,39 @@ const todayDate = () => new Date();
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export const AddBatchModal = ({ open, onClose, onAdd }: AddBatchModalProps) => {
+export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, currentDateKey, onSaved }: AddBatchModalProps) => {
     const userId = useAuthStore((s) => s.user?.id ?? '');
+    const qc = useQueryClient();
 
     const { data: beans = [] } = useBeans(userId);
     const { machines } = useMachines();
-
     const { data: profiles = [] } = useRoastProfiles(userId);
 
-    // Form state — initializes fresh on each mount (parent passes key={open} to remount)
-    const [date, setDate] = useState<Date | undefined>(todayDate);
+    const isEdit = !!editingBatch;
+
+    const [saving, setSaving] = useState(false);
+    const [date, setDate] = useState<Date | undefined>(
+        editingBatch && currentDateKey
+            ? new Date(currentDateKey + 'T00:00:00')
+            : todayDate(),
+    );
     const [calendarOpen, setCalendarOpen] = useState(false);
-    const [machineId, setMachineId] = useState(() => machines[0]?.id ?? '');
-    const [batchType, setBatchType] = useState<BatchType>('Single Origin');
-    const [profileId, setProfileId] = useState('');
-    const [beanId, setBeanId] = useState('');
-    const [targetRoasted, setTargetRoasted] = useState('');
-    const [batchSize, setBatchSize] = useState(String(DEFAULT_BATCH_SIZE));
-    const [yieldPct, setYieldPct] = useState(String(DEFAULT_YIELD));
-    const [notes, setNotes] = useState('');
+    const [machineId, setMachineId] = useState(() => editingBatch?.machine_id ?? machines[0]?.id ?? '');
+    const [batchType, setBatchType] = useState<BatchType>(
+        () => (editingBatch?.batch_type as BatchType) || 'Single Origin',
+    );
+    const [profileId, setProfileId] = useState(() => editingBatch?.roast_profile_id ?? '');
+    const [beanId, setBeanId] = useState(() => editingBatch?.bean_id ?? '');
+    const [targetRoasted, setTargetRoasted] = useState(
+        () => (editingBatch ? String(editingBatch.target_roasted_kg) : ''),
+    );
+    const [batchSize, setBatchSize] = useState(
+        () => (editingBatch ? String(editingBatch.batch_size_kg) : String(DEFAULT_BATCH_SIZE)),
+    );
+    const [yieldPct, setYieldPct] = useState(
+        () => (editingBatch ? String(Math.round((editingBatch.yield_pct ?? 0.82) * 100)) : String(DEFAULT_YIELD)),
+    );
+    const [notes, setNotes] = useState(() => editingBatch?.notes ?? '');
 
     useEffect(() => {
         if (!open) return;
@@ -108,30 +127,78 @@ export const AddBatchModal = ({ open, onClose, onAdd }: AddBatchModalProps) => {
     const stockSufficient = greenNeeded === 0 || stockKg >= greenNeeded;
     const stockPct = greenNeeded > 0 ? Math.min(100, (stockKg / greenNeeded) * 100) : 100;
 
-    const canSubmit = date !== undefined && !!machineId && targetNum > 0 && batchSizeNum > 0;
+    const newDateKey = date ? format(date, 'yyyy-MM-dd') : '';
+    const dateChanged = isEdit && currentDateKey && newDateKey !== currentDateKey;
 
-    const handleSubmit = () => {
+    const canSubmit = date !== undefined && !!machineId && targetNum > 0 && batchSizeNum > 0 && !saving;
+
+    const handleSubmit = async () => {
         if (!canSubmit || !date) return;
-        onAdd({
-            date,
-            machineId,
-            machineName: selectedMachine?.name ?? selectedMachine?.displayName ?? machineId,
-            batchType,
-            profileId: profileId || null,
-            profileName: selectedProfile?.name ?? '',
-            beanId: beanId || null,
-            beanName: selectedBean?.name ?? '',
-            targetRoasted: targetNum,
-            batchSize: batchSizeNum,
-            yieldPct: yieldNum,
-            batchCount,
-            greenNeeded,
-            greenLot: selectedBean
-                ? `${selectedBean.name} (${stockKg.toFixed(0)}kg)`
-                : '',
-            notes,
-        });
-        onClose();
+
+        if (isEdit && editingBatch) {
+            setSaving(true);
+            try {
+                let targetPlanId = editingBatch.plan_id;
+
+                // If date changed, get-or-create the target day plan
+                if (dateChanged && newDateKey) {
+                    const newPlan = await dayPlanApi.getOrCreate(userId, newDateKey);
+                    targetPlanId = newPlan.id;
+                    await planBatchApi.move(editingBatch.id, targetPlanId);
+                }
+
+                await planBatchApi.update({
+                    id: editingBatch.id,
+                    machine_id: machineId || null,
+                    batch_type: batchType,
+                    roast_profile_id: profileId || null,
+                    bean_id: beanId || null,
+                    bean_name: selectedBean?.name ?? editingBatch.bean_name,
+                    target_roasted_kg: targetNum,
+                    batch_size_kg: batchSizeNum,
+                    yield_pct: yieldNum / 100,
+                    green_lot: selectedBean ? `${selectedBean.name} (${stockKg.toFixed(0)}kg)` : editingBatch.green_lot,
+                    notes,
+                });
+
+                // Invalidate old plan's batches
+                qc.invalidateQueries({ queryKey: planKeys.batches(editingBatch.plan_id) });
+                // If date changed, also invalidate new plan and range summaries
+                if (dateChanged) {
+                    qc.invalidateQueries({ queryKey: planKeys.batches(targetPlanId) });
+                    qc.invalidateQueries({ queryKey: ['day_plan_range', userId] });
+                }
+
+                onSaved?.();
+                onClose();
+            } catch (err) {
+                console.error('[AddBatchModal] save failed:', err);
+                alert(`저장 실패: ${err instanceof Error ? err.message : String(err)}`);
+            } finally {
+                setSaving(false);
+            }
+        } else {
+            onAdd?.({
+                date,
+                machineId,
+                machineName: selectedMachine?.name ?? selectedMachine?.displayName ?? machineId,
+                batchType,
+                profileId: profileId || null,
+                profileName: selectedProfile?.name ?? '',
+                beanId: beanId || null,
+                beanName: selectedBean?.name ?? '',
+                targetRoasted: targetNum,
+                batchSize: batchSizeNum,
+                yieldPct: yieldNum,
+                batchCount,
+                greenNeeded,
+                greenLot: selectedBean
+                    ? `${selectedBean.name} (${stockKg.toFixed(0)}kg)`
+                    : '',
+                notes,
+            });
+            onClose();
+        }
     };
 
     if (!open) return null;
@@ -148,12 +215,17 @@ export const AddBatchModal = ({ open, onClose, onAdd }: AddBatchModalProps) => {
         >
             {/* Header */}
             <div className="shrink-0 bg-white/60 backdrop-blur-sm border-b border-black/4 px-8 pt-6 pb-5 flex items-center justify-between">
-                <h2
-                    id="add-batch-modal-title"
-                    className="font-(--font-display) text-[22px] text-primary tracking-[-0.02em] m-0"
-                >
-                    새 배치 추가
-                </h2>
+                <div>
+                    <h2
+                        id="add-batch-modal-title"
+                        className="font-(--font-display) text-[22px] text-primary tracking-[-0.02em] m-0"
+                    >
+                        {isEdit ? '배치 편집' : '새 배치 추가'}
+                    </h2>
+                    {isEdit && editingBatch && (
+                        <p className="text-[12px] text-muted mt-0.5 m-0">{editingBatch.bean_name}</p>
+                    )}
+                </div>
                 <button
                     type="button"
                     onClick={onClose}
@@ -188,6 +260,9 @@ export const AddBatchModal = ({ open, onClose, onAdd }: AddBatchModalProps) => {
                                             ? format(date, 'M월 d일 (eee)', { locale: ko })
                                             : '날짜 선택'}
                                     </span>
+                                    {dateChanged && (
+                                        <span className="ml-auto text-[10px] text-amber-600 font-semibold shrink-0">이동</span>
+                                    )}
                                 </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0">
@@ -401,22 +476,29 @@ export const AddBatchModal = ({ open, onClose, onAdd }: AddBatchModalProps) => {
             </div>
 
             {/* Footer */}
-            <div className="shrink-0 border-t border-black/4 bg-white/60 px-8 py-4 flex items-center justify-end gap-3">
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-5 py-2.5 rounded-xl border border-border bg-surface text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
-                >
-                    취소
-                </button>
-                <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={!canSubmit}
-                    className="px-5 py-2.5 rounded-xl border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                    배치 추가
-                </button>
+            <div className="shrink-0 border-t border-black/4 bg-white/60 px-8 py-4 flex items-center justify-between gap-3">
+                {dateChanged && newDateKey && (
+                    <p className="text-[12px] text-amber-600 font-medium">
+                        {format(new Date(newDateKey + 'T00:00:00'), 'M월 d일', { locale: ko })}로 이동됩니다
+                    </p>
+                )}
+                <div className="flex items-center gap-3 ml-auto">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-5 py-2.5 rounded-xl border border-border bg-surface text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
+                    >
+                        취소
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={!canSubmit}
+                        className="px-5 py-2.5 rounded-xl border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        {saving ? '저장 중...' : isEdit ? '저장' : '배치 추가'}
+                    </button>
+                </div>
             </div>
         </ModalShell>
     );
