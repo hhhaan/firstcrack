@@ -3,6 +3,7 @@ export {
     roastSessionKeys,
     useRoastSessions,
     useRoastSession,
+    useRoastSessionsPaginated,
     useCreateRoastSession,
     useUpdateRoastSession,
     useDeleteRoastSession,

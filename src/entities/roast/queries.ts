@@ -47,6 +47,24 @@ export const useUpdateRoastSession = (userId: string) => {
     });
 };
 
+export const useRoastSessionsPaginated = (params: {
+    userId: string;
+    status?: RoastSession['status'];
+    page: number;
+    pageSize: number;
+    sortKey?: string;
+    sortAsc?: boolean;
+    level?: string | null;
+    fromYM?: string | null;
+    toYM?: string | null;
+}) =>
+    useQuery({
+        queryKey: ['roast_sessions', 'paginated', params.userId, params.page, params.sortKey, params.sortAsc, params.level, params.fromYM, params.toYM],
+        queryFn: () => roastSessionApi.listPaginated(params),
+        staleTime: Infinity,
+        enabled: !!params.userId,
+    });
+
 export const useDeleteRoastSession = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({

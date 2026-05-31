@@ -61,3 +61,7 @@ artifacts/
 
 # Serena MCP
 .serena/
+
+# Cline / Claude configuration
+.claude/
+.clinerules/
