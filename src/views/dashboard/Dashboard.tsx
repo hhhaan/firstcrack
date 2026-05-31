@@ -23,10 +23,9 @@ interface DashboardProps {
 
 interface BarCanvasProps {
     data: { month: string; batches: number }[];
-    height?: number;
 }
 
-const BarCanvas = ({ data, height = 160 }: BarCanvasProps) => {
+const BarCanvas = ({ data }: BarCanvasProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -34,7 +33,8 @@ const BarCanvas = ({ data, height = 160 }: BarCanvasProps) => {
     const draw = (canvas: HTMLCanvasElement) => {
         const dpr = window.devicePixelRatio || 1;
         const W = canvas.offsetWidth;
-        const H = height;
+        const H = canvas.offsetHeight;
+        if (!W || !H) return;
         canvas.width = W * dpr;
         canvas.height = H * dpr;
         canvas.style.width = `${W}px`;
@@ -136,11 +136,10 @@ const BarCanvas = ({ data, height = 160 }: BarCanvasProps) => {
     };
 
     return (
-        <div ref={containerRef} className="relative w-full">
+        <div ref={containerRef} className="relative w-full h-full flex items-center justify-center">
             <canvas
                 ref={canvasRef}
-                className="block w-full"
-                style={{ height }}
+                className="block w-full h-full"
                 onMouseMove={handleMouseMove}
                 onMouseLeave={() => {
                     if (tooltipRef.current) tooltipRef.current.style.display = 'none';
@@ -305,7 +304,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             </div>
 
             {/* Main Grid */}
-            <div className="grid grid-cols-[1fr_340px] gap-5 mb-5">
+            <div className="grid grid-cols-[1fr_320px] gap-5 mb-5">
                 {/* Recent Sessions */}
                 <div className="bg-main-bg rounded-lg overflow-hidden border border-[#E5E5E5]">
                     <div className="px-6 pt-4.5 pb-3.5 flex items-center justify-between border-b border-[#E5E5E5]">
@@ -397,29 +396,31 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </div>
 
                 {/* Monthly chart */}
-                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
-                    <div className="flex items-center justify-between mb-5">
+                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5] w-full flex flex-col">
+                    <div className="flex items-center justify-between mb-5 shrink-0">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Monthly Batches</h2>
                         <Calendar size={15} strokeWidth={1.5} color="var(--color-muted)" />
                     </div>
-                    <BarCanvas data={db.monthlyBatches} height={160} />
+                    <div className="flex-1 min-h-[120px]">
+                        <BarCanvas data={db.monthlyBatches} />
+                    </div>
 
-                    <div className="mt-5 pt-4 border-t border-[#E5E5E5]">
-                        <div className="text-xs text-muted mb-2 tracking-[0.5px] uppercase font-medium">This Month</div>
-                        <div className="flex gap-5">
-                            <div>
+                    <div className="mt-5 pt-4 border-t border-[#E5E5E5] shrink-0">
+                        <div className="text-xs text-muted mb-3 tracking-[0.5px] uppercase font-medium text-center">This Month</div>
+                        <div className="flex items-center justify-center gap-0 w-full">
+                            <div className="flex-1 text-center max-w-[160px]">
                                 <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
                                     {db.loading ? '—' : db.batchesThisMonth}
                                 </div>
                                 <div className="text-xs text-muted tracking-[0.14px]">batches</div>
                             </div>
-                            <div>
+                            <div className="flex-1 text-center border-x border-[#E5E5E5] max-w-[160px]">
                                 <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
                                     {db.loading ? '—' : db.kgRoastedThisMonth.toFixed(1)}
                                 </div>
                                 <div className="text-xs text-muted tracking-[0.14px]">kg roasted</div>
                             </div>
-                            <div>
+                            <div className="flex-1 text-center max-w-[160px]">
                                 <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
                                     {db.loading
                                         ? '—'

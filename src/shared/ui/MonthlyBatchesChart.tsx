@@ -2,10 +2,9 @@ import { useEffect, useRef } from 'react';
 
 interface MonthlyBatchesChartProps {
     data: { month: string; batches: number }[];
-    height?: number;
 }
 
-export const MonthlyBatchesChart = ({ data, height = 160 }: MonthlyBatchesChartProps) => {
+export const MonthlyBatchesChart = ({ data }: MonthlyBatchesChartProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -13,7 +12,8 @@ export const MonthlyBatchesChart = ({ data, height = 160 }: MonthlyBatchesChartP
     const draw = (canvas: HTMLCanvasElement) => {
         const dpr = window.devicePixelRatio || 1;
         const W = canvas.offsetWidth;
-        const H = height;
+        const H = canvas.offsetHeight;
+        if (!W || !H) return;
         canvas.width = W * dpr;
         canvas.height = H * dpr;
         canvas.style.width = `${W}px`;
@@ -111,11 +111,10 @@ export const MonthlyBatchesChart = ({ data, height = 160 }: MonthlyBatchesChartP
     };
 
     return (
-        <div ref={containerRef} className="relative w-full">
+        <div ref={containerRef} className="relative w-full h-full flex items-center justify-center">
             <canvas
                 ref={canvasRef}
-                className="block w-full"
-                style={{ height }}
+                className="block w-full h-full"
                 onMouseMove={handleMouseMove}
                 onMouseLeave={() => {
                     if (tooltipRef.current) tooltipRef.current.style.display = 'none';
