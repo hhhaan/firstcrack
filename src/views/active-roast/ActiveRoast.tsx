@@ -22,7 +22,6 @@ import type { LogEntry } from '@shared/types/roast';
 import { sidecar } from '@shared/lib/sidecar';
 import { useRoastSettings, toDisplayTemp, toDisplayRoR, formatTemp, computePhaseSegments } from '@features/active-roast';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog } from '@widgets/active-roast';
 import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -579,7 +578,6 @@ export const ActiveRoast = ({
         };
     }, [livePoints, unit]);
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const roastLogDisplayEntries = useMemo((): LogEntry[] => {
         const sorted = [...logEntries].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
         return [
@@ -859,6 +857,11 @@ export const ActiveRoast = ({
                                     ]}
                                 />
                             </div>
+                            <RoastLog
+                                variant="sidebar"
+                                entries={roastLogDisplayEntries}
+                                eventMarkerColor={EVENT_MARKER_COLORS}
+                            />
                         </div>
                 </div>
             </div>
