@@ -776,7 +776,7 @@ export const ActiveRoast = ({
                                     </div>
                                 </div>
                                 {/* DTR */}
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between border-t border-border-subtle pt-3">
                                     <span className="text-xs text-muted font-semibold uppercase">DTR</span>
                                     <span
                                         className="font-mono text-2xl font-medium leading-tight"
@@ -786,6 +786,7 @@ export const ActiveRoast = ({
                                     </span>
                                 </div>
                             </div>
+                            <div className="border-t border-border-subtle" />
                             <div className="flex flex-col gap-2">
                                 <div className="flex flex-col gap-1.5">
                                     {phase === 'preheating' && (
@@ -857,6 +858,7 @@ export const ActiveRoast = ({
                                     ]}
                                 />
                             </div>
+                            <div className="border-t border-border-subtle" />
                             <RoastLog
                                 variant="sidebar"
                                 entries={roastLogDisplayEntries}
