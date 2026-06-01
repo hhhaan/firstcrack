@@ -96,6 +96,7 @@ export const ActiveRoast = ({
     const [showSummaryModal, setShowSummaryModal] = useState(false);
     const [summaryData, setSummaryData] = useState<RoastSummaryData | null>(null);
     const [roastNotes, setRoastNotes] = useState('');
+    const [noteInput, setNoteInput] = useState('');
     const [showContinueModal, setShowContinueModal] = useState(false);
 
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
@@ -857,6 +858,32 @@ export const ActiveRoast = ({
                                         },
                                     ]}
                                 />
+                                <div className="flex gap-1.5 mt-1">
+                                    <input
+                                        type="text"
+                                        value={noteInput}
+                                        onChange={(e) => setNoteInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && noteInput.trim()) {
+                                                markEvent('Note', noteInput.trim());
+                                                setNoteInput('');
+                                            }
+                                        }}
+                                        placeholder="Add note..."
+                                        className="flex-1 text-xs px-2 py-1.5 rounded-md bg-surface text-primary placeholder:text-muted focus:outline-none border border-border-subtle focus:border-border"
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            if (!noteInput.trim()) return;
+                                            markEvent('Note', noteInput.trim());
+                                            setNoteInput('');
+                                        }}
+                                        disabled={!noteInput.trim()}
+                                        className="px-2.5 py-1.5 rounded-md border-none text-xs font-semibold bg-surface text-muted hover:text-primary disabled:opacity-40 cursor-pointer"
+                                    >
+                                        +
+                                    </button>
+                                </div>
                             </div>
                             <div className="border-t border-border-subtle" />
                             <RoastLog
