@@ -10,7 +10,6 @@ import { readTextFile, remove, BaseDirectory } from '@tauri-apps/plugin-fs';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { Play, Square } from 'lucide-react';
 import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
-import { PageLayout } from '@shared/ui/PageLayout';
 import {
     RoastSummaryModal,
     type RoastSummaryData,
@@ -23,6 +22,7 @@ import type { LogEntry } from '@shared/types/roast';
 import { sidecar } from '@shared/lib/sidecar';
 import { useRoastSettings, toDisplayTemp, toDisplayRoR, formatTemp, computePhaseSegments } from '@features/active-roast';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog } from '@widgets/active-roast';
 import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -69,6 +69,7 @@ export const ActiveRoast = ({
 
     const charged = phase === 'roasting' || phase === 'ended';
     const chargedRef = useRef(charged);
+    // eslint-disable-next-line react-hooks/refs
     chargedRef.current = charged;
     const roastEnded = phase === 'ended';
 
@@ -108,8 +109,10 @@ export const ActiveRoast = ({
     useEffect(() => {
         if (chargedRef.current) return;
         if (userProfile !== undefined) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setTargetProfileId(userProfile?.default_roast_profile_id ?? null);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.default_roast_profile_id]);
 
     // isActive가 true가 될 때마다 store의 pendingBeanId를 소비
@@ -126,6 +129,7 @@ export const ActiveRoast = ({
     // planBatchHandoff 객체가 바뀔 때마다 bean/profile 적용 (같은 beanId여도 재발동)
     useEffect(() => {
         if (!planBatchHandoff) return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (planBatchHandoff.beanId) setSelectedBeanId(planBatchHandoff.beanId);
         if (planBatchHandoff.profileId) setTargetProfileId(planBatchHandoff.profileId);
     }, [planBatchHandoff]);
@@ -309,6 +313,7 @@ export const ActiveRoast = ({
     useEffect(() => {
         if (sidecarConnected) return;
         if (phase === 'idle' || phase === 'ended') return;
+        // eslint-disable-next-line react-hooks/immutability
         resetActiveRoast();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sidecarConnected]);
@@ -574,6 +579,7 @@ export const ActiveRoast = ({
         };
     }, [livePoints, unit]);
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const roastLogDisplayEntries = useMemo((): LogEntry[] => {
         const sorted = [...logEntries].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
         return [
@@ -594,7 +600,7 @@ export const ActiveRoast = ({
 
     // ── 렌더 ──────────────────────────────────────────────────────
     return (
-        <PageLayout>
+        <div className="px-[32px] py-[24px] flex flex-col gap-4 h-screen overflow-hidden">
             <RoastHeader
                 phase={roastPhaseName}
                 targetProfileId={targetProfileId}
@@ -604,31 +610,34 @@ export const ActiveRoast = ({
                 onOpenRoastSettings={onOpenRoastSettings}
             />
 
-            <LiveReadings
-                rawBT={rawBT}
-                rawET={rawET}
-                displayRoR={displayRoR}
-                unit={unit}
-                phase={roastPhaseName}
-                phaseColor={roastPhaseColor}
-                connected={sidecarConnected}
-            />
-
-            <MachineControls
-                machineCapabilities={machineCapabilities}
-                sidecarConnected={sidecarConnected}
-                liveData={liveData}
-            />
+            {isFullscreen && (
+                <LiveReadings
+                    rawBT={rawBT}
+                    rawET={rawET}
+                    displayRoR={displayRoR}
+                    unit={unit}
+                    phase={roastPhaseName}
+                    phaseColor={roastPhaseColor}
+                    connected={sidecarConnected}
+                />
+            )}
+            {isFullscreen && (
+                <MachineControls
+                    machineCapabilities={machineCapabilities}
+                    sidecarConnected={sidecarConnected}
+                    liveData={liveData}
+                />
+            )}
 
             {/* 온도 차트 */}
             <div
                 className={`bg-(--color-roast-bg) flex flex-col mb-5 ${
                     isFullscreen
                         ? 'rounded-none fixed inset-0 z-9999 h-screen w-screen p-10'
-                        : 'rounded-lg relative z-1 border border-[#E5E5E5] px-6 pb-4 pt-6'
+                        : 'rounded-lg relative z-1 px-6 pb-4 pt-6 flex-1'
                 }`}
             >
-                <div className={`flex gap-6 flex-1 min-h-0 ${isFullscreen ? 'flex-row' : 'flex-col'}`}>
+                <div className="flex gap-6 flex-1 min-h-0 flex-row">
                     {/* 차트 영역 — 휠·드래그·키보드로 줌/패닝 */}
                     <div
                         ref={chartAreaRef}
@@ -680,7 +689,7 @@ export const ActiveRoast = ({
                             currentTimeSec={elapsed}
                             eventMarkers={eventMarkers}
                             turningPoints={turningPoints}
-                            height={isFullscreen ? mainChartHeight : 350}
+                            height={mainChartHeight}
                             onCursorIdx={(idx) => {
                                 if (idx != null) setHoveredChartIndex((effectiveZoomRange?.start ?? 0) + idx);
                             }}
@@ -692,7 +701,7 @@ export const ActiveRoast = ({
                             rorEtActual={visibleRorEtActual}
                             temperatureUnit={unit}
                             controlData={
-                                isFullscreen && roastSettings.showControlChart
+                                roastSettings.showControlChart
                                     ? {
                                           xs: visibleControlXs,
                                           drumTemp: visibleDrumTemp,
@@ -705,10 +714,9 @@ export const ActiveRoast = ({
                         />
                     </div>
 
-                    {/* 풀스크린 전용 사이드 패널 — 수치 + 조작 버튼 */}
-                    {isFullscreen && (
-                        <div className="w-56 flex flex-col gap-4 px-4 pb-5 border-l border-border-subtle overflow-hidden">
-                            <div className="grid grid-cols-1 gap-3">
+                    {/* 사이드 패널 — 수치 + 조작 버튼 */}
+                    <div className="w-56 flex flex-col gap-4 px-4 pb-5 border-l border-border-subtle overflow-hidden shrink-0">
+                        <div className="grid grid-cols-1 gap-3">
                                 {/* BT */}
                                 <div className="text-right">
                                     <div className="text-sm text-muted font-semibold uppercase mb-1">BT</div>
@@ -851,104 +859,7 @@ export const ActiveRoast = ({
                                     ]}
                                 />
                             </div>
-                            <RoastLog
-                                variant="sidebar"
-                                entries={roastLogDisplayEntries}
-                                eventMarkerColor={EVENT_MARKER_COLORS}
-                            />
                         </div>
-                    )}
-                </div>
-            </div>
-
-            {/* 컨트롤 + 로그 행 */}
-            <div className="grid grid-cols-2 gap-5">
-                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
-                    <h3 className="text-sm font-medium text-primary tracking-[0.14px] mb-4">Roast Controls</h3>
-                    <div className="flex gap-2.5 mb-5">
-                        {phase === 'preheating' && (
-                            <button
-                                onClick={handleEnterStandby}
-                                aria-keyshortcuts="Meta+Enter Control+Enter"
-                                className="flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
-                            >
-                                <Play size={15} strokeWidth={2} />
-                                READY
-                            </button>
-                        )}
-                        {phase === 'standby' && (
-                            <button
-                                onClick={handleManualCharge}
-                                aria-keyshortcuts="Meta+Enter Control+Enter"
-                                className="flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
-                            >
-                                <Play size={15} strokeWidth={2} />
-                                Charge
-                            </button>
-                        )}
-                        {(phase === 'roasting' || phase === 'ended') && (
-                            <button
-                                disabled={true}
-                                className="flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] bg-surface text-muted cursor-default"
-                            >
-                                <Play size={15} strokeWidth={2} />
-                                Charged
-                            </button>
-                        )}
-                        <button
-                            onClick={handleEndRoastClick}
-                            disabled={roastEnded || !charged}
-                            aria-label="End roast"
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.75 rounded-md border-none text-sm font-medium tracking-[0.14px] ${
-                                roastEnded || !charged
-                                    ? 'bg-surface text-muted cursor-default'
-                                    : 'bg-[rgba(254,226,226,0.8)] text-[#dc2626] cursor-pointer'
-                            }`}
-                        >
-                            <Square size={14} strokeWidth={2} />
-                            End Roast
-                        </button>
-                    </div>
-                    <EventButtons
-                        variant="main"
-                        logEntries={logEntries}
-                        pressedButtons={pressedButtons}
-                        buttons={[
-                            {
-                                label: 'Mark Yellow',
-                                event: 'Yellow',
-                                shortcut: '⌘1',
-                                pressKey: 'Mark Yellow',
-                                onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow'),
-                            },
-                            {
-                                label: 'Mark FC Start',
-                                event: 'FC Start',
-                                shortcut: '⌘2',
-                                pressKey: 'Mark FC Start',
-                                onClick: () => markEvent('FC Start', 'First crack started', 'Mark FC Start'),
-                            },
-                            {
-                                label: 'Mark FC End',
-                                event: 'FC End',
-                                shortcut: '⌘3',
-                                pressKey: 'Mark FC End',
-                                onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
-                            },
-                            {
-                                label: 'Mark Drop',
-                                event: 'Drop',
-                                shortcut: '⌘D',
-                                pressKey: 'Mark Drop',
-                                onClick: handleDrop,
-                            },
-                        ]}
-                    />
-                </div>
-
-                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
-                    <h3 className="text-sm font-medium text-primary tracking-[0.14px] mb-3.5">Roast Log</h3>
-                    <RoastLog variant="main" entries={roastLogDisplayEntries} eventMarkerColor={EVENT_MARKER_COLORS} />
                 </div>
             </div>
 
@@ -1100,6 +1011,6 @@ export const ActiveRoast = ({
                     </div>
                 </div>
             )}
-        </PageLayout>
+        </div>
     );
 };
