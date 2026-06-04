@@ -6,6 +6,8 @@ import type {
     PlanBatchUpdate,
     PlanBatchWithProgress,
 } from '@shared/types/database.types';
+import { expandRRule } from '@shared/lib/rrule';
+import { format } from 'date-fns';
 
 // ── Day Plan ──────────────────────────────────────────────────────────────────
 
@@ -174,5 +176,48 @@ export const planBatchApi = {
         await Promise.all(updates);
         // Invalidation handled by caller
         void planId;
+    },
+
+    /**
+     * Create multiple batches across dates based on an RFC 5545 RRULE.
+     * All batches share the same data and recurrence_group_id.
+     *
+     * @param baseBatch - The batch data (without plan_id — will be set per date)
+     * @param rruleStr - RFC 5545 RRULE string
+     * @param dtstart - The start date for the recurrence
+     * @param userId - User ID for get-or-creating day plans
+     * @returns Array of created PlanBatch records
+     */
+    createRecurring: async (
+        baseBatch: Omit<PlanBatchInsert, 'plan_id'>,
+        rruleStr: string,
+        dtstart: Date,
+        userId: string,
+    ): Promise<PlanBatch[]> => {
+        const dates = expandRRule(rruleStr, dtstart);
+        const recurrenceGroupId = crypto.randomUUID();
+
+        const results: PlanBatch[] = [];
+
+        for (const date of dates) {
+            const dateKey = format(date, 'yyyy-MM-dd');
+            const dayPlan = await dayPlanApi.getOrCreate(userId, dateKey);
+
+            const { data, error } = await supabase
+                .from('roast_plan_batches')
+                .insert({
+                    ...baseBatch,
+                    plan_id: dayPlan.id,
+                    rrule: rruleStr,
+                    recurrence_group_id: recurrenceGroupId,
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            results.push(data);
+        }
+
+        return results;
     },
 };

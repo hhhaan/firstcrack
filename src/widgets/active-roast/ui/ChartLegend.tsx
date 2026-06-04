@@ -8,7 +8,7 @@ const LEGEND_ITEMS: { color: string; label: string; dashed?: boolean }[] = [
 ];
 
 export const ChartLegend = () => (
-    <div className="absolute top-1 right-10 z-10 flex items-center gap-4">
+    <div className="absolute top-[-16px] right-14 z-10 flex items-center gap-4">
         {LEGEND_ITEMS.map(({ color, label, dashed }) => (
             <div key={label} className="flex items-center gap-1.5">
                 <div

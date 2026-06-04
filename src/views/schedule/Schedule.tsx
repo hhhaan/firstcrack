@@ -34,11 +34,12 @@ import {
     useDeletePlanBatch,
     useUpdatePlanBatch,
     useReorderPlanBatches,
+    useCreateRecurringBatches,
     useMonthSummary,
     useWeekSummary,
 } from '@entities/plan';
 import type { DayPlanSummary } from '@entities/plan';
-import type { PlanBatchWithProgress, PlanBatchHandoff } from '@shared/types/database.types';
+import type { PlanBatchWithProgress, PlanBatchHandoff, PlanBatchInsert } from '@shared/types/database.types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -457,34 +458,54 @@ const DayView = ({
     const deleteBatch = useDeletePlanBatch(planId);
     const updateBatch = useUpdatePlanBatch(planId);
     const reorderBatches = useReorderPlanBatches(planId);
+    const createRecurringBatches = useCreateRecurringBatches(userId, planId);
 
     const handleAddBatch = useCallback(
         (data: NewBatchData) => {
-            if (!planId) return;
-            createBatch.mutate(
-                {
-                    plan_id: planId,
-                    order_index: batches.length,
-                    bean_name: data.beanName || data.batchType,
-                    bean_id: data.beanId,
-                    roast_profile_id: data.profileId,
-                    machine_id: data.machineId || null,
-                    target_roasted_kg: data.targetRoasted,
-                    batch_size_kg: data.batchSize,
-                    yield_pct: data.yieldPct,
-                    notes: data.notes,
-                    green_lot: data.greenLot,
-                    status: 'pending',
-                },
-                {
-                    onError: (err) => {
-                        console.error('[Schedule] createBatch failed:', err);
-                        alert(`배치 추가 실패: ${err instanceof Error ? err.message : String(err)}`);
+            const baseBatch: Omit<PlanBatchInsert, 'plan_id'> = {
+                order_index: batches.length,
+                bean_name: data.beanName || data.batchType,
+                bean_id: data.beanId,
+                batch_type: data.batchType,
+                roast_profile_id: data.profileId,
+                machine_id: data.machineId || null,
+                target_roasted_kg: data.targetRoasted,
+                batch_size_kg: data.batchSize,
+                yield_pct: data.yieldPct,
+                notes: data.notes,
+                green_lot: data.greenLot,
+                status: 'pending',
+            };
+
+            if (data.recurringInterval) {
+                // Create recurring batches across multiple dates
+                createRecurringBatches.mutate(
+                    {
+                        baseBatch,
+                        interval: data.recurringInterval,
+                        dtstart: data.date,
                     },
-                },
-            );
+                    {
+                        onError: (err) => {
+                            console.error('[Schedule] createRecurringBatches failed:', err);
+                            alert(`반복 배치 추가 실패: ${err instanceof Error ? err.message : String(err)}`);
+                        },
+                    },
+                );
+            } else if (planId) {
+                // Single batch creation
+                createBatch.mutate(
+                    { ...baseBatch, plan_id: planId } as PlanBatchInsert,
+                    {
+                        onError: (err) => {
+                            console.error('[Schedule] createBatch failed:', err);
+                            alert(`배치 추가 실패: ${err instanceof Error ? err.message : String(err)}`);
+                        },
+                    },
+                );
+            }
         },
-        [planId, batches.length, createBatch],
+        [planId, batches.length, createBatch, createRecurringBatches],
     );
 
     const handleMove = useCallback(

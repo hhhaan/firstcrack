@@ -599,7 +599,7 @@ export const ActiveRoast = ({
 
     // ── 렌더 ──────────────────────────────────────────────────────
     return (
-        <div className="px-[32px] py-[24px] flex flex-col gap-4 h-screen overflow-hidden">
+        <div className="px-[32px] py-[24px] flex flex-col gap-4 h-screen overflow-y-auto">
             <RoastHeader
                 phase={roastPhaseName}
                 targetProfileId={targetProfileId}
@@ -633,7 +633,7 @@ export const ActiveRoast = ({
                 className={`bg-(--color-roast-bg) flex flex-col mb-5 ${
                     isFullscreen
                         ? 'rounded-none fixed inset-0 z-9999 h-screen w-screen p-10'
-                        : 'rounded-lg relative z-1 px-6 pb-4 pt-6 flex-1'
+                        : 'rounded-lg relative z-1 px-6 pb-4 pt-10 flex-1'
                 }`}
             >
                 <div className="flex gap-6 flex-1 min-h-0 flex-row">

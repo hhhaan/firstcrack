@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, CalendarIcon, Cpu, Package, AlertTriangle } from 'lucide-react';
+import { X, CalendarIcon, Cpu, Package, AlertTriangle, Repeat } from 'lucide-react';
+import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { CounterInput } from '@shared/ui/CounterInput';
 import { SearchableSelect } from './SearchableSelect';
 import { format } from 'date-fns';
@@ -20,6 +21,13 @@ import type { RoastProfile, Bean, PlanBatchWithProgress } from '@shared/types/da
 
 type BatchType = 'Single Origin' | 'Pre-roast Blend' | 'Post-roast Blend';
 
+const RECURRENCE_OPTIONS: { value: RecurrenceInterval; label: string }[] = [
+    { value: 'daily', label: '매일' },
+    { value: 'weekly', label: '매주' },
+    { value: 'biweekly', label: '격주' },
+    { value: 'monthly', label: '매월' },
+];
+
 export interface NewBatchData {
     date: Date;
     machineId: string;
@@ -36,6 +44,7 @@ export interface NewBatchData {
     greenNeeded: number;
     greenLot: string;
     notes: string;
+    recurringInterval?: RecurrenceInterval | null;
 }
 
 interface AddBatchModalProps {
@@ -86,6 +95,14 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, currentDateK
             : todayDate(),
     );
     const [calendarOpen, setCalendarOpen] = useState(false);
+    const [recurringInterval, setRecurringInterval] = useState<RecurrenceInterval | null>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        // Reset form fields when modal opens
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset on open
+        setRecurringInterval(editingBatch?.rrule ? parseRruleToInterval(editingBatch.rrule) : null);
+    }, [open, editingBatch?.rrule]);
     const [machineId, setMachineId] = useState(() => editingBatch?.machine_id ?? machines[0]?.id ?? '');
     const [batchType, setBatchType] = useState<BatchType>(
         () => (editingBatch?.batch_type as BatchType) || 'Single Origin',
@@ -196,6 +213,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, currentDateK
                     ? `${selectedBean.name} (${stockKg.toFixed(0)}kg)`
                     : '',
                 notes,
+                recurringInterval: recurringInterval ?? undefined,
             });
             onClose();
         }
@@ -459,6 +477,44 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, currentDateK
                                 />
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* Recurrence — only when NOT editing */}
+                {!isEdit && (
+                    <div>
+                        <label className={labelCls}>
+                            <Repeat size={12} /> 반복
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setRecurringInterval(null)}
+                                className={cn(
+                                    'px-3 py-2 rounded-xl text-[13px] font-medium transition-all border',
+                                    recurringInterval === null
+                                        ? 'bg-primary text-white border-primary shadow-sm'
+                                        : 'bg-surface text-secondary border-border hover:border-black/15',
+                                )}
+                            >
+                                없음
+                            </button>
+                            {RECURRENCE_OPTIONS.map(({ value, label }) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => setRecurringInterval(value)}
+                                    className={cn(
+                                        'px-3 py-2 rounded-xl text-[13px] font-medium transition-all border',
+                                        recurringInterval === value
+                                            ? 'bg-primary text-white border-primary shadow-sm'
+                                            : 'bg-surface text-secondary border-border hover:border-black/15',
+                                    )}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 )}
 

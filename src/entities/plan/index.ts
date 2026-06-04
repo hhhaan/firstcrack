@@ -8,6 +8,7 @@ export {
     useCreatePlanBatch,
     useUpdatePlanBatch,
     useDeletePlanBatch,
+    useCreateRecurringBatches,
     useReorderPlanBatches,
     useMonthSummary,
     useWeekSummary,

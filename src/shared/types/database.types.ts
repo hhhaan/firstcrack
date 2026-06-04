@@ -261,7 +261,9 @@ export type Database = {
           notes: string
           order_index: number
           plan_id: string
+          recurrence_group_id: string | null
           roast_profile_id: string | null
+          rrule: string | null
           status: string
           target_roasted_kg: number
           updated_at: string
@@ -280,7 +282,9 @@ export type Database = {
           notes?: string
           order_index?: number
           plan_id: string
+          recurrence_group_id?: string | null
           roast_profile_id?: string | null
+          rrule?: string | null
           status?: string
           target_roasted_kg: number
           updated_at?: string
@@ -299,7 +303,9 @@ export type Database = {
           notes?: string
           order_index?: number
           plan_id?: string
+          recurrence_group_id?: string | null
           roast_profile_id?: string | null
+          rrule?: string | null
           status?: string
           target_roasted_kg?: number
           updated_at?: string
