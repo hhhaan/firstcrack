@@ -5,7 +5,7 @@ const LEGACY_STORAGE_KEY = 'fc_roast_settings';
 const STORE_KEY = 'roast.settings';
 const SAVE_DEBOUNCE_MS = 200;
 
-export type PollIntervalMs = 250 | 500 | 1000;
+export type PollIntervalMs = 500 | 1000;
 export type RorSpanSec = 15 | 30 | 60;
 export type TemperatureUnit = 'C' | 'F';
 
@@ -50,15 +50,18 @@ const DEFAULT_SETTINGS: RoastSettings = {
 };
 
 const isPollIntervalMs = (value: unknown): value is PollIntervalMs =>
-    value === 250 || value === 500 || value === 1000;
+    value === 500 || value === 1000;
+
+const migratePollIntervalMs = (ms: unknown): PollIntervalMs => {
+    if (ms === 250) return 500;
+    return isPollIntervalMs(ms) ? ms : DEFAULT_SETTINGS.pollIntervalMs;
+};
 
 const normalize = (raw: Partial<RoastSettings> | null | undefined): RoastSettings => {
     const merged = { ...DEFAULT_SETTINGS, ...(raw ?? {}) };
     return {
         ...merged,
-        pollIntervalMs: isPollIntervalMs(merged.pollIntervalMs)
-            ? merged.pollIntervalMs
-            : DEFAULT_SETTINGS.pollIntervalMs,
+        pollIntervalMs: migratePollIntervalMs(merged.pollIntervalMs),
     };
 };
 
@@ -115,6 +118,10 @@ const _hydrate = async () => {
 
         if (stored) {
             _settings = normalize(stored);
+            if (_settings.pollIntervalMs === 250) {
+                _settings = { ..._settings, pollIntervalMs: 500 };
+                void _flush();
+            }
             _emit();
             return;
         }

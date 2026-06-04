@@ -7,7 +7,7 @@ import {
 } from '@features/active-roast';
 
 const temperatureOptions: TemperatureUnit[] = ['C', 'F'];
-const pollOptions: PollIntervalMs[] = [250, 500, 1000];
+const pollOptions: PollIntervalMs[] = [500, 1000];
 const rorOptions: RorSpanSec[] = [15, 30, 60];
 
 const visibilityOptions = [
