@@ -581,12 +581,12 @@ export const History = () => {
         pageSize: PAGE_SIZE,
         sortKey: sortKey === 'bean' ? 'date' : sortKey, // bean sorting happens client-side
         sortAsc,
-        level: levelFilter,
+        level: levelFilter === 'all' ? null : levelFilter,
         fromYM: fromYM || null,
         toYM: toYM || null,
     });
 
-    const sessions = paginatedResult?.data ?? [];
+    const sessions = useMemo(() => paginatedResult?.data ?? [], [paginatedResult]);
     const filteredTotal = paginatedResult?.total ?? 0;
 
     // --- Client-side query for filter metadata (origins, month range) ---
@@ -709,7 +709,7 @@ export const History = () => {
             return true;
         });
         return filtered.length;
-    }, [search, originFilter, filteredTotal, displaySessions, rawSessions, levelFilter, fromYM, toYM]);
+    }, [search, originFilter, filteredTotal, rawSessions, levelFilter, fromYM, toYM]);
 
     const totalPages = Math.max(1, Math.ceil(displayTotal / PAGE_SIZE));
     const safePage = Math.min(page, totalPages);

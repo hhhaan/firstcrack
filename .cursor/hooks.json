@@ -1,0 +1,12 @@
+{
+    "version": 1,
+    "hooks": {
+      "afterFileEdit": [
+        {
+          "type": "command",
+          "command": "npx eslint \"$CURSOR_FILE_PATH\" && npx tsc-files --noEmit \"$CURSOR_FILE_PATH\" || echo \"❌ [Cursor Agent] 문법/타입 에러가 발생했습니다. 방금 수정한 $CURSOR_FILE_PATH 파일의 에러를 분석해서 바로 다시 고쳐주세요.\""
+        }
+      ]
+    }
+  }
+  
