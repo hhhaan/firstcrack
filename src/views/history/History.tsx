@@ -88,7 +88,13 @@ const columns: Column[] = [
     },
 ];
 
-const SortIcon = ({ col, sortKey, sortAsc }: { col: SortKey; sortKey: SortKey; sortAsc: boolean }): ReactNode => {
+type SortIconProps = {
+    col: SortKey;
+    sortKey: SortKey;
+    sortAsc: boolean;
+};
+
+function SortIcon({ col, sortKey, sortAsc }: SortIconProps): ReactNode {
     if (sortKey !== col) {
         return <ChevronDown size={11} strokeWidth={2} color="var(--color-muted)" style={{ opacity: 0.4 }} />;
     }
@@ -97,9 +103,14 @@ const SortIcon = ({ col, sortKey, sortAsc }: { col: SortKey; sortKey: SortKey; s
     ) : (
         <ChevronDown size={11} strokeWidth={2.5} color="var(--color-primary)" />
     );
+}
+
+type ExpandedRowProps = {
+    session: RoastSessionWithRelations;
 };
 
-const ExpandedRow = ({ session }: { session: RoastSessionWithRelations }): ReactNode => (
+function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
+    return (
     <tr className="border-b border-border-subtle bg-[rgba(245,242,239,0.3)]">
         <td colSpan={columns.length} className="px-4 py-4 md:px-6">
             <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
@@ -127,8 +138,8 @@ const ExpandedRow = ({ session }: { session: RoastSessionWithRelations }): React
             </div>
         </td>
     </tr>
-);
-
+    );
+}
 const HistoryTable = ({
     sessions,
     total,
@@ -758,6 +769,37 @@ export const History = () => {
         };
     }, [rawSessions, profile, user]);
 
+    const renderContent = (): ReactNode => {
+        if (isError) {
+            return (
+                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted border border-[#E5E5E5]">
+                    Failed to load sessions. Please try again.
+                </div>
+            );
+        }
+        if (isLoading) {
+            return (
+                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted border border-[#E5E5E5]">Loading…</div>
+            );
+        }
+        return (
+            <HistoryTable
+                sessions={displaySessions}
+                total={totalSessions}
+                filteredTotal={displayTotal}
+                expandedId={expandedId}
+                onRowClick={handleRowClick}
+                sortKey={sortKey}
+                sortAsc={sortAsc}
+                onSort={handleSort}
+                page={safePage}
+                totalPages={totalPages}
+                pageSize={PAGE_SIZE}
+                onPageChange={setPage}
+            />
+        );
+    };
+
     const handleOpenReport = useCallback(() => setShowReport(true), []);
     const handleCloseReport = useCallback(() => setShowReport(false), []);
 
@@ -822,28 +864,7 @@ export const History = () => {
                 </div>
             </div>
 
-            {isError ? (
-                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted border border-[#E5E5E5]">
-                    Failed to load sessions. Please try again.
-                </div>
-            ) : isLoading ? (
-                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted border border-[#E5E5E5]">Loading…</div>
-            ) : (
-                <HistoryTable
-                    sessions={displaySessions}
-                    total={totalSessions}
-                    filteredTotal={displayTotal}
-                    expandedId={expandedId}
-                    onRowClick={handleRowClick}
-                    sortKey={sortKey}
-                    sortAsc={sortAsc}
-                    onSort={handleSort}
-                    page={safePage}
-                    totalPages={totalPages}
-                    pageSize={PAGE_SIZE}
-                    onPageChange={setPage}
-                />
-            )}
+            {renderContent()}
             {showReport && (
                 <ModalShell onClose={handleCloseReport} labelledBy="monthly-report-title">
                     <div className="relative max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
