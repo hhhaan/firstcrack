@@ -7,6 +7,7 @@ export {
     usePlanBatches,
     useDayBatches,
     useRangeBatches,
+    useRecurrenceRules,
     useCreatePlanBatch,
     useUpdatePlanBatch,
     useDeletePlanBatch,

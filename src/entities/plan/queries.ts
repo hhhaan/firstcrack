@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
-import { dayPlanApi, dayPlanRangeApi, planBatchApi, type RecurrenceRuleMasterPatch } from './api';
+import { dayPlanApi, dayPlanRangeApi, planBatchApi, recurrenceRuleApi, type RecurrenceRuleMasterPatch } from './api';
 import type { PlanBatchInsert, PlanBatchUpdate, PlanBatchWithProgress } from '@shared/types/database.types';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { buildRRule } from '@shared/lib/rrule';
@@ -21,6 +21,17 @@ const invalidateScheduledBatchQueries = (qc: QueryClient) => {
     qc.invalidateQueries({ queryKey: ['range_batches'] });
     qc.invalidateQueries({ queryKey: ['day_plan_range'] });
 };
+
+// ── Recurrence Rules ──────────────────────────────────────────────────────────
+
+export const useRecurrenceRules = (userId: string) =>
+    useQuery({
+        queryKey: planKeys.recurrenceRules(userId),
+        queryFn: () => recurrenceRuleApi.listActive(userId),
+        enabled: !!userId,
+        staleTime: Infinity,
+        gcTime: Infinity,
+    });
 
 // ── Day Plan ──────────────────────────────────────────────────────────────────
 
@@ -222,6 +233,7 @@ export const useCreateRecurringBatches = (userId: string, currentPlanId?: string
             qc.invalidateQueries({ queryKey: ['plan_batches'] });
             qc.invalidateQueries({ queryKey: ['day_plan', userId] });
             qc.invalidateQueries({ queryKey: ['day_plan_range', userId] });
+            qc.invalidateQueries({ queryKey: ['recurrence_rules', userId] });
             invalidateScheduledBatchQueries(qc);
         },
     });
@@ -278,6 +290,7 @@ export const useUpdateSingleBatch = () => {
                 qc.invalidateQueries({ queryKey: planKeys.batches(vars.patch.plan_id) });
             }
             qc.invalidateQueries({ queryKey: ['day_plan_range'] });
+            qc.invalidateQueries({ queryKey: ['recurrence_rules'] });
             invalidateScheduledBatchQueries(qc);
         },
     });
