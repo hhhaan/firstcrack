@@ -13,6 +13,7 @@ export const planKeys = {
     dayBatches: (userId: string, date: string) => ['day_batches', userId, date] as const,
     rangeBatches: (userId: string, start: string, end: string) => ['range_batches', userId, start, end] as const,
     rangeSummary: (userId: string, start: string, end: string) => ['day_plan_range', userId, start, end] as const,
+    dateSummary: (userId: string, start: string, end: string) => ['date_summary', userId, start, end] as const,
     recurrenceRules: (userId: string) => ['recurrence_rules', userId] as const,
 };
 
@@ -20,6 +21,7 @@ const invalidateScheduledBatchQueries = (qc: QueryClient) => {
     qc.invalidateQueries({ queryKey: ['day_batches'] });
     qc.invalidateQueries({ queryKey: ['range_batches'] });
     qc.invalidateQueries({ queryKey: ['day_plan_range'] });
+    qc.invalidateQueries({ queryKey: ['date_summary'] });
 };
 
 // ── Recurrence Rules ──────────────────────────────────────────────────────────
@@ -365,8 +367,8 @@ export const useMonthSummary = (userId: string, year: number, month: number) => 
     const start = format(startOfMonth(new Date(year, month)), 'yyyy-MM-dd');
     const end = format(endOfMonth(new Date(year, month)), 'yyyy-MM-dd');
     return useQuery({
-        queryKey: planKeys.rangeSummary(userId, start, end),
-        queryFn: () => dayPlanRangeApi.listSummary(userId, start, end),
+        queryKey: planKeys.dateSummary(userId, start, end),
+        queryFn: () => dayPlanRangeApi.listSummaryForDateRange(userId, start, end),
         enabled: !!userId,
         staleTime: 30_000,
     });
@@ -376,8 +378,8 @@ export const useWeekSummary = (userId: string, weekStart: Date) => {
     const start = format(startOfWeek(weekStart, { weekStartsOn: 1 }), 'yyyy-MM-dd');
     const end = format(endOfWeek(weekStart, { weekStartsOn: 1 }), 'yyyy-MM-dd');
     return useQuery({
-        queryKey: planKeys.rangeSummary(userId, start, end),
-        queryFn: () => dayPlanRangeApi.listSummary(userId, start, end),
+        queryKey: planKeys.dateSummary(userId, start, end),
+        queryFn: () => dayPlanRangeApi.listSummaryForDateRange(userId, start, end),
         enabled: !!userId,
         staleTime: 30_000,
     });

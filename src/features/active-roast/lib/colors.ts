@@ -1,13 +1,16 @@
 // Sensor data line colors
 export const SENSOR_COLORS = {
+    // light: #16a34a / dark: #4BE08C
     bt: '#16a34a',
     btBg: 'rgba(22,163,74,0.08)',
     btTarget: 'rgba(16,185,129,0.7)',
     btTargetHover: 'rgba(16,185,129,0.8)',
     btTargetStrong: 'rgba(16,185,129,0.9)',
+    // light: #2563eb / dark: #BEACF8
     et: '#2563eb',
     etChart: 'rgba(37,99,235,0.7)',
     etBg: 'rgba(219,234,254,0.5)',
+    // light: #FFC107 / dark: #FFFF54
     ror: '#FFC107',
     rorBg: 'rgba(255,235,59,0.5)',
 } as const;
@@ -27,3 +30,7 @@ export const STATUS_COLORS = {
     active: '#22c55e',
     activeGlow: 'rgba(34,197,94,0.2)',
 } as const;
+
+// ── Dark mode palette (reference) ─────────────────────────────
+// active-roast bg: #181D21
+// surface/text: #37383A

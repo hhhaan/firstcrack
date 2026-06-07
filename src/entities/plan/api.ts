@@ -150,6 +150,11 @@ export type DayPlanSummary = {
     batches: DayPlanBatchItem[];
 };
 
+export type DateSummary = {
+    date: string;
+    count: number;
+};
+
 export const dayPlanRangeApi = {
     listSummary: async (userId: string, startDate: string, endDate: string): Promise<DayPlanSummary[]> => {
         const batches = await planBatchApi.listForDateRange(userId, startDate, endDate);
@@ -188,6 +193,87 @@ export const dayPlanRangeApi = {
         }
 
         return [...summaryMap.values()].sort((a, b) => a.date.localeCompare(b.date));
+    },
+
+    listSummaryForDateRange: async (
+        userId: string,
+        startDate: string,
+        endDate: string,
+    ): Promise<DateSummary[]> => {
+        const { expandRRuleInRange, mergeRecurrenceExceptions } = await import('@shared/lib/rrule');
+
+        const [rules, exceptionsResult, plansResult] = await Promise.all([
+            recurrenceRuleApi.listActive(userId),
+            supabase
+                .from('roast_plan_batches')
+                .select('recurrence_rule_id, original_date, scheduled_date, exception_type')
+                .not('recurrence_rule_id', 'is', null)
+                .gte('scheduled_date', startDate)
+                .lte('scheduled_date', endDate),
+            supabase
+                .from('roast_day_plans')
+                .select('id, date')
+                .eq('user_id', userId)
+                .gte('date', startDate)
+                .lte('date', endDate),
+        ]);
+
+        if (exceptionsResult.error) throw exceptionsResult.error;
+        if (plansResult.error) throw plansResult.error;
+
+        const countMap = new Map<string, number>();
+        const plans = plansResult.data ?? [];
+        const planIdToDate = new Map(plans.map((p) => [p.id, p.date]));
+        const planIds = plans.map((p) => p.id);
+
+        if (planIds.length > 0) {
+            const { data: oneOffBatches, error: oneOffError } = await supabase
+                .from('roast_plan_batches')
+                .select('plan_id')
+                .is('recurrence_rule_id', null)
+                .in('plan_id', planIds);
+            if (oneOffError) throw oneOffError;
+
+            for (const row of oneOffBatches ?? []) {
+                const date = planIdToDate.get(row.plan_id);
+                if (!date) continue;
+                countMap.set(date, (countMap.get(date) ?? 0) + 1);
+            }
+        }
+
+        const exceptions = exceptionsResult.data ?? [];
+        const rangeStart = new Date(startDate + 'T00:00:00');
+        const rangeEnd = new Date(endDate + 'T23:59:59');
+
+        for (const rule of rules) {
+            const ruleStart = new Date(rule.dtstart + 'T00:00:00');
+            if (rule.until && new Date(rule.until + 'T23:59:59') < rangeStart) continue;
+
+            const expandedDates = expandRRuleInRange(
+                rule.rrule,
+                ruleStart,
+                rangeStart,
+                rule.until ? new Date(rule.until + 'T23:59:59') : rangeEnd,
+            );
+
+            const ruleExceptions = exceptions
+                .filter((ex) => ex.recurrence_rule_id === rule.id)
+                .map((ex) => ({
+                    original_date: ex.original_date ?? '',
+                    scheduled_date: ex.scheduled_date ?? '',
+                    exception_type: ex.exception_type as 'modified' | 'cancelled',
+                }));
+
+            const instances = mergeRecurrenceExceptions(expandedDates, ruleExceptions);
+
+            for (const instance of instances) {
+                countMap.set(instance.date, (countMap.get(instance.date) ?? 0) + 1);
+            }
+        }
+
+        return [...countMap.entries()]
+            .map(([date, count]) => ({ date, count }))
+            .sort((a, b) => a.date.localeCompare(b.date));
     },
 };
 
@@ -570,12 +656,7 @@ export const planBatchApi = {
                         });
                     }
                 } else if (instance.exceptionType === 'normal') {
-                    let planId = dateToPlanId.get(instance.date);
-                    if (!planId) {
-                        const dayPlan = await dayPlanApi.getOrCreate(userId, instance.date);
-                        planId = dayPlan.id;
-                        dateToPlanId.set(instance.date, planId);
-                    }
+                    const planId = dateToPlanId.get(instance.date) ?? null;
 
                     const batchSize = Number(rule.batch_size_kg) || 0;
                     const targetKg = Number(rule.target_roasted_kg) || 0;
@@ -613,5 +694,59 @@ export const planBatchApi = {
         }
 
         return result;
+    },
+
+    /**
+     * Materialize a virtual (computed) recurring batch into a real exception row.
+     * Creates the day_plan if missing, then inserts a modified exception row.
+     * Returns the real PlanBatch row.
+     */
+    materialize: async (
+        userId: string,
+        ruleId: string,
+        scheduledDate: string,
+        originalDate: string,
+        patch: {
+            status?: string;
+            machine_id?: string | null;
+            bean_id?: string | null;
+            bean_name?: string;
+            roast_profile_id?: string | null;
+            batch_size_kg?: number;
+            target_roasted_kg?: number;
+            yield_pct?: number;
+            notes?: string;
+            green_lot?: string;
+            batch_type?: string;
+        },
+    ): Promise<PlanBatch> => {
+        const plan = await dayPlanApi.getOrCreate(userId, scheduledDate);
+
+        const { data, error } = await supabase
+            .from('roast_plan_batches')
+            .insert({
+                plan_id: plan.id,
+                recurrence_rule_id: ruleId,
+                scheduled_date: scheduledDate,
+                original_date: originalDate,
+                exception_type: 'modified',
+                bean_name: patch.bean_name ?? '',
+                batch_size_kg: patch.batch_size_kg ?? 0,
+                target_roasted_kg: patch.target_roasted_kg ?? 0,
+                machine_id: patch.machine_id ?? null,
+                bean_id: patch.bean_id ?? null,
+                roast_profile_id: patch.roast_profile_id ?? null,
+                batch_type: patch.batch_type ?? 'Single Origin',
+                notes: patch.notes ?? '',
+                yield_pct: patch.yield_pct ?? 0.82,
+                order_index: 0,
+                status: patch.status ?? 'pending',
+                green_lot: patch.green_lot ?? '',
+                batch_count: 1,
+            })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
     },
 };

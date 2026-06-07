@@ -1,5 +1,5 @@
 export { dayPlanApi, dayPlanRangeApi, planBatchApi, recurrenceRuleApi } from './api';
-export type { DayPlanSummary, DayPlanBatchItem, RecurrenceRuleMasterPatch } from './api';
+export type { DayPlanSummary, DayPlanBatchItem, DateSummary, RecurrenceRuleMasterPatch } from './api';
 export {
     planKeys,
     useDayPlan,

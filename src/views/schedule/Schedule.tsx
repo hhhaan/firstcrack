@@ -42,8 +42,10 @@ import {
     useUpdateSingleBatch,
     useUpdateFromThis,
     useUpdateAllBatches,
+    dayPlanApi,
+    planBatchApi,
 } from '@entities/plan';
-import type { DayPlanSummary } from '@entities/plan';
+import type { DateSummary } from '@entities/plan';
 import type { PlanBatchWithProgress, PlanBatchHandoff, PlanBatchInsert } from '@shared/types/database.types';
 import { buildRRule } from '@shared/lib/rrule';
 
@@ -222,6 +224,30 @@ const BatchCard = ({
     );
 };
 
+// ── Batch count dots (week/month) ─────────────────────────────────────────────
+
+const BatchCountDots = ({ count, compact = false }: { count: number; compact?: boolean }) => {
+    if (count === 0) return null;
+
+    const dotCount = Math.min(count, 4);
+    const overflow = count - 4;
+
+    return (
+        <div className="flex flex-col gap-0.5 w-full overflow-hidden">
+            <div className="flex items-center gap-0.5 flex-wrap">
+                {Array.from({ length: dotCount }, (_, i) => (
+                    <span key={i} className="w-1.5 h-1.5 rounded-full bg-primary/50 shrink-0" />
+                ))}
+            </div>
+            {overflow > 0 && (
+                <div className="text-[10px] text-muted px-0.5">
+                    {compact ? `+${overflow}` : `+${overflow}개 더`}
+                </div>
+            )}
+        </div>
+    );
+};
+
 // ── Month View ────────────────────────────────────────────────────────────────
 
 const MonthView = ({
@@ -280,9 +306,7 @@ const MonthView = ({
                     const isLastRow = row === numWeeks - 1;
                     const isLastCol = col === 6;
 
-                    const totalBatches = summary
-                        ? summary.pending + summary.in_progress + summary.done + summary.skipped
-                        : 0;
+                    const batchCount = summary?.count ?? 0;
 
                     return (
                         <button
@@ -306,41 +330,8 @@ const MonthView = ({
                                 </span>
                             </div>
 
-                            {/* Batch event pills — one per batch, bean name */}
-                            {totalBatches > 0 && isCurrentMonth && summary && (
-                                <div className="flex flex-col gap-0.5 w-full overflow-hidden">
-                                    {summary.batches.slice(0, 4).map((b) => {
-                                        const pillStyle =
-                                            b.status === 'done'
-                                                ? 'bg-green-50 text-green-700'
-                                                : b.status === 'in-progress'
-                                                  ? 'bg-amber-100 text-amber-700'
-                                                  : b.status === 'skipped'
-                                                    ? 'bg-surface text-muted/50 line-through'
-                                                    : 'bg-surface text-secondary border border-border';
-                                        const dotColor =
-                                            b.status === 'done'
-                                                ? 'bg-green-400'
-                                                : b.status === 'in-progress'
-                                                  ? 'bg-amber-400'
-                                                  : 'bg-border-strong';
-                                        return (
-                                            <div
-                                                key={b.id}
-                                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium w-full ${pillStyle}`}
-                                            >
-                                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
-                                                <span className="truncate">{b.bean_name}</span>
-                                                <span className="shrink-0 opacity-60">{b.batch_count}회·{b.target_roasted_kg}kg</span>
-                                            </div>
-                                        );
-                                    })}
-                                    {summary.batches.length > 4 && (
-                                        <div className="text-[10px] text-muted px-1.5">
-                                            +{summary.batches.length - 4}개 더
-                                        </div>
-                                    )}
-                                </div>
+                            {batchCount > 0 && isCurrentMonth && (
+                                <BatchCountDots count={batchCount} />
                             )}
                         </button>
                     );
@@ -359,14 +350,12 @@ const WeekDayColumn = ({
     onSelect,
 }: {
     day: Date;
-    summary: DayPlanSummary | undefined;
+    summary: DateSummary | undefined;
     isSelected: boolean;
     onSelect: () => void;
 }) => {
     const today = isToday(day);
-    const totalBatches = summary
-        ? summary.pending + summary.in_progress + summary.done + summary.skipped
-        : 0;
+    const batchCount = summary?.count ?? 0;
 
     return (
         <div
@@ -388,36 +377,12 @@ const WeekDayColumn = ({
                     <span className="text-[11px] text-muted">{format(day, 'eee', { locale: ko })}</span>
                 </div>
             </div>
-            {/* Batch event pills */}
             <div className="px-2 py-2 flex-1 flex flex-col gap-0.5 overflow-hidden">
-                {totalBatches === 0 ? (
+                {batchCount === 0 ? (
                     <span className="text-[10px] text-muted/40 select-none px-1">—</span>
-                ) : summary?.batches.map((b) => {
-                    const pillStyle =
-                        b.status === 'done'
-                            ? 'bg-green-50 text-green-700'
-                            : b.status === 'in-progress'
-                              ? 'bg-amber-100 text-amber-700'
-                              : b.status === 'skipped'
-                                ? 'bg-surface text-muted/50 line-through'
-                                : 'bg-surface text-secondary border border-border';
-                    const dotColor =
-                        b.status === 'done'
-                            ? 'bg-green-400'
-                            : b.status === 'in-progress'
-                              ? 'bg-amber-400'
-                              : 'bg-border-strong';
-                    return (
-                        <div
-                            key={b.id}
-                            className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium w-full ${pillStyle}`}
-                        >
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
-                            <span className="truncate">{b.bean_name}</span>
-                            <span className="shrink-0 opacity-60">{b.batch_count}회·{b.target_roasted_kg}kg</span>
-                        </div>
-                    );
-                })}
+                ) : (
+                    <BatchCountDots count={batchCount} compact />
+                )}
             </div>
         </div>
     );
@@ -492,17 +457,22 @@ const DayView = ({
     const updateAllBatches = useUpdateAllBatches();
 
     const handleScopeDelete = useCallback(
-        (scope: EditScope, batch: PlanBatchWithProgress) => {
+        async (scope: EditScope, batch: PlanBatchWithProgress) => {
             if (!batch.recurrence_rule_id) return;
 
             if (scope === 'single') {
                 if (window.confirm(`이 배치만 삭제하시겠습니까?`)) {
+                    let planId = batch.plan_id;
+                    if (!planId && batch.recurrence_rule_id && batch.scheduled_date) {
+                        const plan = await dayPlanApi.getOrCreate(userId, batch.scheduled_date);
+                        planId = plan.id;
+                    }
                     deleteSingleBatch.mutate({
                         id: batch.id,
                         meta: {
                             recurrenceRuleId: batch.recurrence_rule_id,
                             originalDate: batch.scheduled_date ?? dateKey,
-                            planId: batch.plan_id,
+                            planId: planId ?? '',
                         },
                     });
                 }
@@ -522,7 +492,7 @@ const DayView = ({
             setIsScopeModalOpen(false);
             setScopeBatch(null);
         },
-        [deleteSingleBatch, deleteFromThis, deleteAllBatches, dateKey, selectedDate],
+        [deleteSingleBatch, deleteFromThis, deleteAllBatches, dateKey, selectedDate, userId],
     );
 
     // ── Edit handler ─────────────────────────────────────────────────────────
@@ -581,13 +551,12 @@ const DayView = ({
     // ── Add / Save handler ──────────────────────────────────────────────────
 
     const handleAddBatch = useCallback(
-        (data: NewBatchData) => {
+        async (data: NewBatchData) => {
             if (editScope && editingBatch?.recurrence_rule_id) {
                 // Scope-based edit for recurring batch
-                const planId = editingBatch.plan_id;
                 const basePatch = {
                     id: editingBatch.id,
-                    plan_id: planId,
+                    plan_id: '',
                     bean_name: data.beanName || editingBatch.bean_name,
                     bean_id: data.beanId,
                     batch_type: data.batchType,
@@ -601,9 +570,15 @@ const DayView = ({
                 };
 
                 if (editScope === 'single') {
+                    let planId = editingBatch.plan_id;
+                    if (!planId && editingBatch.recurrence_rule_id) {
+                        const scheduleDate = editingBatch.scheduled_date ?? dateKey;
+                        const plan = await dayPlanApi.getOrCreate(userId, scheduleDate);
+                        planId = plan.id;
+                    }
                     updateSingleBatch.mutate({
                         id: editingBatch.id,
-                        patch: basePatch,
+                        patch: { ...basePatch, plan_id: planId ?? '' },
                         meta: {
                             recurrenceRuleId: editingBatch.recurrence_rule_id,
                             originalDate: editingBatch.scheduled_date ?? dateKey,
@@ -717,26 +692,59 @@ const DayView = ({
     );
 
     const handleStart = useCallback(
-        (batch: PlanBatchWithProgress) => {
-            updateSingleBatch.mutate({
-                id: batch.id,
-                patch: {
+        async (batch: PlanBatchWithProgress) => {
+            let targetId = batch.id;
+            let targetPlanId = batch.plan_id;
+
+            // Virtual recurring batch (plan_id is null) → materialize first
+            if (!batch.plan_id && batch.recurrence_rule_id && batch.scheduled_date) {
+                try {
+                    const realBatch = await planBatchApi.materialize(
+                        userId,
+                        batch.recurrence_rule_id,
+                        batch.scheduled_date,
+                        batch.original_date ?? batch.scheduled_date,
+                        {
+                            bean_name: batch.bean_name,
+                            batch_size_kg: Number(batch.batch_size_kg),
+                            target_roasted_kg: Number(batch.target_roasted_kg),
+                            machine_id: batch.machine_id,
+                            bean_id: batch.bean_id,
+                            roast_profile_id: batch.roast_profile_id,
+                            notes: batch.notes,
+                            green_lot: batch.green_lot,
+                            batch_type: batch.batch_type,
+                            status: 'in-progress',
+                        },
+                    );
+                    targetId = realBatch.id;
+                    targetPlanId = realBatch.plan_id;
+                } catch (err) {
+                    console.error('[Schedule] materialize failed:', err);
+                    return;
+                }
+            } else if (targetPlanId) {
+                updateSingleBatch.mutate({
                     id: batch.id,
-                    plan_id: batch.plan_id,
-                    status: 'in-progress',
-                },
-                ...(batch.recurrence_rule_id && batch.original_date
-                    ? {
-                          meta: {
-                              recurrenceRuleId: batch.recurrence_rule_id,
-                              originalDate: batch.original_date,
-                          },
-                      }
-                    : {}),
-            });
+                    patch: {
+                        id: batch.id,
+                        plan_id: batch.plan_id,
+                        status: 'in-progress',
+                    },
+                    ...(batch.recurrence_rule_id && batch.original_date
+                        ? {
+                              meta: {
+                                  recurrenceRuleId: batch.recurrence_rule_id,
+                                  originalDate: batch.original_date,
+                              },
+                          }
+                        : {}),
+                });
+            }
+
             onStartBatch({
-                planBatchId: batch.id,
-                planId: batch.plan_id,
+                planBatchId: targetId,
+                planId: targetPlanId,
                 beanId: batch.bean_id,
                 beanName: batch.bean_name,
                 batchSizeKg: Number(batch.batch_size_kg),
@@ -745,7 +753,7 @@ const DayView = ({
                 completedSessions: batch.completed_sessions,
             });
         },
-        [updateSingleBatch, onStartBatch],
+        [updateSingleBatch, onStartBatch, userId],
     );
 
     return (
