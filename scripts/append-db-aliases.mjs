@@ -40,6 +40,10 @@ export type PlanBatchHandoff = {
     batchCount: number
     completedSessions: number
 }
+
+export type RecurrenceRule = Database['public']['Tables']['recurrence_rules']['Row']
+export type RecurrenceRuleInsert = Database['public']['Tables']['recurrence_rules']['Insert']
+export type RecurrenceRuleUpdate = Database['public']['Tables']['recurrence_rules']['Update']
 `;
 
 appendFileSync('src/shared/types/database.types.ts', ALIASES);

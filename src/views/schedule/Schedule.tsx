@@ -27,19 +27,25 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@shared/store/auth';
 import { AddBatchModal, type NewBatchData } from '@widgets/add-batch-modal';
+import { RecurringEditScopeModal, type EditScope } from '@widgets/recurring-edit-scope-modal';
 import {
     useDayPlan,
-    usePlanBatches,
+    useDayBatches,
     useCreatePlanBatch,
-    useDeletePlanBatch,
-    useUpdatePlanBatch,
     useReorderPlanBatches,
     useCreateRecurringBatches,
     useMonthSummary,
     useWeekSummary,
+    useDeleteSingleBatch,
+    useDeleteFromThis,
+    useDeleteAllBatches,
+    useUpdateSingleBatch,
+    useUpdateFromThis,
+    useUpdateAllBatches,
 } from '@entities/plan';
 import type { DayPlanSummary } from '@entities/plan';
 import type { PlanBatchWithProgress, PlanBatchHandoff, PlanBatchInsert } from '@shared/types/database.types';
+import { buildRRule } from '@shared/lib/rrule';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -60,6 +66,18 @@ const batchStatus = (b: PlanBatchWithProgress): 'pending' | 'in-progress' | 'don
     if (b.completed_sessions >= b.batch_count) return 'done';
     if (b.completed_sessions > 0) return 'in-progress';
     return 'pending';
+};
+
+// Map RecurrenceInterval to human-readable label
+const getRecurrenceLabel = (rrule: string | null): string => {
+    if (!rrule) return '';
+    if (rrule.includes('FREQ=DAILY')) return '매일';
+    if (rrule.includes('FREQ=WEEKLY')) {
+        if (rrule.includes('INTERVAL=2')) return '격주';
+        return '매주';
+    }
+    if (rrule.includes('FREQ=MONTHLY')) return '매월';
+    return '반복';
 };
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -125,6 +143,7 @@ const BatchCard = ({
 }) => {
     const status = batchStatus(batch);
     const canStart = status === 'pending' || status === 'in-progress';
+    const isRecurring = !!batch.recurrence_rule_id;
 
     return (
         <div className="flex gap-2">
@@ -149,6 +168,11 @@ const BatchCard = ({
                     <div className="flex items-center gap-2">
                         <Package size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 mt-[1px]" />
                         <span className="text-[14px] font-semibold text-primary">{batch.bean_name}</span>
+                        {isRecurring && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200">
+                                {getRecurrenceLabel(batch.rrule)}
+                            </span>
+                        )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         <StatusBadge batch={batch} />
@@ -447,21 +471,183 @@ const DayView = ({
     const dateKey = toDateKey(selectedDate);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingBatch, setEditingBatch] = useState<PlanBatchWithProgress | null>(null);
+    const [editScope, setEditScope] = useState<EditScope | null>(null);
+    const [scopeBatch, setScopeBatch] = useState<PlanBatchWithProgress | null>(null);
+    const [isScopeModalOpen, setIsScopeModalOpen] = useState(false);
 
     const { data: dayPlan, isLoading: isDayPlanLoading } = useDayPlan(userId, dateKey);
     const planId = dayPlan?.id ?? '';
 
-    const { data: batches = [], isLoading: isBatchesLoading } = usePlanBatches(planId);
+    const { data: batches = [], isLoading: isBatchesLoading } = useDayBatches(userId, dateKey);
     const isLoading = isDayPlanLoading || isBatchesLoading;
 
     const createBatch = useCreatePlanBatch(planId);
-    const deleteBatch = useDeletePlanBatch(planId);
-    const updateBatch = useUpdatePlanBatch(planId);
     const reorderBatches = useReorderPlanBatches(planId);
     const createRecurringBatches = useCreateRecurringBatches(userId, planId);
+    const deleteSingleBatch = useDeleteSingleBatch();
+    const deleteFromThis = useDeleteFromThis();
+    const deleteAllBatches = useDeleteAllBatches();
+    const updateSingleBatch = useUpdateSingleBatch();
+    const updateFromThis = useUpdateFromThis();
+    const updateAllBatches = useUpdateAllBatches();
+
+    const handleScopeDelete = useCallback(
+        (scope: EditScope, batch: PlanBatchWithProgress) => {
+            if (!batch.recurrence_rule_id) return;
+
+            if (scope === 'single') {
+                if (window.confirm(`이 배치만 삭제하시겠습니까?`)) {
+                    deleteSingleBatch.mutate({
+                        id: batch.id,
+                        meta: {
+                            recurrenceRuleId: batch.recurrence_rule_id,
+                            originalDate: batch.scheduled_date ?? dateKey,
+                            planId: batch.plan_id,
+                        },
+                    });
+                }
+            } else if (scope === 'from_this') {
+                if (window.confirm(`${format(selectedDate, 'M월 d일')} 이후 모든 반복 배치를 삭제하시겠습니까?`)) {
+                    deleteFromThis.mutate({
+                        ruleId: batch.recurrence_rule_id,
+                        fromDate: dateKey,
+                    });
+                }
+            } else if (scope === 'all') {
+                if (window.confirm('전체 반복 일정을 삭제하시겠습니까? 과거 기록은 유지됩니다.')) {
+                    deleteAllBatches.mutate(batch.recurrence_rule_id);
+                }
+            }
+
+            setIsScopeModalOpen(false);
+            setScopeBatch(null);
+        },
+        [deleteSingleBatch, deleteFromThis, deleteAllBatches, dateKey, selectedDate],
+    );
+
+    // ── Edit handler ─────────────────────────────────────────────────────────
+
+    const handleEdit = useCallback(
+        (batch: PlanBatchWithProgress) => {
+            if (batch.recurrence_rule_id) {
+                // Recurring batch → show scope modal first
+                setScopeBatch(batch);
+                setIsScopeModalOpen(true);
+            } else {
+                // One-off batch → open edit form directly
+                setEditingBatch(batch);
+                setEditScope(null);
+            }
+        },
+        [],
+    );
+
+    // ── Delete from BatchCard ────────────────────────────────────────────────
+
+    const handleBatchDelete = useCallback(
+        (batch: PlanBatchWithProgress) => {
+            if (batch.recurrence_rule_id) {
+                // Show scope modal for recurring batch delete
+                setScopeBatch(batch);
+                setIsScopeModalOpen(true);
+            } else {
+                if (window.confirm(`"${batch.bean_name}" 배치를 삭제하시겠습니까?`)) {
+                    deleteSingleBatch.mutate({ id: batch.id });
+                }
+            }
+        },
+        [deleteSingleBatch],
+    );
+
+    // ── Scope modal confirm → then show AddBatchModal or handle delete ───────
+
+    const handleScopeConfirm = useCallback(
+        (scope: EditScope, action: 'edit' | 'delete') => {
+            if (!scopeBatch) return;
+
+            if (action === 'delete') {
+                handleScopeDelete(scope, scopeBatch);
+            } else {
+                // action === 'edit' → open AddBatchModal with scope
+                setEditScope(scope);
+                setEditingBatch(scopeBatch);
+                setIsScopeModalOpen(false);
+                setScopeBatch(null);
+            }
+        },
+        [scopeBatch, handleScopeDelete],
+    );
+
+    // ── Add / Save handler ──────────────────────────────────────────────────
 
     const handleAddBatch = useCallback(
         (data: NewBatchData) => {
+            if (editScope && editingBatch?.recurrence_rule_id) {
+                // Scope-based edit for recurring batch
+                const planId = editingBatch.plan_id;
+                const basePatch = {
+                    id: editingBatch.id,
+                    plan_id: planId,
+                    bean_name: data.beanName || editingBatch.bean_name,
+                    bean_id: data.beanId,
+                    batch_type: data.batchType,
+                    roast_profile_id: data.profileId,
+                    machine_id: data.machineId,
+                    target_roasted_kg: data.targetRoasted,
+                    batch_size_kg: data.batchSize,
+                    yield_pct: data.yieldPct / 100,
+                    notes: data.notes,
+                    green_lot: data.greenLot,
+                };
+
+                if (editScope === 'single') {
+                    updateSingleBatch.mutate({
+                        id: editingBatch.id,
+                        patch: basePatch,
+                        meta: {
+                            recurrenceRuleId: editingBatch.recurrence_rule_id,
+                            originalDate: editingBatch.scheduled_date ?? dateKey,
+                        },
+                    });
+                } else {
+                    const instanceDate = editingBatch.scheduled_date ?? dateKey;
+                    const masterPatch = {
+                        machine_id: data.machineId || null,
+                        roast_profile_id: data.profileId,
+                        bean_id: data.beanId,
+                        bean_name: data.beanName || editingBatch.bean_name,
+                        green_lot: data.greenLot,
+                        batch_size_kg: data.batchSize,
+                        yield_pct: data.yieldPct / 100,
+                        target_roasted_kg: data.targetRoasted,
+                        notes: data.notes,
+                        batch_type: data.batchType,
+                        ...(data.recurringInterval
+                            ? { rrule: buildRRule(data.recurringInterval) }
+                            : {}),
+                    };
+
+                    if (editScope === 'from_this') {
+                        updateFromThis.mutate({
+                            ruleId: editingBatch.recurrence_rule_id,
+                            fromDate: instanceDate,
+                            patch: {
+                                ...masterPatch,
+                                dtstart: instanceDate,
+                                userId,
+                            },
+                        });
+                    } else if (editScope === 'all') {
+                        updateAllBatches.mutate({
+                            ruleId: editingBatch.recurrence_rule_id,
+                            patch: masterPatch,
+                        });
+                    }
+                }
+                return;
+            }
+
+            // Standard flow: one-off or recurring creation
             const baseBatch: Omit<PlanBatchInsert, 'plan_id'> = {
                 order_index: batches.length,
                 bean_name: data.beanName || data.batchType,
@@ -471,7 +657,7 @@ const DayView = ({
                 machine_id: data.machineId || null,
                 target_roasted_kg: data.targetRoasted,
                 batch_size_kg: data.batchSize,
-                yield_pct: data.yieldPct,
+                yield_pct: data.yieldPct / 100,
                 notes: data.notes,
                 green_lot: data.greenLot,
                 status: 'pending',
@@ -505,7 +691,19 @@ const DayView = ({
                 );
             }
         },
-        [planId, batches.length, createBatch, createRecurringBatches],
+        [
+            planId,
+            batches.length,
+            createBatch,
+            createRecurringBatches,
+            editScope,
+            editingBatch,
+            updateSingleBatch,
+            updateFromThis,
+            updateAllBatches,
+            dateKey,
+            userId,
+        ],
     );
 
     const handleMove = useCallback(
@@ -520,7 +718,22 @@ const DayView = ({
 
     const handleStart = useCallback(
         (batch: PlanBatchWithProgress) => {
-            updateBatch.mutate({ id: batch.id, status: 'in-progress' });
+            updateSingleBatch.mutate({
+                id: batch.id,
+                patch: {
+                    id: batch.id,
+                    plan_id: batch.plan_id,
+                    status: 'in-progress',
+                },
+                ...(batch.recurrence_rule_id && batch.original_date
+                    ? {
+                          meta: {
+                              recurrenceRuleId: batch.recurrence_rule_id,
+                              originalDate: batch.original_date,
+                          },
+                      }
+                    : {}),
+            });
             onStartBatch({
                 planBatchId: batch.id,
                 planId: batch.plan_id,
@@ -532,7 +745,7 @@ const DayView = ({
                 completedSessions: batch.completed_sessions,
             });
         },
-        [updateBatch, onStartBatch],
+        [updateSingleBatch, onStartBatch],
     );
 
     return (
@@ -575,22 +788,36 @@ const DayView = ({
                                 index={index}
                                 total={batches.length}
                                 onMove={(dir) => handleMove(index, dir)}
-                                onDelete={() => deleteBatch.mutate(batch.id)}
+                                onDelete={() => handleBatchDelete(batch)}
                                 onStart={() => handleStart(batch)}
-                                onEdit={() => setEditingBatch(batch)}
+                                onEdit={() => handleEdit(batch)}
                             />
                         ))}
                     </div>
                 )}
             </div>
+
+            {/* Scope modal for recurring batches */}
+            {scopeBatch && (
+                <RecurringEditScopeModal
+                    open={isScopeModalOpen}
+                    onClose={() => { setIsScopeModalOpen(false); setScopeBatch(null); setEditScope(null); }}
+                    onConfirm={handleScopeConfirm}
+                    batchLabel={`${scopeBatch.bean_name} / ${scopeBatch.batch_size_kg}kg`}
+                    recurrenceLabel={getRecurrenceLabel(scopeBatch.rrule)}
+                    isFirstInstance={batchStatus(scopeBatch) === 'pending' && batches.indexOf(scopeBatch) === 0}
+                />
+            )}
+
             <AddBatchModal
-                key={String(isAddModalOpen) + (editingBatch?.id ?? '')}
-                open={isAddModalOpen || editingBatch !== null}
-                onClose={() => { setIsAddModalOpen(false); setEditingBatch(null); }}
+                key={String(isAddModalOpen) + (editingBatch?.id ?? '') + (editScope ?? '')}
+                open={isAddModalOpen || (editingBatch !== null && editScope !== null)}
+                onClose={() => { setIsAddModalOpen(false); setEditingBatch(null); setEditScope(null); }}
                 onAdd={handleAddBatch}
                 editingBatch={editingBatch}
+                editScope={editScope}
                 currentDateKey={dateKey}
-                onSaved={() => setEditingBatch(null)}
+                onSaved={() => { setEditingBatch(null); setEditScope(null); }}
             />
         </>
     );

@@ -212,6 +212,91 @@ export type Database = {
           },
         ]
       }
+      recurrence_rules: {
+        Row: {
+          batch_size_kg: number
+          batch_type: string
+          bean_id: string | null
+          bean_name: string
+          created_at: string
+          dtstart: string
+          green_lot: string
+          id: string
+          machine_id: string | null
+          notes: string
+          roast_profile_id: string | null
+          rrule: string
+          status: string
+          target_roasted_kg: number
+          until: string | null
+          updated_at: string
+          user_id: string
+          yield_pct: number
+        }
+        Insert: {
+          batch_size_kg?: number
+          batch_type?: string
+          bean_id?: string | null
+          bean_name?: string
+          created_at?: string
+          dtstart: string
+          green_lot?: string
+          id?: string
+          machine_id?: string | null
+          notes?: string
+          roast_profile_id?: string | null
+          rrule: string
+          status?: string
+          target_roasted_kg?: number
+          until?: string | null
+          updated_at?: string
+          user_id: string
+          yield_pct?: number
+        }
+        Update: {
+          batch_size_kg?: number
+          batch_type?: string
+          bean_id?: string | null
+          bean_name?: string
+          created_at?: string
+          dtstart?: string
+          green_lot?: string
+          id?: string
+          machine_id?: string | null
+          notes?: string
+          roast_profile_id?: string | null
+          rrule?: string
+          status?: string
+          target_roasted_kg?: number
+          until?: string | null
+          updated_at?: string
+          user_id?: string
+          yield_pct?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurrence_rules_bean_id_fkey"
+            columns: ["bean_id"]
+            isOneToOne: false
+            referencedRelation: "beans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurrence_rules_roast_profile_id_fkey"
+            columns: ["roast_profile_id"]
+            isOneToOne: false
+            referencedRelation: "roast_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurrence_rules_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roast_day_plans: {
         Row: {
           created_at: string
@@ -255,15 +340,19 @@ export type Database = {
           bean_id: string | null
           bean_name: string
           created_at: string
+          exception_type: string | null
           green_lot: string
           id: string
           machine_id: string | null
           notes: string
           order_index: number
+          original_date: string | null
           plan_id: string
           recurrence_group_id: string | null
+          recurrence_rule_id: string | null
           roast_profile_id: string | null
           rrule: string | null
+          scheduled_date: string | null
           status: string
           target_roasted_kg: number
           updated_at: string
@@ -276,15 +365,19 @@ export type Database = {
           bean_id?: string | null
           bean_name: string
           created_at?: string
+          exception_type?: string | null
           green_lot?: string
           id?: string
           machine_id?: string | null
           notes?: string
           order_index?: number
+          original_date?: string | null
           plan_id: string
           recurrence_group_id?: string | null
+          recurrence_rule_id?: string | null
           roast_profile_id?: string | null
           rrule?: string | null
+          scheduled_date?: string | null
           status?: string
           target_roasted_kg: number
           updated_at?: string
@@ -297,15 +390,19 @@ export type Database = {
           bean_id?: string | null
           bean_name?: string
           created_at?: string
+          exception_type?: string | null
           green_lot?: string
           id?: string
           machine_id?: string | null
           notes?: string
           order_index?: number
+          original_date?: string | null
           plan_id?: string
           recurrence_group_id?: string | null
+          recurrence_rule_id?: string | null
           roast_profile_id?: string | null
           rrule?: string | null
+          scheduled_date?: string | null
           status?: string
           target_roasted_kg?: number
           updated_at?: string
@@ -324,6 +421,13 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "roast_day_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roast_plan_batches_recurrence_rule_id_fkey"
+            columns: ["recurrence_rule_id"]
+            isOneToOne: false
+            referencedRelation: "recurrence_rules"
             referencedColumns: ["id"]
           },
           {
@@ -801,6 +905,9 @@ export type PlanBatch = Database['public']['Tables']['roast_plan_batches']['Row'
 export type PlanBatchInsert = Database['public']['Tables']['roast_plan_batches']['Insert']
 export type PlanBatchUpdate = Database['public']['Tables']['roast_plan_batches']['Update'] & { id: string }
 export type PlanBatchWithProgress = PlanBatch & { completed_sessions: number }
+
+export type RecurrenceRule = Database['public']['Tables']['recurrence_rules']['Row']
+export type RecurrenceRuleInsert = Database['public']['Tables']['recurrence_rules']['Insert']
 
 export type PlanBatchHandoff = {
     planBatchId: string

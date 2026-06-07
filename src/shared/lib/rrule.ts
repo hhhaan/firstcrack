@@ -82,6 +82,141 @@ export function expandRRule(rruleStr: string, dtstart: Date): Date[] {
 }
 
 /**
+ * Expand an RRULE string for dates within a specific range.
+ * This is the rendering-time variant — used instead of expanding everything at creation.
+ *
+ * @param rruleStr - RFC 5545 RRULE string
+ * @param dtstart - Recurrence start date
+ * @param rangeStart - Range lower bound (inclusive)
+ * @param rangeEnd - Range upper bound (inclusive)
+ * @returns Array of Date objects within the range
+ */
+export function expandRRuleInRange(
+    rruleStr: string,
+    dtstart: Date,
+    rangeStart: Date,
+    rangeEnd: Date,
+): Date[] {
+    const dtstartLocal = new Date(dtstart);
+    dtstartLocal.setHours(0, 0, 0, 0);
+
+    // Clamp rangeStart to dtstart (no point expanding before the rule starts)
+    const from = dtstartLocal > rangeStart ? dtstartLocal : new Date(rangeStart);
+    from.setHours(0, 0, 0, 0);
+
+    const to = new Date(rangeEnd);
+    to.setHours(23, 59, 59, 999);
+
+    const rule = RRule.fromString(rruleStr);
+    return rule.between(from, to, true).map((d) => {
+        const local = new Date(d);
+        local.setHours(0, 0, 0, 0);
+        return local;
+    });
+}
+
+/**
+ * Exception row from roast_plan_batches for a recurring rule.
+ */
+export interface RecurrenceException {
+    original_date: string;   // The original recurrence date (ISO date string)
+    scheduled_date: string;  // Actual date (may differ from original if moved)
+    exception_type: 'modified' | 'cancelled';
+    // Overrides: if 'modified', these fields replace the master's values
+    batch_size_kg?: number;
+    target_roasted_kg?: number;
+    bean_id?: string | null;
+    bean_name?: string;
+    machine_id?: string | null;
+    roast_profile_id?: string | null;
+    notes?: string;
+    status?: string;
+    [key: string]: unknown;
+}
+
+/**
+ * Merged recurrence instance — combines master rule data with any exception overrides.
+ */
+export interface RecurrenceInstance {
+    date: string;              // ISO date string (yyyy-MM-dd)
+    originalDate: string;      // The original recurrence date
+    exceptionType: 'normal' | 'modified' | 'cancelled';
+    exception?: RecurrenceException; // Only present if modified or cancelled
+}
+
+/**
+ * Merge expanded recurrence dates with exception rows.
+ * - cancelled → excluded from result
+ * - modified → instance data is overridden by the exception row
+ * - no exception → normal instance
+ *
+ * @param expandedDates - Array of Date objects from expandRRule / expandRRuleInRange
+ * @param exceptions - Array of exception rows from DB
+ * @returns Merged instances (cancelled ones filtered out)
+ */
+export function mergeRecurrenceExceptions(
+    expandedDates: Date[],
+    exceptions: RecurrenceException[],
+): RecurrenceInstance[] {
+    // Build exception map keyed by original_date
+    const exceptionMap = new Map<string, RecurrenceException>();
+    for (const ex of exceptions) {
+        exceptionMap.set(ex.original_date, ex);
+    }
+
+    const result: RecurrenceInstance[] = [];
+
+    for (const date of expandedDates) {
+        const dateStr = formatDateLocal(date);
+        const ex = exceptionMap.get(dateStr);
+
+        if (ex?.exception_type === 'cancelled') {
+            // Skip cancelled instances
+            continue;
+        }
+
+        result.push({
+            date: dateStr,
+            originalDate: dateStr,
+            exceptionType: ex?.exception_type === 'modified' ? 'modified' : 'normal',
+            exception: ex?.exception_type === 'modified' ? ex : undefined,
+        });
+    }
+
+    // Also include exceptions whose original_date falls outside the expanded range
+    // but has a scheduled_date that's been moved to a different date
+    for (const ex of exceptions) {
+        if (ex.exception_type === 'modified') {
+            const matched = result.find((r) => r.originalDate === ex.original_date);
+            if (!matched) {
+                // This is a moved instance — include it with the scheduled_date
+                result.push({
+                    date: ex.scheduled_date,
+                    originalDate: ex.original_date,
+                    exceptionType: 'modified',
+                    exception: ex,
+                });
+            }
+        }
+    }
+
+    // Sort by date
+    result.sort((a, b) => a.date.localeCompare(b.date));
+
+    return result;
+}
+
+/**
+ * Format a Date to yyyy-MM-dd in local timezone.
+ */
+function formatDateLocal(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+/**
  * Preview recurrence: return a human-readable list of dates
  * based on the given interval and dtstart.
  */

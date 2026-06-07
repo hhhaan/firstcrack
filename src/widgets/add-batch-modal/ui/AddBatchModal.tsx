@@ -17,6 +17,19 @@ import { dayPlanApi, planBatchApi, planKeys } from '@entities/plan';
 import { cn } from '@shared/lib/cn';
 import type { RoastProfile, Bean, PlanBatchWithProgress } from '@shared/types/database.types';
 
+/**
+ * Parse an RRULE string back to a RecurrenceInterval label.
+ * Used to pre-populate the recurrence selection when editing an existing batch.
+ */
+function parseRruleToInterval(rrule: string | null): RecurrenceInterval | null {
+    if (!rrule) return null;
+    if (rrule.includes('FREQ=DAILY')) return 'daily';
+    if (rrule.includes('FREQ=WEEKLY') && rrule.includes('INTERVAL=2')) return 'biweekly';
+    if (rrule.includes('FREQ=WEEKLY')) return 'weekly';
+    if (rrule.includes('FREQ=MONTHLY')) return 'monthly';
+    return null;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type BatchType = 'Single Origin' | 'Pre-roast Blend' | 'Post-roast Blend';
@@ -47,11 +60,15 @@ export interface NewBatchData {
     recurringInterval?: RecurrenceInterval | null;
 }
 
+/** Edit scope for recurring batch operations */
+export type EditScope = 'single' | 'from_this' | 'all';
+
 interface AddBatchModalProps {
     open: boolean;
     onClose: () => void;
     onAdd?: (data: NewBatchData) => void;
     editingBatch?: PlanBatchWithProgress | null;
+    editScope?: EditScope | null;
     currentDateKey?: string;
     onSaved?: () => void;
 }
@@ -78,7 +95,7 @@ const todayDate = () => new Date();
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, currentDateKey, onSaved }: AddBatchModalProps) => {
+export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, currentDateKey, onSaved }: AddBatchModalProps) => {
     const userId = useAuthStore((s) => s.user?.id ?? '');
     const qc = useQueryClient();
 
@@ -87,6 +104,8 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, currentDateK
     const { data: profiles = [] } = useRoastProfiles(userId);
 
     const isEdit = !!editingBatch;
+    const isDateDisabled = editScope === 'all';
+    const isRruleVisible = !isEdit || editScope === 'from_this' || editScope === 'all';
 
     const [saving, setSaving] = useState(false);
     const [date, setDate] = useState<Date | undefined>(
@@ -164,8 +183,9 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, currentDateK
                     await planBatchApi.move(editingBatch.id, targetPlanId);
                 }
 
-                await planBatchApi.update({
+                await planBatchApi.updateSingle(editingBatch.id, {
                     id: editingBatch.id,
+                    plan_id: editingBatch.plan_id,
                     machine_id: machineId || null,
                     batch_type: batchType,
                     roast_profile_id: profileId || null,
@@ -178,12 +198,18 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, currentDateK
                     notes,
                 });
 
-                // Invalidate old plan's batches
                 qc.invalidateQueries({ queryKey: planKeys.batches(editingBatch.plan_id) });
-                // If date changed, also invalidate new plan and range summaries
+                if (currentDateKey) {
+                    qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, currentDateKey) });
+                }
                 if (dateChanged) {
                     qc.invalidateQueries({ queryKey: planKeys.batches(targetPlanId) });
                     qc.invalidateQueries({ queryKey: ['day_plan_range', userId] });
+                    if (newDateKey) {
+                        qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, newDateKey) });
+                    }
+                } else {
+                    qc.invalidateQueries({ queryKey: ['day_batches'] });
                 }
 
                 onSaved?.();
@@ -262,13 +288,21 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, currentDateK
                         <label className={labelCls}>
                             <CalendarIcon size={12} /> 날짜
                         </label>
-                        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                        <Popover
+                            open={calendarOpen}
+                            onOpenChange={(open) => {
+                                if (!isDateDisabled) setCalendarOpen(open);
+                            }}
+                        >
                             <PopoverTrigger asChild>
                                 <button
                                     type="button"
+                                    disabled={isDateDisabled}
                                     className={cn(
                                         inputCls,
-                                        'flex items-center gap-2 text-left cursor-pointer',
+                                        'flex items-center gap-2 text-left',
+                                        !isDateDisabled && 'cursor-pointer',
+                                        isDateDisabled && 'opacity-60 cursor-not-allowed',
                                         !date && 'text-muted',
                                     )}
                                 >
@@ -480,8 +514,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, currentDateK
                     </div>
                 )}
 
-                {/* Recurrence — only when NOT editing */}
-                {!isEdit && (
+                {isRruleVisible && (
                     <div>
                         <label className={labelCls}>
                             <Repeat size={12} /> 반복
