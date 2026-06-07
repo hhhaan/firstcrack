@@ -82,3 +82,16 @@ useMutation({
 ## No Tests/Linting
 
 - No test framework or lint configs found
+
+
+## Code Style & Syntax
+
+### Named Exports Only
+All components, functions, and objects **must** use named exports (`export const`). Default exports are not allowed.
+
+
+## Project Structure (FSD)
+
+### Layer Dependency (Unidirectional)
+```
+shared → entities → features → widgets → app%

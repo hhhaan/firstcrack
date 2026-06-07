@@ -1,28 +1,28 @@
-// Sensor data line colors
+// Sensor data line colors (professional dashboard-grade, light mode)
 export const SENSOR_COLORS = {
-    // light: #16a34a / dark: #4BE08C
-    bt: '#16a34a',
-    btBg: 'rgba(22,163,74,0.08)',
-    btTarget: 'rgba(16,185,129,0.7)',
-    btTargetHover: 'rgba(16,185,129,0.8)',
-    btTargetStrong: 'rgba(16,185,129,0.9)',
-    // light: #2563eb / dark: #BEACF8
-    et: '#2563eb',
-    etChart: 'rgba(37,99,235,0.7)',
-    etBg: 'rgba(219,234,254,0.5)',
-    // light: #FFC107 / dark: #FFFF54
-    ror: '#FFC107',
-    rorBg: 'rgba(255,235,59,0.5)',
+    // light: #22a85a / dark: #4BE08C
+    bt: '#22a85a',
+    btBg: 'rgba(34,168,90,0.08)',
+    btTarget: 'rgba(40,180,130,0.65)',
+    btTargetHover: 'rgba(40,180,130,0.75)',
+    btTargetStrong: 'rgba(40,180,130,0.85)',
+    // light: #4a85c5 / dark: #BEACF8
+    et: '#4a85c5',
+    etChart: 'rgba(74,133,197,0.7)',
+    etBg: 'rgba(190,215,245,0.5)',
+    // light: #e8a828 / dark: #FFFF54
+    ror: '#e8a828',
+    rorBg: 'rgba(232,168,40,0.25)',
 } as const;
 
 export const PHASE_COLORS = {
-    ready: '#16a34a',
-    readyBg: 'rgba(220,252,231,0.8)',
-    drying: '#d97706',
-    maillard: '#b45309',
-    development: '#ea580c',
-    danger: '#dc2626',
-    dangerBg: 'rgba(254,226,226,0.8)',
+    ready: '#28a05a',
+    readyBg: 'rgba(220,242,230,0.8)',
+    drying: '#c88a28',
+    maillard: '#b07828',
+    development: '#d47028',
+    danger: '#d43a3a',
+    dangerBg: 'rgba(245,218,218,0.8)',
 } as const;
 
 // Connected status dot (brighter green, distinct from PHASE_COLORS.ready)

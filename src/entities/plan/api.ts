@@ -150,11 +150,6 @@ export type DayPlanSummary = {
     batches: DayPlanBatchItem[];
 };
 
-export type DateSummary = {
-    date: string;
-    count: number;
-};
-
 export const dayPlanRangeApi = {
     listSummary: async (userId: string, startDate: string, endDate: string): Promise<DayPlanSummary[]> => {
         const batches = await planBatchApi.listForDateRange(userId, startDate, endDate);
@@ -195,86 +190,6 @@ export const dayPlanRangeApi = {
         return [...summaryMap.values()].sort((a, b) => a.date.localeCompare(b.date));
     },
 
-    listSummaryForDateRange: async (
-        userId: string,
-        startDate: string,
-        endDate: string,
-    ): Promise<DateSummary[]> => {
-        const { expandRRuleInRange, mergeRecurrenceExceptions } = await import('@shared/lib/rrule');
-
-        const [rules, exceptionsResult, plansResult] = await Promise.all([
-            recurrenceRuleApi.listActive(userId),
-            supabase
-                .from('roast_plan_batches')
-                .select('recurrence_rule_id, original_date, scheduled_date, exception_type')
-                .not('recurrence_rule_id', 'is', null)
-                .gte('scheduled_date', startDate)
-                .lte('scheduled_date', endDate),
-            supabase
-                .from('roast_day_plans')
-                .select('id, date')
-                .eq('user_id', userId)
-                .gte('date', startDate)
-                .lte('date', endDate),
-        ]);
-
-        if (exceptionsResult.error) throw exceptionsResult.error;
-        if (plansResult.error) throw plansResult.error;
-
-        const countMap = new Map<string, number>();
-        const plans = plansResult.data ?? [];
-        const planIdToDate = new Map(plans.map((p) => [p.id, p.date]));
-        const planIds = plans.map((p) => p.id);
-
-        if (planIds.length > 0) {
-            const { data: oneOffBatches, error: oneOffError } = await supabase
-                .from('roast_plan_batches')
-                .select('plan_id')
-                .is('recurrence_rule_id', null)
-                .in('plan_id', planIds);
-            if (oneOffError) throw oneOffError;
-
-            for (const row of oneOffBatches ?? []) {
-                const date = planIdToDate.get(row.plan_id);
-                if (!date) continue;
-                countMap.set(date, (countMap.get(date) ?? 0) + 1);
-            }
-        }
-
-        const exceptions = exceptionsResult.data ?? [];
-        const rangeStart = new Date(startDate + 'T00:00:00');
-        const rangeEnd = new Date(endDate + 'T23:59:59');
-
-        for (const rule of rules) {
-            const ruleStart = new Date(rule.dtstart + 'T00:00:00');
-            if (rule.until && new Date(rule.until + 'T23:59:59') < rangeStart) continue;
-
-            const expandedDates = expandRRuleInRange(
-                rule.rrule,
-                ruleStart,
-                rangeStart,
-                rule.until ? new Date(rule.until + 'T23:59:59') : rangeEnd,
-            );
-
-            const ruleExceptions = exceptions
-                .filter((ex) => ex.recurrence_rule_id === rule.id)
-                .map((ex) => ({
-                    original_date: ex.original_date ?? '',
-                    scheduled_date: ex.scheduled_date ?? '',
-                    exception_type: ex.exception_type as 'modified' | 'cancelled',
-                }));
-
-            const instances = mergeRecurrenceExceptions(expandedDates, ruleExceptions);
-
-            for (const instance of instances) {
-                countMap.set(instance.date, (countMap.get(instance.date) ?? 0) + 1);
-            }
-        }
-
-        return [...countMap.entries()]
-            .map(([date, count]) => ({ date, count }))
-            .sort((a, b) => a.date.localeCompare(b.date));
-    },
 };
 
 // ── Plan Batches ──────────────────────────────────────────────────────────────
@@ -656,7 +571,7 @@ export const planBatchApi = {
                         });
                     }
                 } else if (instance.exceptionType === 'normal') {
-                    const planId = dateToPlanId.get(instance.date) ?? null;
+                    const planId = dateToPlanId.get(instance.date) ?? '';
 
                     const batchSize = Number(rule.batch_size_kg) || 0;
                     const targetKg = Number(rule.target_roasted_kg) || 0;

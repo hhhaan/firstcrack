@@ -63,6 +63,7 @@ const beanOptionDisplay: BeanOptionDisplay = (b) => joinDisplay([b.origin, b.reg
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export const RoastHeader = ({
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     phase,
     targetProfileId,
     selectedBeanId,
@@ -95,6 +96,7 @@ export const RoastHeader = ({
     // ─── Derived values ──────────────────────────────────────────────────────
     const elapsedMin = Math.floor(elapsed / 60);
     const elapsedSec = elapsed % 60;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const timeStr = charged ? `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}` : '—';
 
     const handleProfileChange = (id: string | null) => {
@@ -194,12 +196,14 @@ export const RoastHeader = ({
 
             {/* ─── Right side: elapsed time + settings ────────────────────── */}
             <div className="flex items-start gap-3">
+                {/*
                 <div className="text-right">
                     <div className="font-mono text-[44px] font-semibold text-primary tracking-[-2px] leading-none mb-1">
                         {timeStr}
                     </div>
                     <div className="text-[13px] text-muted tracking-[0.14px]">{phase} phase</div>
                 </div>
+                */}
                 {onOpenRoastSettings && (
                     <button
                         onClick={onOpenRoastSettings}

@@ -71,6 +71,7 @@ export const RoastTempChart: React.FC<Props> = ({
     temperatureUnit = 'C',
     height,
     onCursorIdx,
+    onEventMarkerDrag,
     showET = true,
     showTargetCurve = true,
     showRoR = true,
@@ -81,6 +82,15 @@ export const RoastTempChart: React.FC<Props> = ({
 }) => {
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
+
+    // ── 마커 드래그 상태 ─────────────────────────────────────────
+    const dragStateRef = useRef<{
+        active: boolean;
+        eventName: string;
+        startX: number;
+        startTimeSec: number;
+    } | null>(null);
+    const PIXEL_THRESHOLD = 10;
 
     // ECharts 초기화
     useEffect((): (() => void) | undefined => {
@@ -136,7 +146,7 @@ export const RoastTempChart: React.FC<Props> = ({
             },
             label: {
                 show: true,
-                position: 'end',
+                position: 'start',
                 formatter: 'TP',
                 color: CHART_COLORS.tp,
                 fontSize: 12,
@@ -154,7 +164,7 @@ export const RoastTempChart: React.FC<Props> = ({
             },
             label: {
                 show: true,
-                position: 'end',
+                position: 'start',
                 formatter: m.event,
                 color: m.color,
                 fontSize: 11,
@@ -208,8 +218,9 @@ export const RoastTempChart: React.FC<Props> = ({
                 showSymbol: false,
                 ...getSmoothConfig(0.7),
                 markLine: {
-                    silent: true,
-                    symbol: 'none',
+                    silent: false,
+                    symbol: ['none', 'circle'],
+                    symbolSize: [0, 8],
                     data: [...eventMarkLines, ...tpMarkLines],
                 },
                 markPoint: { data: markPointData },
@@ -781,6 +792,65 @@ export const RoastTempChart: React.FC<Props> = ({
             chart.off('mousemove', handleMouseMove);
         };
     }, [xs, onCursorIdx]);
+
+    // ── 마커 드래그 (chart.getZr()로 마크라인 핸들 감지) ──────────
+    useEffect(() => {
+        const chart = chartInstanceRef.current;
+        if (!chart || !onEventMarkerDrag) return;
+
+        const zr = chart.getZr();
+        if (!zr) return;
+
+        const handleZrPointerDown = (e: { offsetX: number; offsetY: number }) => {
+            if (!chart) return;
+            // 이벤트 마커들의 x좌표를 픽셀로 변환하여 클릭 감지
+            for (const marker of eventMarkers) {
+                const pixel = chart.convertToPixel({ xAxisIndex: 0 }, [marker.timeSec, 0]);
+                if (pixel == null) continue;
+                const px = Array.isArray(pixel) ? pixel[0] : pixel;
+                const dist = Math.abs(e.offsetX - px);
+                if (dist <= PIXEL_THRESHOLD) {
+                    dragStateRef.current = {
+                        active: true,
+                        eventName: marker.event,
+                        startX: e.offsetX,
+                        startTimeSec: marker.timeSec,
+                    };
+                    break;
+                }
+            }
+        };
+
+        const handleZrPointerMove = (e: { offsetX: number; offsetY: number }) => {
+            const ds = dragStateRef.current;
+            if (!ds || !ds.active || !chart) return;
+            const point = chart.convertFromPixel({ xAxisIndex: 0 }, [e.offsetX, e.offsetY]);
+            if (!point) return;
+            const xVal = Array.isArray(point) ? point[0] : point;
+            const clamped = Math.max(0, Math.round(xVal));
+            if (clamped !== ds.startTimeSec) {
+                onEventMarkerDrag(ds.eventName, clamped);
+                dragStateRef.current = { ...ds, startTimeSec: clamped };
+            }
+        };
+
+        const handleZrPointerUp = () => {
+            if (dragStateRef.current) {
+                dragStateRef.current = null;
+            }
+        };
+
+        // zrender 이벤트는 mousedown/mousemove/mouseup 사용
+        zr.on('mousedown', handleZrPointerDown);
+        zr.on('mousemove', handleZrPointerMove);
+        zr.on('mouseup', handleZrPointerUp);
+
+        return () => {
+            zr.off('mousedown', handleZrPointerDown);
+            zr.off('mousemove', handleZrPointerMove);
+            zr.off('mouseup', handleZrPointerUp);
+        };
+    }, [eventMarkers, onEventMarkerDrag]);
 
     useEffect(() => {
         chartInstanceRef.current?.resize({ height });
