@@ -40,8 +40,6 @@ export const beanStockEventApi = {
     return (data ?? []).reduce((sum, e) => sum + e.delta_grams, 0);
   },
 
-  // Reserved stock = sum of pending/scheduled batch plans for this bean
-  // batch_size_kg × batch_count × 1000 = grams
   getReservedStock: async (beanId: string): Promise<number> => {
     const { data, error } = await supabase
       .from('roast_plan_batches')
