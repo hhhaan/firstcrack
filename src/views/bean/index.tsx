@@ -104,15 +104,15 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 </button>
             </div>
 
-            <div className="flex border-b border-[#E5E5E5] mb-4">
+            <div className="flex border-b border-(--color-border) mb-4">
                 <button
-                    className={`px-4 py-2 text-sm font-medium ${tab === 'single' ? 'border-b-2 border-[#171717] text-[#171717]' : 'text-gray-500'}`}
+                    className={`px-4 py-2 text-sm font-medium ${tab === 'single' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
                     onClick={() => setTab('single')}
                 >
                     싱글 생두
                 </button>
                 <button
-                    className={`px-4 py-2 text-sm font-medium ${tab === 'blend' ? 'border-b-2 border-[#171717] text-[#171717]' : 'text-gray-500'}`}
+                    className={`px-4 py-2 text-sm font-medium ${tab === 'blend' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
                     onClick={() => setTab('blend')}
                 >
                     블렌드
