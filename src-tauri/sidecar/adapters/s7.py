@@ -140,7 +140,7 @@ class S7Adapter:
         return Reading(bt=bt, et=et, heater=hp, fan=fc, drum=drum, timestamp=time.monotonic())
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
-        pass  # S7 write_area 확장 시 여기에 구현
+        pass  # 제어 기능 미사용 — 제거 예정
 
     @property
     def connected(self) -> bool:

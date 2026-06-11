@@ -104,13 +104,7 @@ class KaleidoAdapter:
         return Reading(bt=bt, et=et, heater=hp, fan=fc, drum=drum, timestamp=time.monotonic())
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
-        # Artisan kaleidoSendMessage(target, value): HP=화력, FC=팬, RC=드럼 (모두 정수 %)
-        if heater is not None:
-            self._driver.send_msg("HP", str(int(round(float(heater)))))
-        if fan is not None:
-            self._driver.send_msg("FC", str(int(round(float(fan)))))
-        if drum is not None:
-            self._driver.send_msg("RC", str(int(round(float(drum)))))
+        pass  # 제어 기능 미사용 — 제거 예정
 
     @property
     def connected(self) -> bool:

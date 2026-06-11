@@ -7,10 +7,10 @@ import { generateProfileCurve } from '@shared/data/roast-profiles';
 import {
     useRoastProfiles,
     useCreateRoastProfile,
-    useUpdateRoastProfile,
     useDeleteRoastProfile,
     useRoastProfileCurve,
     useRoastProfileCurves,
+    useProfileBeanHistory,
     type RoastProfileWithSource,
 } from '@entities/roast-profile';
 import { useProfile, useUpdateProfile } from '@entities/profile';
@@ -227,21 +227,20 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const [compareMode, setCompareMode] = useState(false);
     const [compareIds, setCompareIds] = useState<string[]>([]);
     const [showNewModal, setShowNewModal] = useState(false);
-    const [editingProfile, setEditingProfile] = useState<RoastProfileWithSource | null>(null);
 
     // 프로파일 목록이 처음 로드됐을 때 첫 번째 항목을 자동 선택.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => {
         if (profiles.length > 0 && !selectedId) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSelectedId(profiles[0].id);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profiles.length, selectedId]);
 
     // DB에서 userProfile이 로드되면 defaultId를 동기화.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => {
         if (userProfile !== undefined) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setDefaultId(userProfile?.default_roast_profile_id ?? null);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -257,6 +256,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const selectedTsvPath = selected?.source_session?.tsv_path ?? null;
     const { data: selectedRealCurve = [] } = useRoastProfileCurve(selectedTsvPath);
     const selectedHasReal = selectedRealCurve.length > 0;
+    const { data: beanHistory = [] } = useProfileBeanHistory(selectedId ?? '');
 
     const setDefault = (id: string) => {
         setDefaultId(id);
@@ -290,7 +290,10 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     };
 
     const handleCreated = async (profileData: RoastProfile) => {
-        const { id: _ignoreId, created_at: _ignoreCa, updated_at: _ignoreUa, ...insert } = profileData;
+        const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...insert } = profileData;
+        void _id;
+        void _createdAt;
+        void _updatedAt;
         const created = await createProfile(insert);
         setSelectedId(created.id);
     };
@@ -595,6 +598,25 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                     </div>
                                 ))}
                             </div>
+
+                            {beanHistory.length > 0 && (
+                                <div className="bg-surface rounded-lg px-4 py-3 mb-5">
+                                    <p className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
+                                        이 프로파일로 로스팅된 생두
+                                    </p>
+                                    <div className="space-y-1">
+                                        {beanHistory.map((item) => (
+                                            <div key={item.name} className="flex justify-between items-center text-xs py-1 border-b border-black/4 last:border-0">
+                                                <span className="text-primary font-medium">{item.name}</span>
+                                                <span className="text-muted">
+                                                    {item.count}회
+                                                    {item.lastDate && ` · 마지막 ${new Date(item.lastDate).toLocaleDateString('ko-KR')}`}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="flex gap-2.5">
                                 <button

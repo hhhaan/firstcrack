@@ -623,7 +623,8 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'inside',
                         xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1],
                         zoomOnMouseWheel: true,
-                        moveOnMouseMove: true,
+                        moveOnMouseMove: false,
+                        moveOnMouseWheel: true,
                     },
                 ],
             };
@@ -731,7 +732,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     : []),
             ],
             series: [...tempSeries, ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : [])],
-            dataZoom: [{ type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true }],
+            dataZoom: [{ type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: false, moveOnMouseWheel: true }],
         };
     }, [
         xs,
@@ -801,19 +802,22 @@ export const RoastTempChart: React.FC<Props> = ({
         const zr = chart.getZr();
         if (!zr) return;
 
-        const handleZrPointerDown = (e: { offsetX: number; offsetY: number }) => {
+        const handleZrPointerDown = (e: Record<string, unknown>) => {
             if (!chart) return;
-            // 이벤트 마커들의 x좌표를 픽셀로 변환하여 클릭 감지
+            const evt = e.event as MouseEvent | undefined;
+            const mx = evt?.offsetX ?? (e.offsetX as number);
+            if (mx == null) return;
+            const yMid = (chart.convertToPixel({ yAxisIndex: 0 }, 150) as number) ?? 200;
             for (const marker of eventMarkers) {
-                const pixel = chart.convertToPixel({ xAxisIndex: 0 }, [marker.timeSec, 0]);
+                const pixel = chart.convertToPixel({ xAxisIndex: 0 }, [marker.timeSec, yMid]);
                 if (pixel == null) continue;
                 const px = Array.isArray(pixel) ? pixel[0] : pixel;
-                const dist = Math.abs(e.offsetX - px);
+                const dist = Math.abs(mx - px);
                 if (dist <= PIXEL_THRESHOLD) {
                     dragStateRef.current = {
                         active: true,
                         eventName: marker.event,
-                        startX: e.offsetX,
+                        startX: mx,
                         startTimeSec: marker.timeSec,
                     };
                     break;
@@ -821,10 +825,14 @@ export const RoastTempChart: React.FC<Props> = ({
             }
         };
 
-        const handleZrPointerMove = (e: { offsetX: number; offsetY: number }) => {
+        const handleZrPointerMove = (e: Record<string, unknown>) => {
             const ds = dragStateRef.current;
             if (!ds || !ds.active || !chart) return;
-            const point = chart.convertFromPixel({ xAxisIndex: 0 }, [e.offsetX, e.offsetY]);
+            const evt = e.event as MouseEvent | undefined;
+            const mx = evt?.offsetX ?? (e.offsetX as number);
+            const my = evt?.offsetY ?? (e.offsetY as number);
+            if (mx == null) return;
+            const point = chart.convertFromPixel({ xAxisIndex: 0 }, [mx, my]);
             if (!point) return;
             const xVal = Array.isArray(point) ? point[0] : point;
             const clamped = Math.max(0, Math.round(xVal));
@@ -840,7 +848,6 @@ export const RoastTempChart: React.FC<Props> = ({
             }
         };
 
-        // zrender 이벤트는 mousedown/mousemove/mouseup 사용
         zr.on('mousedown', handleZrPointerDown);
         zr.on('mousemove', handleZrPointerMove);
         zr.on('mouseup', handleZrPointerUp);

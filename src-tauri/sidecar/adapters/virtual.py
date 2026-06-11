@@ -218,7 +218,7 @@ class VirtualMachineAdapter:
         fan: float | None = None,
         drum: float | None = None,
     ) -> None:
-        pass
+        pass  # 제어 기능 미사용 — 제거 예정
 
     @property
     def connected(self) -> bool:

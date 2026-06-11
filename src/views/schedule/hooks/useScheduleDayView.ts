@@ -290,6 +290,7 @@ export const useScheduleDayView = ({
                 planBatchId: targetId,
                 planId: targetPlanId,
                 beanId: batch.bean_id,
+                blendId: (batch as PlanBatchWithProgress & { blend_id?: string | null }).blend_id ?? null,
                 beanName: batch.bean_name,
                 batchSizeKg: Number(batch.batch_size_kg),
                 profileId: batch.roast_profile_id,

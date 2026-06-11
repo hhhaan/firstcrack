@@ -34,6 +34,7 @@ export type PlanBatchHandoff = {
     planBatchId: string
     planId: string
     beanId: string | null
+    blendId: string | null
     beanName: string
     batchSizeKg: number
     profileId: string | null

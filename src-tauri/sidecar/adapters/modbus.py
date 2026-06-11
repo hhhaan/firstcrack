@@ -303,7 +303,7 @@ class ModbusAdapter:
         fan: float | None = None,
         drum: float | None = None,
     ) -> None:
-        pass  # 대부분 읽기 전용. 제어 필요 시 write_register 확장.
+        pass  # 제어 기능 미사용 — 제거 예정
 
     @property
     def connected(self) -> bool:

@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { X, CalendarIcon, Cpu, Package, AlertTriangle, Repeat } from 'lucide-react';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { CounterInput } from '@shared/ui/CounterInput';
 import { SearchableSelect } from './SearchableSelect';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQueries } from '@tanstack/react-query';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Calendar } from '@shared/ui/calendar/Calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
@@ -16,8 +16,9 @@ import { useRoastProfiles } from '@entities/roast-profile/queries';
 import { dayPlanApi, planBatchApi, planKeys } from '@entities/plan';
 import { cn } from '@shared/lib/cn';
 import type { RoastProfile, Bean, PlanBatchWithProgress } from '@shared/types/database.types';
-import { useBlends } from '@entities/blend';
-import { useBeanStockSummary } from '@entities/bean-stock-event';
+import type { RoastProfileWithSource } from '@entities/roast-profile';
+import { useBlends, type BlendWithComponents } from '@entities/blend';
+import { useBeanStockSummary, beanStockEventApi } from '@entities/bean-stock-event';
 
 /**
  * Parse an RRULE string back to a RecurrenceInterval label.
@@ -173,6 +174,50 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
     const { data: stockSummary } = useBeanStockSummary(selectedBeanId ?? '');
     const plannedGrams = batchSizeNum * batchCount * 1000;
     const isShortage = !!stockSummary && plannedGrams > 0 && stockSummary.effectiveGrams < plannedGrams;
+
+    // ── Blend component stock checks ────────────────────────────────────────
+    const isBlendType = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
+    const blendComponents = useMemo(() => {
+        if (!isBlendType || !selectedBlend) return [];
+        return (selectedBlend as BlendWithComponents).blend_components ?? [];
+    }, [isBlendType, selectedBlend]);
+
+    const blendStockQueries = useQueries({
+        queries: blendComponents.map((comp) => ({
+            queryKey: ['bean-stock-summary', comp.bean_id],
+            queryFn: () => beanStockEventApi.getStockSummary(comp.bean_id),
+            enabled: !!comp.bean_id,
+        })),
+    });
+
+    const blendShortages = useMemo(() => {
+        if (blendComponents.length === 0 || plannedGrams === 0) return [];
+        return blendComponents.map((comp, i) => {
+            const neededGrams = Math.round((Number(comp.ratio_pct) / 100) * plannedGrams);
+            const summary = blendStockQueries[i]?.data;
+            return {
+                beanName: (comp as { beans?: { name: string } }).beans?.name ?? '알 수 없음',
+                ratioPct: comp.ratio_pct,
+                neededGrams,
+                effectiveGrams: summary?.effectiveGrams ?? 0,
+                isShort: summary ? summary.effectiveGrams < neededGrams : false,
+            };
+        });
+    }, [blendComponents, plannedGrams, blendStockQueries]);
+
+    // 프로파일 선택 시 default_bean_id / default_blend_id 자동 pre-fill
+    const handleProfileSelect = (id: string) => {
+        setProfileId(id);
+        if (!id) return;
+        const selected = profiles.find((p) => p.id === id) as RoastProfileWithSource | undefined;
+        if (selected?.default_bean_id) {
+            setBatchType('Single Origin');
+            setBeanId(selected.default_bean_id);
+        } else if (selected?.default_blend_id) {
+            setBatchType('Pre-roast Blend');
+            setBlendId(selected.default_blend_id);
+        }
+    };
 
     const newDateKey = date ? format(date, 'yyyy-MM-dd') : '';
     const dateChanged = isEdit && currentDateKey && newDateKey !== currentDateKey;
@@ -402,7 +447,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                             placeholder="프로파일 선택..."
                             items={profileItems}
                             selectedId={profileId}
-                            onSelect={setProfileId}
+                            onSelect={handleProfileSelect}
                             renderLabel={(item) => (item as RoastProfile).name}
                             renderOption={(item) => {
                                 const p = item as RoastProfile;
@@ -452,16 +497,35 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                                 <label className={labelCls}>
                                     <Package size={12} /> 블렌드
                                 </label>
-                                <select
-                                    value={blendId ?? ''}
-                                    onChange={(e) => setBlendId(e.target.value || null)}
-                                    className="w-full border border-(--color-border) rounded-lg px-3 py-2 text-sm"
-                                >
-                                    <option value="">블렌드 선택</option>
-                                    {blends.map((b) => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
-                                </select>
+                                <SearchableSelect
+                                    placeholder="블렌드 선택..."
+                                    items={blends}
+                                    selectedId={blendId ?? ''}
+                                    onSelect={(id) => setBlendId(id || null)}
+                                    renderLabel={(item) => (item as BlendWithComponents).name}
+                                    renderOption={(item) => {
+                                        const b = item as BlendWithComponents;
+                                        const compCount = b.blend_components?.length ?? 0;
+                                        return (
+                                            <div>
+                                                <div className="text-primary font-medium">{b.name}</div>
+                                                <div className="text-[11px] text-muted mt-0.5">
+                                                    {b.description ?? `${compCount}개 생두 구성`}
+                                                </div>
+                                            </div>
+                                        );
+                                    }}
+                                />
+                                {blendShortages.length > 0 && blendShortages.some((s) => s.isShort) && (
+                                    <div className="mt-2 space-y-1">
+                                        {blendShortages.filter((s) => s.isShort).map((s) => (
+                                            <p key={s.beanName} className="text-xs text-red-500 flex items-start gap-1">
+                                                <AlertTriangle size={11} strokeWidth={2} className="shrink-0 mt-0.5" />
+                                                <span>{s.beanName}: 가용 {s.effectiveGrams}g / 필요 {s.neededGrams}g</span>
+                                            </p>
+                                        ))}
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>

@@ -7,4 +7,6 @@ export {
     useDeleteRoastProfile,
     useRoastProfileCurve,
     useRoastProfileCurves,
+    useProfileBeanHistory,
+    type BeanHistoryItem,
 } from './queries';

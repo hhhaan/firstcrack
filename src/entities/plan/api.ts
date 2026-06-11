@@ -19,6 +19,7 @@ export type RecurrenceRuleMasterPatch = {
     machine_id?: string | null;
     roast_profile_id?: string | null;
     bean_id?: string | null;
+    blend_id?: string | null;
     bean_name?: string;
     green_lot?: string;
     batch_size_kg?: number;
@@ -36,6 +37,7 @@ const mergeRecurrenceRuleMaster = (
     roast_profile_id:
         patch.roast_profile_id !== undefined ? patch.roast_profile_id : existing.roast_profile_id,
     bean_id: patch.bean_id !== undefined ? patch.bean_id : existing.bean_id,
+    blend_id: patch.blend_id !== undefined ? patch.blend_id : existing.blend_id,
     bean_name: patch.bean_name ?? existing.bean_name,
     green_lot: patch.green_lot ?? existing.green_lot,
     batch_size_kg: patch.batch_size_kg ?? existing.batch_size_kg,
@@ -259,6 +261,7 @@ export const planBatchApi = {
                     target_roasted_kg: patch.target_roasted_kg ?? 0,
                     machine_id: patch.machine_id ?? null,
                     bean_id: patch.bean_id ?? null,
+                    blend_id: patch.blend_id ?? null,
                     roast_profile_id: patch.roast_profile_id ?? null,
                     batch_type: patch.batch_type ?? 'Single Origin',
                     notes: patch.notes ?? '',
@@ -440,6 +443,7 @@ export const planBatchApi = {
             user_id: userId,
             machine_id: _baseBatch.machine_id,
             bean_id: _baseBatch.bean_id,
+            blend_id: _baseBatch.blend_id ?? null,
             bean_name: _baseBatch.bean_name,
             green_lot: _baseBatch.green_lot ?? '',
             batch_size_kg: _baseBatch.batch_size_kg,
@@ -583,6 +587,7 @@ export const planBatchApi = {
                         plan_id: planId,
                         bean_name: rule.bean_name,
                         bean_id: rule.bean_id,
+                        blend_id: rule.blend_id ?? null,
                         batch_type: rule.batch_type,
                         batch_size_kg: rule.batch_size_kg,
                         target_roasted_kg: rule.target_roasted_kg,
@@ -625,6 +630,7 @@ export const planBatchApi = {
             status?: string;
             machine_id?: string | null;
             bean_id?: string | null;
+            blend_id?: string | null;
             bean_name?: string;
             roast_profile_id?: string | null;
             batch_size_kg?: number;
@@ -650,6 +656,7 @@ export const planBatchApi = {
                 target_roasted_kg: patch.target_roasted_kg ?? 0,
                 machine_id: patch.machine_id ?? null,
                 bean_id: patch.bean_id ?? null,
+                blend_id: patch.blend_id ?? null,
                 roast_profile_id: patch.roast_profile_id ?? null,
                 batch_type: patch.batch_type ?? 'Single Origin',
                 notes: patch.notes ?? '',

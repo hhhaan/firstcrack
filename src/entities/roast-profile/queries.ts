@@ -3,6 +3,7 @@ import { roastProfileApi, type RoastProfileWithSource } from './api';
 import type { RoastProfile } from '@shared/types/database.types';
 import { fetchTsvFromR2 } from '@shared/lib/r2';
 import { parseTsv, type TsvPoint } from '@shared/lib/tsv';
+import { supabase } from '@shared/lib/supabase';
 
 export const roastProfileKeys = {
     all: (userId: string) => ['roast_profiles', userId] as const,
@@ -77,3 +78,40 @@ export const useRoastProfileCurves = (
     });
 
 export type { RoastProfileWithSource };
+
+// ── Profile Bean History ──────────────────────────────────────────────────────
+
+export type BeanHistoryItem = {
+    name: string;
+    count: number;
+    lastDate: string;
+};
+
+export const useProfileBeanHistory = (profileId: string) =>
+    useQuery({
+        queryKey: ['profile-bean-history', profileId],
+        queryFn: async (): Promise<BeanHistoryItem[]> => {
+            const { data, error } = await supabase
+                .from('roast_sessions')
+                .select('bean_id, roasted_at, beans(name)')
+                .eq('profile_id', profileId)
+                .not('bean_id', 'is', null)
+                .order('roasted_at', { ascending: false });
+            if (error) throw error;
+
+            const grouped: Record<string, { name: string; count: number; lastDate: string }> = {};
+            for (const s of data ?? []) {
+                if (!s.bean_id) continue;
+                if (!grouped[s.bean_id]) {
+                    grouped[s.bean_id] = {
+                        name: (s.beans as { name: string } | null)?.name ?? 'Unknown',
+                        count: 0,
+                        lastDate: s.roasted_at ?? '',
+                    };
+                }
+                grouped[s.bean_id].count++;
+            }
+            return Object.values(grouped).sort((a, b) => b.count - a.count);
+        },
+        enabled: !!profileId,
+    });

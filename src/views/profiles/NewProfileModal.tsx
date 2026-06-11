@@ -3,6 +3,8 @@ import { X, Plus, History, Pencil, ChevronRight, Check } from 'lucide-react';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { useRoastSessions } from '@entities/roast';
 import { useAuthStore } from '@shared/store/auth';
+import { useBeans } from '@entities/bean/queries';
+import { useBlends } from '@entities/blend';
 import type { RoastProfile } from '@shared/types/database.types';
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 
@@ -56,10 +58,15 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
     const [mode, setMode] = useState<Mode>('pick');
     const [form, setForm] = useState<FormState>(INITIAL_FORM);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+    const [defaultType, setDefaultType] = useState<'bean' | 'blend' | 'none'>('none');
+    const [defaultBeanId, setDefaultBeanId] = useState<string | null>(null);
+    const [defaultBlendId, setDefaultBlendId] = useState<string | null>(null);
     const nameRef = useRef<HTMLInputElement>(null);
 
     const user = useAuthStore((s) => s.user);
     const { data: sessions = [] } = useRoastSessions(user?.id ?? '', 'completed');
+    const { data: beans = [] } = useBeans(user?.id ?? '');
+    const { data: blends = [] } = useBlends(user?.id ?? '');
 
     // Derive initial state from props during render to avoid stale UI commits
     const [prevOpen, setPrevOpen] = useState(open);
@@ -80,10 +87,16 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                 dev_pct: editingProfile.dev_pct != null ? String(editingProfile.dev_pct) : '',
             });
             setSelectedSessionId(editingProfile.source_session_id ?? null);
+            setDefaultType(editingProfile.default_bean_id ? 'bean' : editingProfile.default_blend_id ? 'blend' : 'none');
+            setDefaultBeanId(editingProfile.default_bean_id ?? null);
+            setDefaultBlendId(editingProfile.default_blend_id ?? null);
         } else {
             setMode('pick');
             setForm(INITIAL_FORM);
             setSelectedSessionId(null);
+            setDefaultType('none');
+            setDefaultBeanId(null);
+            setDefaultBlendId(null);
         }
     }
 
@@ -144,6 +157,8 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                 duration_sec: Number(form.duration_sec) || null,
                 dev_time_sec: Number(form.dev_time_sec) || null,
                 dev_pct: Number(form.dev_pct) || null,
+                default_bean_id: defaultType === 'bean' ? defaultBeanId : null,
+                default_blend_id: defaultType === 'blend' ? defaultBlendId : null,
             };
             onUpdated?.({ id: editingProfile.id, ...patch } as RoastProfile);
         } else {
@@ -158,6 +173,8 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                 dev_time_sec: Number(form.dev_time_sec) || null,
                 dev_pct: Number(form.dev_pct) || null,
                 source_session_id: mode === 'from-session' ? selectedSessionId : null,
+                default_bean_id: defaultType === 'bean' ? defaultBeanId : null,
+                default_blend_id: defaultType === 'blend' ? defaultBlendId : null,
             };
 
             onCreated(profile as RoastProfile);
@@ -310,6 +327,51 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                             className="w-full px-3.5 py-2.5 rounded-lg border border-black/10 bg-surface text-sm text-primary font-mono shadow-(--shadow-inset) outline-none focus:border-black/25 transition-colors"
                         />
                     </div>
+                </div>
+
+                {/* 기본 생두/블렌드 */}
+                <div className="flex flex-col gap-3 pt-2 border-t border-black/6">
+                    <label className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase">기본 생두 (선택)</label>
+                    <div className="flex gap-2">
+                        {([['none', '없음'], ['bean', '싱글'], ['blend', '블렌드']] as const).map(([t, label]) => (
+                            <button
+                                key={t}
+                                type="button"
+                                onClick={() => setDefaultType(t)}
+                                className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                                    defaultType === t
+                                        ? 'bg-primary text-white border-primary'
+                                        : 'bg-surface text-secondary border-border hover:border-black/15'
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                    {defaultType === 'bean' && (
+                        <select
+                            value={defaultBeanId ?? ''}
+                            onChange={(e) => setDefaultBeanId(e.target.value || null)}
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-black/10 bg-surface text-sm text-primary shadow-(--shadow-inset) outline-none focus:border-black/25 transition-colors"
+                        >
+                            <option value="">생두 선택</option>
+                            {beans.map((b) => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                        </select>
+                    )}
+                    {defaultType === 'blend' && (
+                        <select
+                            value={defaultBlendId ?? ''}
+                            onChange={(e) => setDefaultBlendId(e.target.value || null)}
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-black/10 bg-surface text-sm text-primary shadow-(--shadow-inset) outline-none focus:border-black/25 transition-colors"
+                        >
+                            <option value="">블렌드 선택</option>
+                            {blends.map((b) => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                        </select>
+                    )}
                 </div>
             </div>
 

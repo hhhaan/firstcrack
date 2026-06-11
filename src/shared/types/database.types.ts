@@ -322,6 +322,7 @@ export type Database = {
           batch_type: string
           bean_id: string | null
           bean_name: string
+          blend_id: string | null
           created_at: string
           dtstart: string
           green_lot: string
@@ -342,6 +343,7 @@ export type Database = {
           batch_type?: string
           bean_id?: string | null
           bean_name?: string
+          blend_id?: string | null
           created_at?: string
           dtstart: string
           green_lot?: string
@@ -362,6 +364,7 @@ export type Database = {
           batch_type?: string
           bean_id?: string | null
           bean_name?: string
+          blend_id?: string | null
           created_at?: string
           dtstart?: string
           green_lot?: string
@@ -383,6 +386,13 @@ export type Database = {
             columns: ["bean_id"]
             isOneToOne: false
             referencedRelation: "beans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurrence_rules_blend_id_fkey"
+            columns: ["blend_id"]
+            isOneToOne: false
+            referencedRelation: "blends"
             referencedColumns: ["id"]
           },
           {
@@ -1044,6 +1054,7 @@ export type PlanBatchHandoff = {
     planBatchId: string
     planId: string
     beanId: string | null
+    blendId: string | null
     beanName: string
     batchSizeKg: number
     profileId: string | null

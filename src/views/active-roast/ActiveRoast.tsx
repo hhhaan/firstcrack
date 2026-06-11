@@ -443,7 +443,7 @@ export const ActiveRoast = ({
     const eventMarkers = useMemo(
         (): RoastEventMarker[] =>
             logEntries
-                .filter((e) => EVENT_MARKER_COLORS[e.event] && e.event !== 'TP')
+                .filter((e) => EVENT_MARKER_COLORS[e.event] && e.event !== 'TP' && e.event !== 'Note')
                 .map((e) => {
                     const [min, sec] = e.time.split(':').map(Number);
                     const timeSec = Math.max(0, min * 60 + sec);
@@ -878,7 +878,7 @@ export const ActiveRoast = ({
                                         }
                                     }}
                                     placeholder="Add note..."
-                                    className="h-16 text-xs px-2 py-1.5 rounded-md bg-surface text-primary placeholder:text-muted focus:outline-none border border-border-subtle focus:border-border resize-none"
+                                    className="h-16 text-xs px-2 py-1.5 rounded-md bg-surface text-primary placeholder:text-muted focus:outline-none border focus:border-border resize-none"
                                 />
                                 <button
                                     onClick={() => {

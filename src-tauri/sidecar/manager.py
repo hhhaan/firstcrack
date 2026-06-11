@@ -15,6 +15,9 @@ _EMA_ALPHA = 0.2
 
 _DISPLAY_ALPHA = 0.16
 
+# 연결/Charge 후 RoR 표시를 억제할 read 횟수 (EMA 안정화)
+_ROR_WARMUP_READS = 3
+
 
 def _format_connection_error(
     exc: Exception, protocol: str, params: dict[str, Any]
@@ -112,6 +115,7 @@ class RoasterManager:
         self._lock: asyncio.Lock = asyncio.Lock()
         self._reconnect_task: asyncio.Task[None] | None = None
         self._reconnect_attempt: int = 0
+        self._ror_warmup: int = 0
 
     async def connect(self, roaster_key: str, params: dict[str, Any]) -> None:
         async with self._lock:
@@ -136,6 +140,7 @@ class RoasterManager:
             self._bt_display_ema = None
             self._et_display_ema = None
             self._error = None
+            self._ror_warmup = _ROR_WARMUP_READS
 
             try:
                 await self._adapter.connect()
@@ -249,11 +254,19 @@ class RoasterManager:
         if reading.et > 0:
             self._add_to_et_ror_window(reading.timestamp, reading.et)
 
+        if self._ror_warmup > 0:
+            self._ror_warmup -= 1
+            ror = 0.0
+            ror_et = 0.0
+        else:
+            ror = round(self._compute_ror(), 2)
+            ror_et = round(self._compute_et_ror(), 2)
+
         return {
             "bt": round(self._bt_display_ema if self._bt_display_ema is not None else reading.bt, 1),
             "et": round(self._et_display_ema if self._et_display_ema is not None else reading.et, 1),
-            "ror": round(self._compute_ror(), 2),
-            "ror_et": round(self._compute_et_ror(), 2),
+            "ror": ror,
+            "ror_et": ror_et,
             "heater": int(round(reading.heater)),
             "fan": int(round(reading.fan)),
             "drum": round(reading.drum, 1),
@@ -274,6 +287,7 @@ class RoasterManager:
             self._et_ema = None
             self._bt_display_ema = None
             self._et_display_ema = None
+            self._ror_warmup = _ROR_WARMUP_READS
             if self._adapter is not None and hasattr(self._adapter, "start_roast"):
                 await self._adapter.start_roast()
 
@@ -288,15 +302,6 @@ class RoasterManager:
             self._et_display_ema = None
             if self._adapter is not None and self._connected:
                 await self._adapter.connect()
-
-    async def send_control(
-        self,
-        heater: float | None = None,
-        fan: float | None = None,
-        drum: float | None = None,
-    ) -> None:
-        if self._connected and self._adapter is not None:
-            await self._adapter.control(heater=heater, fan=fan, drum=drum)
 
     def status(self) -> dict[str, Any]:
         uptime = round(time.monotonic() - self._start_time, 1) if self._connected else 0

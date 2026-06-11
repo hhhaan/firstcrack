@@ -10,7 +10,6 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
   POST /disconnect
   GET  /temperatures  → {"bt", "et", "ror", "heater", "fan", "timestamp"}
   POST /start         → Charge 버튼 연동: 가상 머신 타이머 리셋 + RoR 윈도우 초기화
-  POST /control       → {"heater"?, "fan"?, "drum"?}
 
 어댑터 추가 방법:
   1. adapters/<protocol>.py 에 XxxAdapter 클래스 작성
@@ -143,21 +142,6 @@ async def handle_serial_ports(request: web.Request) -> web.Response:
         ports = []
     return web.json_response(ports)
 
-
-async def handle_control(request: web.Request) -> web.Response:
-    manager: RoasterManager = request.app["manager"]
-    try:
-        body: dict[str, Any] = await request.json()
-    except Exception:
-        return web.json_response({"error": "invalid JSON"}, status=400)
-    await manager.send_control(
-        heater=body.get("heater"),
-        fan=body.get("fan"),
-        drum=body.get("drum"),
-    )
-    return web.json_response({"ok": True})
-
-
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
@@ -192,7 +176,6 @@ def create_app() -> web.Application:
     app.router.add_post("/standby", handle_standby)
     app.router.add_post("/start", handle_start)
     app.router.add_post("/reset", handle_reset)
-    app.router.add_post("/control", handle_control)
     app.router.add_route("OPTIONS", "/{path_info:.*}", lambda r: web.Response())
     return app
 

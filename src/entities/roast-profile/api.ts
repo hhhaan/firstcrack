@@ -6,9 +6,11 @@ type RoastProfileUpdate = { id: string } & Partial<Omit<RoastProfile, 'id' | 'cr
 
 export type RoastProfileWithSource = RoastProfile & {
     source_session: { tsv_path: string | null } | null;
+    default_bean: { id: string; name: string } | null;
+    default_blend: { id: string; name: string } | null;
 };
 
-const SELECT_WITH_SOURCE = '*, source_session:roast_sessions!source_session_id(tsv_path)';
+const SELECT_WITH_SOURCE = '*, source_session:roast_sessions!source_session_id(tsv_path), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
 
 export const roastProfileApi = {
     list: async (userId: string): Promise<RoastProfileWithSource[]> => {

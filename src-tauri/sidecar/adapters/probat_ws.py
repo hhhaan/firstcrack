@@ -139,7 +139,7 @@ class ProbatWSAdapter:
         raise TimeoutError(f"Probat WS getData 응답 타임아웃 (id={msg_id})")
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
-        pass  # Probat WS 제어 명령은 별도 push message — 현재 읽기 전용
+        pass  # 제어 기능 미사용 — 제거 예정
 
     @property
     def connected(self) -> bool:

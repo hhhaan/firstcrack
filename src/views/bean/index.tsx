@@ -109,7 +109,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                     className={`px-4 py-2 text-sm font-medium ${tab === 'single' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
                     onClick={() => setTab('single')}
                 >
-                    싱글 생두
+                    싱글
                 </button>
                 <button
                     className={`px-4 py-2 text-sm font-medium ${tab === 'blend' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
