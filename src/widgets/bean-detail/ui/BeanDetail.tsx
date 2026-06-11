@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Edit3, Trash2 } from 'lucide-react';
 import { getStatus, statusConfig, processColor } from '@entities/bean/lib';
+import { useBeanStockSummary, useBeanStockEvents } from '@entities/bean-stock-event';
 import { DeleteBeanModal } from './DeleteBeanModal';
 import type { Bean } from '@shared/types/database.types';
 
@@ -46,6 +47,8 @@ const Empty = ({ hasAny }: { hasAny: boolean }) => (
 
 export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, onDelete }: BeanDetailProps) => {
     const [confirming, setConfirming] = useState(false);
+    const { data: summary } = useBeanStockSummary(bean?.id ?? '');
+    const { data: events = [] } = useBeanStockEvents(bean?.id ?? '');
 
     if (isLoading) return <Skeleton />;
     if (!bean) return <Empty hasAny={false} />;
@@ -175,6 +178,49 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                 >
                     Restock
                 </button>
+            </div>
+
+            <div className="mt-6 space-y-3">
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="bg-gray-50 rounded-lg p-2">
+                        <p className="text-gray-400">현재 재고</p>
+                        <p className="font-semibold">{summary?.currentGrams ?? 0}g</p>
+                    </div>
+                    <div className="bg-yellow-50 rounded-lg p-2">
+                        <p className="text-gray-400">예약됨</p>
+                        <p className="font-semibold text-yellow-700">{summary?.reservedGrams ?? 0}g</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-2">
+                        <p className="text-gray-400">가용</p>
+                        <p className={`font-semibold ${(summary?.effectiveGrams ?? 0) < 0 ? 'text-red-600' : 'text-green-700'}`}>
+                            {summary?.effectiveGrams ?? 0}g
+                        </p>
+                    </div>
+                </div>
+
+                <p className="text-xs font-medium text-gray-500 mt-4">재고 이력</p>
+                {events.length === 0 && (
+                    <p className="text-xs text-gray-300">이력 없음</p>
+                )}
+                {events.map((ev) => (
+                    <div key={ev.id} className="flex items-start gap-3 text-xs">
+                        <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
+                            ev.delta_grams > 0 ? 'bg-green-400' : 'bg-red-400'
+                        }`} />
+                        <div className="flex-1">
+                            <span className="font-medium">
+                                {ev.delta_grams > 0 ? `+${ev.delta_grams}g` : `${ev.delta_grams}g`}
+                            </span>
+                            <span className="text-gray-400 ml-1">
+                                {ev.event_type === 'purchase' ? '입고' : ev.event_type === 'roast' ? '로스팅' : '조정'}
+                            </span>
+                            {ev.note && <span className="text-gray-400 ml-1">— {ev.note}</span>}
+                        </div>
+                        <span className="text-gray-300">
+                            {new Date(ev.created_at).toLocaleDateString('ko-KR')}
+                        </span>
+                    </div>
+                ))}
             </div>
         </div>
         </>
