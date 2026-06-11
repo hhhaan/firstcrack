@@ -1,5 +1,6 @@
 import { useCreateBean, useUpdateBean } from '@entities/bean/queries';
 import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
+import { useInsertStockEvent } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
 
 interface FormData {
@@ -42,8 +43,9 @@ export const useAddBeanSubmit = ({
     const createBean = useCreateBean(userId);
     const updateBean = useUpdateBean(userId);
     const createInventoryLog = useCreateBeanInventoryLog(userId);
+    const insertStockEvent = useInsertStockEvent();
 
-    const isSubmitting = createBean.isPending || updateBean.isPending || createInventoryLog.isPending;
+    const isSubmitting = createBean.isPending || updateBean.isPending || createInventoryLog.isPending || insertStockEvent.isPending;
 
     const handleSubmit = async () => {
         if (isSubmitting) return;
@@ -98,6 +100,12 @@ export const useAddBeanSubmit = ({
                     bean_id: selectedBeanId,
                     change_grams: amount,
                     type: 'purchase',
+                });
+                await insertStockEvent.mutateAsync({
+                    user_id: userId,
+                    bean_id: selectedBeanId,
+                    delta_grams: amount,
+                    event_type: 'purchase',
                 });
                 onSuccess?.(currentBean ?? null);
             }
