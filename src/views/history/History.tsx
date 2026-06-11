@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { sessionsToCsv } from '@features/export-csv';
+import { confirm, message } from '@tauri-apps/plugin-dialog';
+import { downloadDir } from '@tauri-apps/api/path';
 import { useAuthStore } from '@shared/store/auth';
 
 const levelColor: Record<string, string> = {
@@ -803,6 +806,68 @@ export const History = () => {
     const handleOpenReport = useCallback(() => setShowReport(true), []);
     const handleCloseReport = useCallback(() => setShowReport(false), []);
 
+    const handleExportCsv = useCallback(async () => {
+        try {
+            const q = search.toLowerCase();
+            const filtered = rawSessions.filter((s) => {
+                if (levelFilter !== 'all' && s.roast_level !== levelFilter) return false;
+                if (fromYM || toYM) {
+                    if (!s.roasted_at) return false;
+                    const d = new Date(s.roasted_at);
+                    const sessionYM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    if (fromYM && sessionYM < fromYM) return false;
+                    if (toYM && sessionYM > toYM) return false;
+                }
+                if (
+                    q &&
+                    !(
+                        (s.beans?.name ?? '').toLowerCase().includes(q) ||
+                        (s.roast_profiles?.name ?? '').toLowerCase().includes(q) ||
+                        (s.beans?.origin ?? '').toLowerCase().includes(q)
+                    )
+                )
+                    return false;
+                if (originFilter !== 'all' && s.beans?.origin !== originFilter) return false;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                await message('No sessions to export.', { title: 'First Crack', kind: 'info' });
+                return;
+            }
+
+            const today = new Date().toISOString().slice(0, 10);
+            const filename = `roast-history-${today}.csv`;
+            const dir = await downloadDir();
+            const path = `${dir}${filename}`;
+
+            const confirmed = await confirm(
+                `Save to: ${path}\nExport ${filtered.length} session(s) as CSV?`,
+                {
+                    title: 'First Crack',
+                    kind: 'info',
+                    okLabel: 'Export',
+                    cancelLabel: 'Cancel',
+                },
+            );
+            if (!confirmed) return;
+
+            const csv = sessionsToCsv(filtered);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Export CSV failed:', err);
+        }
+    }, [rawSessions, search, levelFilter, fromYM, toYM, originFilter]);
+
     return (
         <PageLayout>
             <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -822,7 +887,10 @@ export const History = () => {
                         <FileText size={14} strokeWidth={2} />
                         월간 보고서
                     </button>
-                    <button className="inline-flex items-center gap-1.5 self-start rounded-full border-0 bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary">
+                    <button
+                        type="button"
+                        onClick={handleExportCsv}
+                        className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-0 bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary">
                         <Download size={14} strokeWidth={2} />
                         Export CSV
                     </button>
