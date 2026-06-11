@@ -10,12 +10,14 @@ import { PageLayout } from '@shared/ui/PageLayout';
 import type { Bean } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { BlendList } from './BlendList';
 
 export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
     const userId = useAuthStore((s) => s.user?.id ?? '');
     const { data: beans = [], isLoading } = useBeans(userId);
     const { mutate: deleteBean } = useDeleteBean(userId);
 
+    const [tab, setTab] = useState<'single' | 'blend'>('single');
     const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -102,29 +104,48 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: 20 }}>
-                <BeanList
-                    beans={beans}
-                    isLoading={isLoading}
-                    selectedId={selected?.id ?? null}
-                    onSelect={setSelectedId}
-                    search={search}
-                    onSearchChange={setSearch}
-                />
-                <BeanDetail
-                    bean={selected}
-                    isLoading={isLoading}
-                    onEdit={(bean) => openModal('edit', bean.id, bean)}
-                    onRestock={(id) => openModal('restock', id)}
-                    onStartRoast={() => {
-                        if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
-                        onNavigate?.('roast');
-                    }}
-                    onDelete={(id) => {
-                        deleteBean(id, { onSuccess: () => setSelectedId(null) });
-                    }}
-                />
+            <div className="flex border-b border-[#E5E5E5] mb-4">
+                <button
+                    className={`px-4 py-2 text-sm font-medium ${tab === 'single' ? 'border-b-2 border-[#171717] text-[#171717]' : 'text-gray-500'}`}
+                    onClick={() => setTab('single')}
+                >
+                    싱글 생두
+                </button>
+                <button
+                    className={`px-4 py-2 text-sm font-medium ${tab === 'blend' ? 'border-b-2 border-[#171717] text-[#171717]' : 'text-gray-500'}`}
+                    onClick={() => setTab('blend')}
+                >
+                    블렌드
+                </button>
             </div>
+
+            {tab === 'single' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: 20 }}>
+                    <BeanList
+                        beans={beans}
+                        isLoading={isLoading}
+                        selectedId={selected?.id ?? null}
+                        onSelect={setSelectedId}
+                        search={search}
+                        onSearchChange={setSearch}
+                    />
+                    <BeanDetail
+                        bean={selected}
+                        isLoading={isLoading}
+                        onEdit={(bean) => openModal('edit', bean.id, bean)}
+                        onRestock={(id) => openModal('restock', id)}
+                        onStartRoast={() => {
+                            if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
+                            onNavigate?.('roast');
+                        }}
+                        onDelete={(id) => {
+                            deleteBean(id, { onSuccess: () => setSelectedId(null) });
+                        }}
+                    />
+                </div>
+            )}
+
+            {tab === 'blend' && <BlendList />}
         </PageLayout>
     );
 };
