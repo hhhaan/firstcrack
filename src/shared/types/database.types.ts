@@ -94,6 +94,47 @@ export type Database = {
           },
         ]
       }
+      bean_stock_events: {
+        Row: {
+          bean_id: string
+          created_at: string
+          delta_grams: number
+          event_type: string
+          id: string
+          note: string | null
+          reference_id: string | null
+          user_id: string
+        }
+        Insert: {
+          bean_id: string
+          created_at?: string
+          delta_grams: number
+          event_type: string
+          id?: string
+          note?: string | null
+          reference_id?: string | null
+          user_id: string
+        }
+        Update: {
+          bean_id?: string
+          created_at?: string
+          delta_grams?: number
+          event_type?: string
+          id?: string
+          note?: string | null
+          reference_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bean_stock_events_bean_id_fkey"
+            columns: ["bean_id"]
+            isOneToOne: false
+            referencedRelation: "beans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beans: {
         Row: {
           altitude_masl: number | null
@@ -164,6 +205,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      blend_components: {
+        Row: {
+          bean_id: string
+          blend_id: string
+          id: string
+          ratio_pct: number
+        }
+        Insert: {
+          bean_id: string
+          blend_id: string
+          id?: string
+          ratio_pct: number
+        }
+        Update: {
+          bean_id?: string
+          blend_id?: string
+          id?: string
+          ratio_pct?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blend_components_bean_id_fkey"
+            columns: ["bean_id"]
+            isOneToOne: false
+            referencedRelation: "beans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blend_components_blend_id_fkey"
+            columns: ["blend_id"]
+            isOneToOne: false
+            referencedRelation: "blends"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blends: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -339,6 +443,7 @@ export type Database = {
           batch_type: string
           bean_id: string | null
           bean_name: string
+          blend_id: string | null
           created_at: string
           exception_type: string | null
           green_lot: string
@@ -364,6 +469,7 @@ export type Database = {
           batch_type?: string
           bean_id?: string | null
           bean_name: string
+          blend_id?: string | null
           created_at?: string
           exception_type?: string | null
           green_lot?: string
@@ -389,6 +495,7 @@ export type Database = {
           batch_type?: string
           bean_id?: string | null
           bean_name?: string
+          blend_id?: string | null
           created_at?: string
           exception_type?: string | null
           green_lot?: string
@@ -414,6 +521,13 @@ export type Database = {
             columns: ["bean_id"]
             isOneToOne: false
             referencedRelation: "beans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roast_plan_batches_blend_id_fkey"
+            columns: ["blend_id"]
+            isOneToOne: false
+            referencedRelation: "blends"
             referencedColumns: ["id"]
           },
           {
@@ -443,6 +557,8 @@ export type Database = {
         Row: {
           charge_temp_celsius: number | null
           created_at: string
+          default_bean_id: string | null
+          default_blend_id: string | null
           description: string | null
           dev_pct: number | null
           dev_time_sec: number | null
@@ -458,6 +574,8 @@ export type Database = {
         Insert: {
           charge_temp_celsius?: number | null
           created_at?: string
+          default_bean_id?: string | null
+          default_blend_id?: string | null
           description?: string | null
           dev_pct?: number | null
           dev_time_sec?: number | null
@@ -473,6 +591,8 @@ export type Database = {
         Update: {
           charge_temp_celsius?: number | null
           created_at?: string
+          default_bean_id?: string | null
+          default_blend_id?: string | null
           description?: string | null
           dev_pct?: number | null
           dev_time_sec?: number | null
@@ -486,6 +606,20 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "roast_profiles_default_bean_id_fkey"
+            columns: ["default_bean_id"]
+            isOneToOne: false
+            referencedRelation: "beans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roast_profiles_default_blend_id_fkey"
+            columns: ["default_blend_id"]
+            isOneToOne: false
+            referencedRelation: "blends"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "roast_profiles_source_session_id_fkey"
             columns: ["source_session_id"]
@@ -906,9 +1040,6 @@ export type PlanBatchInsert = Database['public']['Tables']['roast_plan_batches']
 export type PlanBatchUpdate = Database['public']['Tables']['roast_plan_batches']['Update'] & { id: string }
 export type PlanBatchWithProgress = PlanBatch & { completed_sessions: number }
 
-export type RecurrenceRule = Database['public']['Tables']['recurrence_rules']['Row']
-export type RecurrenceRuleInsert = Database['public']['Tables']['recurrence_rules']['Insert']
-
 export type PlanBatchHandoff = {
     planBatchId: string
     planId: string
@@ -919,3 +1050,7 @@ export type PlanBatchHandoff = {
     batchCount: number
     completedSessions: number
 }
+
+export type RecurrenceRule = Database['public']['Tables']['recurrence_rules']['Row']
+export type RecurrenceRuleInsert = Database['public']['Tables']['recurrence_rules']['Insert']
+export type RecurrenceRuleUpdate = Database['public']['Tables']['recurrence_rules']['Update']
