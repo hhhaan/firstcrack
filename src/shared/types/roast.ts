@@ -8,6 +8,7 @@ export interface RoastPoint {
 
 
 export interface LogEntry {
+    id?: string;
     time: string;
     event: string;
     temp: string;

@@ -175,7 +175,16 @@ export const App = () => {
                 onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
                 onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
             />
-            <div style={{ flex: 1, overflow: 'auto', background: 'var(--color-surface)' }}>
+            <div
+                style={{
+                    flex: 1,
+                    minHeight: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: view === 'roast' ? 'hidden' : 'auto',
+                    background: 'var(--color-surface)',
+                }}
+            >
                 {view === 'dashboard' && (
                     <ViewErrorBoundary>
                         <Dashboard onNavigate={setView} />
@@ -183,7 +192,16 @@ export const App = () => {
                 )}
                 {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
             TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
-                <div style={{ display: view === 'roast' ? 'block' : 'none' }}>
+                <div
+                    style={{
+                        display: view === 'roast' ? 'flex' : 'none',
+                        flexDirection: 'column',
+                        flex: view === 'roast' ? 1 : undefined,
+                        height: view === 'roast' ? undefined : '100%',
+                        minHeight: 0,
+                        overflow: 'hidden',
+                    }}
+                >
                     <ViewErrorBoundary>
                         <ActiveRoast
                             isActive={view === 'roast'}

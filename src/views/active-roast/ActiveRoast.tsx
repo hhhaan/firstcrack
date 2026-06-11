@@ -32,6 +32,8 @@ import { useProfile } from '@entities/profile';
 import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
 import { useUpdatePlanBatch } from '@entities/plan';
 import { useRoastSessionStore } from '@shared/store/roastSession';
+import { blendApi } from '@entities/blend';
+import { beanStockEventApi } from '@entities/bean-stock-event';
 
 import { useSidecarPolling } from './hooks/useSidecarPolling';
 import { useChartData, CHART_TOTAL_SECS } from './hooks/useChartData';
@@ -376,7 +378,7 @@ export const ActiveRoast = ({
     const timeStr = `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}`;
 
     // ── 도메인 훅 ─────────────────────────────────────────────────
-    const { logEntries, pressedButtons, markEvent, handleDrop, setLogEntries } = useRoastLog(unit, rawBT, timeStr);
+    const { logEntries, pressedButtons, markEvent, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(unit, rawBT, timeStr);
 
     const { triggerCharge, handleAutoDrop, handleTurningPoint } = useRoastActions({
         unit,
@@ -599,7 +601,7 @@ export const ActiveRoast = ({
 
     // ── 렌더 ──────────────────────────────────────────────────────
     return (
-        <div className="px-[32px] py-[24px] flex flex-col gap-4 h-screen overflow-y-auto">
+        <div className="px-[32px] py-[24px] flex flex-col gap-4 h-full min-h-0 overflow-hidden">
             <RoastHeader
                 phase={roastPhaseName}
                 targetProfileId={targetProfileId}
@@ -630,7 +632,7 @@ export const ActiveRoast = ({
 
             {/* 온도 차트 */}
             <div
-                className={`bg-(--color-roast-bg) flex flex-col mb-5 ${
+                className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
                     isFullscreen
                         ? 'rounded-none fixed inset-0 z-9999 h-screen w-screen p-10'
                         : 'rounded-lg relative z-1 px-6 pb-4 pt-10 flex-1'
@@ -640,7 +642,7 @@ export const ActiveRoast = ({
                     {/* 차트 영역 — 휠·드래그·키보드로 줌/패닝 */}
                     <div
                         ref={chartAreaRef}
-                        className={`relative flex-1 flex flex-col min-w-0 outline-none ${
+                        className={`relative flex-1 flex flex-col min-w-0 min-h-0 outline-none ${
                             effectiveZoomRange
                                 ? isChartDragging
                                     ? 'cursor-grabbing select-none touch-none'
@@ -713,82 +715,85 @@ export const ActiveRoast = ({
                         />
                     </div>
 
-                    {/* 사이드 패널 — 수치 + 조작 버튼 */}
-                    <div className="w-56 flex flex-col gap-4 px-4 pb-5 border-l border-border-subtle overflow-hidden shrink-0">
+                    {/* 사이드 패널 — 수치 + 조작 + 로그 (패널 전체 스크롤) */}
+                    <div className="w-56 flex flex-col gap-3 px-4 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch">
                         <div className="grid grid-cols-1 gap-3">
-                                {/* BT */}
-                                <div className="text-right">
-                                    <div className="text-sm text-muted font-semibold uppercase mb-1">BT</div>
-                                    <div
-                                        className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                                        style={{ color: SENSOR_COLORS.bt }}
-                                    >
-                                        {formatTemp(rawBT, unit)}
-                                    </div>
-                                </div>
-                                {/* ΔBT */}
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-muted font-semibold uppercase">ΔBT (30s)</span>
-                                    <span
-                                        className="font-mono text-2xl font-medium leading-tight"
-                                        style={{ color: SENSOR_COLORS.bt }}
-                                    >
-                                        {deltaBT != null ? `${Number(deltaBT) >= 0 ? '+' : ''}${deltaBT}°` : '—'}
-                                    </span>
-                                </div>
-                                {/* ET */}
-                                <div className="text-right border-t border-border-subtle pt-3">
-                                    <div className="text-sm text-muted font-semibold uppercase mb-1">ET</div>
-                                    <div
-                                        className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                                        style={{ color: SENSOR_COLORS.et }}
-                                    >
-                                        {formatTemp(rawET, unit)}
-                                    </div>
-                                </div>
-                                {/* ΔET */}
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-muted font-semibold uppercase">ΔET (30s)</span>
-                                    <span
-                                        className="font-mono text-2xl font-medium leading-tight"
-                                        style={{ color: SENSOR_COLORS.et }}
-                                    >
-                                        {deltaET != null ? `${Number(deltaET) >= 0 ? '+' : ''}${deltaET}°` : '—'}
-                                    </span>
-                                </div>
-                                {/* RoR */}
-                                <div className="text-right border-t border-border-subtle pt-3">
-                                    <div className="text-sm text-muted font-semibold uppercase mb-1">RoR</div>
-                                    <div
-                                        className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                                        style={{ color: SENSOR_COLORS.ror }}
-                                    >
-                                        {displayRoR}
-                                    </div>
-                                </div>
-                                {/* Time */}
-                                <div className="text-right border-t border-border-subtle pt-3">
-                                    <div className="text-sm text-muted font-semibold uppercase mb-1">Time</div>
-                                    <div
-                                        className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                                        style={{ color: 'var(--color-primary)' }}
-                                    >
-                                        {timeStr}
-                                    </div>
-                                </div>
-                                {/* DTR */}
-                                <div className="flex items-center justify-between border-t border-border-subtle pt-3">
-                                    <span className="text-xs text-muted font-semibold uppercase">DTR</span>
-                                    <span
-                                        className="font-mono text-2xl font-medium leading-tight"
-                                        style={{ color: PHASE_COLORS.development }}
-                                    >
-                                        {dtrPct != null ? `${dtrPct}%` : '—'}
-                                    </span>
+                            {/* BT */}
+                            <div className="text-right">
+                                <div className="text-sm text-muted font-semibold uppercase mb-1">BT</div>
+                                <div
+                                    className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                                    style={{ color: SENSOR_COLORS.bt }}
+                                >
+                                    {formatTemp(rawBT, unit)}
                                 </div>
                             </div>
-                            <div className="border-t border-border-subtle" />
-                            <div className="flex flex-col gap-2">
+                            {/* ΔBT */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-muted font-semibold uppercase">ΔBT (30s)</span>
+                                <span
+                                    className="font-mono text-2xl font-medium leading-tight"
+                                    style={{ color: SENSOR_COLORS.bt }}
+                                >
+                                    {deltaBT != null ? `${Number(deltaBT) >= 0 ? '+' : ''}${deltaBT}°` : '—'}
+                                </span>
+                            </div>
+                            {/* ET */}
+                            <div className="text-right border-t border-border-subtle pt-3">
+                                <div className="text-sm text-muted font-semibold uppercase mb-1">ET</div>
+                                <div
+                                    className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                                    style={{ color: SENSOR_COLORS.et }}
+                                >
+                                    {formatTemp(rawET, unit)}
+                                </div>
+                            </div>
+                            {/* ΔET */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-muted font-semibold uppercase">ΔET (30s)</span>
+                                <span
+                                    className="font-mono text-2xl font-medium leading-tight"
+                                    style={{ color: SENSOR_COLORS.et }}
+                                >
+                                    {deltaET != null ? `${Number(deltaET) >= 0 ? '+' : ''}${deltaET}°` : '—'}
+                                </span>
+                            </div>
+                            {/* RoR */}
+                            <div className="text-right border-t border-border-subtle pt-3">
+                                <div className="text-sm text-muted font-semibold uppercase mb-1">RoR</div>
+                                <div
+                                    className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                                    style={{ color: SENSOR_COLORS.ror }}
+                                >
+                                    {displayRoR}
+                                </div>
+                            </div>
+                            {/* Time */}
+                            <div className="text-right border-t border-border-subtle pt-3">
+                                <div className="text-sm text-muted font-semibold uppercase mb-1">Time</div>
+                                <div
+                                    className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                                    style={{ color: 'var(--color-primary)' }}
+                                >
+                                    {timeStr}
+                                </div>
+                            </div>
+                            {/* DTR */}
+                            <div className="flex items-center justify-between border-t border-border-subtle pt-3">
+                                <span className="text-xs text-muted font-semibold uppercase">DTR</span>
+                                <span
+                                    className="font-mono text-2xl font-medium leading-tight"
+                                    style={{ color: PHASE_COLORS.development }}
+                                >
+                                    {dtrPct != null ? `${dtrPct}%` : '—'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="border-t border-border-subtle" />
+
+                        {/* Control Panel */}
+                        <div className="flex flex-col gap-1.5">
                                 <div className="flex flex-col gap-1.5">
                                     {phase === 'preheating' && (
                                         <button
@@ -858,40 +863,45 @@ export const ActiveRoast = ({
                                         },
                                     ]}
                                 />
-                                <div className="flex gap-1.5 mt-1">
-                                    <input
-                                        type="text"
-                                        value={noteInput}
-                                        onChange={(e) => setNoteInput(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && noteInput.trim()) {
-                                                markEvent('Note', noteInput.trim());
-                                                setNoteInput('');
-                                            }
-                                        }}
-                                        placeholder="Add note..."
-                                        className="flex-1 text-xs px-2 py-1.5 rounded-md bg-surface text-primary placeholder:text-muted focus:outline-none border border-border-subtle focus:border-border"
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            if (!noteInput.trim()) return;
+                        </div>
+
+                        {/* Add Note */}
+                        <div className="flex flex-col gap-1.5">
+                                <textarea
+                                    value={noteInput}
+                                    onChange={(e) => setNoteInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey && noteInput.trim()) {
+                                            e.preventDefault();
                                             markEvent('Note', noteInput.trim());
                                             setNoteInput('');
-                                        }}
-                                        disabled={!noteInput.trim()}
-                                        className="px-2.5 py-1.5 rounded-md border-none text-xs font-semibold bg-surface text-muted hover:text-primary disabled:opacity-40 cursor-pointer"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="border-t border-border-subtle" />
-                            <RoastLog
-                                variant="sidebar"
-                                entries={roastLogDisplayEntries}
-                                eventMarkerColor={EVENT_MARKER_COLORS}
-                            />
+                                        }
+                                    }}
+                                    placeholder="Add note..."
+                                    className="h-16 text-xs px-2 py-1.5 rounded-md bg-surface text-primary placeholder:text-muted focus:outline-none border border-border-subtle focus:border-border resize-none"
+                                />
+                                <button
+                                    onClick={() => {
+                                        if (!noteInput.trim()) return;
+                                        markEvent('Note', noteInput.trim());
+                                        setNoteInput('');
+                                    }}
+                                    disabled={!noteInput.trim()}
+                                    className="px-2.5 py-1.5 rounded-md border-none text-xs font-semibold bg-surface text-muted hover:text-primary disabled:opacity-40 cursor-pointer"
+                                >
+                                    +
+                                </button>
                         </div>
+
+                        <div className="border-t border-border-subtle" />
+
+                        <RoastLog
+                            variant="sidebar"
+                            entries={roastLogDisplayEntries}
+                            eventMarkerColor={EVENT_MARKER_COLORS}
+                            onRemoveEntry={removeLogEntry}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -977,20 +987,51 @@ export const ActiveRoast = ({
                         });
                         // TODO: 일반 로스팅(배치 없음) 시에도 생두 재고 감소 처리 필요.
                         //       weight_grams UI 입력 기능 구현 후 여기서 createInventoryLog 호출 추가.
-                        await Promise.all([
-                            selectedBeanId && planBatchHandoff?.batchSizeKg && user
-                                ? createInventoryLog({
-                                      user_id: user.id,
-                                      bean_id: selectedBeanId,
-                                      change_grams: -Math.round(planBatchHandoff.batchSizeKg * 1000),
-                                      type: 'roast',
-                                      roast_session_id: savedSession.id,
-                                  })
-                                : null,
-                            batchDone && planBatchHandoff
-                                ? updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' })
-                                : null,
-                        ]);
+                        const stockDeductions: Promise<unknown>[] = [];
+
+                        // 단일 생두 → bean_inventory_logs
+                        if (selectedBeanId && planBatchHandoff?.batchSizeKg && user) {
+                            stockDeductions.push(
+                                createInventoryLog({
+                                    user_id: user.id,
+                                    bean_id: selectedBeanId,
+                                    change_grams: -Math.round(planBatchHandoff.batchSizeKg * 1000),
+                                    type: 'roast',
+                                    roast_session_id: savedSession.id,
+                                }),
+                            );
+                        }
+
+                        // 블렌드 → bean_stock_events (각 구성 생두별 차감)
+                        if (planBatchHandoff?.blendId && planBatchHandoff?.batchSizeKg && user) {
+                            try {
+                                const blendWithComponents = await blendApi.get(planBatchHandoff.blendId);
+                                const chargeGrams = Math.round(planBatchHandoff.batchSizeKg * 1000);
+                                for (const comp of blendWithComponents.blend_components) {
+                                    stockDeductions.push(
+                                        beanStockEventApi.insert({
+                                            user_id: user.id,
+                                            bean_id: comp.bean_id,
+                                            delta_grams: -Math.round(chargeGrams * (Number(comp.ratio_pct) / 100)),
+                                            event_type: 'roast',
+                                            reference_id: savedSession.id,
+                                            note: `${blendWithComponents.name} 블렌드 차감`,
+                                        }),
+                                    );
+                                }
+                            } catch (err) {
+                                console.error('[RoastSummary] blend stock deduction failed:', err);
+                            }
+                        }
+
+                        // 배치 status 업데이트 (phantom 예약 방지)
+                        if (batchDone && planBatchHandoff) {
+                            stockDeductions.push(
+                                updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' }),
+                            );
+                        }
+
+                        await Promise.all(stockDeductions);
                         setShowSummaryModal(false);
                         setSummaryData(null);
                         resetActiveRoast();
