@@ -16,6 +16,8 @@ import { useRoastProfiles } from '@entities/roast-profile/queries';
 import { dayPlanApi, planBatchApi, planKeys } from '@entities/plan';
 import { cn } from '@shared/lib/cn';
 import type { RoastProfile, Bean, PlanBatchWithProgress } from '@shared/types/database.types';
+import { useBlends } from '@entities/blend';
+import { useBeanStockSummary } from '@entities/bean-stock-event';
 
 /**
  * Parse an RRULE string back to a RecurrenceInterval label.
@@ -49,6 +51,7 @@ export interface NewBatchData {
     profileId: string | null;
     profileName: string;
     beanId: string | null;
+    blendId: string | null;
     beanName: string;
     targetRoasted: number;
     batchSize: number;
@@ -102,6 +105,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
     const { data: beans = [] } = useBeans(userId);
     const { machines } = useMachines();
     const { data: profiles = [] } = useRoastProfiles(userId);
+    const { data: blends = [] } = useBlends(userId);
 
     const isEdit = !!editingBatch;
     const isDateDisabled = editScope === 'all';
@@ -128,6 +132,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
     );
     const [profileId, setProfileId] = useState(() => editingBatch?.roast_profile_id ?? '');
     const [beanId, setBeanId] = useState(() => editingBatch?.bean_id ?? '');
+    const [blendId, setBlendId] = useState<string | null>(() => editingBatch?.blend_id ?? null);
     const [targetRoasted, setTargetRoasted] = useState(
         () => (editingBatch ? String(editingBatch.target_roasted_kg) : ''),
     );
@@ -158,10 +163,16 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
     const selectedBean = beans.find((b) => b.id === beanId) as Bean | undefined;
     const selectedProfile = profiles.find((p) => p.id === profileId) as RoastProfile | undefined;
     const selectedMachine = machines.find((m) => m.id === machineId);
+    const selectedBlend = blends.find((b) => b.id === blendId);
 
     const stockKg = selectedBean ? selectedBean.stock_grams / 1000 : 0;
     const stockSufficient = greenNeeded === 0 || stockKg >= greenNeeded;
     const stockPct = greenNeeded > 0 ? Math.min(100, (stockKg / greenNeeded) * 100) : 100;
+
+    const selectedBeanId = batchType === 'Single Origin' ? beanId : null;
+    const { data: stockSummary } = useBeanStockSummary(selectedBeanId ?? '');
+    const plannedGrams = batchSizeNum * batchCount * 1000;
+    const isShortage = !!stockSummary && plannedGrams > 0 && stockSummary.effectiveGrams < plannedGrams;
 
     const newDateKey = date ? format(date, 'yyyy-MM-dd') : '';
     const dateChanged = isEdit && currentDateKey && newDateKey !== currentDateKey;
@@ -183,14 +194,18 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                     await planBatchApi.move(editingBatch.id, targetPlanId);
                 }
 
+                const isBlendType = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
                 await planBatchApi.updateSingle(editingBatch.id, {
                     id: editingBatch.id,
                     plan_id: editingBatch.plan_id,
                     machine_id: machineId || null,
                     batch_type: batchType,
                     roast_profile_id: profileId || null,
-                    bean_id: beanId || null,
-                    bean_name: selectedBean?.name ?? editingBatch.bean_name,
+                    bean_id: isBlendType ? null : (beanId || null),
+                    blend_id: isBlendType ? (blendId || null) : null,
+                    bean_name: isBlendType
+                        ? (selectedBlend?.name ?? editingBatch.bean_name)
+                        : (selectedBean?.name ?? editingBatch.bean_name),
                     target_roasted_kg: targetNum,
                     batch_size_kg: batchSizeNum,
                     yield_pct: yieldNum / 100,
@@ -221,6 +236,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                 setSaving(false);
             }
         } else {
+            const isBlendTypeAdd = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
             onAdd?.({
                 date,
                 machineId,
@@ -228,8 +244,11 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                 batchType,
                 profileId: profileId || null,
                 profileName: selectedProfile?.name ?? '',
-                beanId: beanId || null,
-                beanName: selectedBean?.name ?? '',
+                beanId: isBlendTypeAdd ? null : (beanId || null),
+                blendId: isBlendTypeAdd ? (blendId || null) : null,
+                beanName: isBlendTypeAdd
+                    ? (selectedBlend?.name ?? '')
+                    : (selectedBean?.name ?? ''),
                 targetRoasted: targetNum,
                 batchSize: batchSizeNum,
                 yieldPct: yieldNum,
@@ -375,7 +394,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                     </div>
                 </div>
 
-                {/* Profile + Bean */}
+                {/* Profile + Bean/Blend */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className={labelCls}>로스트 프로파일</label>
@@ -397,29 +416,54 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                         />
                     </div>
                     <div>
-                        <label className={labelCls}>
-                            <Package size={12} /> Green Coffee Lot
-                        </label>
-                        <SearchableSelect
-                            placeholder="Lot 선택..."
-                            items={beanItems}
-                            selectedId={beanId}
-                            onSelect={setBeanId}
-                            renderLabel={(item) => (item as Bean).name}
-                            renderOption={(item) => {
-                                const b = item as Bean;
-                                const kg = (b.stock_grams / 1000).toFixed(1);
-                                return (
-                                    <div>
-                                        <div className="text-primary font-medium">{b.name}</div>
-                                        <div className="text-[11px] text-muted mt-0.5">
-                                            재고 {kg} kg
-                                            {b.origin && ` · ${b.origin}`}
-                                        </div>
-                                    </div>
-                                );
-                            }}
-                        />
+                        {batchType === 'Single Origin' ? (
+                            <>
+                                <label className={labelCls}>
+                                    <Package size={12} /> Green Coffee Lot
+                                </label>
+                                <SearchableSelect
+                                    placeholder="Lot 선택..."
+                                    items={beanItems}
+                                    selectedId={beanId}
+                                    onSelect={setBeanId}
+                                    renderLabel={(item) => (item as Bean).name}
+                                    renderOption={(item) => {
+                                        const b = item as Bean;
+                                        const kg = (b.stock_grams / 1000).toFixed(1);
+                                        return (
+                                            <div>
+                                                <div className="text-primary font-medium">{b.name}</div>
+                                                <div className="text-[11px] text-muted mt-0.5">
+                                                    재고 {kg} kg
+                                                    {b.origin && ` · ${b.origin}`}
+                                                </div>
+                                            </div>
+                                        );
+                                    }}
+                                />
+                                {isShortage && (
+                                    <p className="text-xs text-red-500 mt-1">
+                                        재고 부족 — 가용 {stockSummary!.effectiveGrams}g / 필요 {plannedGrams}g
+                                    </p>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <label className={labelCls}>
+                                    <Package size={12} /> 블렌드
+                                </label>
+                                <select
+                                    value={blendId ?? ''}
+                                    onChange={(e) => setBlendId(e.target.value || null)}
+                                    className="w-full border border-(--color-border) rounded-lg px-3 py-2 text-sm"
+                                >
+                                    <option value="">블렌드 선택</option>
+                                    {blends.map((b) => (
+                                        <option key={b.id} value={b.id}>{b.name}</option>
+                                    ))}
+                                </select>
+                            </>
+                        )}
                     </div>
                 </div>
 
