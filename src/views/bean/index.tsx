@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useAuthStore } from '@shared/store/auth';
 import { useBeans, useDeleteBean } from '@entities/bean/queries';
-import { getStatus } from '@entities/bean/lib';
 import { BeanList } from '@widgets/bean-list/ui/BeanList';
 import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
 import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
@@ -38,22 +37,6 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
 
     const selected = beans.find((b) => b.id === selectedId) ?? beans[0] ?? null;
 
-    const stats = beans.reduce(
-        (acc, b) => {
-            const s = getStatus(b);
-            if (s === 'Low') {
-                acc.active++;
-                acc.low++;
-            } else if (s === 'Out') {
-                acc.out++;
-            } else {
-                acc.active++;
-            }
-            return acc;
-        },
-        { active: 0, low: 0, out: 0 },
-    );
-
     return (
         <PageLayout>
             <AddBeanModal
@@ -69,35 +52,17 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 }}
             />
 
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28 }}>
+            {/* Header */}
+            <div className="flex items-end justify-between mb-7">
                 <div>
                     <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
+                        {/* {t('machines.title')} */}
                         Bean Inventory
                     </h1>
-                    <p style={{ fontSize: 14, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
-                        {isLoading ? (
-                            <span
-                                style={{
-                                    display: 'inline-block',
-                                    width: 180,
-                                    height: 14,
-                                    borderRadius: 6,
-                                    background: 'var(--color-surface)',
-                                    verticalAlign: 'middle',
-                                }}
-                                className="animate-pulse"
-                            />
-                        ) : (
-                            <>
-                                {stats.active} active lots · {stats.low} low stock · {stats.out} out of stock
-                            </>
-                        )}
-                    </p>
                 </div>
                 <button
-                    type="button"
-                    onClick={() => openModal('new')}
-                    className="flex items-center gap-2 px-[18px] py-[10px] rounded-full border-none bg-(--color-primary) text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
                 >
                     <Plus size={15} strokeWidth={2.5} />
                     Add Bean Lot
@@ -120,7 +85,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
             </div>
 
             {tab === 'single' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: 20 }}>
+                <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
                     <BeanList
                         beans={beans}
                         isLoading={isLoading}
