@@ -2,11 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRoastSessionStore } from './shared/store/roastSession';
 import { type PlanBatchHandoff } from './shared/types/database.types';
 import { onOpenUrl, getCurrent } from '@tauri-apps/plugin-deep-link';
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
-import { confirm } from '@tauri-apps/plugin-dialog';
+
 import { supabase } from '@shared/lib/supabase';
 import './App.css';
+import { useUpdateChecker } from './features/updater';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
 import { Login } from './views/login';
@@ -29,32 +28,12 @@ export const App = () => {
 
     useEffect(() => init(), [init]);
 
-    // Auto-updater: check for updates on startup
+    // Auto-updater: silent background download → system notification
+    const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
+
     useEffect(() => {
-        const checkForUpdates = async () => {
-            if (import.meta.env.DEV) return;
-
-            try {
-                const update = await check();
-                if (update) {
-                    console.log(`[updater] new version found: ${update.version}`);
-                    const confirmed = await confirm(
-                        `새로운 버전(${update.version})이 준비되었습니다. 지금 업데이트하고 다시 시작할까요?`,
-                        { title: '업데이트 알림', kind: 'info' }
-                    );
-
-                    if (confirmed) {
-                        await update.downloadAndInstall();
-                        await relaunch();
-                    }
-                }
-            } catch (error) {
-                console.error('[updater] failed to check for updates:', error);
-            }
-        };
-
-        checkForUpdates();
-    }, []);
+        checkAndDownload();
+    }, [checkAndDownload]);
 
     // dev mode: Google OAuth 콜백 처리 (PKCE: ?code= / implicit: #access_token=)
     useEffect(() => {
@@ -237,6 +216,29 @@ export const App = () => {
                 )}
             </div>
             <SettingsModal open={settingsOpen} initialTab={settingsInitialTab} onClose={() => setSettingsOpen(false)} />
+
+            {state.status === 'ready' && (
+                <button
+                    onClick={applyAndRelaunch}
+                    style={{
+                        position: 'fixed',
+                        bottom: 24,
+                        right: 24,
+                        zIndex: 9999,
+                        padding: '10px 20px',
+                        borderRadius: 9999,
+                        border: 'none',
+                        background: 'var(--color-accent, #2563eb)',
+                        color: '#fff',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+                    }}
+                >
+                    새 업데이트 (v{state.version}) 재시작
+                </button>
+            )}
         </div>
     );
 };

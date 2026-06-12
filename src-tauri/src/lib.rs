@@ -165,6 +165,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::default().build())
         // CommandChild has no Drop impl — storing via manage() keeps it alive for the app lifetime.
         .manage(SidecarChild(Mutex::new(None)))
