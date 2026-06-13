@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Coffee, Plus } from 'lucide-react';
 import { useAuthStore } from '@shared/store/auth';
 import { useBeans, useDeleteBean } from '@entities/bean/queries';
 import { BeanList } from '@widgets/bean-list/ui/BeanList';
@@ -85,29 +85,48 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
             </div>
 
             {tab === 'single' && (
-                <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
-                    <BeanList
-                        beans={beans}
-                        isLoading={isLoading}
-                        selectedId={selected?.id ?? null}
-                        onSelect={setSelectedId}
-                        search={search}
-                        onSearchChange={setSearch}
-                    />
-                    <BeanDetail
-                        bean={selected}
-                        isLoading={isLoading}
-                        onEdit={(bean) => openModal('edit', bean.id, bean)}
-                        onRestock={(id) => openModal('restock', id)}
-                        onStartRoast={() => {
-                            if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
-                            onNavigate?.('roast');
-                        }}
-                        onDelete={(id) => {
-                            deleteBean(id, { onSuccess: () => setSelectedId(null) });
-                        }}
-                    />
-                </div>
+                <>
+                    {!isLoading && beans.length === 0 ? (
+                        <div className="bg-main-bg rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
+                            {/* <Coffee size={40} strokeWidth={1.5} className="text-muted" /> */}
+                            <div className="text-[13px] text-muted text-center leading-relaxed">
+                                등록된 원두가 없습니다.<br />
+                                첫 번째 원두를 추가해 보세요.
+                            </div>
+                            <button
+                                onClick={() => setIsAddModalOpen(true)}
+                                className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface cursor-pointer hover:bg-surface-raised transition-colors"
+                            >
+                                <Plus size={14} strokeWidth={2} />
+                                원두 추가
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
+                            <BeanList
+                                beans={beans}
+                                isLoading={isLoading}
+                                selectedId={selected?.id ?? null}
+                                onSelect={setSelectedId}
+                                search={search}
+                                onSearchChange={setSearch}
+                            />
+                            <BeanDetail
+                                bean={selected}
+                                isLoading={isLoading}
+                                onEdit={(bean) => openModal('edit', bean.id, bean)}
+                                onRestock={(id) => openModal('restock', id)}
+                                onStartRoast={() => {
+                                    if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
+                                    onNavigate?.('roast');
+                                }}
+                                onDelete={(id) => {
+                                    deleteBean(id, { onSuccess: () => setSelectedId(null) });
+                                }}
+                            />
+                        </div>
+                    )}
+                </>
             )}
 
             {tab === 'blend' && <BlendList />}

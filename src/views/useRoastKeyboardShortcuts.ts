@@ -12,6 +12,7 @@ interface UseRoastKeyboardShortcutsParams {
     onEnterStandby: () => void;
     onManualCharge: () => void;
     onMarkEvent: (event: string, note: string, pressKey: string) => void;
+    onMarkDrop: () => void;
 }
 
 export const useRoastKeyboardShortcuts = ({
@@ -25,6 +26,7 @@ export const useRoastKeyboardShortcuts = ({
     onEnterStandby,
     onManualCharge,
     onMarkEvent,
+    onMarkDrop,
 }: UseRoastKeyboardShortcutsParams) => {
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -64,6 +66,11 @@ export const useRoastKeyboardShortcuts = ({
                 onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
                 return;
             }
+            if (event.key === 'd') {
+                event.preventDefault();
+                onMarkDrop();
+                return;
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
@@ -78,5 +85,6 @@ export const useRoastKeyboardShortcuts = ({
         onEnterStandby,
         onManualCharge,
         onMarkEvent,
+        onMarkDrop,
     ]);
 };

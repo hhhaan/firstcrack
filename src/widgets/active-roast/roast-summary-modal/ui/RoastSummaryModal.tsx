@@ -51,9 +51,9 @@ export const RoastSummaryModal = ({
             onClose={onClose}
             labelledBy="roast-summary-modal-title"
             overlayClassName="z-[10000]"
-            contentClassName="max-w-[420px] w-full bg-main-bg rounded-[20px] p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px]"
+            contentClassName="max-w-[420px] w-full bg-main-bg rounded p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px]"
         >
-            <div className="w-11 h-11 rounded-xl bg-[rgba(220,252,231,0.9)] text-[#16a34a] flex items-center justify-center mb-4.5">
+            <div className="w-11 h-11 rounded-md bg-[rgba(220,252,231,0.9)] text-[#16a34a] flex items-center justify-center mb-4.5">
                 <svg
                     width="18"
                     height="18"
@@ -84,7 +84,7 @@ export const RoastSummaryModal = ({
                     { label: 'Development', value: summaryData.development },
                     { label: 'Final BT', value: summaryData.finalBt },
                 ].map(({ label, value }) => (
-                    <div key={label} className="bg-surface rounded-lg px-2.5 py-2.5 ">
+                    <div key={label} className="bg-surface rounded px-2.5 py-2.5 ">
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">{label}</div>
                         <div className="font-(--font-mono) text-sm text-primary">{value}</div>
                     </div>
@@ -93,11 +93,11 @@ export const RoastSummaryModal = ({
 
             {ambientTemp != null && ambientHumidity != null && (
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                    <div className="bg-surface rounded-lg px-2.5 py-2.5 ">
+                    <div className="bg-surface rounded px-2.5 py-2.5 ">
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">Temperature</div>
                         <div className="font-(--font-mono) text-sm text-primary">{ambientTemp}°C</div>
                     </div>
-                    <div className="bg-surface rounded-lg px-2.5 py-2.5 ">
+                    <div className="bg-surface rounded px-2.5 py-2.5 ">
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">Humidity</div>
                         <div className="font-(--font-mono) text-sm text-primary">{ambientHumidity}%</div>
                     </div>
@@ -136,7 +136,7 @@ export const RoastSummaryModal = ({
                     onChange={(event) => onRoastNotesChange(event.target.value)}
                     placeholder="Flavor notes, observations, adjustments for next time..."
                     rows={3}
-                    className="w-full px-3.5 py-2.5 rounded-lg border-none bg-surface text-primary text-[13px] font-(--font-body) resize-none  outline-none box-border"
+                    className="w-full px-3.5 py-2.5 rounded border-none bg-surface text-primary text-[13px] font-(--font-body) resize-none  outline-none box-border"
                 />
             </div>
 

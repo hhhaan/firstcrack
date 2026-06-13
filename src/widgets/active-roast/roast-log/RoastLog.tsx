@@ -70,7 +70,6 @@ export const RoastLog = ({
                                 style={{
                                     width: isSidebar ? 6 : 7,
                                     height: isSidebar ? 6 : 7,
-                                    borderRadius: '50%',
                                     background: entry.current
                                         ? STATUS_COLORS.active
                                         : (eventMarkerColor[entry.event] ?? 'var(--color-border)'),
@@ -121,8 +120,8 @@ export const RoastLog = ({
                             <button
                                 type="button"
                                 onClick={() => onRemoveEntry(entry.id!)}
-                                aria-label="Delete note"
-                                className="shrink-0 self-start p-1 rounded border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
+                                                                aria-label="Delete note"
+                                                                className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
                             >
                                 <X size={12} />
                             </button>

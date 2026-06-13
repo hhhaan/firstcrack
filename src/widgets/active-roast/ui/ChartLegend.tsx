@@ -15,7 +15,6 @@ export const ChartLegend = () => (
                     style={{
                         width: 16,
                         height: 2,
-                        borderRadius: 1,
                         background: dashed
                             ? `repeating-linear-gradient(to right, ${color} 0, ${color} 4px, transparent 4px, transparent 7px)`
                             : color,

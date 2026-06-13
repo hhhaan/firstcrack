@@ -3,13 +3,13 @@ import * as echarts from 'echarts';
 import type { EChartsOption } from 'echarts';
 import {
     CHART_COLORS, CONTROL_COLORS, ROR_Y_MIN, ROR_Y_MAX,
-    CHART_GRID_LEFT, CHART_GRID_TOP, CHART_GRID_RIGHT, CHART_GRID_RIGHT_WITH_ROR,
+    CHART_GRID_LEFT, CHART_GRID_TOP, CHART_GRID_RIGHT, CHART_GRID_RIGHT_WITH_ROR, Y_AXIS_NAME_GAP,
     PHASE_BAR_HEIGHT, PHASE_BAR_BOTTOM,
     PHASE_BAR_WIDE_THRESHOLD, PHASE_BAR_NARROW_THRESHOLD, PHASE_BAR_TEXT_INSET,
     PHASE_BAR_STROKE, PHASE_BAR_STROKE_WIDTH,
     PHASE_BAR_NAME_COLOR, PHASE_BAR_DURATION_COLOR,
     PHASE_BAR_FONT_SIZE, PHASE_BAR_FONT_SIZE_NARROW, PHASE_BAR_FONT_FAMILY, PHASE_BAR_FONT_WEIGHT,
-    AXIS_LABEL_FONT, AXIS_LABEL_FONT_SM,
+    AXIS_LABEL_FONT,
     TEMP_Y_MIN_C, TEMP_Y_MAX_C, TEMP_Y_MIN_F, TEMP_Y_MAX_F, TEMP_Y_INTERVAL,
     TEMP_GRID_HEIGHT_WITH_PHASE, CONTROL_GRID_TOP_WITH_PHASE, PHASE_GRID_TOP,
     TEMP_GRID_HEIGHT, CONTROL_GRID_TOP, CONTROL_GRID_BOTTOM_GAP, CONTROL_GRID_BOTTOM,
@@ -187,15 +187,16 @@ export const RoastTempChart: React.FC<Props> = ({
                     color: CHART_COLORS.markerLabelColor,
                     backgroundColor: m.color,
                     padding: [2, 4],
-                    borderRadius: 2,
                 },
         }));
 
         const xMin = xs[0] ?? 0;
         const xMax = xs[xs.length - 1] ?? 1200;
-        const rightMargin = showRoR ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
+        const hasRightYAxis = showRoR || !!controlData;
+        const rightMargin = hasRightYAxis ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
         const leftMargin = CHART_GRID_LEFT;
         const topMargin = CHART_GRID_TOP;
+        const rightYAxisLabel = { ...AXIS_LABEL_FONT, margin: 4 };
 
         const tempSeries = [
             showTargetCurve && {
@@ -457,7 +458,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'value',
                         name: `Temperature (${unitLabel})`,
                         nameLocation: 'middle',
-                        nameGap: 16,
+                        nameGap: Y_AXIS_NAME_GAP,
                         axisLine: { onZero: false },
                         axisLabel: { ...AXIS_LABEL_FONT },
                         splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
@@ -472,10 +473,10 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'value',
                         name: `RoR (${rorUnit})`,
                         nameLocation: 'middle',
-                        nameGap: 16,
+                        nameGap: Y_AXIS_NAME_GAP,
                         position: 'right',
                         axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT },
+                        axisLabel: rightYAxisLabel,
                         splitLine: { show: false },
                         min: ROR_Y_MIN,
                         max: ROR_Y_MAX,
@@ -493,9 +494,10 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'value',
                         name: 'Drum (rpm)',
                         nameLocation: 'middle',
+                        nameGap: Y_AXIS_NAME_GAP,
                         position: 'left',
                         axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT_SM },
+                        axisLabel: { ...AXIS_LABEL_FONT, margin: 4 },
                         splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
                         min: 0,
                         max: 100,
@@ -505,9 +507,10 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'value',
                         name: 'Power / Speed (%)',
                         nameLocation: 'middle',
+                        nameGap: Y_AXIS_NAME_GAP,
                         position: 'right',
                         axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT_SM },
+                        axisLabel: { show: false },
                         splitLine: { show: false },
                         min: 0,
                         max: 100,
@@ -519,7 +522,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'value',
                         name: `Temperature (${unitLabel})`,
                         nameLocation: 'middle',
-                        nameGap: 16,
+                        nameGap: Y_AXIS_NAME_GAP,
                         axisLine: { onZero: false },
                         axisLabel: { ...AXIS_LABEL_FONT },
                         splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
@@ -534,10 +537,10 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'value',
                         name: `RoR (${rorUnit})`,
                         nameLocation: 'middle',
-                        nameGap: 16,
+                        nameGap: Y_AXIS_NAME_GAP,
                         position: 'right',
                         axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT },
+                        axisLabel: rightYAxisLabel,
                         splitLine: { show: false },
                         min: ROR_Y_MIN,
                         max: ROR_Y_MAX,
@@ -548,9 +551,10 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'value',
                         name: 'Drum (rpm)',
                         nameLocation: 'middle',
+                        nameGap: Y_AXIS_NAME_GAP,
                         position: 'left',
                         axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT_SM },
+                        axisLabel: { ...AXIS_LABEL_FONT, margin: 4 },
                         splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
                         min: 0,
                         max: 100,
@@ -560,9 +564,10 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'value',
                         name: 'Power / Speed (%)',
                         nameLocation: 'middle',
+                        nameGap: Y_AXIS_NAME_GAP,
                         position: 'right',
                         axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT_SM },
+                        axisLabel: { show: false },
                         splitLine: { show: false },
                         min: 0,
                         max: 100,
@@ -577,6 +582,9 @@ export const RoastTempChart: React.FC<Props> = ({
                 yAxis: yAxes as EChartsOption['yAxis'],
                 tooltip: {
                     trigger: 'axis',
+                    borderWidth: 1,
+                    borderColor: 'rgba(0,0,0,0.08)',
+                    extraCssText: 'box-shadow: none;',
                     axisPointer: { type: 'line', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
                 },
                 series: [
@@ -635,13 +643,16 @@ export const RoastTempChart: React.FC<Props> = ({
             backgroundColor: 'transparent',
             animation: false,
             grid: [
-                { left: leftMargin, right: showRoR ? 50 : 12, top: topMargin, bottom: singleBottom },
+                { left: leftMargin, right: rightMargin, top: topMargin, bottom: singleBottom },
                 ...(hasPhaseBar
-                    ? [{ left: leftMargin, right: showRoR ? 50 : 12, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
+                    ? [{ left: leftMargin, right: rightMargin, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
                     : []),
             ],
             tooltip: {
                 trigger: 'axis',
+                borderWidth: 1,
+                borderColor: 'rgba(0,0,0,0.08)',
+                extraCssText: 'box-shadow: none;',
                 axisPointer: { type: 'cross', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 formatter: (params: any) => {
@@ -650,13 +661,13 @@ export const RoastTempChart: React.FC<Props> = ({
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     params.forEach((p: any) => {
                         if (p.seriesName === 'BT Target')
-                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget};border-radius:2px"></div>Target BT: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
+                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget}"></div>Target BT: <span>${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
                         if (p.seriesName === 'BT Actual')
-                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual};border-radius:2px"></div>Bean Temp: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
+                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
                         if (p.seriesName === 'ET Actual' && showET)
-                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual};border-radius:2px"></div>Env Temp: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
+                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual}"></div>Env Temp: <span>${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
                         if (p.seriesName === 'RoR' && showRoR)
-                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual};border-radius:2px"></div>RoR: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${rorUnit}</span></div>`;
+                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual}"></div>RoR: <span>${p.value[1]?.toFixed(1)}${rorUnit}</span></div>`;
                     });
                     return html;
                 },
@@ -699,7 +710,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     type: 'value',
                     name: `Temperature (${unitLabel})`,
                     nameLocation: 'middle',
-                    nameGap: 16,
+                    nameGap: Y_AXIS_NAME_GAP,
                     axisLine: { onZero: false },
                     axisLabel: { ...AXIS_LABEL_FONT },
                     splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
@@ -712,10 +723,10 @@ export const RoastTempChart: React.FC<Props> = ({
                     type: 'value',
                     name: `RoR (${rorUnit})`,
                     nameLocation: 'middle',
-                    nameGap: 16,
+                    nameGap: Y_AXIS_NAME_GAP,
                     position: 'right',
                     axisLine: { onZero: false },
-                    axisLabel: { ...AXIS_LABEL_FONT },
+                    axisLabel: rightYAxisLabel,
                     splitLine: { show: false },
                     min: ROR_Y_MIN,
                     max: ROR_Y_MAX,
@@ -874,7 +885,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         { color: CONTROL_COLORS.fan, label: 'Fan' },
                     ].map(({ color, label }) => (
                         <div key={label} className="flex items-center gap-1.5">
-                            <div style={{ width: 16, height: 2, borderRadius: 1, background: color }} />
+                            <div style={{ width: 16, height: 2, background: color }} />
                             <span className="text-[11px] text-muted tracking-[0.14px]">{label}</span>
                         </div>
                     ))}

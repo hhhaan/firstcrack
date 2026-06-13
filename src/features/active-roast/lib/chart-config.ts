@@ -3,8 +3,12 @@ import { SENSOR_COLORS, PHASE_COLORS, STATUS_COLORS } from './colors';
 // ── Grid margins ─────────────────────────────────────────────────────────────
 export const CHART_GRID_LEFT = 55;
 export const CHART_GRID_TOP = 10;
+/** 단일 Y축(온도만) 또는 오른쪽 보조축 없을 때 */
 export const CHART_GRID_RIGHT = 12;
+/** RoR·Power/Speed 등 오른쪽 보조 Y축 라벨+축명 공간 */
 export const CHART_GRID_RIGHT_WITH_ROR = 50;
+/** 오른쪽 축 제목(℃/min, % 등)과 눈금 사이 간격 — 상·하단 동일값 필수 */
+export const Y_AXIS_NAME_GAP = 16;
 
 // ── Phase bar dimensions & text style ────────────────────────────────────────
 export const PHASE_BAR_HEIGHT = 26;

@@ -55,7 +55,6 @@ docs/
 extern/
 screenshots/
 
-.roo*
 
 artifacts/
 
@@ -65,3 +64,5 @@ artifacts/
 # Cline / Claude configuration
 .claude/
 .clinerules/
+
+.pnpm-store/

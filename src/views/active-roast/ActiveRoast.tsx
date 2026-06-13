@@ -15,7 +15,11 @@ import {
     type RoastSummaryData,
 } from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
 import { RoastTempChart, type RoastEventMarker } from '@widgets/active-roast/ui/RoastTempChart';
-import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
+import {
+    CHART_GRID_RIGHT,
+    CHART_GRID_RIGHT_WITH_ROR,
+    EVENT_MARKER_COLORS,
+} from '@features/active-roast/lib/chart-config';
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 
 import type { LogEntry } from '@shared/types/roast';
@@ -180,6 +184,10 @@ export const ActiveRoast = ({
     /** 차트 x축 끝값. 데이터가 없으면 전체 범위로 고정 */
     const MAX_TIME = chartData.length > 0 ? chartData[chartData.length - 1].time : CHART_TOTAL_SECS;
     const MIN_TIME = -effectivePreChargeDisplaySec;
+    const chartRightGridPad =
+        roastSettings.showRoRChart || roastSettings.showControlChart
+            ? CHART_GRID_RIGHT_WITH_ROR
+            : CHART_GRID_RIGHT;
 
     // ── 차트 줌·패닝·드래그 ──────────────────────────────────────
     const {
@@ -194,7 +202,7 @@ export const ActiveRoast = ({
         handleChartPointerDown,
         handleChartPointerMove,
         endChartDrag,
-    } = useChartZoom(MAX_TIME, MIN_TIME);
+    } = useChartZoom(MAX_TIME, MIN_TIME, chartRightGridPad);
 
     // fullscreen 진입 시 외부 줌 리셋 — ECharts 내부 zoom이 독립적으로 동작한다
     useEffect(() => {
@@ -534,6 +542,10 @@ export const ActiveRoast = ({
         setLogEntries((prev) => prev.map((entry) => (entry.event === event ? { ...entry, time: newTimeStr } : entry)));
     };
 
+    const handleMarkDrop = useCallback(() => {
+        handleDrop();
+    }, [handleDrop]);
+
     useRoastKeyboardShortcuts({
         isActive,
         isFullscreen,
@@ -545,6 +557,7 @@ export const ActiveRoast = ({
         onEnterStandby: handleEnterStandby,
         onManualCharge: handleManualCharge,
         onMarkEvent: markEvent,
+        onMarkDrop: handleMarkDrop,
     });
 
     // ── 표시용 파생값 ─────────────────────────────────────────────
@@ -634,8 +647,8 @@ export const ActiveRoast = ({
             <div
                 className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
                     isFullscreen
-                        ? 'rounded-none fixed inset-0 z-9999 h-screen w-screen p-10'
-                        : 'rounded-lg relative z-1 px-6 pb-4 pt-10 flex-1'
+                        ? 'fixed inset-0 z-9999 h-screen w-screen p-10'
+                        : 'rounded relative z-1 px-6 pb-4 pt-10 flex-1'
                 }`}
             >
                 <div className="flex gap-6 flex-1 min-h-0 flex-row">
@@ -878,7 +891,7 @@ export const ActiveRoast = ({
                                         }
                                     }}
                                     placeholder="Add note..."
-                                    className="h-16 text-xs px-2 py-1.5 rounded-md bg-surface text-primary placeholder:text-muted focus:outline-none border focus:border-border resize-none"
+                                    className="h-16 text-xs px-2 py-1.5 rounded bg-surface text-primary placeholder:text-muted focus:outline-none focus:border-border resize-none"
                                 />
                                 <button
                                     onClick={() => {
@@ -1051,7 +1064,7 @@ export const ActiveRoast = ({
             {/* Plan batch continue modal */}
             {showContinueModal && planBatchHandoff && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.18)] border border-black/8 p-8 w-[360px] flex flex-col gap-5">
+                    <div className="bg-white rounded shadow-[0_24px_64px_rgba(0,0,0,0.18)] border border-black/8 p-8 w-[360px] flex flex-col gap-5">
                         <div>
                             <p className="text-[15px] font-semibold text-primary">
                                 {planBatchHandoff.beanName}
@@ -1068,14 +1081,14 @@ export const ActiveRoast = ({
                                     setShowContinueModal(false);
                                     onPlanBatchComplete?.();
                                 }}
-                                className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-surface text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors"
+                                className="flex-1 px-4 py-2.5 rounded-lg border border-border bg-surface text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors"
                             >
                                 {batchDone ? '일정으로 돌아가기' : '오늘은 여기까지'}
                             </button>
                             {!batchDone && (
                                 <button
                                     onClick={() => setShowContinueModal(false)}
-                                    className="flex-1 px-4 py-2.5 rounded-xl border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
+                                    className="flex-1 px-4 py-2.5 rounded-lg border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
                                 >
                                     다음 세션 시작
                                 </button>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { useCreateBlend, useUpdateBlend } from '@entities/blend';
 import type { BlendWithComponents } from '@entities/blend';
@@ -136,16 +136,24 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
           <div className="space-y-2">
             {components.map((comp, idx) => (
               <div key={idx} className="flex gap-2 items-center">
-                <select
-                  className="flex-1 px-3 py-2.5 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary outline-none transition-all"
-                  value={comp.bean_id}
-                  onChange={(e) => updateComponent(idx, 'bean_id', e.target.value)}
-                >
-                  <option value="">생두 선택</option>
-                  {beans.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
+                <div className="relative flex-1">
+                  <select
+                    className="w-full px-3 py-2.5 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary outline-none transition-all appearance-none cursor-pointer"
+                    value={comp.bean_id}
+                    onChange={(e) => updateComponent(idx, 'bean_id', e.target.value)}
+                    style={{ paddingRight: '2rem' }}
+                  >
+                    <option value="">생두 선택</option>
+                    {beans.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={16}
+                    strokeWidth={2}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+                  />
+                </div>
                 <input
                   type="number"
                   className="w-20 px-3 py-2.5 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary text-right outline-none transition-all"
@@ -191,7 +199,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
           <button
             disabled={!isValid}
             onClick={handleSubmit}
-            className="flex-2 py-3.5 rounded-2xl border-none bg-primary text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex-1 py-3.5 rounded-2xl border-none bg-primary text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {editing ? '저장' : '추가'}
           </button>

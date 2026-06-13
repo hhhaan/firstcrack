@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Plus, History, Pencil, ChevronRight, Check } from 'lucide-react';
+import { X, Plus, History, Pencil, ChevronRight, Check, ChevronDown } from 'lucide-react';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { useRoastSessions } from '@entities/roast';
 import { useAuthStore } from '@shared/store/auth';
@@ -252,15 +252,23 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     <label className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase">
                         Target Roast Level
                     </label>
-                    <select
-                        value={form.target_level}
-                        onChange={set('target_level')}
-                        className="w-full px-3.5 py-2.5 rounded-lg border border-black/10 bg-surface text-sm text-primary shadow-(--shadow-inset) outline-none focus:border-black/25 transition-colors"
-                    >
-                        {ROAST_LEVELS.map((l) => (
-                            <option key={l} value={l}>{l}</option>
-                        ))}
-                    </select>
+                    <div className="relative">
+                        <select
+                            value={form.target_level}
+                            onChange={set('target_level')}
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-black/10 bg-surface text-sm text-primary shadow-(--shadow-inset) outline-none focus:border-black/25 transition-colors appearance-none cursor-pointer"
+                            style={{ paddingRight: '2rem' }}
+                        >
+                            {ROAST_LEVELS.map((l) => (
+                                <option key={l} value={l}>{l}</option>
+                            ))}
+                        </select>
+                        <ChevronDown
+                            size={16}
+                            strokeWidth={2}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+                        />
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -349,28 +357,44 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                         ))}
                     </div>
                     {defaultType === 'bean' && (
-                        <select
-                            value={defaultBeanId ?? ''}
-                            onChange={(e) => setDefaultBeanId(e.target.value || null)}
-                            className="w-full px-3.5 py-2.5 rounded-lg border border-black/10 bg-surface text-sm text-primary shadow-(--shadow-inset) outline-none focus:border-black/25 transition-colors"
-                        >
-                            <option value="">생두 선택</option>
-                            {beans.map((b) => (
-                                <option key={b.id} value={b.id}>{b.name}</option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <select
+                                value={defaultBeanId ?? ''}
+                                onChange={(e) => setDefaultBeanId(e.target.value || null)}
+                                className="w-full px-3.5 py-2.5 rounded-lg border border-black/10 bg-surface text-sm text-primary shadow-(--shadow-inset) outline-none focus:border-black/25 transition-colors appearance-none cursor-pointer"
+                                style={{ paddingRight: '2rem' }}
+                            >
+                                <option value="">생두 선택</option>
+                                {beans.map((b) => (
+                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown
+                                size={16}
+                                strokeWidth={2}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+                            />
+                        </div>
                     )}
                     {defaultType === 'blend' && (
-                        <select
-                            value={defaultBlendId ?? ''}
-                            onChange={(e) => setDefaultBlendId(e.target.value || null)}
-                            className="w-full px-3.5 py-2.5 rounded-lg border border-black/10 bg-surface text-sm text-primary shadow-(--shadow-inset) outline-none focus:border-black/25 transition-colors"
-                        >
-                            <option value="">블렌드 선택</option>
-                            {blends.map((b) => (
-                                <option key={b.id} value={b.id}>{b.name}</option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <select
+                                value={defaultBlendId ?? ''}
+                                onChange={(e) => setDefaultBlendId(e.target.value || null)}
+                                className="w-full px-3.5 py-2.5 rounded-lg border border-black/10 bg-surface text-sm text-primary shadow-(--shadow-inset) outline-none focus:border-black/25 transition-colors appearance-none cursor-pointer"
+                                style={{ paddingRight: '2rem' }}
+                            >
+                                <option value="">블렌드 선택</option>
+                                {blends.map((b) => (
+                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown
+                                size={16}
+                                strokeWidth={2}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+                            />
+                        </div>
                     )}
                 </div>
             </div>

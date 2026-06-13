@@ -140,7 +140,7 @@ export const RoastHeader = ({
         <div className="flex items-end justify-between">
             <div>
                 <div className="flex items-center gap-2.5 mb-1.5">
-                    <div className="w-2 h-2 rounded-full" style={dotStyle} />
+                    <div className="w-2 h-2" style={dotStyle} />
                     <span className="text-xs font-normal tracking-[0.5px] uppercase" style={{ color: statusColor }}>
                         {statusText}
                     </span>
@@ -209,7 +209,7 @@ export const RoastHeader = ({
                         onClick={onOpenRoastSettings}
                         aria-label="Open roast settings"
                         title="Roast settings"
-                        className="w-8.5 h-8.5 rounded-[10px] border-none bg-surface text-muted flex items-center justify-center cursor-pointer shrink-0 mt-1.5"
+                        className="w-8.5 h-8.5 rounded-md border-none bg-surface text-muted flex items-center justify-center cursor-pointer shrink-0 mt-1.5"
                     >
                         <Settings2 size={15} strokeWidth={1.9} />
                     </button>

@@ -11,7 +11,6 @@ export const ChartTooltip = ({ active, payload, label }: ChartTooltipProps) => {
             style={{
                 background: 'white',
                 border: 'none',
-                borderRadius: 10,
                 padding: '10px 14px',
                 boxShadow: 'rgba(0,0,0,0.4) 0px 0px 1px, rgba(0,0,0,0.04) 0px 4px 4px',
                 fontSize: 12,
@@ -23,7 +22,7 @@ export const ChartTooltip = ({ active, payload, label }: ChartTooltipProps) => {
             </div>
             {payload.map((entry) => (
                 <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: 2, background: entry.color, flexShrink: 0 }} />
+                    <div style={{ width: 8, height: 8, background: entry.color, flexShrink: 0 }} />
                     <span style={{ color: 'var(--color-secondary)' }}>{entry.name}:</span>
                     <span style={{ fontWeight: 600, color: 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>
                         {entry.name === 'ROR' ? `${entry.value}°/min` : `${entry.value}°C`}
