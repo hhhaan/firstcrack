@@ -163,12 +163,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 opacity: 0.8,
             },
             label: {
-                show: true,
-                position: 'start',
-                formatter: m.event,
-                color: m.color,
-                fontSize: 11,
-                fontWeight: 600,
+                show: false,
             },
         }));
 
@@ -245,12 +240,6 @@ export const RoastTempChart: React.FC<Props> = ({
                 lineStyle: { color: CHART_COLORS.rorActual, width: 1.2 },
                 showSymbol: false,
                 ...getSmoothConfig(0.28),
-                areaStyle: {
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: `${CHART_COLORS.rorActual}33` },
-                        { offset: 1, color: `${CHART_COLORS.rorActual}00` },
-                    ]),
-                },
             },
             showRoR && showRoRET && {
                 name: 'ET RoR',

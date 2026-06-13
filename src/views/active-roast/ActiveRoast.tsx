@@ -26,7 +26,7 @@ import type { LogEntry } from '@shared/types/roast';
 import { sidecar } from '@shared/lib/sidecar';
 import { useRoastSettings, toDisplayTemp, toDisplayRoR, formatTemp, computePhaseSegments } from '@features/active-roast';
 
-import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog } from '@widgets/active-roast';
+import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog, PlanBatchContinueModal } from '@widgets/active-roast';
 import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
@@ -103,6 +103,8 @@ export const ActiveRoast = ({
     const [summaryData, setSummaryData] = useState<RoastSummaryData | null>(null);
     const [roastNotes, setRoastNotes] = useState('');
     const [noteInput, setNoteInput] = useState('');
+    const [weightGrams, setWeightGrams] = useState(0);
+    const [roastLevel, setRoastLevel] = useState<string | null>(null);
     const [showContinueModal, setShowContinueModal] = useState(false);
 
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
@@ -527,6 +529,8 @@ export const ActiveRoast = ({
         setIsRunning(false);
         setShowEndRoastModal(false);
         setRoastNotes('');
+        setWeightGrams(0);
+        setRoastLevel(null);
         setShowSummaryModal(true);
     };
 
@@ -811,7 +815,8 @@ export const ActiveRoast = ({
                                     {phase === 'preheating' && (
                                         <button
                                             onClick={handleEnterStandby}
-                                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
+                                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
+                                            style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
                                         >
                                             <Play size={12} />
                                             Roast Ready
@@ -820,7 +825,8 @@ export const ActiveRoast = ({
                                     {phase === 'standby' && (
                                         <button
                                             onClick={handleManualCharge}
-                                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
+                                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
+                                            style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
                                         >
                                             <Play size={12} />
                                             Charge
@@ -833,8 +839,13 @@ export const ActiveRoast = ({
                                         className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
                                             roastEnded || !charged
                                                 ? 'bg-surface text-muted cursor-default'
-                                                : 'bg-[rgba(254,226,226,0.8)] text-[#dc2626] cursor-pointer'
+                                                : 'cursor-pointer'
                                         }`}
+                                        style={
+                                            roastEnded || !charged
+                                                ? undefined
+                                                : { background: PHASE_COLORS.dangerBg, color: PHASE_COLORS.danger }
+                                        }
                                     >
                                         <Square size={12} />
                                         End Roast
@@ -890,7 +901,7 @@ export const ActiveRoast = ({
                                             setNoteInput('');
                                         }
                                     }}
-                                    placeholder="Add note..."
+                                    placeholder="Add note... (Enter to save)"
                                     className="h-16 text-xs px-2 py-1.5 rounded bg-surface text-primary placeholder:text-muted focus:outline-none focus:border-border resize-none"
                                 />
                                 <button
@@ -933,6 +944,10 @@ export const ActiveRoast = ({
                 isSaving={isSaving}
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
+                weightGrams={weightGrams}
+                roastLevel={roastLevel}
+                onWeightChange={setWeightGrams}
+                onRoastLevelChange={setRoastLevel}
                 onClose={() => {
                     setShowSummaryModal(false);
                     setSummaryData(null);
@@ -942,7 +957,7 @@ export const ActiveRoast = ({
                     setSummaryData(null);
                     resetActiveRoast();
                 }}
-                onSave={async (notes) => {
+                onSave={async ({ notes, weightGrams: saveWeight, roastLevel: saveLevel }) => {
                     if (!user) return;
                     const durationSeconds = elapsed;
                     const roastedAt =
@@ -983,12 +998,12 @@ export const ActiveRoast = ({
 
                         const savedSession = await saveRoastSession({
                             user_id: user.id,
-                            weight_grams: 0, // TODO: UI에서 로스트 전 또는 후 무게 입력받기
+                            weight_grams: saveWeight,
                             status: 'completed',
                             roasted_at: roastedAt,
                             duration_seconds: durationSeconds,
                             drop_temp_celsius: rawBT != null ? Math.round(rawBT) : null,
-                            roast_level: null, // TODO: UI에서 로스트 레벨(light/medium/dark) 선택받기
+                            roast_level: saveLevel,
                             scheduled_at: null,
                             notes: notes || null,
                             ambient_temp_celsius: weatherData?.temperature ?? null,
@@ -998,17 +1013,20 @@ export const ActiveRoast = ({
                             tsv_path: tsvPath,
                             plan_batch_id: planBatchHandoff?.planBatchId ?? null,
                         });
-                        // TODO: 일반 로스팅(배치 없음) 시에도 생두 재고 감소 처리 필요.
-                        //       weight_grams UI 입력 기능 구현 후 여기서 createInventoryLog 호출 추가.
                         const stockDeductions: Promise<unknown>[] = [];
 
-                        // 단일 생두 → bean_inventory_logs
-                        if (selectedBeanId && planBatchHandoff?.batchSizeKg && user) {
+                        // 배치의 batchSizeKg 또는 사용자 입력 weightGrams 중 유효한 값 사용
+                        const deductionGrams = planBatchHandoff?.batchSizeKg
+                            ? Math.round(planBatchHandoff.batchSizeKg * 1000)
+                            : saveWeight > 0 ? saveWeight : 0;
+
+                        // 단일 생두 → bean_inventory_logs (배치 여부 관계없이 동작)
+                        if (selectedBeanId && deductionGrams > 0 && user) {
                             stockDeductions.push(
                                 createInventoryLog({
                                     user_id: user.id,
                                     bean_id: selectedBeanId,
-                                    change_grams: -Math.round(planBatchHandoff.batchSizeKg * 1000),
+                                    change_grams: -deductionGrams,
                                     type: 'roast',
                                     roast_session_id: savedSession.id,
                                 }),
@@ -1016,10 +1034,10 @@ export const ActiveRoast = ({
                         }
 
                         // 블렌드 → bean_stock_events (각 구성 생두별 차감)
-                        if (planBatchHandoff?.blendId && planBatchHandoff?.batchSizeKg && user) {
+                        if (deductionGrams > 0 && user && planBatchHandoff?.blendId) {
                             try {
                                 const blendWithComponents = await blendApi.get(planBatchHandoff.blendId);
-                                const chargeGrams = Math.round(planBatchHandoff.batchSizeKg * 1000);
+                                const chargeGrams = deductionGrams;
                                 for (const comp of blendWithComponents.blend_components) {
                                     stockDeductions.push(
                                         beanStockEventApi.insert({
@@ -1061,42 +1079,14 @@ export const ActiveRoast = ({
                 }}
             />
 
-            {/* Plan batch continue modal */}
-            {showContinueModal && planBatchHandoff && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                    <div className="bg-white rounded shadow-[0_24px_64px_rgba(0,0,0,0.18)] border border-black/8 p-8 w-[360px] flex flex-col gap-5">
-                        <div>
-                            <p className="text-[15px] font-semibold text-primary">
-                                {planBatchHandoff.beanName}
-                            </p>
-                            <p className="text-[13px] text-secondary mt-1">
-                                {batchDone
-                                    ? `배치 완료 (${sessionsAfter}/${planBatchHandoff.batchCount})`
-                                    : `세션 ${sessionsAfter}/${planBatchHandoff.batchCount} 완료. 다음 세션을 진행할까요?`}
-                            </p>
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => {
-                                    setShowContinueModal(false);
-                                    onPlanBatchComplete?.();
-                                }}
-                                className="flex-1 px-4 py-2.5 rounded-lg border border-border bg-surface text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors"
-                            >
-                                {batchDone ? '일정으로 돌아가기' : '오늘은 여기까지'}
-                            </button>
-                            {!batchDone && (
-                                <button
-                                    onClick={() => setShowContinueModal(false)}
-                                    className="flex-1 px-4 py-2.5 rounded-lg border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
-                                >
-                                    다음 세션 시작
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <PlanBatchContinueModal
+                show={showContinueModal}
+                planBatchHandoff={planBatchHandoff}
+                batchDone={batchDone}
+                sessionsAfter={sessionsAfter}
+                onPlanBatchComplete={onPlanBatchComplete}
+                onDismiss={() => setShowContinueModal(false)}
+            />
         </div>
     );
 };

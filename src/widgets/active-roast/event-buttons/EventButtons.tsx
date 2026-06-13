@@ -47,7 +47,7 @@ export const EventButtons = ({
                             cursor: 'pointer',
                             letterSpacing: isSidebar ? 'normal' : '0.14px',
                             // boxShadow: pressed || registered ? 'none' : 'var(--shadow-inset)',
-                            transition: 'background 0s, color 0s',
+                            transition: 'background 0.1s ease, color 0.1s ease',
                         }}
                     >
                         <span>{label}</span>
