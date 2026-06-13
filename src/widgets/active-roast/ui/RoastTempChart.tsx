@@ -576,7 +576,7 @@ export const RoastTempChart: React.FC<Props> = ({
             return {
                 backgroundColor: 'transparent',
                 animation: false,
-                axisPointer: { link: [{ xAxisIndex: 'all' }], label: { show: false } },
+                axisPointer: { link: [{ xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1] }], label: { show: false } },
                 grid: grids,
                 xAxis: xAxes as EChartsOption['xAxis'],
                 yAxis: yAxes as EChartsOption['yAxis'],

@@ -70,6 +70,7 @@ export const RoastLog = ({
                                 style={{
                                     width: isSidebar ? 6 : 7,
                                     height: isSidebar ? 6 : 7,
+                                    borderRadius: '50%',
                                     background: entry.current
                                         ? STATUS_COLORS.active
                                         : (eventMarkerColor[entry.event] ?? 'var(--color-border)'),
