@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Coffee, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useAuthStore } from '@shared/store/auth';
 import { useBeans, useDeleteBean } from '@entities/bean/queries';
 import { BeanList } from '@widgets/bean-list/ui/BeanList';
@@ -71,13 +71,13 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
 
             <div className="flex border-b border-(--color-border) mb-4">
                 <button
-                    className={`px-4 py-2 text-sm font-medium ${tab === 'single' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
+                    className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'single' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
                     onClick={() => setTab('single')}
                 >
                     싱글
                 </button>
                 <button
-                    className={`px-4 py-2 text-sm font-medium ${tab === 'blend' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
+                    className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'blend' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
                     onClick={() => setTab('blend')}
                 >
                     블렌드
@@ -98,7 +98,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                                 className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface cursor-pointer hover:bg-surface-raised transition-colors"
                             >
                                 <Plus size={14} strokeWidth={2} />
-                                원두 추가
+                            생두 추가
                             </button>
                         </div>
                     ) : (
