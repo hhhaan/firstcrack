@@ -14,6 +14,7 @@
     "build:debug": "npm run build:sidecar && tauri build --debug && open 'src-tauri/target/debug/bundle/macos/First Crack.app'",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
+    "scan:secrets": "secretlint \"**/*\"",
     "prepare": "husky",
     "doctor": "react-doctor",
     "doctor:fast": "react-doctor --diff",
@@ -58,6 +59,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
     "@tailwindcss/vite": "^4.2.4",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
@@ -69,15 +71,19 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
     "husky": "^9.1.7",
+    "imagemin-lint-staged": "^0.5.1",
     "lint-staged": "^17.0.5",
     "react-doctor": "^0.2.8",
+    "secretlint": "^13.0.2",
     "tailwindcss": "^4.2.4",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.59.4",
     "vite": "^7.0.4"
   },
   "lint-staged": {
-    "src/**/*.{ts,tsx}": "eslint --max-warnings=0"
+    "src/**/*.{ts,tsx}": "eslint --max-warnings=0",
+    "*.{png,jpeg,jpg,gif,svg}": "imagemin-lint-staged",
+    "**/*.{ts,tsx,js,jsx,mjs,cjs,json,yml,yaml,toml,md,py,sh,html,css,env,env.*}": "secretlint"
   },
   "packageManager": "pnpm@11.3.0+sha512.2c403d6594527287672b1f7056343a1f7c3634036a67ffabfcc2b3d7595d843768f8787148d1b57cf7956c90606bbd192857c363af19e96d2d0ec9ec5741d215"
 }

@@ -1,13 +1,8 @@
-import { SENSOR_COLORS, PHASE_COLORS, STATUS_COLORS } from './colors';
-
 // ── Grid margins ─────────────────────────────────────────────────────────────
 export const CHART_GRID_LEFT = 55;
 export const CHART_GRID_TOP = 10;
-/** 단일 Y축(온도만) 또는 오른쪽 보조축 없을 때 */
 export const CHART_GRID_RIGHT = 12;
-/** RoR·Power/Speed 등 오른쪽 보조 Y축 라벨+축명 공간 */
 export const CHART_GRID_RIGHT_WITH_ROR = 50;
-/** 오른쪽 축 제목(℃/min, % 등)과 눈금 사이 간격 — 상·하단 동일값 필수 */
 export const Y_AXIS_NAME_GAP = 16;
 
 // ── Phase bar dimensions & text style ────────────────────────────────────────
@@ -48,18 +43,47 @@ export const CONTROL_GRID_BOTTOM = 40;
 // ── Single-grid layout (no controlData) ─────────────────────────────────────
 export const SINGLE_GRID_BOTTOM = 65;
 
+// ── Resolved colors for ECharts (reads CSS variables at runtime) ────────────
+// ECharts uses canvas rendering and doesn't support CSS var() natively,
+// so we resolve them at runtime from the document's computed styles.
+export const getResolvedChartColors = () => {
+    const root = getComputedStyle(document.documentElement);
+    const gv = (key: string, fallback: string) => {
+        const val = root.getPropertyValue(key).trim();
+        return val || fallback;
+    };
+
+    return {
+        btTarget: gv('--color-sensor-bt-target', 'rgba(40,180,130,0.65)'),
+        btTargetTooltip: gv('--color-sensor-bt-target-hover', 'rgba(40,180,130,0.75)'),
+        btActual: gv('--color-sensor-bt', '#22a85a'),
+        etActual: gv('--color-sensor-et', '#4a85c5'),
+        rorActual: gv('--color-sensor-ror', '#e8a828'),
+        tp: '#28a05a',
+        phaseLines: gv('--color-chart-phaseline', 'rgba(0,0,0,0.07)'),
+        currentTimeLine: gv('--color-chart-current-line', 'rgba(0,0,0,0.3)'),
+        nowLabel: '#22c55e',
+        gridLine: gv('--color-chart-grid-stroke', 'rgba(0,0,0,0.05)'),
+        gridLineMinor: gv('--color-chart-grid', 'rgba(0,0,0,0.05)'),
+        axisPointerLine: '#64748b',
+        tooltipTimeColor: '#9ca3af',
+        markerLabelColor: '#fff',
+    };
+};
+
+// ── Static base colors (for non-ECharts use) ───────────────────────────────
 export const CHART_COLORS = {
-    btTarget: SENSOR_COLORS.btTarget,
-    btTargetTooltip: SENSOR_COLORS.btTargetHover,
-    btActual: SENSOR_COLORS.bt,
-    etActual: SENSOR_COLORS.etChart,
-    rorActual: SENSOR_COLORS.ror,
-    tp: PHASE_COLORS.ready,
-    phaseLines: 'rgba(0,0,0,0.07)',
-    currentTimeLine: 'rgba(0,0,0,0.3)',
-    nowLabel: STATUS_COLORS.active,
-    gridLine: 'rgba(0,0,0,0.1)',
-    gridLineMinor: 'rgba(0,0,0,0.04)',
+    btTarget: 'var(--color-sensor-bt-target)',
+    btTargetTooltip: 'var(--color-sensor-bt-target-hover)',
+    btActual: 'var(--color-sensor-bt)',
+    etActual: 'var(--color-sensor-et)',
+    rorActual: 'var(--color-sensor-ror)',
+    tp: '#28a05a',
+    phaseLines: 'var(--color-chart-phaseline)',
+    currentTimeLine: 'var(--color-chart-current-line)',
+    nowLabel: '#22c55e',
+    gridLine: 'var(--color-chart-grid-stroke)',
+    gridLineMinor: 'var(--color-chart-grid)',
     axisPointerLine: '#64748b',
     tooltipTimeColor: '#9ca3af',
     markerLabelColor: '#fff',
@@ -75,11 +99,11 @@ export const CONTROL_COLORS = {
 
 export const EVENT_MARKER_COLORS: Record<string, string> = {
     Yellow: '#ca8a04',
-    'FC Start': PHASE_COLORS.development,
-    'FC End': PHASE_COLORS.danger,
+    'FC Start': '#d47028',
+    'FC End': '#d43a3a',
     End: '#171717',
     Note: '#6b7280',
-    TP: PHASE_COLORS.ready,
+    TP: '#28a05a',
     Drop: '#78350f',
 };
 

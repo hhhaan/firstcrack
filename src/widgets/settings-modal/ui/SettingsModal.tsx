@@ -35,12 +35,6 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [open, onClose]);
 
-    useEffect(() => {
-        if (open) {
-            setActiveTab(initialTab ?? 'general');
-        }
-    }, [open, initialTab]);
-
     if (!open) {
         return null;
     }
@@ -50,23 +44,23 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
         <ModalShell
             onClose={onClose}
             labelledBy="settings-modal-title"
-            contentClassName="max-w-[920px] w-full max-h-[min(780px,calc(100vh-48px))] flex flex-col rounded-xl bg-white shadow-2xl border border-gray-200 overflow-hidden"
+            contentClassName="max-w-[920px] w-full max-h-[min(780px,calc(100vh-48px))] flex flex-col rounded-xl bg-white dark:bg-[#1a1a1a] shadow-2xl border border-gray-200 dark:border-[#333] overflow-hidden"
         >
-            <div className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-gray-100 bg-white">
-                <h2 id="settings-modal-title" className="text-[15px] font-semibold text-gray-900 m-0">
+            <div className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-gray-100 dark:border-[#333] bg-white dark:bg-[#1a1a1a]">
+                <h2 id="settings-modal-title" className="text-[15px] font-semibold text-gray-900 dark:text-[#e5e5e5] m-0">
                     {t('settings.title')}
                 </h2>
                 <button
                     onClick={onClose}
                     aria-label={t('settings.close')}
-                    className="w-8 h-8 rounded-lg text-gray-400 flex items-center justify-center hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer shrink-0"
+                    className="w-8 h-8 rounded-lg text-gray-400 dark:text-[#999] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2a2a2a] hover:text-gray-600 dark:hover:text-[#ccc] transition-colors cursor-pointer shrink-0"
                 >
                     <X size={16} strokeWidth={1.8} />
                 </button>
             </div>
 
             <div className="grid grid-cols-[220px_minmax(0,1fr)] min-h-0 flex-1">
-                <aside className="p-4 bg-[#F9FAFB] overflow-y-auto">
+                <aside className="p-4 bg-[#F9FAFB] dark:bg-[#111] overflow-y-auto">
                     <div className="grid gap-1">
                         {tabs.map(({ id, label, icon: Icon }) => {
                             const active = id === activeTab;
@@ -77,16 +71,18 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                     onClick={() => setActiveTab(id)}
                                     className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-[10px] border-none cursor-pointer text-left transition-all duration-200 ${
                                         active
-                                            ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-                                            : 'bg-transparent hover:bg-gray-200'
+                                            ? 'bg-white dark:bg-[#2a2a2a] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+                                            : 'bg-transparent hover:bg-gray-200 dark:hover:bg-[#222]'
                                     }`}
                                 >
-                                    <div className={`shrink-0 ${active ? 'text-[#111827]' : 'text-[#6B7280]'}`}>
+                                    <div className={`shrink-0 ${active ? 'text-[#111827] dark:text-[#e5e5e5]' : 'text-[#6B7280] dark:text-[#999]'}`}>
                                         <Icon size={16} strokeWidth={1.8} />
                                     </div>
                                     <span
                                         className={`text-[14px] ${
-                                            active ? 'font-semibold text-[#111827]' : 'font-medium text-[#374151]'
+                                            active
+                                                ? 'font-semibold text-[#111827] dark:text-[#e5e5e5]'
+                                                : 'font-medium text-[#374151] dark:text-[#ccc]'
                                         }`}
                                     >
                                         {label}
@@ -100,10 +96,10 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                 <div className="p-7 overflow-y-auto">
                     <div className="flex items-start gap-3.5 mb-6">
                         <div className="mt-0.5">
-                            <h3 className="text-[18px] leading-snug font-semibold text-[#111827] m-0">
+                            <h3 className="text-[18px] leading-snug font-semibold text-[#111827] dark:text-[#e5e5e5] m-0">
                                 {activeConfig.title}
                             </h3>
-                            <p className="text-[13px] text-[#6B7280] mt-1 m-0">{activeConfig.description}</p>
+                            <p className="text-[13px] text-[#6B7280] dark:text-[#999] mt-1 m-0">{activeConfig.description}</p>
                         </div>
                     </div>
 
@@ -116,27 +112,29 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
 
                         {activeTab === 'general' && <GeneralSettingsTab />}
 
-                        {activeConfig.cards.map((card) => (
-                            <section key={card.title} className="bg-white border border-[#E5E7EB] rounded-xl p-5">
+                        {activeConfig.cards.length > 0 &&
+                            activeTab !== 'general' &&
+                            activeConfig.cards.map((card) => (
+                            <section key={card.title} className="bg-white dark:bg-[#222] border border-[#E5E7EB] dark:border-[#3a3a3a] rounded-xl p-5">
                                 <div className="mb-4">
-                                    <h4 className="text-[15px] font-semibold text-[#111827] m-0 mb-0.5">
+                                    <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-0.5">
                                         {card.title}
                                     </h4>
-                                    <p className="text-[13px] text-[#6B7280] m-0">{card.description}</p>
+                                    <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0">{card.description}</p>
                                 </div>
 
                                 <div className="grid gap-1.5">
                                     {card.items.map((item) => (
                                         <label
                                             key={item}
-                                            className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] bg-white cursor-pointer"
+                                            className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#3a3a3a] bg-white dark:bg-[#1a1a1a] cursor-pointer"
                                         >
                                             <input
                                                 type="checkbox"
                                                 defaultChecked
-                                                className="w-4 h-4 accent-[#111827]"
+                                                className="w-4 h-4 accent-[#111827] dark:accent-white"
                                             />
-                                            <span className="text-[14px] font-medium text-[#111827]">{item}</span>
+                                            <span className="text-[14px] font-medium text-[#111827] dark:text-[#e5e5e5]">{item}</span>
                                         </label>
                                     ))}
                                 </div>

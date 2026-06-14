@@ -20,13 +20,18 @@ import { Schedule } from './views/schedule';
 import { type View } from './shared/types/view';
 import { useAuthStore } from './shared/store/auth';
 import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
+import { useThemeStore } from './shared/store/theme';
+import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
 
 export const App = () => {
     const user = useAuthStore((s) => s.user);
     const loading = useAuthStore((s) => s.loading);
     const init = useAuthStore((s) => s.init);
+    const theme = useThemeStore((s) => s.theme);
+    const initTheme = useThemeStore((s) => s.initTheme);
 
     useEffect(() => init(), [init]);
+    useEffect(() => initTheme(), [initTheme]);
 
     // Auto-updater: silent background download → system notification
     const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
@@ -147,6 +152,7 @@ export const App = () => {
 
     return (
         <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+            {theme === null && <ThemeSelectModal />}
             <Sidebar
                 activeView={view}
                 onNavigate={setView}

@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @font-face {
     font-family: 'Pretendard';
     src: url('/fonts/PretendardVariable.woff2') format('woff2-variations');
@@ -18,6 +20,7 @@
     }
 }
 
+/* ── Light theme ─────────────────────────────────────────────── */
 @theme {
     --font-display: 'Inter', 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     --font-body: 'Inter', 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -44,6 +47,69 @@
     --shadow-ring:
         rgba(0, 0, 0, 0.06) 0px 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 1px 2px, rgba(0, 0, 0, 0.04) 0px 2px 4px;
     --shadow-edge: rgba(0, 0, 0, 0.08) 0px 0px 0px 0.5px;
+}
+
+/* ── Sensor & chart tokens (light) ──────────────────────────── */
+:root {
+    --color-sensor-bt: #22a85a;
+    --color-sensor-bt-target: rgba(40, 180, 130, 0.65);
+    --color-sensor-et: #4a85c5;
+    --color-sensor-ror: #e8a828;
+    --color-chart-grid: rgba(0, 0, 0, 0.05);
+    --color-chart-grid-stroke: rgba(0, 0, 0, 0.05);
+    --color-chart-axis-label: #666;
+    --color-chart-current-line: rgba(0, 0, 0, 0.3);
+    --color-chart-phaseline: rgba(0, 0, 0, 0.07);
+    --color-chart-phasebar-stroke: rgba(0, 0, 0, 0.08);
+    --color-chart-phasebar-name: #444;
+    --color-chart-phasebar-duration: #555;
+    --color-chart-tooltip-bg: #fff;
+    --color-chart-tooltip-border: rgba(0, 0, 0, 0.08);
+    --color-scrollbar-thumb: rgba(0, 0, 0, 0.1);
+    --color-scrollbar-thumb-hover: rgba(0, 0, 0, 0.16);
+}
+
+/* ── Dark theme ──────────────────────────────────────────────── */
+html.dark {
+    --color-main-bg: #1a1a1a;
+    --color-roast-bg: #181d21;
+    --color-surface: #1e1e1e;
+    --color-surface-warm: rgba(30, 28, 26, 0.8);
+    --color-surface-warm-solid: #1e1c1a;
+
+    --color-primary: #e5e5e5;
+    --color-secondary: #a3a3a3;
+    --color-muted: #8a8580;
+
+    --color-border: #2e2e2e;
+    --color-border-subtle: rgba(255, 255, 255, 0.08);
+
+    --shadow-inset: rgba(0, 0, 0, 0.4) 0px 0px 0px 0.5px inset;
+    --shadow-outline: rgba(0, 0, 0, 0.3) 0px 0px 0px 1px;
+    --shadow-elevation: rgba(0, 0, 0, 0.3) 0px 4px 4px;
+    --shadow-card: rgba(0, 0, 0, 0.6) 0px 0px 1px, rgba(0, 0, 0, 0.2) 0px 4px 4px;
+    --shadow-warm: rgba(0, 0, 0, 0.3) 0px 6px 16px;
+    --shadow-ring:
+        rgba(0, 0, 0, 0.3) 0px 0px 0px 1px, rgba(0, 0, 0, 0.2) 0px 1px 2px, rgba(0, 0, 0, 0.2) 0px 2px 4px;
+    --shadow-edge: rgba(0, 0, 0, 0.4) 0px 0px 0px 0.5px;
+
+    /* Sensor & chart tokens (dark) */
+    --color-sensor-bt: #4be08c;
+    --color-sensor-bt-target: rgba(75, 224, 140, 0.65);
+    --color-sensor-et: #beacf8;
+    --color-sensor-ror: #ffff54;
+    --color-chart-grid: rgba(255, 255, 255, 0.05);
+    --color-chart-grid-stroke: rgba(255, 255, 255, 0.06);
+    --color-chart-axis-label: #888;
+    --color-chart-current-line: rgba(255, 255, 255, 0.3);
+    --color-chart-phaseline: rgba(255, 255, 255, 0.08);
+    --color-chart-phasebar-stroke: rgba(255, 255, 255, 0.12);
+    --color-chart-phasebar-name: #bbb;
+    --color-chart-phasebar-duration: #999;
+    --color-chart-tooltip-bg: #222;
+    --color-chart-tooltip-border: rgba(255, 255, 255, 0.1);
+    --color-scrollbar-thumb: rgba(255, 255, 255, 0.12);
+    --color-scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
 }
 
 html,
@@ -82,17 +148,17 @@ html[lang='en'] {
     background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--color-scrollbar-thumb);
     border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.16);
+    background: var(--color-scrollbar-thumb-hover);
 }
 
 /* Recharts overrides */
 .recharts-wrapper .recharts-cartesian-grid-horizontal line,
 .recharts-wrapper .recharts-cartesian-grid-vertical line {
-    stroke: rgba(0, 0, 0, 0.05);
+    stroke: var(--color-chart-grid-stroke, rgba(0, 0, 0, 0.05));
 }
 .recharts-tooltip-wrapper {
     outline: none;
@@ -135,4 +201,3 @@ html[lang='en'] {
         print-color-adjust: exact;
     }
 }
-

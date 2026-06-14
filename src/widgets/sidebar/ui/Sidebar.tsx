@@ -15,6 +15,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { type View } from '@shared/types/view';
 import { useAuthStore } from '@shared/store/auth';
+import { useThemeStore } from '@shared/store/theme';
 import { useProfile } from '../../../entities/profile';
 
 interface SidebarProps {
@@ -39,6 +40,8 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
     const { t } = useTranslation();
     const [isHeaderHovered, setIsHeaderHovered] = useState(false);
     const user = useAuthStore((s) => s.user);
+    const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+    const logoSrc = resolvedTheme === 'dark' ? '/logo_dark.png' : '/logo.png';
     const { data: profile } = useProfile(user?.id ?? '');
     const workspaceName = profile?.business_name || 'My Roastery';
     const workspaceInitial = workspaceName.charAt(0).toUpperCase();
@@ -66,7 +69,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                     isHeaderHovered ? 'opacity-0 scale-90 invisible' : 'opacity-100 scale-100 visible',
                                 )}
                             >
-                                <img src="/logo.png" alt="First Crack" className="w-8 h-8 shrink-0" />
+                                <img src={logoSrc} alt="First Crack" className="w-8 h-8 shrink-0" />
                             </div>
                             <button
                                 onClick={onToggleCollapse}
@@ -93,7 +96,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                     }
                                 }}
                             >
-                                <img src="/logo.png" alt="First Crack" className="w-8 h-8 shrink-0" />
+                                <img src={logoSrc} alt="First Crack" className="w-8 h-8 shrink-0" />
                             </div>
                             <button
                                 onClick={onToggleCollapse}

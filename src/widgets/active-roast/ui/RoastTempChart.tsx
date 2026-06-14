@@ -16,7 +16,6 @@ import {
     SINGLE_GRID_BOTTOM,
 } from '@features/active-roast/lib/chart-config';
 import type { TurningPoint, TemperatureUnit, PhaseSegment } from '@features/active-roast';
-
 export interface RoastEventMarker {
     timeSec: number;
     event: string;
