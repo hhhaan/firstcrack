@@ -5,6 +5,8 @@ import { AddMachineModal } from '../../widgets/add-machine-modal/ui/AddMachineMo
 import { useMachines, VIRTUAL_ID } from '@entities/machine';
 import { sidecar } from '@shared/lib/sidecar';
 import { PageLayout } from '@shared/ui/PageLayout';
+import { PageHeader } from '@shared/ui/PageHeader';
+import { PillButton } from '@shared/ui/PillButton';
 import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
 import type { View } from '@shared/types/view';
 
@@ -117,31 +119,24 @@ export const Machines = ({
         <PageLayout>
             <AddMachineModal open={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdd={handleAdd} />
 
-            {/* Header */}
-            <div className="flex items-end justify-between mb-7">
-                <div>
-                    <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
-                        {/* {t('machines.title')} */}
-                        Machines
-                    </h1>
-                    <p className="text-sm text-muted tracking-[0.14px]">
-                        {t('machines.registered', { count: machines.length })}
-                        {sidecarStatus?.connected && connectedMachine
-                            ? ` · ${t('machines.connectedSuffix', { name: connectedMachine.name })}`
-                            : ` · ${t('machines.noActiveConnection')}`}
-                    </p>
-                </div>
-                <button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
-                >
-                    <Plus size={15} strokeWidth={2.5} />
-                    {t('machines.addMachine')}
-                </button>
-            </div>
+            <PageHeader
+                title="Machines"
+                subtitle={`${t('machines.registered', { count: machines.length })}${sidecarStatus?.connected && connectedMachine
+                    ? ` · ${t('machines.connectedSuffix', { name: connectedMachine.name })}`
+                    : ` · ${t('machines.noActiveConnection')}`
+                }`}
+                actions={
+                    <PillButton
+                        onClick={() => setIsAddModalOpen(true)}
+                    >
+                        <Plus size={15} strokeWidth={2.5} />
+                        {t('machines.addMachine')}
+                    </PillButton>
+                }
+            />
 
             {machines.length === 0 ? (
-                <div className="bg-main-bg rounded-lg py-16 px-8 border border-[#E5E5E5] text-center">
+                <div className="bg-main-bg rounded-lg py-16 px-8 text-center">
                     <Cpu size={32} strokeWidth={1.2} color="var(--color-muted)" className="mb-4 mx-auto" />
                     <p className="text-[15px] text-muted mb-5">{t('machines.empty')}</p>
                     <button
@@ -155,7 +150,7 @@ export const Machines = ({
                 <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
                     {/* List */}
                     <div>
-                        <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5 border border-[#E5E5E5]">
+                        <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5">
                             <Search size={14} strokeWidth={2} color="var(--color-muted)" />
                             <input
                                 value={search}
@@ -173,7 +168,7 @@ export const Machines = ({
                                     <div
                                         key={machine.id}
                                         onClick={() => setSelectedId(machine.id)}
-                                        className={`bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150 border ${isSelected ? 'border-black/8' : 'border-[#E5E5E5]'}`}
+                                        className={`bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150`}
                                     >
                                         <div className="flex items-start justify-between mb-2">
                                             <div>
@@ -202,7 +197,7 @@ export const Machines = ({
 
                     {/* Detail */}
                     {selected ? (
-                        <div className="bg-main-bg rounded-lg px-8 py-7 border border-[#E5E5E5] h-fit">
+                        <div className="bg-main-bg rounded-lg px-8 py-7 h-fit">
                             <div className="flex items-start justify-between mb-6">
                                 <div>
                                     <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-2">
@@ -335,7 +330,7 @@ export const Machines = ({
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-main-bg rounded-lg py-15 px-8 border border-[#E5E5E5] flex items-center justify-center text-muted text-sm">
+                        <div className="bg-main-bg rounded-lg py-15 px-8 flex items-center justify-center text-muted text-sm">
                             {t('machines.selectMachine')}
                         </div>
                     )}

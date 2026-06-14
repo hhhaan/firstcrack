@@ -28,7 +28,7 @@
 
     --color-main-bg: #ffffff;
     --color-roast-bg: #ffffff;
-    --color-surface: #f2f2f2;
+    --color-surface: #efeff0;
     --color-surface-warm: rgba(245, 242, 239, 0.8);
     --color-surface-warm-solid: #f5f2ef;
 
@@ -73,7 +73,7 @@
 html.dark {
     --color-main-bg: #1a1a1a;
     --color-roast-bg: #181d21;
-    --color-surface: #1e1e1e;
+    --color-surface: #222;
     --color-surface-warm: rgba(30, 28, 26, 0.8);
     --color-surface-warm-solid: #1e1c1a;
 

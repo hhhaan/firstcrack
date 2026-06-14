@@ -6,6 +6,8 @@ import { BeanList } from '@widgets/bean-list/ui/BeanList';
 import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
 import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
 import { PageLayout } from '@shared/ui/PageLayout';
+import { PageHeader } from '@shared/ui/PageHeader';
+import { PillButton } from '@shared/ui/PillButton';
 import type { Bean } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -52,22 +54,17 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 }}
             />
 
-            {/* Header */}
-            <div className="flex items-end justify-between mb-7">
-                <div>
-                    <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
-                        {/* {t('machines.title')} */}
-                        Bean Inventory
-                    </h1>
-                </div>
-                <button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
-                >
-                    <Plus size={15} strokeWidth={2.5} />
-                    Add Bean Lot
-                </button>
-            </div>
+            <PageHeader
+                title="Bean Inventory"
+                actions={
+                    <PillButton
+                        onClick={() => setIsAddModalOpen(true)}
+                    >
+                        <Plus size={15} strokeWidth={2.5} />
+                        Add Bean Lot
+                    </PillButton>
+                }
+            />
 
             <div className="flex border-b border-(--color-border) mb-4">
                 <button

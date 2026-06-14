@@ -16,6 +16,7 @@ import { useWeather } from './useWeather';
 import { useRoastingStore } from '@features/active-roast';
 import { useAuthStore } from '@shared/store/auth';
 import { PageLayout } from '@shared/ui/PageLayout';
+import { PillButton } from '@shared/ui/PillButton';
 
 interface DashboardProps {
     onNavigate: (view: View) => void;
@@ -259,16 +260,15 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         )}
                     </p>
                 </div>
-                <button
+                <PillButton
                     onClick={() => onNavigate('roast')}
-                    className="flex items-center gap-2 px-4.5 py-2.5 rounded-full bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
                 >
                     <span
                         className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-green-400 animate-pulse' : 'bg-white/40'}`}
                     />
                     View Active Roast
                     <ArrowRight size={14} strokeWidth={2} />
-                </button>
+                </PillButton>
             </div>
 
             {/* KPI Cards */}

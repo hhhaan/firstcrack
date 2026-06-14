@@ -2,6 +2,8 @@ import { Plus, Copy, Pencil, Trash2, MoreHorizontal, Star, GitCompare, Check, Al
 import { useState, useEffect, useRef } from 'react';
 import { type View } from '@shared/types/view';
 import { PageLayout } from '@shared/ui/PageLayout';
+import { PageHeader } from '@shared/ui/PageHeader';
+import { PillButton } from '@shared/ui/PillButton';
 import uPlot from 'uplot';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import {
@@ -341,49 +343,44 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
     return (
         <PageLayout>
-            <div className="flex items-end justify-between mb-7">
-                <div>
-                    <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
-                        Roast Profiles
-                    </h1>
-                    <p className="text-sm text-muted tracking-[0.14px]">
-                        {profiles.length} profile{profiles.length !== 1 ? 's' : ''}
-                    </p>
-                </div>
-                <div className="flex gap-2 items-center">
-                    {profiles.length > 1 && (
+            <PageHeader
+                title="Roast Profiles"
+                subtitle={`${profiles.length} profile${profiles.length !== 1 ? 's' : ''}`}
+                actions={
+                    <div className="flex gap-2 items-center">
+                        {profiles.length > 1 && (
+                            <button
+                                onClick={compareMode ? exitCompareMode : enterCompareMode}
+                                className={`flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none text-sm font-medium cursor-pointer tracking-[0.14px] transition-colors ${
+                                    compareMode
+                                        ? 'bg-primary text-white '
+                                        : 'bg-surface text-secondary  hover:text-primary'
+                                }`}
+                            >
+                                <GitCompare size={14} strokeWidth={2} />
+                                {compareMode ? '비교 모드 종료' : '비교하기'}
+                            </button>
+                        )}
                         <button
-                            onClick={compareMode ? exitCompareMode : enterCompareMode}
-                            className={`flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none text-sm font-medium cursor-pointer tracking-[0.14px] transition-colors ${
-                                compareMode
-                                    ? 'bg-primary text-white '
-                                    : 'bg-surface text-secondary  hover:text-primary'
-                            }`}
+                            onClick={() => setShowNewModal(true)}
+                            className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#171717] text-white text-sm font-medium cursor-pointer  tracking-[0.14px]"
                         >
-                            <GitCompare size={14} strokeWidth={2} />
-                            {compareMode ? '비교 모드 종료' : '비교하기'}
+                            <Plus size={15} strokeWidth={2.5} />
+                            New Profile
                         </button>
-                    )}
-                    <button
-                        onClick={() => setShowNewModal(true)}
-                        className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer  tracking-[0.14px]"
-                    >
-                        <Plus size={15} strokeWidth={2.5} />
-                        New Profile
-                    </button>
-                </div>
-            </div>
+                    </div>
+                }
+            />
 
             {profiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-lg bg-main-bg">
                     <p className="text-sm text-muted tracking-[0.14px]">아직 프로파일이 없습니다.</p>
-                    <button
-                        onClick={() => setShowNewModal(true)}
-                        className="flex items-center gap-2 px-5 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer  tracking-[0.14px]"
-                    >
-                        <Plus size={14} strokeWidth={2.5} />
-                        첫 프로파일 만들기
-                    </button>
+                            <PillButton
+                                onClick={() => setShowNewModal(true)}
+                            >
+                                <Plus size={14} strokeWidth={2.5} />
+                                첫 프로파일 만들기
+                            </PillButton>
                 </div>
             ) : (
                 <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
@@ -621,7 +618,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                             <div className="flex gap-2.5">
                                 <button
                                     onClick={() => onNavigate('roast')}
-                                    className="flex-1 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px] "
+                                    className="flex-1 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#171717] text-white text-sm font-medium cursor-pointer tracking-[0.14px] "
                                 >
                                     Start with this Profile
                                 </button>

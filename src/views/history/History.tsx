@@ -3,6 +3,7 @@ import { Search, Filter, ChevronDown, ChevronUp, Download, FileText, X, ChevronL
 import { useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
 import { useProfile } from '@entities/profile';
 import { PageLayout } from '@shared/ui/PageLayout';
+import { PageHeader } from '@shared/ui/PageHeader';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
@@ -26,6 +27,7 @@ const levelBg: Record<string, string> = {
     Medium: 'rgba(253,220,198,0.8)',
     'Medium-Dark': 'rgba(252,200,180,0.8)',
     Dark: 'rgba(240,170,150,0.8)',
+    'Dark-Light': 'rgba(240,170,150,0.8)',
 };
 
 const formatDuration = (seconds: number | null): string => {
@@ -870,32 +872,29 @@ export const History = () => {
 
     return (
         <PageLayout>
-            <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div>
-                    <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
-                        Roast History
-                    </h1>
-                    <p className="text-sm tracking-[0.14px] text-muted">
-                        {isLoading ? 'Loading…' : `${totalSessions} sessions recorded`}
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleOpenReport}
-                        className="inline-flex items-center gap-1.5 self-start rounded-full border-0 bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary"
-                    >
-                        <FileText size={14} strokeWidth={2} />
-                        월간 보고서
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleExportCsv}
-                        className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-0 bg-main-bg px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary">
-                        <Download size={14} strokeWidth={2} />
-                        Export CSV
-                    </button>
-                </div>
-            </div>
+            <PageHeader
+                title="Roast History"
+                subtitle={isLoading ? 'Loading…' : `${totalSessions} sessions recorded`}
+                className="flex-col gap-4 md:flex-row"
+                actions={
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleOpenReport}
+                            className="inline-flex items-center gap-1.5 self-start rounded-full border-0 dark:border-white bg-main-bg dark:bg-[#1a1a1a] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary"
+                        >
+                            <FileText size={14} strokeWidth={2} />
+                            월간 보고서
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleExportCsv}
+                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-0 dark:border-white bg-main-bg dark:bg-[#1a1a1a] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary">
+                            <Download size={14} strokeWidth={2} />
+                            Export CSV
+                        </button>
+                    </div>
+                }
+            />
 
             <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg p-4 border border-[#E5E5E5] lg:flex-row lg:items-center lg:gap-3 lg:px-5">
                 <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface px-3 py-2">
