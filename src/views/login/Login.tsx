@@ -5,7 +5,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { useAuthStore } from '@shared/store/auth';
 import { Spinner } from '@shared/ui/Spinner';
 
-const OAUTH_REDIRECT = import.meta.env.DEV ? 'http://localhost:1420/auth/callback' : 'firstcrack://auth/callback';
+const OAUTH_REDIRECT = import.meta.env.PUBLIC_TAURI_REDIRECT;
 
 interface LoginProps {
     onLogin?: () => void;
@@ -47,8 +47,8 @@ export const Login = ({ onLogin }: LoginProps) => {
         try {
             await signInWithEmail(email, password);
             onLogin?.();
-        } catch (err: any) {
-            setError(err.message || 'Sign in failed. Please check your email and password.');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Sign in failed. Please check your email and password.');
         } finally {
             setLoading(false);
         }
@@ -312,10 +312,8 @@ export const Login = ({ onLogin }: LoginProps) => {
                             }
 
                             if (import.meta.env.DEV) {
-                                // dev: WebView가 직접 OAuth URL로 이동 → localhost:1420/?code=... 로 돌아옴
                                 window.location.href = data.url;
                             } else {
-                                // prod: 외부 브라우저 + 딥링크 콜백
                                 await openUrl(data.url);
                             }
                         }}
