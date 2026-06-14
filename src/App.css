@@ -38,6 +38,7 @@
 
     --color-border: #e5e5e5;
     --color-border-subtle: rgba(0, 0, 0, 0.05);
+    --color-divider: #efeff0;
 
     --shadow-inset: rgba(0, 0, 0, 0.075) 0px 0px 0px 0.5px inset;
     --shadow-outline: rgba(0, 0, 0, 0.06) 0px 0px 0px 1px;
@@ -83,6 +84,7 @@ html.dark {
 
     --color-border: #2e2e2e;
     --color-border-subtle: rgba(255, 255, 255, 0.08);
+    --color-divider: #6c6a6b;
 
     --shadow-inset: rgba(0, 0, 0, 0.4) 0px 0px 0px 0.5px inset;
     --shadow-outline: rgba(0, 0, 0, 0.3) 0px 0px 0px 1px;

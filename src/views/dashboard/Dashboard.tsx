@@ -45,7 +45,8 @@ const BarCanvas = ({ data }: BarCanvasProps) => {
         ctx.scale(dpr, dpr);
 
         const cs = getComputedStyle(document.documentElement);
-        const colorPrimary = cs.getPropertyValue('--color-primary').trim() || '#171717';
+        const isDark = document.documentElement.classList.contains('dark');
+        const colorPrimary = isDark ? '#e5e5e5' : '#0B0B0B';
         const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#9ca3af';
 
         const maxVal = Math.max(...data.map((d) => d.batches), 1);
@@ -277,7 +278,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     const isPositive = change.startsWith('+');
                     const isNeutral = change === '';
                     return (
-                        <div key={label} className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5 border border-[#E5E5E5]">
+                            <div key={label} className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5">
                             <div className="flex items-start justify-between mb-3.5">
                                 <div className="w-8.5 h-8.5 rounded-lg bg-surface flex items-center justify-center">
                                     <Icon size={16} strokeWidth={1.5} color="var(--color-secondary)" />
@@ -306,8 +307,8 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             {/* Main Grid */}
             <div className="grid grid-cols-[1fr_320px] gap-5 mb-5">
                 {/* Recent Sessions */}
-                <div className="bg-main-bg rounded-lg overflow-hidden border border-[#E5E5E5]">
-                    <div className="px-6 pt-4.5 pb-3.5 flex items-center justify-between border-b border-[#E5E5E5]">
+                <div className="bg-main-bg rounded-lg overflow-hidden">
+                    <div className="px-6 pt-4.5 pb-3.5 flex items-center justify-between border-b border-divider">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Recent Sessions</h2>
                         <button
                             onClick={() => onNavigate('history')}
@@ -318,7 +319,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     </div>
                     <table className="w-full border-collapse">
                         <thead>
-                            <tr className="border-b border-[#E5E5E5]">
+                            <tr className="border-b border-divider">
                                 {['Date', 'Bean', 'Profile', 'Weight', 'Drop Temp', 'Duration', 'Level'].map((h) => (
                                     <th
                                         key={h}
@@ -348,9 +349,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                     return (
                                         <tr
                                             key={session.id}
-                                            className={
-                                                i < db.recentSessions.length - 1 ? 'border-b border-[#E5E5E5]' : ''
-                                            }
+                                            className={i < db.recentSessions.length - 1 ? 'border-b border-divider' : ''}
                                         >
                                             <td className="px-6 py-3 text-[13px] text-muted font-normal whitespace-nowrap">
                                                 {session.roasted_at ? formatDate(session.roasted_at) : '—'}
@@ -396,7 +395,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </div>
 
                 {/* Monthly chart */}
-                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5] w-full flex flex-col">
+                <div className="bg-main-bg rounded-lg px-6 py-5 w-full flex flex-col">
                     <div className="flex items-center justify-between mb-5 shrink-0">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Monthly Batches</h2>
                         <Calendar size={15} strokeWidth={1.5} color="var(--color-muted)" />
@@ -405,16 +404,16 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         <BarCanvas data={db.monthlyBatches} />
                     </div>
 
-                    <div className="mt-5 pt-4 border-t border-[#E5E5E5] shrink-0">
+                    <div className="mt-5 pt-4 border-t border-divider shrink-0">
                         <div className="text-xs text-muted mb-3 tracking-[0.5px] uppercase font-medium text-center">This Month</div>
                         <div className="flex items-center justify-center gap-0 w-full">
-                            <div className="flex-1 text-center max-w-[160px]">
+                            <div className="flex-1 text-center border-x border-divider max-w-[160px]">
                                 <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
                                     {db.loading ? '—' : db.batchesThisMonth}
                                 </div>
                                 <div className="text-xs text-muted tracking-[0.14px]">batches</div>
                             </div>
-                            <div className="flex-1 text-center border-x border-[#E5E5E5] max-w-[160px]">
+                            <div className="flex-1 text-center max-w-[160px]">
                                 <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
                                     {db.loading ? '—' : db.kgRoastedThisMonth.toFixed(1)}
                                 </div>
@@ -436,7 +435,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             {/* Upcoming + Inventory Alerts */}
             <div className="grid grid-cols-2 gap-5">
                 {/* Upcoming */}
-                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
+                <div className="bg-main-bg rounded-lg px-6 py-5">
                     <div className="flex items-center justify-between mb-3.5">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Upcoming Batches</h2>
                         <button
@@ -454,7 +453,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         db.upcomingBatches.map((item, i) => (
                             <div
                                 key={item.id}
-                                className={`flex items-center gap-3 py-2.5 ${i < db.upcomingBatches.length - 1 ? 'border-b border-[#E5E5E5]' : ''}`}
+                                className={`flex items-center gap-3 py-2.5 ${i < db.upcomingBatches.length - 1 ? 'border-b border-divider' : ''}`}
                             >
                                 <div className="w-8.5 h-8.5 rounded-lg bg-surface-warm-solid flex items-center justify-center shrink-0">
                                     <Calendar size={14} strokeWidth={1.5} color="var(--color-secondary)" />
@@ -478,7 +477,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </div>
 
                 {/* Inventory Alerts */}
-                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
+                <div className="bg-main-bg rounded-lg px-6 py-5">
                     <h2 className="text-[15px] font-medium text-primary tracking-[0.15px] mb-3.5">Inventory Alerts</h2>
                     {db.loading ? (
                         <p className="text-[13px] text-muted py-2">Loading...</p>
@@ -493,7 +492,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                             return (
                                 <div
                                     key={item.id}
-                                    className={`flex items-center gap-3 py-2.5 ${i < db.inventoryAlerts.length - 1 ? 'border-b border-[#E5E5E5]' : ''}`}
+                                    className={`flex items-center gap-3 py-2.5 ${i < db.inventoryAlerts.length - 1 ? 'border-b border-divider' : ''}`}
                                 >
                                     <div
                                         className="w-8.5 h-8.5 rounded-lg flex items-center justify-center shrink-0"
