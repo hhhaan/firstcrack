@@ -681,7 +681,7 @@ export const ActiveRoast = ({
                         {/* TODO: 필요 시 주석 해제 — 이벤트 기반 단계 표시 pill */}
                         {/* <div className="flex gap-2 mb-3">
                             {[
-                                { label: 'Drying', active: roastPhaseName === 'Drying' && charged },
+                                { labl: 'Drying', active: roastPhaseName === 'Drying' && charged },
                                 { label: 'Maillard', active: roastPhaseName === 'Maillard' },
                                 { label: 'Development', active: roastPhaseName === 'Development' },
                             ].map(({ label, active }) => (
