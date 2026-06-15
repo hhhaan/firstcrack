@@ -112,14 +112,18 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                 name: editingProfile.name ?? '',
                 description: editingProfile.description ?? '',
                 target_level: editingProfile.target_level ?? 'Medium',
-                charge_temp_celsius: editingProfile.charge_temp_celsius != null ? String(editingProfile.charge_temp_celsius) : '',
-                drop_temp_celsius: editingProfile.drop_temp_celsius != null ? String(editingProfile.drop_temp_celsius) : '',
+                charge_temp_celsius:
+                    editingProfile.charge_temp_celsius != null ? String(editingProfile.charge_temp_celsius) : '',
+                drop_temp_celsius:
+                    editingProfile.drop_temp_celsius != null ? String(editingProfile.drop_temp_celsius) : '',
                 duration_sec: editingProfile.duration_sec != null ? String(editingProfile.duration_sec) : '',
                 dev_time_sec: editingProfile.dev_time_sec != null ? String(editingProfile.dev_time_sec) : '',
                 dev_pct: editingProfile.dev_pct != null ? String(editingProfile.dev_pct) : '',
             });
             setSelectedSessionId(editingProfile.source_session_id ?? null);
-            setDefaultType(editingProfile.default_bean_id ? 'bean' : editingProfile.default_blend_id ? 'blend' : 'none');
+            setDefaultType(
+                editingProfile.default_bean_id ? 'bean' : editingProfile.default_blend_id ? 'blend' : 'none',
+            );
             setDefaultBeanId(editingProfile.default_bean_id ?? null);
             setDefaultBlendId(editingProfile.default_blend_id ?? null);
         } else {
@@ -150,8 +154,10 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
 
     if (!open) return null;
 
-    const set = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-        setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    const set =
+        (field: keyof FormState) =>
+        (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+            setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
     const handleSessionSelect = (sessionId: string) => {
         const session = sessions.find((s) => s.id === sessionId);
@@ -247,7 +253,8 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     </button>
                 </div>
 
-                {mode === 'from-session' && selectedSessionId && (
+                {mode === 'from-session' &&
+                    selectedSessionId &&
                     (() => {
                         const session = sessions.find((s) => s.id === selectedSessionId);
                         return session ? (
@@ -256,15 +263,18 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                                     <History size={14} strokeWidth={2} className="text-muted flex-shrink-0" />
                                     <span>
                                         Based on{' '}
-                                        <span className="font-medium text-primary">{session.beans?.name ?? 'Unknown bean'}</span>
-                                        {' · '}{fmtDate(session.roasted_at)}
-                                        {session.duration_seconds != null && ` · ${fmtDuration(session.duration_seconds)}`}
+                                        <span className="font-medium text-primary">
+                                            {session.beans?.name ?? 'Unknown bean'}
+                                        </span>
+                                        {' · '}
+                                        {fmtDate(session.roasted_at)}
+                                        {session.duration_seconds != null &&
+                                            ` · ${fmtDuration(session.duration_seconds)}`}
                                     </span>
                                 </div>
                             </div>
                         ) : null;
-                    })()
-                )}
+                    })()}
             </div>
 
             {/* Scrollable Body */}
@@ -375,7 +385,9 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                                 placeholder="e.g. 13"
                                 value={form.dev_pct}
                                 onChange={set('dev_pct')}
-                                min={0} max={100} step={0.1}
+                                min={0}
+                                max={100}
+                                step={0.1}
                             />
                         </div>
                     </div>
@@ -384,7 +396,13 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     <div className="border-t border-black/4 pt-6">
                         <label className={labelCls}>기본 생두 (선택)</label>
                         <div className="flex gap-2 mt-2">
-                            {([['none', '없음'], ['bean', '싱글'], ['blend', '블렌드']] as const).map(([t, label]) => (
+                            {(
+                                [
+                                    ['none', '없음'],
+                                    ['bean', '싱글'],
+                                    ['blend', '블렌드'],
+                                ] as const
+                            ).map(([t, label]) => (
                                 <button
                                     key={t}
                                     type="button"
@@ -520,7 +538,8 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                                         </span>
                                         <span className="text-[12px] text-muted">
                                             {fmtDate(session.roasted_at)}
-                                            {session.drop_temp_celsius != null && ` · Drop ${session.drop_temp_celsius}°C`}
+                                            {session.drop_temp_celsius != null &&
+                                                ` · Drop ${session.drop_temp_celsius}°C`}
                                             {session.duration_seconds != null &&
                                                 ` · ${fmtDuration(session.duration_seconds)}`}
                                             {session.roast_level && ` · ${session.roast_level}`}
@@ -574,16 +593,14 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
 
             {/* Scrollable Body */}
             <div className="px-8 py-6 overflow-y-auto flex-1">
-                <p className="text-sm text-secondary tracking-[0.14px] mb-4">
-                    프로파일을 어떻게 만들까요?
-                </p>
+                <p className="text-sm text-secondary tracking-[0.14px] mb-4">프로파일을 어떻게 만들까요?</p>
 
                 <div className="flex flex-col gap-4">
                     {/* Option: Manual Input */}
                     <button
                         type="button"
                         onClick={() => setMode('manual')}
-                        className="flex items-center gap-4 px-5 py-4 rounded-xl border border-black/8 bg-white/70 cursor-pointer hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all text-left group"
+                        className="flex items-center gap-4 px-5 py-4 rounded-xl border border-black/8 bg-white/70 cursor-pointer transition-all text-left group"
                     >
                         <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center flex-shrink-0 shadow-(--shadow-inset)">
                             <Pencil size={18} strokeWidth={1.5} color="var(--color-secondary)" />
@@ -607,7 +624,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     <button
                         type="button"
                         onClick={() => setMode('session-list')}
-                        className="flex items-center gap-4 px-5 py-4 rounded-xl border border-black/8 bg-white/70 cursor-pointer hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all text-left group"
+                        className="flex items-center gap-4 px-5 py-4 rounded-xl border border-black/8 bg-white/70 cursor-pointer transition-all text-left group"
                     >
                         <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center flex-shrink-0 shadow-(--shadow-inset)">
                             <History size={18} strokeWidth={1.5} color="var(--color-secondary)" />

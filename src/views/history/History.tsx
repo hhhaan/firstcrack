@@ -116,33 +116,35 @@ type ExpandedRowProps = {
 
 function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
     return (
-    <tr className="border-b border-border-subtle bg-[rgba(245,242,239,0.3)]">
-        <td colSpan={columns.length} className="px-4 py-4 md:px-6">
-            <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
-                {[
-                    { label: 'Origin', value: session.beans?.origin ?? '—' },
-                    {
-                        label: 'Drop Temp',
-                        value: session.drop_temp_celsius != null ? `${session.drop_temp_celsius}°C` : '—',
-                    },
-                    { label: 'Duration', value: formatDuration(session.duration_seconds) },
-                ].map(({ label, value }) => (
-                    <div key={label} className="mb-2">
-                        <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                            {label}
+        <tr className="border-b border-border-subtle bg-[rgba(245,242,239,0.3)]">
+            <td colSpan={columns.length} className="px-4 py-4 md:px-6">
+                <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
+                    {[
+                        { label: 'Origin', value: session.beans?.origin ?? '—' },
+                        {
+                            label: 'Drop Temp',
+                            value: session.drop_temp_celsius != null ? `${session.drop_temp_celsius}°C` : '—',
+                        },
+                        { label: 'Duration', value: formatDuration(session.duration_seconds) },
+                    ].map(({ label, value }) => (
+                        <div key={label} className="mb-2">
+                            <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                                {label}
+                            </div>
+                            <div className="font-mono text-[13px] font-medium tracking-[0.14px] text-primary">
+                                {value}
+                            </div>
                         </div>
-                        <div className="font-mono text-[13px] font-medium tracking-[0.14px] text-primary">{value}</div>
-                    </div>
-                ))}
-                <div className="mb-2 md:col-span-3 lg:col-auto">
-                    <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">Notes</div>
-                    <div className="text-[13px] leading-normal tracking-[0.14px] text-secondary">
-                        {session.notes || <span className="text-muted">No notes recorded.</span>}
+                    ))}
+                    <div className="mb-2 md:col-span-3 lg:col-auto">
+                        <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">Notes</div>
+                        <div className="text-[13px] leading-normal tracking-[0.14px] text-secondary">
+                            {session.notes || <span className="text-muted">No notes recorded.</span>}
+                        </div>
                     </div>
                 </div>
-            </div>
-        </td>
-    </tr>
+            </td>
+        </tr>
     );
 }
 const HistoryTable = ({
@@ -184,7 +186,7 @@ const HistoryTable = ({
     };
 
     return (
-        <div className="overflow-x-auto rounded-lg bg-main-bg border border-[#E5E5E5] [-webkit-overflow-scrolling:touch]">
+        <div className="overflow-x-auto rounded-lg bg-main-bg [-webkit-overflow-scrolling:touch]">
             <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
                 <thead>
                     <tr className="border-b border-border-subtle">
@@ -254,12 +256,12 @@ const HistoryTable = ({
                 </span>
 
                 <div className="flex items-center gap-1">
-                <button
-                    type="button"
-                    onClick={() => onPageChange(page - 1)}
-                    disabled={page === 1}
-                    className="flex h-6 w-6 items-center justify-center rounded text-muted transition hover:bg-surface hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
-                >
+                    <button
+                        type="button"
+                        onClick={() => onPageChange(page - 1)}
+                        disabled={page === 1}
+                        className="flex h-6 w-6 items-center justify-center rounded text-muted transition hover:bg-surface hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
                         <ChevronLeft size={13} strokeWidth={2} />
                     </button>
 
@@ -346,7 +348,7 @@ const FilterDropdown = ({
             </button>
 
             {open && (
-                <div className="absolute top-full left-0 z-50 mt-1 min-w-35 rounded-lg bg-main-bg py-1 border border-[#E5E5E5]">
+                <div className="absolute top-full left-0 z-50 mt-1 min-w-35 rounded-lg bg-main-bg py-1">
                     <button
                         onClick={() => {
                             onSelect('all');
@@ -476,7 +478,9 @@ const DateRangeFilter = ({
     const handleApply = () => {
         let f = draftFrom;
         let t = draftTo;
-        if (f && t && f > t) { [f, t] = [t, f]; }
+        if (f && t && f > t) {
+            [f, t] = [t, f];
+        }
         onFromYM(f);
         onToYM(t);
         setOpen(false);
@@ -498,7 +502,11 @@ const DateRangeFilter = ({
                         size={11}
                         strokeWidth={2.5}
                         className="text-muted hover:text-primary"
-                        onClick={(e) => { e.stopPropagation(); onPresetChange('all'); setOpen(false); }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onPresetChange('all');
+                            setOpen(false);
+                        }}
                     />
                 ) : (
                     <ChevronDown size={11} strokeWidth={2} className="text-muted" />
@@ -506,7 +514,7 @@ const DateRangeFilter = ({
             </button>
 
             {open && (
-                <div className="absolute top-full left-0 z-50 mt-1 flex rounded-lg bg-main-bg border border-[#E5E5E5] overflow-hidden">
+                <div className="absolute top-full left-0 z-50 mt-1 flex rounded-lg bg-main-bg overflow-hidden">
                     {/* 프리셋 목록 */}
                     <div className="flex shrink-0 flex-col gap-0.5 py-2 px-2 w-36">
                         {DATE_PRESETS.map((p) => (
@@ -525,22 +533,28 @@ const DateRangeFilter = ({
                     {/* 커스텀 범위 — draft 상태로 관리, Apply 버튼으로만 반영 */}
                     {preset === 'custom' && (
                         <div className="flex flex-col justify-center gap-3 border-l border-border-subtle px-5 py-4 self-stretch">
-                            {([
-                                { label: '시작', val: draftFrom, set: setDraftFrom },
-                                { label: '종료', val: draftTo, set: setDraftTo },
-                            ] as const).map(({ label, val, set }) => {
+                            {(
+                                [
+                                    { label: '시작', val: draftFrom, set: setDraftFrom },
+                                    { label: '종료', val: draftTo, set: setDraftTo },
+                                ] as const
+                            ).map(({ label, val, set }) => {
                                 const yr = val ? val.split('-')[0] : '';
                                 const mo = val ? val.split('-')[1] : '';
                                 return (
                                     <div key={label} className="flex items-center gap-2">
-                                        <span className="w-7 shrink-0 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">{label}</span>
+                                        <span className="w-7 shrink-0 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                                            {label}
+                                        </span>
                                         <Select value={yr} onValueChange={(v) => set(mo ? `${v}-${mo}` : v)}>
                                             <SelectTrigger className="w-24">
                                                 <SelectValue placeholder="년도" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {years.map((y) => (
-                                                    <SelectItem key={y} value={y}>{y}년</SelectItem>
+                                                    <SelectItem key={y} value={y}>
+                                                        {y}년
+                                                    </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
@@ -550,7 +564,9 @@ const DateRangeFilter = ({
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {MONTHS_KO.map((name, i) => (
-                                                    <SelectItem key={i} value={String(i + 1).padStart(2, '0')}>{name}</SelectItem>
+                                                    <SelectItem key={i} value={String(i + 1).padStart(2, '0')}>
+                                                        {name}
+                                                    </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
@@ -590,7 +606,11 @@ export const History = () => {
     const { data: profile } = useProfile(user?.id ?? '');
 
     // --- Server-side paginated query for table data ---
-    const { data: paginatedResult, isLoading, isError } = useRoastSessionsPaginated({
+    const {
+        data: paginatedResult,
+        isLoading,
+        isError,
+    } = useRoastSessionsPaginated({
         userId: user?.id ?? '',
         status: 'completed',
         page: Math.min(page, Math.max(1, Math.ceil(page))),
@@ -653,14 +673,25 @@ export const History = () => {
     const handlePresetChange = (p: DatePreset) => {
         setDatePreset(p);
         setPage(1);
-        if (p === 'all') { setFromYM(''); setToYM(''); }
-        else if (p !== 'custom') {
+        if (p === 'all') {
+            setFromYM('');
+            setToYM('');
+        } else if (p !== 'custom') {
             const range = getPresetYMRange(p);
-            if (range) { setFromYM(range.fromYM); setToYM(range.toYM); }
+            if (range) {
+                setFromYM(range.fromYM);
+                setToYM(range.toYM);
+            }
         }
     };
-    const handleFromYM = (v: string) => { setFromYM(v); setPage(1); };
-    const handleToYM = (v: string) => { setToYM(v); setPage(1); };
+    const handleFromYM = (v: string) => {
+        setFromYM(v);
+        setPage(1);
+    };
+    const handleToYM = (v: string) => {
+        setToYM(v);
+        setPage(1);
+    };
     const handleSearch = (v: string) => {
         setSearch(v);
         setPage(1);
@@ -689,9 +720,7 @@ export const History = () => {
     const displaySessions = useMemo((): RoastSessionWithRelations[] => {
         if (sortKey !== 'bean') return filteredForDisplay;
         const dir = sortAsc ? 1 : -1;
-        return [...filteredForDisplay].sort((a, b) =>
-            dir * (a.beans?.name ?? '').localeCompare(b.beans?.name ?? ''),
-        );
+        return [...filteredForDisplay].sort((a, b) => dir * (a.beans?.name ?? '').localeCompare(b.beans?.name ?? ''));
     }, [filteredForDisplay, sortKey, sortAsc]);
 
     // Compute effective total for "X–Y of Z" display
@@ -719,7 +748,8 @@ export const History = () => {
                     (s.roast_profiles?.name ?? '').toLowerCase().includes(q) ||
                     (s.beans?.origin ?? '').toLowerCase().includes(q)
                 )
-            ) return false;
+            )
+                return false;
             // Origin filter
             if (originFilter !== 'all' && s.beans?.origin !== originFilter) return false;
             return true;
@@ -777,15 +807,13 @@ export const History = () => {
     const renderContent = (): ReactNode => {
         if (isError) {
             return (
-                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted border border-[#E5E5E5]">
+                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">
                     Failed to load sessions. Please try again.
                 </div>
             );
         }
         if (isLoading) {
-            return (
-                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted border border-[#E5E5E5]">Loading…</div>
-            );
+            return <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">Loading…</div>;
         }
         return (
             <HistoryTable
@@ -843,15 +871,12 @@ export const History = () => {
             const dir = await downloadDir();
             const path = `${dir}${filename}`;
 
-            const confirmed = await confirm(
-                `Save to: ${path}\nExport ${filtered.length} session(s) as CSV?`,
-                {
-                    title: 'First Crack',
-                    kind: 'info',
-                    okLabel: 'Export',
-                    cancelLabel: 'Cancel',
-                },
-            );
+            const confirmed = await confirm(`Save to: ${path}\nExport ${filtered.length} session(s) as CSV?`, {
+                title: 'First Crack',
+                kind: 'info',
+                okLabel: 'Export',
+                cancelLabel: 'Cancel',
+            });
             if (!confirmed) return;
 
             const csv = sessionsToCsv(filtered);
@@ -888,7 +913,8 @@ export const History = () => {
                         <button
                             type="button"
                             onClick={handleExportCsv}
-                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-0 dark:border-white bg-main-bg dark:bg-[#1a1a1a] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary">
+                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-0 dark:border-white bg-main-bg dark:bg-[#1a1a1a] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary"
+                        >
                             <Download size={14} strokeWidth={2} />
                             Export CSV
                         </button>
@@ -896,7 +922,7 @@ export const History = () => {
                 }
             />
 
-            <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg p-4 border border-[#E5E5E5] lg:flex-row lg:items-center lg:gap-3 lg:px-5">
+            <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg p-4 lg:flex-row lg:items-center lg:gap-3 lg:px-5">
                 <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface px-3 py-2">
                     <Search size={14} strokeWidth={2} className="text-muted" />
                     <input
