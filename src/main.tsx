@@ -1,14 +1,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as Sentry from '@sentry/react';
 import { App } from './App';
 import { initI18n } from './shared/i18n';
 import 'uplot/dist/uPlot.min.css';
 
 const is4xx = (error: unknown) => {
     if (!error || typeof error !== 'object') return false;
-    const status = (error as Record<string, unknown>).status
-        ?? (error as { response?: { status?: unknown } }).response?.status;
+    const status =
+        (error as Record<string, unknown>).status ?? (error as { response?: { status?: unknown } }).response?.status;
     return typeof status === 'number' && status >= 400 && status < 500;
 };
 
@@ -22,6 +23,15 @@ const queryClient = new QueryClient({
         },
     },
 });
+
+if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
+    Sentry.init({
+        dsn: import.meta.env.VITE_SENTRY_DSN,
+        environment: 'production',
+        integrations: [Sentry.browserTracingIntegration()],
+        tracesSampleRate: 0.1,
+    });
+}
 
 const bootstrap = async () => {
     await initI18n();

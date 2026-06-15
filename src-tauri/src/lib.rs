@@ -144,6 +144,8 @@ pub fn run() {
         "https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944",
         sentry::ClientOptions {
             release: sentry::release_name!(),
+            environment: Some(std::borrow::Cow::Borrowed("production")),
+            traces_sample_rate: 0.1,
             ..Default::default()
         },
     ));
