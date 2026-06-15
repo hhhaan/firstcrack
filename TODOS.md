@@ -226,30 +226,11 @@ npm install -D vitest @testing-library/react @testing-library/user-event
 **Context:** ActiveRoast.tsx가 가장 크고 복잡. Machines.tsx, AddMachineModal.tsx는 상대적으로 작음.
 **Depends on:** 없음
 
-### [T3] Shadow 제거 및 Border 스타일 전환 — ✅ 진행 중
+### [T3] Shadow 제거 및 Border 스타일 전환 — Views/Widgets ✅ 완료, 모달 [T3.1] 잔여
 
-**완료된 변경사항:**
-- ✅ Views: Dashboard, Machines, Profiles, History, Bean Inventory, Active Roast, Schedule
-- ✅ Widgets: BeanList, BeanDetail, RoastSummaryModal, EndRoastModal, LiveReadings, RoastHeader
-- ✅ Shadow classes 모두 제거: `shadow-(--shadow-ring)`, `shadow-(--shadow-inset)`, `shadow-sm` 등
-- ✅ Card/Panel borders: `border border-[#E5E5E5]` 통일
-- ✅ Schedule 달력: 중복 border 제거, Day view 배치 박스 borderless, StatusBadge pending/skipped borderless
-- ✅ Active Roast: Chart container, Controls, Live Readings, Modals 모두 shadow 제거
+**완료:** Views (Dashboard, Machines, Profiles, History, Bean Inventory, Active Roast, Schedule) 및 Widgets (BeanList, BeanDetail, RoastSummaryModal, EndRoastModal, LiveReadings, RoastHeader) shadow 제거 및 `border border-[#E5E5E5]` 통일.
 
-**스타일 변경 규칙:**
-- 모든 `shadow-(--shadow-*)` → 제거
-- 모든 `shadow-ring`, `shadow-sm`, `shadow-card` → 제거
-- 메인 카드/패널: `border border-[#E5E5E5]` 적용
-- 구분 라인: `border-b/r border-[#E5E5E5]` 적용
-- 상태별 borders (in-progress, done 등): 색상 유지
-
-**미완료:**
-- ⏳ [T3.1] 모든 모달 (AddBeanModal, EditBatchModal, AddMachineModal, NewProfileModal, RoastSettingsTab 등) 스타일 전환 필요
-
-**Why:** ElevenLabs 등 모던 SaaS의 borderless/subtle border 트렌드. Shadow 제거로 더 경량 UI.
-**Pros:** 세련된 비주얼, 일관된 border 색상.
-**Context:** Views 및 주요 widgets 완료. 모달은 별도 작업으로 분리.
-**Depends on:** 없음
+**미완료:** ⏳ [T3.1] 모든 모달 스타일 전환 필요
 
 ### [T3.1] 모달 스타일 전환 — Shadow 제거 및 Border 통일
 
@@ -319,31 +300,6 @@ npm install -D vitest @testing-library/react @testing-library/user-event
 ---
 
 ## LOW — 하드웨어 테스트 후
-
-### [T32] Charge 전 pre-charge 폴링 및 그래프 시각화 ✅ 완료
-
-**Completed:** 2026-05-25
-
-**구현된 내용:**
-- standby 단계(READY 버튼 이후)부터 BT/ET 실시간 폴링 및 LiveReadings 표시
-- pre-charge 포인트를 차트에 실시간 시각화 (세션 상대 시간)
-- Charge 감지 시 최근 `preChargeDisplaySec`(기본 60초)만 남기고 음수 상대 시간으로 변환
-- `POST /standby` 엔드포인트로 가상 머신에 생두 투입 시뮬레이션 시작 알림
-- 자동 Charge 감지: standby 중 5폴링 연속 5°C 이상 BT 하강 시 자동 Charge 처리
-- `preChargeDisplaySec` 사용자 설정 가능 (`RoastSettings`)
-
-**Changed files:**
-- `useSidecarPolling.ts` — standby 단계 이중 기록 (absTime 버퍼 + livePoints)
-- `useChartData.ts` — xMin 음수 지원
-- `useChartZoom.ts` — minTime 파라미터
-- `ActiveRoast.tsx` — enterStandby 호출, effectivePreChargeDisplaySec 계산
-- `settings.ts` — preChargeDisplaySec 추가
-- `sidecar.ts` — enterStandby() 추가
-- `virtual.py`, `manager.py`, `main.py` — standby 시뮬레이션
-
-**Depends on:** 실제 하드웨어 테스트 (실기기에서도 enter_standby 호출하면 동작)
-
----
 
 ### [T28] ja / zh-CN 언어별 폰트 적용
 
@@ -649,23 +605,6 @@ Time,BT,ET,RoR,Heater,Fan,...
 - `papaparse` (CSV 파싱, 이미 많은 React 프로젝트에서 사용)
 
 **Depends on:** D1 (로스트 저장 구조 완성)
-
----
-
-### [T27] Python Sidecar 패키징 (PyInstaller + Tauri sidecar 연동)
-
-**What:** Python 서버(`src-tauri/sidecar/main.py`)를 PyInstaller로 바이너리로 컴파일하여 Tauri 번들에 포함.
-**Why:** 현재 Tauri 번들링(`bundle.active: true`)은 설정되어 있으나 Python 서버가 패키징에 연결되어 있지 않음. `.spec` 파일, 빌드 스크립트, `lib.rs` sidecar 등록 모두 없음.
-**How:**
-
-1. ~~`server.py` 구현 완성~~ → `main.py`가 진입점으로 직접 사용됨
-2. ~~`src-tauri/sidecar/server.spec` PyInstaller spec 파일 작성~~ → `sidecar.spec` 완료
-3. ~~`tauri.conf.json`에 `externalBin` 등록~~ → `"binaries/sidecar"` 등록 완료
-4. ~~`src-tauri/src/lib.rs`에 sidecar 실행 로직 추가~~ → `tauri_plugin_shell`로 구현 완료
-5. ~~빌드 스크립트 작성~~ → `scripts/build-sidecar.sh` 완료
-
-**Completed:** 2026-05-16 — `npm run build:sidecar`로 `src-tauri/binaries/sidecar-aarch64-apple-darwin` 생성 가능.
-**Depends on:** T8 (CORS)
 
 ---
 

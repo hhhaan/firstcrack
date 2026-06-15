@@ -41,18 +41,18 @@ CSS 변수는 `src/App.css`의 `@theme` 블록에 정의되어 있음.
 
 | Hex | 역할 예시 |
 |---|---|
-| `#0B0B0B` | 진한 검정 — 다크 배경, 강한 대비 강조, Danger 위상 / End 마커 |
+| `#0B0B0B` | 진한 검정 — 다크 배경, 강한 대비 강조, Danger 위상 (대비용) |
 | `#FFFF54` | 밝은 노랑 — Rate of Rise 라인 (dark), Drying 위상 / Yellow 마커 / Heat 라인 |
 | `#81FBA5` | 민트 그린 — Ready 위상 / TP 마커 / 연결 상태 도트 / 현재 시간 라인 |
-| `#72EBBC` | 청록 민트 — Drum 온도 라인 |
-| `#44BFFC` | 밝은 파랑 — FC Start 마커 / Maillard 위상 / Fan 라인 |
-| `#5C41FF` | 진한 보라 — FC End 마커 |
-| `#756AFC` | 연한 보라 — Development 위상 / 프로필 비교 |
-| `#8080F0` | 중간 보라 — UI 악센트 |
-| `#A6B0FF` | 연한 페리윙클 — 링크 / 비활성 강조 |
+| `#72EBBC` | 청록 민트 — Note 마커 / Drum 온도 라인 / Default 프로필 배지 |
+| `#44BFFC` | 밝은 파랑 — FC Start 마커 / Maillard 위상 / Fan 라인 / 진행중 배지 / 첫번째 배치 번호 |
+| `#5C41FF` | 진한 보라 — Delete 액션 배지 / KPI 부정 변화 |
+| `#756AFC` | 연한 보라 — FC End 마커 / Development 위상 / 프로필 비교 / 재고 차감 도트 / 다음 배치 라벨 |
+| `#8080F0` | 중간 보라 — End 마커 / 재고 부족(Out) 배지 / UI 악센트 |
+| `#A6B0FF` | 연한 페리윙클 — Drop 마커 / 대기(pending)/건너뜀(skipped) 배지 / 오프라인 상태 / 무료 플랜 배지 / Coming soon 배지 |
 | `#E4E4E4` | 밝은 회색 — 보더/구분선 (light) |
-| `#A3A2A2` | 중간 회색 — Light 로스트 레벨 텍스트 / Note 마커 |
-| `#6C6A6B` | 어두운 회색 — Medium-Light 로스트 레벨 / Drop 마커, 구분선 (dark) |
+| `#A3A2A2` | 중간 회색 — Light 로스트 레벨 텍스트 |
+| `#6C6A6B` | 어두운 회색 — Medium-Light 로스트 레벨, 구분선 (dark) |
 
 ### Sensor & Chart Colors (light / dark)
 
