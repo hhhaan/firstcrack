@@ -19,17 +19,12 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
 
 import logging
 import os
-from pathlib import Path
 from typing import Any
 
 from aiohttp import web
-from dotenv import load_dotenv
 
 from manager import RoasterManager
 from roaster_registry import ROASTER_REGISTRY, PROTOCOL_FORM_FIELDS
-
-# .env 로드: 프로젝트 루트 (main.py 기준 ../../)
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 _log = logging.getLogger(__name__)
