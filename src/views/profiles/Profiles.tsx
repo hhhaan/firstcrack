@@ -20,7 +20,7 @@ import { useAuthStore } from '@shared/store/auth';
 import { NewProfileModal } from './NewProfileModal';
 import type { RoastProfile } from '@shared/types/database.types';
 
-const COMPARE_COLORS = ['#171717', '#dc2626', '#0ea5e9', '#16a34a'] as const;
+const COMPARE_COLORS = ['#81FBA5', '#44BFFC', '#756AFC', '#FFFF54'] as const;
 
 const fmtDuration = (sec: number | null): string => {
     if (sec == null) return '—';
@@ -58,10 +58,10 @@ interface SeriesData {
 
 const TABLE_ROWS: { label: string; getValue: (p: RoastProfileWithSource) => string }[] = [
     { label: 'Duration', getValue: (p) => fmtDuration(p.duration_sec) },
-    { label: 'Drop Temp', getValue: (p) => p.drop_temp_celsius != null ? `${p.drop_temp_celsius}°C` : '—' },
-    { label: 'Charge Temp', getValue: (p) => p.charge_temp_celsius != null ? `${p.charge_temp_celsius}°C` : '—' },
+    { label: 'Drop Temp', getValue: (p) => (p.drop_temp_celsius != null ? `${p.drop_temp_celsius}°C` : '—') },
+    { label: 'Charge Temp', getValue: (p) => (p.charge_temp_celsius != null ? `${p.charge_temp_celsius}°C` : '—') },
     { label: 'Dev Time', getValue: (p) => fmtDuration(p.dev_time_sec) },
-    { label: 'Dev %', getValue: (p) => p.dev_pct != null ? `${p.dev_pct.toFixed(1)}%` : '—' },
+    { label: 'Dev %', getValue: (p) => (p.dev_pct != null ? `${p.dev_pct.toFixed(1)}%` : '—') },
     { label: 'Target Level', getValue: (p) => p.target_level },
 ];
 
@@ -76,9 +76,9 @@ const DefaultBadge = ({
 }) => {
     if (defaultId === id) {
         return (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 ">
-                <Star size={11} strokeWidth={2} fill="currentColor" className="text-amber-400" />
-                <span className="text-[11px] font-medium text-amber-600 tracking-[0.3px]">Default</span>
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-palette-teal/12 ">
+                <Star size={11} strokeWidth={2} fill="currentColor" className="text-palette-teal" />
+                <span className="text-[11px] font-medium text-palette-teal tracking-[0.3px]">Default</span>
             </div>
         );
     }
@@ -86,7 +86,7 @@ const DefaultBadge = ({
         <button
             onClick={() => onSetDefault(id)}
             title="Set as Default"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full border-none bg-surface cursor-pointer  hover:bg-amber-50 transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full border-none bg-surface cursor-pointer  hover:bg-palette-teal/12 transition-colors"
         >
             <Star size={11} strokeWidth={2} color="var(--color-muted)" />
             <span className="text-[11px] font-medium text-muted tracking-[0.3px]">Set Default</span>
@@ -133,11 +133,19 @@ const ProfileCurveChart = ({ series }: { series: SeriesData[] }) => {
 
         const tooltipPlugin: uPlot.Plugin = {
             hooks: {
-                init: [(u) => { u.root.style.position = 'relative'; u.root.appendChild(ttEl); }],
+                init: [
+                    (u) => {
+                        u.root.style.position = 'relative';
+                        u.root.appendChild(ttEl);
+                    },
+                ],
                 setCursor: [
                     (u) => {
                         const { idx, left: cx, top: cy } = u.cursor;
-                        if (idx == null || cx == null || cy == null) { ttEl.style.display = 'none'; return; }
+                        if (idx == null || cx == null || cy == null) {
+                            ttEl.style.display = 'none';
+                            return;
+                        }
                         const xSec = (u.data[0] as number[])[idx];
                         const m = Math.floor(xSec / 60);
                         const s = Math.round(xSec % 60);
@@ -236,7 +244,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setSelectedId(profiles[0].id);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profiles.length, selectedId]);
 
     // DB에서 userProfile이 로드되면 defaultId를 동기화.
@@ -245,7 +253,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setDefaultId(userProfile?.default_roast_profile_id ?? null);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.default_roast_profile_id]);
 
     const selected = profiles.find((p) => p.id === selectedId) ?? null;
@@ -282,7 +290,10 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     };
 
     const handleProfileClick = (id: string, shiftKey: boolean) => {
-        if (compareMode) { toggleCompareId(id); return; }
+        if (compareMode) {
+            toggleCompareId(id);
+            return;
+        }
         if (shiftKey && id !== selectedId) {
             setCompareMode(true);
             setCompareIds([selectedId ?? id, id]);
@@ -309,7 +320,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         if (selectedId === id) setSelectedId(profiles.find((p) => p.id !== id)?.id ?? null);
     };
 
-    const primaryId = compareMode ? (compareIds[0] ?? selectedId ?? '') : selectedId ?? '';
+    const primaryId = compareMode ? (compareIds[0] ?? selectedId ?? '') : (selectedId ?? '');
     const compareProfiles = compareMode
         ? (compareIds.map((id) => profiles.find((p) => p.id === id)).filter(Boolean) as RoastProfileWithSource[])
         : [];
@@ -322,9 +333,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
     const chartSeries: SeriesData[] = compareProfiles.map((p, i) => {
         const real = compareCurveQueries[i]?.data ?? [];
-        const curve = real.length > 0
-            ? real.map((pt) => ({ t: pt.t, bt: pt.bt }))
-            : syntheticCurve(p);
+        const curve = real.length > 0 ? real.map((pt) => ({ t: pt.t, bt: pt.bt })) : syntheticCurve(p);
         return { curve, color: COMPARE_COLORS[i], label: p.name };
     });
 
@@ -375,12 +384,9 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             {profiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-lg bg-main-bg">
                     <p className="text-sm text-muted tracking-[0.14px]">아직 프로파일이 없습니다.</p>
-                            <PillButton
-                                onClick={() => setShowNewModal(true)}
-                            >
-                                <Plus size={14} strokeWidth={2.5} />
-                                첫 프로파일 만들기
-                            </PillButton>
+                    <PillButton onClick={() => setShowNewModal(true)}>
+                        <Plus size={14} strokeWidth={2.5} />첫 프로파일 만들기
+                    </PillButton>
                 </div>
             ) : (
                 <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
@@ -416,7 +422,11 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                         <div className="flex justify-end -mt-1 mb-1">
                                             <div
                                                 className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface '}`}
-                                                style={isCompareSelected ? { backgroundColor: COMPARE_COLORS[compareIdx] } : undefined}
+                                                style={
+                                                    isCompareSelected
+                                                        ? { backgroundColor: COMPARE_COLORS[compareIdx] }
+                                                        : undefined
+                                                }
                                             >
                                                 {isCompareSelected && <Check size={9} strokeWidth={3} />}
                                             </div>
@@ -432,12 +442,20 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                                     {profile.name}
                                                 </span>
                                                 {defaultId === profile.id && (
-                                                    <Star size={11} strokeWidth={2} fill="currentColor" className="text-amber-400" />
+                                                    <Star
+                                                        size={11}
+                                                        strokeWidth={2}
+                                                        fill="currentColor"
+                                                        className="text-amber-400"
+                                                    />
                                                 )}
                                             </div>
                                             <div className="text-[12px] text-muted tracking-[0.14px]">
-                                                {profile.drop_temp_celsius != null ? `Drop ${profile.drop_temp_celsius}°C` : profile.target_level}
-                                                {profile.duration_sec != null && ` · ${fmtDuration(profile.duration_sec)}`}
+                                                {profile.drop_temp_celsius != null
+                                                    ? `Drop ${profile.drop_temp_celsius}°C`
+                                                    : profile.target_level}
+                                                {profile.duration_sec != null &&
+                                                    ` · ${fmtDuration(profile.duration_sec)}`}
                                             </div>
                                         </div>
                                     </div>
@@ -449,12 +467,14 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                     {/* Detail panel */}
                     {compareMode ? (
                         compareIds.length === 0 ? (
-                            <div className="bg-main-bg rounded-lg px-8 py-7 border border-[#E5E5E5] flex flex-col items-center justify-center gap-3 min-h-[320px]">
+                            <div className="bg-main-bg rounded-lg px-8 py-7 flex flex-col items-center justify-center gap-3 min-h-[320px]">
                                 <GitCompare size={32} strokeWidth={1.5} color="var(--color-muted)" />
-                                <p className="text-sm text-muted tracking-[0.14px]">좌측 리스트에서 프로파일을 선택하세요</p>
+                                <p className="text-sm text-muted tracking-[0.14px]">
+                                    좌측 리스트에서 프로파일을 선택하세요
+                                </p>
                             </div>
                         ) : (
-                            <div className="bg-main-bg rounded-lg px-8 py-7 border border-[#E5E5E5]">
+                            <div className="bg-main-bg rounded-lg px-8 py-7">
                                 <div className="flex items-center justify-between mb-5">
                                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface ">
                                         <GitCompare size={11} strokeWidth={2} color="var(--color-secondary)" />
@@ -475,13 +495,19 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                             title="More"
                                             className="w-8 h-8 rounded-lg border-none bg-surface flex items-center justify-center cursor-pointer "
                                         >
-                                            <MoreHorizontal size={14} strokeWidth={1.5} color="var(--color-secondary)" />
+                                            <MoreHorizontal
+                                                size={14}
+                                                strokeWidth={1.5}
+                                                color="var(--color-secondary)"
+                                            />
                                         </button>
                                     </div>
                                 </div>
 
                                 <div className="bg-surface rounded-lg px-4 pt-4 pb-2 mb-3 ">
-                                    <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">Curve Overlay</div>
+                                    <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
+                                        Curve Overlay
+                                    </div>
                                     <ProfileCurveChart key={chartKey} series={chartSeries} />
                                 </div>
 
@@ -489,12 +515,27 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                     {compareProfiles.map((p, i) => {
                                         const hasReal = (compareCurveQueries[i]?.data?.length ?? 0) > 0;
                                         return (
-                                            <div key={p.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface ">
-                                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COMPARE_COLORS[i] }} />
-                                                <span className="text-[12px] font-medium text-secondary tracking-[0.14px]">{p.name}</span>
+                                            <div
+                                                key={p.id}
+                                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface "
+                                            >
+                                                <div
+                                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                                    style={{ backgroundColor: COMPARE_COLORS[i] }}
+                                                />
+                                                <span className="text-[12px] font-medium text-secondary tracking-[0.14px]">
+                                                    {p.name}
+                                                </span>
                                                 {!hasReal && (
-                                                    <span title="기록된 데이터 없음 · 참고용 곡선" className="flex items-center">
-                                                        <AlertCircle size={10} strokeWidth={2} className="text-amber-500" />
+                                                    <span
+                                                        title="기록된 데이터 없음 · 참고용 곡선"
+                                                        className="flex items-center"
+                                                    >
+                                                        <AlertCircle
+                                                            size={10}
+                                                            strokeWidth={2}
+                                                            className="text-amber-500"
+                                                        />
                                                     </span>
                                                 )}
                                             </div>
@@ -503,23 +544,44 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 </div>
 
                                 <div className="bg-surface rounded-lg  overflow-hidden mb-5">
-                                    <div className="grid" style={{ gridTemplateColumns: `140px repeat(${compareProfiles.length}, 1fr)` }}>
+                                    <div
+                                        className="grid"
+                                        style={{ gridTemplateColumns: `140px repeat(${compareProfiles.length}, 1fr)` }}
+                                    >
                                         <div className="px-3.5 py-2.5 border-b border-black/5" />
                                         {compareProfiles.map((p, i) => (
-                                            <div key={p.id} className="px-3.5 py-2.5 border-b border-black/5 border-l border-l-black/5">
+                                            <div
+                                                key={p.id}
+                                                className="px-3.5 py-2.5 border-b border-black/5 border-l border-l-black/5"
+                                            >
                                                 <div className="flex items-center gap-1.5">
-                                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COMPARE_COLORS[i] }} />
-                                                    <span className="text-[11px] font-semibold text-primary tracking-[0.14px] truncate">{p.name}</span>
+                                                    <div
+                                                        className="w-2 h-2 rounded-full flex-shrink-0"
+                                                        style={{ backgroundColor: COMPARE_COLORS[i] }}
+                                                    />
+                                                    <span className="text-[11px] font-semibold text-primary tracking-[0.14px] truncate">
+                                                        {p.name}
+                                                    </span>
                                                 </div>
                                             </div>
                                         ))}
                                         {TABLE_ROWS.flatMap(({ label, getValue }, rowIdx) => [
-                                            <div key={`lbl-${label}`} className={`px-3.5 py-2.5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5' : ''}`}>
-                                                <span className="text-[11px] font-medium text-muted tracking-[0.4px] uppercase">{label}</span>
+                                            <div
+                                                key={`lbl-${label}`}
+                                                className={`px-3.5 py-2.5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5' : ''}`}
+                                            >
+                                                <span className="text-[11px] font-medium text-muted tracking-[0.4px] uppercase">
+                                                    {label}
+                                                </span>
                                             </div>,
                                             ...compareProfiles.map((p) => (
-                                                <div key={`${p.id}-${label}`} className={`px-3.5 py-2.5 border-l border-l-black/5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5' : ''}`}>
-                                                    <span className="text-[12px] font-semibold text-primary font-mono tracking-[-0.2px]">{getValue(p)}</span>
+                                                <div
+                                                    key={`${p.id}-${label}`}
+                                                    className={`px-3.5 py-2.5 border-l border-l-black/5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5' : ''}`}
+                                                >
+                                                    <span className="text-[12px] font-semibold text-primary font-mono tracking-[-0.2px]">
+                                                        {getValue(p)}
+                                                    </span>
                                                 </div>
                                             )),
                                         ])}
@@ -528,14 +590,16 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                             </div>
                         )
                     ) : selected ? (
-                        <div className="bg-main-bg rounded-lg px-8 py-7 border border-[#E5E5E5]">
+                        <div className="bg-main-bg rounded-lg px-8 py-7">
                             <div className="flex items-start justify-between mb-5">
                                 <div>
                                     <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
                                         {selected.name}
                                     </h2>
                                     {selected.description && (
-                                        <p className="text-sm text-secondary tracking-[0.14px] leading-normal">{selected.description}</p>
+                                        <p className="text-sm text-secondary tracking-[0.14px] leading-normal">
+                                            {selected.description}
+                                        </p>
                                     )}
                                 </div>
                                 <div className="flex gap-1.5 items-center">
@@ -558,11 +622,13 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
                             <div className="bg-surface rounded-lg px-4 pt-4 pb-2 mb-5 ">
                                 <div className="flex items-center justify-between mb-2">
-                                    <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase">Profile Curve</div>
+                                    <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase">
+                                        Profile Curve
+                                    </div>
                                     {!selectedHasReal && (
-                                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50">
-                                            <AlertCircle size={10} strokeWidth={2} className="text-amber-500" />
-                                            <span className="text-[10px] font-medium text-amber-700 tracking-[0.2px]">
+                                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-palette-yellow/15">
+                                            <AlertCircle size={10} strokeWidth={2} className="text-palette-yellow" />
+                                            <span className="text-[10px] font-medium text-palette-yellow tracking-[0.2px]">
                                                 기록된 데이터 없음 · 참고용 곡선
                                             </span>
                                         </div>
@@ -570,28 +636,49 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 </div>
                                 <ProfileCurveChart
                                     key={chartKey}
-                                    series={[{
-                                        curve: selectedHasReal
-                                            ? selectedRealCurve.map((pt) => ({ t: pt.t, bt: pt.bt }))
-                                            : syntheticCurve(selected),
-                                        color: 'var(--color-primary)',
-                                        label: selected.name,
-                                    }]}
+                                    series={[
+                                        {
+                                            curve: selectedHasReal
+                                                ? selectedRealCurve.map((pt) => ({ t: pt.t, bt: pt.bt }))
+                                                : syntheticCurve(selected),
+                                            color: 'var(--color-primary)',
+                                            label: selected.name,
+                                        },
+                                    ]}
                                 />
                             </div>
 
                             <div className="grid grid-cols-3 gap-3 mb-5">
                                 {[
                                     { label: 'Total Duration', value: fmtDuration(selected.duration_sec) },
-                                    { label: 'Drop Temperature', value: selected.drop_temp_celsius != null ? `${selected.drop_temp_celsius}°C` : '—' },
-                                    { label: 'Charge Temperature', value: selected.charge_temp_celsius != null ? `${selected.charge_temp_celsius}°C` : '—' },
+                                    {
+                                        label: 'Drop Temperature',
+                                        value:
+                                            selected.drop_temp_celsius != null
+                                                ? `${selected.drop_temp_celsius}°C`
+                                                : '—',
+                                    },
+                                    {
+                                        label: 'Charge Temperature',
+                                        value:
+                                            selected.charge_temp_celsius != null
+                                                ? `${selected.charge_temp_celsius}°C`
+                                                : '—',
+                                    },
                                     { label: 'Development Time', value: fmtDuration(selected.dev_time_sec) },
-                                    { label: 'Dev/Total %', value: selected.dev_pct != null ? `${selected.dev_pct.toFixed(1)}%` : '—' },
+                                    {
+                                        label: 'Dev/Total %',
+                                        value: selected.dev_pct != null ? `${selected.dev_pct.toFixed(1)}%` : '—',
+                                    },
                                     { label: 'Target Level', value: selected.target_level },
                                 ].map(({ label, value }) => (
                                     <div key={label} className="bg-surface rounded-lg px-3.5 py-3 ">
-                                        <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-1">{label}</div>
-                                        <div className="text-sm font-semibold text-primary font-mono tracking-[-0.2px]">{value}</div>
+                                        <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-1">
+                                            {label}
+                                        </div>
+                                        <div className="text-sm font-semibold text-primary font-mono tracking-[-0.2px]">
+                                            {value}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -603,11 +690,15 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                     </p>
                                     <div className="space-y-1">
                                         {beanHistory.map((item) => (
-                                            <div key={item.name} className="flex justify-between items-center text-xs py-1 border-b border-black/4 last:border-0">
+                                            <div
+                                                key={item.name}
+                                                className="flex justify-between items-center text-xs py-1 border-b border-black/4 last:border-0"
+                                            >
                                                 <span className="text-primary font-medium">{item.name}</span>
                                                 <span className="text-muted">
                                                     {item.count}회
-                                                    {item.lastDate && ` · 마지막 ${new Date(item.lastDate).toLocaleDateString('ko-KR')}`}
+                                                    {item.lastDate &&
+                                                        ` · 마지막 ${new Date(item.lastDate).toLocaleDateString('ko-KR')}`}
                                                 </span>
                                             </div>
                                         ))}
@@ -624,7 +715,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 </button>
                                 <button
                                     onClick={() => handleDelete(selected.id)}
-                                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border-none bg-[rgba(254,226,226,0.8)] text-[#dc2626] text-sm font-medium cursor-pointer tracking-[0.14px] "
+                                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border-none bg-palette-indigo/10 text-palette-indigo text-sm font-medium cursor-pointer tracking-[0.14px] "
                                 >
                                     <Trash2 size={14} strokeWidth={2} />
                                     Delete
@@ -635,11 +726,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                 </div>
             )}
 
-            <NewProfileModal
-                open={showNewModal}
-                onClose={() => setShowNewModal(false)}
-                onCreated={handleCreated}
-            />
+            <NewProfileModal open={showNewModal} onClose={() => setShowNewModal(false)} onCreated={handleCreated} />
         </PageLayout>
     );
 };

@@ -21,17 +21,15 @@ export const KpiCard = ({ label, value, change, icon: Icon }: KpiCardProps) => {
                     <span
                         className={`text-xs font-medium px-2 py-0.5 rounded-full tracking-[0.14px] ${
                             isPositive
-                                ? 'text-green-600 bg-[rgba(220,252,231,0.8)]'
-                                : 'text-red-600 bg-[rgba(254,226,226,0.8)]'
+                                ? 'text-palette-green bg-palette-green/15'
+                                : 'text-palette-indigo bg-palette-indigo/10'
                         }`}
                     >
                         {change}
                     </span>
                 )}
             </div>
-            <div className="text-[26px] font-semibold text-primary leading-[1.2] mb-1 tracking-[-0.5px]">
-                {value}
-            </div>
+            <div className="text-[26px] font-semibold text-primary leading-[1.2] mb-1 tracking-[-0.5px]">{value}</div>
             <div className="text-[13px] text-muted tracking-[0.14px]">{label}</div>
         </div>
     );

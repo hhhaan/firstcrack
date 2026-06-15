@@ -14,20 +14,20 @@ import { downloadDir } from '@tauri-apps/api/path';
 import { useAuthStore } from '@shared/store/auth';
 
 const levelColor: Record<string, string> = {
-    Light: '#a16207',
-    'Medium-Light': '#92400e',
-    Medium: '#7c2d12',
-    'Medium-Dark': '#5c1a0b',
-    Dark: '#3b0f07',
+    Light: 'var(--color-palette-yellow)',
+    'Medium-Light': 'var(--color-palette-teal)',
+    Medium: 'var(--color-palette-blue)',
+    'Medium-Dark': 'var(--color-palette-purple)',
+    Dark: 'var(--color-palette-violet)',
 };
 
 const levelBg: Record<string, string> = {
-    Light: 'rgba(254,243,199,0.8)',
-    'Medium-Light': 'rgba(254,231,200,0.8)',
-    Medium: 'rgba(253,220,198,0.8)',
-    'Medium-Dark': 'rgba(252,200,180,0.8)',
-    Dark: 'rgba(240,170,150,0.8)',
-    'Dark-Light': 'rgba(240,170,150,0.8)',
+    Light: 'color-mix(in srgb, var(--color-palette-yellow) 20%, transparent)',
+    'Medium-Light': 'color-mix(in srgb, var(--color-palette-teal) 15%, transparent)',
+    Medium: 'color-mix(in srgb, var(--color-palette-blue) 12%, transparent)',
+    'Medium-Dark': 'color-mix(in srgb, var(--color-palette-purple) 12%, transparent)',
+    Dark: 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
+    'Dark-Light': 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
 };
 
 const formatDuration = (seconds: number | null): string => {

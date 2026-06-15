@@ -33,11 +33,14 @@ export const BlendList = () => {
             <div className="bg-main-bg rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
                 {/* <GitCompare size={40} strokeWidth={1.5} className="text-muted" /> */}
                 <div className="text-[13px] text-muted text-center leading-relaxed">
-                    등록된 블렌드가 없습니다.<br />
-                    첫 번째 블렌드 레시피를 추가해 보세요.
+                    등록된 블렌드가 없습니다.
+                    <br />첫 번째 블렌드 레시피를 추가해 보세요.
                 </div>
                 <button
-                    onClick={() => { setEditing(null); setModalOpen(true); }}
+                    onClick={() => {
+                        setEditing(null);
+                        setModalOpen(true);
+                    }}
                     className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface cursor-pointer hover:bg-surface-raised transition-colors"
                 >
                     <Plus size={14} strokeWidth={2} />
@@ -58,7 +61,10 @@ export const BlendList = () => {
             {/* Left: Blend list */}
             <div className="flex flex-col gap-2">
                 <button
-                    onClick={() => { setEditing(null); setModalOpen(true); }}
+                    onClick={() => {
+                        setEditing(null);
+                        setModalOpen(true);
+                    }}
                     className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 transition-colors tracking-[0.14px] mb-1"
                 >
                     <Plus size={14} strokeWidth={2} />
@@ -74,9 +80,7 @@ export const BlendList = () => {
                             <div
                                 key={blend.id}
                                 onClick={() => setSelectedId(blend.id)}
-                                className={`bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150 border ${
-                                    isSelected ? 'border-black/8' : 'border-[#E5E5E5]'
-                                }`}
+                                className="bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150"
                             >
                                 <div className="flex items-start justify-between mb-1.5">
                                     <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
@@ -106,7 +110,7 @@ export const BlendList = () => {
 
             {/* Right: Blend detail */}
             {selected ? (
-                <div className="bg-main-bg rounded-lg px-8 py-7 border border-[#E5E5E5] h-fit">
+                <div className="bg-main-bg rounded-lg px-8 py-7 h-fit">
                     <div className="flex items-start justify-between mb-6">
                         <div>
                             <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
@@ -120,7 +124,10 @@ export const BlendList = () => {
                         </div>
                         <div className="flex gap-2">
                             <button
-                                onClick={() => { setEditing(selected); setModalOpen(true); }}
+                                onClick={() => {
+                                    setEditing(selected);
+                                    setModalOpen(true);
+                                }}
                                 className="w-9 h-9 rounded-[10px] border-none bg-surface text-muted flex items-center justify-center cursor-pointer"
                                 title="Edit"
                             >
@@ -170,12 +177,13 @@ export const BlendList = () => {
                     {/* Summary bar */}
                     <div className="flex items-center gap-2.5 px-4 py-3 rounded-lg bg-surface-warm-solid">
                         <span className="text-[12px] text-muted tracking-[0.14px]">
-                            {selected.blend_components.length} bean{selected.blend_components.length !== 1 ? 's' : ''} · {totalRatio(selected.blend_components)}% total
+                            {selected.blend_components.length} bean{selected.blend_components.length !== 1 ? 's' : ''} ·{' '}
+                            {totalRatio(selected.blend_components)}% total
                         </span>
                     </div>
                 </div>
             ) : blends.length > 0 ? (
-                <div className="bg-main-bg rounded-lg py-15 px-8 border border-[#E5E5E5] flex items-center justify-center text-sm text-muted tracking-[0.14px]">
+                <div className="bg-main-bg rounded-lg py-15 px-8 flex items-center justify-center text-sm text-muted tracking-[0.14px]">
                     Select a blend to view details
                 </div>
             ) : null}

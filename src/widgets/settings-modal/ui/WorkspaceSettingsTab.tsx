@@ -105,7 +105,7 @@ export const WorkspaceSettingsTab = () => {
                 >
                     <User size={14} strokeWidth={2} />
                     Invite members
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#F3F4F6] text-[#6B7280] ml-auto">
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-palette-lavender/12 text-palette-lavender ml-auto">
                         Coming soon
                     </span>
                 </button>

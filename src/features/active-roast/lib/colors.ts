@@ -16,17 +16,17 @@ export const SENSOR_COLORS = {
 } as const;
 
 export const PHASE_COLORS = {
-    ready: '#28a05a',
-    readyBg: 'rgba(220,242,230,0.8)',
-    drying: '#c88a28',
-    maillard: '#b07828',
-    development: '#d47028',
-    danger: '#d43a3a',
-    dangerBg: 'rgba(245,218,218,0.8)',
+    ready: '#81FBA5',
+    readyBg: 'rgba(129,251,165,0.15)',
+    drying: '#FFFF54',
+    maillard: '#44BFFC',
+    development: '#756AFC',
+    danger: '#0B0B0B',
+    dangerBg: 'rgba(11,11,11,0.12)',
 } as const;
 
 // Connected status dot (brighter green, distinct from PHASE_COLORS.ready)
 export const STATUS_COLORS = {
-    active: '#22c55e',
-    activeGlow: 'rgba(34,197,94,0.2)',
+    active: '#81FBA5',
+    activeGlow: 'rgba(129,251,165,0.2)',
 } as const;

@@ -44,9 +44,7 @@ export const TodayScheduleModal = ({ open, batches, onStart, onSkip }: TodaySche
             >
                 오늘의 로스팅 일정
             </h2>
-            <p className="text-sm text-secondary leading-[1.6] mb-5">
-                {batches.length}개 배치가 예정되어 있습니다.
-            </p>
+            <p className="text-sm text-secondary leading-[1.6] mb-5">{batches.length}개 배치가 예정되어 있습니다.</p>
 
             <div className="flex flex-col gap-2 mb-6">
                 {batches.map((batch, index) => (
@@ -54,13 +52,15 @@ export const TodayScheduleModal = ({ open, batches, onStart, onSkip }: TodaySche
                         key={batch.planBatchId}
                         className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl ${
                             index === 0
-                                ? 'bg-[rgba(219,234,254,0.5)] border border-[rgba(37,99,235,0.15)]'
+                                ? 'bg-palette-purple/8 border border-palette-purple/15'
                                 : 'bg-surface shadow-(--shadow-inset)'
                         }`}
                     >
                         <div
                             className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
-                                index === 0 ? 'bg-[#2563eb] text-white' : 'bg-muted/30 text-muted'
+                                index === 0
+                                    ? 'bg-palette-blue text-white'
+                                    : 'bg-palette-lavender/15 text-palette-lavender'
                             }`}
                         >
                             {index + 1}
@@ -70,7 +70,7 @@ export const TodayScheduleModal = ({ open, batches, onStart, onSkip }: TodaySche
                             <p className="text-[11px] text-muted">{batch.batchSizeKg}kg / 배치</p>
                         </div>
                         {index === 0 && (
-                            <span className="text-[11px] font-semibold text-[#2563eb] shrink-0">다음</span>
+                            <span className="text-[11px] font-semibold text-palette-purple shrink-0">다음</span>
                         )}
                     </div>
                 ))}

@@ -59,10 +59,10 @@ export const getResolvedChartColors = () => {
         btActual: gv('--color-sensor-bt', '#22a85a'),
         etActual: gv('--color-sensor-et', '#4a85c5'),
         rorActual: gv('--color-sensor-ror', '#e8a828'),
-        tp: '#28a05a',
+        tp: '#81FBA5',
         phaseLines: gv('--color-chart-phaseline', 'rgba(0,0,0,0.07)'),
         currentTimeLine: gv('--color-chart-current-line', 'rgba(0,0,0,0.3)'),
-        nowLabel: '#22c55e',
+        nowLabel: '#81FBA5',
         gridLine: gv('--color-chart-grid-stroke', 'rgba(0,0,0,0.05)'),
         gridLineMinor: gv('--color-chart-grid', 'rgba(0,0,0,0.05)'),
         axisPointerLine: '#64748b',
@@ -78,10 +78,10 @@ export const CHART_COLORS = {
     btActual: 'var(--color-sensor-bt)',
     etActual: 'var(--color-sensor-et)',
     rorActual: 'var(--color-sensor-ror)',
-    tp: '#28a05a',
+    tp: '#81FBA5',
     phaseLines: 'var(--color-chart-phaseline)',
     currentTimeLine: 'var(--color-chart-current-line)',
-    nowLabel: '#22c55e',
+    nowLabel: '#81FBA5',
     gridLine: 'var(--color-chart-grid-stroke)',
     gridLineMinor: 'var(--color-chart-grid)',
     axisPointerLine: '#64748b',
@@ -90,21 +90,21 @@ export const CHART_COLORS = {
 } as const;
 
 export const CONTROL_COLORS = {
-    drum: '#f59e0b',
-    heat: '#ef4444',
-    heatArea: 'rgba(239,68,68,0.15)',
-    fan: '#3b82f6',
-    fanArea: 'rgba(59,130,246,0.15)',
+    drum: '#72EBBC',
+    heat: '#FFFF54',
+    heatArea: 'rgba(255,255,84,0.15)',
+    fan: '#44BFFC',
+    fanArea: 'rgba(68,191,252,0.15)',
 } as const;
 
 export const EVENT_MARKER_COLORS: Record<string, string> = {
-    Yellow: '#ca8a04',
-    'FC Start': '#d47028',
-    'FC End': '#d43a3a',
-    End: '#171717',
-    Note: '#6b7280',
-    TP: '#28a05a',
-    Drop: '#78350f',
+    Yellow: '#FFFF54',
+    'FC Start': '#44BFFC',
+    'FC End': '#756AFC',
+    End: '#8080F0',
+    Note: '#72EBBC',
+    TP: '#81FBA5',
+    Drop: '#A6B0FF',
 };
 
 export const PHASE_SECS = [180, 300, 630] as const;

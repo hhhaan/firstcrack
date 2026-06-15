@@ -45,6 +45,9 @@ export type PlanBatchHandoff = {
 export type RecurrenceRule = Database['public']['Tables']['recurrence_rules']['Row']
 export type RecurrenceRuleInsert = Database['public']['Tables']['recurrence_rules']['Insert']
 export type RecurrenceRuleUpdate = Database['public']['Tables']['recurrence_rules']['Update']
+
+export type MachineConnectionLog = Database['public']['Tables']['machine_connection_logs']['Row']
+export type MachineConnectionLogInsert = Database['public']['Tables']['machine_connection_logs']['Insert']
 `;
 
 appendFileSync('src/shared/types/database.types.ts', ALIASES);

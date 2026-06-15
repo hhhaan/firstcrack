@@ -159,19 +159,19 @@ const BarCanvas = ({ data }: BarCanvasProps) => {
 };
 
 const levelColor: Record<string, string> = {
-    Light: '#a16207',
-    'Medium-Light': '#92400e',
-    Medium: '#7c2d12',
-    'Medium-Dark': '#431407',
-    Dark: '#1c0a00',
+    Light: 'var(--color-palette-yellow)',
+    'Medium-Light': 'var(--color-palette-teal)',
+    Medium: 'var(--color-palette-blue)',
+    'Medium-Dark': 'var(--color-palette-purple)',
+    Dark: 'var(--color-palette-violet)',
 };
 
 const levelBg: Record<string, string> = {
-    Light: 'rgba(254,243,199,0.8)',
-    'Medium-Light': 'rgba(254,231,200,0.8)',
-    Medium: 'rgba(253,220,198,0.8)',
-    'Medium-Dark': 'rgba(240,180,150,0.8)',
-    Dark: 'rgba(220,140,100,0.8)',
+    Light: 'color-mix(in srgb, var(--color-palette-yellow) 20%, transparent)',
+    'Medium-Light': 'color-mix(in srgb, var(--color-palette-teal) 15%, transparent)',
+    Medium: 'color-mix(in srgb, var(--color-palette-blue) 12%, transparent)',
+    'Medium-Dark': 'color-mix(in srgb, var(--color-palette-purple) 12%, transparent)',
+    Dark: 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
 };
 
 const formatDuration = (seconds: number) => {
@@ -184,7 +184,6 @@ const formatDate = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
-
 
 const pctChange = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? '+∞%' : '0%';
@@ -261,11 +260,9 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         )}
                     </p>
                 </div>
-                <PillButton
-                    onClick={() => onNavigate('roast')}
-                >
+                <PillButton onClick={() => onNavigate('roast')}>
                     <span
-                        className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-green-400 animate-pulse' : 'bg-white/40'}`}
+                        className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-palette-green animate-pulse' : 'bg-white/40'}`}
                     />
                     View Active Roast
                     <ArrowRight size={14} strokeWidth={2} />
@@ -278,7 +275,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     const isPositive = change.startsWith('+');
                     const isNeutral = change === '';
                     return (
-                            <div key={label} className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5">
+                        <div key={label} className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5">
                             <div className="flex items-start justify-between mb-3.5">
                                 <div className="w-8.5 h-8.5 rounded-lg bg-surface flex items-center justify-center">
                                     <Icon size={16} strokeWidth={1.5} color="var(--color-secondary)" />
@@ -287,8 +284,8 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                     <span
                                         className={`text-xs font-medium px-2 py-0.5 rounded-full tracking-[0.14px] ${
                                             isPositive
-                                                ? 'text-green-600 bg-[rgba(220,252,231,0.8)]'
-                                                : 'text-red-600 bg-[rgba(254,226,226,0.8)]'
+                                                ? 'text-palette-green bg-palette-green/15'
+                                                : 'text-palette-indigo bg-palette-indigo/10'
                                         }`}
                                     >
                                         {change}
@@ -349,7 +346,9 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                     return (
                                         <tr
                                             key={session.id}
-                                            className={i < db.recentSessions.length - 1 ? 'border-b border-divider' : ''}
+                                            className={
+                                                i < db.recentSessions.length - 1 ? 'border-b border-divider' : ''
+                                            }
                                         >
                                             <td className="px-6 py-3 text-[13px] text-muted font-normal whitespace-nowrap">
                                                 {session.roasted_at ? formatDate(session.roasted_at) : '—'}
@@ -405,7 +404,9 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     </div>
 
                     <div className="mt-5 pt-4 border-t border-divider shrink-0">
-                        <div className="text-xs text-muted mb-3 tracking-[0.5px] uppercase font-medium text-center">This Month</div>
+                        <div className="text-xs text-muted mb-3 tracking-[0.5px] uppercase font-medium text-center">
+                            This Month
+                        </div>
                         <div className="flex items-center justify-center gap-0 w-full">
                             <div className="flex-1 text-center border-x border-divider max-w-[160px]">
                                 <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
@@ -468,7 +469,8 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted tracking-[0.14px]">
-                                        {item.date === new Date().toISOString().slice(0, 10) ? '오늘' : item.date} · {item.batch_type}
+                                        {item.date === new Date().toISOString().slice(0, 10) ? '오늘' : item.date} ·{' '}
+                                        {item.batch_type}
                                     </div>
                                 </div>
                             </div>
@@ -486,8 +488,8 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                     ) : (
                         db.inventoryAlerts.map((item, i) => {
                             const isOut = item.stock_grams === 0;
-                            const color = isOut ? '#dc2626' : '#d97706';
-                            const bg = isOut ? 'rgba(254,226,226,0.8)' : 'rgba(254,243,199,0.8)';
+                            const color = isOut ? '#8080F0' : '#FFFF54';
+                            const bg = isOut ? 'rgba(128,128,240,0.12)' : 'rgba(255,255,84,0.2)';
                             const status = isOut ? 'Out of Stock' : 'Low Stock';
                             return (
                                 <div

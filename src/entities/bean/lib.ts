@@ -1,23 +1,50 @@
-import type { Bean } from '../../shared/types/database.types'
+import type { Bean } from '../../shared/types/database.types';
 
-export type BeanStatus = 'Good' | 'Low' | 'Out'
+export type BeanStatus = 'Good' | 'Low' | 'Out';
 
 export const getStatus = (bean: Bean): BeanStatus => {
-    if (bean.stock_grams === 0) return 'Out'
-    if (bean.stock_grams <= bean.low_stock_threshold_grams) return 'Low'
-    return 'Good'
-}
+    if (bean.stock_grams === 0) return 'Out';
+    if (bean.stock_grams <= bean.low_stock_threshold_grams) return 'Low';
+    return 'Good';
+};
 
 export const statusConfig: Record<BeanStatus, { color: string; bg: string; label: string }> = {
-    Good: { color: '#16a34a', bg: 'rgba(220,252,231,0.8)', label: 'In Stock' },
-    Low: { color: '#d97706', bg: 'rgba(254,243,199,0.8)', label: 'Low Stock' },
-    Out: { color: '#dc2626', bg: 'rgba(254,226,226,0.8)', label: 'Out of Stock' },
-}
+    Good: {
+        color: 'var(--color-palette-green)',
+        bg: 'color-mix(in srgb, var(--color-palette-green) 15%, transparent)',
+        label: 'In Stock',
+    },
+    Low: {
+        color: 'var(--color-palette-yellow)',
+        bg: 'color-mix(in srgb, var(--color-palette-yellow) 20%, transparent)',
+        label: 'Low Stock',
+    },
+    Out: {
+        color: 'var(--color-palette-violet)',
+        bg: 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
+        label: 'Out of Stock',
+    },
+};
 
 export const processColor: Record<string, { color: string; bg: string }> = {
-    Natural: { color: '#92400e', bg: 'rgba(253,230,214,0.8)' },
-    Washed: { color: '#1e40af', bg: 'rgba(219,234,254,0.8)' },
-    Honey: { color: '#a16207', bg: 'rgba(254,243,199,0.8)' },
-    Anaerobic: { color: '#7e22ce', bg: 'rgba(243,232,255,0.8)' },
-    Experimental: { color: '#be185d', bg: 'rgba(252,231,243,0.8)' },
-}
+    Natural: {
+        color: 'var(--color-palette-lavender)',
+        bg: 'color-mix(in srgb, var(--color-palette-lavender) 12%, transparent)',
+    },
+    Washed: {
+        color: 'var(--color-palette-blue)',
+        bg: 'color-mix(in srgb, var(--color-palette-blue) 12%, transparent)',
+    },
+    Honey: {
+        color: 'var(--color-palette-yellow)',
+        bg: 'color-mix(in srgb, var(--color-palette-yellow) 20%, transparent)',
+    },
+    Anaerobic: {
+        color: 'var(--color-palette-purple)',
+        bg: 'color-mix(in srgb, var(--color-palette-purple) 12%, transparent)',
+    },
+    Experimental: {
+        color: 'var(--color-palette-teal)',
+        bg: 'color-mix(in srgb, var(--color-palette-teal) 12%, transparent)',
+    },
+};

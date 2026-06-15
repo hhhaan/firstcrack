@@ -2,17 +2,41 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import * as echarts from 'echarts';
 import type { EChartsOption } from 'echarts';
 import {
-    CHART_COLORS, CONTROL_COLORS, ROR_Y_MIN, ROR_Y_MAX,
-    CHART_GRID_LEFT, CHART_GRID_TOP, CHART_GRID_RIGHT, CHART_GRID_RIGHT_WITH_ROR, Y_AXIS_NAME_GAP,
-    PHASE_BAR_HEIGHT, PHASE_BAR_BOTTOM,
-    PHASE_BAR_WIDE_THRESHOLD, PHASE_BAR_NARROW_THRESHOLD, PHASE_BAR_TEXT_INSET,
-    PHASE_BAR_STROKE, PHASE_BAR_STROKE_WIDTH,
-    PHASE_BAR_NAME_COLOR, PHASE_BAR_DURATION_COLOR,
-    PHASE_BAR_FONT_SIZE, PHASE_BAR_FONT_SIZE_NARROW, PHASE_BAR_FONT_FAMILY, PHASE_BAR_FONT_WEIGHT,
+    CHART_COLORS,
+    CONTROL_COLORS,
+    ROR_Y_MIN,
+    ROR_Y_MAX,
+    CHART_GRID_LEFT,
+    CHART_GRID_TOP,
+    CHART_GRID_RIGHT,
+    CHART_GRID_RIGHT_WITH_ROR,
+    Y_AXIS_NAME_GAP,
+    PHASE_BAR_HEIGHT,
+    PHASE_BAR_BOTTOM,
+    PHASE_BAR_WIDE_THRESHOLD,
+    PHASE_BAR_NARROW_THRESHOLD,
+    PHASE_BAR_TEXT_INSET,
+    PHASE_BAR_STROKE,
+    PHASE_BAR_STROKE_WIDTH,
+    PHASE_BAR_NAME_COLOR,
+    PHASE_BAR_DURATION_COLOR,
+    PHASE_BAR_FONT_SIZE,
+    PHASE_BAR_FONT_SIZE_NARROW,
+    PHASE_BAR_FONT_FAMILY,
+    PHASE_BAR_FONT_WEIGHT,
     AXIS_LABEL_FONT,
-    TEMP_Y_MIN_C, TEMP_Y_MAX_C, TEMP_Y_MIN_F, TEMP_Y_MAX_F, TEMP_Y_INTERVAL,
-    TEMP_GRID_HEIGHT_WITH_PHASE, CONTROL_GRID_TOP_WITH_PHASE, PHASE_GRID_TOP,
-    TEMP_GRID_HEIGHT, CONTROL_GRID_TOP, CONTROL_GRID_BOTTOM_GAP, CONTROL_GRID_BOTTOM,
+    TEMP_Y_MIN_C,
+    TEMP_Y_MAX_C,
+    TEMP_Y_MIN_F,
+    TEMP_Y_MAX_F,
+    TEMP_Y_INTERVAL,
+    TEMP_GRID_HEIGHT_WITH_PHASE,
+    CONTROL_GRID_TOP_WITH_PHASE,
+    PHASE_GRID_TOP,
+    TEMP_GRID_HEIGHT,
+    CONTROL_GRID_TOP,
+    CONTROL_GRID_BOTTOM_GAP,
+    CONTROL_GRID_BOTTOM,
     SINGLE_GRID_BOTTOM,
 } from '@features/active-roast/lib/chart-config';
 import type { TurningPoint, TemperatureUnit, PhaseSegment } from '@features/active-roast';
@@ -166,7 +190,9 @@ export const RoastTempChart: React.FC<Props> = ({
             },
         }));
 
-        const markPointData = eventMarkers.map((m) => ({
+        const markPointData = eventMarkers.map((m) => {
+            const needsDarkLabel = m.color === '#A6B0FF' || m.color === '#FFFF54';
+            return {
                 name: m.event,
                 value: [m.timeSec, null],
                 xAxis: m.timeSec,
@@ -178,11 +204,12 @@ export const RoastTempChart: React.FC<Props> = ({
                     position: 'top',
                     formatter: m.event,
                     fontSize: 10,
-                    color: CHART_COLORS.markerLabelColor,
+                    color: needsDarkLabel ? '#0B0B0B' : CHART_COLORS.markerLabelColor,
                     backgroundColor: m.color,
                     padding: [2, 4],
                 },
-        }));
+            };
+        });
 
         const xMin = xs[0] ?? 0;
         const xMax = xs[xs.length - 1] ?? 1200;
@@ -240,16 +267,17 @@ export const RoastTempChart: React.FC<Props> = ({
                 showSymbol: false,
                 ...getSmoothConfig(0.28),
             },
-            showRoR && showRoRET && {
-                name: 'ET RoR',
-                type: 'line',
-                xAxisIndex: 0,
-                yAxisIndex: 1,
-                data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
-                lineStyle: { color: CHART_COLORS.etActual, width: 1.0, type: 'dashed' },
-                showSymbol: false,
-                ...getSmoothConfig(0.28),
-            },
+            showRoR &&
+                showRoRET && {
+                    name: 'ET RoR',
+                    type: 'line',
+                    xAxisIndex: 0,
+                    yAxisIndex: 1,
+                    data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
+                    lineStyle: { color: CHART_COLORS.etActual, width: 1.0, type: 'dashed' },
+                    showSymbol: false,
+                    ...getSmoothConfig(0.28),
+                },
         ].filter(Boolean) as object[];
 
         // ── Phase bar (로스팅 단계 시각화) ────────────────────────────────────
@@ -344,14 +372,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 return { type: 'group', children };
             },
             // 각 단계 데이터: [startSec, endSec, durationSec, percentage, color, name]
-            data: phaseSegments.map((seg) => [
-                seg.startSec,
-                seg.endSec,
-                seg.durationSec,
-                seg.pct,
-                seg.color,
-                seg.name,
-            ]),
+            data: phaseSegments.map((seg) => [seg.startSec, seg.endSec, seg.durationSec, seg.pct, seg.color, seg.name]),
             z: 5,
         });
 
@@ -365,201 +386,214 @@ export const RoastTempChart: React.FC<Props> = ({
             // 시간 축 라벨은:
             // - Phase bar 있으면 → grid[1] 하단에 표시
             // - Phase bar 없으면 → grid[2] 하단에 표시
-            const controlBottom = hasPhaseBar ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP : CONTROL_GRID_BOTTOM;
-            const grids: { left: number; right: number; top: string | number; height?: string; bottom?: string | number }[] = hasPhaseBar
+            const controlBottom = hasPhaseBar
+                ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP
+                : CONTROL_GRID_BOTTOM;
+            const grids: {
+                left: number;
+                right: number;
+                top: string | number;
+                height?: string;
+                bottom?: string | number;
+            }[] = hasPhaseBar
                 ? [
-                    { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT_WITH_PHASE },
-                    { left: leftMargin, right: rightMargin, top: CONTROL_GRID_TOP_WITH_PHASE, height: `${PHASE_BAR_HEIGHT}px` },
-                    { left: leftMargin, right: rightMargin, top: PHASE_GRID_TOP, bottom: controlBottom },
+                      { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT_WITH_PHASE },
+                      {
+                          left: leftMargin,
+                          right: rightMargin,
+                          top: CONTROL_GRID_TOP_WITH_PHASE,
+                          height: `${PHASE_BAR_HEIGHT}px`,
+                      },
+                      { left: leftMargin, right: rightMargin, top: PHASE_GRID_TOP, bottom: controlBottom },
                   ]
                 : [
-                    { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT },
-                    { left: leftMargin, right: rightMargin, top: CONTROL_GRID_TOP, bottom: controlBottom },
+                      { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT },
+                      { left: leftMargin, right: rightMargin, top: CONTROL_GRID_TOP, bottom: controlBottom },
                   ];
             const xAxes = hasPhaseBar
                 ? [
-                    {
-                        gridIndex: 0,
-                        type: 'value' as const,
-                        min: xMin,
-                        max: xMax,
-                        axisLabel: { show: false },
-                        axisTick: { show: false },
-                        axisLine: { show: false },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
-                        interval: 60,
-                        splitNumber: 15,
-                    },
-                    {
-                        gridIndex: 1,
-                        type: 'value',
-                        min: xMin,
-                        max: xMax,
-                        axisLabel: { show: false },
-                        axisTick: { show: false },
-                        axisLine: { show: false },
-                        splitLine: { show: false },
-                        interval: 60,
-                        splitNumber: 15,
-                    },
-                    {
-                        gridIndex: 2,
-                        type: 'value',
-                        min: xMin,
-                        max: xMax,
-                        axisLabel: { formatter: fmtSec, ...AXIS_LABEL_FONT },
-                        axisTick: { show: false },
-                        interval: 60,
-                        splitNumber: 15,
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
-                    },
+                      {
+                          gridIndex: 0,
+                          type: 'value' as const,
+                          min: xMin,
+                          max: xMax,
+                          axisLabel: { show: false },
+                          axisTick: { show: false },
+                          axisLine: { show: false },
+                          splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
+                          interval: 60,
+                          splitNumber: 15,
+                      },
+                      {
+                          gridIndex: 1,
+                          type: 'value',
+                          min: xMin,
+                          max: xMax,
+                          axisLabel: { show: false },
+                          axisTick: { show: false },
+                          axisLine: { show: false },
+                          splitLine: { show: false },
+                          interval: 60,
+                          splitNumber: 15,
+                      },
+                      {
+                          gridIndex: 2,
+                          type: 'value',
+                          min: xMin,
+                          max: xMax,
+                          axisLabel: { formatter: fmtSec, ...AXIS_LABEL_FONT },
+                          axisTick: { show: false },
+                          interval: 60,
+                          splitNumber: 15,
+                          splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
+                      },
                   ]
                 : [
-                    {
-                        gridIndex: 0,
-                        type: 'value',
-                        min: xMin,
-                        max: xMax,
-                        axisLabel: { show: false },
-                        axisTick: { show: false },
-                        axisLine: { show: false },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
-                        interval: 60,
-                        splitNumber: 15,
-                    },
-                    {
-                        gridIndex: 1,
-                        type: 'value',
-                        min: xMin,
-                        max: xMax,
-                        axisLabel: { formatter: fmtSec, ...AXIS_LABEL_FONT },
-                        axisTick: { show: false },
-                        interval: 60,
-                        splitNumber: 15,
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
-                    },
+                      {
+                          gridIndex: 0,
+                          type: 'value',
+                          min: xMin,
+                          max: xMax,
+                          axisLabel: { show: false },
+                          axisTick: { show: false },
+                          axisLine: { show: false },
+                          splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
+                          interval: 60,
+                          splitNumber: 15,
+                      },
+                      {
+                          gridIndex: 1,
+                          type: 'value',
+                          min: xMin,
+                          max: xMax,
+                          axisLabel: { formatter: fmtSec, ...AXIS_LABEL_FONT },
+                          axisTick: { show: false },
+                          interval: 60,
+                          splitNumber: 15,
+                          splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
+                      },
                   ];
             const yAxes = hasPhaseBar
                 ? [
-                    {
-                        gridIndex: 0,
-                        type: 'value',
-                        name: `Temperature (${unitLabel})`,
-                        nameLocation: 'middle',
-                        nameGap: Y_AXIS_NAME_GAP,
-                        axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
-                        minorTick: { show: true, splitNumber: 2 },
-                        minorSplitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLineMinor, width: 0.5 } },
-                        min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
-                        max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
-                        interval: TEMP_Y_INTERVAL,
-                    },
-                    {
-                        gridIndex: 0,
-                        type: 'value',
-                        name: `RoR (${rorUnit})`,
-                        nameLocation: 'middle',
-                        nameGap: Y_AXIS_NAME_GAP,
-                        position: 'right',
-                        axisLine: { onZero: false },
-                        axisLabel: rightYAxisLabel,
-                        splitLine: { show: false },
-                        min: ROR_Y_MIN,
-                        max: ROR_Y_MAX,
-                        interval: 20,
-                    },
-                    {
-                        gridIndex: 1,
-                        type: 'value',
-                        min: 0,
-                        max: 1,
-                        show: false,
-                    },
-                    {
-                        gridIndex: 2,
-                        type: 'value',
-                        name: 'Drum (rpm)',
-                        nameLocation: 'middle',
-                        nameGap: Y_AXIS_NAME_GAP,
-                        position: 'left',
-                        axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT, margin: 4 },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
-                        min: 0,
-                        max: 100,
-                    },
-                    {
-                        gridIndex: 2,
-                        type: 'value',
-                        name: 'Power / Speed (%)',
-                        nameLocation: 'middle',
-                        nameGap: Y_AXIS_NAME_GAP,
-                        position: 'right',
-                        axisLine: { onZero: false },
-                        axisLabel: { show: false },
-                        splitLine: { show: false },
-                        min: 0,
-                        max: 100,
-                    },
+                      {
+                          gridIndex: 0,
+                          type: 'value',
+                          name: `Temperature (${unitLabel})`,
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          axisLine: { onZero: false },
+                          axisLabel: { ...AXIS_LABEL_FONT },
+                          splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
+                          minorTick: { show: true, splitNumber: 2 },
+                          minorSplitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLineMinor, width: 0.5 } },
+                          min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
+                          max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
+                          interval: TEMP_Y_INTERVAL,
+                      },
+                      {
+                          gridIndex: 0,
+                          type: 'value',
+                          name: `RoR (${rorUnit})`,
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          position: 'right',
+                          axisLine: { onZero: false },
+                          axisLabel: rightYAxisLabel,
+                          splitLine: { show: false },
+                          min: ROR_Y_MIN,
+                          max: ROR_Y_MAX,
+                          interval: 20,
+                      },
+                      {
+                          gridIndex: 1,
+                          type: 'value',
+                          min: 0,
+                          max: 1,
+                          show: false,
+                      },
+                      {
+                          gridIndex: 2,
+                          type: 'value',
+                          name: 'Drum (rpm)',
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          position: 'left',
+                          axisLine: { onZero: false },
+                          axisLabel: { ...AXIS_LABEL_FONT, margin: 4 },
+                          splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
+                          min: 0,
+                          max: 100,
+                      },
+                      {
+                          gridIndex: 2,
+                          type: 'value',
+                          name: 'Power / Speed (%)',
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          position: 'right',
+                          axisLine: { onZero: false },
+                          axisLabel: { show: false },
+                          splitLine: { show: false },
+                          min: 0,
+                          max: 100,
+                      },
                   ]
                 : [
-                    {
-                        gridIndex: 0,
-                        type: 'value',
-                        name: `Temperature (${unitLabel})`,
-                        nameLocation: 'middle',
-                        nameGap: Y_AXIS_NAME_GAP,
-                        axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
-                        minorTick: { show: true, splitNumber: 2 },
-                        minorSplitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLineMinor, width: 0.5 } },
-                        min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
-                        max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
-                        interval: TEMP_Y_INTERVAL,
-                    },
-                    {
-                        gridIndex: 0,
-                        type: 'value',
-                        name: `RoR (${rorUnit})`,
-                        nameLocation: 'middle',
-                        nameGap: Y_AXIS_NAME_GAP,
-                        position: 'right',
-                        axisLine: { onZero: false },
-                        axisLabel: rightYAxisLabel,
-                        splitLine: { show: false },
-                        min: ROR_Y_MIN,
-                        max: ROR_Y_MAX,
-                        interval: 20,
-                    },
-                    {
-                        gridIndex: 1,
-                        type: 'value',
-                        name: 'Drum (rpm)',
-                        nameLocation: 'middle',
-                        nameGap: Y_AXIS_NAME_GAP,
-                        position: 'left',
-                        axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT, margin: 4 },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
-                        min: 0,
-                        max: 100,
-                    },
-                    {
-                        gridIndex: 1,
-                        type: 'value',
-                        name: 'Power / Speed (%)',
-                        nameLocation: 'middle',
-                        nameGap: Y_AXIS_NAME_GAP,
-                        position: 'right',
-                        axisLine: { onZero: false },
-                        axisLabel: { show: false },
-                        splitLine: { show: false },
-                        min: 0,
-                        max: 100,
-                    },
+                      {
+                          gridIndex: 0,
+                          type: 'value',
+                          name: `Temperature (${unitLabel})`,
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          axisLine: { onZero: false },
+                          axisLabel: { ...AXIS_LABEL_FONT },
+                          splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
+                          minorTick: { show: true, splitNumber: 2 },
+                          minorSplitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLineMinor, width: 0.5 } },
+                          min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
+                          max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
+                          interval: TEMP_Y_INTERVAL,
+                      },
+                      {
+                          gridIndex: 0,
+                          type: 'value',
+                          name: `RoR (${rorUnit})`,
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          position: 'right',
+                          axisLine: { onZero: false },
+                          axisLabel: rightYAxisLabel,
+                          splitLine: { show: false },
+                          min: ROR_Y_MIN,
+                          max: ROR_Y_MAX,
+                          interval: 20,
+                      },
+                      {
+                          gridIndex: 1,
+                          type: 'value',
+                          name: 'Drum (rpm)',
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          position: 'left',
+                          axisLine: { onZero: false },
+                          axisLabel: { ...AXIS_LABEL_FONT, margin: 4 },
+                          splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
+                          min: 0,
+                          max: 100,
+                      },
+                      {
+                          gridIndex: 1,
+                          type: 'value',
+                          name: 'Power / Speed (%)',
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          position: 'right',
+                          axisLine: { onZero: false },
+                          axisLabel: { show: false },
+                          splitLine: { show: false },
+                          min: 0,
+                          max: 100,
+                      },
                   ];
             return {
                 backgroundColor: 'transparent',
@@ -626,7 +660,9 @@ export const RoastTempChart: React.FC<Props> = ({
             };
         }
 
-        const singleBottom = hasPhaseBar ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP : SINGLE_GRID_BOTTOM;
+        const singleBottom = hasPhaseBar
+            ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP
+            : SINGLE_GRID_BOTTOM;
         return {
             backgroundColor: 'transparent',
             animation: false,
@@ -678,18 +714,20 @@ export const RoastTempChart: React.FC<Props> = ({
                     splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 1 } },
                 },
                 ...(hasPhaseBar
-                    ? [{
-                          gridIndex: 1,
-                          type: 'value' as const,
-                          min: xMin,
-                          max: xMax,
-                          axisLabel: { formatter: fmtSec, ...AXIS_LABEL_FONT },
-                          axisTick: { show: false },
-                          axisLine: { show: false },
-                          splitLine: { show: false },
-                          interval: 60,
-                          splitNumber: 15,
-                      }]
+                    ? [
+                          {
+                              gridIndex: 1,
+                              type: 'value' as const,
+                              min: xMin,
+                              max: xMax,
+                              axisLabel: { formatter: fmtSec, ...AXIS_LABEL_FONT },
+                              axisTick: { show: false },
+                              axisLine: { show: false },
+                              splitLine: { show: false },
+                              interval: 60,
+                              splitNumber: 15,
+                          },
+                      ]
                     : []),
             ],
             yAxis: [
@@ -721,17 +759,27 @@ export const RoastTempChart: React.FC<Props> = ({
                     interval: 20,
                 },
                 ...(hasPhaseBar
-                    ? [{
-                          gridIndex: 1,
-                          type: 'value' as const,
-                          min: 0,
-                          max: 1,
-                          show: false,
-                      }]
+                    ? [
+                          {
+                              gridIndex: 1,
+                              type: 'value' as const,
+                              min: 0,
+                              max: 1,
+                              show: false,
+                          },
+                      ]
                     : []),
             ],
             series: [...tempSeries, ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : [])],
-            dataZoom: [{ type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: false, moveOnMouseWheel: true }],
+            dataZoom: [
+                {
+                    type: 'inside',
+                    xAxisIndex: 0,
+                    zoomOnMouseWheel: true,
+                    moveOnMouseMove: false,
+                    moveOnMouseWheel: true,
+                },
+            ],
         };
     }, [
         xs,

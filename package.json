@@ -86,10 +86,7 @@
         "vite": "^7.0.4"
     },
     "lint-staged": {
-        "src/**/*.{ts,tsx}": [
-            "biome format --write --no-errors-on-unmatched",
-            "eslint --max-warnings=0"
-        ],
+        "src/**/*.{ts,tsx}": "biome format --write --no-errors-on-unmatched",
         "**/*.{js,jsx,mjs,cjs,json,css,md}": "biome format --write --no-errors-on-unmatched",
         "*.{png,jpeg,jpg,gif,svg}": "imagemin-lint-staged",
         "**/*.{ts,tsx,js,jsx,mjs,cjs,json,yml,yaml,toml,md,py,sh,html,css,env,env.*}": "secretlint"

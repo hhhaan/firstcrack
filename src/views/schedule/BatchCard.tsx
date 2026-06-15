@@ -3,10 +3,10 @@ import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { batchStatus, batchProgress, getRecurrenceLabel } from './lib';
 
 const statusStyles: Record<string, string> = {
-    pending: 'bg-surface text-muted',
-    'in-progress': 'bg-amber-50 text-amber-700 border border-amber-200',
-    done: 'bg-green-50 text-green-700 border border-green-200',
-    skipped: 'bg-surface text-muted line-through',
+    pending: 'bg-palette-lavender/10 text-palette-lavender',
+    'in-progress': 'bg-palette-blue/12 text-palette-blue border border-palette-blue/20',
+    done: 'bg-palette-green/12 text-palette-green border border-palette-green/20',
+    skipped: 'text-palette-lavender bg-palette-lavender/10 line-through',
 };
 
 const statusLabels: Record<string, string> = {
@@ -61,7 +61,7 @@ export const BatchCard = ({
                         <Package size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 mt-[1px]" />
                         <span className="text-[14px] font-semibold text-primary">{batch.bean_name}</span>
                         {isRecurring && (
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200">
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-palette-lavender/15 text-palette-lavender border border-palette-lavender/25">
                                 {getRecurrenceLabel(batch.rrule)}
                             </span>
                         )}
@@ -73,7 +73,7 @@ export const BatchCard = ({
                         {canStart && (
                             <button
                                 onClick={onStart}
-                                className="flex items-center gap-1 text-[12px] font-medium text-white bg-primary px-2.5 py-1 rounded-lg border-none cursor-pointer hover:opacity-90 transition-opacity"
+                                className="flex items-center gap-1 text-[12px] font-medium text-white bg-primary dark:bg-[#171717] px-2.5 py-1 rounded-lg border-none cursor-pointer hover:opacity-90 transition-opacity"
                             >
                                 <Play size={11} strokeWidth={2.5} />
                                 시작
@@ -95,9 +95,13 @@ export const BatchCard = ({
                 </div>
                 <div className="mt-2.5 pl-[22px] space-y-1">
                     <div className="text-[12px] text-secondary flex flex-wrap items-center gap-x-2.5">
-                        <span>목표 <span className="font-medium text-primary">{batch.target_roasted_kg} kg</span></span>
+                        <span>
+                            목표 <span className="font-medium text-primary">{batch.target_roasted_kg} kg</span>
+                        </span>
                         <span className="text-border-subtle">│</span>
-                        <span>Batch <span className="font-medium text-primary">{batch.batch_size_kg} kg</span></span>
+                        <span>
+                            Batch <span className="font-medium text-primary">{batch.batch_size_kg} kg</span>
+                        </span>
                         <span className="text-border-subtle">│</span>
                         <span className="font-medium text-primary">{batch.batch_count}회</span>
                         {batch.machine_id && (
@@ -107,9 +111,7 @@ export const BatchCard = ({
                             </>
                         )}
                     </div>
-                    {batch.notes && (
-                        <div className="text-[12px] text-muted">{batch.notes}</div>
-                    )}
+                    {batch.notes && <div className="text-[12px] text-muted">{batch.notes}</div>}
                 </div>
             </div>
         </div>

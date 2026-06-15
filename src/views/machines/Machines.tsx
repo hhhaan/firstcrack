@@ -1,6 +1,7 @@
 import { Plus, Search, Cpu, Activity, AlertCircle, Wifi, WifiOff, Trash2, Flame } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import * as Sentry from '@sentry/react';
 import { AddMachineModal } from '../../widgets/add-machine-modal/ui/AddMachineModal';
 import { useMachines, VIRTUAL_ID } from '@entities/machine';
 import { sidecar } from '@shared/lib/sidecar';
@@ -28,7 +29,7 @@ export const Machines = ({
     const [sidecarStatus, setSidecarStatus] = useState<SidecarStatus | null>(null);
     const [temps, setTemps] = useState<TemperatureReading | null>(null);
     const [connecting, setConnecting] = useState(false);
-    
+
     // 마운트 시 & 모달 닫힐 때 status fetch — "Add & Connect" 흐름에서 연결 상태 즉시 반영
     useEffect(() => {
         if (!isActive) return;
@@ -99,17 +100,51 @@ export const Machines = ({
                 machine.connectionParams as Record<string, unknown>,
             );
             setSidecarStatus(status);
+            if (status.connected) {
+                Sentry.addBreadcrumb({
+                    category: 'hardware.connection',
+                    message: `로스터 연결 성공: ${machine.name}`,
+                    level: 'info',
+                    data: { roasterKey: machine.roasterKey, protocol: machine.protocol },
+                });
+            } else if (status.error) {
+                Sentry.addBreadcrumb({
+                    category: 'hardware.connection',
+                    message: `로스터 연결 실패: ${machine.name}`,
+                    level: 'error',
+                    data: { roasterKey: machine.roasterKey, protocol: machine.protocol, error: status.error },
+                });
+                Sentry.captureMessage(`로스터 연결 실패: ${machine.name} — ${status.error}`, 'warning');
+            }
         } catch (e) {
             console.error(e);
+            Sentry.addBreadcrumb({
+                category: 'hardware.connection',
+                message: `로스터 연결 중 예외: ${machine.name}`,
+                level: 'error',
+                data: { roasterKey: machine.roasterKey, error: String(e) },
+            });
         } finally {
             setConnecting(false);
         }
     };
 
     const handleDisconnect = async () => {
+        const prevStatus = sidecarStatus;
         const status = await sidecar.disconnect().catch(() => null);
         if (status) setSidecarStatus(status);
         setTemps(null);
+        if (prevStatus?.connected) {
+            Sentry.addBreadcrumb({
+                category: 'hardware.connection',
+                message: '로스터 연결 해제',
+                level: 'info',
+                data: {
+                    prevRoaster: prevStatus.roaster,
+                    uptimeSec: prevStatus.uptime,
+                },
+            });
+        }
     };
 
     const connectedMachine = machines.find(isThisMachineConnected);
@@ -121,14 +156,13 @@ export const Machines = ({
 
             <PageHeader
                 title="Machines"
-                subtitle={`${t('machines.registered', { count: machines.length })}${sidecarStatus?.connected && connectedMachine
-                    ? ` · ${t('machines.connectedSuffix', { name: connectedMachine.name })}`
-                    : ` · ${t('machines.noActiveConnection')}`
+                subtitle={`${t('machines.registered', { count: machines.length })}${
+                    sidecarStatus?.connected && connectedMachine
+                        ? ` · ${t('machines.connectedSuffix', { name: connectedMachine.name })}`
+                        : ` · ${t('machines.noActiveConnection')}`
                 }`}
                 actions={
-                    <PillButton
-                        onClick={() => setIsAddModalOpen(true)}
-                    >
+                    <PillButton onClick={() => setIsAddModalOpen(true)}>
                         <Plus size={15} strokeWidth={2.5} />
                         {t('machines.addMachine')}
                     </PillButton>
@@ -141,7 +175,7 @@ export const Machines = ({
                     <p className="text-[15px] text-muted mb-5">{t('machines.empty')}</p>
                     <button
                         onClick={() => setIsAddModalOpen(true)}
-                        className="px-5 py-2.5 rounded-[10px] border-none bg-primary text-white text-[13px] font-medium cursor-pointer"
+                        className="px-5 py-2.5 rounded-[10px] border-none bg-primary dark:bg-[#171717] text-white text-[13px] font-medium cursor-pointer"
                     >
                         {t('machines.addFirst')}
                     </button>
@@ -178,7 +212,7 @@ export const Machines = ({
                                                 <div className="text-[12px] text-muted)">{machine.displayName}</div>
                                             </div>
                                             <span
-                                                className={`text-[10px] font-semibold px-1.75 py-0.5 rounded-full uppercase tracking-[0.4px] shrink-0 ${isConnected ? 'text-[#16a34a] bg-[rgba(220,252,231,0.8)]' : 'text-[#64748b] bg-[rgba(241,245,249,0.8)]'}`}
+                                                className={`text-[10px] font-semibold px-1.75 py-0.5 rounded-full uppercase tracking-[0.4px] shrink-0 ${isConnected ? 'text-palette-green bg-palette-green/15' : 'text-palette-lavender bg-palette-lavender/10'}`}
                                             >
                                                 {isConnected ? t('common.live') : t('common.offline')}
                                             </span>
@@ -305,7 +339,7 @@ export const Machines = ({
                                     <button
                                         onClick={() => handleConnect(selected)}
                                         disabled={connecting}
-                                        className={`flex-1 py-3 rounded-lg border-none bg-primary text-white text-sm font-medium flex items-center justify-center gap-2 ${connecting ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
+                                        className={`flex-1 py-3 rounded-lg border-none bg-primary dark:bg-[#171717] text-white text-sm font-medium flex items-center justify-center gap-2 ${connecting ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
                                     >
                                         {connecting ? (
                                             <>
@@ -321,7 +355,7 @@ export const Machines = ({
                                 {isSelectedConnected && onNavigate && (
                                     <button
                                         onClick={() => onNavigate('roast')}
-                                        className="flex-1 py-3 rounded-lg border-none bg-primary text-white text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
+                                        className="flex-1 py-3 rounded-lg border-none bg-primary dark:bg-[#171717] text-white text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
                                     >
                                         <Flame size={15} strokeWidth={2} />
                                         {t('machines.startRoasting')}

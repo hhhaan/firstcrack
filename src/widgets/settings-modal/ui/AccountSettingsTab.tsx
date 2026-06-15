@@ -87,7 +87,7 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                     <div>
                         <div className="text-[15px] font-semibold text-[#111827]">{displayName || '—'}</div>
                         <div className="text-[13px] text-[#6B7280] mt-1">{user?.email || '—'}</div>
-                        <span className="inline-block mt-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#F3F4F6] text-[#6B7280] capitalize">
+                        <span className="inline-block mt-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-palette-lavender/12 text-palette-lavender capitalize">
                             {profile?.plan ?? 'free'}
                         </span>
                     </div>

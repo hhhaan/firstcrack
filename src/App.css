@@ -1,11 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-@import 'tailwindcss';
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
+@import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @font-face {
-    font-family: 'Pretendard';
-    src: url('/fonts/PretendardVariable.woff2') format('woff2-variations');
+    font-family: "Pretendard";
+    src: url("/fonts/PretendardVariable.woff2") format("woff2-variations");
     font-weight: 100 900;
     font-style: normal;
     font-display: swap;
@@ -22,8 +22,8 @@
 
 /* ── Light theme ─────────────────────────────────────────────── */
 @theme {
-    --font-display: 'Inter', 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-body: 'Inter', 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: "Inter", "Pretendard", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body: "Inter", "Pretendard", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: monospace;
 
     --color-main-bg: #ffffff;
@@ -39,6 +39,19 @@
     --color-border: #e5e5e5;
     --color-border-subtle: rgba(0, 0, 0, 0.05);
     --color-divider: #efeff0;
+
+    --color-palette-black: #0b0b0b;
+    --color-palette-yellow: #ffff54;
+    --color-palette-green: #81fba5;
+    --color-palette-teal: #72ebbc;
+    --color-palette-blue: #44bffc;
+    --color-palette-indigo: #5c41ff;
+    --color-palette-purple: #756afc;
+    --color-palette-violet: #8080f0;
+    --color-palette-lavender: #a6b0ff;
+    --color-palette-gray-light: #e4e4e4;
+    --color-palette-gray: #a3a2a2;
+    --color-palette-gray-dark: #6c6a6b;
 
     --shadow-inset: rgba(0, 0, 0, 0.075) 0px 0px 0px 0.5px inset;
     --shadow-outline: rgba(0, 0, 0, 0.06) 0px 0px 0px 1px;
@@ -91,8 +104,7 @@ html.dark {
     --shadow-elevation: rgba(0, 0, 0, 0.3) 0px 4px 4px;
     --shadow-card: rgba(0, 0, 0, 0.6) 0px 0px 1px, rgba(0, 0, 0, 0.2) 0px 4px 4px;
     --shadow-warm: rgba(0, 0, 0, 0.3) 0px 6px 16px;
-    --shadow-ring:
-        rgba(0, 0, 0, 0.3) 0px 0px 0px 1px, rgba(0, 0, 0, 0.2) 0px 1px 2px, rgba(0, 0, 0, 0.2) 0px 2px 4px;
+    --shadow-ring: rgba(0, 0, 0, 0.3) 0px 0px 0px 1px, rgba(0, 0, 0, 0.2) 0px 1px 2px, rgba(0, 0, 0, 0.2) 0px 2px 4px;
     --shadow-edge: rgba(0, 0, 0, 0.4) 0px 0px 0px 0.5px;
 
     /* Sensor & chart tokens (dark) */
@@ -130,17 +142,17 @@ body {
     font-variant-numeric: tabular-nums lining-nums;
     font-kerning: normal;
     font-feature-settings:
-        'kern' 1,
-        'tnum' 1,
-        'lnum' 1,
-        'zero' 1;
+        "kern" 1,
+        "tnum" 1,
+        "lnum" 1,
+        "zero" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
-html[lang='en'] {
-    --font-display: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+html[lang="en"] {
+    --font-display: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 ::-webkit-scrollbar {
@@ -191,14 +203,14 @@ html[lang='en'] {
     body > *:not(#print-root) {
         display: none !important;
     }
-    #print-root [data-report='true'] {
+    #print-root [data-report="true"] {
         position: static !important;
         width: 210mm !important;
         margin: 0 auto !important;
         box-sizing: border-box !important;
     }
-    #print-root [data-report='true'],
-    #print-root [data-report='true'] * {
+    #print-root [data-report="true"],
+    #print-root [data-report="true"] * {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }

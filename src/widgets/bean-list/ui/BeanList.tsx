@@ -75,7 +75,6 @@ export const BeanList = ({ beans, isLoading, selectedId, onSelect, search, onSea
                     borderRadius: 8,
                     padding: '9px 12px',
                     marginBottom: 10,
-                    border: '1px solid #E5E5E5',
                 }}
             >
                 <Search size={14} strokeWidth={2} color="var(--color-muted)" />
@@ -196,7 +195,8 @@ export const BeanList = ({ beans, isLoading, selectedId, onSelect, search, onSea
                                         fontFamily: 'var(--font-mono)',
                                     }}
                                 >
-                                    {(bean.stock_grams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
+                                    {(bean.stock_grams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}
+                                    kg
                                 </div>
                             </div>
                         );
