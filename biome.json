@@ -4,7 +4,26 @@
     "linter": {
         "enabled": true,
         "rules": {
-            "preset": "recommended"
+            "preset": "recommended",
+            "correctness": {
+                "noUnusedVariables": "error",
+                "useExhaustiveDependencies": "error"
+            },
+            "complexity": {
+                "noForEach": "warn",
+                "useLiteralKeys": "error"
+            },
+            "style": {
+                "noDefaultExport": "error",
+                "useConst": "error",
+                "useTemplate": "warn",
+                "useImportType": "error"
+            },
+            "suspicious": {
+                "noConsole": "warn",
+                "noDoubleEquals": "error",
+                "noExplicitAny": "warn"
+            }
         }
     },
     "formatter": {
@@ -33,6 +52,6 @@
         }
     },
     "files": {
-        "includes": ["**", "!**/dist", "!**/src-tauri", "!**/node_modules"]
+        "includes": ["**", "!**/dist", "!**/build", "!**/.next", "!**/coverage", "!**/src-tauri", "!**/node_modules"]
     }
 }
