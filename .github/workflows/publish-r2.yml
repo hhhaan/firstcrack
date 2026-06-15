@@ -74,7 +74,9 @@ jobs:
             '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
             > latest.json
 
-          $S3 latest.json "s3://$R2_BUCKET/releases/latest.json"
+          $S3 latest.json "s3://$R2_BUCKET/releases/latest.json" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "application/json"
 
           [ -n "$AARCH64_DMG" ] && $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg"
           [ -n "$X64_DMG" ]     && $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg"

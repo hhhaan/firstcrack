@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import * as Sentry from '@sentry/react';
 import { useRoastSessionStore } from './shared/store/roastSession';
 import { type PlanBatchHandoff } from './shared/types/database.types';
 import { onOpenUrl, getCurrent } from '@tauri-apps/plugin-deep-link';
@@ -38,6 +39,8 @@ export const App = () => {
 
     useEffect(() => {
         checkAndDownload();
+        const id = setInterval(checkAndDownload, 4 * 60 * 60 * 1000);
+        return () => clearInterval(id);
     }, [checkAndDownload]);
 
     // dev mode: Google OAuth 콜백 처리 (PKCE: ?code= / implicit: #access_token=)
@@ -124,10 +127,13 @@ export const App = () => {
         setSettingsOpen(true);
     };
 
-    const handleStartBatch = useCallback((handoff: PlanBatchHandoff) => {
-        startBatch(handoff);
-        setView('roast');
-    }, [startBatch]);
+    const handleStartBatch = useCallback(
+        (handoff: PlanBatchHandoff) => {
+            startBatch(handoff);
+            setView('roast');
+        },
+        [startBatch],
+    );
 
     const handlePlanBatchComplete = useCallback(() => {
         completeBatch();
@@ -150,101 +156,121 @@ export const App = () => {
         );
     if (!user) return <Login />;
 
-    return (
-        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-            {theme === null && <ThemeSelectModal />}
-            <Sidebar
-                activeView={view}
-                onNavigate={setView}
-                collapsed={sidebarCollapsed}
-                onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
-                onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
-            />
-            <div
-                style={{
-                    flex: 1,
-                    minHeight: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: view === 'roast' ? 'hidden' : 'auto',
-                    background: 'var(--color-surface)',
-                }}
+    const sentryFallback = ({ error, resetError }: { error: unknown; resetError: () => void }) => (
+        <div className="flex flex-col items-center justify-center h-screen gap-4 p-8 text-center bg-[var(--color-surface)]">
+            <p className="text-sm text-red-400">
+                {error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'}
+            </p>
+            <button
+                onClick={resetError}
+                className="px-4 py-2 text-sm rounded-md bg-stone-700 hover:bg-stone-600 text-stone-100 transition-colors"
             >
-                {view === 'dashboard' && (
-                    <ViewErrorBoundary>
-                        <Dashboard onNavigate={setView} />
-                    </ViewErrorBoundary>
-                )}
-                {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
-            TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
+                다시 시도
+            </button>
+        </div>
+    );
+
+    return (
+        <Sentry.ErrorBoundary fallback={sentryFallback}>
+            <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+                {theme === null && <ThemeSelectModal />}
+                <Sidebar
+                    activeView={view}
+                    onNavigate={setView}
+                    collapsed={sidebarCollapsed}
+                    onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
+                    onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
+                />
                 <div
                     style={{
-                        display: view === 'roast' ? 'flex' : 'none',
-                        flexDirection: 'column',
-                        flex: view === 'roast' ? 1 : undefined,
-                        height: view === 'roast' ? undefined : '100%',
+                        flex: 1,
                         minHeight: 0,
-                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: view === 'roast' ? 'hidden' : 'auto',
+                        background: 'var(--color-surface)',
                     }}
                 >
-                    <ViewErrorBoundary>
-                        <ActiveRoast
-                            isActive={view === 'roast'}
-                            onOpenRoastSettings={() => openSettings('roast')}
-                            onPlanBatchComplete={handlePlanBatchComplete}
-                        />
-                    </ViewErrorBoundary>
+                    {view === 'dashboard' && (
+                        <ViewErrorBoundary>
+                            <Dashboard onNavigate={setView} />
+                        </ViewErrorBoundary>
+                    )}
+                    {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
+            TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
+                    <div
+                        style={{
+                            display: view === 'roast' ? 'flex' : 'none',
+                            flexDirection: 'column',
+                            flex: view === 'roast' ? 1 : undefined,
+                            height: view === 'roast' ? undefined : '100%',
+                            minHeight: 0,
+                            overflow: 'hidden',
+                        }}
+                    >
+                        <ViewErrorBoundary>
+                            <ActiveRoast
+                                isActive={view === 'roast'}
+                                onOpenRoastSettings={() => openSettings('roast')}
+                                onPlanBatchComplete={handlePlanBatchComplete}
+                            />
+                        </ViewErrorBoundary>
+                    </div>
+                    {view === 'history' && (
+                        <ViewErrorBoundary>
+                            <History />
+                        </ViewErrorBoundary>
+                    )}
+                    {view === 'beans' && (
+                        <ViewErrorBoundary>
+                            <Beans onNavigate={setView} />
+                        </ViewErrorBoundary>
+                    )}
+                    {view === 'profiles' && (
+                        <ViewErrorBoundary>
+                            <Profiles onNavigate={setView} />
+                        </ViewErrorBoundary>
+                    )}
+                    <div style={{ display: view === 'machines' ? 'block' : 'none' }}>
+                        <ViewErrorBoundary>
+                            <Machines isActive={view === 'machines'} onNavigate={setView} />
+                        </ViewErrorBoundary>
+                    </div>
+                    {view === 'schedule' && (
+                        <ViewErrorBoundary>
+                            <Schedule onStartBatch={handleStartBatch} />
+                        </ViewErrorBoundary>
+                    )}
                 </div>
-                {view === 'history' && (
-                    <ViewErrorBoundary>
-                        <History />
-                    </ViewErrorBoundary>
-                )}
-                {view === 'beans' && (
-                    <ViewErrorBoundary>
-                        <Beans onNavigate={setView} />
-                    </ViewErrorBoundary>
-                )}
-                {view === 'profiles' && (
-                    <ViewErrorBoundary>
-                        <Profiles onNavigate={setView} />
-                    </ViewErrorBoundary>
-                )}
-                <div style={{ display: view === 'machines' ? 'block' : 'none' }}>
-                    <ViewErrorBoundary>
-                        <Machines isActive={view === 'machines'} onNavigate={setView} />
-                    </ViewErrorBoundary>
-                </div>
-                {view === 'schedule' && (
-                    <ViewErrorBoundary>
-                        <Schedule onStartBatch={handleStartBatch} />
-                    </ViewErrorBoundary>
+                <SettingsModal
+                    open={settingsOpen}
+                    initialTab={settingsInitialTab}
+                    onClose={() => setSettingsOpen(false)}
+                />
+
+                {state.status === 'ready' && (
+                    <button
+                        onClick={applyAndRelaunch}
+                        style={{
+                            position: 'fixed',
+                            bottom: 24,
+                            right: 24,
+                            zIndex: 9999,
+                            padding: '10px 20px',
+                            borderRadius: 9999,
+                            border: 'none',
+                            background: 'var(--color-accent, #2563eb)',
+                            color: '#fff',
+                            fontSize: 14,
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+                        }}
+                    >
+                        새 업데이트 (v{state.version}) 재시작
+                    </button>
                 )}
             </div>
-            <SettingsModal open={settingsOpen} initialTab={settingsInitialTab} onClose={() => setSettingsOpen(false)} />
-
-            {state.status === 'ready' && (
-                <button
-                    onClick={applyAndRelaunch}
-                    style={{
-                        position: 'fixed',
-                        bottom: 24,
-                        right: 24,
-                        zIndex: 9999,
-                        padding: '10px 20px',
-                        borderRadius: 9999,
-                        border: 'none',
-                        background: 'var(--color-accent, #2563eb)',
-                        color: '#fff',
-                        fontSize: 14,
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-                    }}
-                >
-                    새 업데이트 (v{state.version}) 재시작
-                </button>
-            )}
-        </div>
+        </Sentry.ErrorBoundary>
     );
 };
