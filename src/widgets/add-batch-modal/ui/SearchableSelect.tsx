@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Check } from 'lucide-react';
 
 const inputCls =
-    'w-full px-3.5 py-2.5 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20';
+    'w-full px-3.5 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20 dark:focus:border-[#585d61]';
 
 export const SearchableSelect = ({
     placeholder,
@@ -23,9 +23,7 @@ export const SearchableSelect = ({
     const [open, setOpen] = useState(false);
 
     const selected = items.find((i) => i.id === selectedId);
-    const filtered = items.filter((i) =>
-        renderLabel(i).toLowerCase().includes(query.toLowerCase()),
-    );
+    const filtered = items.filter((i) => renderLabel(i).toLowerCase().includes(query.toLowerCase()));
 
     useEffect(() => {
         if (!open) setQuery('');
@@ -57,16 +55,22 @@ export const SearchableSelect = ({
                     fill="none"
                     className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
                 >
-                    <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path
+                        d="M2 4l4 4 4-4"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
                 </svg>
             </button>
 
             {open && (
-                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl border border-black/8 shadow-[0_8px_24px_rgba(0,0,0,0.12)] z-50 overflow-hidden">
+                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#262b31] rounded-2xl border border-black/8 dark:border-[#585d61] shadow-[0_8px_24px_rgba(0,0,0,0.12)] z-50 overflow-hidden">
                     <div className="p-2 border-b border-black/4">
                         <input
                             autoFocus
-                            className="w-full px-3 py-2 rounded-xl border border-black/8 bg-surface text-sm text-primary outline-none"
+                            className="w-full px-3 py-2 rounded-xl border border-black/8 dark:border-[#585d61] bg-surface dark:bg-surface-elevated text-sm text-primary outline-none"
                             placeholder="검색..."
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
@@ -86,7 +90,9 @@ export const SearchableSelect = ({
                                     }}
                                     className="w-full flex items-center justify-between px-4 py-2.5 text-left text-[13px] hover:bg-surface cursor-pointer border-none bg-transparent transition-colors"
                                 >
-                                    {renderOption ? renderOption(item) : (
+                                    {renderOption ? (
+                                        renderOption(item)
+                                    ) : (
                                         <span className="text-primary">{renderLabel(item)}</span>
                                     )}
                                     {item.id === selectedId && (
@@ -100,7 +106,10 @@ export const SearchableSelect = ({
                         <div className="border-t border-black/4 p-2">
                             <button
                                 type="button"
-                                onClick={() => { onSelect(''); setOpen(false); }}
+                                onClick={() => {
+                                    onSelect('');
+                                    setOpen(false);
+                                }}
                                 className="w-full px-3 py-2 text-[12px] text-muted text-center rounded-xl border-none hover:bg-surface cursor-pointer transition-colors"
                             >
                                 선택 해제

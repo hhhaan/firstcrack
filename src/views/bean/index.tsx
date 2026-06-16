@@ -64,7 +64,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 }
             />
 
-            <div className="flex border-b border-(--color-border) mb-4">
+            <div className="flex border-b border-(--color-border) dark:border-[#585d61] mb-4">
                 <button
                     className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'single' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
                     onClick={() => setTab('single')}
@@ -82,7 +82,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
             {tab === 'single' && (
                 <>
                     {!isLoading && beans.length === 0 ? (
-                        <div className="bg-main-bg rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
+                        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
                             {/* <Coffee size={40} strokeWidth={1.5} className="text-muted" /> */}
                             <div className="text-[13px] text-muted text-center leading-relaxed">
                                 등록된 원두가 없습니다.
@@ -90,7 +90,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                             </div>
                             <button
                                 onClick={() => setIsAddModalOpen(true)}
-                                className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface cursor-pointer hover:bg-surface-raised transition-colors"
+                                className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
                             >
                                 <Plus size={14} strokeWidth={2} />
                                 생두 추가
@@ -101,7 +101,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                             <div className="flex flex-col gap-2">
                                 <button
                                     onClick={() => setIsAddModalOpen(true)}
-                                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 transition-colors tracking-[0.14px]"
+                                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] dark:border-[#585d61] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 transition-colors tracking-[0.14px]"
                                 >
                                     <Plus size={14} strokeWidth={2} />
                                     Add Bean

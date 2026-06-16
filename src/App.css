@@ -29,6 +29,7 @@
     --color-main-bg: #ffffff;
     --color-roast-bg: #ffffff;
     --color-surface: #efeff0;
+    --color-surface-elevated: #efeff0;
     --color-surface-warm: rgba(245, 242, 239, 0.8);
     --color-surface-warm-solid: #f5f2ef;
 
@@ -68,7 +69,7 @@
     --color-sensor-bt: #22a85a;
     --color-sensor-bt-target: rgba(40, 180, 130, 0.65);
     --color-sensor-et: #4a85c5;
-    --color-sensor-ror: #e8a828;
+    --color-sensor-ror: #f1c21b;
     --color-chart-grid: rgba(0, 0, 0, 0.08);
     --color-chart-grid-stroke: rgba(0, 0, 0, 0.1);
     --color-chart-axis-label: #666;
@@ -81,15 +82,55 @@
     --color-chart-tooltip-border: rgba(0, 0, 0, 0.08);
     --color-scrollbar-thumb: rgba(0, 0, 0, 0.1);
     --color-scrollbar-thumb-hover: rgba(0, 0, 0, 0.16);
+
+    --color-phase-ready: #22a85a;
+    --color-phase-ready-bg: rgba(34, 168, 90, 0.1);
+    --color-phase-drying: #d4a017;
+    --color-phase-maillard: #1976d2;
+    --color-phase-development: #5c4fd4;
+    --color-phase-danger: #dc2626;
+    --color-phase-danger-bg: rgba(220, 38, 38, 0.1);
+
+    /* Palette (light) */
+    --color-palette-yellow: #d97706;
+    --color-palette-green: #059669;
+    --color-palette-teal: #0d9488;
+    --color-palette-blue: #2563eb;
+    --color-palette-indigo: #4338ca;
+    --color-palette-purple: #6d28d9;
+    --color-palette-violet: #7c3aed;
+    --color-palette-lavender: #818cf8;
+
+    /* Event marker colors (light) */
+    --color-event-yellow: #d97706;
+    --color-event-fc-start: #2563eb;
+    --color-event-fc-end: #7c3aed;
+    --color-event-end: #6366f1;
+    --color-event-note: #059669;
+    --color-event-tp: #059669;
+    --color-event-drop: #4f46e5;
+
+    /* Control chart colors (light) */
+    --color-control-drum: #059669;
+    --color-control-heat: #d97706;
+    --color-control-heat-area: rgba(217, 119, 6, 0.15);
+    --color-control-fan: #2563eb;
+    --color-control-fan-area: rgba(37, 99, 235, 0.15);
+
+    /* Chart misc (light) */
+    --color-chart-axis-pointer: #64748b;
+    --color-chart-tooltip-time: #9ca3af;
+    --color-chart-marker-label: #0b0b0b;
 }
 
 /* ── Dark theme ──────────────────────────────────────────────── */
 html.dark {
-    --color-main-bg: #1a1a1a;
+    --color-main-bg: #181d21;
     --color-roast-bg: #181d21;
-    --color-surface: #222;
+    --color-surface: #181d21;
+    --color-surface-elevated: #262b30;
     --color-surface-warm: rgba(30, 28, 26, 0.8);
-    --color-surface-warm-solid: #1e1c1a;
+    --color-surface-warm-solid: #272b30;
 
     --color-primary: #e5e5e5;
     --color-secondary: #a3a3a3;
@@ -97,7 +138,7 @@ html.dark {
 
     --color-border: #2e2e2e;
     --color-border-subtle: rgba(255, 255, 255, 0.08);
-    --color-divider: #6c6a6b;
+    --color-divider: #585d61;
 
     --shadow-inset: rgba(0, 0, 0, 0.4) 0px 0px 0px 0.5px inset;
     --shadow-outline: rgba(0, 0, 0, 0.3) 0px 0px 0px 1px;
@@ -120,10 +161,49 @@ html.dark {
     --color-chart-phasebar-stroke: rgba(255, 255, 255, 0.12);
     --color-chart-phasebar-name: #bbb;
     --color-chart-phasebar-duration: #999;
-    --color-chart-tooltip-bg: #222;
+    --color-chart-tooltip-bg: #181d21;
     --color-chart-tooltip-border: rgba(255, 255, 255, 0.1);
     --color-scrollbar-thumb: rgba(255, 255, 255, 0.12);
     --color-scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+
+    --color-phase-ready: #81fba5;
+    --color-phase-ready-bg: rgba(129, 251, 165, 0.15);
+    --color-phase-drying: #ffff54;
+    --color-phase-maillard: #44bffc;
+    --color-phase-development: #756afc;
+    --color-phase-danger: #ffffff;
+    --color-phase-danger-bg: rgba(255, 255, 255, 0.12);
+
+    /* Palette (dark) */
+    --color-palette-yellow: #ffff54;
+    --color-palette-green: #81fba5;
+    --color-palette-teal: #72ebbc;
+    --color-palette-blue: #44bffc;
+    --color-palette-indigo: #5c41ff;
+    --color-palette-purple: #756afc;
+    --color-palette-violet: #8080f0;
+    --color-palette-lavender: #a6b0ff;
+
+    /* Event marker colors (dark) */
+    --color-event-yellow: #ffff54;
+    --color-event-fc-start: #44bffc;
+    --color-event-fc-end: #756afc;
+    --color-event-end: #8080f0;
+    --color-event-note: #72ebbc;
+    --color-event-tp: #81fba5;
+    --color-event-drop: #a6b0ff;
+
+    /* Control chart colors (dark) */
+    --color-control-drum: #72ebbc;
+    --color-control-heat: #ffff54;
+    --color-control-heat-area: rgba(255, 255, 84, 0.15);
+    --color-control-fan: #44bffc;
+    --color-control-fan-area: rgba(68, 191, 252, 0.15);
+
+    /* Chart misc (dark) */
+    --color-chart-axis-pointer: #64748b;
+    --color-chart-tooltip-time: #9ca3af;
+    --color-chart-marker-label: #ffffff;
 }
 
 html,

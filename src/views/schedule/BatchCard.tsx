@@ -43,19 +43,19 @@ export const BatchCard = ({
                 <button
                     onClick={() => onMove('up')}
                     disabled={index === 0}
-                    className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface text-muted cursor-pointer hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface dark:bg-surface-elevated text-muted cursor-pointer hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                     <ChevronUp size={13} strokeWidth={2} />
                 </button>
                 <button
                     onClick={() => onMove('down')}
                     disabled={index === total - 1}
-                    className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface text-muted cursor-pointer hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface dark:bg-surface-elevated text-muted cursor-pointer hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                     <ChevronDown size={13} strokeWidth={2} />
                 </button>
             </div>
-            <div className="flex-1 rounded-xl p-4 bg-main-bg transition-colors duration-150">
+            <div className="flex-1 rounded-xl p-4 bg-main-bg dark:bg-[#262b31] transition-colors duration-150">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <Package size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 mt-[1px]" />

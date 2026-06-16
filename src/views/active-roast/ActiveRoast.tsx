@@ -685,7 +685,7 @@ export const ActiveRoast = ({
                 className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
                     isFullscreen
                         ? 'fixed inset-0 z-9999 h-screen w-screen p-10'
-                        : 'rounded relative z-1 px-6 pb-4 pt-10 flex-1'
+                        : 'rounded relative z-1 px-6 pb-4 pt-10 flex-1 dark:border dark:border-[#585d61]'
                 }`}
             >
                 <div className="flex gap-6 flex-1 min-h-0 flex-row">
@@ -869,7 +869,7 @@ export const ActiveRoast = ({
                                     aria-label="End roast"
                                     className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
                                         roastEnded || !charged
-                                            ? 'bg-surface text-muted cursor-default'
+                                            ? 'bg-surface dark:bg-surface-elevated text-muted cursor-default'
                                             : 'cursor-pointer'
                                     }`}
                                     style={
@@ -932,7 +932,7 @@ export const ActiveRoast = ({
                                     }
                                 }}
                                 placeholder="Add note... (Enter to save)"
-                                className="h-16 text-xs px-2 py-1.5 rounded bg-surface text-primary placeholder:text-muted focus:outline-none focus:border-border resize-none"
+                                className="h-16 text-xs px-2 py-1.5 rounded bg-surface dark:bg-surface-elevated text-primary placeholder:text-muted focus:outline-none focus:border-border resize-none"
                             />
                             <button
                                 onClick={() => {
@@ -941,7 +941,7 @@ export const ActiveRoast = ({
                                     setNoteInput('');
                                 }}
                                 disabled={!noteInput.trim()}
-                                className="px-2.5 py-1.5 rounded-md border-none text-xs font-semibold bg-surface text-muted hover:text-primary disabled:opacity-40 cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-md border-none text-xs font-semibold bg-surface dark:bg-surface-elevated text-muted hover:text-primary disabled:opacity-40 cursor-pointer"
                             >
                                 +
                             </button>

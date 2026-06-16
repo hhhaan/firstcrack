@@ -170,7 +170,7 @@ export const Machines = ({
             />
 
             {machines.length === 0 ? (
-                <div className="bg-main-bg rounded-lg py-16 px-8 text-center">
+                <div className="bg-main-bg rounded-lg py-16 px-8 text-center dark:border dark:border-[#585d61]">
                     <Cpu size={32} strokeWidth={1.2} color="var(--color-muted)" className="mb-4 mx-auto" />
                     <p className="text-[15px] text-muted mb-5">{t('machines.empty')}</p>
                     <button
@@ -184,7 +184,7 @@ export const Machines = ({
                 <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
                     {/* List */}
                     <div>
-                        <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5">
+                        <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5 dark:border dark:border-[#585d61]">
                             <Search size={14} strokeWidth={2} color="var(--color-muted)" />
                             <input
                                 value={search}
@@ -202,7 +202,7 @@ export const Machines = ({
                                     <div
                                         key={machine.id}
                                         onClick={() => setSelectedId(machine.id)}
-                                        className={`bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150`}
+                                        className={`bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150 border border-[#E5E5E5] dark:border-[#585d61]`}
                                     >
                                         <div className="flex items-start justify-between mb-2">
                                             <div>
@@ -231,7 +231,7 @@ export const Machines = ({
 
                     {/* Detail */}
                     {selected ? (
-                        <div className="bg-main-bg rounded-lg px-8 py-7 h-fit">
+                        <div className="bg-main-bg rounded-lg px-8 py-7 h-fit dark:border dark:border-[#585d61]">
                             <div className="flex items-start justify-between mb-6">
                                 <div>
                                     <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-2">
@@ -245,7 +245,7 @@ export const Machines = ({
                                         ].map((tag) => (
                                             <span
                                                 key={tag}
-                                                className="text-[11px] font-semibold text-secondary bg-surface px-2.25 py-0.75 rounded-full"
+                                                className="text-[11px] font-semibold text-secondary bg-surface dark:bg-surface-elevated px-2.25 py-0.75 rounded-full"
                                             >
                                                 {tag}
                                             </span>
@@ -256,7 +256,7 @@ export const Machines = ({
                                     {selected.id !== VIRTUAL_ID && (
                                         <button
                                             onClick={() => removeMachine(selected.id)}
-                                            className="w-9 h-9 rounded-[10px] border-none bg-surface text-muted flex items-center justify-center cursor-pointer"
+                                            className="w-9 h-9 rounded-[10px] border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer"
                                             title={t('machines.removeMachine')}
                                         >
                                             <Trash2 size={15} strokeWidth={2} />
@@ -279,7 +279,10 @@ export const Machines = ({
                                         sub: 'ET',
                                     },
                                 ].map((s) => (
-                                    <div key={s.label} className="bg-surface px-4 py-3.5 rounded-lg">
+                                    <div
+                                        key={s.label}
+                                        className="bg-surface dark:bg-surface-elevated px-4 py-3.5 rounded-lg"
+                                    >
                                         <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.5px] mb-1.5">
                                             {s.label}
                                         </div>
@@ -293,7 +296,7 @@ export const Machines = ({
 
                             {/* Connection params */}
                             {Object.keys(selected.connectionParams).length > 0 && (
-                                <div className="bg-surface-warm-solid rounded-lg px-4.5 py-4 mb-6 ]">
+                                <div className="bg-surface-warm-solid dark:bg-surface-elevated rounded-lg px-4.5 py-4 mb-6">
                                     <div className="text-[12px] font-semibold text-secondary mb-2.5">
                                         {t('machines.connection')}
                                     </div>
@@ -303,7 +306,7 @@ export const Machines = ({
                                             .map(([k, v]) => (
                                                 <div
                                                     key={k}
-                                                    className="flex justify-between gap-3 px-2.5 py-1.75 rounded-lg bg-white/82"
+                                                    className="flex justify-between gap-3 px-2.5 py-1.75 rounded-lg bg-white/82 dark:bg-[#2e3338]"
                                                 >
                                                     <span className="text-[11px] text-muted uppercase tracking-wider">
                                                         {k}
@@ -330,7 +333,7 @@ export const Machines = ({
                                 {isSelectedConnected ? (
                                     <button
                                         onClick={handleDisconnect}
-                                        className="py-3 px-5 rounded-lg border-none bg-surface text-secondary text-sm font-medium cursor-pointer flex items-center justify-center gap-2"
+                                        className="py-3 px-5 rounded-lg border-none bg-surface dark:bg-surface-elevated text-secondary text-sm font-medium cursor-pointer flex items-center justify-center gap-2"
                                     >
                                         <WifiOff size={15} strokeWidth={2} />
                                         {t('machines.disconnect')}
@@ -364,7 +367,7 @@ export const Machines = ({
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-main-bg rounded-lg py-15 px-8 flex items-center justify-center text-muted text-sm">
+                        <div className="bg-main-bg rounded-lg py-15 px-8 flex items-center justify-center text-muted text-sm dark:border dark:border-[#585d61]">
                             {t('machines.selectMachine')}
                         </div>
                     )}

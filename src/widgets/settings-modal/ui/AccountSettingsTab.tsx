@@ -8,7 +8,9 @@ import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { useQueryClient } from '@tanstack/react-query';
 
 const SectionCard = ({ children }: { children: React.ReactNode }) => (
-    <section className="bg-white border border-[#E5E7EB] rounded-xl p-5">{children}</section>
+    <section className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
+        {children}
+    </section>
 );
 
 export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {

@@ -81,7 +81,7 @@ const DefaultBadge = ({
 }) => {
     if (defaultId === id) {
         return (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#EFEFF0] ">
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#EFEFF0] dark:bg-surface-elevated ">
                 <Star size={11} strokeWidth={2} fill="currentColor" className="text-[#FFB900]" />
                 <span className="text-[11px] font-medium  tracking-[0.3px]">Default</span>
             </div>
@@ -91,7 +91,7 @@ const DefaultBadge = ({
         <button
             onClick={() => onSetDefault(id)}
             title="Set as Default"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full border-none bg-surface cursor-pointer  hover:bg-palette-teal/12 transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full border-none bg-surface dark:bg-surface-elevated cursor-pointer  hover:bg-palette-teal/12 transition-colors"
         >
             <Star size={11} strokeWidth={2} color="#FFB900" />
             <span className="text-[11px] font-medium text-muted tracking-[0.3px]">Set Default</span>
@@ -127,7 +127,7 @@ const ProfileCurveChart = ({ series }: { series: SeriesData[] }) => {
             position: 'absolute',
             pointerEvents: 'none',
             display: 'none',
-            background: 'white',
+            background: cs.getPropertyValue('--color-main-bg').trim() || 'white',
             borderRadius: '10px',
             padding: '10px 14px',
             boxShadow: 'rgba(0,0,0,0.4) 0px 0px 1px, rgba(0,0,0,0.04) 0px 4px 4px',
@@ -350,7 +350,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     if (isLoading) {
         return (
             <PageLayout>
-                <div className="flex items-center justify-center h-64 text-sm text-muted">Loading…</div>
+                <div className="flex items-center justify-center h-64 text-sm text-muted dark:text-white">Loading…</div>
             </PageLayout>
         );
     }
@@ -368,7 +368,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 className={`flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none text-sm font-medium cursor-pointer tracking-[0.14px] transition-colors ${
                                     compareMode
                                         ? 'bg-primary text-white '
-                                        : 'bg-surface text-secondary  hover:text-primary'
+                                        : 'bg-surface dark:bg-surface-elevated text-secondary  hover:text-primary'
                                 }`}
                             >
                                 <GitCompare size={14} strokeWidth={2} />
@@ -387,7 +387,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             />
 
             {profiles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-lg bg-main-bg">
+                <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-lg bg-main-bg dark:border dark:border-[#585d61]">
                     <p className="text-sm text-muted tracking-[0.14px]">아직 프로파일이 없습니다.</p>
                     <PillButton onClick={() => setShowNewModal(true)}>
                         <Plus size={14} strokeWidth={2.5} />첫 프로파일 만들기
@@ -421,12 +421,12 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 <div
                                     key={profile.id}
                                     onClick={(e) => !atCapacity && handleProfileClick(profile.id, e.shiftKey)}
-                                    className={`bg-main-bg rounded-lg p-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8' : 'border-[#E5E5E5]'}`}
+                                    className={`bg-main-bg rounded-lg p-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8 dark:border-[#585d61]' : 'border-[#E5E5E5] dark:border-[#585d61]'}`}
                                 >
                                     {compareMode && (
                                         <div className="flex justify-end -mt-1 mb-1">
                                             <div
-                                                className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface '}`}
+                                                className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface dark:bg-surface-elevated '}`}
                                                 style={
                                                     isCompareSelected
                                                         ? { backgroundColor: COMPARE_COLORS[compareIdx] }
@@ -472,16 +472,16 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                     {/* Detail panel */}
                     {compareMode ? (
                         compareIds.length === 0 ? (
-                            <div className="bg-main-bg rounded-lg px-8 py-7 flex flex-col items-center justify-center gap-3 min-h-[320px]">
+                            <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-7 flex flex-col items-center justify-center gap-3 min-h-[320px]">
                                 <GitCompare size={32} strokeWidth={1.5} color="var(--color-muted)" />
                                 <p className="text-sm text-muted tracking-[0.14px]">
                                     좌측 리스트에서 프로파일을 선택하세요
                                 </p>
                             </div>
                         ) : (
-                            <div className="bg-main-bg rounded-lg px-8 py-7">
+                            <div className="bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
                                 <div className="flex items-center justify-between mb-5">
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface ">
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface dark:bg-surface-elevated ">
                                         <GitCompare size={11} strokeWidth={2} color="var(--color-secondary)" />
                                         <span className="text-[11px] font-medium text-secondary tracking-[0.3px]">
                                             비교 모드 · {compareIds.length}개 선택됨
@@ -492,13 +492,13 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                         <button
                                             disabled
                                             title="다중 선택 시 편집 불가"
-                                            className="w-8 h-8 rounded-lg border-none bg-surface/50 flex items-center justify-center cursor-not-allowed opacity-35 "
+                                            className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated/50 flex items-center justify-center cursor-not-allowed opacity-35 "
                                         >
                                             <Pencil size={14} strokeWidth={1.5} color="var(--color-secondary)" />
                                         </button>
                                         <button
                                             title="More"
-                                            className="w-8 h-8 rounded-lg border-none bg-surface flex items-center justify-center cursor-pointer "
+                                            className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer "
                                         >
                                             <MoreHorizontal
                                                 size={14}
@@ -509,7 +509,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                     </div>
                                 </div>
 
-                                <div className="bg-surface rounded-lg px-4 pt-4 pb-2 mb-3 ">
+                                <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 pt-4 pb-2 mb-3 ">
                                     <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
                                         Curve Overlay
                                     </div>
@@ -522,7 +522,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                         return (
                                             <div
                                                 key={p.id}
-                                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface "
+                                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface dark:bg-surface-elevated "
                                             >
                                                 <div
                                                     className="w-2 h-2 rounded-full flex-shrink-0"
@@ -548,16 +548,16 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                     })}
                                 </div>
 
-                                <div className="bg-surface rounded-lg  overflow-hidden mb-5">
+                                <div className="bg-surface dark:bg-surface-elevated rounded-lg  overflow-hidden mb-5">
                                     <div
                                         className="grid"
                                         style={{ gridTemplateColumns: `140px repeat(${compareProfiles.length}, 1fr)` }}
                                     >
-                                        <div className="px-3.5 py-2.5 border-b border-black/5" />
+                                        <div className="px-3.5 py-2.5 border-b border-black/5 dark:border-[#585d61]" />
                                         {compareProfiles.map((p, i) => (
                                             <div
                                                 key={p.id}
-                                                className="px-3.5 py-2.5 border-b border-black/5 border-l border-l-black/5"
+                                                className="px-3.5 py-2.5 border-b border-black/5 dark:border-[#585d61] border-l border-l-black/5 dark:border-l-[#585d61] dark:border-l-[#585d61]"
                                             >
                                                 <div className="flex items-center gap-1.5">
                                                     <div
@@ -573,7 +573,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                         {TABLE_ROWS.flatMap(({ label, getValue }, rowIdx) => [
                                             <div
                                                 key={`lbl-${label}`}
-                                                className={`px-3.5 py-2.5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5' : ''}`}
+                                                className={`px-3.5 py-2.5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
                                             >
                                                 <span className="text-[11px] font-medium text-muted tracking-[0.4px] uppercase">
                                                     {label}
@@ -582,7 +582,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                             ...compareProfiles.map((p) => (
                                                 <div
                                                     key={`${p.id}-${label}`}
-                                                    className={`px-3.5 py-2.5 border-l border-l-black/5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5' : ''}`}
+                                                    className={`px-3.5 py-2.5 border-l border-l-black/5 dark:border-l-[#585d61] ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
                                                 >
                                                     <span className="text-[12px] font-semibold text-primary font-mono tracking-[-0.2px]">
                                                         {getValue(p)}
@@ -595,7 +595,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                             </div>
                         )
                     ) : selected ? (
-                        <div className="bg-main-bg rounded-lg px-8 py-7">
+                        <div className="bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
                             <div className="flex items-start justify-between mb-5">
                                 <div>
                                     <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
@@ -617,7 +617,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                         <button
                                             key={label}
                                             title={label}
-                                            className="w-8 h-8 rounded-lg border-none bg-surface flex items-center justify-center cursor-pointer "
+                                            className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer "
                                         >
                                             <Icon size={14} strokeWidth={1.5} color="var(--color-secondary)" />
                                         </button>
@@ -625,7 +625,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 </div>
                             </div>
 
-                            <div className="bg-surface rounded-lg px-4 pt-4 pb-2 mb-5 ">
+                            <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 pt-4 pb-2 mb-5 ">
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase">
                                         Profile Curve
@@ -677,7 +677,10 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                     },
                                     { label: 'Target Level', value: selected.target_level },
                                 ].map(({ label, value }) => (
-                                    <div key={label} className="bg-surface rounded-lg px-3.5 py-3 ">
+                                    <div
+                                        key={label}
+                                        className="bg-surface dark:bg-surface-elevated rounded-lg px-3.5 py-3 "
+                                    >
                                         <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-1">
                                             {label}
                                         </div>
@@ -689,7 +692,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                             </div>
 
                             {beanHistory.length > 0 && (
-                                <div className="bg-surface rounded-lg px-4 py-3 mb-5">
+                                <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 py-3 mb-5">
                                     <p className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
                                         이 프로파일로 로스팅된 생두
                                     </p>
@@ -697,7 +700,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                         {beanHistory.map((item) => (
                                             <div
                                                 key={item.name}
-                                                className="flex justify-between items-center text-xs py-1 border-b border-black/4 last:border-0"
+                                                className="flex justify-between items-center text-xs py-1 border-b border-black/4 dark:border-[#585d61] last:border-0"
                                             >
                                                 <span className="text-primary font-medium">{item.name}</span>
                                                 <span className="text-muted">

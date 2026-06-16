@@ -44,10 +44,13 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
         <ModalShell
             onClose={onClose}
             labelledBy="settings-modal-title"
-            contentClassName="max-w-[920px] w-full max-h-[min(780px,calc(100vh-48px))] flex flex-col rounded-xl bg-white dark:bg-[#1a1a1a] shadow-2xl border border-gray-200 dark:border-[#333] overflow-hidden"
+            contentClassName="max-w-[920px] w-full max-h-[min(780px,calc(100vh-48px))] flex flex-col rounded-xl bg-white dark:bg-[#181d21] shadow-2xl border border-gray-200 dark:border-[#585d61] overflow-hidden"
         >
-            <div className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-gray-100 dark:border-[#333] bg-white dark:bg-[#1a1a1a]">
-                <h2 id="settings-modal-title" className="text-[15px] font-semibold text-gray-900 dark:text-[#e5e5e5] m-0">
+            <div className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-gray-100 dark:border-[#585d61] bg-white dark:bg-[#181d21]">
+                <h2
+                    id="settings-modal-title"
+                    className="text-[15px] font-semibold text-gray-900 dark:text-[#e5e5e5] m-0"
+                >
                     {t('settings.title')}
                 </h2>
                 <button
@@ -72,10 +75,12 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                     className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-[10px] border-none cursor-pointer text-left transition-all duration-200 ${
                                         active
                                             ? 'bg-white dark:bg-[#2a2a2a] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
-                                            : 'bg-transparent hover:bg-gray-200 dark:hover:bg-[#222]'
+                                            : 'bg-transparent hover:bg-gray-200 dark:hover:bg-[#181d21]'
                                     }`}
                                 >
-                                    <div className={`shrink-0 ${active ? 'text-[#111827] dark:text-[#e5e5e5]' : 'text-[#6B7280] dark:text-[#999]'}`}>
+                                    <div
+                                        className={`shrink-0 ${active ? 'text-[#111827] dark:text-[#e5e5e5]' : 'text-[#6B7280] dark:text-[#999]'}`}
+                                    >
                                         <Icon size={16} strokeWidth={1.8} />
                                     </div>
                                     <span
@@ -99,7 +104,9 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                             <h3 className="text-[18px] leading-snug font-semibold text-[#111827] dark:text-[#e5e5e5] m-0">
                                 {activeConfig.title}
                             </h3>
-                            <p className="text-[13px] text-[#6B7280] dark:text-[#999] mt-1 m-0">{activeConfig.description}</p>
+                            <p className="text-[13px] text-[#6B7280] dark:text-[#999] mt-1 m-0">
+                                {activeConfig.description}
+                            </p>
                         </div>
                     </div>
 
@@ -115,31 +122,38 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                         {activeConfig.cards.length > 0 &&
                             activeTab !== 'general' &&
                             activeConfig.cards.map((card) => (
-                            <section key={card.title} className="bg-white dark:bg-[#222] border border-[#E5E7EB] dark:border-[#3a3a3a] rounded-xl p-5">
-                                <div className="mb-4">
-                                    <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-0.5">
-                                        {card.title}
-                                    </h4>
-                                    <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0">{card.description}</p>
-                                </div>
+                                <section
+                                    key={card.title}
+                                    className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5"
+                                >
+                                    <div className="mb-4">
+                                        <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-0.5">
+                                            {card.title}
+                                        </h4>
+                                        <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0">
+                                            {card.description}
+                                        </p>
+                                    </div>
 
-                                <div className="grid gap-1.5">
-                                    {card.items.map((item) => (
-                                        <label
-                                            key={item}
-                                            className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#3a3a3a] bg-white dark:bg-[#1a1a1a] cursor-pointer"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                defaultChecked
-                                                className="w-4 h-4 accent-[#111827] dark:accent-white"
-                                            />
-                                            <span className="text-[14px] font-medium text-[#111827] dark:text-[#e5e5e5]">{item}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </section>
-                        ))}
+                                    <div className="grid gap-1.5">
+                                        {card.items.map((item) => (
+                                            <label
+                                                key={item}
+                                                className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] cursor-pointer"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    defaultChecked
+                                                    className="w-4 h-4 accent-[#111827] dark:accent-white"
+                                                />
+                                                <span className="text-[14px] font-medium text-[#111827] dark:text-[#e5e5e5]">
+                                                    {item}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </section>
+                            ))}
                     </div>
                 </div>
             </div>

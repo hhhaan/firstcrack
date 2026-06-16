@@ -40,7 +40,8 @@ export const EventButtons = ({
                             padding: isSidebar ? '8px 4px' : '9px 12px',
                             borderRadius: 6,
                             border: 'none',
-                            background: registered || pressed ? 'var(--color-primary)' : 'var(--color-surface)',
+                            background:
+                                registered || pressed ? 'var(--color-primary)' : 'var(--color-surface-elevated)',
                             color: registered || pressed ? 'white' : 'var(--color-secondary)',
                             fontSize: isSidebar ? 11 : 13,
                             fontWeight: registered || pressed ? 600 : 500,

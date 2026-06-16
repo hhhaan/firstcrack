@@ -33,11 +33,9 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="bg-white rounded shadow-[0_24px_64px_rgba(0,0,0,0.18)] border border-black/8 p-8 w-[360px] flex flex-col gap-5">
+            <div className="bg-white dark:bg-[#181d21] rounded shadow-[0_24px_64px_rgba(0,0,0,0.18)] border border-black/8 dark:border-[#585d61] p-8 w-[360px] flex flex-col gap-5">
                 <div>
-                    <p className="text-[15px] font-semibold text-primary">
-                        {planBatchHandoff.beanName}
-                    </p>
+                    <p className="text-[15px] font-semibold text-primary">{planBatchHandoff.beanName}</p>
                     <p className="text-[13px] text-secondary mt-1">
                         {batchDone
                             ? `배치 완료 (${sessionsAfter}/${planBatchHandoff.batchCount})`

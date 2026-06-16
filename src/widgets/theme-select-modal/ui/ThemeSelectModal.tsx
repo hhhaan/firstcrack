@@ -13,7 +13,7 @@ const cardCls = (active: boolean) =>
     `flex flex-col items-center gap-3 p-6 rounded-xl border-2 cursor-pointer transition-all shrink-0 w-44 ${
         active
             ? 'border-[#111827] bg-[#F9FAFB] dark:border-white dark:bg-[#2a2a2a]'
-            : 'border-[#E5E7EB] bg-white dark:border-[#3a3a3a] dark:bg-[#222] hover:border-[#9CA3AF] dark:hover:border-[#666]'
+            : 'border-[#E5E7EB] bg-white dark:border-[#585d61] dark:bg-[#181d21] hover:border-[#9CA3AF] dark:hover:border-[#585d61]'
     }`;
 
 export const ThemeSelectModal = () => {
@@ -27,7 +27,7 @@ export const ThemeSelectModal = () => {
         <ModalShell
             onClose={() => {}}
             labelledBy="theme-select-title"
-            contentClassName="max-w-[580px] w-full flex flex-col items-center gap-6 rounded-xl bg-white dark:bg-[#1a1a1a] shadow-2xl border border-gray-200 dark:border-[#333] p-8"
+            contentClassName="max-w-[580px] w-full flex flex-col items-center gap-6 rounded-xl bg-white dark:bg-[#181d21] shadow-2xl border border-gray-200 dark:border-[#585d61] p-8"
         >
             <div className="flex flex-col items-center gap-2 text-center">
                 <h2

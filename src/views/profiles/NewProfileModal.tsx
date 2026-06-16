@@ -13,12 +13,15 @@ const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] 
 // ── 공통 입력 필드 ───────────────────────────────────────────
 
 const inputCls =
-    'w-full px-3.5 py-3 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary outline-none transition-all';
+    'w-full px-3.5 py-3 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20 dark:focus:border-[#585d61]';
+const selectCls = `${inputCls} appearance-none cursor-pointer`;
 const labelCls = 'flex items-center gap-1.5 text-xs font-semibold text-muted mb-2 tracking-[0.02em] uppercase';
 
 const chipCls = (selected: boolean) =>
     `px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all duration-150 border ${
-        selected ? 'border-primary bg-primary text-white' : 'border-black/10 bg-white/70 text-secondary'
+        selected
+            ? 'border-primary bg-primary text-white dark:bg-transparent dark:text-secondary dark:border-[#585d61]'
+            : 'border-black/10 dark:border-[#585d61] bg-white/70 dark:bg-surface-elevated text-secondary'
     }`;
 
 const NUMERIC_INPUT_PROPS = {
@@ -223,13 +226,13 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
     const renderForm = () => (
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
             {/* Header */}
-            <div className="shrink-0 bg-white/60 backdrop-blur-sm z-10 border-b border-black/4">
+            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
                 <div className="flex items-center justify-between px-8 pt-6 pb-4">
                     <div className="flex items-center gap-3.5">
                         <button
                             type="button"
                             onClick={() => setMode('pick')}
-                            className="w-8 h-8 rounded-xl border-none bg-surface text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
+                            className="w-8 h-8 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:text-primary"
                         >
                             <ChevronRight size={14} strokeWidth={2.5} className="rotate-180" />
                         </button>
@@ -247,7 +250,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     <button
                         type="button"
                         onClick={onClose}
-                        className="w-9 h-9 rounded-xl border-none bg-surface text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
+                        className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:text-primary"
                     >
                         <X size={18} strokeWidth={2.5} />
                     </button>
@@ -259,7 +262,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                         const session = sessions.find((s) => s.id === selectedSessionId);
                         return session ? (
                             <div className="px-8 pb-4">
-                                <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface/60 text-[12px] text-secondary shadow-(--shadow-inset)">
+                                <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface/60 dark:bg-surface-elevated border border-transparent dark:border-[#585d61] text-[12px] text-secondary shadow-(--shadow-inset)">
                                     <History size={14} strokeWidth={2} className="text-muted flex-shrink-0" />
                                     <span>
                                         Based on{' '}
@@ -314,7 +317,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                             <select
                                 value={form.target_level}
                                 onChange={set('target_level')}
-                                className="w-full px-3.5 py-3 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary outline-none transition-all appearance-none cursor-pointer"
+                                className={selectCls}
                                 style={{ paddingRight: '2.5rem' }}
                             >
                                 {ROAST_LEVELS.map((l) => (
@@ -393,7 +396,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     </div>
 
                     {/* Default Bean / Blend */}
-                    <div className="border-t border-black/4 pt-6">
+                    <div className="border-t border-black/4 dark:border-[#585d61] pt-6">
                         <label className={labelCls}>기본 생두 (선택)</label>
                         <div className="flex gap-2 mt-2">
                             {(
@@ -418,7 +421,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                                 <select
                                     value={defaultBeanId ?? ''}
                                     onChange={(e) => setDefaultBeanId(e.target.value || null)}
-                                    className="w-full px-3.5 py-3 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary outline-none transition-all appearance-none cursor-pointer"
+                                    className={selectCls}
                                     style={{ paddingRight: '2.5rem' }}
                                 >
                                     <option value="">생두 선택</option>
@@ -440,7 +443,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                                 <select
                                     value={defaultBlendId ?? ''}
                                     onChange={(e) => setDefaultBlendId(e.target.value || null)}
-                                    className="w-full px-3.5 py-3 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary outline-none transition-all appearance-none cursor-pointer"
+                                    className={selectCls}
                                     style={{ paddingRight: '2.5rem' }}
                                 >
                                     <option value="">블렌드 선택</option>
@@ -462,19 +465,19 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
             </div>
 
             {/* Footer */}
-            <div className="px-8 pt-5 pb-8 bg-white/80 backdrop-blur-sm border-t border-black/4 shrink-0">
+            <div className="px-8 pt-5 pb-8 bg-white/80 dark:bg-[#1a1e23] backdrop-blur-sm border-t border-black/4 dark:border-[#585d61] shrink-0">
                 <div className="flex gap-3">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface text-secondary text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
+                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
                         disabled={!isValid}
-                        className="flex-1 py-3.5 rounded-2xl border-none bg-primary text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="flex-1 py-3.5 rounded-2xl border border-transparent dark:border-white bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {editingProfile ? (
                             <>
@@ -494,13 +497,13 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
     const renderSessionPicker = () => (
         <div className="flex flex-col flex-1 overflow-hidden">
             {/* Header */}
-            <div className="shrink-0 bg-white/60 backdrop-blur-sm z-10 border-b border-black/4">
+            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
                 <div className="flex items-center justify-between px-8 pt-6 pb-4">
                     <div className="flex items-center gap-3.5">
                         <button
                             type="button"
                             onClick={() => setMode('pick')}
-                            className="w-8 h-8 rounded-xl border-none bg-surface text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
+                            className="w-8 h-8 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:text-primary"
                         >
                             <ChevronRight size={14} strokeWidth={2.5} className="rotate-180" />
                         </button>
@@ -511,7 +514,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     <button
                         type="button"
                         onClick={onClose}
-                        className="w-9 h-9 rounded-xl border-none bg-surface text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
+                        className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:text-primary"
                     >
                         <X size={18} strokeWidth={2.5} />
                     </button>
@@ -529,7 +532,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                                 key={session.id}
                                 type="button"
                                 onClick={() => handleSessionSelect(session.id)}
-                                className="w-full px-4 py-3 rounded-xl border border-black/6 bg-white/70 text-left cursor-pointer hover:bg-white/90 transition-all duration-200 group"
+                                className="w-full px-4 py-3 rounded-xl border border-black/6 dark:border-[#585d61] bg-white/70 dark:bg-surface-elevated text-left cursor-pointer hover:bg-white/90 dark:hover:bg-[#262b31] transition-all duration-200 group"
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex flex-col gap-0.5">
@@ -558,11 +561,11 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
             </div>
 
             {/* Footer */}
-            <div className="px-8 pt-5 pb-8 bg-white/80 backdrop-blur-sm border-t border-black/4 shrink-0">
+            <div className="px-8 pt-5 pb-8 bg-white/80 dark:bg-[#1a1e23] backdrop-blur-sm border-t border-black/4 dark:border-[#585d61] shrink-0">
                 <button
                     type="button"
                     onClick={onClose}
-                    className="w-full py-3.5 rounded-2xl border-none bg-surface text-secondary text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
+                    className="w-full py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
                 >
                     Cancel
                 </button>
@@ -573,7 +576,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
     const renderPicker = () => (
         <div className="flex flex-col flex-1 overflow-hidden">
             {/* Header */}
-            <div className="shrink-0 bg-white/60 backdrop-blur-sm z-10 border-b border-black/4">
+            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
                 <div className="flex items-center justify-between px-8 pt-6 pb-4">
                     <h2
                         id="new-profile-modal-title"
@@ -584,7 +587,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     <button
                         type="button"
                         onClick={onClose}
-                        className="w-9 h-9 rounded-xl border-none bg-surface text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
+                        className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:text-primary"
                     >
                         <X size={18} strokeWidth={2.5} />
                     </button>
@@ -600,9 +603,9 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     <button
                         type="button"
                         onClick={() => setMode('manual')}
-                        className="flex items-center gap-4 px-5 py-4 rounded-xl border border-black/8 bg-white/70 cursor-pointer transition-all text-left group"
+                        className="flex items-center gap-4 px-5 py-4 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/70 dark:bg-surface-elevated cursor-pointer transition-all text-left group hover:dark:bg-[#262b31]"
                     >
-                        <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center flex-shrink-0 shadow-(--shadow-inset)">
+                        <div className="w-10 h-10 rounded-xl bg-surface dark:bg-[#262b31] flex items-center justify-center flex-shrink-0 shadow-(--shadow-inset)">
                             <Pencil size={18} strokeWidth={1.5} color="var(--color-secondary)" />
                         </div>
                         <div className="flex-1">
@@ -624,9 +627,9 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     <button
                         type="button"
                         onClick={() => setMode('session-list')}
-                        className="flex items-center gap-4 px-5 py-4 rounded-xl border border-black/8 bg-white/70 cursor-pointer transition-all text-left group"
+                        className="flex items-center gap-4 px-5 py-4 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/70 dark:bg-surface-elevated cursor-pointer transition-all text-left group hover:dark:bg-[#262b31]"
                     >
-                        <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center flex-shrink-0 shadow-(--shadow-inset)">
+                        <div className="w-10 h-10 rounded-xl bg-surface dark:bg-[#262b31] flex items-center justify-center flex-shrink-0 shadow-(--shadow-inset)">
                             <History size={18} strokeWidth={1.5} color="var(--color-secondary)" />
                         </div>
                         <div className="flex-1">
@@ -647,11 +650,11 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
             </div>
 
             {/* Footer */}
-            <div className="px-8 pt-5 pb-8 bg-white/80 backdrop-blur-sm border-t border-black/4 shrink-0">
+            <div className="px-8 pt-5 pb-8 bg-white/80 dark:bg-[#1a1e23] backdrop-blur-sm border-t border-black/4 dark:border-[#585d61] shrink-0">
                 <button
                     type="button"
                     onClick={onClose}
-                    className="w-full py-3.5 rounded-2xl border-none bg-surface text-secondary text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
+                    className="w-full py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
                 >
                     Cancel
                 </button>
@@ -663,7 +666,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
         <ModalShell
             onClose={onClose}
             labelledBy="new-profile-modal-title"
-            contentClassName="max-w-[640px] w-full max-h-[min(860px,calc(100vh-64px))] flex flex-col rounded-[28px] bg-[rgba(255,255,255,0.96)] backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white overflow-hidden"
+            contentClassName="max-w-[640px] w-full max-h-[min(860px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.97)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white dark:border-[#585d61] overflow-hidden"
         >
             {mode === 'pick' && !editingProfile && renderPicker()}
             {mode === 'session-list' && !editingProfile && renderSessionPicker()}

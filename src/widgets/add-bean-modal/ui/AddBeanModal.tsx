@@ -26,20 +26,22 @@ const NUMERIC_INPUT_PROPS = {
 
 const chipCls = (selected: boolean) =>
     `px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all duration-150 border ${
-        selected ? 'border-primary bg-primary text-white' : 'border-black/10 bg-white/70 text-secondary'
+        selected
+            ? 'border-primary bg-primary text-white dark:bg-transparent dark:text-secondary dark:border-[#585d61]'
+            : 'border-black/10 dark:border-[#585d61] bg-white/70 dark:bg-surface-elevated text-secondary'
     }`;
 
 const tabCls = (active: boolean) =>
     `flex-1 py-3 rounded-xl border-none text-sm cursor-pointer transition-all duration-200 ${
         active
-            ? 'bg-white font-semibold text-primary shadow-[0_4px_12px_rgba(0,0,0,0.08)]'
-            : 'bg-transparent font-medium text-muted'
+            ? 'bg-white dark:bg-surface-elevated font-semibold text-primary dark:text-white shadow-[0_4px_12px_rgba(0,0,0,0.08)]'
+            : 'bg-transparent font-medium text-muted dark:text-white hover:text-secondary dark:hover:text-white/70'
     }`;
 
 // ── 공통 입력 필드 ───────────────────────────────────────────
 
 const inputCls =
-    'w-full px-3.5 py-3 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary outline-none transition-all';
+    'w-full px-3.5 py-3 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20 dark:focus:border-[#585d61]';
 const labelCls = 'flex items-center gap-1.5 text-xs font-semibold text-muted mb-2 tracking-[0.02em] uppercase';
 
 const ChipGroup = ({
@@ -61,7 +63,7 @@ const ChipGroup = ({
                 <button
                     type="button"
                     onClick={() => setExpanded(true)}
-                    className="px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer border border-black/10 bg-white/70 text-muted"
+                    className="px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer border border-black/10 dark:border-[#585d61] bg-white/70 dark:bg-surface-elevated text-muted"
                 >
                     +{hiddenCount}
                 </button>
@@ -222,10 +224,10 @@ export const AddBeanModal = ({
         <ModalShell
             onClose={onClose}
             labelledBy="add-bean-modal-title"
-            contentClassName="max-w-[640px] w-full max-h-[min(860px,calc(100vh-64px))] flex flex-col rounded-[28px] bg-[rgba(255,255,255,0.96)] backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white overflow-hidden"
+            contentClassName="max-w-[640px] w-full max-h-[min(860px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.97)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white dark:border-[#585d61] overflow-hidden"
         >
             {/* Header */}
-            <div className="shrink-0 bg-white/60 backdrop-blur-sm z-10 border-b border-black/4">
+            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
                 <div className="flex items-center justify-between px-8 pt-6 pb-4">
                     <div className="flex items-center gap-3.5">
                         <h2
@@ -237,7 +239,7 @@ export const AddBeanModal = ({
                     </div>
                     <button
                         onClick={onClose}
-                        className="w-9 h-9 rounded-xl border-none bg-surface text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
+                        className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:text-primary"
                     >
                         <X size={18} strokeWidth={2.5} />
                     </button>
@@ -489,10 +491,10 @@ export const AddBeanModal = ({
                                         <div
                                             key={bean.id}
                                             onClick={() => setSelectedBeanId(bean.id)}
-                                            className={`px-4.5 py-3.5 rounded-2xl border border-black/6 flex items-center justify-between cursor-pointer transition-all duration-200 ${
+                                            className={`px-4.5 py-3.5 rounded-2xl border border-black/6 dark:border-[#585d61] flex items-center justify-between cursor-pointer transition-all duration-200 ${
                                                 isSelected
-                                                    ? 'bg-primary text-white shadow-[0_8px_20px_rgba(0,0,0,0.12)]'
-                                                    : 'bg-white/70 text-primary shadow-(--shadow-ring)'
+                                                    ? 'bg-primary dark:bg-black dark:border-white text-white shadow-[0_8px_20px_rgba(0,0,0,0.12)]'
+                                                    : 'bg-white/70 dark:bg-surface-elevated text-primary shadow-(--shadow-ring)'
                                             }`}
                                         >
                                             <div>
@@ -515,7 +517,7 @@ export const AddBeanModal = ({
                                     <button
                                         type="button"
                                         onClick={() => setShowAllBeans(true)}
-                                        className="py-2.5 rounded-2xl border border-black/6 bg-white/50 text-sm font-medium text-muted cursor-pointer hover:bg-white/80 transition-all duration-200"
+                                        className="py-2.5 rounded-2xl border border-black/6 dark:border-[#585d61] bg-white/50 dark:bg-surface-elevated text-sm font-medium text-muted cursor-pointer hover:bg-white/80 dark:hover:bg-[#262b31] transition-all duration-200"
                                     >
                                         +{hiddenBeanCount} more
                                     </button>
@@ -559,7 +561,7 @@ export const AddBeanModal = ({
                                             const parsed = parseFloat(restockAmount) || 0;
                                             setRestockAmount((Math.round((parsed + amount) * 1000) / 1000).toString());
                                         }}
-                                        className="flex-1 py-3 px-4 rounded-xl border border-black/12 bg-white text-primary text-sm font-semibold cursor-pointer transition-all duration-200"
+                                        className="flex-1 py-3 px-4 rounded-xl border border-black/12 dark:border-[#585d61] bg-white dark:bg-surface-elevated text-primary text-sm font-semibold cursor-pointer transition-all duration-200"
                                     >
                                         {label}
                                     </button>
@@ -567,7 +569,7 @@ export const AddBeanModal = ({
                                 <button
                                     type="button"
                                     onClick={() => setRestockAmount('')}
-                                    className="py-3 px-5 rounded-xl border border-black/12 bg-white text-[#e74c3c] text-sm font-semibold cursor-pointer"
+                                    className="py-3 px-5 rounded-xl border border-black/12 dark:border-[#585d61] bg-white dark:bg-surface-elevated text-[#e74c3c] dark:text-red-400 text-sm font-semibold cursor-pointer"
                                 >
                                     Clear
                                 </button>
@@ -578,11 +580,11 @@ export const AddBeanModal = ({
             </div>
 
             {/* Footer */}
-            <div className="px-8 pt-5 pb-8 bg-white/80 backdrop-blur-sm border-t border-black/4 shrink-0">
+            <div className="px-8 pt-5 pb-8 bg-white/80 dark:bg-[#1a1e23] backdrop-blur-sm border-t border-black/4 dark:border-[#585d61] shrink-0">
                 <div className="flex gap-3">
                     <button
                         onClick={onClose}
-                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface text-secondary text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
+                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
                     >
                         Cancel
                     </button>
@@ -591,7 +593,7 @@ export const AddBeanModal = ({
                             type="submit"
                             form="bean-form"
                             disabled={isSubmitting}
-                            className="flex-2 py-3.5 rounded-2xl border-none bg-primary text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="flex-2 py-3.5 rounded-2xl border border-transparent dark:border-white bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             {isSubmitting ? 'Saving...' : tab === 'new' ? 'Create Bean Lot' : 'Update Bean Details'}
                         </button>
@@ -599,7 +601,7 @@ export const AddBeanModal = ({
                         <button
                             disabled={isSubmitDisabled}
                             onClick={() => submitBean(getValues())}
-                            className="flex-2 py-3.5 rounded-2xl border-none bg-primary text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="flex-2 py-3.5 rounded-2xl border border-transparent dark:border-white bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             {isSubmitting ? 'Saving...' : 'Confirm Restock'}
                         </button>

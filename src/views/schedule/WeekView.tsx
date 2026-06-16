@@ -58,16 +58,18 @@ const WeekDayColumn = ({
         <div
             onClick={onSelect}
             className={`
-                flex-1 flex flex-col rounded-xl cursor-pointer transition-colors duration-100
+                flex-1 flex flex-col rounded-xl cursor-pointer dark:border dark:border-[#585d61] transition-colors duration-100
                 ${isSelected ? 'bg-primary/5' : 'bg-main-bg'}
             `}
         >
             <div className="px-3 py-2.5">
                 <div className="flex items-center gap-1.5">
-                    <span className={`
+                    <span
+                        className={`
                         text-[11px] font-medium w-5 h-5 flex items-center justify-center rounded-full shrink-0
                         ${today ? 'bg-primary text-white' : 'text-muted'}
-                    `}>
+                    `}
+                    >
                         {format(day, 'd')}
                     </span>
                     <span className="text-[11px] text-muted">{format(day, 'eee', { locale: ko })}</span>

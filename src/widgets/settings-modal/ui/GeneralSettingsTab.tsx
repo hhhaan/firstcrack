@@ -4,13 +4,27 @@ import { setLanguage, supportedLanguages } from '@shared/i18n';
 import { useThemeStore, type Theme } from '@shared/store/theme';
 
 const themeOptions: { value: Theme; icon: typeof Sun; labelKey: string; descKey: string }[] = [
-    { value: 'light', icon: Sun, labelKey: 'settings.tabs.general.themeLight', descKey: 'settings.tabs.general.themeLightDescription' },
-    { value: 'dark', icon: Moon, labelKey: 'settings.tabs.general.themeDark', descKey: 'settings.tabs.general.themeDarkDescription' },
-    { value: 'system', icon: Monitor, labelKey: 'settings.tabs.general.themeSystem', descKey: 'settings.tabs.general.themeSystemDescription' },
+    {
+        value: 'light',
+        icon: Sun,
+        labelKey: 'settings.tabs.general.themeLight',
+        descKey: 'settings.tabs.general.themeLightDescription',
+    },
+    {
+        value: 'dark',
+        icon: Moon,
+        labelKey: 'settings.tabs.general.themeDark',
+        descKey: 'settings.tabs.general.themeDarkDescription',
+    },
+    {
+        value: 'system',
+        icon: Monitor,
+        labelKey: 'settings.tabs.general.themeSystem',
+        descKey: 'settings.tabs.general.themeSystemDescription',
+    },
 ];
 
-const sectionCls =
-    'bg-white dark:bg-[#222] border border-[#E5E7EB] dark:border-[#3a3a3a] rounded-xl p-5';
+const sectionCls = 'bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5';
 
 export const GeneralSettingsTab = () => {
     const { t, i18n } = useTranslation();
@@ -45,13 +59,15 @@ export const GeneralSettingsTab = () => {
                                 className={`flex flex-col items-center gap-2.5 px-4 py-4 rounded-xl border-2 cursor-pointer transition-all text-center ${
                                     active
                                         ? 'border-[#111827] dark:border-white bg-[#F9FAFB] dark:bg-[#2a2a2a]'
-                                        : 'border-[#E5E7EB] dark:border-[#3a3a3a] bg-white dark:bg-[#1a1a1a] hover:border-[#9CA3AF] dark:hover:border-[#666]'
+                                        : 'border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] hover:border-[#9CA3AF] dark:hover:border-[#666]'
                                 }`}
                             >
                                 <Icon
                                     size={22}
                                     strokeWidth={1.8}
-                                    className={active ? 'text-[#111827] dark:text-white' : 'text-[#6B7280] dark:text-[#999]'}
+                                    className={
+                                        active ? 'text-[#111827] dark:text-white' : 'text-[#6B7280] dark:text-[#999]'
+                                    }
                                 />
                                 <div>
                                     <div
@@ -63,7 +79,9 @@ export const GeneralSettingsTab = () => {
                                     >
                                         {t(labelKey)}
                                     </div>
-                                    <div className="text-[11px] text-[#6B7280] dark:text-[#999] mt-0.5">{t(descKey)}</div>
+                                    <div className="text-[11px] text-[#6B7280] dark:text-[#999] mt-0.5">
+                                        {t(descKey)}
+                                    </div>
                                 </div>
                             </button>
                         );
@@ -91,7 +109,7 @@ export const GeneralSettingsTab = () => {
                         return (
                             <label
                                 key={language}
-                                className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#3a3a3a] bg-white dark:bg-[#1a1a1a] cursor-pointer"
+                                className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] cursor-pointer"
                             >
                                 <input
                                     type="checkbox"

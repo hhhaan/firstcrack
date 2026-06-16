@@ -17,7 +17,7 @@ type Props = {
 };
 
 const inputCls =
-    'w-full px-3.5 py-3 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary outline-none transition-all';
+    'w-full px-3.5 py-3 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all';
 
 const labelCls = 'flex items-center gap-1.5 text-xs font-semibold text-muted mb-2 tracking-[0.02em] uppercase';
 
@@ -94,10 +94,10 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
         <ModalShell
             onClose={onClose}
             labelledBy="add-blend-modal-title"
-            contentClassName="max-w-[560px] w-full max-h-[min(720px,calc(100vh-64px))] flex flex-col rounded-[28px] bg-[rgba(255,255,255,0.96)] backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white overflow-hidden"
+            contentClassName="max-w-[560px] w-full max-h-[min(720px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.96)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white dark:border-[#585d61] overflow-hidden"
         >
             {/* Header */}
-            <div className="shrink-0 bg-white/60 backdrop-blur-sm z-10 border-b border-black/4">
+            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
                 <div className="flex items-center justify-between px-8 pt-6 pb-5">
                     <h2
                         id="add-blend-modal-title"
@@ -107,7 +107,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                     </h2>
                     <button
                         onClick={onClose}
-                        className="w-9 h-9 rounded-xl border-none bg-surface text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
+                        className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
                     >
                         <X size={18} strokeWidth={2.5} />
                     </button>
@@ -134,7 +134,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                     <div className="flex items-center justify-between mb-3">
                         <label className={labelCls + ' mb-0'}>구성 생두</label>
                         <span
-                            className={`text-xs font-semibold ${totalRatio === 100 ? 'text-green-600' : 'text-red-500'}`}
+                            className={`text-xs font-semibold ${totalRatio === 100 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}
                         >
                             합계 {totalRatio}%
                         </span>
@@ -149,7 +149,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                                 <div className="relative flex-1">
                                     <select
                                         {...register(`components.${idx}.bean_id`)}
-                                        className="w-full px-3 py-2.5 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary outline-none transition-all appearance-none cursor-pointer"
+                                        className="w-full px-3 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all appearance-none cursor-pointer"
                                         style={{ paddingRight: '2rem' }}
                                     >
                                         <option value="">생두 선택</option>
@@ -168,7 +168,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                                 <input
                                     type="number"
                                     {...register(`components.${idx}.ratio_pct`, { valueAsNumber: true })}
-                                    className="w-20 px-3 py-2.5 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary text-right outline-none transition-all"
+                                    className="w-20 px-3 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary text-right outline-none transition-all"
                                     placeholder="%"
                                     min={1}
                                     max={100}
@@ -177,7 +177,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                                 {fields.length > 1 && (
                                     <button
                                         type="button"
-                                        className="w-8 h-8 rounded-xl border-none bg-surface text-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:text-red-500"
+                                        className="w-8 h-8 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:text-red-500"
                                         onClick={() => remove(idx)}
                                     >
                                         <X size={14} strokeWidth={2.5} />
@@ -201,14 +201,14 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface text-secondary text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
+                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
                     >
                         취소
                     </button>
                     <button
                         type="submit"
                         disabled={!isValid}
-                        className="flex-1 py-3.5 rounded-2xl border-none bg-primary text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="flex-1 py-3.5 rounded-2xl border border-transparent dark:border-white bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {editing ? '저장' : '추가'}
                     </button>

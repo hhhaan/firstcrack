@@ -15,7 +15,7 @@ interface BeanDetailProps {
 }
 
 const Skeleton = () => (
-    <div className="bg-main-bg rounded-lg px-8 py-7">
+    <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-7">
         <div className="mb-6">
             <div className="w-50 h-8 rounded-lg bg-surface mb-2.5 animate-pulse" />
             <div className="flex gap-1.5">
@@ -40,7 +40,7 @@ const Skeleton = () => (
 );
 
 const Empty = ({ hasAny }: { hasAny: boolean }) => (
-    <div className="bg-main-bg rounded-lg px-8 py-15 flex items-center justify-center text-sm text-muted tracking-[0.14px]">
+    <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex items-center justify-center text-sm text-muted dark:text-white tracking-[0.14px]">
         {hasAny ? 'Select a bean to view details' : 'Add your first bean lot to get started.'}
     </div>
 );
@@ -67,7 +67,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                     setConfirming(false);
                 }}
             />
-            <div className="bg-main-bg rounded-lg px-8 py-7 h-fit relative">
+            <div className="bg-main-bg rounded-lg px-8 py-7 h-fit relative dark:border dark:border-[#585d61]">
                 <div className="absolute top-6 right-6 flex gap-2 z-2">
                     <button
                         onClick={() => onEdit(bean)}
@@ -168,13 +168,13 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                 <div className="flex gap-2.5">
                     <button
                         onClick={onStartRoast}
-                        className="flex-1 py-2.5 rounded-full border-none bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
+                        className="flex-1 py-2.5 rounded-full border border-gray-200 dark:border-[#585d61] dark:bg-[#1a1e23] bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
                     >
                         Start Roast
                     </button>
                     <button
                         onClick={() => onRestock(bean.id)}
-                        className="flex-1 py-2.5 rounded-full border-none bg-surface text-secondary text-sm font-medium cursor-pointer tracking-[0.14px]"
+                        className="flex-1 py-2.5 rounded-full border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
                     >
                         Restock
                     </button>
@@ -182,26 +182,28 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
 
                 <div className="mt-6 space-y-3">
                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                        <div className="bg-gray-50 rounded-lg p-2">
-                            <p className="text-gray-400">현재 재고</p>
+                        <div className="bg-gray-50 dark:bg-surface-elevated rounded-lg p-2">
+                            <p className="text-gray-400 dark:text-white">현재 재고</p>
                             <p className="font-semibold">{summary?.currentGrams ?? 0}g</p>
                         </div>
-                        <div className="bg-yellow-50 rounded-lg p-2">
-                            <p className="text-gray-400">예약됨</p>
-                            <p className="font-semibold text-yellow-700">{summary?.reservedGrams ?? 0}g</p>
+                        <div className="bg-yellow-50 dark:bg-[#1a1e23] rounded-lg p-2">
+                            <p className="text-gray-400 dark:text-white">예약됨</p>
+                            <p className="font-semibold text-yellow-700 dark:text-yellow-300">
+                                {summary?.reservedGrams ?? 0}g
+                            </p>
                         </div>
-                        <div className="bg-green-50 rounded-lg p-2">
-                            <p className="text-gray-400">가용</p>
+                        <div className="bg-green-50 dark:bg-[#1a1e23] rounded-lg p-2">
+                            <p className="text-gray-400 dark:text-white">가용</p>
                             <p
-                                className={`font-semibold ${(summary?.effectiveGrams ?? 0) < 0 ? 'text-red-600' : 'text-green-700'}`}
+                                className={`font-semibold ${(summary?.effectiveGrams ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-300'}`}
                             >
                                 {summary?.effectiveGrams ?? 0}g
                             </p>
                         </div>
                     </div>
 
-                    <p className="text-xs font-medium text-gray-500 mt-4">재고 이력</p>
-                    {events.length === 0 && <p className="text-xs text-gray-300">이력 없음</p>}
+                    <p className="text-xs font-medium text-gray-500 dark:text-white mt-4">재고 이력</p>
+                    {events.length === 0 && <p className="text-xs text-gray-300 dark:text-white">이력 없음</p>}
                     {events.map((ev) => (
                         <div key={ev.id} className="flex items-start gap-3 text-xs">
                             <span
@@ -213,16 +215,18 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                                 <span className="font-medium">
                                     {ev.delta_grams > 0 ? `+${ev.delta_grams}g` : `${ev.delta_grams}g`}
                                 </span>
-                                <span className="text-gray-400 ml-1">
+                                <span className="text-gray-400 dark:text-white ml-1">
                                     {ev.event_type === 'purchase'
                                         ? '입고'
                                         : ev.event_type === 'roast'
                                           ? '로스팅'
                                           : '조정'}
                                 </span>
-                                {ev.note && <span className="text-gray-400 ml-1">— {ev.note}</span>}
+                                {ev.note && <span className="text-gray-400 dark:text-white ml-1">— {ev.note}</span>}
                             </div>
-                            <span className="text-gray-300">{new Date(ev.created_at).toLocaleDateString('ko-KR')}</span>
+                            <span className="text-gray-300 dark:text-white">
+                                {new Date(ev.created_at).toLocaleDateString('ko-KR')}
+                            </span>
                         </div>
                     ))}
                 </div>

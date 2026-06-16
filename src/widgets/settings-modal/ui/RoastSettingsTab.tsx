@@ -23,7 +23,11 @@ const visibilityOptions = [
         description: 'Rate of Rise sub-chart below the temperature curve',
     },
     { key: 'showRoRET' as const, label: 'ET Rate of Rise', description: 'ET RoR line in the RoR sub-chart' },
-    { key: 'showControlChart' as const, label: 'Control Chart', description: 'Drum / Heat / Fan bottom chart (fullscreen only)' },
+    {
+        key: 'showControlChart' as const,
+        label: 'Control Chart',
+        description: 'Drum / Heat / Fan bottom chart (fullscreen only)',
+    },
     {
         key: 'showPhaseBar' as const,
         label: 'Phase Bar',
@@ -93,7 +97,9 @@ const RangeRow = ({
 );
 
 const SectionCard = ({ children }: { children: React.ReactNode }) => (
-    <section className="bg-white border border-[#E5E7EB] rounded-xl p-5">{children}</section>
+    <section className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
+        {children}
+    </section>
 );
 
 const CheckboxRow = ({ checked, label, onChange }: { checked: boolean; label: string; onChange: () => void }) => (

@@ -20,14 +20,13 @@ export const ScheduleDayView = ({
 
     return (
         <>
-            <div className="shrink-0 border-b border-border-subtle bg-main-bg px-8 py-2.5 flex items-center gap-2">
+            <div className="shrink-0 border-b border-border-subtle dark:border-[#585d61] bg-main-bg px-8 py-2.5 flex items-center gap-2">
                 <button
                     onClick={() => hooks.setIsAddModalOpen(true)}
                     disabled={hooks.isLoading}
-                    className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-3 py-1.5 rounded-lg bg-surface cursor-pointer hover:bg-surface-raised transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-3 py-1.5 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                    <Plus size={13} strokeWidth={2} />
-                    새 배치 추가
+                    <Plus size={13} strokeWidth={2} />새 배치 추가
                 </button>
             </div>
 
@@ -35,17 +34,16 @@ export const ScheduleDayView = ({
                 {hooks.isLoading ? (
                     <div className="text-[13px] text-muted text-center py-12">불러오는 중...</div>
                 ) : hooks.batches.length === 0 ? (
-                    <div className="bg-main-bg rounded-xl px-4 py-12 flex flex-col items-center justify-center gap-4 select-none">
+                    <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-12 flex flex-col items-center justify-center gap-4 select-none">
                         <div className="text-[13px] text-muted text-center leading-relaxed">
-                            오늘의 배치가 없습니다.<br />
-                            새 배치를 추가하여 일정을 시작하세요.
+                            오늘의 배치가 없습니다.
+                            <br />새 배치를 추가하여 일정을 시작하세요.
                         </div>
                         <button
                             onClick={() => hooks.setIsAddModalOpen(true)}
-                            className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface cursor-pointer hover:bg-surface-raised transition-colors"
+                            className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
                         >
-                            <Plus size={14} strokeWidth={2} />
-                            새 배치 추가
+                            <Plus size={14} strokeWidth={2} />새 배치 추가
                         </button>
                     </div>
                 ) : (
@@ -69,23 +67,36 @@ export const ScheduleDayView = ({
             {hooks.scopeBatch && (
                 <RecurringEditScopeModal
                     open={hooks.isScopeModalOpen}
-                    onClose={() => { hooks.setIsScopeModalOpen(false); hooks.setScopeBatch(null); hooks.setEditScope(null); }}
+                    onClose={() => {
+                        hooks.setIsScopeModalOpen(false);
+                        hooks.setScopeBatch(null);
+                        hooks.setEditScope(null);
+                    }}
                     onConfirm={hooks.handleScopeConfirm}
                     batchLabel={`${hooks.scopeBatch.bean_name} / ${hooks.scopeBatch.batch_size_kg}kg`}
                     recurrenceLabel={getRecurrenceLabel(hooks.scopeBatch.rrule)}
-                    isFirstInstance={batchStatus(hooks.scopeBatch) === 'pending' && hooks.batches.indexOf(hooks.scopeBatch) === 0}
+                    isFirstInstance={
+                        batchStatus(hooks.scopeBatch) === 'pending' && hooks.batches.indexOf(hooks.scopeBatch) === 0
+                    }
                 />
             )}
 
             <AddBatchModal
                 key={String(hooks.isAddModalOpen) + (hooks.editingBatch?.id ?? '') + (hooks.editScope ?? '')}
                 open={hooks.isAddModalOpen || (hooks.editingBatch !== null && hooks.editScope !== null)}
-                onClose={() => { hooks.setIsAddModalOpen(false); hooks.setEditingBatch(null); hooks.setEditScope(null); }}
+                onClose={() => {
+                    hooks.setIsAddModalOpen(false);
+                    hooks.setEditingBatch(null);
+                    hooks.setEditScope(null);
+                }}
                 onAdd={hooks.handleAddBatch}
                 editingBatch={hooks.editingBatch}
                 editScope={hooks.editScope}
                 currentDateKey={dateKey}
-                onSaved={() => { hooks.setEditingBatch(null); hooks.setEditScope(null); }}
+                onSaved={() => {
+                    hooks.setEditingBatch(null);
+                    hooks.setEditScope(null);
+                }}
             />
         </>
     );

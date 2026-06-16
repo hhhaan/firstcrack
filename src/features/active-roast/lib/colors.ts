@@ -16,13 +16,13 @@ export const SENSOR_COLORS = {
 } as const;
 
 export const PHASE_COLORS = {
-    ready: '#81FBA5',
-    readyBg: 'rgba(129,251,165,0.15)',
-    drying: '#FFFF54',
-    maillard: '#44BFFC',
-    development: '#756AFC',
-    danger: '#0B0B0B',
-    dangerBg: 'rgba(11,11,11,0.12)',
+    ready: 'var(--color-phase-ready)',
+    readyBg: 'var(--color-phase-ready-bg)',
+    drying: 'var(--color-phase-drying)',
+    maillard: 'var(--color-phase-maillard)',
+    development: 'var(--color-phase-development)',
+    danger: 'var(--color-phase-danger)',
+    dangerBg: 'var(--color-phase-danger-bg)',
 } as const;
 
 // Connected status dot (brighter green, distinct from PHASE_COLORS.ready)

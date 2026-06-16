@@ -170,6 +170,24 @@ Never manually edit `database.types.ts` above the `// ── Convenience aliases
   function myFunction() { ... }
   ```
 
+## Dark Mode Border Rules
+
+- 다크모드 모든 컴포넌트 구분선(border) 색상은 `#585d61`로 통일한다.
+  - 예시: `dark:border-[#585d61]`, `dark:border-r-[#585d61]`, `dark:border-t-[#585d61]` 등
+  - 라이트모드는 CSS 변수(`--color-border`, `--color-divider`, `--color-border-subtle`)를 그대로 사용한다.
+- 다크모드에서는 **모든 카드/컴포넌트에 반드시 border가 있어야 한다**.
+  - `dark:border dark:border-[#585d61]` — full border가 기본
+  - 구분선(divider) 역할일 때는 방향에 맞게 `dark:border-b-[#585d61]`, `dark:border-t-[#585d61]` 등 사용
+- 라이트모드든 다크모드든 항상 양쪽 모드를 명시적으로 지정한다. (`border-border` + `dark:border-[#585d61]`)
+
+## Surface CSS Variables (Dark Mode)
+
+- `--color-surface-elevated: #262b30` — 컴포넌트 내부 배경이 메인 배경(`#181d21`)보다 한 톤 밝아야 할 때 사용.
+  - Tailwind: `bg-surface-elevated`
+  - 사용처: 서치 박스, 필터 드롭다운, select 등 입력/선택 컴포넌트의 배경
+  - 기본 원칙: 대부분의 카드는 `bg-main-bg` + `dark:border dark:border-[#585d61]` 조합으로 가고, 내부 입력 요소에만 `bg-surface-elevated` 사용
+- 라이트모드에서는 `--color-surface-elevated`가 `--color-surface`(#efeff0)와 동일하므로, `bg-surface-elevated`는 라이트모드에서 `bg-surface`와 같은 색상으로 보임.
+
 ## Skill routing
 
 When the user's request matches an available skill, ALWAYS invoke it using the Skill

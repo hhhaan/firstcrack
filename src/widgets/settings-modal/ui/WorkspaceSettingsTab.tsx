@@ -5,7 +5,9 @@ import { useAuthStore } from '@shared/store/auth';
 import { useProfile } from '../../../entities/profile';
 
 const SectionCard = ({ children }: { children: React.ReactNode }) => (
-    <section className="bg-white border border-[#E5E7EB] rounded-xl p-5">{children}</section>
+    <section className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
+        {children}
+    </section>
 );
 
 const inputCls =

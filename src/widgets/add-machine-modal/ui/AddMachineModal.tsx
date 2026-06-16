@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Cpu, Radio, ShieldCheck, X, ChevronDown, Wifi, WifiOff, Loader, Info } from 'lucide-react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,7 @@ import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
 import { sidecar } from '../../../shared/lib/sidecar';
 import { ROASTER_REGISTRY } from '@entities/machine/roasterRegistry';
 import type { RoasterDef, SerialPort } from '@entities/machine';
+import { cn } from '@shared/lib/cn';
 
 interface AddMachineModalProps {
     open: boolean;
@@ -13,52 +14,32 @@ interface AddMachineModalProps {
     onAdd: (roasterKey: string, def: RoasterDef, params: Record<string, unknown>) => void;
 }
 
-const inputStyle: CSSProperties = {
-    width: '100%',
-    padding: '10px 12px',
-    borderRadius: 10,
-    border: '1px solid rgba(0,0,0,0.08)',
-    background: 'rgba(255,255,255,0.84)',
-    boxShadow: 'var(--shadow-inset)',
-    fontSize: 13,
-    color: 'var(--color-primary)',
-    outline: 'none',
-    fontFamily: 'var(--font-body)',
-};
-
-const labelStyle: CSSProperties = {
-    display: 'block',
-    fontSize: 11,
-    fontWeight: 600,
-    color: 'var(--color-muted)',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-};
+const inputCls =
+    'w-full px-3.5 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20 dark:focus:border-[#585d61]';
+const selectCls = `${inputCls} appearance-none pr-9 cursor-pointer`;
+const labelCls = 'block text-[11px] font-semibold text-muted mb-1.5 tracking-[0.05em] uppercase';
+const badgeCls =
+    'text-[11px] font-semibold text-secondary bg-white/80 dark:bg-surface-elevated px-2.5 py-0.5 rounded-full shadow-(--shadow-inset)';
+const secondaryBtnCls =
+    'px-4 py-2.5 rounded-xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[13px] font-medium cursor-pointer shadow-(--shadow-inset) transition-colors';
 
 const ComportSelect = ({
     value,
     onChange,
     ports,
     registryDefault,
-    inputStyle,
 }: {
     value: string;
     onChange: (v: string) => void;
     ports: SerialPort[];
     registryDefault: string;
-    inputStyle: CSSProperties;
 }) => {
     const { t } = useTranslation();
     const detectedDevices = ports.map((p) => p.device);
     const showRegistryDefault = registryDefault && !detectedDevices.includes(registryDefault);
     return (
-        <div style={{ position: 'relative' }}>
-            <select
-                style={{ ...inputStyle, appearance: 'none', paddingRight: 36, cursor: 'pointer' }}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-            >
+        <div className="relative">
+            <select className={selectCls} value={value} onChange={(e) => onChange(e.target.value)}>
                 <option value="">{t('addMachine.selectPort')}</option>
                 {showRegistryDefault && (
                     <option value={registryDefault}>
@@ -74,14 +55,7 @@ const ComportSelect = ({
             </select>
             <ChevronDown
                 size={13}
-                style={{
-                    position: 'absolute',
-                    right: 12,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: 'var(--color-muted)',
-                    pointerEvents: 'none',
-                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
             />
         </div>
     );
@@ -97,7 +71,6 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
     type TestState = 'idle' | 'testing' | 'success' | 'failed';
     const [testState, setTestState] = useState<TestState>('idle');
     const [testMessage, setTestMessage] = useState('');
-    // 테스트 성공 후 라이브 연결이 살아있는지 추적
     const testConnectedRef = useRef(false);
 
     const [serialPorts, setSerialPorts] = useState<SerialPort[]>([]);
@@ -110,10 +83,12 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
         setTestState('idle');
         setTestMessage('');
         testConnectedRef.current = false;
-        sidecar.getSerialPorts().catch(() => []).then((ports) => setSerialPorts(ports as SerialPort[]));
+        sidecar
+            .getSerialPorts()
+            .catch(() => [])
+            .then((ports) => setSerialPorts(ports as SerialPort[]));
     }, [open]);
 
-    // 모달 닫기: 라이브 테스트 연결이 있으면 disconnect 후 닫기
     const handleClose = async () => {
         if (testConnectedRef.current) {
             await sidecar.disconnect().catch(() => null);
@@ -122,7 +97,6 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
         onClose();
     };
 
-    // ESC 닫기
     useEffect(() => {
         if (!open) return;
         const handler = (e: KeyboardEvent) => {
@@ -132,7 +106,6 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
         return () => window.removeEventListener('keydown', handler);
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // 로스터 선택 시 폼 파라미터 초기화
     useEffect(() => {
         if (!selectedKey || !ROASTER_REGISTRY[selectedKey]) return;
         const def = ROASTER_REGISTRY[selectedKey];
@@ -146,17 +119,15 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
 
     if (!open) return null;
 
-    // 브랜드별 그룹핑
     const brands: Record<string, { key: string; def: RoasterDef }[]> = {};
     for (const [key, def] of Object.entries(ROASTER_REGISTRY)) {
-        if (def.brand === 'Internal') continue; // Simulator 숨김
+        if (def.brand === 'Internal') continue;
         if (!brands[def.brand]) brands[def.brand] = [];
         brands[def.brand].push({ key, def });
     }
 
     const selectedDef = selectedKey ? ROASTER_REGISTRY[selectedKey] : null;
 
-    // mode 값에 따라 TCP 전용 / RTU 전용 필드 토글
     const TCP_ONLY = new Set(['host', 'port']);
     const RTU_ONLY = new Set(['comport', 'baudrate', 'bytesize', 'parity', 'stopbits']);
 
@@ -197,7 +168,6 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
     const handleTestConnection = async () => {
         if (!selectedKey || !selectedDef) return;
 
-        // 이전 테스트 연결 정리
         if (testConnectedRef.current) {
             await sidecar.disconnect().catch(() => null);
             testConnectedRef.current = false;
@@ -217,7 +187,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                 setTestMessage(
                     temps?.bt != null ? t('addMachine.connectedWithBt', { bt: temps.bt }) : t('common.connected'),
                 );
-                testConnectedRef.current = true; // 연결 유지 — "Add & Connect" 흐름에서 사용
+                testConnectedRef.current = true;
             } else {
                 setTestState('failed');
                 setTestMessage(status.error ?? t('addMachine.connectionFailed'));
@@ -228,14 +198,13 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
         }
     };
 
-    // 테스트 연결 유지한 채로 머신 추가 (권장 경로)
     const handleAddAndConnect = () => {
         if (!validateFields() || !selectedDef) return;
         setSaving(true);
         try {
             onAdd(selectedKey, selectedDef, buildTypedParams());
-            testConnectedRef.current = false; // 연결 소유권을 Machines 뷰로 이전
-            onClose(); // disconnect 없이 닫기
+            testConnectedRef.current = false;
+            onClose();
         } catch {
             setError(t('addMachine.failedToAdd'));
         } finally {
@@ -243,7 +212,6 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
         }
     };
 
-    // 테스트 연결 끊고 설정만 저장
     const handleAddOnly = async () => {
         if (!validateFields() || !selectedDef) return;
         setSaving(true);
@@ -262,7 +230,6 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
         }
     };
 
-    // 테스트 전 단순 저장 (기존 동작)
     const handleSubmit = async () => {
         if (!validateFields() || !selectedDef) return;
         setSaving(true);
@@ -281,111 +248,44 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
         <ModalShell
             onClose={handleClose}
             labelledBy="add-machine-modal-title"
-            contentClassName="max-w-[680px] w-full max-h-[min(820px,calc(100vh-56px))] flex flex-col rounded-[28px] bg-[rgba(255,255,255,0.96)] backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.22)] border border-white overflow-hidden"
+            contentClassName="max-w-[680px] w-full max-h-[min(820px,calc(100vh-56px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.97)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.22)] border border-white dark:border-[#585d61] overflow-hidden"
         >
             {/* Header */}
-            <div
-                style={{
-                    flexShrink: 0,
-                    background: 'linear-gradient(180deg, rgba(246,243,238,0.9) 0%, rgba(255,255,255,0.72) 100%)',
-                    borderBottom: '1px solid rgba(0,0,0,0.05)',
-                    padding: '22px 28px 18px',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: 16,
-                }}
-            >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div
-                        style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 14,
-                            background: 'var(--color-primary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            flexShrink: 0,
-                        }}
-                    >
+            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm border-b border-black/4 dark:border-[#585d61] px-7 pt-5.5 pb-4.5 flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-[14px] bg-primary flex items-center justify-center text-white shrink-0">
                         <Cpu size={20} strokeWidth={1.8} />
                     </div>
                     <div>
-                        <div
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                padding: '5px 10px',
-                                borderRadius: 999,
-                                background: 'rgba(255,255,255,0.8)',
-                                color: 'var(--color-secondary)',
-                                fontSize: 11,
-                                fontWeight: 600,
-                                letterSpacing: '0.1px',
-                                marginBottom: 10,
-                                boxShadow: 'var(--shadow-inset)',
-                            }}
-                        >
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/80 dark:bg-surface-elevated text-secondary text-[11px] font-semibold tracking-[0.1px] mb-2.5 shadow-(--shadow-inset)">
                             <ShieldCheck size={13} strokeWidth={1.9} />
                             {t('addMachine.onboarding')}
                         </div>
                         <h2
                             id="add-machine-modal-title"
-                            style={{
-                                fontFamily: 'var(--font-display)',
-                                fontSize: 26,
-                                fontWeight: 400,
-                                letterSpacing: '-0.04em',
-                                color: 'var(--color-primary)',
-                                margin: 0,
-                            }}
+                            className="font-(--font-display) text-[26px] font-normal tracking-[-0.04em] text-primary m-0"
                         >
                             {t('addMachine.title')}
                         </h2>
                     </div>
                 </div>
                 <button
+                    type="button"
                     onClick={handleClose}
                     aria-label={t('common.close')}
-                    style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 10,
-                        border: 'none',
-                        background: 'var(--color-surface)',
-                        color: 'var(--color-muted)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                        boxShadow: 'var(--shadow-inset)',
-                    }}
+                    className="w-[34px] h-[34px] rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer shrink-0 shadow-(--shadow-inset) transition-colors hover:text-primary"
                 >
                     <X size={16} strokeWidth={2.3} />
                 </button>
             </div>
 
             {/* Body */}
-            <div
-                style={{
-                    padding: '24px 28px',
-                    overflowY: 'auto',
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 20,
-                }}
-            >
-                {/* Roaster select */}
+            <div className="px-7 py-6 overflow-y-auto flex-1 flex flex-col gap-5">
                 <div>
-                    <label style={labelStyle}>{t('addMachine.roasterModel')}</label>
-                    <div style={{ position: 'relative' }}>
+                    <label className={labelCls}>{t('addMachine.roasterModel')}</label>
+                    <div className="relative">
                         <select
-                            style={{ ...inputStyle, appearance: 'none', paddingRight: 36, cursor: 'pointer' }}
+                            className={selectCls}
                             value={selectedKey}
                             onChange={(e) => setSelectedKey(e.target.value)}
                         >
@@ -404,87 +304,34 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                         </select>
                         <ChevronDown
                             size={14}
-                            style={{
-                                position: 'absolute',
-                                right: 12,
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                color: 'var(--color-muted)',
-                                pointerEvents: 'none',
-                            }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
                         />
                     </div>
                 </div>
 
-                {/* 선택된 로스터 정보 */}
                 {selectedDef && (
-                    <div
-                        style={{
-                            background: 'var(--color-surface-warm-solid)',
-                            borderRadius: 14,
-                            padding: '14px 16px',
-                            boxShadow: 'var(--shadow-warm)',
-                            display: 'flex',
-                            gap: 16,
-                            flexWrap: 'wrap',
-                        }}
-                    >
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            <span
-                                style={{
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    color: 'var(--color-secondary)',
-                                    background: 'rgba(255,255,255,0.8)',
-                                    padding: '3px 9px',
-                                    borderRadius: 9999,
-                                    boxShadow: 'var(--shadow-inset)',
-                                }}
-                            >
-                                {selectedDef.protocol.toUpperCase()}
-                            </span>
+                    <div className="bg-surface-warm-solid rounded-[14px] p-3.5 shadow-(--shadow-warm) flex gap-4 flex-wrap">
+                        <div className="flex gap-1.5 flex-wrap">
+                            <span className={badgeCls}>{selectedDef.protocol.toUpperCase()}</span>
                             {selectedDef.capabilities.map((cap) => (
-                                <span
-                                    key={cap}
-                                    style={{
-                                        fontSize: 11,
-                                        fontWeight: 600,
-                                        color: 'var(--color-secondary)',
-                                        background: 'rgba(255,255,255,0.8)',
-                                        padding: '3px 9px',
-                                        borderRadius: 9999,
-                                        boxShadow: 'var(--shadow-inset)',
-                                    }}
-                                >
+                                <span key={cap} className={badgeCls}>
                                     {cap}
                                 </span>
                             ))}
                             {selectedDef.pid && (
-                                <span
-                                    style={{
-                                        fontSize: 11,
-                                        fontWeight: 600,
-                                        color: 'var(--color-secondary)',
-                                        background: 'rgba(255,255,255,0.8)',
-                                        padding: '3px 9px',
-                                        borderRadius: 9999,
-                                        boxShadow: 'var(--shadow-inset)',
-                                    }}
-                                >
+                                <span className={badgeCls}>
                                     PID Kp={selectedDef.pid.Kp} Ki={selectedDef.pid.Ki} Kd={selectedDef.pid.Kd}
                                 </span>
                             )}
                         </div>
                         {selectedDef.models.length > 0 && (
-                            <div style={{ fontSize: 12, color: 'var(--color-muted)', width: '100%' }}>
-                                {selectedDef.models.join(' · ')}
-                            </div>
+                            <div className="text-xs text-muted w-full">{selectedDef.models.join(' · ')}</div>
                         )}
                     </div>
                 )}
 
                 {selectedDef?.protocol === 'phidget' && (
-                    <div className="flex items-start gap-2.5 bg-[rgba(59,130,246,0.07)] border border-[rgba(59,130,246,0.15)] rounded-xl px-3.5 py-[11px]">
+                    <div className="flex items-start gap-2.5 bg-[rgba(59,130,246,0.07)] dark:bg-blue-500/10 border border-[rgba(59,130,246,0.15)] dark:border-blue-500/20 rounded-xl px-3.5 py-[11px]">
                         <Info size={14} className="text-blue-500 shrink-0 mt-px" />
                         <span className="text-[12px] text-secondary leading-relaxed">
                             {t('addMachine.phidgetDriverNotice')}{' '}
@@ -499,51 +346,26 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                     </div>
                 )}
 
-                {/* 동적 연결 폼 */}
                 {selectedDef && selectedDef.form_fields.length > 0 && (
-                    <div
-                        style={{
-                            background:
-                                'linear-gradient(180deg, rgba(250,249,247,0.95) 0%, rgba(255,255,255,0.88) 100%)',
-                            borderRadius: 16,
-                            padding: 20,
-                            border: '1px solid rgba(0,0,0,0.06)',
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: 16,
-                        }}
-                    >
-                        <div
-                            style={{
-                                gridColumn: '1 / -1',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                marginBottom: 4,
-                            }}
-                        >
-                            <Radio size={14} color="var(--color-secondary)" />
-                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-secondary)' }}>
+                    <div className="rounded-2xl p-5 border border-black/6 dark:border-[#585d61] bg-surface/50 dark:bg-surface-elevated grid grid-cols-2 gap-4">
+                        <div className="col-span-2 flex items-center gap-2 mb-1">
+                            <Radio size={14} className="text-secondary" />
+                            <span className="text-[13px] font-semibold text-secondary">
                                 {t('addMachine.connectionSettings')}
                             </span>
                         </div>
                         {selectedDef.form_fields
                             .filter((f) => isFieldVisible(f.key))
                             .map((field) => (
-                                <div key={field.key} style={field.key === 'mode' ? { gridColumn: '1 / -1' } : {}}>
-                                    <label style={labelStyle}>
+                                <div key={field.key} className={field.key === 'mode' ? 'col-span-2' : ''}>
+                                    <label className={labelCls}>
                                         {field.label}
-                                        {field.required && <span style={{ color: '#e55' }}> *</span>}
+                                        {field.required && <span className="text-red-500"> *</span>}
                                     </label>
                                     {field.options ? (
-                                        <div style={{ position: 'relative' }}>
+                                        <div className="relative">
                                             <select
-                                                style={{
-                                                    ...inputStyle,
-                                                    appearance: 'none',
-                                                    paddingRight: 36,
-                                                    cursor: 'pointer',
-                                                }}
+                                                className={selectCls}
                                                 value={params[field.key] ?? ''}
                                                 onChange={(e) =>
                                                     setParams((p) => ({ ...p, [field.key]: e.target.value }))
@@ -557,14 +379,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                                             </select>
                                             <ChevronDown
                                                 size={13}
-                                                style={{
-                                                    position: 'absolute',
-                                                    right: 12,
-                                                    top: '50%',
-                                                    transform: 'translateY(-50%)',
-                                                    color: 'var(--color-muted)',
-                                                    pointerEvents: 'none',
-                                                }}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
                                             />
                                         </div>
                                     ) : field.key === 'comport' && serialPorts.length > 0 ? (
@@ -573,11 +388,10 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                                             onChange={(v) => setParams((p) => ({ ...p, [field.key]: v }))}
                                             ports={serialPorts}
                                             registryDefault={(selectedDef?.default_params[field.key] as string) ?? ''}
-                                            inputStyle={inputStyle}
                                         />
                                     ) : (
                                         <input
-                                            style={inputStyle}
+                                            className={inputCls}
                                             type={field.type === 'number' ? 'number' : 'text'}
                                             placeholder={field.placeholder ?? ''}
                                             value={params[field.key] ?? ''}
@@ -590,176 +404,92 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                 )}
 
                 {error && (
-                    <div
-                        style={{
-                            fontSize: 13,
-                            color: '#c0392b',
-                            padding: '8px 12px',
-                            borderRadius: 8,
-                            background: 'rgba(192,57,43,0.08)',
-                        }}
-                    >
+                    <div className="text-[13px] text-red-600 dark:text-red-400 px-3 py-2 rounded-lg bg-red-500/8 dark:bg-red-500/10">
                         {error}
                     </div>
                 )}
             </div>
 
             {/* Footer */}
-            <div
-                style={{
-                    borderTop: '1px solid rgba(0,0,0,0.05)',
-                    background: 'rgba(255,255,255,0.84)',
-                }}
-            >
-                {/* 연결 테스트 결과 */}
+            <div className="border-t border-black/4 dark:border-[#585d61] bg-white/60 dark:bg-[#1a1e23]">
                 {testState !== 'idle' && (
                     <div
-                        style={{
-                            padding: '10px 28px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            fontSize: 13,
-                            color:
-                                testState === 'success'
-                                    ? '#16a34a'
-                                    : testState === 'failed'
-                                      ? '#c0392b'
-                                      : 'var(--color-secondary)',
-                            background:
-                                testState === 'success'
-                                    ? 'rgba(220,252,231,0.5)'
-                                    : testState === 'failed'
-                                      ? 'rgba(192,57,43,0.06)'
-                                      : 'transparent',
-                            borderBottom: '1px solid rgba(0,0,0,0.04)',
-                        }}
-                    >
-                        {testState === 'testing' && (
-                            <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                        className={cn(
+                            'px-7 py-2.5 flex items-center gap-2 text-[13px] border-b border-black/4 dark:border-[#585d61]',
+                            testState === 'success' &&
+                                'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-500/10',
+                            testState === 'failed' && 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10',
+                            testState === 'testing' && 'text-secondary',
                         )}
+                    >
+                        {testState === 'testing' && <Loader size={14} className="animate-spin" />}
                         {testState === 'success' && <Wifi size={14} />}
                         {testState === 'failed' && <WifiOff size={14} />}
                         <span>{testState === 'testing' ? t('addMachine.testingConnection') : testMessage}</span>
                         {testState === 'success' && (
-                            <span style={{ fontSize: 11, color: '#16a34a', opacity: 0.7, marginLeft: 4 }}>(live)</span>
+                            <span className="text-[11px] text-green-600 dark:text-green-400 opacity-70 ml-1">
+                                (live)
+                            </span>
                         )}
                     </div>
                 )}
 
-                <div
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: 10,
-                        padding: '14px 28px 22px',
-                    }}
-                >
-                    {/* 왼쪽: Test Connection */}
+                <div className="flex justify-between items-center gap-2.5 px-7 pt-3.5 pb-5.5">
                     <button
+                        type="button"
                         onClick={handleTestConnection}
                         disabled={!selectedKey || testState === 'testing'}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 7,
-                            padding: '10px 16px',
-                            borderRadius: 10,
-                            border: 'none',
-                            background: 'var(--color-surface)',
-                            color: !selectedKey ? 'var(--color-muted)' : 'var(--color-secondary)',
-                            fontSize: 13,
-                            fontWeight: 500,
-                            cursor: selectedKey && testState !== 'testing' ? 'pointer' : 'default',
-                            boxShadow: 'var(--shadow-inset)',
-                            opacity: testState === 'testing' ? 0.6 : 1,
-                        }}
+                        className={cn(
+                            secondaryBtnCls,
+                            'flex items-center gap-1.5',
+                            (!selectedKey || testState === 'testing') && 'text-muted cursor-default',
+                            testState === 'testing' && 'opacity-60',
+                        )}
                     >
                         <Wifi size={14} strokeWidth={2} />
                         {t('addMachine.testConnection')}
                     </button>
 
-                    {/* 오른쪽: 상황별 버튼 */}
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                        <button
-                            onClick={handleClose}
-                            style={{
-                                padding: '10px 16px',
-                                borderRadius: 10,
-                                border: 'none',
-                                background: 'var(--color-surface)',
-                                color: 'var(--color-secondary)',
-                                fontSize: 13,
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                                boxShadow: 'var(--shadow-inset)',
-                            }}
-                        >
+                    <div className="flex gap-2.5 items-center">
+                        <button type="button" onClick={handleClose} className={secondaryBtnCls}>
                             {t('common.cancel')}
                         </button>
 
                         {testState === 'success' ? (
-                            // 테스트 성공: Add & Connect (primary) + Add only (secondary)
                             <>
                                 <button
+                                    type="button"
                                     onClick={handleAddOnly}
                                     disabled={saving}
-                                    style={{
-                                        padding: '10px 16px',
-                                        borderRadius: 10,
-                                        border: 'none',
-                                        background: 'var(--color-surface)',
-                                        color: 'var(--color-secondary)',
-                                        fontSize: 13,
-                                        fontWeight: 500,
-                                        cursor: saving ? 'default' : 'pointer',
-                                        boxShadow: 'var(--shadow-inset)',
-                                        opacity: saving ? 0.7 : 1,
-                                    }}
+                                    className={cn(secondaryBtnCls, saving && 'opacity-70 cursor-default')}
                                 >
                                     {t('addMachine.addOnly')}
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={handleAddAndConnect}
                                     disabled={saving}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 7,
-                                        padding: '10px 20px',
-                                        borderRadius: 10,
-                                        border: 'none',
-                                        background: '#16a34a',
-                                        color: '#fff',
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                        cursor: saving ? 'default' : 'pointer',
-                                        boxShadow: '0 2px 8px rgba(22,163,74,0.35)',
-                                        opacity: saving ? 0.7 : 1,
-                                    }}
+                                    className={cn(
+                                        'flex items-center gap-1.5 px-5 py-2.5 rounded-xl border-none bg-green-600 dark:bg-green-700 text-white text-[13px] font-semibold shadow-[0_2px_8px_rgba(22,163,74,0.35)] transition-opacity',
+                                        saving ? 'opacity-70 cursor-default' : 'cursor-pointer',
+                                    )}
                                 >
                                     <Wifi size={14} strokeWidth={2.5} />
                                     {saving ? t('addMachine.adding') : t('addMachine.addAndConnect')}
                                 </button>
                             </>
                         ) : (
-                            // 기본: Add Machine
                             <button
+                                type="button"
                                 onClick={handleSubmit}
                                 disabled={!selectedKey || saving}
-                                style={{
-                                    padding: '10px 20px',
-                                    borderRadius: 10,
-                                    border: 'none',
-                                    background: !selectedKey ? 'var(--color-surface)' : 'var(--color-primary)',
-                                    color: !selectedKey ? 'var(--color-muted)' : '#fff',
-                                    fontSize: 13,
-                                    fontWeight: 600,
-                                    cursor: selectedKey ? 'pointer' : 'default',
-                                    boxShadow: selectedKey ? 'var(--shadow-card)' : 'var(--shadow-inset)',
-                                    opacity: saving ? 0.7 : 1,
-                                }}
+                                className={cn(
+                                    'px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-opacity',
+                                    !selectedKey
+                                        ? 'border-none bg-surface dark:bg-surface-elevated text-muted cursor-default shadow-(--shadow-inset)'
+                                        : 'border border-transparent dark:border-white bg-primary dark:bg-black text-white cursor-pointer shadow-(--shadow-card)',
+                                    saving && 'opacity-70',
+                                )}
                             >
                                 {saving ? t('addMachine.adding') : t('machines.addMachine')}
                             </button>

@@ -91,7 +91,12 @@ export const RoastHeader = ({
     // 드롭다운을 빠르게 바꿀 때 매번 DB 쓰기가 발생하는 걸 막기 위한 디바운스 타이머.
     // 300ms 안에 다시 바뀌면 이전 요청은 취소되고 마지막 값만 저장됨.
     const profileSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    useEffect(() => () => { if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current); }, []);
+    useEffect(
+        () => () => {
+            if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current);
+        },
+        [],
+    );
 
     // ─── Derived values ──────────────────────────────────────────────────────
     const elapsedMin = Math.floor(elapsed / 60);
@@ -209,7 +214,7 @@ export const RoastHeader = ({
                         onClick={onOpenRoastSettings}
                         aria-label="Open roast settings"
                         title="Roast settings"
-                        className="w-8.5 h-8.5 rounded-md border-none bg-surface text-muted flex items-center justify-center cursor-pointer shrink-0 mt-1.5"
+                        className="w-8.5 h-8.5 rounded-md border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer shrink-0 mt-1.5"
                     >
                         <Settings2 size={15} strokeWidth={1.9} />
                     </button>

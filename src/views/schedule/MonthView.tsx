@@ -1,4 +1,14 @@
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
+import {
+    format,
+    startOfMonth,
+    endOfMonth,
+    startOfWeek,
+    endOfWeek,
+    eachDayOfInterval,
+    isSameMonth,
+    isSameDay,
+    isToday,
+} from 'date-fns';
 import { useMonthSummary } from '@entities/plan';
 import { toDateKey } from './lib';
 import { DayBatchPreview } from './DayBatchPreview';
@@ -62,15 +72,17 @@ export const MonthView = ({
                                 flex flex-col gap-1 p-2 border-none cursor-pointer text-left
                                 transition-colors duration-100 overflow-hidden
                                 ${isSelected ? 'bg-primary/5' : isCurrentMonth ? 'bg-main-bg hover:bg-surface' : 'bg-surface/40 hover:bg-surface'}
-                                ${!isLastRow ? 'border-b border-border-subtle' : ''}
-                                ${!isLastCol ? 'border-r border-border-subtle' : ''}
+                                ${!isLastRow ? 'border-b border-border-subtle dark:border-[#585d61]' : ''}
+                                ${!isLastCol ? 'border-r border-border-subtle dark:border-[#585d61]' : ''}
                             `}
                         >
                             <div className="flex justify-end">
-                                <span className={`
+                                <span
+                                    className={`
                                     text-[12px] font-medium w-6 h-6 flex items-center justify-center rounded-full leading-none
                                     ${today ? 'bg-primary text-white' : isCurrentMonth ? 'text-primary' : 'text-muted/40'}
-                                `}>
+                                `}
+                                >
                                     {format(day, 'd')}
                                 </span>
                             </div>

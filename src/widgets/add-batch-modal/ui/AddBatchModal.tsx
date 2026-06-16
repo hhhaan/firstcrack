@@ -80,14 +80,13 @@ interface AddBatchModalProps {
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
 const inputCls =
-    'w-full px-3.5 py-2.5 rounded-xl border border-black/8 bg-white/80 shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20';
-const labelCls =
-    'flex items-center gap-1.5 text-[11px] font-semibold text-muted mb-1.5 tracking-[0.04em] uppercase';
+    'w-full px-3.5 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20 dark:focus:border-[#585d61]';
+const labelCls = 'flex items-center gap-1.5 text-[11px] font-semibold text-muted mb-1.5 tracking-[0.04em] uppercase';
 const tabCls = (active: boolean) =>
     `flex-1 py-2 rounded-xl border-none text-[13px] cursor-pointer transition-all duration-200 ${
         active
-            ? 'bg-white font-semibold text-primary shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
-            : 'bg-transparent font-medium text-muted hover:text-secondary'
+            ? 'bg-white dark:bg-surface-elevated font-semibold text-primary dark:text-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
+            : 'bg-transparent font-medium text-muted dark:text-white hover:text-secondary dark:hover:text-white/70'
     }`;
 
 const DEFAULT_YIELD = 82;
@@ -99,7 +98,15 @@ const todayDate = () => new Date();
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, currentDateKey, onSaved }: AddBatchModalProps) => {
+export const AddBatchModal = ({
+    open,
+    onClose,
+    onAdd,
+    editingBatch,
+    editScope,
+    currentDateKey,
+    onSaved,
+}: AddBatchModalProps) => {
     const userId = useAuthStore((s) => s.user?.id ?? '');
     const qc = useQueryClient();
 
@@ -114,9 +121,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
 
     const [saving, setSaving] = useState(false);
     const [date, setDate] = useState<Date | undefined>(
-        editingBatch && currentDateKey
-            ? new Date(currentDateKey + 'T00:00:00')
-            : todayDate(),
+        editingBatch && currentDateKey ? new Date(currentDateKey + 'T00:00:00') : todayDate(),
     );
     const [calendarOpen, setCalendarOpen] = useState(false);
     const [recurringInterval, setRecurringInterval] = useState<RecurrenceInterval | null>(null);
@@ -134,20 +139,22 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
     const [profileId, setProfileId] = useState(() => editingBatch?.roast_profile_id ?? '');
     const [beanId, setBeanId] = useState(() => editingBatch?.bean_id ?? '');
     const [blendId, setBlendId] = useState<string | null>(() => editingBatch?.blend_id ?? null);
-    const [targetRoasted, setTargetRoasted] = useState(
-        () => (editingBatch ? String(editingBatch.target_roasted_kg) : ''),
+    const [targetRoasted, setTargetRoasted] = useState(() =>
+        editingBatch ? String(editingBatch.target_roasted_kg) : '',
     );
-    const [batchSize, setBatchSize] = useState(
-        () => (editingBatch ? String(editingBatch.batch_size_kg) : String(DEFAULT_BATCH_SIZE)),
+    const [batchSize, setBatchSize] = useState(() =>
+        editingBatch ? String(editingBatch.batch_size_kg) : String(DEFAULT_BATCH_SIZE),
     );
-    const [yieldPct, setYieldPct] = useState(
-        () => (editingBatch ? String(Math.round((editingBatch.yield_pct ?? 0.82) * 100)) : String(DEFAULT_YIELD)),
+    const [yieldPct, setYieldPct] = useState(() =>
+        editingBatch ? String(Math.round((editingBatch.yield_pct ?? 0.82) * 100)) : String(DEFAULT_YIELD),
     );
     const [notes, setNotes] = useState(() => editingBatch?.notes ?? '');
 
     useEffect(() => {
         if (!open) return;
-        const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        const fn = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
         window.addEventListener('keydown', fn);
         return () => window.removeEventListener('keydown', fn);
     }, [open, onClose]);
@@ -157,9 +164,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
     const batchSizeNum = parseFloat(batchSize) || DEFAULT_BATCH_SIZE;
     const yieldNum = parseFloat(yieldPct) || DEFAULT_YIELD;
     const batchCount = targetNum > 0 ? Math.ceil(targetNum / batchSizeNum) : 0;
-    const greenNeeded = targetNum > 0 && yieldNum > 0
-        ? Math.round((targetNum / (yieldNum / 100)) * 10) / 10
-        : 0;
+    const greenNeeded = targetNum > 0 && yieldNum > 0 ? Math.round((targetNum / (yieldNum / 100)) * 10) / 10 : 0;
 
     const selectedBean = beans.find((b) => b.id === beanId) as Bean | undefined;
     const selectedProfile = profiles.find((p) => p.id === profileId) as RoastProfile | undefined;
@@ -246,8 +251,8 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                     machine_id: machineId || null,
                     batch_type: batchType,
                     roast_profile_id: profileId || null,
-                    bean_id: isBlendType ? null : (beanId || null),
-                    blend_id: isBlendType ? (blendId || null) : null,
+                    bean_id: isBlendType ? null : beanId || null,
+                    blend_id: isBlendType ? blendId || null : null,
                     bean_name: isBlendType
                         ? (selectedBlend?.name ?? editingBatch.bean_name)
                         : (selectedBean?.name ?? editingBatch.bean_name),
@@ -289,19 +294,15 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                 batchType,
                 profileId: profileId || null,
                 profileName: selectedProfile?.name ?? '',
-                beanId: isBlendTypeAdd ? null : (beanId || null),
-                blendId: isBlendTypeAdd ? (blendId || null) : null,
-                beanName: isBlendTypeAdd
-                    ? (selectedBlend?.name ?? '')
-                    : (selectedBean?.name ?? ''),
+                beanId: isBlendTypeAdd ? null : beanId || null,
+                blendId: isBlendTypeAdd ? blendId || null : null,
+                beanName: isBlendTypeAdd ? (selectedBlend?.name ?? '') : (selectedBean?.name ?? ''),
                 targetRoasted: targetNum,
                 batchSize: batchSizeNum,
                 yieldPct: yieldNum,
                 batchCount,
                 greenNeeded,
-                greenLot: selectedBean
-                    ? `${selectedBean.name} (${stockKg.toFixed(0)}kg)`
-                    : '',
+                greenLot: selectedBean ? `${selectedBean.name} (${stockKg.toFixed(0)}kg)` : '',
                 notes,
                 recurringInterval: recurringInterval ?? undefined,
             });
@@ -319,10 +320,10 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
         <ModalShell
             onClose={onClose}
             labelledBy="add-batch-modal-title"
-            contentClassName="max-w-[600px] w-full max-h-[min(840px,calc(100vh-64px))] flex flex-col rounded-[28px] bg-[rgba(255,255,255,0.97)] backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.22)] border border-white overflow-hidden"
+            contentClassName="max-w-[600px] w-full max-h-[min(840px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.97)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.22)] border border-white dark:border-[#585d61] overflow-hidden"
         >
             {/* Header */}
-            <div className="shrink-0 bg-white/60 backdrop-blur-sm border-b border-black/4 px-8 pt-6 pb-5 flex items-center justify-between">
+            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm border-b border-black/4 dark:border-[#585d61] px-8 pt-6 pb-5 flex items-center justify-between">
                 <div>
                     <h2
                         id="add-batch-modal-title"
@@ -337,7 +338,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                 <button
                     type="button"
                     onClick={onClose}
-                    className="w-9 h-9 rounded-xl border-none bg-surface text-muted flex items-center justify-center cursor-pointer transition-all hover:text-primary"
+                    className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all hover:text-primary"
                 >
                     <X size={17} strokeWidth={2.5} />
                 </button>
@@ -345,7 +346,6 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
 
             {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto p-8 space-y-6">
-
                 {/* Row 1 — 날짜 + 머신 */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -371,13 +371,11 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                                     )}
                                 >
                                     <CalendarIcon size={13} className="text-muted shrink-0" />
-                                    <span>
-                                        {date
-                                            ? format(date, 'M월 d일 (eee)', { locale: ko })
-                                            : '날짜 선택'}
-                                    </span>
+                                    <span>{date ? format(date, 'M월 d일 (eee)', { locale: ko }) : '날짜 선택'}</span>
                                     {dateChanged && (
-                                        <span className="ml-auto text-[10px] text-amber-600 font-semibold shrink-0">이동</span>
+                                        <span className="ml-auto text-[10px] text-amber-600 font-semibold shrink-0">
+                                            이동
+                                        </span>
                                     )}
                                 </button>
                             </PopoverTrigger>
@@ -424,18 +422,16 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                 <div>
                     <label className={labelCls}>구분</label>
                     <div className="flex bg-surface p-1 rounded-2xl shadow-(--shadow-inset)">
-                        {(['Single Origin', 'Pre-roast Blend', 'Post-roast Blend'] as BatchType[]).map(
-                            (t) => (
-                                <button
-                                    key={t}
-                                    type="button"
-                                    onClick={() => setBatchType(t)}
-                                    className={tabCls(batchType === t)}
-                                >
-                                    {t}
-                                </button>
-                            ),
-                        )}
+                        {(['Single Origin', 'Pre-roast Blend', 'Post-roast Blend'] as BatchType[]).map((t) => (
+                            <button
+                                key={t}
+                                type="button"
+                                onClick={() => setBatchType(t)}
+                                className={tabCls(batchType === t)}
+                            >
+                                {t}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -518,12 +514,23 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                                 />
                                 {blendShortages.length > 0 && blendShortages.some((s) => s.isShort) && (
                                     <div className="mt-2 space-y-1">
-                                        {blendShortages.filter((s) => s.isShort).map((s) => (
-                                            <p key={s.beanName} className="text-xs text-red-500 flex items-start gap-1">
-                                                <AlertTriangle size={11} strokeWidth={2} className="shrink-0 mt-0.5" />
-                                                <span>{s.beanName}: 가용 {s.effectiveGrams}g / 필요 {s.neededGrams}g</span>
-                                            </p>
-                                        ))}
+                                        {blendShortages
+                                            .filter((s) => s.isShort)
+                                            .map((s) => (
+                                                <p
+                                                    key={s.beanName}
+                                                    className="text-xs text-red-500 flex items-start gap-1"
+                                                >
+                                                    <AlertTriangle
+                                                        size={11}
+                                                        strokeWidth={2}
+                                                        className="shrink-0 mt-0.5"
+                                                    />
+                                                    <span>
+                                                        {s.beanName}: 가용 {s.effectiveGrams}g / 필요 {s.neededGrams}g
+                                                    </span>
+                                                </p>
+                                            ))}
                                     </div>
                                 )}
                             </>
@@ -540,23 +547,13 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                         onChange={setTargetRoasted}
                         step={0.1}
                     />
-                    <CounterInput
-                        label="Batch Size (kg)"
-                        value={batchSize}
-                        onChange={setBatchSize}
-                        step={1}
-                    />
-                    <CounterInput
-                        label="Yield (%)"
-                        value={yieldPct}
-                        onChange={setYieldPct}
-                        step={1}
-                    />
+                    <CounterInput label="Batch Size (kg)" value={batchSize} onChange={setBatchSize} step={1} />
+                    <CounterInput label="Yield (%)" value={yieldPct} onChange={setYieldPct} step={1} />
                 </div>
 
                 {/* 자동 계산 summary */}
                 {targetNum > 0 && (
-                    <div className="rounded-2xl bg-surface/50 border border-border p-4">
+                    <div className="rounded-2xl bg-surface/50 dark:bg-surface-elevated border border-border dark:border-[#585d61] p-4">
                         <div className="flex items-stretch gap-0 divide-x divide-border-subtle">
                             <div className="flex-1 flex flex-col items-center py-1 px-4">
                                 <span className="text-[26px] font-bold text-primary tabular-nums leading-none">
@@ -586,17 +583,14 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                         className={`rounded-2xl border p-4 transition-colors ${
                             !stockSufficient
                                 ? 'border-amber-200 bg-amber-50'
-                                : 'border-border bg-surface/40'
+                                : 'border-border dark:border-[#585d61] bg-surface/40 dark:bg-[#1a1e23]'
                         }`}
                     >
                         <div className="flex items-start justify-between gap-3">
                             <div>
-                                <div className="text-[13px] font-semibold text-primary">
-                                    {selectedBean.name}
-                                </div>
+                                <div className="text-[13px] font-semibold text-primary">{selectedBean.name}</div>
                                 <div className="text-[12px] text-secondary mt-0.5">
-                                    현재 재고:{' '}
-                                    <span className="font-medium text-primary">{stockKg.toFixed(1)} kg</span>
+                                    현재 재고: <span className="font-medium text-primary">{stockKg.toFixed(1)} kg</span>
                                     {greenNeeded > 0 && (
                                         <span className="text-muted ml-2">/ 필요: {greenNeeded} kg</span>
                                     )}
@@ -610,7 +604,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                             )}
                         </div>
                         {greenNeeded > 0 && (
-                            <div className="mt-3 h-1.5 rounded-full bg-black/6 overflow-hidden">
+                            <div className="mt-3 h-1.5 rounded-full bg-black/6 dark:bg-white/8 overflow-hidden">
                                 <div
                                     className={`h-full rounded-full transition-all duration-300 ${
                                         !stockSufficient ? 'bg-amber-400' : 'bg-surface-warm-solid'
@@ -634,8 +628,8 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                                 className={cn(
                                     'px-3 py-2 rounded-xl text-[13px] font-medium transition-all border',
                                     recurringInterval === null
-                                        ? 'bg-primary text-white border-primary shadow-sm'
-                                        : 'bg-surface text-secondary border-border hover:border-black/15',
+                                        ? 'bg-primary text-white dark:bg-transparent dark:text-secondary dark:border-[#585d61] border-primary shadow-sm dark:shadow-none'
+                                        : 'bg-surface dark:bg-surface-elevated text-secondary border-border dark:border-[#585d61] hover:border-black/15',
                                 )}
                             >
                                 없음
@@ -648,8 +642,8 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                                     className={cn(
                                         'px-3 py-2 rounded-xl text-[13px] font-medium transition-all border',
                                         recurringInterval === value
-                                            ? 'bg-primary text-white border-primary shadow-sm'
-                                            : 'bg-surface text-secondary border-border hover:border-black/15',
+                                            ? 'bg-primary text-white dark:bg-transparent dark:text-secondary dark:border-[#585d61] border-primary shadow-sm dark:shadow-none'
+                                            : 'bg-surface dark:bg-surface-elevated text-secondary border-border dark:border-[#585d61] hover:border-black/15',
                                     )}
                                 >
                                     {label}
@@ -673,7 +667,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
             </div>
 
             {/* Footer */}
-            <div className="shrink-0 border-t border-black/4 bg-white/60 px-8 py-4 flex items-center justify-between gap-3">
+            <div className="shrink-0 border-t border-black/4 dark:border-[#585d61] bg-white/60 dark:bg-[#1a1e23] px-8 py-4 flex items-center justify-between gap-3">
                 {dateChanged && newDateKey && (
                     <p className="text-[12px] text-amber-600 font-medium">
                         {format(new Date(newDateKey + 'T00:00:00'), 'M월 d일', { locale: ko })}로 이동됩니다
@@ -683,7 +677,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-5 py-2.5 rounded-xl border border-border bg-surface text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
+                        className="px-5 py-2.5 rounded-xl border border-border dark:border-[#585d61] bg-surface dark:bg-surface-elevated text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
                     >
                         취소
                     </button>
@@ -691,7 +685,7 @@ export const AddBatchModal = ({ open, onClose, onAdd, editingBatch, editScope, c
                         type="button"
                         onClick={handleSubmit}
                         disabled={!canSubmit}
-                        className="px-5 py-2.5 rounded-xl border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="px-5 py-2.5 rounded-xl border border-transparent dark:border-white bg-primary dark:bg-black text-white dark:text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         {saving ? '저장 중...' : isEdit ? '저장' : '배치 추가'}
                     </button>

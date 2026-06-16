@@ -85,6 +85,16 @@ const fmtSec = (v: number) => {
     return `${sign}${m}:${String(s).padStart(2, '0')}`;
 };
 
+/** Approximate perceived brightness of a hex color (0–255). */
+const luminance = (hex: string): number => {
+    const c = hex.replace('#', '');
+    if (c.length < 6) return 255;
+    const r = parseInt(c.substring(0, 2), 16);
+    const g = parseInt(c.substring(2, 4), 16);
+    const b = parseInt(c.substring(4, 6), 16);
+    return (r * 299 + g * 587 + b * 114) / 1000;
+};
+
 export const RoastTempChart: React.FC<Props> = ({
     xs,
     btTarget,
@@ -170,7 +180,7 @@ export const RoastTempChart: React.FC<Props> = ({
         const tpMarkLines = turningPoints.map((tp) => ({
             xAxis: tp.timeSec,
             lineStyle: {
-                color: CHART_COLORS.tp,
+                color: colors.tp,
                 width: 1.5,
                 type: 'solid' as const,
                 opacity: 1,
@@ -179,7 +189,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 show: true,
                 position: 'start',
                 formatter: 'TP',
-                color: CHART_COLORS.tp,
+                color: colors.tp,
                 fontSize: 12,
                 fontWeight: 700,
             },
@@ -199,7 +209,7 @@ export const RoastTempChart: React.FC<Props> = ({
         }));
 
         const markPointData = eventMarkers.map((m) => {
-            const needsDarkLabel = m.color === '#A6B0FF' || m.color === '#FFFF54';
+            const isLight = luminance(m.color) > 160;
             return {
                 name: m.event,
                 value: [m.timeSec, null],
@@ -212,7 +222,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     position: 'top',
                     formatter: m.event,
                     fontSize: 10,
-                    color: needsDarkLabel ? '#0B0B0B' : CHART_COLORS.markerLabelColor,
+                    color: isLight ? '#0B0B0B' : CHART_COLORS.markerLabelColor,
                     backgroundColor: m.color,
                     padding: [2, 4],
                 },
@@ -233,7 +243,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 data: makeSeriesData(btTarget),
-                lineStyle: { color: CHART_COLORS.btTarget, width: 1.5, type: 'dashed' },
+                lineStyle: { color: colors.btTarget, width: 1.5, type: 'dashed' },
                 showSymbol: false,
                 smooth: false,
             },
@@ -243,7 +253,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 data: xs.map((x, i) => [x, btActual[i]]),
-                lineStyle: { color: CHART_COLORS.btActual, width: 1.8 },
+                lineStyle: { color: colors.btActual, width: 1.8 },
                 showSymbol: false,
                 ...getSmoothConfig(0.7),
                 markLine: {
@@ -260,7 +270,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 data: xs.map((x, i) => [x, etActual[i]]),
-                lineStyle: { color: CHART_COLORS.etActual, width: 1.5 },
+                lineStyle: { color: colors.etActual, width: 1.5 },
                 showSymbol: false,
                 ...getSmoothConfig(0.65),
             },
@@ -270,7 +280,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 1,
                 data: xs.map((x, i) => [x, rorActual[i]]),
-                lineStyle: { color: CHART_COLORS.rorActual, width: 1.2 },
+                lineStyle: { color: colors.rorActual, width: 1.2 },
                 showSymbol: false,
                 ...getSmoothConfig(0.28),
             },
@@ -281,7 +291,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     xAxisIndex: 0,
                     yAxisIndex: 1,
                     data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
-                    lineStyle: { color: CHART_COLORS.etActual, width: 1.0, type: 'dashed' },
+                    lineStyle: { color: colors.etActual, width: 1.0, type: 'dashed' },
                     showSymbol: false,
                     ...getSmoothConfig(0.28),
                 },
@@ -629,22 +639,22 @@ export const RoastTempChart: React.FC<Props> = ({
                     {
                         name: 'Drum',
                         type: 'line',
-                        color: CONTROL_COLORS.drum,
+                        color: colors.controlDrum,
                         xAxisIndex: hasPhaseBar ? 2 : 1,
                         yAxisIndex: hasPhaseBar ? 3 : 2,
                         data: cxs.map((x, i) => [x, drumTemp[i]]),
-                        lineStyle: { color: CONTROL_COLORS.drum, width: 1.5 },
+                        lineStyle: { color: colors.controlDrum, width: 1.5 },
                         showSymbol: false,
                         smooth: 0.3,
                     },
                     {
                         name: 'Heat',
                         type: 'line',
-                        color: CONTROL_COLORS.heat,
+                        color: colors.controlHeat,
                         xAxisIndex: hasPhaseBar ? 2 : 1,
                         yAxisIndex: hasPhaseBar ? 4 : 3,
                         data: cxs.map((x, i) => [x, heatPower[i]]),
-                        lineStyle: { color: CONTROL_COLORS.heat, width: 1.5 },
+                        lineStyle: { color: colors.controlHeat, width: 1.5 },
                         showSymbol: false,
                         step: 'end',
                         smooth: false,
@@ -652,11 +662,11 @@ export const RoastTempChart: React.FC<Props> = ({
                     {
                         name: 'Fan',
                         type: 'line',
-                        color: CONTROL_COLORS.fan,
+                        color: colors.controlFan,
                         xAxisIndex: hasPhaseBar ? 2 : 1,
                         yAxisIndex: hasPhaseBar ? 4 : 3,
                         data: cxs.map((x, i) => [x, fanSpeed[i]]),
-                        lineStyle: { color: CONTROL_COLORS.fan, width: 1.5 },
+                        lineStyle: { color: colors.controlFan, width: 1.5 },
                         showSymbol: false,
                         step: 'end',
                         smooth: false,

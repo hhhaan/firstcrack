@@ -116,7 +116,7 @@ type ExpandedRowProps = {
 
 function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
     return (
-        <tr className="border-b border-border-subtle bg-[rgba(245,242,239,0.3)]">
+        <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)]">
             <td colSpan={columns.length} className="px-4 py-4 md:px-6">
                 <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
                     {[
@@ -186,10 +186,10 @@ const HistoryTable = ({
     };
 
     return (
-        <div className="overflow-x-auto rounded-lg bg-main-bg [-webkit-overflow-scrolling:touch]">
+        <div className="overflow-x-auto rounded-lg bg-main-bg dark:border dark:border-[#585d61] [-webkit-overflow-scrolling:touch]">
             <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
                 <thead>
-                    <tr className="border-b border-border-subtle">
+                    <tr className="border-b border-border-subtle dark:border-[#585d61]">
                         {columns.map((col) => {
                             const responsiveClass = col.label === 'Profile' ? 'md:hidden lg:table-cell' : '';
                             return (
@@ -217,7 +217,7 @@ const HistoryTable = ({
                             <Fragment key={session.id}>
                                 <tr
                                     onClick={() => onRowClick(session.id)}
-                                    className={`cursor-pointer border-b border-border-subtle transition ${isExpanded ? 'bg-[rgba(245,245,245,0.5)]' : 'hover:bg-[rgba(245,242,239,0.45)]'}`}
+                                    className={`cursor-pointer border-b border-border-subtle dark:border-[#585d61] transition ${isExpanded ? 'bg-[rgba(245,245,245,0.5)]' : 'hover:bg-[rgba(245,242,239,0.45)]'}`}
                                 >
                                     {columns.map((col, idx) => {
                                         const cellClass =
@@ -248,7 +248,7 @@ const HistoryTable = ({
                 </tbody>
             </table>
 
-            <div className="flex flex-col gap-3 border-t border-border-subtle px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t border-border-subtle dark:border-[#585d61] px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-xs tracking-[0.14px] text-muted">
                     {filteredTotal === 0
                         ? 'No sessions found'
@@ -339,7 +339,7 @@ const FilterDropdown = ({
                 className={`inline-flex items-center gap-1 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
                     isActive
                         ? 'bg-surface-warm-solid text-primary'
-                        : 'bg-surface text-secondary hover:bg-surface-warm-solid hover:text-primary'
+                        : 'bg-surface dark:bg-surface-elevated text-secondary hover:-translate-y-px hover:text-primary'
                 }`}
             >
                 <Filter size={12} strokeWidth={2} className={isActive ? 'text-primary' : 'text-muted'} />
@@ -348,7 +348,7 @@ const FilterDropdown = ({
             </button>
 
             {open && (
-                <div className="absolute top-full left-0 z-50 mt-1 min-w-35 rounded-lg bg-main-bg py-1">
+                <div className="absolute top-full left-0 z-50 mt-1 min-w-35 rounded-lg bg-main-bg dark:bg-surface-elevated py-1">
                     <button
                         onClick={() => {
                             onSelect('all');
@@ -493,7 +493,7 @@ const DateRangeFilter = ({
                 className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
                     isActive
                         ? 'bg-surface-warm-solid text-primary'
-                        : 'bg-surface text-secondary hover:bg-surface-warm-solid hover:text-primary'
+                        : 'bg-surface dark:bg-surface-elevated text-secondary hover:-translate-y-px hover:text-primary'
                 }`}
             >
                 {triggerLabel}
@@ -514,7 +514,7 @@ const DateRangeFilter = ({
             </button>
 
             {open && (
-                <div className="absolute top-full left-0 z-50 mt-1 flex rounded-lg bg-main-bg overflow-hidden">
+                <div className="absolute  border border-border-subtle dark:border-[#585d61] top-full left-0 z-50 mt-2 flex rounded-lg bg-main-bg overflow-hidden">
                     {/* 프리셋 목록 */}
                     <div className="flex shrink-0 flex-col gap-0.5 py-2 px-2 w-36">
                         {DATE_PRESETS.map((p) => (
@@ -532,7 +532,7 @@ const DateRangeFilter = ({
 
                     {/* 커스텀 범위 — draft 상태로 관리, Apply 버튼으로만 반영 */}
                     {preset === 'custom' && (
-                        <div className="flex flex-col justify-center gap-3 border-l border-border-subtle px-5 py-4 self-stretch">
+                        <div className="flex flex-col justify-center gap-3 border-l border-border-subtle dark:border-[#585d61] px-5 py-4 self-stretch">
                             {(
                                 [
                                     { label: '시작', val: draftFrom, set: setDraftFrom },
@@ -547,7 +547,7 @@ const DateRangeFilter = ({
                                             {label}
                                         </span>
                                         <Select value={yr} onValueChange={(v) => set(mo ? `${v}-${mo}` : v)}>
-                                            <SelectTrigger className="w-24">
+                                            <SelectTrigger className="w-24 border border-border-subtle dark:border-[#585d61]">
                                                 <SelectValue placeholder="년도" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -559,7 +559,7 @@ const DateRangeFilter = ({
                                             </SelectContent>
                                         </Select>
                                         <Select value={mo} onValueChange={(v) => set(yr ? `${yr}-${v}` : v)}>
-                                            <SelectTrigger className="w-20">
+                                            <SelectTrigger className="w-20 border border-border-subtle dark:border-[#585d61]">
                                                 <SelectValue placeholder="월" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -573,13 +573,15 @@ const DateRangeFilter = ({
                                     </div>
                                 );
                             })}
-                            <button
-                                onClick={handleApply}
-                                disabled={!draftFrom || !draftTo}
-                                className="mt-1 ml-auto rounded-lg border-none bg-primary px-4 py-1.5 text-[13px] font-medium text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                                적용
-                            </button>
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={handleApply}
+                                    disabled={!draftFrom || !draftTo}
+                                    className="mt-1 ml-auto rounded-lg border border-[#111] dark:border-[#585d61] bg-[#111] px-4 py-1.5 text-[13px] font-medium text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    적용
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -905,7 +907,7 @@ export const History = () => {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleOpenReport}
-                            className="inline-flex items-center gap-1.5 self-start rounded-full border-0 dark:border-white bg-main-bg dark:bg-[#1a1a1a] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary"
+                            className="inline-flex items-center gap-1.5 self-start rounded-full border border-transparent dark:border-[#585d61] bg-main-bg dark:bg-[#181d21] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary"
                         >
                             <FileText size={14} strokeWidth={2} />
                             월간 보고서
@@ -913,7 +915,7 @@ export const History = () => {
                         <button
                             type="button"
                             onClick={handleExportCsv}
-                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-0 dark:border-white bg-main-bg dark:bg-[#1a1a1a] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary"
+                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent dark:border-[#585d61] bg-main-bg dark:bg-[#181d21] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary"
                         >
                             <Download size={14} strokeWidth={2} />
                             Export CSV
@@ -922,8 +924,8 @@ export const History = () => {
                 }
             />
 
-            <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg p-4 lg:flex-row lg:items-center lg:gap-3 lg:px-5">
-                <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface px-3 py-2">
+            <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg dark:border dark:border-[#585d61] p-4 lg:flex-row lg:items-center lg:gap-3 lg:px-5">
+                <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface dark:bg-surface-elevated px-3 py-2">
                     <Search size={14} strokeWidth={2} className="text-muted" />
                     <input
                         className="w-full border-none bg-transparent text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted font-body"

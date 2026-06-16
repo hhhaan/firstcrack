@@ -50,13 +50,13 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
 
     return (
         <aside
-            className="shrink-0 h-screen bg-main-bg border-r border-border flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out"
+            className="shrink-0 h-screen bg-main-bg border-r border-border dark:border-[#585d61] flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out"
             style={{ width: collapsed ? 68 : 240 }}
         >
             {/* Header */}
             <div
                 className={cn(
-                    'border-b border-border-subtle transition-all duration-200',
+                    'border-b border-border-subtle dark:border-[#585d61] transition-all duration-200',
                     collapsed ? 'px-4 pt-4 pb-3.5' : 'px-5 pt-5 pb-4',
                 )}
                 onMouseEnter={() => setIsHeaderHovered(true)}
@@ -187,15 +187,23 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             </nav>
 
             {/* Footer */}
-            <div className="p-4 border-t border-border-subtle">
+            <div className="p-4 border-t border-border-subtle dark:border-[#585d61]">
                 <button
                     onClick={() => onOpenSettings()}
                     aria-label={t('sidebar.settings')}
                     title={collapsed ? t('sidebar.settings') : undefined}
-                    className="w-full flex items-center rounded-lg border-none cursor-pointer shadow-(--shadow-inset) bg-transparent hover:bg-surface/50 transition-colors h-11 overflow-hidden"
+                    className={cn(
+                        'w-full flex items-center rounded-lg border-none cursor-pointer',
+                        'bg-transparent transition-colors h-11 overflow-hidden',
+                        'hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-primary',
+                    )}
+                    style={{
+                        transitionProperty: 'background',
+                        transitionDuration: '140ms',
+                    }}
                 >
                     <div className="w-9 h-11 shrink-0 flex items-center justify-center">
-                        <div className="w-7 h-7 rounded-full bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary shrink-0 shadow-(--shadow-inset)">
+                        <div className="w-7 h-7 rounded-full bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary shrink-0">
                             H
                         </div>
                     </div>
@@ -205,7 +213,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                             collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[160px]',
                         )}
                     >
-                        <div className="text-left min-w-0 flex-1">
+                        <div className="text-left min-w-0 flex-1 ">
                             <div className="text-[13px] font-medium text-primary tracking-[0.14px]">
                                 {t('sidebar.settings')}
                             </div>
@@ -213,7 +221,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 {t('sidebar.workspacePreferences')}
                             </div>
                         </div>
-                        <Settings size={14} className="shrink-0 ml-1 text-muted" />
+                        <Settings size={14} className={cn('shrink-0 ml-1 text-muted', 'dark:text-white')} />
                     </div>
                 </button>
             </div>
