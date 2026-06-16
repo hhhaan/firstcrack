@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { useWeather } from '@views/dashboard/useWeather';
 import { useAuthStore } from '@shared/store/auth';
 import { useCreateRoastSession } from '@entities/roast';
@@ -19,14 +20,28 @@ import {
     CHART_GRID_RIGHT,
     CHART_GRID_RIGHT_WITH_ROR,
     EVENT_MARKER_COLORS,
+    getResolvedEventColor,
 } from '@features/active-roast/lib/chart-config';
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 
 import type { LogEntry } from '@shared/types/roast';
 import { sidecar } from '@shared/lib/sidecar';
-import { useRoastSettings, toDisplayTemp, toDisplayRoR, formatTemp, computePhaseSegments } from '@features/active-roast';
+import {
+    useRoastSettings,
+    toDisplayTemp,
+    toDisplayRoR,
+    formatTemp,
+    computePhaseSegments,
+} from '@features/active-roast';
 
-import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog, PlanBatchContinueModal } from '@widgets/active-roast';
+import {
+    RoastHeader,
+    LiveReadings,
+    MachineControls,
+    EventButtons,
+    RoastLog,
+    PlanBatchContinueModal,
+} from '@widgets/active-roast';
 import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
@@ -120,7 +135,7 @@ export const ActiveRoast = ({
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setTargetProfileId(userProfile?.default_roast_profile_id ?? null);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.default_roast_profile_id]);
 
     // isActive가 true가 될 때마다 store의 pendingBeanId를 소비
@@ -165,18 +180,13 @@ export const ActiveRoast = ({
         () => dbProfiles.find((p) => p.id === targetProfileId) ?? null,
         [dbProfiles, targetProfileId],
     );
-    const { data: targetCurvePoints = [] } = useRoastProfileCurve(
-        targetProfile?.source_session?.tsv_path ?? null,
-    );
+    const { data: targetCurvePoints = [] } = useRoastProfileCurve(targetProfile?.source_session?.tsv_path ?? null);
 
     // charge 후: 실제 버퍼에 쌓인 구간과 설정값 중 짧은 쪽을 사용
     // (ready → charge 대기 시간이 설정값보다 짧으면 빈 공간 없이 딱 맞게)
-    const actualPreSec = charged && livePoints.length > 0 && livePoints[0].time < 0
-        ? Math.ceil(Math.abs(livePoints[0].time))
-        : 0;
-    const effectivePreChargeDisplaySec = charged
-        ? Math.min(roastSettings.preChargeDisplaySec, actualPreSec)
-        : 0;
+    const actualPreSec =
+        charged && livePoints.length > 0 && livePoints[0].time < 0 ? Math.ceil(Math.abs(livePoints[0].time)) : 0;
+    const effectivePreChargeDisplaySec = charged ? Math.min(roastSettings.preChargeDisplaySec, actualPreSec) : 0;
 
     const { chartData } = useChartData({
         livePoints,
@@ -187,9 +197,7 @@ export const ActiveRoast = ({
     const MAX_TIME = chartData.length > 0 ? chartData[chartData.length - 1].time : CHART_TOTAL_SECS;
     const MIN_TIME = -effectivePreChargeDisplaySec;
     const chartRightGridPad =
-        roastSettings.showRoRChart || roastSettings.showControlChart
-            ? CHART_GRID_RIGHT_WITH_ROR
-            : CHART_GRID_RIGHT;
+        roastSettings.showRoRChart || roastSettings.showControlChart ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
 
     // ── 차트 줌·패닝·드래그 ──────────────────────────────────────
     const {
@@ -220,30 +228,31 @@ export const ActiveRoast = ({
         [chartData, effectiveZoomRange],
     );
 
-    const { visibleXs, visibleBtTarget, visibleBtActual, visibleEtActual, visibleRorActual, visibleRorEtActual } = useMemo(() => {
-        const xs: number[] = [];
-        const btTarget: (number | null)[] = [];
-        const btActual: (number | null)[] = [];
-        const etActual: (number | null)[] = [];
-        const rorActual: (number | null)[] = [];
-        const rorEtActual: (number | null)[] = [];
-        for (const p of visibleChartData) {
-            xs.push(p.time);
-            btTarget.push(p.btTarget != null ? toDisplayTemp(p.btTarget, unit) : null);
-            btActual.push(p.btActual != null ? toDisplayTemp(p.btActual, unit) : null);
-            etActual.push(p.etActual != null ? toDisplayTemp(p.etActual, unit) : null);
-            rorActual.push(p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null);
-            rorEtActual.push(p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null);
-        }
-        return {
-            visibleXs: xs,
-            visibleBtTarget: btTarget,
-            visibleBtActual: btActual,
-            visibleEtActual: etActual,
-            visibleRorActual: rorActual,
-            visibleRorEtActual: rorEtActual,
-        };
-    }, [visibleChartData, unit]);
+    const { visibleXs, visibleBtTarget, visibleBtActual, visibleEtActual, visibleRorActual, visibleRorEtActual } =
+        useMemo(() => {
+            const xs: number[] = [];
+            const btTarget: (number | null)[] = [];
+            const btActual: (number | null)[] = [];
+            const etActual: (number | null)[] = [];
+            const rorActual: (number | null)[] = [];
+            const rorEtActual: (number | null)[] = [];
+            for (const p of visibleChartData) {
+                xs.push(p.time);
+                btTarget.push(p.btTarget != null ? toDisplayTemp(p.btTarget, unit) : null);
+                btActual.push(p.btActual != null ? toDisplayTemp(p.btActual, unit) : null);
+                etActual.push(p.etActual != null ? toDisplayTemp(p.etActual, unit) : null);
+                rorActual.push(p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null);
+                rorEtActual.push(p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null);
+            }
+            return {
+                visibleXs: xs,
+                visibleBtTarget: btTarget,
+                visibleBtActual: btActual,
+                visibleEtActual: etActual,
+                visibleRorActual: rorActual,
+                visibleRorEtActual: rorEtActual,
+            };
+        }, [visibleChartData, unit]);
 
     const { visibleControlXs, visibleDrumTemp, visibleHeatPower, visibleFanSpeed } = useMemo(() => {
         const points = effectiveZoomRange
@@ -290,35 +299,11 @@ export const ActiveRoast = ({
         if (!effectiveZoomRange) return;
         const duration = effectiveZoomRange.end - effectiveZoomRange.start;
         const step = Math.max(1, duration * 0.2);
-        const nextStart = Math.max(MIN_TIME, Math.min(MAX_TIME - duration, effectiveZoomRange.start + step * direction));
+        const nextStart = Math.max(
+            MIN_TIME,
+            Math.min(MAX_TIME - duration, effectiveZoomRange.start + step * direction),
+        );
         setZoomRange({ start: nextStart, end: nextStart + duration });
-    };
-
-    const handleChartKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (event.key === '+' || event.key === '=') {
-            event.preventDefault();
-            zoomChart(0.8);
-            return;
-        }
-        if (event.key === '-' || event.key === '_') {
-            event.preventDefault();
-            zoomChart(1.25);
-            return;
-        }
-        if (event.key === '0') {
-            event.preventDefault();
-            setZoomRange(null);
-            return;
-        }
-        if (event.key === 'ArrowLeft') {
-            event.preventDefault();
-            panChart(-1);
-            return;
-        }
-        if (event.key === 'ArrowRight') {
-            event.preventDefault();
-            panChart(1);
-        }
     };
 
     // 머신 disconnect 시 진행 중인 로스트를 초기화한다.
@@ -369,17 +354,6 @@ export const ActiveRoast = ({
         };
     }, []);
 
-    // EndRoast 모달이 열려 있을 때 Escape로 닫는다.
-    useEffect(() => {
-        if (!showEndRoastModal) return undefined;
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (!isActive) return;
-            if (event.key === 'Escape') setShowEndRoastModal(false);
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isActive, showEndRoastModal]);
-
     // ── 실시간 파생값 ─────────────────────────────────────────────
     const rawBT = liveData?.bt ?? null;
     const rawET = liveData?.et ?? null;
@@ -388,7 +362,11 @@ export const ActiveRoast = ({
     const timeStr = `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}`;
 
     // ── 도메인 훅 ─────────────────────────────────────────────────
-    const { logEntries, pressedButtons, markEvent, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(unit, rawBT, timeStr);
+    const { logEntries, pressedButtons, markEvent, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(
+        unit,
+        rawBT,
+        timeStr,
+    );
 
     const { triggerCharge, handleAutoDrop, handleTurningPoint } = useRoastActions({
         unit,
@@ -457,16 +435,13 @@ export const ActiveRoast = ({
                 .map((e) => {
                     const [min, sec] = e.time.split(':').map(Number);
                     const timeSec = Math.max(0, min * 60 + sec);
-                    return { timeSec, event: e.event, color: EVENT_MARKER_COLORS[e.event] };
+                    return { timeSec, event: e.event, color: getResolvedEventColor(e.event) };
                 }),
         [logEntries],
     );
 
     const phaseSegments = useMemo(
-        () =>
-            roastSettings.showPhaseBar
-                ? computePhaseSegments(logEntries, elapsed, charged)
-                : [],
+        () => (roastSettings.showPhaseBar ? computePhaseSegments(logEntries, elapsed, charged) : []),
         [roastSettings.showPhaseBar, logEntries, elapsed, charged],
     );
 
@@ -563,6 +538,70 @@ export const ActiveRoast = ({
         onMarkEvent: markEvent,
         onMarkDrop: handleMarkDrop,
     });
+
+    // ── 차트 키보드 단축키 (react-hotkeys-hook) ──
+    const chartKeysEnabled = isActive && !showEndRoastModal && !showSummaryModal && !isFullscreen;
+
+    useHotkeys(
+        '+, =',
+        (e) => {
+            e.preventDefault();
+            zoomChart(0.8);
+        },
+        { enabled: chartKeysEnabled },
+        [chartKeysEnabled, MAX_TIME, zoomChart],
+    );
+
+    useHotkeys(
+        '-, _',
+        (e) => {
+            e.preventDefault();
+            zoomChart(1.25);
+        },
+        { enabled: chartKeysEnabled },
+        [chartKeysEnabled, MAX_TIME, zoomChart],
+    );
+
+    useHotkeys(
+        '0',
+        (e) => {
+            e.preventDefault();
+            setZoomRange(null);
+        },
+        { enabled: chartKeysEnabled },
+        [chartKeysEnabled, setZoomRange],
+    );
+
+    useHotkeys(
+        'left',
+        (e) => {
+            e.preventDefault();
+            panChart(-1);
+        },
+        { enabled: chartKeysEnabled },
+        [chartKeysEnabled, panChart],
+    );
+
+    useHotkeys(
+        'right',
+        (e) => {
+            e.preventDefault();
+            panChart(1);
+        },
+        { enabled: chartKeysEnabled },
+        [chartKeysEnabled, panChart],
+    );
+
+    // EndRoast 모달 Escape 닫기 (useRoastKeyboardShortcuts의 escape와 enabled 조건이 상호 배타적)
+    useHotkeys(
+        'escape',
+        (e) => {
+            e.preventDefault();
+            setShowEndRoastModal(false);
+        },
+        { enabled: showEndRoastModal },
+        [showEndRoastModal, setShowEndRoastModal],
+    );
 
     // ── 표시용 파생값 ─────────────────────────────────────────────
 
@@ -671,8 +710,6 @@ export const ActiveRoast = ({
                         onPointerMove={isFullscreen ? undefined : handleChartPointerMove}
                         onPointerUp={isFullscreen ? undefined : endChartDrag}
                         onPointerCancel={isFullscreen ? undefined : endChartDrag}
-                        onKeyDown={isFullscreen ? undefined : handleChartKeyDown}
-                        tabIndex={0}
                         role="region"
                         aria-label="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
                     >
@@ -811,110 +848,109 @@ export const ActiveRoast = ({
 
                         {/* Control Panel */}
                         <div className="flex flex-col gap-1.5">
-                                <div className="flex flex-col gap-1.5">
-                                    {phase === 'preheating' && (
-                                        <button
-                                            onClick={handleEnterStandby}
-                                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
-                                            style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
-                                        >
-                                            <Play size={12} />
-                                            Roast Ready
-                                        </button>
-                                    )}
-                                    {phase === 'standby' && (
-                                        <button
-                                            onClick={handleManualCharge}
-                                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
-                                            style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
-                                        >
-                                            <Play size={12} />
-                                            Charge
-                                        </button>
-                                    )}
+                            <div className="flex flex-col gap-1.5">
+                                {phase === 'preheating' && (
                                     <button
-                                        onClick={handleEndRoastClick}
-                                        disabled={roastEnded || !charged}
-                                        aria-label="End roast"
-                                        className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
-                                            roastEnded || !charged
-                                                ? 'bg-surface text-muted cursor-default'
-                                                : 'cursor-pointer'
-                                        }`}
-                                        style={
-                                            roastEnded || !charged
-                                                ? undefined
-                                                : { background: PHASE_COLORS.dangerBg, color: PHASE_COLORS.danger }
-                                        }
+                                        onClick={handleEnterStandby}
+                                        className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
+                                        style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
                                     >
-                                        <Square size={12} />
-                                        End Roast
+                                        <Play size={12} />
+                                        Roast Ready
                                     </button>
-                                </div>
-                                <EventButtons
-                                    variant="sidebar"
-                                    logEntries={logEntries}
-                                    pressedButtons={pressedButtons}
-                                    buttons={[
-                                        {
-                                            label: 'Yellow',
-                                            event: 'Yellow',
-                                            shortcut: '⌘1',
-                                            pressKey: 'Mark Yellow',
-                                            onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow'),
-                                        },
-                                        {
-                                            label: 'FC Start',
-                                            event: 'FC Start',
-                                            shortcut: '⌘2',
-                                            pressKey: 'Mark FC Start',
-                                            onClick: () =>
-                                                markEvent('FC Start', 'First crack started', 'Mark FC Start'),
-                                        },
-                                        {
-                                            label: 'FC End',
-                                            event: 'FC End',
-                                            shortcut: '⌘3',
-                                            pressKey: 'Mark FC End',
-                                            onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
-                                        },
-                                        {
-                                            label: 'Mark Drop',
-                                            event: 'Drop',
-                                            shortcut: '⌘D',
-                                            pressKey: 'Mark Drop',
-                                            onClick: handleDrop,
-                                        },
-                                    ]}
-                                />
+                                )}
+                                {phase === 'standby' && (
+                                    <button
+                                        onClick={handleManualCharge}
+                                        className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
+                                        style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
+                                    >
+                                        <Play size={12} />
+                                        Charge
+                                    </button>
+                                )}
+                                <button
+                                    onClick={handleEndRoastClick}
+                                    disabled={roastEnded || !charged}
+                                    aria-label="End roast"
+                                    className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
+                                        roastEnded || !charged
+                                            ? 'bg-surface text-muted cursor-default'
+                                            : 'cursor-pointer'
+                                    }`}
+                                    style={
+                                        roastEnded || !charged
+                                            ? undefined
+                                            : { background: PHASE_COLORS.dangerBg, color: PHASE_COLORS.danger }
+                                    }
+                                >
+                                    <Square size={12} />
+                                    End Roast
+                                </button>
+                            </div>
+                            <EventButtons
+                                variant="sidebar"
+                                logEntries={logEntries}
+                                pressedButtons={pressedButtons}
+                                buttons={[
+                                    {
+                                        label: 'Yellow',
+                                        event: 'Yellow',
+                                        shortcut: '⌘1',
+                                        pressKey: 'Mark Yellow',
+                                        onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow'),
+                                    },
+                                    {
+                                        label: 'FC Start',
+                                        event: 'FC Start',
+                                        shortcut: '⌘2',
+                                        pressKey: 'Mark FC Start',
+                                        onClick: () => markEvent('FC Start', 'First crack started', 'Mark FC Start'),
+                                    },
+                                    {
+                                        label: 'FC End',
+                                        event: 'FC End',
+                                        shortcut: '⌘3',
+                                        pressKey: 'Mark FC End',
+                                        onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
+                                    },
+                                    {
+                                        label: 'Mark Drop',
+                                        event: 'Drop',
+                                        shortcut: '⌘D',
+                                        pressKey: 'Mark Drop',
+                                        onClick: handleDrop,
+                                    },
+                                ]}
+                            />
                         </div>
 
                         {/* Add Note */}
                         <div className="flex flex-col gap-1.5">
-                                <textarea
-                                    value={noteInput}
-                                    onChange={(e) => setNoteInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey && noteInput.trim()) {
-                                            e.preventDefault();
-                                            markEvent('Note', noteInput.trim());
-                                            setNoteInput('');
-                                        }
-                                    }}
-                                    placeholder="Add note... (Enter to save)"
-                                    className="h-16 text-xs px-2 py-1.5 rounded bg-surface text-primary placeholder:text-muted focus:outline-none focus:border-border resize-none"
-                                />
-                                <button
-                                    onClick={() => {
-                                        if (!noteInput.trim()) return;
+                            <textarea
+                                value={noteInput}
+                                onChange={(e) => setNoteInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey && noteInput.trim()) {
+                                        e.preventDefault();
                                         markEvent('Note', noteInput.trim());
                                         setNoteInput('');
-                                    }}
-                                    disabled={!noteInput.trim()}
-                                    className="px-2.5 py-1.5 rounded-md border-none text-xs font-semibold bg-surface text-muted hover:text-primary disabled:opacity-40 cursor-pointer"
-                                >
-                                    +
-                                </button>
+                                    }
+                                }}
+                                placeholder="Add note... (Enter to save)"
+                                className="h-16 text-xs px-2 py-1.5 rounded bg-surface text-primary placeholder:text-muted focus:outline-none focus:border-border resize-none"
+                            />
+                            <button
+                                onClick={() => {
+                                    if (!noteInput.trim()) return;
+                                    markEvent('Note', noteInput.trim());
+                                    setNoteInput('');
+                                }}
+                                disabled={!noteInput.trim()}
+                                className="px-2.5 py-1.5 rounded-md border-none text-xs font-semibold bg-surface text-muted hover:text-primary disabled:opacity-40 cursor-pointer"
+                            >
+                                +
+                            </button>
                         </div>
 
                         <div className="border-t border-border-subtle" />
@@ -1018,7 +1054,9 @@ export const ActiveRoast = ({
                         // 배치의 batchSizeKg 또는 사용자 입력 weightGrams 중 유효한 값 사용
                         const deductionGrams = planBatchHandoff?.batchSizeKg
                             ? Math.round(planBatchHandoff.batchSizeKg * 1000)
-                            : saveWeight > 0 ? saveWeight : 0;
+                            : saveWeight > 0
+                              ? saveWeight
+                              : 0;
 
                         // 단일 생두 → bean_inventory_logs (배치 여부 관계없이 동작)
                         if (selectedBeanId && deductionGrams > 0 && user) {
@@ -1057,9 +1095,7 @@ export const ActiveRoast = ({
 
                         // 배치 status 업데이트 (phantom 예약 방지)
                         if (batchDone && planBatchHandoff) {
-                            stockDeductions.push(
-                                updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' }),
-                            );
+                            stockDeductions.push(updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' }));
                         }
 
                         await Promise.all(stockDeductions);

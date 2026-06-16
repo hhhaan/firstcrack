@@ -65,6 +65,7 @@ export const getResolvedChartColors = () => {
         nowLabel: '#81FBA5',
         gridLine: gv('--color-chart-grid-stroke', 'rgba(0,0,0,0.05)'),
         gridLineMinor: gv('--color-chart-grid', 'rgba(0,0,0,0.05)'),
+        axisLabel: gv('--color-chart-axis-label', '#666'),
         axisPointerLine: '#64748b',
         tooltipTimeColor: '#9ca3af',
         markerLabelColor: '#fff',

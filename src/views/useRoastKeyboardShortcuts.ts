@@ -1,5 +1,4 @@
-import { useEffect } from 'react';
-import { isEditableTarget } from '@shared/lib/dom';
+import { useHotkeys } from 'react-hotkeys-hook';
 
 interface UseRoastKeyboardShortcutsParams {
     isActive: boolean;
@@ -28,63 +27,83 @@ export const useRoastKeyboardShortcuts = ({
     onMarkEvent,
     onMarkDrop,
 }: UseRoastKeyboardShortcutsParams) => {
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (!isActive) return;
-            if (isEditableTarget(event.target) || showEndRoastModal || showSummaryModal) return;
-            const shortcutModifier = event.metaKey || event.ctrlKey;
+    const enabled = isActive && !showEndRoastModal && !showSummaryModal;
 
-            if (event.key === 'Escape' && isFullscreen) {
-                event.preventDefault();
-                onExitFullscreen();
-                return;
-            }
-            if (!shortcutModifier && event.code === 'KeyF') {
-                event.preventDefault();
-                onToggleFullscreen();
-                return;
-            }
-            if (shortcutModifier && event.key === 'Enter') {
-                event.preventDefault();
-                if (phase === 'preheating') onEnterStandby();
-                else if (phase === 'standby') onManualCharge();
-                return;
-            }
-            if (!shortcutModifier) return;
-            if (event.key === '1') {
-                event.preventDefault();
-                onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
-                return;
-            }
-            if (event.key === '2') {
-                event.preventDefault();
-                onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
-                return;
-            }
-            if (event.key === '3') {
-                event.preventDefault();
-                onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
-                return;
-            }
-            if (event.key === 'd') {
-                event.preventDefault();
-                onMarkDrop();
-                return;
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [
-        isActive,
-        isFullscreen,
-        phase,
-        showEndRoastModal,
-        showSummaryModal,
-        onToggleFullscreen,
-        onExitFullscreen,
-        onEnterStandby,
-        onManualCharge,
-        onMarkEvent,
-        onMarkDrop,
-    ]);
+    // Escape → exit fullscreen (only when fullscreen and no modal open)
+    useHotkeys(
+        'escape',
+        (e) => {
+            e.preventDefault();
+            onExitFullscreen();
+        },
+        { enabled: enabled && isFullscreen },
+        [enabled, isFullscreen, onExitFullscreen],
+    );
+
+    // F → toggle fullscreen (case-insensitive — library normalises via toLowerCase)
+    useHotkeys(
+        'f',
+        (e) => {
+            e.preventDefault();
+            onToggleFullscreen();
+        },
+        { enabled },
+        [enabled, onToggleFullscreen],
+    );
+
+    // Ctrl/Meta + Enter → enter standby or charge
+    useHotkeys(
+        'mod+enter',
+        (e) => {
+            e.preventDefault();
+            if (phase === 'preheating') onEnterStandby();
+            else if (phase === 'standby') onManualCharge();
+        },
+        { enabled },
+        [enabled, phase, onEnterStandby, onManualCharge],
+    );
+
+    // Ctrl/Meta + 1 → Mark Yellow
+    useHotkeys(
+        'mod+1',
+        (e) => {
+            e.preventDefault();
+            onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
+        },
+        { enabled },
+        [enabled, onMarkEvent],
+    );
+
+    // Ctrl/Meta + 2 → Mark FC Start
+    useHotkeys(
+        'mod+2',
+        (e) => {
+            e.preventDefault();
+            onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
+        },
+        { enabled },
+        [enabled, onMarkEvent],
+    );
+
+    // Ctrl/Meta + 3 → Mark FC End
+    useHotkeys(
+        'mod+3',
+        (e) => {
+            e.preventDefault();
+            onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
+        },
+        { enabled },
+        [enabled, onMarkEvent],
+    );
+
+    // Ctrl/Meta + D → Mark Drop (case-insensitive)
+    useHotkeys(
+        'mod+d',
+        (e) => {
+            e.preventDefault();
+            onMarkDrop();
+        },
+        { enabled },
+        [enabled, onMarkDrop],
+    );
 };

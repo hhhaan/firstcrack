@@ -62,7 +62,7 @@ CSS 변수는 `src/App.css`의 `@theme` 블록에 정의되어 있음.
 | `--color-sensor-bt-target` | `rgba(40,180,130,0.65)` | `rgba(75,224,140,0.65)` | BT 목표 곡선 |
 | `--color-sensor-et` | `#4a85c5` | `#beacf8` | Environmental Temp (청색) |
 | `--color-sensor-ror` | `#e8a828` | `#ffff54` | Rate of Rise (황색) |
-| `--color-chart-grid` | `rgba(0,0,0,0.05)` | `rgba(255,255,255,0.05)` | 차트 그리드 |
+| `--color-chart-grid` | `rgba(0,0,0,0.08)` / stroke `0.10` | `rgba(255,255,255,0.10)` / stroke `0.12` | 차트 그리드 |
 | `--color-chart-axis-label` | `#666` | `#888` | 차트 축 레이블 |
 | `--color-chart-phaseline` | `rgba(0,0,0,0.07)` | `rgba(255,255,255,0.08)` | 페이즈 경계선 |
 | `--color-chart-tooltip-bg` | `#fff` | `#222` | 툴팁 배경 |

@@ -1,17 +1,17 @@
-import { type FC, useState } from 'react';
-import { cn } from '@shared/lib/cn';
+import { type ComponentType, type CSSProperties, useState } from 'react';
 import {
-    LayoutDashboard,
-    Flame,
-    ClipboardList,
-    Coffee,
-    BookOpen,
-    Settings,
+    Book,
+    Calendar,
     ChevronDown,
-    PanelLeft,
-    Cpu,
-    CalendarDays,
-} from 'lucide-react';
+    Chip,
+    CropGrowth,
+    Dashboard,
+    Fire,
+    RecentlyViewed,
+    Settings,
+    SidePanelClose,
+} from '@carbon/icons-react';
+import { cn } from '@shared/lib/cn';
 import { useTranslation } from 'react-i18next';
 import { type View } from '@shared/types/view';
 import { useAuthStore } from '@shared/store/auth';
@@ -26,14 +26,16 @@ interface SidebarProps {
     onOpenSettings: (tab?: string) => void;
 }
 
-const navItems: { id: View; labelKey: string; icon: FC<{ size?: number; strokeWidth?: number; color?: string }> }[] = [
-    { id: 'dashboard', labelKey: 'sidebar.nav.dashboard', icon: LayoutDashboard },
-    { id: 'schedule', labelKey: 'sidebar.nav.schedule', icon: CalendarDays },
-    { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Flame },
-    { id: 'history', labelKey: 'sidebar.nav.history', icon: ClipboardList },
-    { id: 'beans', labelKey: 'sidebar.nav.beans', icon: Coffee },
-    { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: BookOpen },
-    { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Cpu },
+type SidebarIcon = ComponentType<{ size?: number; className?: string; style?: CSSProperties }>;
+
+const navItems: { id: View; labelKey: string; icon: SidebarIcon }[] = [
+    { id: 'dashboard', labelKey: 'sidebar.nav.dashboard', icon: Dashboard },
+    { id: 'schedule', labelKey: 'sidebar.nav.schedule', icon: Calendar },
+    { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Fire },
+    { id: 'history', labelKey: 'sidebar.nav.history', icon: RecentlyViewed },
+    { id: 'beans', labelKey: 'sidebar.nav.beans', icon: CropGrowth },
+    { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: Book },
+    { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Chip },
 ];
 
 export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, onOpenSettings }: SidebarProps) => {
@@ -80,7 +82,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                     isHeaderHovered ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-90 invisible',
                                 )}
                             >
-                                <PanelLeft size={18} strokeWidth={1.9} />
+                                <SidePanelClose size={18} />
                             </button>
                         </div>
                     ) : (
@@ -104,7 +106,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 title={t('sidebar.collapse')}
                                 className="w-9 h-9 rounded-lg border-none bg-transparent text-muted flex items-center justify-center cursor-pointer shrink-0 transition-all duration-200 hover:bg-surface hover:shadow-(--shadow-inset) hover:text-primary"
                             >
-                                <PanelLeft size={18} strokeWidth={1.9} />
+                                <SidePanelClose size={18} />
                             </button>
                         </>
                     )}
@@ -133,7 +135,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                         <span className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
                             {workspaceName}
                         </span>
-                        <ChevronDown size={14} strokeWidth={1.9} color="var(--color-muted)" className="shrink-0 ml-1" />
+                        <ChevronDown size={14} className="shrink-0 ml-1 text-muted" />
                     </div>
                 </button>
             </div>
@@ -161,11 +163,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-surface/50 h-9 overflow-hidden"
                             >
                                 <div className="w-9 h-9 shrink-0 flex items-center justify-center">
-                                    <Icon
-                                        size={18}
-                                        strokeWidth={isActive ? 1.9 : 1.5}
-                                        color={isActive ? 'var(--color-primary)' : 'var(--color-muted)'}
-                                    />
+                                    <Icon size={18} className={isActive ? 'text-primary' : 'text-muted'} />
                                 </div>
                                 <div
                                     className={cn(
@@ -215,7 +213,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 {t('sidebar.workspacePreferences')}
                             </div>
                         </div>
-                        <Settings size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 ml-1" />
+                        <Settings size={14} className="shrink-0 ml-1 text-muted" />
                     </div>
                 </button>
             </div>
