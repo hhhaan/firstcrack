@@ -17,6 +17,7 @@ import { useRoastingStore } from '@features/active-roast';
 import { useAuthStore } from '@shared/store/auth';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
+import { KpiCard } from '@shared/ui/KpiCard';
 
 interface DashboardProps {
     onNavigate: (view: View) => void;
@@ -271,40 +272,15 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
 
             {/* KPI Cards */}
             <div className="grid grid-cols-4 gap-4 mb-8">
-                {stats.map(({ label, value, change, icon: Icon }) => {
-                    const isPositive = change.startsWith('+');
-                    const isNeutral = change === '';
-                    return (
-                        <div key={label} className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5">
-                            <div className="flex items-start justify-between mb-3.5">
-                                <div className="w-8.5 h-8.5 rounded-lg bg-surface flex items-center justify-center">
-                                    <Icon size={16} strokeWidth={1.5} color="var(--color-secondary)" />
-                                </div>
-                                {!isNeutral && (
-                                    <span
-                                        className={`text-xs font-medium px-2 py-0.5 rounded-full tracking-[0.14px] ${
-                                            isPositive
-                                                ? 'text-palette-green bg-palette-green/15'
-                                                : 'text-palette-indigo bg-palette-indigo/10'
-                                        }`}
-                                    >
-                                        {change}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="text-[26px] font-semibold text-primary leading-[1.2] mb-1 tracking-[-0.5px]">
-                                {value}
-                            </div>
-                            <div className="text-[13px] text-muted tracking-[0.14px]">{label}</div>
-                        </div>
-                    );
-                })}
+                {stats.map((stat) => (
+                    <KpiCard key={stat.label} {...stat} />
+                ))}
             </div>
 
             {/* Main Grid */}
             <div className="grid grid-cols-[1fr_320px] gap-5 mb-5">
                 {/* Recent Sessions */}
-                <div className="bg-main-bg rounded-lg overflow-hidden">
+                <div className="bg-main-bg rounded-lg overflow-hidden dark:border dark:border-[#585d61]">
                     <div className="px-6 pt-4.5 pb-3.5 flex items-center justify-between border-b border-divider">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Recent Sessions</h2>
                         <button
@@ -394,7 +370,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </div>
 
                 {/* Monthly chart */}
-                <div className="bg-main-bg rounded-lg px-6 py-5 w-full flex flex-col">
+                <div className="bg-main-bg rounded-lg px-6 py-5 w-full flex flex-col dark:border dark:border-[#585d61]">
                     <div className="flex items-center justify-between mb-5 shrink-0">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Monthly Batches</h2>
                         <Calendar size={15} strokeWidth={1.5} color="var(--color-muted)" />
@@ -436,7 +412,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             {/* Upcoming + Inventory Alerts */}
             <div className="grid grid-cols-2 gap-5">
                 {/* Upcoming */}
-                <div className="bg-main-bg rounded-lg px-6 py-5">
+                <div className="bg-main-bg rounded-lg px-6 py-5 dark:border dark:border-[#585d61]">
                     <div className="flex items-center justify-between mb-3.5">
                         <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Upcoming Batches</h2>
                         <button
@@ -479,7 +455,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </div>
 
                 {/* Inventory Alerts */}
-                <div className="bg-main-bg rounded-lg px-6 py-5">
+                <div className="bg-main-bg rounded-lg px-6 py-5 dark:border dark:border-[#585d61]">
                     <h2 className="text-[15px] font-medium text-primary tracking-[0.15px] mb-3.5">Inventory Alerts</h2>
                     {db.loading ? (
                         <p className="text-[13px] text-muted py-2">Loading...</p>

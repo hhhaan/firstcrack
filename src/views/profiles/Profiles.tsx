@@ -20,7 +20,12 @@ import { useAuthStore } from '@shared/store/auth';
 import { NewProfileModal } from './NewProfileModal';
 import type { RoastProfile } from '@shared/types/database.types';
 
-const COMPARE_COLORS = ['#81FBA5', '#44BFFC', '#756AFC', '#FFFF54'] as const;
+const COMPARE_COLORS = [
+    'var(--color-palette-green)',
+    'var(--color-palette-blue)',
+    'var(--color-palette-purple)',
+    'var(--color-palette-yellow)',
+] as const;
 
 const fmtDuration = (sec: number | null): string => {
     if (sec == null) return '—';
@@ -76,9 +81,9 @@ const DefaultBadge = ({
 }) => {
     if (defaultId === id) {
         return (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-palette-teal/12 ">
-                <Star size={11} strokeWidth={2} fill="currentColor" className="text-palette-teal" />
-                <span className="text-[11px] font-medium text-palette-teal tracking-[0.3px]">Default</span>
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#EFEFF0] ">
+                <Star size={11} strokeWidth={2} fill="currentColor" className="text-[#FFB900]" />
+                <span className="text-[11px] font-medium  tracking-[0.3px]">Default</span>
             </div>
         );
     }
@@ -88,7 +93,7 @@ const DefaultBadge = ({
             title="Set as Default"
             className="flex items-center gap-1 px-2.5 py-1 rounded-full border-none bg-surface cursor-pointer  hover:bg-palette-teal/12 transition-colors"
         >
-            <Star size={11} strokeWidth={2} color="var(--color-muted)" />
+            <Star size={11} strokeWidth={2} color="#FFB900" />
             <span className="text-[11px] font-medium text-muted tracking-[0.3px]">Set Default</span>
         </button>
     );
@@ -715,7 +720,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 </button>
                                 <button
                                     onClick={() => handleDelete(selected.id)}
-                                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border-none bg-palette-indigo/10 text-palette-indigo text-sm font-medium cursor-pointer tracking-[0.14px] "
+                                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border-none bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400 text-sm font-medium cursor-pointer tracking-[0.14px]"
                                 >
                                     <Trash2 size={14} strokeWidth={2} />
                                     Delete
