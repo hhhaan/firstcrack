@@ -116,10 +116,7 @@ export const ActiveRoast = ({
     const [showEndRoastModal, setShowEndRoastModal] = useState(false);
     const [showSummaryModal, setShowSummaryModal] = useState(false);
     const [summaryData, setSummaryData] = useState<RoastSummaryData | null>(null);
-    const [roastNotes, setRoastNotes] = useState('');
     const [noteInput, setNoteInput] = useState('');
-    const [weightGrams, setWeightGrams] = useState(0);
-    const [roastLevel, setRoastLevel] = useState<string | null>(null);
     const [showContinueModal, setShowContinueModal] = useState(false);
 
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
@@ -503,9 +500,6 @@ export const ActiveRoast = ({
         storeEndRoast();
         setIsRunning(false);
         setShowEndRoastModal(false);
-        setRoastNotes('');
-        setWeightGrams(0);
-        setRoastLevel(null);
         setShowSummaryModal(true);
     };
 
@@ -974,16 +968,10 @@ export const ActiveRoast = ({
             <RoastSummaryModal
                 open={showSummaryModal}
                 summaryData={summaryData}
-                roastNotes={roastNotes}
                 eventMarkerColor={EVENT_MARKER_COLORS}
-                onRoastNotesChange={setRoastNotes}
                 isSaving={isSaving}
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
-                weightGrams={weightGrams}
-                roastLevel={roastLevel}
-                onWeightChange={setWeightGrams}
-                onRoastLevelChange={setRoastLevel}
                 onClose={() => {
                     setShowSummaryModal(false);
                     setSummaryData(null);

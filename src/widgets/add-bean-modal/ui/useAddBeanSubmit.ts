@@ -3,7 +3,7 @@ import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
 import { useInsertStockEvent } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
 
-interface FormData {
+export interface FormData {
     name: string;
     origin: string;
     region: string;
@@ -20,7 +20,6 @@ interface FormData {
 interface UseAddBeanSubmitParams {
     userId: string;
     tab: 'new' | 'restock' | 'edit';
-    formData: FormData;
     selectedBeanId: string | null;
     restockAmount: string;
     existingBeans: Bean[];
@@ -32,7 +31,6 @@ interface UseAddBeanSubmitParams {
 export const useAddBeanSubmit = ({
     userId,
     tab,
-    formData,
     selectedBeanId,
     restockAmount,
     existingBeans,
@@ -45,9 +43,10 @@ export const useAddBeanSubmit = ({
     const createInventoryLog = useCreateBeanInventoryLog(userId);
     const insertStockEvent = useInsertStockEvent();
 
-    const isSubmitting = createBean.isPending || updateBean.isPending || createInventoryLog.isPending || insertStockEvent.isPending;
+    const isSubmitting =
+        createBean.isPending || updateBean.isPending || createInventoryLog.isPending || insertStockEvent.isPending;
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (formData: FormData) => {
         if (isSubmitting) return;
         try {
             if (tab === 'new') {

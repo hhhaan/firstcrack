@@ -1,5 +1,9 @@
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Spinner } from '@shared/ui/Spinner';
+import { roastSummarySchema, type RoastSummaryForm } from '../lib/schema';
 
 export interface RoastLogEntry {
     time: string;
@@ -18,19 +22,13 @@ export interface RoastSummaryData {
 interface RoastSummaryModalProps {
     open: boolean;
     summaryData: RoastSummaryData | null;
-    roastNotes: string;
     eventMarkerColor: Record<string, string>;
-    onRoastNotesChange: (notes: string) => void;
     onClose: () => void;
     onDiscard: () => void;
     onSave: (data: { notes: string; weightGrams: number; roastLevel: string | null }) => Promise<void>;
     isSaving?: boolean;
     ambientTemp?: number | null;
     ambientHumidity?: number | null;
-    weightGrams: number;
-    roastLevel: string | null;
-    onWeightChange: (grams: number) => void;
-    onRoastLevelChange: (level: string | null) => void;
 }
 
 const ROAST_LEVELS = [
@@ -44,20 +42,39 @@ const ROAST_LEVELS = [
 export const RoastSummaryModal = ({
     open,
     summaryData,
-    roastNotes,
     eventMarkerColor,
-    onRoastNotesChange,
     onClose,
     onDiscard,
     onSave,
     isSaving = false,
     ambientTemp,
     ambientHumidity,
-    weightGrams,
-    roastLevel,
-    onWeightChange,
-    onRoastLevelChange,
 }: RoastSummaryModalProps) => {
+    const {
+        register,
+        handleSubmit,
+        watch,
+        setValue,
+        reset,
+        formState: { errors },
+    } = useForm<RoastSummaryForm>({
+        resolver: zodResolver(roastSummarySchema),
+        defaultValues: {
+            notes: '',
+            weightGrams: 0,
+            roastLevel: null,
+        },
+    });
+
+    const roastLevel = watch('roastLevel');
+
+    // Reset form when modal opens with new summaryData
+    useEffect(() => {
+        if (open && summaryData) {
+            reset({ notes: '', weightGrams: 0, roastLevel: null });
+        }
+    }, [open, summaryData, reset]);
+
     if (!open || !summaryData) {
         return null;
     }
@@ -149,13 +166,13 @@ export const RoastSummaryModal = ({
                         type="number"
                         min={0}
                         step={1}
-                        value={weightGrams || ''}
-                        onChange={(e) => onWeightChange(Math.max(0, parseInt(e.target.value) || 0))}
+                        {...register('weightGrams', { valueAsNumber: true })}
                         placeholder="0"
                         className="w-full px-3.5 py-2.5 rounded border-none bg-surface text-primary text-[13px] font-(--font-mono) outline-none box-border"
                     />
                     <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">g</span>
                 </div>
+                {errors.weightGrams && <p className="text-[11px] text-red-500 mt-1">{errors.weightGrams.message}</p>}
             </div>
 
             <div className="mb-5">
@@ -164,7 +181,8 @@ export const RoastSummaryModal = ({
                     {ROAST_LEVELS.map(({ value, label }) => (
                         <button
                             key={value}
-                            onClick={() => onRoastLevelChange(roastLevel === value ? null : value)}
+                            type="button"
+                            onClick={() => setValue('roastLevel', roastLevel === value ? null : value)}
                             className={`px-3 py-1.5 rounded-md text-[12px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
                                 roastLevel === value
                                     ? 'bg-primary text-white'
@@ -180,8 +198,7 @@ export const RoastSummaryModal = ({
             <div className="mb-6">
                 <div className="text-[11px] font-semibold text-muted uppercase tracking-[0.4px] mb-2">Notes</div>
                 <textarea
-                    value={roastNotes}
-                    onChange={(event) => onRoastNotesChange(event.target.value)}
+                    {...register('notes')}
                     placeholder="Flavor notes, observations, adjustments for next time..."
                     rows={2}
                     className="w-full px-3.5 py-2.5 rounded border-none bg-surface text-primary text-[13px] font-(--font-body) resize-none outline-none box-border"
@@ -190,7 +207,7 @@ export const RoastSummaryModal = ({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button
-                    onClick={() => onSave({ notes: roastNotes, weightGrams, roastLevel })}
+                    onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
                     disabled={isSaving}
                     className="w-full py-3 rounded-lg border-none bg-[rgba(220,252,231,0.9)] text-[#16a34a] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >

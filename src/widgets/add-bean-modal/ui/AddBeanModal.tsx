@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Info, Scale, MapPin, Tag, Search, Check } from 'lucide-react';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { useFormEscape } from '@shared/lib/useFormEscape';
 import type { Bean } from '@shared/types/database.types';
 import {
     COMMON_ORIGINS,
@@ -11,6 +14,7 @@ import {
     buildAutoName,
 } from '@entities/bean/lib/coffee-origins';
 import { useAddBeanSubmit } from './useAddBeanSubmit';
+import { beanFormSchema, EMPTY_BEAN_FORM, type BeanForm } from '../lib/schema';
 
 // ── 모듈 레벨 상수 ──────────────────────────────────────────
 
@@ -79,20 +83,6 @@ interface AddBeanModalProps {
     onSuccess?: (bean: Bean | null) => void;
 }
 
-const EMPTY_FORM = {
-    name: '',
-    origin: '',
-    region: '',
-    farm: '',
-    process: 'Washed',
-    variety: '',
-    altitude: '',
-    stock: '',
-    capacity: '5',
-    costPerKg: '',
-    tastingNotes: '',
-};
-
 export const AddBeanModal = ({
     open,
     onClose,
@@ -107,13 +97,26 @@ export const AddBeanModal = ({
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(initialBeanId);
     const [restockAmount, setRestockAmount] = useState('');
     const [nameIsAuto, setNameIsAuto] = useState(true);
-    const [formData, setFormData] = useState(EMPTY_FORM);
     const [showAllBeans, setShowAllBeans] = useState(false);
 
-    const { handleSubmit, isSubmitting } = useAddBeanSubmit({
+    const {
+        register,
+        handleSubmit: rhfSubmit,
+        setValue,
+        watch,
+        reset,
+        getValues,
+        formState: { errors },
+    } = useForm<BeanForm>({
+        resolver: zodResolver(beanFormSchema),
+        defaultValues: EMPTY_BEAN_FORM,
+    });
+
+    const formValues = watch();
+
+    const { handleSubmit: submitBean, isSubmitting } = useAddBeanSubmit({
         userId,
         tab,
-        formData,
         selectedBeanId,
         restockAmount,
         existingBeans,
@@ -122,6 +125,9 @@ export const AddBeanModal = ({
         onClose,
     });
 
+    useFormEscape(open, onClose);
+
+    // Reset form when opening or switching mode
     useEffect(() => {
         if (!open) return;
         setTab(initialTab);
@@ -130,33 +136,24 @@ export const AddBeanModal = ({
         setShowAllBeans(false);
         const hasData = initialData && (initialTab === 'edit' || initialTab === 'new');
         setNameIsAuto(!hasData);
-        setFormData(
-            hasData
-                ? {
-                      name: initialData.name ?? '',
-                      origin: initialData.origin ?? '',
-                      region: initialData.region ?? '',
-                      farm: initialData.farm ?? '',
-                      process: initialData.process ?? 'Washed',
-                      variety: initialData.variety ?? '',
-                      altitude: initialData.altitude_masl?.toString() ?? '',
-                      stock: initialData.stock_grams ? (initialData.stock_grams / 1000).toString() : '',
-                      capacity: initialData.capacity_grams ? (initialData.capacity_grams / 1000).toString() : '5',
-                      costPerKg: initialData.cost_per_kg?.toString() ?? '',
-                      tastingNotes: initialData.tasting_notes ?? '',
-                  }
-                : EMPTY_FORM,
-        );
-    }, [open, initialTab, initialBeanId, initialData]);
-
-    useEffect(() => {
-        if (!open) return;
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [open, onClose]);
+        if (hasData) {
+            reset({
+                name: initialData.name ?? '',
+                origin: initialData.origin ?? '',
+                region: initialData.region ?? '',
+                farm: initialData.farm ?? '',
+                process: initialData.process ?? 'Washed',
+                variety: initialData.variety ?? '',
+                altitude: initialData.altitude_masl?.toString() ?? '',
+                stock: initialData.stock_grams ? (initialData.stock_grams / 1000).toString() : '',
+                capacity: initialData.capacity_grams ? (initialData.capacity_grams / 1000).toString() : '5',
+                costPerKg: initialData.cost_per_kg?.toString() ?? '',
+                tastingNotes: initialData.tasting_notes ?? '',
+            });
+        } else {
+            reset(EMPTY_BEAN_FORM);
+        }
+    }, [open, initialTab, initialBeanId, initialData, reset]);
 
     const handleNumericBeforeInput = (e: React.FormEvent<HTMLInputElement>) => {
         const ev = e.nativeEvent as InputEvent;
@@ -178,6 +175,46 @@ export const AddBeanModal = ({
     const BEAN_LIMIT = 4;
     const visibleBeans = showAllBeans ? existingBeans : existingBeans.slice(0, BEAN_LIMIT);
     const hiddenBeanCount = existingBeans.length - BEAN_LIMIT;
+
+    const updateOrigin = (origin: string) => {
+        const newOrigin = formValues.origin === origin ? '' : origin;
+        setValue('origin', newOrigin);
+        setValue('region', '');
+        setValue('farm', '');
+        setValue('variety', '');
+        if (nameIsAuto) {
+            setValue('name', buildAutoName(newOrigin, '', '', ''));
+        }
+    };
+
+    const updateRegion = (region: string) => {
+        const newRegion = formValues.region === region ? '' : region;
+        setValue('region', newRegion);
+        setValue('farm', '');
+        if (nameIsAuto) {
+            setValue('name', buildAutoName(formValues.origin, newRegion, '', formValues.variety));
+        }
+    };
+
+    const updateFarm = (farm: string) => {
+        const newFarm = formValues.farm === farm ? '' : farm;
+        setValue('farm', newFarm);
+        if (nameIsAuto) {
+            setValue('name', buildAutoName(formValues.origin, formValues.region, newFarm, formValues.variety));
+        }
+    };
+
+    const updateVariety = (variety: string) => {
+        const newVariety = formValues.variety === variety ? '' : variety;
+        setValue('variety', newVariety);
+        if (nameIsAuto) {
+            setValue('name', buildAutoName(formValues.origin, formValues.region, formValues.farm, newVariety));
+        }
+    };
+
+    const updateProcess = (process: string) => {
+        setValue('process', formValues.process === process ? '' : process);
+    };
 
     if (!open) return null;
 
@@ -223,7 +260,11 @@ export const AddBeanModal = ({
             {/* Scrollable Body */}
             <div className="p-8 overflow-y-auto flex-1">
                 {tab === 'new' || tab === 'edit' ? (
-                    <div className="grid grid-cols-2 gap-6">
+                    <form
+                        id="bean-form"
+                        onSubmit={rhfSubmit((data) => submitBean(data))}
+                        className="grid grid-cols-2 gap-6"
+                    >
                         {/* Lot Name */}
                         <div className="col-span-2">
                             <label className={labelCls}>
@@ -232,12 +273,9 @@ export const AddBeanModal = ({
                             <input
                                 className={inputCls}
                                 placeholder="Origin 선택 시 자동 입력됩니다"
-                                value={formData.name}
-                                onChange={(e) => {
-                                    setNameIsAuto(false);
-                                    setFormData({ ...formData, name: e.target.value });
-                                }}
+                                {...register('name')}
                             />
+                            {errors.name && <p className="text-[11px] text-red-500 mt-1">{errors.name.message}</p>}
                         </div>
 
                         {/* Origin */}
@@ -245,37 +283,17 @@ export const AddBeanModal = ({
                             <label className={labelCls}>
                                 <MapPin size={14} /> Origin Country
                             </label>
-                            <input
-                                className={inputCls}
-                                placeholder="e.g. Ethiopia"
-                                value={formData.origin}
-                                onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
-                            />
+                            <input className={inputCls} placeholder="e.g. Ethiopia" {...register('origin')} />
                             <div className="flex flex-wrap gap-1.5 mt-2">
                                 <ChipGroup
                                     items={[...COMMON_ORIGINS]}
                                     renderItem={(country) => {
-                                        const selected = formData.origin === country;
+                                        const selected = formValues.origin === country;
                                         return (
                                             <button
                                                 key={country}
                                                 type="button"
-                                                onClick={() => {
-                                                    const newOrigin = selected ? '' : country;
-                                                    const newRegion = selected ? formData.region : '';
-                                                    const newFarm = selected ? formData.farm : '';
-                                                    const newVariety = selected ? formData.variety : '';
-                                                    setFormData({
-                                                        ...formData,
-                                                        origin: newOrigin,
-                                                        region: newRegion,
-                                                        farm: newFarm,
-                                                        variety: newVariety,
-                                                        name: nameIsAuto
-                                                            ? buildAutoName(newOrigin, newRegion, newFarm, newVariety)
-                                                            : formData.name,
-                                                    });
-                                                }}
+                                                onClick={() => updateOrigin(country)}
                                                 className={chipCls(selected)}
                                             >
                                                 {country}
@@ -291,37 +309,16 @@ export const AddBeanModal = ({
                             <label className={labelCls}>
                                 <MapPin size={14} /> Region
                             </label>
-                            <input
-                                className={inputCls}
-                                placeholder="e.g. Guji Zone"
-                                value={formData.region}
-                                onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-                            />
-                            {REGIONS_BY_ORIGIN[formData.origin] && (
+                            <input className={inputCls} placeholder="e.g. Guji Zone" {...register('region')} />
+                            {REGIONS_BY_ORIGIN[formValues.origin] && (
                                 <div className="flex flex-wrap gap-1.5 mt-2">
-                                    {REGIONS_BY_ORIGIN[formData.origin].map((region) => {
-                                        const selected = formData.region === region;
+                                    {REGIONS_BY_ORIGIN[formValues.origin].map((region: string) => {
+                                        const selected = formValues.region === region;
                                         return (
                                             <button
                                                 key={region}
                                                 type="button"
-                                                onClick={() => {
-                                                    const newRegion = selected ? '' : region;
-                                                    const newFarm = selected ? formData.farm : '';
-                                                    setFormData({
-                                                        ...formData,
-                                                        region: newRegion,
-                                                        farm: newFarm,
-                                                        name: nameIsAuto
-                                                            ? buildAutoName(
-                                                                  formData.origin,
-                                                                  newRegion,
-                                                                  newFarm,
-                                                                  formData.variety,
-                                                              )
-                                                            : formData.name,
-                                                    });
-                                                }}
+                                                onClick={() => updateRegion(region)}
                                                 className={chipCls(selected)}
                                             >
                                                 {region}
@@ -332,43 +329,24 @@ export const AddBeanModal = ({
                             )}
                         </div>
 
-                        {/* Farm */}
+                        {/* Farm / Producer */}
                         <div>
                             <label className={labelCls}>
-                                <MapPin size={14} /> Farm / Washing Station
+                                <MapPin size={14} /> Farm / Producer
                             </label>
-                            <input
-                                className={inputCls}
-                                placeholder="e.g. Shakiso Cooperative"
-                                value={formData.farm}
-                                onChange={(e) => setFormData({ ...formData, farm: e.target.value })}
-                            />
-                            {FARMS_BY_REGION[formData.region] && (
+                            <input className={inputCls} placeholder="e.g. Guji Zone" {...register('farm')} />
+                            {formValues.origin && formValues.region && FARMS_BY_REGION[formValues.region] && (
                                 <div className="flex flex-wrap gap-1.5 mt-2">
-                                    {FARMS_BY_REGION[formData.region].map((farmName) => {
-                                        const selected = formData.farm === farmName;
+                                    {FARMS_BY_REGION[formValues.region].slice(0, 5).map((farm: string) => {
+                                        const selected = formValues.farm === farm;
                                         return (
                                             <button
-                                                key={farmName}
+                                                key={farm}
                                                 type="button"
-                                                onClick={() => {
-                                                    const newFarm = selected ? '' : farmName;
-                                                    setFormData({
-                                                        ...formData,
-                                                        farm: newFarm,
-                                                        name: nameIsAuto
-                                                            ? buildAutoName(
-                                                                  formData.origin,
-                                                                  formData.region,
-                                                                  newFarm,
-                                                                  formData.variety,
-                                                              )
-                                                            : formData.name,
-                                                    });
-                                                }}
+                                                onClick={() => updateFarm(farm)}
                                                 className={chipCls(selected)}
                                             >
-                                                {farmName}
+                                                {farm}
                                             </button>
                                         );
                                     })}
@@ -379,39 +357,20 @@ export const AddBeanModal = ({
                         {/* Variety */}
                         <div>
                             <label className={labelCls}>
-                                <Tag size={14} /> Variety
+                                <Info size={14} /> Variety
                             </label>
-                            <input
-                                className={inputCls}
-                                placeholder="e.g. Heirloom, SL28"
-                                value={formData.variety}
-                                onChange={(e) => setFormData({ ...formData, variety: e.target.value })}
-                            />
-                            {VARIETIES_BY_ORIGIN[formData.origin] && (
+                            <input className={inputCls} placeholder="e.g. Heirloom" {...register('variety')} />
+                            {formValues.origin && VARIETIES_BY_ORIGIN[formValues.origin] && (
                                 <div className="flex flex-wrap gap-1.5 mt-2">
                                     <ChipGroup
-                                        items={VARIETIES_BY_ORIGIN[formData.origin]}
-                                        renderItem={(varietyName) => {
-                                            const selected = formData.variety === varietyName;
+                                        items={VARIETIES_BY_ORIGIN[formValues.origin]}
+                                        renderItem={(varietyName: string) => {
+                                            const selected = formValues.variety === varietyName;
                                             return (
                                                 <button
                                                     key={varietyName}
                                                     type="button"
-                                                    onClick={() => {
-                                                        const newVariety = selected ? '' : varietyName;
-                                                        setFormData({
-                                                            ...formData,
-                                                            variety: newVariety,
-                                                            name: nameIsAuto
-                                                                ? buildAutoName(
-                                                                      formData.origin,
-                                                                      formData.region,
-                                                                      formData.farm,
-                                                                      newVariety,
-                                                                  )
-                                                                : formData.name,
-                                                        });
-                                                    }}
+                                                    onClick={() => updateVariety(varietyName)}
                                                     className={chipCls(selected)}
                                                 >
                                                     {varietyName}
@@ -431,15 +390,13 @@ export const AddBeanModal = ({
                             <div className="flex flex-wrap gap-1.5">
                                 <ChipGroup
                                     items={COMMON_PROCESSES}
-                                    renderItem={(process) => {
-                                        const selected = formData.process === process;
+                                    renderItem={(process: string) => {
+                                        const selected = formValues.process === process;
                                         return (
                                             <button
                                                 key={process}
                                                 type="button"
-                                                onClick={() =>
-                                                    setFormData({ ...formData, process: selected ? '' : process })
-                                                }
+                                                onClick={() => updateProcess(process)}
                                                 className={chipCls(selected)}
                                             >
                                                 {process}
@@ -459,10 +416,8 @@ export const AddBeanModal = ({
                                 {...numericProps}
                                 className={inputCls}
                                 placeholder="e.g. 2100"
-                                value={formData.altitude}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, altitude: e.target.value.replace(/\D/g, '') })
-                                }
+                                value={formValues.altitude}
+                                onChange={(e) => setValue('altitude', e.target.value.replace(/\D/g, ''))}
                             />
                         </div>
 
@@ -475,8 +430,8 @@ export const AddBeanModal = ({
                                 {...numericProps}
                                 className={inputCls}
                                 placeholder="5"
-                                value={formData.stock}
-                                onChange={(e) => setFormData({ ...formData, stock: e.target.value.replace(/[^0-9.]/g, '') })}
+                                value={formValues.stock}
+                                onChange={(e) => setValue('stock', e.target.value.replace(/[^0-9.]/g, ''))}
                             />
                         </div>
 
@@ -489,10 +444,8 @@ export const AddBeanModal = ({
                                 {...numericProps}
                                 className={inputCls}
                                 placeholder="5"
-                                value={formData.capacity}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, capacity: e.target.value.replace(/[^0-9.]/g, '') })
-                                }
+                                value={formValues.capacity}
+                                onChange={(e) => setValue('capacity', e.target.value.replace(/[^0-9.]/g, ''))}
                             />
                         </div>
 
@@ -505,10 +458,8 @@ export const AddBeanModal = ({
                                 {...numericProps}
                                 className={inputCls}
                                 placeholder="예: 32000"
-                                value={formData.costPerKg}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, costPerKg: e.target.value.replace(/\D/g, '') })
-                                }
+                                value={formValues.costPerKg}
+                                onChange={(e) => setValue('costPerKg', e.target.value.replace(/\D/g, ''))}
                             />
                         </div>
 
@@ -520,11 +471,10 @@ export const AddBeanModal = ({
                             <textarea
                                 className={`${inputCls} min-h-25 resize-none`}
                                 placeholder="e.g. Jasmine, Blueberry, Milk Chocolate"
-                                value={formData.tastingNotes}
-                                onChange={(e) => setFormData({ ...formData, tastingNotes: e.target.value })}
+                                {...register('tastingNotes')}
                             />
                         </div>
-                    </div>
+                    </form>
                 ) : (
                     <div className="flex flex-col gap-6">
                         {/* Bean selector */}
@@ -588,7 +538,7 @@ export const AddBeanModal = ({
                             </label>
                             <div className="flex items-center gap-3">
                                 <input
-                                    {...numericProps}
+                                    {...NUMERIC_INPUT_PROPS}
                                     className={`${inputCls} text-2xl font-semibold p-4`}
                                     placeholder="0"
                                     value={restockAmount}
@@ -636,19 +586,24 @@ export const AddBeanModal = ({
                     >
                         Cancel
                     </button>
-                    <button
-                        disabled={isSubmitDisabled}
-                        onClick={handleSubmit}
-                        className="flex-2 py-3.5 rounded-2xl border-none bg-primary text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                        {isSubmitting
-                            ? 'Saving...'
-                            : tab === 'new'
-                              ? 'Create Bean Lot'
-                              : tab === 'edit'
-                                ? 'Update Bean Details'
-                                : 'Confirm Restock'}
-                    </button>
+                    {tab === 'new' || tab === 'edit' ? (
+                        <button
+                            type="submit"
+                            form="bean-form"
+                            disabled={isSubmitting}
+                            className="flex-2 py-3.5 rounded-2xl border-none bg-primary text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {isSubmitting ? 'Saving...' : tab === 'new' ? 'Create Bean Lot' : 'Update Bean Details'}
+                        </button>
+                    ) : (
+                        <button
+                            disabled={isSubmitDisabled}
+                            onClick={() => submitBean(getValues())}
+                            className="flex-2 py-3.5 rounded-2xl border-none bg-primary text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {isSubmitting ? 'Saving...' : 'Confirm Restock'}
+                        </button>
+                    )}
                 </div>
             </div>
         </ModalShell>
