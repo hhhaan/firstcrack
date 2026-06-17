@@ -303,11 +303,11 @@
         "allOrigins": "すべての産地",
         "datePresets": {
             "all": "全期間",
-            "thisMonth": "今月",
-            "lastMonth": "先月",
-            "threeMonths": "過去3ヶ月",
-            "sixMonths": "過去6ヶ月",
-            "thisYear": "今年",
+            "this-month": "今月",
+            "last-month": "先月",
+            "3-months": "過去3ヶ月",
+            "6-months": "過去6ヶ月",
+            "this-year": "今年",
             "custom": "カスタム",
             "period": "期間"
         },

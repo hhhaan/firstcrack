@@ -305,11 +305,11 @@
         "allOrigins": "전체 산지",
         "datePresets": {
             "all": "전체",
-            "thisMonth": "이번 달",
-            "lastMonth": "지난 달",
-            "threeMonths": "최근 3개월",
-            "sixMonths": "최근 6개월",
-            "thisYear": "올해",
+            "this-month": "이번 달",
+            "last-month": "지난 달",
+            "3-months": "최근 3개월",
+            "6-months": "최근 6개월",
+            "this-year": "올해",
             "custom": "직접 설정",
             "period": "기간"
         },

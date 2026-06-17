@@ -303,11 +303,11 @@
         "allOrigins": "全部产地",
         "datePresets": {
             "all": "全部",
-            "thisMonth": "本月",
-            "lastMonth": "上月",
-            "threeMonths": "最近3个月",
-            "sixMonths": "最近6个月",
-            "thisYear": "今年",
+            "this-month": "本月",
+            "last-month": "上月",
+            "3-months": "最近3个月",
+            "6-months": "最近6个月",
+            "this-year": "今年",
             "custom": "自定义",
             "period": "时间"
         },

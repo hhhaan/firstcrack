@@ -303,11 +303,11 @@
         "allOrigins": "All Origins",
         "datePresets": {
             "all": "All Time",
-            "thisMonth": "This Month",
-            "lastMonth": "Last Month",
-            "threeMonths": "Last 3 Months",
-            "sixMonths": "Last 6 Months",
-            "thisYear": "This Year",
+            "this-month": "This Month",
+            "last-month": "Last Month",
+            "3-months": "Last 3 Months",
+            "6-months": "Last 6 Months",
+            "this-year": "This Year",
             "custom": "Custom Range",
             "period": "Period"
         },
