@@ -171,19 +171,24 @@ jobs:
           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
         run: |
           echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
-          aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
-            "s3://${R2_BUCKET}/releases/latest.json" \
-            --endpoint-url "$R2_ENDPOINT" --region auto \
-            --cache-control "no-cache, no-store, must-revalidate" \
-            --content-type "application/json"
-          echo "Rollback complete. Purging CF cache..."
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-            -H "Authorization: Bearer ${CF_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          echo "CF purge after rollback: HTTP $HTTP_CODE"
+          if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+              "s3://${R2_BUCKET}/releases/latest.json" \
+              --endpoint-url "$R2_ENDPOINT" --region auto \
+              --cache-control "no-cache, no-store, must-revalidate" \
+              --content-type "application/json"; then
+            echo "Rollback complete. Purging CF cache..."
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+            echo "CF purge after rollback: HTTP $HTTP_CODE"
+            echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
+          else
+            echo "::error::Rollback FAILED — latest.json may be in broken state"
+            echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
+          fi
 
       - name: Notify publish result
         if: always()
@@ -191,10 +196,15 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           VERSION: ${{ inputs.version }}
         run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "${{ job.status }}" = "success" ]; then
-            TEXT=":white_check_mark: *Release published* — v${VERSION} | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+            TEXT=":white_check_mark: *Release published* — v${VERSION} | <${RUN_URL}|View run>"
+          elif [ "$ROLLBACK_STATUS" = "success" ]; then
+            TEXT=":x: *Release publish FAILED* — v${VERSION} | :white_check_mark: latest.json rolled back | <${RUN_URL}|View run>"
+          elif [ "$ROLLBACK_STATUS" = "failed" ]; then
+            TEXT=":rotating_light: *Release publish FAILED + Rollback FAILED* — v${VERSION} — latest.json 수동 확인 필요 | <${RUN_URL}|View run>"
           else
-            TEXT=":x: *Release publish FAILED* — v${VERSION} | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+            TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
           fi
           curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
             --data "{\"text\":\"$TEXT\"}"
