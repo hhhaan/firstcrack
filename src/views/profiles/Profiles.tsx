@@ -4,6 +4,7 @@ import { type View } from '@shared/types/view';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PillButton } from '@shared/ui/PillButton';
+import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
 import uPlot from 'uplot';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import {
@@ -394,344 +395,359 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                     </PillButton>
                 </div>
             ) : (
-                <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
-                    {/* Profile list */}
-                    <div className="flex flex-col gap-2">
-                        {compareMode && (
-                            <p className="text-[11px] font-medium text-muted tracking-[0.4px] px-1 mb-0.5">
-                                {compareIds.length === 0
-                                    ? '비교할 프로파일을 선택하세요'
-                                    : compareIds.length >= 4
-                                      ? '최대 4개 선택됨'
-                                      : `${compareIds.length}개 선택됨 · 최대 4개`}
-                            </p>
-                        )}
-                        {profiles.map((profile) => {
-                            const isSelected = !compareMode && selectedId === profile.id;
-                            const compareIdx = compareMode ? compareIds.indexOf(profile.id) : -1;
-                            const isCompareSelected = compareIdx !== -1;
-                            const atCapacity = compareMode && compareIds.length >= 4 && !isCompareSelected;
-                            const sparkColor = isCompareSelected
-                                ? COMPARE_COLORS[compareIdx]
-                                : isSelected
-                                  ? 'var(--color-primary)'
-                                  : '#b3b0aa';
-
-                            return (
-                                <div
-                                    key={profile.id}
-                                    onClick={(e) => !atCapacity && handleProfileClick(profile.id, e.shiftKey)}
-                                    className={`bg-main-bg rounded-lg p-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8 dark:border-[#585d61]' : 'border-[#E5E5E5] dark:border-[#585d61]'}`}
-                                >
-                                    {compareMode && (
-                                        <div className="flex justify-end -mt-1 mb-1">
-                                            <div
-                                                className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface dark:bg-surface-elevated '}`}
-                                                style={
-                                                    isCompareSelected
-                                                        ? { backgroundColor: COMPARE_COLORS[compareIdx] }
-                                                        : undefined
-                                                }
-                                            >
-                                                {isCompareSelected && <Check size={9} strokeWidth={3} />}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <Sparkline data={syntheticCurve(profile)} color={sparkColor} />
-
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <div className="flex items-center gap-1.25 mb-0.5">
-                                                <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
-                                                    {profile.name}
-                                                </span>
-                                                {defaultId === profile.id && (
-                                                    <Star
-                                                        size={11}
-                                                        strokeWidth={2}
-                                                        fill="currentColor"
-                                                        className="text-amber-400"
-                                                    />
-                                                )}
-                                            </div>
-                                            <div className="text-[12px] text-muted tracking-[0.14px]">
-                                                {profile.drop_temp_celsius != null
-                                                    ? `Drop ${profile.drop_temp_celsius}°C`
-                                                    : profile.target_level}
-                                                {profile.duration_sec != null &&
-                                                    ` · ${fmtDuration(profile.duration_sec)}`}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Detail panel */}
-                    {compareMode ? (
-                        compareIds.length === 0 ? (
-                            <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-7 flex flex-col items-center justify-center gap-3 min-h-[320px]">
-                                <GitCompare size={32} strokeWidth={1.5} color="var(--color-muted)" />
-                                <p className="text-sm text-muted tracking-[0.14px]">
-                                    좌측 리스트에서 프로파일을 선택하세요
+                <MasterDetailLayout
+                    left={
+                        <div className="flex flex-col gap-2">
+                            {compareMode && (
+                                <p className="text-[11px] font-medium text-muted tracking-[0.4px] px-1 mb-0.5">
+                                    {compareIds.length === 0
+                                        ? '비교할 프로파일을 선택하세요'
+                                        : compareIds.length >= 4
+                                          ? '최대 4개 선택됨'
+                                          : `${compareIds.length}개 선택됨 · 최대 4개`}
                                 </p>
-                            </div>
-                        ) : (
-                            <div className="bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
-                                <div className="flex items-center justify-between mb-5">
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface dark:bg-surface-elevated ">
-                                        <GitCompare size={11} strokeWidth={2} color="var(--color-secondary)" />
-                                        <span className="text-[11px] font-medium text-secondary tracking-[0.3px]">
-                                            비교 모드 · {compareIds.length}개 선택됨
-                                        </span>
-                                    </div>
-                                    <div className="flex gap-1.5 items-center">
-                                        <DefaultBadge id={primaryId} defaultId={defaultId} onSetDefault={setDefault} />
-                                        <button
-                                            disabled
-                                            title="다중 선택 시 편집 불가"
-                                            className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated/50 flex items-center justify-center cursor-not-allowed opacity-35 "
-                                        >
-                                            <Pencil size={14} strokeWidth={1.5} color="var(--color-secondary)" />
-                                        </button>
-                                        <button
-                                            title="More"
-                                            className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer "
-                                        >
-                                            <MoreHorizontal
-                                                size={14}
-                                                strokeWidth={1.5}
-                                                color="var(--color-secondary)"
-                                            />
-                                        </button>
-                                    </div>
-                                </div>
+                            )}
+                            {profiles.map((profile) => {
+                                const isSelected = !compareMode && selectedId === profile.id;
+                                const compareIdx = compareMode ? compareIds.indexOf(profile.id) : -1;
+                                const isCompareSelected = compareIdx !== -1;
+                                const atCapacity = compareMode && compareIds.length >= 4 && !isCompareSelected;
+                                const sparkColor = isCompareSelected
+                                    ? COMPARE_COLORS[compareIdx]
+                                    : isSelected
+                                      ? 'var(--color-primary)'
+                                      : '#b3b0aa';
 
-                                <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 pt-4 pb-2 mb-3 ">
-                                    <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
-                                        Curve Overlay
-                                    </div>
-                                    <ProfileCurveChart key={chartKey} series={chartSeries} />
-                                </div>
-
-                                <div className="flex flex-wrap gap-2 mb-5">
-                                    {compareProfiles.map((p, i) => {
-                                        const hasReal = (compareCurveQueries[i]?.data?.length ?? 0) > 0;
-                                        return (
-                                            <div
-                                                key={p.id}
-                                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface dark:bg-surface-elevated "
-                                            >
-                                                <div
-                                                    className="w-2 h-2 rounded-full flex-shrink-0"
-                                                    style={{ backgroundColor: COMPARE_COLORS[i] }}
-                                                />
-                                                <span className="text-[12px] font-medium text-secondary tracking-[0.14px]">
-                                                    {p.name}
-                                                </span>
-                                                {!hasReal && (
-                                                    <span
-                                                        title="기록된 데이터 없음 · 참고용 곡선"
-                                                        className="flex items-center"
-                                                    >
-                                                        <AlertCircle
-                                                            size={10}
-                                                            strokeWidth={2}
-                                                            className="text-amber-500"
-                                                        />
-                                                    </span>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                <div className="bg-surface dark:bg-surface-elevated rounded-lg  overflow-hidden mb-5">
+                                return (
                                     <div
-                                        className="grid"
-                                        style={{ gridTemplateColumns: `140px repeat(${compareProfiles.length}, 1fr)` }}
+                                        key={profile.id}
+                                        onClick={(e) => !atCapacity && handleProfileClick(profile.id, e.shiftKey)}
+                                        className={`bg-main-bg rounded-lg p-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8 dark:border-[#585d61]' : 'border-[#E5E5E5] dark:border-[#585d61]'}`}
                                     >
-                                        <div className="px-3.5 py-2.5 border-b border-black/5 dark:border-[#585d61]" />
-                                        {compareProfiles.map((p, i) => (
-                                            <div
-                                                key={p.id}
-                                                className="px-3.5 py-2.5 border-b border-black/5 dark:border-[#585d61] border-l border-l-black/5 dark:border-l-[#585d61] dark:border-l-[#585d61]"
+                                        {compareMode && (
+                                            <div className="flex justify-end -mt-1 mb-1">
+                                                <div
+                                                    className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface dark:bg-surface-elevated '}`}
+                                                    style={
+                                                        isCompareSelected
+                                                            ? { backgroundColor: COMPARE_COLORS[compareIdx] }
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {isCompareSelected && <Check size={9} strokeWidth={3} />}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <Sparkline data={syntheticCurve(profile)} color={sparkColor} />
+
+                                        <div className="flex items-start justify-between">
+                                            <div>
+                                                <div className="flex items-center gap-1.25 mb-0.5">
+                                                    <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
+                                                        {profile.name}
+                                                    </span>
+                                                    {defaultId === profile.id && (
+                                                        <Star
+                                                            size={11}
+                                                            strokeWidth={2}
+                                                            fill="currentColor"
+                                                            className="text-amber-400"
+                                                        />
+                                                    )}
+                                                </div>
+                                                <div className="text-[12px] text-muted tracking-[0.14px]">
+                                                    {profile.drop_temp_celsius != null
+                                                        ? `Drop ${profile.drop_temp_celsius}°C`
+                                                        : profile.target_level}
+                                                    {profile.duration_sec != null &&
+                                                        ` · ${fmtDuration(profile.duration_sec)}`}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    }
+                    detail={
+                        compareMode ? (
+                            compareIds.length === 0 ? (
+                                <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-7 flex flex-col items-center justify-center gap-3 min-h-[320px]">
+                                    <GitCompare size={32} strokeWidth={1.5} color="var(--color-muted)" />
+                                    <p className="text-sm text-muted tracking-[0.14px]">
+                                        좌측 리스트에서 프로파일을 선택하세요
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
+                                    <div className="flex items-center justify-between mb-5">
+                                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface dark:bg-surface-elevated ">
+                                            <GitCompare size={11} strokeWidth={2} color="var(--color-secondary)" />
+                                            <span className="text-[11px] font-medium text-secondary tracking-[0.3px]">
+                                                비교 모드 · {compareIds.length}개 선택됨
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-1.5 items-center">
+                                            <DefaultBadge
+                                                id={primaryId}
+                                                defaultId={defaultId}
+                                                onSetDefault={setDefault}
+                                            />
+                                            <button
+                                                disabled
+                                                title="다중 선택 시 편집 불가"
+                                                className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated/50 flex items-center justify-center cursor-not-allowed opacity-35 "
                                             >
-                                                <div className="flex items-center gap-1.5">
+                                                <Pencil size={14} strokeWidth={1.5} color="var(--color-secondary)" />
+                                            </button>
+                                            <button
+                                                title="More"
+                                                className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer "
+                                            >
+                                                <MoreHorizontal
+                                                    size={14}
+                                                    strokeWidth={1.5}
+                                                    color="var(--color-secondary)"
+                                                />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 pt-4 pb-2 mb-3 ">
+                                        <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
+                                            Curve Overlay
+                                        </div>
+                                        <ProfileCurveChart key={chartKey} series={chartSeries} />
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2 mb-5">
+                                        {compareProfiles.map((p, i) => {
+                                            const hasReal = (compareCurveQueries[i]?.data?.length ?? 0) > 0;
+                                            return (
+                                                <div
+                                                    key={p.id}
+                                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface dark:bg-surface-elevated "
+                                                >
                                                     <div
                                                         className="w-2 h-2 rounded-full flex-shrink-0"
                                                         style={{ backgroundColor: COMPARE_COLORS[i] }}
                                                     />
-                                                    <span className="text-[11px] font-semibold text-primary tracking-[0.14px] truncate">
+                                                    <span className="text-[12px] font-medium text-secondary tracking-[0.14px]">
                                                         {p.name}
                                                     </span>
+                                                    {!hasReal && (
+                                                        <span
+                                                            title="기록된 데이터 없음 · 참고용 곡선"
+                                                            className="flex items-center"
+                                                        >
+                                                            <AlertCircle
+                                                                size={10}
+                                                                strokeWidth={2}
+                                                                className="text-amber-500"
+                                                            />
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        ))}
-                                        {TABLE_ROWS.flatMap(({ label, getValue }, rowIdx) => [
-                                            <div
-                                                key={`lbl-${label}`}
-                                                className={`px-3.5 py-2.5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
-                                            >
-                                                <span className="text-[11px] font-medium text-muted tracking-[0.4px] uppercase">
-                                                    {label}
-                                                </span>
-                                            </div>,
-                                            ...compareProfiles.map((p) => (
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="bg-surface dark:bg-surface-elevated rounded-lg  overflow-hidden mb-5">
+                                        <div
+                                            className="grid"
+                                            style={{
+                                                gridTemplateColumns: `140px repeat(${compareProfiles.length}, 1fr)`,
+                                            }}
+                                        >
+                                            <div className="px-3.5 py-2.5 border-b border-black/5 dark:border-[#585d61]" />
+                                            {compareProfiles.map((p, i) => (
                                                 <div
-                                                    key={`${p.id}-${label}`}
-                                                    className={`px-3.5 py-2.5 border-l border-l-black/5 dark:border-l-[#585d61] ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
+                                                    key={p.id}
+                                                    className="px-3.5 py-2.5 border-b border-black/5 dark:border-[#585d61] border-l border-l-black/5 dark:border-l-[#585d61] dark:border-l-[#585d61]"
                                                 >
-                                                    <span className="text-[12px] font-semibold text-primary font-mono tracking-[-0.2px]">
-                                                        {getValue(p)}
-                                                    </span>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div
+                                                            className="w-2 h-2 rounded-full flex-shrink-0"
+                                                            style={{ backgroundColor: COMPARE_COLORS[i] }}
+                                                        />
+                                                        <span className="text-[11px] font-semibold text-primary tracking-[0.14px] truncate">
+                                                            {p.name}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                            )),
-                                        ])}
+                                            ))}
+                                            {TABLE_ROWS.flatMap(({ label, getValue }, rowIdx) => [
+                                                <div
+                                                    key={`lbl-${label}`}
+                                                    className={`px-3.5 py-2.5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
+                                                >
+                                                    <span className="text-[11px] font-medium text-muted tracking-[0.4px] uppercase">
+                                                        {label}
+                                                    </span>
+                                                </div>,
+                                                ...compareProfiles.map((p) => (
+                                                    <div
+                                                        key={`${p.id}-${label}`}
+                                                        className={`px-3.5 py-2.5 border-l border-l-black/5 dark:border-l-[#585d61] ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
+                                                    >
+                                                        <span className="text-[12px] font-semibold text-primary font-mono tracking-[-0.2px]">
+                                                            {getValue(p)}
+                                                        </span>
+                                                    </div>
+                                                )),
+                                            ])}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )
-                    ) : selected ? (
-                        <div className="bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
-                            <div className="flex items-start justify-between mb-5">
-                                <div>
-                                    <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
-                                        {selected.name}
-                                    </h2>
-                                    {selected.description && (
-                                        <p className="text-sm text-secondary tracking-[0.14px] leading-normal">
-                                            {selected.description}
-                                        </p>
-                                    )}
+                            )
+                        ) : selected ? (
+                            <div className="bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
+                                <div className="flex items-start justify-between mb-5">
+                                    <div>
+                                        <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
+                                            {selected.name}
+                                        </h2>
+                                        {selected.description && (
+                                            <p className="text-sm text-secondary tracking-[0.14px] leading-normal">
+                                                {selected.description}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-1.5 items-center">
+                                        <DefaultBadge
+                                            id={selected.id}
+                                            defaultId={defaultId}
+                                            onSetDefault={setDefault}
+                                        />
+                                        {[
+                                            { icon: Copy, label: 'Duplicate' },
+                                            { icon: Pencil, label: 'Edit' },
+                                            { icon: MoreHorizontal, label: 'More' },
+                                        ].map(({ icon: Icon, label }) => (
+                                            <button
+                                                key={label}
+                                                title={label}
+                                                className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer "
+                                            >
+                                                <Icon size={14} strokeWidth={1.5} color="var(--color-secondary)" />
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="flex gap-1.5 items-center">
-                                    <DefaultBadge id={selected.id} defaultId={defaultId} onSetDefault={setDefault} />
+
+                                <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 pt-4 pb-2 mb-5 ">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase">
+                                            Profile Curve
+                                        </div>
+                                        {!selectedHasReal && (
+                                            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-palette-yellow/15">
+                                                <AlertCircle
+                                                    size={10}
+                                                    strokeWidth={2}
+                                                    className="text-palette-yellow"
+                                                />
+                                                <span className="text-[10px] font-medium text-palette-yellow tracking-[0.2px]">
+                                                    기록된 데이터 없음 · 참고용 곡선
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <ProfileCurveChart
+                                        key={chartKey}
+                                        series={[
+                                            {
+                                                curve: selectedHasReal
+                                                    ? selectedRealCurve.map((pt) => ({ t: pt.t, bt: pt.bt }))
+                                                    : syntheticCurve(selected),
+                                                color: 'var(--color-primary)',
+                                                label: selected.name,
+                                            },
+                                        ]}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-3 mb-5">
                                     {[
-                                        { icon: Copy, label: 'Duplicate' },
-                                        { icon: Pencil, label: 'Edit' },
-                                        { icon: MoreHorizontal, label: 'More' },
-                                    ].map(({ icon: Icon, label }) => (
-                                        <button
+                                        { label: 'Total Duration', value: fmtDuration(selected.duration_sec) },
+                                        {
+                                            label: 'Drop Temperature',
+                                            value:
+                                                selected.drop_temp_celsius != null
+                                                    ? `${selected.drop_temp_celsius}°C`
+                                                    : '—',
+                                        },
+                                        {
+                                            label: 'Charge Temperature',
+                                            value:
+                                                selected.charge_temp_celsius != null
+                                                    ? `${selected.charge_temp_celsius}°C`
+                                                    : '—',
+                                        },
+                                        { label: 'Development Time', value: fmtDuration(selected.dev_time_sec) },
+                                        {
+                                            label: 'Dev/Total %',
+                                            value: selected.dev_pct != null ? `${selected.dev_pct.toFixed(1)}%` : '—',
+                                        },
+                                        { label: 'Target Level', value: selected.target_level },
+                                    ].map(({ label, value }) => (
+                                        <div
                                             key={label}
-                                            title={label}
-                                            className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer "
+                                            className="bg-surface dark:bg-surface-elevated rounded-lg px-3.5 py-3 "
                                         >
-                                            <Icon size={14} strokeWidth={1.5} color="var(--color-secondary)" />
-                                        </button>
+                                            <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-1">
+                                                {label}
+                                            </div>
+                                            <div className="text-sm font-semibold text-primary font-mono tracking-[-0.2px]">
+                                                {value}
+                                            </div>
+                                        </div>
                                     ))}
                                 </div>
-                            </div>
 
-                            <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 pt-4 pb-2 mb-5 ">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase">
-                                        Profile Curve
-                                    </div>
-                                    {!selectedHasReal && (
-                                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-palette-yellow/15">
-                                            <AlertCircle size={10} strokeWidth={2} className="text-palette-yellow" />
-                                            <span className="text-[10px] font-medium text-palette-yellow tracking-[0.2px]">
-                                                기록된 데이터 없음 · 참고용 곡선
-                                            </span>
+                                {beanHistory.length > 0 && (
+                                    <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 py-3 mb-5">
+                                        <p className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
+                                            이 프로파일로 로스팅된 생두
+                                        </p>
+                                        <div className="space-y-1">
+                                            {beanHistory.map((item) => (
+                                                <div
+                                                    key={item.name}
+                                                    className="flex justify-between items-center text-xs py-1 border-b border-black/4 dark:border-[#585d61] last:border-0"
+                                                >
+                                                    <span className="text-primary font-medium">{item.name}</span>
+                                                    <span className="text-muted">
+                                                        {item.count}회
+                                                        {item.lastDate &&
+                                                            ` · 마지막 ${new Date(item.lastDate).toLocaleDateString('ko-KR')}`}
+                                                    </span>
+                                                </div>
+                                            ))}
                                         </div>
-                                    )}
-                                </div>
-                                <ProfileCurveChart
-                                    key={chartKey}
-                                    series={[
-                                        {
-                                            curve: selectedHasReal
-                                                ? selectedRealCurve.map((pt) => ({ t: pt.t, bt: pt.bt }))
-                                                : syntheticCurve(selected),
-                                            color: 'var(--color-primary)',
-                                            label: selected.name,
-                                        },
-                                    ]}
-                                />
-                            </div>
+                                    </div>
+                                )}
 
-                            <div className="grid grid-cols-3 gap-3 mb-5">
-                                {[
-                                    { label: 'Total Duration', value: fmtDuration(selected.duration_sec) },
-                                    {
-                                        label: 'Drop Temperature',
-                                        value:
-                                            selected.drop_temp_celsius != null
-                                                ? `${selected.drop_temp_celsius}°C`
-                                                : '—',
-                                    },
-                                    {
-                                        label: 'Charge Temperature',
-                                        value:
-                                            selected.charge_temp_celsius != null
-                                                ? `${selected.charge_temp_celsius}°C`
-                                                : '—',
-                                    },
-                                    { label: 'Development Time', value: fmtDuration(selected.dev_time_sec) },
-                                    {
-                                        label: 'Dev/Total %',
-                                        value: selected.dev_pct != null ? `${selected.dev_pct.toFixed(1)}%` : '—',
-                                    },
-                                    { label: 'Target Level', value: selected.target_level },
-                                ].map(({ label, value }) => (
-                                    <div
-                                        key={label}
-                                        className="bg-surface dark:bg-surface-elevated rounded-lg px-3.5 py-3 "
+                                <div className="flex gap-2.5">
+                                    <button
+                                        onClick={() => onNavigate('roast')}
+                                        className="flex-1 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#171717] text-white text-sm font-medium cursor-pointer tracking-[0.14px] "
                                     >
-                                        <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-1">
-                                            {label}
-                                        </div>
-                                        <div className="text-sm font-semibold text-primary font-mono tracking-[-0.2px]">
-                                            {value}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {beanHistory.length > 0 && (
-                                <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 py-3 mb-5">
-                                    <p className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
-                                        이 프로파일로 로스팅된 생두
-                                    </p>
-                                    <div className="space-y-1">
-                                        {beanHistory.map((item) => (
-                                            <div
-                                                key={item.name}
-                                                className="flex justify-between items-center text-xs py-1 border-b border-black/4 dark:border-[#585d61] last:border-0"
-                                            >
-                                                <span className="text-primary font-medium">{item.name}</span>
-                                                <span className="text-muted">
-                                                    {item.count}회
-                                                    {item.lastDate &&
-                                                        ` · 마지막 ${new Date(item.lastDate).toLocaleDateString('ko-KR')}`}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
+                                        Start with this Profile
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(selected.id)}
+                                        className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border-none bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400 text-sm font-medium cursor-pointer tracking-[0.14px]"
+                                    >
+                                        <Trash2 size={14} strokeWidth={2} />
+                                        Delete
+                                    </button>
                                 </div>
-                            )}
-
-                            <div className="flex gap-2.5">
-                                <button
-                                    onClick={() => onNavigate('roast')}
-                                    className="flex-1 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#171717] text-white text-sm font-medium cursor-pointer tracking-[0.14px] "
-                                >
-                                    Start with this Profile
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(selected.id)}
-                                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border-none bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400 text-sm font-medium cursor-pointer tracking-[0.14px]"
-                                >
-                                    <Trash2 size={14} strokeWidth={2} />
-                                    Delete
-                                </button>
                             </div>
-                        </div>
-                    ) : null}
-                </div>
+                        ) : null
+                    }
+                />
             )}
 
             <NewProfileModal open={showNewModal} onClose={() => setShowNewModal(false)} onCreated={handleCreated} />

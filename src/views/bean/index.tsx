@@ -8,6 +8,7 @@ import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PillButton } from '@shared/ui/PillButton';
+import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
 import type { Bean } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -97,38 +98,42 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                             </button>
                         </div>
                     ) : (
-                        <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
-                            <div className="flex flex-col gap-2">
-                                <button
-                                    onClick={() => setIsAddModalOpen(true)}
-                                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] dark:border-[#585d61] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 transition-colors tracking-[0.14px]"
-                                >
-                                    <Plus size={14} strokeWidth={2} />
-                                    Add Bean
-                                </button>
-                                <BeanList
-                                    beans={beans}
+                        <MasterDetailLayout
+                            left={
+                                <div className="flex flex-col gap-2">
+                                    <button
+                                        onClick={() => setIsAddModalOpen(true)}
+                                        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] dark:border-[#585d61] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 transition-colors tracking-[0.14px]"
+                                    >
+                                        <Plus size={14} strokeWidth={2} />
+                                        Add Bean
+                                    </button>
+                                    <BeanList
+                                        beans={beans}
+                                        isLoading={isLoading}
+                                        selectedId={selected?.id ?? null}
+                                        onSelect={setSelectedId}
+                                        search={search}
+                                        onSearchChange={setSearch}
+                                    />
+                                </div>
+                            }
+                            detail={
+                                <BeanDetail
+                                    bean={selected}
                                     isLoading={isLoading}
-                                    selectedId={selected?.id ?? null}
-                                    onSelect={setSelectedId}
-                                    search={search}
-                                    onSearchChange={setSearch}
+                                    onEdit={(bean) => openModal('edit', bean.id, bean)}
+                                    onRestock={(id) => openModal('restock', id)}
+                                    onStartRoast={() => {
+                                        if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
+                                        onNavigate?.('roast');
+                                    }}
+                                    onDelete={(id) => {
+                                        deleteBean(id, { onSuccess: () => setSelectedId(null) });
+                                    }}
                                 />
-                            </div>
-                            <BeanDetail
-                                bean={selected}
-                                isLoading={isLoading}
-                                onEdit={(bean) => openModal('edit', bean.id, bean)}
-                                onRestock={(id) => openModal('restock', id)}
-                                onStartRoast={() => {
-                                    if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
-                                    onNavigate?.('roast');
-                                }}
-                                onDelete={(id) => {
-                                    deleteBean(id, { onSuccess: () => setSelectedId(null) });
-                                }}
-                            />
-                        </div>
+                            }
+                        />
                     )}
                 </>
             )}
