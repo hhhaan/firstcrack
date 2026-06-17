@@ -286,5 +286,50 @@
         "editBatch": "编辑批次",
         "saveFailed": "保存失败:",
         "unknown": "未知"
+    },
+    "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+    "history": {
+        "title": "烘焙记录",
+        "subtitle": "{{count}}条记录",
+        "subtitleLoading": "加载中...",
+        "loading": "加载中...",
+        "error": "加载会话失败，请重试。",
+        "noSessionsFound": "未找到会话",
+        "filteredFrom": "（从{{count}}条中筛选）",
+        "pagination": "第{{start}}–{{end}}条，共{{total}}条",
+        "noNotes": "无备注记录。",
+        "searchPlaceholder": "搜索生豆、曲线或产地...",
+        "allLevels": "全部烘焙度",
+        "allOrigins": "全部产地",
+        "datePresets": {
+            "all": "全部",
+            "thisMonth": "本月",
+            "lastMonth": "上月",
+            "threeMonths": "最近3个月",
+            "sixMonths": "最近6个月",
+            "thisYear": "今年",
+            "custom": "自定义",
+            "period": "时间"
+        },
+        "customRange": {
+            "start": "开始",
+            "end": "结束",
+            "year": "年",
+            "month": "月",
+            "apply": "应用"
+        },
+        "expanded": {
+            "origin": "产地",
+            "dropTemp": "下豆温度",
+            "duration": "时长",
+            "notes": "备注"
+        },
+        "monthlyReport": "月度报告",
+        "exportCsv": "Export CSV",
+        "exportConfirm": "保存到：{{path}}\n导出{{count}}条会话为CSV？",
+        "exportNoSessions": "没有可导出的会话。",
+        "exportTitle": "First Crack",
+        "exportOkLabel": "导出",
+        "exportCancelLabel": "取消"
     }
 }

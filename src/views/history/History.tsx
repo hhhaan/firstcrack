@@ -12,6 +12,8 @@ import { sessionsToCsv } from '@features/export-csv';
 import { confirm, message } from '@tauri-apps/plugin-dialog';
 import { downloadDir } from '@tauri-apps/api/path';
 import { useAuthStore } from '@shared/store/auth';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '@shared/i18n';
 
 const levelColor: Record<string, string> = {
     Light: 'var(--color-palette-yellow)',
@@ -49,13 +51,21 @@ type Column = {
     label: string;
     width: string;
     sortable: boolean;
+    hideOnMd?: boolean;
     render: (s: RoastSessionWithRelations) => ReactNode;
 };
 
 const columns: Column[] = [
     { key: 'date', label: 'Date', width: '100px', sortable: true, render: (s) => formatDate(s.roasted_at) },
     { key: 'bean', label: 'Bean', width: '200px', sortable: true, render: (s) => s.beans?.name ?? '—' },
-    { key: null, label: 'Profile', width: '150px', sortable: false, render: (s) => s.roast_profiles?.name ?? '—' },
+    {
+        key: null,
+        label: 'Profile',
+        width: '150px',
+        sortable: false,
+        hideOnMd: true,
+        render: (s) => s.roast_profiles?.name ?? '—',
+    },
     { key: null, label: 'Weight', width: '90px', sortable: false, render: (s) => `${s.weight_grams}g` },
     {
         key: 'drop',
@@ -115,17 +125,18 @@ type ExpandedRowProps = {
 };
 
 function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
+    const { t } = useTranslation();
     return (
         <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)]">
-            <td colSpan={columns.length} className="px-4 py-4 md:px-6">
+            <td colSpan={7} className="px-4 py-4 md:px-6">
                 <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
                     {[
-                        { label: 'Origin', value: session.beans?.origin ?? '—' },
+                        { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
                         {
-                            label: 'Drop Temp',
+                            label: t('history.expanded.dropTemp'),
                             value: session.drop_temp_celsius != null ? `${session.drop_temp_celsius}°C` : '—',
                         },
-                        { label: 'Duration', value: formatDuration(session.duration_seconds) },
+                        { label: t('history.expanded.duration'), value: formatDuration(session.duration_seconds) },
                     ].map(({ label, value }) => (
                         <div key={label} className="mb-2">
                             <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
@@ -137,9 +148,11 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                         </div>
                     ))}
                     <div className="mb-2 md:col-span-3 lg:col-auto">
-                        <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">Notes</div>
+                        <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                            {t('history.expanded.notes')}
+                        </div>
                         <div className="text-[13px] leading-normal tracking-[0.14px] text-secondary">
-                            {session.notes || <span className="text-muted">No notes recorded.</span>}
+                            {session.notes || <span className="text-muted">{t('history.noNotes')}</span>}
                         </div>
                     </div>
                 </div>
@@ -174,8 +187,22 @@ const HistoryTable = ({
     pageSize: number;
     onPageChange: (p: number) => void;
 }): ReactNode => {
+    const { t } = useTranslation();
     const start = (page - 1) * pageSize + 1;
     const end = Math.min(page * pageSize, filteredTotal);
+
+    const colLabel = (key: string) => {
+        const map: Record<string, string> = {
+            date: t('dashboard.table.date'),
+            bean: t('dashboard.table.bean'),
+            profile: t('dashboard.table.profile'),
+            weight: t('dashboard.table.weight'),
+            drop: t('dashboard.table.dropTemp'),
+            duration: t('dashboard.table.duration'),
+            level: t('dashboard.table.level'),
+        };
+        return map[key] || key;
+    };
 
     const getCellTitle = (col: Column, session: RoastSessionWithRelations): string | undefined => {
         if (col.key === 'level') {
@@ -190,17 +217,17 @@ const HistoryTable = ({
             <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
                 <thead>
                     <tr className="border-b border-border-subtle dark:border-[#585d61]">
-                        {columns.map((col) => {
-                            const responsiveClass = col.label === 'Profile' ? 'md:hidden lg:table-cell' : '';
+                        {columns.map((col, colIdx) => {
+                            const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
                             return (
                                 <th
-                                    key={col.label}
+                                    key={col.key || `col-${colIdx}`}
                                     onClick={() => col.sortable && col.key && onSort(col.key as SortKey)}
                                     className={`px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[0.5px] text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'}`}
                                     style={{ width: col.width }}
                                 >
                                     <span className="flex items-center gap-1 whitespace-nowrap">
-                                        {col.label}
+                                        {colLabel(col.key || col.label)}
                                         {col.sortable && col.key && (
                                             <SortIcon col={col.key as SortKey} sortKey={sortKey} sortAsc={sortAsc} />
                                         )}
@@ -226,8 +253,7 @@ const HistoryTable = ({
                                                 : col.key === 'bean'
                                                   ? 'font-medium tracking-[0.14px] text-primary'
                                                   : 'tracking-[0.14px] text-secondary';
-                                        const responsiveClass =
-                                            col.label === 'Profile' ? 'md:hidden lg:table-cell' : '';
+                                        const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
                                         const cellTitle = getCellTitle(col, session);
                                         return (
                                             <td
@@ -251,8 +277,8 @@ const HistoryTable = ({
             <div className="flex flex-col gap-3 border-t border-border-subtle dark:border-[#585d61] px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-xs tracking-[0.14px] text-muted">
                     {filteredTotal === 0
-                        ? 'No sessions found'
-                        : `${start}–${end} of ${filteredTotal}${filteredTotal < total ? ` (filtered from ${total})` : ''}`}
+                        ? t('history.noSessionsFound')
+                        : `${t('history.pagination', { start, end, total: filteredTotal })}${filteredTotal < total ? t('history.filteredFrom', { count: total }) : ''}`}
                 </span>
 
                 <div className="flex items-center gap-1">
@@ -378,14 +404,14 @@ const FilterDropdown = ({
 
 type DatePreset = 'all' | 'this-month' | 'last-month' | '3-months' | '6-months' | 'this-year' | 'custom';
 
-const DATE_PRESETS: { value: DatePreset; label: string }[] = [
-    { value: 'all', label: 'All Time' },
-    { value: 'this-month', label: 'This Month' },
-    { value: 'last-month', label: 'Last Month' },
-    { value: '3-months', label: 'Last 3 Months' },
-    { value: '6-months', label: 'Last 6 Months' },
-    { value: 'this-year', label: 'This Year' },
-    { value: 'custom', label: 'Custom Range' },
+const DATE_PRESETS: { value: DatePreset }[] = [
+    { value: 'all' },
+    { value: 'this-month' },
+    { value: 'last-month' },
+    { value: '3-months' },
+    { value: '6-months' },
+    { value: 'this-year' },
+    { value: 'custom' },
 ];
 
 const getPresetYMRange = (preset: DatePreset): { fromYM: string; toYM: string } | null => {
@@ -410,8 +436,6 @@ const getPresetYMRange = (preset: DatePreset): { fromYM: string; toYM: string } 
     return null;
 };
 
-const MONTHS_KO = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-
 const DateRangeFilter = ({
     preset,
     fromYM,
@@ -429,6 +453,8 @@ const DateRangeFilter = ({
     onFromYM: (v: string) => void;
     onToYM: (v: string) => void;
 }): ReactNode => {
+    const { t } = useTranslation();
+    const months = t('months', { returnObjects: true }) as string[];
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
     const isActive = preset !== 'all';
@@ -458,12 +484,14 @@ const DateRangeFilter = ({
     const fmtLabel = (ym: string) => {
         if (!ym) return '—';
         const [y, m] = ym.split('-');
-        return `${y}년 ${parseInt(m)}월`;
+        const monthName = months[parseInt(m) - 1] || '';
+        return `${monthName} ${y}`;
     };
 
     const triggerLabel = (() => {
         if (preset === 'custom' && (fromYM || toYM)) return `${fmtLabel(fromYM)} – ${fmtLabel(toYM)}`;
-        return DATE_PRESETS.find((p) => p.value === preset)?.label ?? 'Period';
+        const presetLabel = DATE_PRESETS.find((p) => p.value === preset)?.value ?? '';
+        return presetLabel ? t('history.datePresets.' + presetLabel) : t('history.datePresets.period');
     })();
 
     const handlePresetClick = (p: DatePreset) => {
@@ -525,7 +553,7 @@ const DateRangeFilter = ({
                                     preset === p.value ? 'font-semibold text-primary' : 'text-secondary'
                                 }`}
                             >
-                                {p.label}
+                                {t('history.datePresets.' + p.value)}
                             </button>
                         ))}
                     </div>
@@ -535,8 +563,8 @@ const DateRangeFilter = ({
                         <div className="flex flex-col justify-center gap-3 border-l border-border-subtle dark:border-[#585d61] px-5 py-4 self-stretch">
                             {(
                                 [
-                                    { label: '시작', val: draftFrom, set: setDraftFrom },
-                                    { label: '종료', val: draftTo, set: setDraftTo },
+                                    { label: t('history.customRange.start'), val: draftFrom, set: setDraftFrom },
+                                    { label: t('history.customRange.end'), val: draftTo, set: setDraftTo },
                                 ] as const
                             ).map(({ label, val, set }) => {
                                 const yr = val ? val.split('-')[0] : '';
@@ -548,22 +576,22 @@ const DateRangeFilter = ({
                                         </span>
                                         <Select value={yr} onValueChange={(v) => set(mo ? `${v}-${mo}` : v)}>
                                             <SelectTrigger className="w-24 border border-border-subtle dark:border-[#585d61]">
-                                                <SelectValue placeholder="년도" />
+                                                <SelectValue placeholder={t('history.customRange.year')} />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {years.map((y) => (
                                                     <SelectItem key={y} value={y}>
-                                                        {y}년
+                                                        {y}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
                                         <Select value={mo} onValueChange={(v) => set(yr ? `${yr}-${v}` : v)}>
                                             <SelectTrigger className="w-20 border border-border-subtle dark:border-[#585d61]">
-                                                <SelectValue placeholder="월" />
+                                                <SelectValue placeholder={t('history.customRange.month')} />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {MONTHS_KO.map((name, i) => (
+                                                {months.map((name, i) => (
                                                     <SelectItem key={i} value={String(i + 1).padStart(2, '0')}>
                                                         {name}
                                                     </SelectItem>
@@ -579,7 +607,7 @@ const DateRangeFilter = ({
                                     disabled={!draftFrom || !draftTo}
                                     className="mt-1 ml-auto rounded-lg border border-[#111] dark:border-[#585d61] bg-[#111] px-4 py-1.5 text-[13px] font-medium text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
-                                    적용
+                                    {t('history.customRange.apply')}
                                 </button>
                             </div>
                         </div>
@@ -591,6 +619,7 @@ const DateRangeFilter = ({
 };
 
 export const History = () => {
+    const { t } = useTranslation();
     const [search, setSearch] = useState<string>('');
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [sortKey, setSortKey] = useState<SortKey>('date');
@@ -808,14 +837,12 @@ export const History = () => {
 
     const renderContent = (): ReactNode => {
         if (isError) {
-            return (
-                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">
-                    Failed to load sessions. Please try again.
-                </div>
-            );
+            return <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">{t('history.error')}</div>;
         }
         if (isLoading) {
-            return <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">Loading…</div>;
+            return (
+                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">{t('history.loading')}</div>
+            );
         }
         return (
             <HistoryTable
@@ -864,7 +891,7 @@ export const History = () => {
             });
 
             if (filtered.length === 0) {
-                await message('No sessions to export.', { title: 'First Crack', kind: 'info' });
+                await message(t('history.exportNoSessions'), { title: t('history.exportTitle'), kind: 'info' });
                 return;
             }
 
@@ -873,11 +900,11 @@ export const History = () => {
             const dir = await downloadDir();
             const path = `${dir}${filename}`;
 
-            const confirmed = await confirm(`Save to: ${path}\nExport ${filtered.length} session(s) as CSV?`, {
-                title: 'First Crack',
+            const confirmed = await confirm(t('history.exportConfirm', { path, count: filtered.length }), {
+                title: t('history.exportTitle'),
                 kind: 'info',
-                okLabel: 'Export',
-                cancelLabel: 'Cancel',
+                okLabel: t('history.exportOkLabel'),
+                cancelLabel: t('history.exportCancelLabel'),
             });
             if (!confirmed) return;
 
@@ -900,8 +927,8 @@ export const History = () => {
     return (
         <PageLayout>
             <PageHeader
-                title="Roast History"
-                subtitle={isLoading ? 'Loading…' : `${totalSessions} sessions recorded`}
+                title={t('history.title')}
+                subtitle={isLoading ? t('history.subtitleLoading') : t('history.subtitle', { count: totalSessions })}
                 className="flex-col gap-4 md:flex-row"
                 actions={
                     <div className="flex items-center gap-2">
@@ -910,7 +937,7 @@ export const History = () => {
                             className="inline-flex items-center gap-1.5 self-start rounded-full border border-transparent dark:border-[#585d61] bg-main-bg dark:bg-[#181d21] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary"
                         >
                             <FileText size={14} strokeWidth={2} />
-                            월간 보고서
+                            {t('history.monthlyReport')}
                         </button>
                         <button
                             type="button"
@@ -918,7 +945,7 @@ export const History = () => {
                             className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent dark:border-[#585d61] bg-main-bg dark:bg-[#181d21] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary transition hover:-translate-y-px hover:text-primary"
                         >
                             <Download size={14} strokeWidth={2} />
-                            Export CSV
+                            {t('history.exportCsv')}
                         </button>
                     </div>
                 }
@@ -931,18 +958,18 @@ export const History = () => {
                         className="w-full border-none bg-transparent text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted font-body"
                         value={search}
                         onChange={(e) => handleSearch(e.target.value)}
-                        placeholder="Search by bean, profile, or origin..."
+                        placeholder={t('history.searchPlaceholder')}
                     />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <FilterDropdown
-                        label="All Levels"
+                        label={t('history.allLevels')}
                         value={levelFilter}
                         options={ROAST_LEVELS.filter((l) => rawSessions.some((s) => s.roast_level === l))}
                         onSelect={handleLevelFilter}
                     />
                     <FilterDropdown
-                        label="All Origins"
+                        label={t('history.allOrigins')}
                         value={originFilter}
                         options={uniqueOrigins}
                         onSelect={handleOriginFilter}

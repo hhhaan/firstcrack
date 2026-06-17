@@ -286,5 +286,50 @@
         "editBatch": "Edit Batch",
         "saveFailed": "Save failed:",
         "unknown": "Unknown"
+    },
+    "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "history": {
+        "title": "Roast History",
+        "subtitle": "{{count}} sessions recorded",
+        "subtitleLoading": "Loading...",
+        "loading": "Loading...",
+        "error": "Failed to load sessions. Please try again.",
+        "noSessionsFound": "No sessions found",
+        "filteredFrom": " (filtered from {{count}})",
+        "pagination": "{{start}}–{{end}} of {{total}}",
+        "noNotes": "No notes recorded.",
+        "searchPlaceholder": "Search by bean, profile, or origin...",
+        "allLevels": "All Levels",
+        "allOrigins": "All Origins",
+        "datePresets": {
+            "all": "All Time",
+            "thisMonth": "This Month",
+            "lastMonth": "Last Month",
+            "threeMonths": "Last 3 Months",
+            "sixMonths": "Last 6 Months",
+            "thisYear": "This Year",
+            "custom": "Custom Range",
+            "period": "Period"
+        },
+        "customRange": {
+            "start": "Start",
+            "end": "End",
+            "year": "Year",
+            "month": "Month",
+            "apply": "Apply"
+        },
+        "expanded": {
+            "origin": "Origin",
+            "dropTemp": "Drop Temp",
+            "duration": "Duration",
+            "notes": "Notes"
+        },
+        "monthlyReport": "Monthly Report",
+        "exportCsv": "Export CSV",
+        "exportConfirm": "Save to: {{path}}\nExport {{count}} session(s) as CSV?",
+        "exportNoSessions": "No sessions to export.",
+        "exportTitle": "First Crack",
+        "exportOkLabel": "Export",
+        "exportCancelLabel": "Cancel"
     }
 }
