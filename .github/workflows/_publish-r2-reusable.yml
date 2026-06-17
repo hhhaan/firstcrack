@@ -61,10 +61,12 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          BACKUP_KEY="releases/latest.json.${VERSION}.${TIMESTAMP}.bak"
           aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
-            "s3://${R2_BUCKET}/releases/latest.json.${VERSION}.${TIMESTAMP}.bak" \
+            "s3://${R2_BUCKET}/${BACKUP_KEY}" \
             --endpoint-url "$R2_ENDPOINT" --region auto \
-            --content-type "application/json" || \
+            --content-type "application/json" && \
+            echo "BACKUP_KEY=${BACKUP_KEY}" >> $GITHUB_ENV || \
             echo "No existing latest.json to backup (first release?)"
 
       - name: Upload binaries & latest.json to R2
@@ -156,6 +158,32 @@ jobs:
             echo "::error::Cloudflare cache purge failed with HTTP $HTTP_CODE"
             exit 1
           fi
+
+      - name: Rollback latest.json on failure
+        if: failure() && env.BACKUP_KEY != ''
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+          R2_BUCKET: first-crack
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+        run: |
+          echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
+          aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+            "s3://${R2_BUCKET}/releases/latest.json" \
+            --endpoint-url "$R2_ENDPOINT" --region auto \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "application/json"
+          echo "Rollback complete. Purging CF cache..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          echo "CF purge after rollback: HTTP $HTTP_CODE"
 
       - name: Notify publish result
         if: always()
