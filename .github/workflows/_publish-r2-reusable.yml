@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       run_id:
-        description: 'Artifact run ID to download from (empty = current run)'
+        description: 'Artifact run ID to download from (empty = current run — only safe for workflow_call callers where github.run_id == parent run ID)'
         required: false
         type: string
         default: ''
@@ -22,6 +22,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          # For workflow_call callers: github.run_id is the parent run — artifacts are found correctly.
+          # For direct dispatch: always pass run_id explicitly.
           run-id: ${{ inputs.run_id || github.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
