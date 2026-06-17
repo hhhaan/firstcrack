@@ -56,7 +56,7 @@ Dark mode is implemented using CSS custom properties (variables) with Tailwind C
 
 3. **For hardcoded colors**, add `dark:` variants:
    ```tsx
-   <div className="text-[#111827] dark:text-[#e5e5e5] bg-[#F9FAFB] dark:bg-[#2a2a2a]" />
+   <div className="text-[#111827] dark:text-[#e5e5e5] bg-[#F9FAFB] dark:bg-[#262B31]" />
    ```
 
 4. **For ECharts**, use `getResolvedChartColors()` at render time and add `resolvedTheme` as a `useMemo` dependency:

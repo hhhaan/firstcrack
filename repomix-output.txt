@@ -12340,7 +12340,7 @@ This section contains the contents of the repository's files.
  44:                                 onClick={() => setTheme(value)}
  45:                                 className={`flex flex-col items-center gap-2.5 px-4 py-4 rounded-xl border-2 cursor-pointer transition-all text-center ${
  46:                                     active
- 47:                                         ? 'border-[#111827] dark:border-white bg-[#F9FAFB] dark:bg-[#2a2a2a]'
+ 47:                                         ? 'border-[#111827] dark:border-white bg-[#F9FAFB] dark:bg-[#262B31]'
  48:                                         : 'border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] hover:border-[#9CA3AF] dark:hover:border-[#666]'
  49:                                 }`}
  50:                             >
@@ -12464,7 +12464,7 @@ This section contains the contents of the repository's files.
  53:                 <button
  54:                     onClick={onClose}
  55:                     aria-label={t('settings.close')}
- 56:                     className="w-8 h-8 rounded-lg text-gray-400 dark:text-[#999] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2a2a2a] hover:text-gray-600 dark:hover:text-[#ccc] transition-colors cursor-pointer shrink-0"
+ 56:                     className="w-8 h-8 rounded-lg text-gray-400 dark:text-[#999] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#262B31] hover:text-gray-600 dark:hover:text-[#ccc] transition-colors cursor-pointer shrink-0"
  57:                 >
  58:                     <X size={16} strokeWidth={1.8} />
  59:                 </button>
@@ -12482,7 +12482,7 @@ This section contains the contents of the repository's files.
  71:                                     onClick={() => setActiveTab(id)}
  72:                                     className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-[10px] border-none cursor-pointer text-left transition-all duration-200 ${
  73:                                         active
- 74:                                             ? 'bg-white dark:bg-[#2a2a2a] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+ 74:                                             ? 'bg-white dark:bg-[#262B31] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
  75:                                             : 'bg-transparent hover:bg-gray-200 dark:hover:bg-[#181d21]'
  76:                                     }`}
  77:                                 >
@@ -12692,7 +12692,7 @@ This section contains the contents of the repository's files.
 12: const cardCls = (active: boolean) =>
 13:     `flex flex-col items-center gap-3 p-6 rounded-xl border-2 cursor-pointer transition-all shrink-0 w-44 ${
 14:         active
-15:             ? 'border-[#111827] bg-[#F9FAFB] dark:border-white dark:bg-[#2a2a2a]'
+15:             ? 'border-[#111827] bg-[#F9FAFB] dark:border-white dark:bg-[#262B31]'
 16:             : 'border-[#E5E7EB] bg-white dark:border-[#585d61] dark:bg-[#181d21] hover:border-[#9CA3AF] dark:hover:border-[#585d61]'
 17:     }`;
 18: 
@@ -15364,7 +15364,7 @@ This section contains the contents of the repository's files.
 56: 
 57: 3. **For hardcoded colors**, add `dark:` variants:
 58:    ```tsx
-59:    <div className="text-[#111827] dark:text-[#e5e5e5] bg-[#F9FAFB] dark:bg-[#2a2a2a]" />
+59:    <div className="text-[#111827] dark:text-[#e5e5e5] bg-[#F9FAFB] dark:bg-[#262B31]" />
 60:    ```
 61: 
 62: 4. **For ECharts**, use `getResolvedChartColors()` at render time and add `resolvedTheme` as a `useMemo` dependency:

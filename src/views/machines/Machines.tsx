@@ -212,7 +212,7 @@ export const Machines = ({
                                                 <div className="text-[12px] text-muted)">{machine.displayName}</div>
                                             </div>
                                             <span
-                                                className={`text-[10px] font-semibold px-1.75 py-0.5 rounded-full uppercase tracking-[0.4px] shrink-0 ${isConnected ? 'text-palette-green bg-palette-green/15' : 'text-palette-lavender bg-palette-lavender/10'}`}
+                                                className={`text-[10px] font-semibold px-1.75 py-0.5 rounded-full uppercase tracking-[0.4px] shrink-0 ${isConnected ? 'text-palette-green bg-palette-green/15' : 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/15'}`}
                                             >
                                                 {isConnected ? t('common.live') : t('common.offline')}
                                             </span>

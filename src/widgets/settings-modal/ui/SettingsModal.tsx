@@ -56,14 +56,14 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                 <button
                     onClick={onClose}
                     aria-label={t('settings.close')}
-                    className="w-8 h-8 rounded-lg text-gray-400 dark:text-[#999] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2a2a2a] hover:text-gray-600 dark:hover:text-[#ccc] transition-colors cursor-pointer shrink-0"
+                    className="w-8 h-8 rounded-lg text-gray-400 dark:text-[#999] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#262B31] hover:text-gray-600 dark:hover:text-[#ccc] transition-colors cursor-pointer shrink-0"
                 >
                     <X size={16} strokeWidth={1.8} />
                 </button>
             </div>
 
             <div className="grid grid-cols-[220px_minmax(0,1fr)] min-h-0 flex-1">
-                <aside className="p-4 bg-[#F9FAFB] dark:bg-[#111] overflow-y-auto">
+                <aside className="p-4 bg-[#F9FAFB] dark:bg-[#181D21] dark:border-r border-[#585D61] overflow-y-auto">
                     <div className="grid gap-1">
                         {tabs.map(({ id, label, icon: Icon }) => {
                             const active = id === activeTab;
@@ -74,7 +74,7 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                     onClick={() => setActiveTab(id)}
                                     className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-[10px] border-none cursor-pointer text-left transition-all duration-200 ${
                                         active
-                                            ? 'bg-white dark:bg-[#2a2a2a] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
+                                            ? 'bg-white dark:bg-[#262B31] shadow-[0_1px_3px_rgba(0,0,0,0.08)]'
                                             : 'bg-transparent hover:bg-gray-200 dark:hover:bg-[#181d21]'
                                     }`}
                                 >

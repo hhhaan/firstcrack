@@ -12,7 +12,7 @@ const themeOptions: { value: Theme; icon: typeof Sun; label: string; desc: strin
 const cardCls = (active: boolean) =>
     `flex flex-col items-center gap-3 p-6 rounded-xl border-2 cursor-pointer transition-all shrink-0 w-44 ${
         active
-            ? 'border-[#111827] bg-[#F9FAFB] dark:border-white dark:bg-[#2a2a2a]'
+            ? 'border-[#111827] bg-[#F9FAFB] dark:border-white dark:bg-[#262B31]'
             : 'border-[#E5E7EB] bg-white dark:border-[#585d61] dark:bg-[#181d21] hover:border-[#9CA3AF] dark:hover:border-[#585d61]'
     }`;
 

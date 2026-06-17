@@ -16,12 +16,12 @@ const themeOptions: { value: Theme; icon: typeof Sun; labelKey: string; descKey:
         labelKey: 'settings.tabs.general.themeDark',
         descKey: 'settings.tabs.general.themeDarkDescription',
     },
-    {
-        value: 'system',
-        icon: Monitor,
-        labelKey: 'settings.tabs.general.themeSystem',
-        descKey: 'settings.tabs.general.themeSystemDescription',
-    },
+    // {
+    //     value: 'system',
+    //     icon: Monitor,
+    //     labelKey: 'settings.tabs.general.themeSystem',
+    //     descKey: 'settings.tabs.general.themeSystemDescription',
+    // },
 ];
 
 const sectionCls = 'bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5';
@@ -47,7 +47,7 @@ export const GeneralSettingsTab = () => {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                     {themeOptions.map(({ value, icon: Icon, labelKey, descKey }) => {
                         const active = activeTheme === value;
 
@@ -58,7 +58,7 @@ export const GeneralSettingsTab = () => {
                                 onClick={() => setTheme(value)}
                                 className={`flex flex-col items-center gap-2.5 px-4 py-4 rounded-xl border-2 cursor-pointer transition-all text-center ${
                                     active
-                                        ? 'border-[#111827] dark:border-white bg-[#F9FAFB] dark:bg-[#2a2a2a]'
+                                        ? 'border-[#E5E7EB] dark:border-[#585D61] bg-[#F9FAFB] dark:bg-[#262B31]'
                                         : 'border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] hover:border-[#9CA3AF] dark:hover:border-[#666]'
                                 }`}
                             >
@@ -115,7 +115,7 @@ export const GeneralSettingsTab = () => {
                                     type="checkbox"
                                     checked={active}
                                     onChange={() => void setLanguage(language)}
-                                    className="w-4 h-4 accent-[#111827] dark:accent-white"
+                                    className="w-4 h-4 accent-[#111827] dark:accent-[#F2F2F2]"
                                 />
                                 <span className="text-[14px] font-medium text-[#111827] dark:text-[#e5e5e5]">
                                     {t(`language.${language}`)}
