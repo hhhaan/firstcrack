@@ -67,7 +67,7 @@ const WeekDayColumn = ({
                     <span
                         className={`
                         text-[11px] font-medium w-5 h-5 flex items-center justify-center rounded-full shrink-0
-                        ${today ? 'bg-primary text-white' : 'text-muted'}
+                        ${today ? 'bg-primary text-white dark:text-[#181d21]' : 'text-muted'}
                     `}
                     >
                         {format(day, 'd')}

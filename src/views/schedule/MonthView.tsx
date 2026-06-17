@@ -80,7 +80,7 @@ export const MonthView = ({
                                 <span
                                     className={`
                                     text-[12px] font-medium w-6 h-6 flex items-center justify-center rounded-full leading-none
-                                    ${today ? 'bg-primary text-white' : isCurrentMonth ? 'text-primary' : 'text-muted/40'}
+                                    ${today ? 'bg-primary text-white dark:text-[#181d21]' : isCurrentMonth ? 'text-primary' : 'text-muted/40'}
                                 `}
                                 >
                                     {format(day, 'd')}
