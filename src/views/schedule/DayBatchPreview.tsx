@@ -1,4 +1,5 @@
 import type { DayPlanBatchItem } from '@entities/plan';
+import { useTranslation } from 'react-i18next';
 
 export const DayBatchPreview = ({
     batches,
@@ -9,6 +10,7 @@ export const DayBatchPreview = ({
     maxLines?: number;
     compact?: boolean;
 }) => {
+    const { t } = useTranslation();
     if (batches.length === 0) return null;
 
     const visible = batches.slice(0, maxLines);
@@ -28,7 +30,7 @@ export const DayBatchPreview = ({
             ))}
             {overflow > 0 && (
                 <div className="text-[10px] text-muted px-0.5">
-                    {compact ? `+${overflow}` : `+${overflow}개 더`}
+                    {compact ? `+${overflow}` : t('schedule.overflowMore', { count: overflow })}
                 </div>
             )}
         </div>

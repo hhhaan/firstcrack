@@ -5,6 +5,7 @@ import { RecurringEditScopeModal } from '@widgets/recurring-edit-scope-modal';
 import { BatchCard } from './BatchCard';
 import { batchStatus, getRecurrenceLabel, toDateKey } from './lib';
 import { useScheduleDayView } from './hooks/useScheduleDayView';
+import { useTranslation } from 'react-i18next';
 
 export const ScheduleDayView = ({
     selectedDate,
@@ -15,6 +16,7 @@ export const ScheduleDayView = ({
     userId: string;
     onStartBatch: (handoff: PlanBatchHandoff) => void;
 }) => {
+    const { t } = useTranslation();
     const dateKey = toDateKey(selectedDate);
     const hooks = useScheduleDayView({ userId, selectedDate, onStartBatch });
 
@@ -26,24 +28,25 @@ export const ScheduleDayView = ({
                     disabled={hooks.isLoading}
                     className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-3 py-1.5 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                    <Plus size={13} strokeWidth={2} />새 배치 추가
+                    <Plus size={13} strokeWidth={2} />
+                    {t('schedule.addBatch')}
                 </button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-8 py-6">
                 {hooks.isLoading ? (
-                    <div className="text-[13px] text-muted text-center py-12">불러오는 중...</div>
+                    <div className="text-[13px] text-muted text-center py-12">{t('schedule.loading')}</div>
                 ) : hooks.batches.length === 0 ? (
                     <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-12 flex flex-col items-center justify-center gap-4 select-none">
                         <div className="text-[13px] text-muted text-center leading-relaxed">
-                            오늘의 배치가 없습니다.
-                            <br />새 배치를 추가하여 일정을 시작하세요.
+                            {t('schedule.emptyState.title')}
                         </div>
                         <button
                             onClick={() => hooks.setIsAddModalOpen(true)}
                             className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
                         >
-                            <Plus size={14} strokeWidth={2} />새 배치 추가
+                            <Plus size={14} strokeWidth={2} />
+                            {t('schedule.addBatch')}
                         </button>
                     </div>
                 ) : (
@@ -74,7 +77,7 @@ export const ScheduleDayView = ({
                     }}
                     onConfirm={hooks.handleScopeConfirm}
                     batchLabel={`${hooks.scopeBatch.bean_name} / ${hooks.scopeBatch.batch_size_kg}kg`}
-                    recurrenceLabel={getRecurrenceLabel(hooks.scopeBatch.rrule)}
+                    recurrenceLabel={t('schedule.recurrence.' + getRecurrenceLabel(hooks.scopeBatch.rrule))}
                     isFirstInstance={
                         batchStatus(hooks.scopeBatch) === 'pending' && hooks.batches.indexOf(hooks.scopeBatch) === 0
                     }

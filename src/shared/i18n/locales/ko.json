@@ -194,5 +194,99 @@
         "kgRemaining": "{{kg}}kg 남음",
         "today": "오늘",
         "batchCount": "{{count}}회"
+    },
+    "schedule": {
+        "dateFormat": "yyyy년 M월 d일 (eee)",
+        "monthFormat": "yyyy년 M월",
+        "viewToggle": {
+            "day": "일",
+            "week": "주",
+            "month": "월"
+        },
+        "today": "오늘",
+        "addBatch": "새 배치 추가",
+        "loading": "불러오는 중...",
+        "emptyState": {
+            "title": "오늘의 배치가 없습니다.\n새 배치를 추가하여 일정을 시작하세요.",
+            "action": "새 배치 추가"
+        },
+        "weekDay": {
+            "batchCount": "{{count}}개 배치"
+        },
+        "monthDay": {
+            "headers": ["월", "화", "수", "목", "금", "토", "일"]
+        },
+        "overflowMore": "+{{count}}개 더",
+        "status": {
+            "pending": "대기",
+            "inProgress": "진행중",
+            "inProgressWith": "진행중 {{progress}}",
+            "done": "완료",
+            "skipped": "건너뜀"
+        },
+        "start": "시작",
+        "detail": {
+            "target": "목표 {{kg}} kg",
+            "batch": "Batch {{kg}} kg",
+            "count": "{{count}}회"
+        },
+        "recurrence": {
+            "daily": "매일",
+            "weekly": "매주",
+            "biweekly": "격주",
+            "monthly": "매월",
+            "repeat": "반복",
+            "none": "없음"
+        },
+        "deleteConfirm": {
+            "single": "이 배치만 삭제하시겠습니까?",
+            "fromThis": "{{date}} 이후 모든 반복 배치를 삭제하시겠습니까?",
+            "all": "전체 반복 일정을 삭제하시겠습니까? 과거 기록은 유지됩니다.",
+            "batch": "\"{{name}}\" 배치를 삭제하시겠습니까?"
+        },
+        "error": {
+            "createRecurring": "반복 배치 추가 실패:",
+            "createBatch": "배치 추가 실패:"
+        }
+    },
+    "addBatchModal": {
+        "batchType": {
+            "singleOrigin": "Single Origin",
+            "preRoastBlend": "Pre-roast Blend",
+            "postRoastBlend": "Post-roast Blend"
+        },
+        "type": "배치 타입",
+        "date": "날짜",
+        "machine": "머신",
+        "roastProfile": "로스트 프로파일",
+        "profilePlaceholder": "프로파일 선택...",
+        "greenCoffeeLot": "Green Coffee Lot",
+        "lotPlaceholder": "Lot 선택...",
+        "stock": "재고 {{kg}} kg",
+        "shortage": "재고 부족 — 가용 {{effective}}g / 필요 {{needed}}g",
+        "blend": "블렌드",
+        "blendPlaceholder": "블렌드 선택...",
+        "blendComposition": "{{count}}개 생두 구성",
+        "blendShortage": "{{name}}: 가용 {{effective}}g / 필요 {{needed}}g",
+        "targetRoasted": "목표 Roasted (kg)",
+        "batchSize": "Batch Size (kg)",
+        "yield": "Yield (%)",
+        "batches": "배치",
+        "greenNeeded": "Green 필요 (kg)",
+        "currentStock": "현재 재고:",
+        "needed": "/ 필요:",
+        "insufficientStock": "재고 부족",
+        "recurrence": "반복",
+        "none": "없음",
+        "notes": "메모 (Notes)",
+        "notesPlaceholder": "특이사항, 고객사용 등...",
+        "dateChanged": "{{date}}로 이동됩니다",
+        "cancel": "취소",
+        "saving": "저장 중...",
+        "save": "저장",
+        "addBatch": "배치 추가",
+        "editBatch": "배치 편집",
+        "saveFailed": "저장 실패:",
+        "unknown": "알 수 없음"
     }
 }

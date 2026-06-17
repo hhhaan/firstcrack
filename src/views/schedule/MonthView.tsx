@@ -12,6 +12,7 @@ import {
 import { useMonthSummary } from '@entities/plan';
 import { toDateKey } from './lib';
 import { DayBatchPreview } from './DayBatchPreview';
+import { useTranslation } from 'react-i18next';
 
 export const MonthView = ({
     selectedDate,
@@ -34,7 +35,8 @@ export const MonthView = ({
     const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
     const numWeeks = days.length / 7;
 
-    const dayHeaders = ['월', '화', '수', '목', '금', '토', '일'];
+    const { t } = useTranslation();
+    const dayHeaders = t('schedule.monthDay.headers', { returnObjects: true }) as string[];
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -90,7 +92,7 @@ export const MonthView = ({
                             {batches.length > 0 && isCurrentMonth && (
                                 <>
                                     <div className="text-[10px] font-semibold text-secondary leading-tight px-0.5 -mt-0.5">
-                                        {batches.length}개 배치
+                                        {t('schedule.weekDay.batchCount', { count: batches.length })}
                                     </div>
                                     <DayBatchPreview batches={batches} maxLines={2} compact />
                                 </>

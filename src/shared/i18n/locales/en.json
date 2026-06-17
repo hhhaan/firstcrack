@@ -192,5 +192,99 @@
         "kgRemaining": "{{kg}}kg remaining",
         "today": "Today",
         "batchCount": "{{count}}x"
+    },
+    "schedule": {
+        "dateFormat": "MMM d, yyyy (eee)",
+        "monthFormat": "MMMM yyyy",
+        "viewToggle": {
+            "day": "Day",
+            "week": "Week",
+            "month": "Month"
+        },
+        "today": "Today",
+        "addBatch": "New Batch",
+        "loading": "Loading...",
+        "emptyState": {
+            "title": "No batches for this day.\nStart by adding a new batch.",
+            "action": "New Batch"
+        },
+        "weekDay": {
+            "batchCount": "{{count}} batches"
+        },
+        "monthDay": {
+            "headers": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        },
+        "overflowMore": "+{{count}} more",
+        "status": {
+            "pending": "Pending",
+            "inProgress": "In Progress",
+            "inProgressWith": "In Progress {{progress}}",
+            "done": "Done",
+            "skipped": "Skipped"
+        },
+        "start": "Start",
+        "detail": {
+            "target": "Target {{kg}} kg",
+            "batch": "Batch {{kg}} kg",
+            "count": "{{count}}x"
+        },
+        "recurrence": {
+            "daily": "Daily",
+            "weekly": "Weekly",
+            "biweekly": "Biweekly",
+            "monthly": "Monthly",
+            "repeat": "Repeat",
+            "none": "None"
+        },
+        "deleteConfirm": {
+            "single": "Delete this batch?",
+            "fromThis": "Delete all recurring batches from {{date}}?",
+            "all": "Delete the entire recurring schedule? Past records will be preserved.",
+            "batch": "Delete \"{{name}}\"?"
+        },
+        "error": {
+            "createRecurring": "Failed to add recurring batch:",
+            "createBatch": "Failed to add batch:"
+        }
+    },
+    "addBatchModal": {
+        "batchType": {
+            "singleOrigin": "Single Origin",
+            "preRoastBlend": "Pre-roast Blend",
+            "postRoastBlend": "Post-roast Blend"
+        },
+        "type": "Batch Type",
+        "date": "Date",
+        "machine": "Machine",
+        "roastProfile": "Roast Profile",
+        "profilePlaceholder": "Select profile...",
+        "greenCoffeeLot": "Green Coffee Lot",
+        "lotPlaceholder": "Select lot...",
+        "stock": "Stock {{kg}} kg",
+        "shortage": "Insufficient stock — available {{effective}}g / needed {{needed}}g",
+        "blend": "Blend",
+        "blendPlaceholder": "Select blend...",
+        "blendComposition": "{{count}} beans",
+        "blendShortage": "{{name}}: available {{effective}}g / needed {{needed}}g",
+        "targetRoasted": "Target Roasted (kg)",
+        "batchSize": "Batch Size (kg)",
+        "yield": "Yield (%)",
+        "batches": "batches",
+        "greenNeeded": "Green needed (kg)",
+        "currentStock": "Current stock:",
+        "needed": "/ needed:",
+        "insufficientStock": "Insufficient stock",
+        "recurrence": "Repeat",
+        "none": "None",
+        "notes": "Notes",
+        "notesPlaceholder": "Special instructions, customer info...",
+        "dateChanged": "Will be moved to {{date}}",
+        "cancel": "Cancel",
+        "saving": "Saving...",
+        "save": "Save",
+        "addBatch": "Add Batch",
+        "editBatch": "Edit Batch",
+        "saveFailed": "Save failed:",
+        "unknown": "Unknown"
     }
 }

@@ -1,9 +1,10 @@
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { getDateFnsLocale } from '@shared/i18n';
 import { useWeekSummary } from '@entities/plan';
 import type { DayPlanSummary } from '@entities/plan';
 import { toDateKey } from './lib';
 import { DayBatchPreview } from './DayBatchPreview';
+import { useTranslation } from 'react-i18next';
 
 export const WeekView = ({
     selectedDate,
@@ -51,6 +52,7 @@ const WeekDayColumn = ({
     isSelected: boolean;
     onSelect: () => void;
 }) => {
+    const { t } = useTranslation();
     const today = isToday(day);
     const batches = summary?.batches ?? [];
 
@@ -72,7 +74,7 @@ const WeekDayColumn = ({
                     >
                         {format(day, 'd')}
                     </span>
-                    <span className="text-[11px] text-muted">{format(day, 'eee', { locale: ko })}</span>
+                    <span className="text-[11px] text-muted">{format(day, 'eee', { locale: getDateFnsLocale() })}</span>
                 </div>
             </div>
             <div className="px-2 py-2 flex-1 flex flex-col gap-0.5 overflow-hidden">
@@ -81,7 +83,7 @@ const WeekDayColumn = ({
                 ) : (
                     <>
                         <div className="text-[10px] font-semibold text-secondary leading-tight px-1">
-                            {batches.length}개 배치
+                            {t('schedule.weekDay.batchCount', { count: batches.length })}
                         </div>
                         <DayBatchPreview batches={batches} maxLines={3} compact />
                     </>

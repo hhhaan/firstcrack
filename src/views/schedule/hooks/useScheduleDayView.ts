@@ -1,10 +1,25 @@
 import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
-import { useDayPlan, useDayBatches, useCreatePlanBatch, useReorderPlanBatches, useCreateRecurringBatches, useDeleteSingleBatch, useDeleteFromThis, useDeleteAllBatches, useUpdateSingleBatch, useUpdateFromThis, useUpdateAllBatches, dayPlanApi, planBatchApi } from '@entities/plan';
+import {
+    useDayPlan,
+    useDayBatches,
+    useCreatePlanBatch,
+    useReorderPlanBatches,
+    useCreateRecurringBatches,
+    useDeleteSingleBatch,
+    useDeleteFromThis,
+    useDeleteAllBatches,
+    useUpdateSingleBatch,
+    useUpdateFromThis,
+    useUpdateAllBatches,
+    dayPlanApi,
+    planBatchApi,
+} from '@entities/plan';
 import type { PlanBatchWithProgress, PlanBatchHandoff, PlanBatchInsert } from '@shared/types/database.types';
 import type { NewBatchData } from '@widgets/add-batch-modal';
 import type { EditScope } from '@widgets/recurring-edit-scope-modal';
 import { buildRRule } from '@shared/lib/rrule';
+import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { toDateKey } from '../lib';
 
 export const useScheduleDayView = ({
@@ -44,7 +59,7 @@ export const useScheduleDayView = ({
             if (!batch.recurrence_rule_id) return;
 
             if (scope === 'single') {
-                if (window.confirm(`이 배치만 삭제하시겠습니까?`)) {
+                if (window.confirm(i18n.t('schedule.deleteConfirm.single'))) {
                     let targetPlanId = batch.plan_id;
                     if (!targetPlanId && batch.recurrence_rule_id && batch.scheduled_date) {
                         const plan = await dayPlanApi.getOrCreate(userId, batch.scheduled_date);
@@ -60,14 +75,20 @@ export const useScheduleDayView = ({
                     });
                 }
             } else if (scope === 'from_this') {
-                if (window.confirm(`${format(selectedDate, 'M월 d일')} 이후 모든 반복 배치를 삭제하시겠습니까?`)) {
+                if (
+                    window.confirm(
+                        i18n.t('schedule.deleteConfirm.fromThis', {
+                            date: format(selectedDate, 'M월 d일', { locale: getDateFnsLocale() }),
+                        }),
+                    )
+                ) {
                     deleteFromThis.mutate({
                         ruleId: batch.recurrence_rule_id,
                         fromDate: dateKey,
                     });
                 }
             } else if (scope === 'all') {
-                if (window.confirm('전체 반복 일정을 삭제하시겠습니까? 과거 기록은 유지됩니다.')) {
+                if (window.confirm(i18n.t('schedule.deleteConfirm.all'))) {
                     deleteAllBatches.mutate(batch.recurrence_rule_id);
                 }
             }
@@ -94,7 +115,7 @@ export const useScheduleDayView = ({
                 setScopeBatch(batch);
                 setIsScopeModalOpen(true);
             } else {
-                if (window.confirm(`"${batch.bean_name}" 배치를 삭제하시겠습니까?`)) {
+                if (window.confirm(i18n.t('schedule.deleteConfirm.batch', { name: batch.bean_name }))) {
                     deleteSingleBatch.mutate({ id: batch.id });
                 }
             }
@@ -207,23 +228,38 @@ export const useScheduleDayView = ({
                     {
                         onError: (err) => {
                             console.error('[Schedule] createRecurringBatches failed:', err);
-                            alert(`반복 배치 추가 실패: ${err instanceof Error ? err.message : String(err)}`);
+                            alert(
+                                i18n.t('schedule.error.createRecurring') +
+                                    ` ${err instanceof Error ? err.message : String(err)}`,
+                            );
                         },
                     },
                 );
             } else if (planId) {
-                createBatch.mutate(
-                    { ...baseBatch, plan_id: planId } as PlanBatchInsert,
-                    {
-                        onError: (err) => {
-                            console.error('[Schedule] createBatch failed:', err);
-                            alert(`배치 추가 실패: ${err instanceof Error ? err.message : String(err)}`);
-                        },
+                createBatch.mutate({ ...baseBatch, plan_id: planId } as PlanBatchInsert, {
+                    onError: (err) => {
+                        console.error('[Schedule] createBatch failed:', err);
+                        alert(
+                            i18n.t('schedule.error.createBatch') +
+                                ` ${err instanceof Error ? err.message : String(err)}`,
+                        );
                     },
-                );
+                });
             }
         },
-        [planId, batches.length, createBatch, createRecurringBatches, editScope, editingBatch, updateSingleBatch, updateFromThis, updateAllBatches, dateKey, userId],
+        [
+            planId,
+            batches.length,
+            createBatch,
+            createRecurringBatches,
+            editScope,
+            editingBatch,
+            updateSingleBatch,
+            updateFromThis,
+            updateAllBatches,
+            dateKey,
+            userId,
+        ],
     );
 
     const handleMove = useCallback(

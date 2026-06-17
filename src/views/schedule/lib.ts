@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { getDateFnsLocale, i18n } from '@shared/i18n';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 
 export type ViewMode = 'day' | 'week' | 'month';
@@ -7,10 +7,9 @@ export type ViewMode = 'day' | 'week' | 'month';
 export const toDateKey = (d: Date): string => format(d, 'yyyy-MM-dd');
 
 export const toFullDisplayDate = (d: Date): string =>
-    format(d, 'yyyy년 M월 d일 (eee)', { locale: ko });
+    format(d, i18n.t('schedule.dateFormat'), { locale: getDateFnsLocale() });
 
-export const batchProgress = (b: PlanBatchWithProgress) =>
-    `${b.completed_sessions}/${b.batch_count}`;
+export const batchProgress = (b: PlanBatchWithProgress) => `${b.completed_sessions}/${b.batch_count}`;
 
 export type BatchStatus = 'pending' | 'in-progress' | 'done' | 'skipped';
 
@@ -24,11 +23,11 @@ export const batchStatus = (b: PlanBatchWithProgress): BatchStatus => {
 /** Map RRule string to human-readable label */
 export const getRecurrenceLabel = (rrule: string | null): string => {
     if (!rrule) return '';
-    if (rrule.includes('FREQ=DAILY')) return '매일';
+    if (rrule.includes('FREQ=DAILY')) return 'daily';
     if (rrule.includes('FREQ=WEEKLY')) {
-        if (rrule.includes('INTERVAL=2')) return '격주';
-        return '매주';
+        if (rrule.includes('INTERVAL=2')) return 'biweekly';
+        return 'weekly';
     }
-    if (rrule.includes('FREQ=MONTHLY')) return '매월';
-    return '반복';
+    if (rrule.includes('FREQ=MONTHLY')) return 'monthly';
+    return 'repeat';
 };

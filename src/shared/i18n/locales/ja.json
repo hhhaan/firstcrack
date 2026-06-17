@@ -192,5 +192,99 @@
         "kgRemaining": "残り{{kg}}kg",
         "today": "今日",
         "batchCount": "{{count}}回"
+    },
+    "schedule": {
+        "dateFormat": "yyyy年M月d日 (eee)",
+        "monthFormat": "yyyy年 M月",
+        "viewToggle": {
+            "day": "日",
+            "week": "週",
+            "month": "月"
+        },
+        "today": "今日",
+        "addBatch": "新規バッチ追加",
+        "loading": "読み込み中...",
+        "emptyState": {
+            "title": "今日のバッチはありません。\n新しいバッチを追加してスケジュールを始めましょう。",
+            "action": "新規バッチ追加"
+        },
+        "weekDay": {
+            "batchCount": "{{count}}個のバッチ"
+        },
+        "monthDay": {
+            "headers": ["月", "火", "水", "木", "金", "土", "日"]
+        },
+        "overflowMore": "+{{count}}件",
+        "status": {
+            "pending": "待機",
+            "inProgress": "進行中",
+            "inProgressWith": "進行中 {{progress}}",
+            "done": "完了",
+            "skipped": "スキップ"
+        },
+        "start": "開始",
+        "detail": {
+            "target": "目標 {{kg}} kg",
+            "batch": "Batch {{kg}} kg",
+            "count": "{{count}}回"
+        },
+        "recurrence": {
+            "daily": "毎日",
+            "weekly": "毎週",
+            "biweekly": "隔週",
+            "monthly": "毎月",
+            "repeat": "繰り返し",
+            "none": "なし"
+        },
+        "deleteConfirm": {
+            "single": "このバッチのみ削除しますか？",
+            "fromThis": "{{date}}以降のすべての繰り返しバッチを削除しますか？",
+            "all": "繰り返し予定をすべて削除しますか？過去の記録は保持されます。",
+            "batch": "\"{{name}}\" バッチを削除しますか？"
+        },
+        "error": {
+            "createRecurring": "繰り返しバッチの追加に失敗しました:",
+            "createBatch": "バッチの追加に失敗しました:"
+        }
+    },
+    "addBatchModal": {
+        "batchType": {
+            "singleOrigin": "Single Origin",
+            "preRoastBlend": "Pre-roast Blend",
+            "postRoastBlend": "Post-roast Blend"
+        },
+        "type": "バッチタイプ",
+        "date": "日付",
+        "machine": "マシン",
+        "roastProfile": "ロストプロファイル",
+        "profilePlaceholder": "プロファイル選択...",
+        "greenCoffeeLot": "Green Coffee Lot",
+        "lotPlaceholder": "Lot選択...",
+        "stock": "在庫 {{kg}} kg",
+        "shortage": "在庫不足 — 利用可能 {{effective}}g / 必要 {{needed}}g",
+        "blend": "ブレンド",
+        "blendPlaceholder": "ブレンド選択...",
+        "blendComposition": "{{count}}種の生豆構成",
+        "blendShortage": "{{name}}: 利用可能 {{effective}}g / 必要 {{needed}}g",
+        "targetRoasted": "目標 Roasted (kg)",
+        "batchSize": "Batch Size (kg)",
+        "yield": "Yield (%)",
+        "batches": "バッチ",
+        "greenNeeded": "Green必要 (kg)",
+        "currentStock": "現在の在庫:",
+        "needed": "/ 必要:",
+        "insufficientStock": "在庫不足",
+        "recurrence": "繰り返し",
+        "none": "なし",
+        "notes": "メモ (Notes)",
+        "notesPlaceholder": "特記事項、顧客情報など...",
+        "dateChanged": "{{date}}に移動されます",
+        "cancel": "キャンセル",
+        "saving": "保存中...",
+        "save": "保存",
+        "addBatch": "バッチ追加",
+        "editBatch": "バッチ編集",
+        "saveFailed": "保存失敗:",
+        "unknown": "不明"
     }
 }

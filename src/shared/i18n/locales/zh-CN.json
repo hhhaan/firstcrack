@@ -192,5 +192,99 @@
         "kgRemaining": "剩余{{kg}}kg",
         "today": "今天",
         "batchCount": "{{count}}次"
+    },
+    "schedule": {
+        "dateFormat": "yyyy年M月d日 (eee)",
+        "monthFormat": "yyyy年 M月",
+        "viewToggle": {
+            "day": "日",
+            "week": "周",
+            "month": "月"
+        },
+        "today": "今天",
+        "addBatch": "新建批次",
+        "loading": "加载中...",
+        "emptyState": {
+            "title": "今天暂无批次。\n添加新批次开始计划。",
+            "action": "新建批次"
+        },
+        "weekDay": {
+            "batchCount": "{{count}}个批次"
+        },
+        "monthDay": {
+            "headers": ["一", "二", "三", "四", "五", "六", "日"]
+        },
+        "overflowMore": "+{{count}}个",
+        "status": {
+            "pending": "待处理",
+            "inProgress": "进行中",
+            "inProgressWith": "进行中 {{progress}}",
+            "done": "已完成",
+            "skipped": "已跳过"
+        },
+        "start": "开始",
+        "detail": {
+            "target": "目标 {{kg}} kg",
+            "batch": "Batch {{kg}} kg",
+            "count": "{{count}}次"
+        },
+        "recurrence": {
+            "daily": "每天",
+            "weekly": "每周",
+            "biweekly": "隔周",
+            "monthly": "每月",
+            "repeat": "重复",
+            "none": "无"
+        },
+        "deleteConfirm": {
+            "single": "删除此批次？",
+            "fromThis": "删除{{date}}之后的所有重复批次？",
+            "all": "删除所有重复计划？历史记录将保留。",
+            "batch": "删除\"{{name}}\"？"
+        },
+        "error": {
+            "createRecurring": "添加重复批次失败：",
+            "createBatch": "添加批次失败："
+        }
+    },
+    "addBatchModal": {
+        "batchType": {
+            "singleOrigin": "Single Origin",
+            "preRoastBlend": "Pre-roast Blend",
+            "postRoastBlend": "Post-roast Blend"
+        },
+        "type": "批次类型",
+        "date": "日期",
+        "machine": "设备",
+        "roastProfile": "烘焙曲线",
+        "profilePlaceholder": "选择曲线...",
+        "greenCoffeeLot": "Green Coffee Lot",
+        "lotPlaceholder": "选择批次...",
+        "stock": "库存 {{kg}} kg",
+        "shortage": "库存不足 — 可用 {{effective}}g / 需要 {{needed}}g",
+        "blend": "拼配",
+        "blendPlaceholder": "选择拼配...",
+        "blendComposition": "{{count}}种生豆组成",
+        "blendShortage": "{{name}}: 可用 {{effective}}g / 需要 {{needed}}g",
+        "targetRoasted": "目标烘焙量 (kg)",
+        "batchSize": "Batch Size (kg)",
+        "yield": "Yield (%)",
+        "batches": "批次",
+        "greenNeeded": "生豆需要 (kg)",
+        "currentStock": "当前库存:",
+        "needed": "/ 需要:",
+        "insufficientStock": "库存不足",
+        "recurrence": "重复",
+        "none": "无",
+        "notes": "备注",
+        "notesPlaceholder": "特殊说明、客户信息等...",
+        "dateChanged": "将移动到 {{date}}",
+        "cancel": "取消",
+        "saving": "保存中...",
+        "save": "保存",
+        "addBatch": "添加批次",
+        "editBatch": "编辑批次",
+        "saveFailed": "保存失败:",
+        "unknown": "未知"
     }
 }

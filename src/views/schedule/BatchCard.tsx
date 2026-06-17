@@ -1,19 +1,13 @@
 import { Package, ChevronUp, ChevronDown, Play, Pencil, Trash2 } from 'lucide-react';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { batchStatus, batchProgress, getRecurrenceLabel } from './lib';
+import { useTranslation } from 'react-i18next';
 
 const statusStyles: Record<string, string> = {
     pending: 'bg-palette-lavender/10 text-palette-lavender',
     'in-progress': 'bg-palette-blue/12 text-palette-blue border border-palette-blue/20',
     done: 'bg-palette-green/12 text-palette-green border border-palette-green/20',
     skipped: 'text-palette-lavender bg-palette-lavender/10 line-through',
-};
-
-const statusLabels: Record<string, string> = {
-    pending: '대기',
-    'in-progress': '진행중',
-    done: '완료',
-    skipped: '건너뜀',
 };
 
 export const BatchCard = ({
@@ -33,6 +27,7 @@ export const BatchCard = ({
     onStart: () => void;
     onEdit: () => void;
 }) => {
+    const { t } = useTranslation();
     const status = batchStatus(batch);
     const canStart = status === 'pending' || status === 'in-progress';
     const isRecurring = !!batch.recurrence_rule_id;
@@ -62,13 +57,15 @@ export const BatchCard = ({
                         <span className="text-[14px] font-semibold text-primary">{batch.bean_name}</span>
                         {isRecurring && (
                             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-palette-lavender/15 text-palette-lavender border border-palette-lavender/25">
-                                {getRecurrenceLabel(batch.rrule)}
+                                {t('schedule.recurrence.' + getRecurrenceLabel(batch.rrule))}
                             </span>
                         )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-md ${statusStyles[status]}`}>
-                            {status === 'in-progress' ? `진행중 ${batchProgress(batch)}` : statusLabels[status]}
+                            {status === 'in-progress'
+                                ? t('schedule.status.inProgressWith', { progress: batchProgress(batch) })
+                                : t('schedule.status.' + status)}
                         </span>
                         {canStart && (
                             <button
@@ -76,7 +73,7 @@ export const BatchCard = ({
                                 className="flex items-center gap-1 text-[12px] font-medium text-white bg-primary dark:bg-[#171717] px-2.5 py-1 rounded-lg border-none cursor-pointer hover:opacity-90 transition-opacity"
                             >
                                 <Play size={11} strokeWidth={2.5} />
-                                시작
+                                {t('schedule.start')}
                             </button>
                         )}
                         <button
@@ -95,15 +92,17 @@ export const BatchCard = ({
                 </div>
                 <div className="mt-2.5 pl-[22px] space-y-1">
                     <div className="text-[12px] text-secondary flex flex-wrap items-center gap-x-2.5">
-                        <span>
-                            목표 <span className="font-medium text-primary">{batch.target_roasted_kg} kg</span>
+                        <span className="font-medium text-primary">
+                            {t('schedule.detail.target', { kg: batch.target_roasted_kg })}
                         </span>
                         <span className="text-border-subtle">│</span>
-                        <span>
-                            Batch <span className="font-medium text-primary">{batch.batch_size_kg} kg</span>
+                        <span className="font-medium text-primary">
+                            {t('schedule.detail.batch', { kg: batch.batch_size_kg })}
                         </span>
                         <span className="text-border-subtle">│</span>
-                        <span className="font-medium text-primary">{batch.batch_count}회</span>
+                        <span className="font-medium text-primary">
+                            {t('schedule.detail.count', { count: batch.batch_count })}
+                        </span>
                         {batch.machine_id && (
                             <>
                                 <span className="text-border-subtle">│</span>

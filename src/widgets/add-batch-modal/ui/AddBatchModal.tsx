@@ -4,7 +4,7 @@ import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { CounterInput } from '@shared/ui/CounterInput';
 import { SearchableSelect } from './SearchableSelect';
 import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { getDateFnsLocale } from '@shared/i18n';
 import { useQueryClient, useQueries } from '@tanstack/react-query';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Calendar } from '@shared/ui/calendar/Calendar';
@@ -19,6 +19,7 @@ import type { RoastProfile, Bean, PlanBatchWithProgress } from '@shared/types/da
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { useBlends, type BlendWithComponents } from '@entities/blend';
 import { useBeanStockSummary, beanStockEventApi } from '@entities/bean-stock-event';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Parse an RRULE string back to a RecurrenceInterval label.
@@ -37,11 +38,11 @@ function parseRruleToInterval(rrule: string | null): RecurrenceInterval | null {
 
 type BatchType = 'Single Origin' | 'Pre-roast Blend' | 'Post-roast Blend';
 
-const RECURRENCE_OPTIONS: { value: RecurrenceInterval; label: string }[] = [
-    { value: 'daily', label: '매일' },
-    { value: 'weekly', label: '매주' },
-    { value: 'biweekly', label: '격주' },
-    { value: 'monthly', label: '매월' },
+const RECURRENCE_OPTIONS: { value: RecurrenceInterval }[] = [
+    { value: 'daily' },
+    { value: 'weekly' },
+    { value: 'biweekly' },
+    { value: 'monthly' },
 ];
 
 export interface NewBatchData {
@@ -109,6 +110,7 @@ export const AddBatchModal = ({
 }: AddBatchModalProps) => {
     const userId = useAuthStore((s) => s.user?.id ?? '');
     const qc = useQueryClient();
+    const { t } = useTranslation();
 
     const { data: beans = [] } = useBeans(userId);
     const { machines } = useMachines();
@@ -201,7 +203,7 @@ export const AddBatchModal = ({
             const neededGrams = Math.round((Number(comp.ratio_pct) / 100) * plannedGrams);
             const summary = blendStockQueries[i]?.data;
             return {
-                beanName: (comp as { beans?: { name: string } }).beans?.name ?? '알 수 없음',
+                beanName: (comp as { beans?: { name: string } }).beans?.name ?? t('addBatchModal.unknown'),
                 ratioPct: comp.ratio_pct,
                 neededGrams,
                 effectiveGrams: summary?.effectiveGrams ?? 0,
@@ -281,7 +283,7 @@ export const AddBatchModal = ({
                 onClose();
             } catch (err) {
                 console.error('[AddBatchModal] save failed:', err);
-                alert(`저장 실패: ${err instanceof Error ? err.message : String(err)}`);
+                alert(t('addBatchModal.saveFailed') + ` ${err instanceof Error ? err.message : String(err)}`);
             } finally {
                 setSaving(false);
             }
@@ -329,7 +331,7 @@ export const AddBatchModal = ({
                         id="add-batch-modal-title"
                         className="font-(--font-display) text-[22px] text-primary tracking-[-0.02em] m-0"
                     >
-                        {isEdit ? '배치 편집' : '새 배치 추가'}
+                        {isEdit ? t('addBatchModal.editBatch') : t('addBatchModal.addBatch')}
                     </h2>
                     {isEdit && editingBatch && (
                         <p className="text-[12px] text-muted mt-0.5 m-0">{editingBatch.bean_name}</p>
@@ -350,7 +352,7 @@ export const AddBatchModal = ({
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className={labelCls}>
-                            <CalendarIcon size={12} /> 날짜
+                            <CalendarIcon size={12} /> {t('addBatchModal.date')}
                         </label>
                         <Popover
                             open={calendarOpen}
@@ -371,7 +373,11 @@ export const AddBatchModal = ({
                                     )}
                                 >
                                     <CalendarIcon size={13} className="text-muted shrink-0" />
-                                    <span>{date ? format(date, 'M월 d일 (eee)', { locale: ko }) : '날짜 선택'}</span>
+                                    <span>
+                                        {date
+                                            ? format(date, 'M월 d일 (eee)', { locale: getDateFnsLocale() })
+                                            : t('addBatchModal.date')}
+                                    </span>
                                     {dateChanged && (
                                         <span className="ml-auto text-[10px] text-amber-600 font-semibold shrink-0">
                                             이동
@@ -394,10 +400,10 @@ export const AddBatchModal = ({
                     </div>
                     <div>
                         <label className={labelCls}>
-                            <Cpu size={12} /> 머신
+                            <Cpu size={12} /> {t('addBatchModal.machine')}
                         </label>
                         <SearchableSelect
-                            placeholder="머신 선택..."
+                            placeholder={t('addBatchModal.machine')}
                             items={machines}
                             selectedId={machineId}
                             onSelect={setMachineId}
@@ -420,16 +426,20 @@ export const AddBatchModal = ({
 
                 {/* Batch type tabs */}
                 <div>
-                    <label className={labelCls}>구분</label>
+                    <label className={labelCls}>{t('addBatchModal.type')}</label>
                     <div className="flex bg-surface p-1 rounded-2xl shadow-(--shadow-inset)">
-                        {(['Single Origin', 'Pre-roast Blend', 'Post-roast Blend'] as BatchType[]).map((t) => (
+                        {(['Single Origin', 'Pre-roast Blend', 'Post-roast Blend'] as BatchType[]).map((bt) => (
                             <button
-                                key={t}
+                                key={bt}
                                 type="button"
-                                onClick={() => setBatchType(t)}
-                                className={tabCls(batchType === t)}
+                                onClick={() => setBatchType(bt)}
+                                className={tabCls(batchType === bt)}
                             >
-                                {t}
+                                {bt === 'Single Origin'
+                                    ? t('addBatchModal.batchType.singleOrigin')
+                                    : bt === 'Pre-roast Blend'
+                                      ? t('addBatchModal.batchType.preRoastBlend')
+                                      : t('addBatchModal.batchType.postRoastBlend')}
                             </button>
                         ))}
                     </div>
@@ -438,9 +448,9 @@ export const AddBatchModal = ({
                 {/* Profile + Bean/Blend */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className={labelCls}>로스트 프로파일</label>
+                        <label className={labelCls}>{t('addBatchModal.roastProfile')}</label>
                         <SearchableSelect
-                            placeholder="프로파일 선택..."
+                            placeholder={t('addBatchModal.profilePlaceholder')}
                             items={profileItems}
                             selectedId={profileId}
                             onSelect={handleProfileSelect}
@@ -463,7 +473,7 @@ export const AddBatchModal = ({
                                     <Package size={12} /> Green Coffee Lot
                                 </label>
                                 <SearchableSelect
-                                    placeholder="Lot 선택..."
+                                    placeholder={t('addBatchModal.lotPlaceholder')}
                                     items={beanItems}
                                     selectedId={beanId}
                                     onSelect={setBeanId}
@@ -475,7 +485,7 @@ export const AddBatchModal = ({
                                             <div>
                                                 <div className="text-primary font-medium">{b.name}</div>
                                                 <div className="text-[11px] text-muted mt-0.5">
-                                                    재고 {kg} kg
+                                                    {t('addBatchModal.stock', { kg })}
                                                     {b.origin && ` · ${b.origin}`}
                                                 </div>
                                             </div>
@@ -484,17 +494,20 @@ export const AddBatchModal = ({
                                 />
                                 {isShortage && (
                                     <p className="text-xs text-red-500 mt-1">
-                                        재고 부족 — 가용 {stockSummary!.effectiveGrams}g / 필요 {plannedGrams}g
+                                        {t('addBatchModal.shortage', {
+                                            effective: stockSummary!.effectiveGrams,
+                                            needed: plannedGrams,
+                                        })}
                                     </p>
                                 )}
                             </>
                         ) : (
                             <>
                                 <label className={labelCls}>
-                                    <Package size={12} /> 블렌드
+                                    <Package size={12} /> {t('addBatchModal.blend')}
                                 </label>
                                 <SearchableSelect
-                                    placeholder="블렌드 선택..."
+                                    placeholder={t('addBatchModal.blendPlaceholder')}
                                     items={blends}
                                     selectedId={blendId ?? ''}
                                     onSelect={(id) => setBlendId(id || null)}
@@ -506,7 +519,8 @@ export const AddBatchModal = ({
                                             <div>
                                                 <div className="text-primary font-medium">{b.name}</div>
                                                 <div className="text-[11px] text-muted mt-0.5">
-                                                    {b.description ?? `${compCount}개 생두 구성`}
+                                                    {b.description ??
+                                                        t('addBatchModal.blendComposition', { count: compCount })}
                                                 </div>
                                             </div>
                                         );
@@ -527,7 +541,11 @@ export const AddBatchModal = ({
                                                         className="shrink-0 mt-0.5"
                                                     />
                                                     <span>
-                                                        {s.beanName}: 가용 {s.effectiveGrams}g / 필요 {s.neededGrams}g
+                                                        {t('addBatchModal.blendShortage', {
+                                                            name: s.beanName,
+                                                            effective: s.effectiveGrams,
+                                                            needed: s.neededGrams,
+                                                        })}
                                                     </span>
                                                 </p>
                                             ))}
@@ -541,14 +559,19 @@ export const AddBatchModal = ({
                 {/* 수량 — 목표 + Batch Size + Yield */}
                 <div className="grid grid-cols-3 gap-4">
                     <CounterInput
-                        label="목표 Roasted (kg)"
+                        label={t('addBatchModal.targetRoasted')}
                         placeholder="0"
                         value={targetRoasted}
                         onChange={setTargetRoasted}
                         step={0.1}
                     />
-                    <CounterInput label="Batch Size (kg)" value={batchSize} onChange={setBatchSize} step={1} />
-                    <CounterInput label="Yield (%)" value={yieldPct} onChange={setYieldPct} step={1} />
+                    <CounterInput
+                        label={t('addBatchModal.batchSize')}
+                        value={batchSize}
+                        onChange={setBatchSize}
+                        step={1}
+                    />
+                    <CounterInput label={t('addBatchModal.yield')} value={yieldPct} onChange={setYieldPct} step={1} />
                 </div>
 
                 {/* 자동 계산 summary */}
@@ -559,19 +582,19 @@ export const AddBatchModal = ({
                                 <span className="text-[26px] font-bold text-primary tabular-nums leading-none">
                                     {batchCount}
                                 </span>
-                                <span className="text-[11px] text-muted mt-1.5">배치</span>
+                                <span className="text-[11px] text-muted mt-1.5">{t('addBatchModal.batches')}</span>
                             </div>
                             <div className="flex-1 flex flex-col items-center py-1 px-4">
                                 <span className="text-[26px] font-bold text-primary tabular-nums leading-none">
                                     {greenNeeded}
                                 </span>
-                                <span className="text-[11px] text-muted mt-1.5">Green 필요 (kg)</span>
+                                <span className="text-[11px] text-muted mt-1.5">{t('addBatchModal.greenNeeded')}</span>
                             </div>
                             <div className="flex-1 flex flex-col items-center py-1 px-4">
                                 <span className="text-[26px] font-bold text-primary tabular-nums leading-none">
                                     {yieldNum}%
                                 </span>
-                                <span className="text-[11px] text-muted mt-1.5">Yield</span>
+                                <span className="text-[11px] text-muted mt-1.5">{t('addBatchModal.yield')}</span>
                             </div>
                         </div>
                     </div>
@@ -590,16 +613,19 @@ export const AddBatchModal = ({
                             <div>
                                 <div className="text-[13px] font-semibold text-primary">{selectedBean.name}</div>
                                 <div className="text-[12px] text-secondary mt-0.5">
-                                    현재 재고: <span className="font-medium text-primary">{stockKg.toFixed(1)} kg</span>
+                                    {t('addBatchModal.currentStock')}{' '}
+                                    <span className="font-medium text-primary">{stockKg.toFixed(1)} kg</span>
                                     {greenNeeded > 0 && (
-                                        <span className="text-muted ml-2">/ 필요: {greenNeeded} kg</span>
+                                        <span className="text-muted ml-2">
+                                            {t('addBatchModal.needed')} {greenNeeded} kg
+                                        </span>
                                     )}
                                 </div>
                             </div>
                             {!stockSufficient && (
                                 <div className="flex items-center gap-1.5 text-amber-600 text-[12px] font-semibold shrink-0">
                                     <AlertTriangle size={13} strokeWidth={2} />
-                                    재고 부족
+                                    {t('addBatchModal.insufficientStock')}
                                 </div>
                             )}
                         </div>
@@ -619,7 +645,7 @@ export const AddBatchModal = ({
                 {isRruleVisible && (
                     <div>
                         <label className={labelCls}>
-                            <Repeat size={12} /> 반복
+                            <Repeat size={12} /> {t('addBatchModal.recurrence')}
                         </label>
                         <div className="flex flex-wrap gap-2">
                             <button
@@ -632,9 +658,9 @@ export const AddBatchModal = ({
                                         : 'bg-surface dark:bg-surface-elevated text-secondary border-border dark:border-[#585d61] hover:border-black/15',
                                 )}
                             >
-                                없음
+                                {t('addBatchModal.none')}
                             </button>
-                            {RECURRENCE_OPTIONS.map(({ value, label }) => (
+                            {RECURRENCE_OPTIONS.map(({ value }) => (
                                 <button
                                     key={value}
                                     type="button"
@@ -646,7 +672,7 @@ export const AddBatchModal = ({
                                             : 'bg-surface dark:bg-surface-elevated text-secondary border-border dark:border-[#585d61] hover:border-black/15',
                                     )}
                                 >
-                                    {label}
+                                    {t('schedule.recurrence.' + value)}
                                 </button>
                             ))}
                         </div>
@@ -655,11 +681,11 @@ export const AddBatchModal = ({
 
                 {/* Notes */}
                 <div>
-                    <label className={labelCls}>메모 (Notes)</label>
+                    <label className={labelCls}>{t('addBatchModal.notes')}</label>
                     <textarea
                         className={`${inputCls} resize-none`}
                         rows={3}
-                        placeholder="특이사항, 고객사용 등..."
+                        placeholder={t('addBatchModal.notesPlaceholder')}
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                     />
@@ -670,7 +696,9 @@ export const AddBatchModal = ({
             <div className="shrink-0 border-t border-black/4 dark:border-[#585d61] bg-white/60 dark:bg-[#1a1e23] px-8 py-4 flex items-center justify-between gap-3">
                 {dateChanged && newDateKey && (
                     <p className="text-[12px] text-amber-600 font-medium">
-                        {format(new Date(newDateKey + 'T00:00:00'), 'M월 d일', { locale: ko })}로 이동됩니다
+                        {t('addBatchModal.dateChanged', {
+                            date: format(new Date(newDateKey + 'T00:00:00'), 'M월 d일', { locale: getDateFnsLocale() }),
+                        })}
                     </p>
                 )}
                 <div className="flex items-center gap-3 ml-auto">
@@ -679,7 +707,7 @@ export const AddBatchModal = ({
                         onClick={onClose}
                         className="px-5 py-2.5 rounded-xl border border-border dark:border-[#585d61] bg-surface dark:bg-surface-elevated text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
                     >
-                        취소
+                        {t('addBatchModal.cancel')}
                     </button>
                     <button
                         type="button"
@@ -687,7 +715,11 @@ export const AddBatchModal = ({
                         disabled={!canSubmit}
                         className="px-5 py-2.5 rounded-xl border border-transparent dark:border-white bg-primary dark:bg-black text-white dark:text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                        {saving ? '저장 중...' : isEdit ? '저장' : '배치 추가'}
+                        {saving
+                            ? t('addBatchModal.saving')
+                            : isEdit
+                              ? t('addBatchModal.save')
+                              : t('addBatchModal.addBatch')}
                     </button>
                 </div>
             </div>

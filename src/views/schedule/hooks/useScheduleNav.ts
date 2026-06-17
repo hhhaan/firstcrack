@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { addDays, addWeeks, addMonths, startOfWeek, endOfWeek, format } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { isToday } from 'date-fns';
 import type { ViewMode } from '../lib';
 import { toFullDisplayDate } from '../lib';
@@ -14,13 +14,16 @@ export const useScheduleNav = () => {
         setView('day');
     }, []);
 
-    const handleNav = useCallback((dir: 1 | -1) => {
-        setSelectedDate((prev) => {
-            if (view === 'day') return addDays(prev, dir);
-            if (view === 'week') return addWeeks(prev, dir);
-            return addMonths(prev, dir);
-        });
-    }, [view]);
+    const handleNav = useCallback(
+        (dir: 1 | -1) => {
+            setSelectedDate((prev) => {
+                if (view === 'day') return addDays(prev, dir);
+                if (view === 'week') return addWeeks(prev, dir);
+                return addMonths(prev, dir);
+            });
+        },
+        [view],
+    );
 
     const navLabel = (() => {
         if (view === 'day') return toFullDisplayDate(selectedDate);
@@ -29,7 +32,7 @@ export const useScheduleNav = () => {
             const we = endOfWeek(selectedDate, { weekStartsOn: 1 });
             return `${format(ws, 'M/d')} – ${format(we, 'M/d')}`;
         }
-        return format(selectedDate, 'yyyy년 M월', { locale: ko });
+        return format(selectedDate, 'yyyy년 M월', { locale: getDateFnsLocale() });
     })();
 
     const isTodaySelected = isToday(selectedDate);
