@@ -44,7 +44,7 @@ const formatDate = (iso: string | null): string => {
     return iso.slice(2, 10); // YY-MM-DD
 };
 
-type SortKey = 'date' | 'bean' | 'duration' | 'drop' | 'level';
+type SortKey = 'date' | 'bean' | 'duration' | 'drop' | 'level' | 'profile' | 'weight';
 
 type Column = {
     key: SortKey | null;
@@ -59,14 +59,14 @@ const columns: Column[] = [
     { key: 'date', label: 'Date', width: '100px', sortable: true, render: (s) => formatDate(s.roasted_at) },
     { key: 'bean', label: 'Bean', width: '200px', sortable: true, render: (s) => s.beans?.name ?? '—' },
     {
-        key: null,
+        key: 'profile',
         label: 'Profile',
         width: '150px',
         sortable: false,
         hideOnMd: true,
         render: (s) => s.roast_profiles?.name ?? '—',
     },
-    { key: null, label: 'Weight', width: '90px', sortable: false, render: (s) => `${s.weight_grams}g` },
+    { key: 'weight', label: 'Weight', width: '90px', sortable: false, render: (s) => `${s.weight_grams}g` },
     {
         key: 'drop',
         label: 'Drop',
