@@ -145,8 +145,10 @@ class RoasterManager:
                     reading = await self._adapter.read()
                     if reading.bt > 0:
                         self._data_ok = True
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # 연결은 성공했으나 첫 read 실패 — 폴링에서 재시도되므로 치명적이지 않다.
+                    # 단, status.connected가 _data_ok=False로 인해 false로 보이므로 단서를 남긴다.
+                    _log.warning("warmup read 실패 (폴링에서 재시도): %s", exc)
             except Exception as exc:
                 self._error = _format_connection_error(exc, protocol, merged)
                 self._connected = False
@@ -336,6 +338,11 @@ class RoasterManager:
             self._bt_display_ema = None
             self._et_display_ema = None
             if self._adapter is not None and self._connected:
+                # connect()만 재호출하면 어댑터에 따라 기존 소켓/핸들이 누수된다
+                try:
+                    await self._adapter.disconnect()
+                except Exception:
+                    pass
                 await self._adapter.connect()
 
     def status(self) -> dict[str, Any]:

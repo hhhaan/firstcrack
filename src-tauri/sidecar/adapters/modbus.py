@@ -139,8 +139,15 @@ class ModbusAdapter:
 
     async def disconnect(self) -> None:
         if self._client is not None:
-            self._client.close()
-            self._client = None
+            client, self._client = self._client, None
+            try:
+                # 불량 시리얼 포트에서 close()가 행하면 이후 모든 lock이 막힌다
+                await asyncio.wait_for(
+                    asyncio.to_thread(client.close),
+                    timeout=config.MODBUS_CLOSE_TIMEOUT,
+                )
+            except Exception as exc:
+                _log.warning("MODBUS close 실패/타임아웃 (무시): %s", exc)
 
     async def _read_channel(self, cfg: dict[str, Any]) -> float:
         """단일 채널(BT 또는 ET) 읽기. retry 포함."""
