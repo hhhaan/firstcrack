@@ -108,6 +108,8 @@ class RoasterManager:
         self._reconnect_task: asyncio.Task[None] | None = None
         self._reconnect_attempt: int = 0
         self._ror_warmup: int = 0
+        self._consecutive_errors: int = 0
+        self._last_good: dict[str, Any] | None = None
 
     async def connect(self, roaster_key: str, params: dict[str, Any]) -> None:
         async with self._lock:
@@ -175,6 +177,8 @@ class RoasterManager:
         self._et_ema = None
         self._bt_display_ema = None
         self._et_display_ema = None
+        self._consecutive_errors = 0
+        self._last_good = None
 
     async def _reconnect_loop(self) -> None:
         """읽기 실패 후 백그라운드 자동 재연결.
@@ -216,6 +220,9 @@ class RoasterManager:
             self._reconnect_attempt = 0
 
     async def read_temperatures(self) -> dict[str, Any]:
+        reconnecting = (
+            self._reconnect_task is not None and not self._reconnect_task.done()
+        )
         if not self._connected or self._adapter is None:
             return {
                 "bt": None,
@@ -226,10 +233,30 @@ class RoasterManager:
                 "fan": 0,
                 "drum": 0,
                 "timestamp": time.monotonic(),
+                "stale": False,
+                "reconnecting": reconnecting,
             }
         try:
             reading = await self._adapter.read()
         except Exception as exc:
+            self._consecutive_errors += 1
+            if (
+                self._consecutive_errors <= config.STALE_TOLERANCE_READS
+                and self._last_good is not None
+            ):
+                # fail-open: 일시 오류는 이전 값을 유지해 로스팅을 계속한다 (Artisan 방식)
+                _log.warning(
+                    "읽기 실패 (%d/%d) — 이전 값 유지: %s",
+                    self._consecutive_errors,
+                    config.STALE_TOLERANCE_READS,
+                    exc,
+                )
+                return {
+                    **self._last_good,
+                    "stale": True,
+                    "reconnecting": reconnecting,
+                    "timestamp": time.monotonic(),
+                }
             self._error = _format_connection_error(
                 exc, self._protocol, self._merged_params
             )
@@ -246,7 +273,11 @@ class RoasterManager:
                 "fan": 0,
                 "drum": 0,
                 "timestamp": time.monotonic(),
+                "stale": False,
+                "reconnecting": True,
             }
+
+        self._consecutive_errors = 0
 
         if reading.bt > 0:
             self._data_ok = True
@@ -262,7 +293,7 @@ class RoasterManager:
             ror = round(self._compute_ror(), 2)
             ror_et = round(self._compute_et_ror(), 2)
 
-        return {
+        payload = {
             "bt": round(self._bt_display_ema if self._bt_display_ema is not None else reading.bt, 1),
             "et": round(self._et_display_ema if self._et_display_ema is not None else reading.et, 1),
             "ror": ror,
@@ -271,7 +302,11 @@ class RoasterManager:
             "fan": int(round(reading.fan)),
             "drum": round(reading.drum, 1),
             "timestamp": reading.timestamp,
+            "stale": False,
+            "reconnecting": reconnecting,
         }
+        self._last_good = payload
+        return payload
 
     async def enter_standby(self) -> None:
         """UI의 READY 버튼과 연동. 어댑터가 지원하면 standby 진입을 알린다."""

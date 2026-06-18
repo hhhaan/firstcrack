@@ -86,9 +86,6 @@ class ModbusAdapter:
         #   UI에서 RTU 머신 선택 시 pollIntervalMs를 자동으로 1000ms로 올리는 옵션 필요.
         #   (artisan 권장도 RTU=1s 폴링)
         self._read_retries: int = 0 if self._mode == "tcp" else 1
-        self._consecutive_errors: int = 0
-        self._acceptable_errors: int = 3  # 3회 연속 실패까지 last-reading 유지, 그 뒤 disconnect
-        self._last_reading: Reading | None = None
 
     async def connect(self) -> None:
         from pymodbus.client import AsyncModbusTcpClient, AsyncModbusSerialClient  # type: ignore[import]
@@ -273,39 +270,13 @@ class ModbusAdapter:
         et_cfg = self._regs.get("ET")
         drum_cfg = self._regs.get("drum")
 
-        try:
-            bt = await self._read_channel(bt_cfg) if bt_cfg else -1.0
-            et = await self._read_channel(et_cfg) if et_cfg else -1.0
-            drum = await self._read_channel(drum_cfg) if drum_cfg else 0.0
-        except Exception as exc:
-            self._consecutive_errors += 1
-            if (
-                self._consecutive_errors <= self._acceptable_errors
-                and self._last_reading is not None
-            ):
-                _log.warning(
-                    "읽기 실패 (%d/%d회), 이전 값 유지: %s",
-                    self._consecutive_errors,
-                    self._acceptable_errors,
-                    exc,
-                )
-                # timestamp 갱신: RoR 윈도우 슬라이딩이 멈추지 않도록
-                return Reading(
-                    bt=self._last_reading.bt,
-                    et=self._last_reading.et,
-                    heater=self._last_reading.heater,
-                    fan=self._last_reading.fan,
-                    drum=self._last_reading.drum,
-                    timestamp=time.monotonic(),
-                )
-            raise
+        bt = await self._read_channel(bt_cfg) if bt_cfg else -1.0
+        et = await self._read_channel(et_cfg) if et_cfg else -1.0
+        drum = await self._read_channel(drum_cfg) if drum_cfg else 0.0
 
-        self._consecutive_errors = 0
-        reading = Reading(
+        return Reading(
             bt=bt, et=et, heater=0.0, fan=0.0, drum=drum, timestamp=time.monotonic()
         )
-        self._last_reading = reading
-        return reading
 
     async def control(
         self,

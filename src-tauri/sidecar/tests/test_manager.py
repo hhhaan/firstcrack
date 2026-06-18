@@ -319,3 +319,58 @@ class TestInfiniteReconnect:
         manager._adapter = None  # disconnect 상당
         await asyncio.wait_for(task, timeout=2.0)
         assert manager._reconnect_attempt == 0
+
+
+# ---------------------------------------------------------------------------
+# TestManagerStaleData
+# ---------------------------------------------------------------------------
+
+class TestManagerStaleData:
+    async def _connect_with(self, manager, adapter):
+        """레지스트리를 거치지 않고 어댑터를 직접 주입해 연결 상태를 만든다."""
+        manager._adapter = adapter
+        manager._connected = True
+        manager._protocol = "virtual"
+        manager._merged_params = {}
+
+    async def test_returns_stale_reading_within_tolerance(self, manager):
+        adapter = FakeAdapter(readings=[make_reading(bt=180.0, et=220.0)])
+        await self._connect_with(manager, adapter)
+
+        first = await manager.read_temperatures()
+        assert first["stale"] is False
+        assert first["bt"] == 180.0
+
+        # 다음 read는 실패(소진) → 3회까지 이전 값 유지
+        for i in range(3):
+            data = await manager.read_temperatures()
+            assert data["stale"] is True, f"{i + 1}번째 실패에서 stale 유지돼야 함"
+            assert data["bt"] == 180.0
+            assert manager._connected is True  # 아직 연결 유지
+
+        # 4번째 실패 → 기존 에러 경로 (null + 재연결 트리거)
+        data = await manager.read_temperatures()
+        assert data["bt"] is None
+        assert manager._connected is False
+        assert manager._reconnect_task is not None
+        manager._reconnect_task.cancel()
+
+    async def test_success_resets_error_counter(self, manager):
+        adapter = FakeAdapter(readings=[make_reading(bt=180.0)])  # 1회 성공 후 소진
+        await self._connect_with(manager, adapter)
+        await manager.read_temperatures()           # 성공
+        await manager.read_temperatures()           # 실패 1 (stale)
+        adapter._readings.append(make_reading(bt=181.0))  # 다시 성공 가능
+        data = await manager.read_temperatures()
+        assert data["stale"] is False
+        assert manager._consecutive_errors == 0
+
+    async def test_no_stale_without_prior_good_reading(self, manager):
+        """첫 read부터 실패하면 유지할 값이 없으므로 즉시 에러 경로."""
+        adapter = FakeAdapter(readings=[])
+        await self._connect_with(manager, adapter)
+        data = await manager.read_temperatures()
+        assert data["bt"] is None
+        assert manager._connected is False
+        if manager._reconnect_task is not None:
+            manager._reconnect_task.cancel()
