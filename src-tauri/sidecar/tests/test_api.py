@@ -218,3 +218,34 @@ class TestCors:
     async def test_get_response_has_cors_header(self, client):
         resp = await client.get("/status")
         assert resp.headers.get("Access-Control-Allow-Origin") == "*"
+
+
+# ---------------------------------------------------------------------------
+# GET/POST /debug/trace, GET /debug/probe
+# ---------------------------------------------------------------------------
+
+class TestDebugEndpoints:
+    async def test_trace_toggle(self, client):
+        # 기본 OFF
+        resp = await client.get("/debug/trace")
+        body = await resp.json()
+        assert body["enabled"] is False
+
+        # 켜기
+        resp = await client.post("/debug/trace", json={"enabled": True})
+        assert (await resp.json())["enabled"] is True
+
+        # 끄기 + 클리어
+        resp = await client.post("/debug/trace", json={"enabled": False, "clear": True})
+        body = await resp.json()
+        assert body["enabled"] is False
+
+        resp = await client.get("/debug/trace")
+        body = await resp.json()
+        assert body["count"] == 0
+
+    async def test_probe_without_adapter(self, client):
+        resp = await client.get("/debug/probe")
+        body = await resp.json()
+        assert body["ok"] is False
+        assert "error" in body

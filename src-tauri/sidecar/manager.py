@@ -311,6 +311,34 @@ class RoasterManager:
             "error": self._error,
         }
 
+    async def probe(self) -> dict[str, Any]:
+        """단발 진단 읽기 — EMA/stale 처리를 우회하고 어댑터 원시 값과 소요 시간을 반환.
+
+        실기기에서 Artisan과 값을 직접 비교(A/B)하기 위한 디버깅 전용 경로.
+        """
+        if self._adapter is None:
+            return {"ok": False, "error": "연결된 어댑터 없음"}
+        t0 = time.monotonic()
+        try:
+            r = await self._adapter.read()
+            return {
+                "ok": True,
+                "elapsed_ms": round((time.monotonic() - t0) * 1000, 1),
+                "raw": {
+                    "bt": r.bt,
+                    "et": r.et,
+                    "heater": r.heater,
+                    "fan": r.fan,
+                    "drum": r.drum,
+                },
+            }
+        except Exception as exc:
+            return {
+                "ok": False,
+                "elapsed_ms": round((time.monotonic() - t0) * 1000, 1),
+                "error": str(exc),
+            }
+
     def _add_to_ror_window(self, ts: float, bt: float) -> None:
         if self._bt_ema is None:
             self._bt_ema = bt

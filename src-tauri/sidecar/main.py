@@ -19,11 +19,13 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
 
 import logging
 import os
+import time
 from typing import Any
 
 from aiohttp import web
 
 from manager import RoasterManager
+from protocol_trace import TRACE
 from roaster_registry import ROASTER_REGISTRY, PROTOCOL_FORM_FIELDS
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
@@ -143,6 +145,40 @@ async def handle_serial_ports(request: web.Request) -> web.Response:
         ports = []
     return web.json_response(ports)
 
+async def handle_debug_trace_get(request: web.Request) -> web.Response:
+    entries = TRACE.dump()
+    return web.json_response(
+        {"enabled": TRACE.enabled, "count": len(entries), "entries": entries}
+    )
+
+
+async def handle_debug_trace_post(request: web.Request) -> web.Response:
+    try:
+        body: dict[str, Any] = await request.json()
+    except Exception:
+        return web.json_response({"error": "invalid JSON"}, status=400)
+    if "enabled" in body:
+        TRACE.enabled = bool(body["enabled"])
+        _log.info("프로토콜 트레이스 %s", "ON" if TRACE.enabled else "OFF")
+    if body.get("clear"):
+        TRACE.clear()
+    return web.json_response({"enabled": TRACE.enabled})
+
+
+async def handle_debug_probe(request: web.Request) -> web.Response:
+    """단발 원시 읽기 + 그 동안의 트레이스. Artisan A/B 비교용."""
+    manager: RoasterManager = request.app["manager"]
+    prev_enabled = TRACE.enabled
+    TRACE.enabled = True
+    t0 = round(time.monotonic(), 4)
+    try:
+        result = await manager.probe()
+    finally:
+        TRACE.enabled = prev_enabled
+    result["trace"] = [e for e in TRACE.dump() if e["ts"] >= t0]
+    return web.json_response(result)
+
+
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
@@ -177,6 +213,9 @@ def create_app() -> web.Application:
     app.router.add_post("/standby", handle_standby)
     app.router.add_post("/start", handle_start)
     app.router.add_post("/reset", handle_reset)
+    app.router.add_get("/debug/trace", handle_debug_trace_get)
+    app.router.add_post("/debug/trace", handle_debug_trace_post)
+    app.router.add_get("/debug/probe", handle_debug_probe)
     app.router.add_route("OPTIONS", "/{path_info:.*}", lambda r: web.Response())
     return app
 
