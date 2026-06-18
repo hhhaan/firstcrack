@@ -4,19 +4,11 @@ import time
 from collections import deque
 from typing import Any
 
+import config
 from adapters import make_adapter
 from roaster_registry import ROASTER_REGISTRY
 
 _log = logging.getLogger(__name__)
-
-# EMA 평활화 계수: 낮을수록 더 부드럽고 lag 증가 (0 < α < 1)
-# 0.2 = 매우 부드러움, 0.5 = 균형, 0.8 = 거의 raw
-_EMA_ALPHA = 0.2
-
-_DISPLAY_ALPHA = 0.16
-
-# 연결/Charge 후 RoR 표시를 억제할 read 횟수 (EMA 안정화)
-_ROR_WARMUP_READS = 3
 
 
 def _format_connection_error(
@@ -140,7 +132,7 @@ class RoasterManager:
             self._bt_display_ema = None
             self._et_display_ema = None
             self._error = None
-            self._ror_warmup = _ROR_WARMUP_READS
+            self._ror_warmup = config.ROR_WARMUP_READS
 
             try:
                 await self._adapter.connect()
@@ -186,7 +178,7 @@ class RoasterManager:
 
     async def _reconnect_loop(self) -> None:
         """읽기 실패 후 백그라운드 자동 재연결 (3회, 지수 백오프)."""
-        for attempt, delay in enumerate([2.0, 5.0, 10.0]):
+        for attempt, delay in enumerate(config.RECONNECT_BACKOFFS):
             self._reconnect_attempt = attempt + 1
             await asyncio.sleep(delay)
             if self._connected or self._adapter is None:
@@ -287,7 +279,7 @@ class RoasterManager:
             self._et_ema = None
             self._bt_display_ema = None
             self._et_display_ema = None
-            self._ror_warmup = _ROR_WARMUP_READS
+            self._ror_warmup = config.ROR_WARMUP_READS
             if self._adapter is not None and hasattr(self._adapter, "start_roast"):
                 await self._adapter.start_roast()
 
@@ -323,13 +315,13 @@ class RoasterManager:
         if self._bt_ema is None:
             self._bt_ema = bt
         else:
-            self._bt_ema = _EMA_ALPHA * bt + (1.0 - _EMA_ALPHA) * self._bt_ema
+            self._bt_ema = config.EMA_ALPHA * bt + (1.0 - config.EMA_ALPHA) * self._bt_ema
         if self._bt_display_ema is None:
             self._bt_display_ema = bt
         else:
-            self._bt_display_ema = _DISPLAY_ALPHA * bt + (1.0 - _DISPLAY_ALPHA) * self._bt_display_ema
+            self._bt_display_ema = config.DISPLAY_ALPHA * bt + (1.0 - config.DISPLAY_ALPHA) * self._bt_display_ema
         self._ror_window.append((ts, self._bt_ema))
-        cutoff = ts - 30.0
+        cutoff = ts - config.ROR_WINDOW_SECS
         while self._ror_window and self._ror_window[0][0] < cutoff:
             self._ror_window.popleft()
 
@@ -337,13 +329,13 @@ class RoasterManager:
         if self._et_ema is None:
             self._et_ema = et
         else:
-            self._et_ema = _EMA_ALPHA * et + (1.0 - _EMA_ALPHA) * self._et_ema
+            self._et_ema = config.EMA_ALPHA * et + (1.0 - config.EMA_ALPHA) * self._et_ema
         if self._et_display_ema is None:
             self._et_display_ema = et
         else:
-            self._et_display_ema = _DISPLAY_ALPHA * et + (1.0 - _DISPLAY_ALPHA) * self._et_display_ema
+            self._et_display_ema = config.DISPLAY_ALPHA * et + (1.0 - config.DISPLAY_ALPHA) * self._et_display_ema
         self._et_ror_window.append((ts, self._et_ema))
-        cutoff = ts - 30.0
+        cutoff = ts - config.ROR_WINDOW_SECS
         while self._et_ror_window and self._et_ror_window[0][0] < cutoff:
             self._et_ror_window.popleft()
 

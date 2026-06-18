@@ -3,6 +3,7 @@ import time
 import logging
 from typing import Any
 
+import config
 from adapters.base import Reading
 
 _log = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ class S7Adapter:
         self._channels = channels or []
         self._plc: Any = None
         self._read_retries: int = 1
-        self._min_interval: float = 0.04
+        self._min_interval: float = config.S7_MIN_REQUEST_INTERVAL
         self._last_request_ts: float = 0.0
         # 채널 캐시 — connect() 시 한 번만 계산
         self._bt_ch: dict[str, Any] | None = None

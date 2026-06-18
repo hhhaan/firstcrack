@@ -6,15 +6,9 @@ from typing import Any
 from pymodbus.framer import FramerType
 from adapters.base import Reading
 
-_log = logging.getLogger(__name__)
+import config
 
-# 500ms 폴링 기준으로 artisan 공식 min(delay/2000, 0.4)에 정렬.
-# delay=500ms → cap=0.25s. TCP는 0.25s, RTU는 0.3s(시리얼 응답 지연 여유).
-# 한 폴링 사이클에서 채널 3개(BT/ET/drum)를 순차 read하므로,
-# 채널당 worst-case = timeout × (1 + retries) 가 사이클 예산을 너무 넘기지 않게 한다.
-_TCP_TIMEOUT = 0.25
-_RTU_TIMEOUT = 0.3
-_RTU_CONNECT_DELAY = 0.5  # Artisan modbus_serial_connect_delay — 느린 RTU 장비 대응
+_log = logging.getLogger(__name__)
 
 
 def _bcd_decode(raw: int) -> int:
@@ -105,13 +99,13 @@ class ModbusAdapter:
 
         if self._mode == "tcp":
             self._client = AsyncModbusTcpClient(
-                host=self._host, port=self._port, timeout=_TCP_TIMEOUT
+                host=self._host, port=self._port, timeout=config.MODBUS_TCP_TIMEOUT
             )
             _log.info(
                 "ModbusAdapter connecting: TCP %s:%d timeout=%.1fs",
                 self._host,
                 self._port,
-                _TCP_TIMEOUT,
+                config.MODBUS_TCP_TIMEOUT,
             )
         else:
             self._client = AsyncModbusSerialClient(
@@ -121,7 +115,7 @@ class ModbusAdapter:
                 bytesize=self._bytesize,
                 parity=self._parity,
                 stopbits=self._stopbits,
-                timeout=_RTU_TIMEOUT,
+                timeout=config.MODBUS_RTU_TIMEOUT,
             )
             _log.info(
                 "ModbusAdapter connecting: RTU port=%s baudrate=%d bytesize=%d parity=%s stopbits=%g timeout=%.1fs",
@@ -130,7 +124,7 @@ class ModbusAdapter:
                 self._bytesize,
                 self._parity,
                 self._stopbits,
-                _RTU_TIMEOUT,
+                config.MODBUS_RTU_TIMEOUT,
             )
 
         await self._client.connect()
@@ -140,7 +134,7 @@ class ModbusAdapter:
                 f"{'%s:%d' % (self._host, self._port) if self._mode == 'tcp' else self._comport}"
             )
         if self._mode != "tcp":
-            await asyncio.sleep(_RTU_CONNECT_DELAY)
+            await asyncio.sleep(config.MODBUS_RTU_CONNECT_DELAY)
         else:
             await asyncio.sleep(0.3)  # Artisan: "avoid possible hickups on startup"
         _log.info("ModbusAdapter connected OK (mode=%s)", self._mode)
