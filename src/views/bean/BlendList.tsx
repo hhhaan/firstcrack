@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, GitCompare } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { useBlends, useDeleteBlend, type BlendWithComponents } from '@entities/blend';
 import { AddBlendModal } from '@widgets/add-blend-modal';
 import { useAuthStore } from '@shared/store/auth';
@@ -77,7 +77,6 @@ export const BlendList = () => {
                     </div>
                 ) : blends.length === 0 ? null : (
                     blends.map((blend) => {
-                        const isSelected = selectedId === blend.id;
                         return (
                             <div
                                 key={blend.id}

@@ -393,7 +393,7 @@ export const AddBatchModal = ({
                                         setDate(d);
                                         setCalendarOpen(false);
                                     }}
-                                    locale={ko}
+                                    locale={getDateFnsLocale()}
                                 />
                             </PopoverContent>
                         </Popover>

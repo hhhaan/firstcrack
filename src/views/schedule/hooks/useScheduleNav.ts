@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { addDays, addWeeks, addMonths, startOfWeek, endOfWeek, format } from 'date-fns';
-import { getDateFnsLocale, i18n } from '@shared/i18n';
+import { getDateFnsLocale } from '@shared/i18n';
 import { isToday } from 'date-fns';
 import type { ViewMode } from '../lib';
 import { toFullDisplayDate } from '../lib';

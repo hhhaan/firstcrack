@@ -1,4 +1,4 @@
-import { Languages, Monitor, Moon, Sun } from 'lucide-react';
+import { Languages, Moon, Sun } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { setLanguage, supportedLanguages } from '@shared/i18n';
 import { useThemeStore, type Theme } from '@shared/store/theme';

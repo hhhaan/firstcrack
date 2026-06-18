@@ -13,7 +13,6 @@ import { confirm, message } from '@tauri-apps/plugin-dialog';
 import { downloadDir } from '@tauri-apps/api/path';
 import { useAuthStore } from '@shared/store/auth';
 import { useTranslation } from 'react-i18next';
-import { i18n } from '@shared/i18n';
 
 const levelColor: Record<string, string> = {
     Light: 'var(--color-palette-yellow)',

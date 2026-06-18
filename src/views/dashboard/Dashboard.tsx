@@ -483,7 +483,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                         {item.date === new Date().toISOString().slice(0, 10)
                                             ? t('dashboard.today')
                                             : item.date}{' '}
-                                        · {item.batch_type}
+                                        · {item.status}
                                     </div>
                                 </div>
                             </div>

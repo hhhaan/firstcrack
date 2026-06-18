@@ -49,8 +49,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     preChargeDisplaySec: 60,
 };
 
-const isPollIntervalMs = (value: unknown): value is PollIntervalMs =>
-    value === 500 || value === 1000;
+const isPollIntervalMs = (value: unknown): value is PollIntervalMs => value === 500 || value === 1000;
 
 const migratePollIntervalMs = (ms: unknown): PollIntervalMs => {
     if (ms === 250) return 500;
@@ -75,7 +74,9 @@ const _listeners = new Set<() => void>();
 
 const _subscribe = (listener: () => void) => {
     _listeners.add(listener);
-    return () => { _listeners.delete(listener); };
+    return () => {
+        _listeners.delete(listener);
+    };
 };
 
 const _getSnapshot = () => _settings;
@@ -118,7 +119,7 @@ const _hydrate = async () => {
 
         if (stored) {
             _settings = normalize(stored);
-            if (_settings.pollIntervalMs === 250) {
+            if ((_settings.pollIntervalMs as number) === 250) {
                 _settings = { ..._settings, pollIntervalMs: 500 };
                 void _flush();
             }

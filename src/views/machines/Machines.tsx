@@ -198,7 +198,6 @@ export const Machines = ({
                             <div className="flex flex-col gap-2">
                                 {filtered.map((machine) => {
                                     const isConnected = isThisMachineConnected(machine);
-                                    const isSelected = selectedId === machine.id;
                                     return (
                                         <div
                                             key={machine.id}

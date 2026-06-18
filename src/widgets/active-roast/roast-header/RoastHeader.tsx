@@ -63,8 +63,7 @@ const beanOptionDisplay: BeanOptionDisplay = (b) => joinDisplay([b.origin, b.reg
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export const RoastHeader = ({
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    phase,
+    phase: _phase,
     targetProfileId,
     selectedBeanId,
     onTargetProfileChange,
@@ -83,7 +82,6 @@ export const RoastHeader = ({
     const charged = useRoastingStore((s) => s.charged);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const sidecarError = useRoastingStore((s) => s.sidecarError);
-    const elapsed = useRoastingStore((s) => s.elapsed);
     const user = useAuthStore((s) => s.user);
     const { data: beans = [] } = useBeans(user?.id ?? '');
     const { data: dbProfiles = [] } = useRoastProfiles(user?.id ?? '');
@@ -97,12 +95,6 @@ export const RoastHeader = ({
         },
         [],
     );
-
-    // ─── Derived values ──────────────────────────────────────────────────────
-    const elapsedMin = Math.floor(elapsed / 60);
-    const elapsedSec = elapsed % 60;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const timeStr = charged ? `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}` : '—';
 
     const handleProfileChange = (id: string | null) => {
         // 같은 값이면 DB 쓰기 스킵 (no-op guard)
