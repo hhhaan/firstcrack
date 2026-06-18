@@ -21,6 +21,7 @@ export interface RoastingState {
     liveData: LiveData | null;
     pendingBeanId: string | null;
     sessionId: string | null;
+    reconnecting: boolean;
 
     // derived convenience
     isRoasting: boolean;
@@ -33,6 +34,7 @@ export interface RoastingState {
     tick: () => void;
     setConnected: (connected: boolean, capabilities?: string[]) => void;
     setError: (error: string | null) => void;
+    setReconnecting: (reconnecting: boolean) => void;
     updateLiveData: (data: LiveData) => void;
     setPendingBean: (beanId: string | null) => void;
     reset: () => void;
@@ -47,6 +49,7 @@ const initialState = {
     liveData: null as LiveData | null,
     pendingBeanId: null as string | null,
     sessionId: null as string | null,
+    reconnecting: false,
     isRoasting: false,
     charged: false,
 };
@@ -90,6 +93,8 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     },
 
     setError: (error) => set({ sidecarError: error }),
+
+    setReconnecting: (reconnecting) => set({ reconnecting }),
 
     setPendingBean: (beanId) => {
         set({ pendingBeanId: beanId });

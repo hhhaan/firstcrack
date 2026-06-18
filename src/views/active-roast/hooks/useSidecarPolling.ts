@@ -123,7 +123,7 @@ export const useSidecarPolling = ({
                 }
             })
             .catch(() => setConnected(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isActive]);
 
     // 예열·대기·로스팅 단계에서 주기적으로 온도를 폴링한다.
@@ -144,6 +144,7 @@ export const useSidecarPolling = ({
                     }
                 }
                 useRoastingStore.getState().updateLiveData(data);
+                useRoastingStore.getState().setReconnecting(data.reconnecting ?? false);
                 setConnected(true);
                 const bt = data.bt;
                 if (bt == null) return;
@@ -224,6 +225,7 @@ export const useSidecarPolling = ({
                 console.error('[sidecar] 폴링 오류:', e);
                 const status = await sidecar.getStatus().catch(() => null);
                 useRoastingStore.getState().setError(status?.error ?? null);
+                useRoastingStore.getState().setReconnecting(false);
                 setConnected(false);
             }
         };
@@ -231,7 +233,7 @@ export const useSidecarPolling = ({
         poll();
         const id = setInterval(poll, pollIntervalMs);
         return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [phase, pollIntervalMs]);
 
     return { livePoints, setLivePoints };
