@@ -9,7 +9,6 @@ export type { SettingsTabId };
 import { AccountSettingsTab } from './AccountSettingsTab';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
 import { RoastSettingsTab } from './RoastSettingsTab';
-import { WorkspaceSettingsTab } from './WorkspaceSettingsTab';
 
 interface SettingsModalProps {
     open: boolean;
@@ -116,8 +115,6 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                         {activeTab === 'roast' && <RoastSettingsTab />}
 
                         {activeTab === 'account' && <AccountSettingsTab onClose={onClose} />}
-
-                        {activeTab === 'workspace' && <WorkspaceSettingsTab />}
 
                         {activeTab === 'general' && <GeneralSettingsTab />}
 

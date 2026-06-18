@@ -381,6 +381,41 @@
         "error": {
             "createRecurring": "繰り返しバッチの追加に失敗しました:",
             "createBatch": "バッチの追加に失敗しました:"
+        },
+        "recurringEditScope": {
+            "title": "繰り返し予定の変更",
+            "recurringBatch": "繰り返しバッチ — {{recurrence}}",
+            "single": {
+                "title": "このバッチのみ",
+                "description": "選択した日付のバッチのみ変更されます。残りの予定は維持されます。"
+            },
+            "fromThis": {
+                "title": "このバッチ以降すべて",
+                "description": "選択した日付以降のすべての繰り返しバッチが変更されます。"
+            },
+            "all": {
+                "title": "すべての繰り返しバッチ",
+                "description": "すべての繰り返しバッチが変更されます。過去の記録は維持されます。"
+            },
+            "deleteSingle": "このバッチを削除",
+            "deleteFromThis": "以降のバッチを削除",
+            "deleteAll": "すべての繰り返しを削除"
+        },
+        "recurringDeleteScope": {
+            "title": "繰り返し予定の削除",
+            "recurringBatch": "繰り返しバッチ — {{recurrence}}",
+            "single": {
+                "title": "このバッチのみ削除",
+                "description": "選択した日付のバッチのみ削除されます。残りの予定は維持されます。"
+            },
+            "fromThis": {
+                "title": "このバッチ以降すべて削除",
+                "description": "選択した日付以降のすべての繰り返しバッチが削除されます。"
+            },
+            "all": {
+                "title": "すべての繰り返しバッチを削除",
+                "description": "すべての繰り返しバッチが削除されます。過去の記録は維持されます。"
+            }
         }
     },
     "addBatchModal": {

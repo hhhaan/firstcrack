@@ -383,6 +383,41 @@
         "error": {
             "createRecurring": "Failed to add recurring batch:",
             "createBatch": "Failed to add batch:"
+        },
+        "recurringEditScope": {
+            "title": "Change Recurring Schedule",
+            "recurringBatch": "Recurring batch — {{recurrence}}",
+            "single": {
+                "title": "This Batch Only",
+                "description": "Only the selected batch will be modified. The rest of the schedule stays unchanged."
+            },
+            "fromThis": {
+                "title": "This and Future Batches",
+                "description": "All recurring batches from this date onward will be changed."
+            },
+            "all": {
+                "title": "All Recurring Batches",
+                "description": "All recurring batches will be changed. Past records are preserved."
+            },
+            "deleteSingle": "Delete This Batch",
+            "deleteFromThis": "Delete Future Batches",
+            "deleteAll": "Delete All Recurring"
+        },
+        "recurringDeleteScope": {
+            "title": "Delete Recurring Schedule",
+            "recurringBatch": "Recurring batch — {{recurrence}}",
+            "single": {
+                "title": "This Batch Only",
+                "description": "Only the selected batch will be deleted. The rest of the schedule stays unchanged."
+            },
+            "fromThis": {
+                "title": "This and Future Batches",
+                "description": "All recurring batches from this date onward will be deleted."
+            },
+            "all": {
+                "title": "All Recurring Batches",
+                "description": "All recurring batches will be deleted. Past records are preserved."
+            }
         }
     },
     "addBatchModal": {

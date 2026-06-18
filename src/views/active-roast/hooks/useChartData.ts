@@ -68,9 +68,12 @@ export const useChartData = ({
         deduped.sort((a, b) => a.time - b.time);
 
         const xMin = -preChargeDisplaySec;
+        const profileDuration = targetCurvePoints.length > 0 ? targetCurvePoints[targetCurvePoints.length - 1].t : 0;
+        const liveMax = livePoints.length > 0 ? livePoints[livePoints.length - 1].time : 0;
+        const chartTotalSecs = Math.max(CHART_TOTAL_SECS, profileDuration, liveMax);
         const needsStart = deduped.length === 0 || deduped[0].time > xMin + 0.5;
-        const needsEnd = deduped.length === 0 || deduped[deduped.length - 1].time < CHART_TOTAL_SECS - 1;
-        return [...(needsStart ? [sentinel(xMin)] : []), ...deduped, ...(needsEnd ? [sentinel(CHART_TOTAL_SECS)] : [])];
+        const needsEnd = deduped.length === 0 || deduped[deduped.length - 1].time < chartTotalSecs - 1;
+        return [...(needsStart ? [sentinel(xMin)] : []), ...deduped, ...(needsEnd ? [sentinel(chartTotalSecs)] : [])];
     }, [livePoints, targetCurvePoints, targetSamples, preChargeDisplaySec]);
 
     return { chartData };

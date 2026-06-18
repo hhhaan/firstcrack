@@ -1,6 +1,6 @@
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { AddBatchModal } from '@widgets/add-batch-modal';
-import { RecurringEditScopeModal } from '@widgets/recurring-edit-scope-modal';
+import { RecurringEditScopeModal, RecurringDeleteScopeModal } from '@widgets/recurring-edit-scope-modal';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BatchCard } from './BatchCard';
@@ -68,20 +68,35 @@ export const ScheduleDayView = ({
             </div>
 
             {hooks.scopeBatch && (
-                <RecurringEditScopeModal
-                    open={hooks.isScopeModalOpen}
-                    onClose={() => {
-                        hooks.setIsScopeModalOpen(false);
-                        hooks.setScopeBatch(null);
-                        hooks.setEditScope(null);
-                    }}
-                    onConfirm={hooks.handleScopeConfirm}
-                    batchLabel={`${hooks.scopeBatch.bean_name} / ${hooks.scopeBatch.batch_size_kg}kg`}
-                    recurrenceLabel={t('schedule.recurrence.' + getRecurrenceLabel(hooks.scopeBatch.rrule))}
-                    isFirstInstance={
-                        batchStatus(hooks.scopeBatch) === 'pending' && hooks.batches.indexOf(hooks.scopeBatch) === 0
-                    }
-                />
+                <>
+                    <RecurringEditScopeModal
+                        open={hooks.isEditScopeModalOpen}
+                        onClose={() => {
+                            hooks.setIsEditScopeModalOpen(false);
+                            hooks.setScopeBatch(null);
+                            hooks.setEditScope(null);
+                        }}
+                        onConfirm={hooks.handleEditScopeConfirm}
+                        batchLabel={`${hooks.scopeBatch.bean_name} / ${hooks.scopeBatch.batch_size_kg}kg`}
+                        recurrenceLabel={t('schedule.recurrence.' + getRecurrenceLabel(hooks.scopeBatch.rrule))}
+                        isFirstInstance={
+                            batchStatus(hooks.scopeBatch) === 'pending' && hooks.batches.indexOf(hooks.scopeBatch) === 0
+                        }
+                    />
+                    <RecurringDeleteScopeModal
+                        open={hooks.isDeleteScopeModalOpen}
+                        onClose={() => {
+                            hooks.setIsDeleteScopeModalOpen(false);
+                            hooks.setScopeBatch(null);
+                        }}
+                        onConfirm={hooks.handleDeleteScopeConfirm}
+                        batchLabel={`${hooks.scopeBatch.bean_name} / ${hooks.scopeBatch.batch_size_kg}kg`}
+                        recurrenceLabel={t('schedule.recurrence.' + getRecurrenceLabel(hooks.scopeBatch.rrule))}
+                        isFirstInstance={
+                            batchStatus(hooks.scopeBatch) === 'pending' && hooks.batches.indexOf(hooks.scopeBatch) === 0
+                        }
+                    />
+                </>
             )}
 
             <AddBatchModal
