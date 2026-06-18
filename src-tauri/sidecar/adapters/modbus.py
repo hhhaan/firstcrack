@@ -5,6 +5,7 @@ import logging
 from typing import Any
 from pymodbus.framer import FramerType
 from adapters.base import Reading
+from protocol_trace import TRACE
 
 import config
 
@@ -170,6 +171,10 @@ class ModbusAdapter:
                     count,
                     unit_id,
                 )
+                TRACE.record(
+                    "tx", "modbus",
+                    f"func={func} register={register}(0x{register:04X}) count={count} unit={unit_id}",
+                )
                 if func == 1:
                     result = await self._client.read_coils(
                         register, count=count, device_id=unit_id
@@ -194,9 +199,11 @@ class ModbusAdapter:
 
                 # func=1/2: bit 반환
                 if func in (1, 2):
+                    TRACE.record("rx", "modbus", f"register={register} bits", list(result.bits[:count]))
                     _log.debug("READ OK: bits=%s", result.bits)
                     return float(result.bits[0]) if result.bits else 0.0
 
+                TRACE.record("rx", "modbus", f"register={register} raw", list(result.registers))
                 _log.debug("READ OK: registers=%s", result.registers)
 
                 if is_float:
@@ -236,9 +243,18 @@ class ModbusAdapter:
                 if temp_mode == "F":
                     value = (value - 32.0) * 5.0 / 9.0
 
-                return round(value, 1)
+                value = round(value, 1)
+                TRACE.record(
+                    "info", "modbus",
+                    f"decoded register={register} float={is_float} bcd32={is_bcd32} "
+                    f"bcd16={is_bcd16} signed={is_signed} div={div} mode={temp_mode} "
+                    f"word_order={self._word_order}",
+                    value,
+                )
+                return value
             except Exception as exc:
                 last_exc = exc
+                TRACE.record("err", "modbus", f"register={register} attempt={attempt + 1}: {exc}")
                 _log.warning(
                     "MODBUS 읽기 실패 (attempt %d/%d): register=%d unit=%d — %s",
                     attempt + 1,
