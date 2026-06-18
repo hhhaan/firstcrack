@@ -166,15 +166,18 @@ async def handle_debug_trace_post(request: web.Request) -> web.Response:
 
 
 async def handle_debug_probe(request: web.Request) -> web.Response:
-    """단발 원시 읽기 + 그 동안의 트레이스. Artisan A/B 비교용."""
+    """단발 원시 읽기 + 그 동안의 트레이스. Artisan A/B 비교용.
+
+    probe 중 트레이스를 일시 활성화한다. probe 완료 후 트레이스 상태는 probe 시점의
+    활성화 여부로 복원된다 (best-effort — 동시 /debug/trace POST 요청이 있으면 그 값이 우선).
+    finally 블록을 쓰지 않는 이유: probe 예외를 숨기지 않기 위해 직접 복원한다.
+    """
     manager: RoasterManager = request.app["manager"]
     prev_enabled = TRACE.enabled
     TRACE.enabled = True
     t0 = round(time.monotonic(), 4)
-    try:
-        result = await manager.probe()
-    finally:
-        TRACE.enabled = prev_enabled
+    result = await manager.probe()
+    TRACE.enabled = prev_enabled  # best-effort restore; concurrent /debug/trace POST takes precedence
     result["trace"] = [e for e in TRACE.dump() if e["ts"] >= t0]
     return web.json_response(result)
 

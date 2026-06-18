@@ -210,6 +210,7 @@ class RoasterManager:
                             pass
                         await self._adapter.connect()
                         self._connected = True
+                        self._consecutive_errors = 0
                         self._error = None
                         _log.info("자동 재연결 성공: %s", self._roaster_key)
                         return
@@ -366,11 +367,12 @@ class RoasterManager:
 
         실기기에서 Artisan과 값을 직접 비교(A/B)하기 위한 디버깅 전용 경로.
         """
-        if self._adapter is None:
+        adapter = self._adapter
+        if adapter is None:
             return {"ok": False, "error": "연결된 어댑터 없음"}
         t0 = time.monotonic()
         try:
-            r = await self._adapter.read()
+            r = await adapter.read()
             return {
                 "ok": True,
                 "elapsed_ms": round((time.monotonic() - t0) * 1000, 1),
