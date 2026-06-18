@@ -311,6 +311,10 @@ class RoasterManager:
         self._last_good = payload
         return payload
 
+    async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
+        if self._adapter is not None and hasattr(self._adapter, "control"):
+            await self._adapter.control(heater=heater, fan=fan, drum=drum)
+
     async def enter_standby(self) -> None:
         """UI의 READY 버튼과 연동. 어댑터가 지원하면 standby 진입을 알린다."""
         if self._adapter is not None and hasattr(self._adapter, "enter_standby"):

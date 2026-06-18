@@ -121,6 +121,20 @@ async def handle_reset(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+async def handle_control(request: web.Request) -> web.Response:
+    try:
+        body = await request.json()
+    except Exception:
+        return web.Response(status=400, text="invalid json")
+    manager: RoasterManager = request.app["manager"]
+    await manager.control(
+        heater=body.get("heater"),
+        fan=body.get("fan"),
+        drum=body.get("drum"),
+    )
+    return web.json_response({"ok": True})
+
+
 def _is_na(s: str) -> bool:
     return not s or s.lower() == "n/a"
 
@@ -216,6 +230,7 @@ def create_app() -> web.Application:
     app.router.add_post("/standby", handle_standby)
     app.router.add_post("/start", handle_start)
     app.router.add_post("/reset", handle_reset)
+    app.router.add_post("/control", handle_control)
     app.router.add_get("/debug/trace", handle_debug_trace_get)
     app.router.add_post("/debug/trace", handle_debug_trace_post)
     app.router.add_get("/debug/probe", handle_debug_probe)
