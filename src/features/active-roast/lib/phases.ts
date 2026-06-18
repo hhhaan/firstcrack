@@ -1,5 +1,5 @@
-import { parseTimeSec } from './time';
 import type { LogEntry } from '@shared/types/roast';
+import { parseTimeSec } from './time';
 
 export interface PhaseSegment {
     name: string;
@@ -20,11 +20,7 @@ const PHASE_FILL_COLORS: Record<string, string> = {
  * logEntries + elapsed로 현재까지의 위상 구간 배열을 반환한다.
  * charged(Charge 이후)가 아니면 빈 배열.
  */
-export const computePhaseSegments = (
-    logEntries: LogEntry[],
-    elapsed: number,
-    charged: boolean,
-): PhaseSegment[] => {
+export const computePhaseSegments = (logEntries: LogEntry[], elapsed: number, charged: boolean): PhaseSegment[] => {
     if (!charged || elapsed === 0) return [];
 
     const get = (event: string) => {

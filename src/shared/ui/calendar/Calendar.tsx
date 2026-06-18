@@ -1,6 +1,6 @@
+import { cn } from '@shared/lib/cn';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DayPicker, type DayPickerProps } from 'react-day-picker';
-import { cn } from '@shared/lib/cn';
 
 export type CalendarProps = DayPickerProps;
 

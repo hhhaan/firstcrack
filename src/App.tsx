@@ -1,27 +1,26 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Sentry from '@sentry/react';
-import { useRoastSessionStore } from './shared/store/roastSession';
-import { type PlanBatchHandoff } from './shared/types/database.types';
-import { onOpenUrl, getCurrent } from '@tauri-apps/plugin-deep-link';
-
 import { supabase } from '@shared/lib/supabase';
+import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRoastSessionStore } from './shared/store/roastSession';
+import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
-import { useUpdateChecker } from './features/updater';
-import { Sidebar } from './widgets/sidebar/ui/Sidebar';
-import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
-import { Login } from './views/login';
 import { Spinner } from '@shared/ui/Spinner';
-import { Dashboard } from './views/dashboard';
-import { ActiveRoast } from './views/active-roast';
-import { History } from './views/history';
-import { Beans } from './views/bean';
-import { Profiles } from './views/profiles';
-import { Machines } from './views/machines';
-import { Schedule } from './views/schedule';
-import { type View } from './shared/types/view';
+import { useUpdateChecker } from './features/updater';
 import { useAuthStore } from './shared/store/auth';
-import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
 import { useThemeStore } from './shared/store/theme';
+import type { View } from './shared/types/view';
+import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
+import { ActiveRoast } from './views/active-roast';
+import { Beans } from './views/bean';
+import { Dashboard } from './views/dashboard';
+import { History } from './views/history';
+import { Login } from './views/login';
+import { Machines } from './views/machines';
+import { Profiles } from './views/profiles';
+import { Schedule } from './views/schedule';
+import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
+import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
 
 export const App = () => {

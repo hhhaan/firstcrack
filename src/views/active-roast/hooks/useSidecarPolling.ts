@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import type { MutableRefObject } from 'react';
-import { sidecar } from '@shared/lib/sidecar';
 import { useRoastingStore } from '@features/active-roast/model/status';
-import { writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
+import { sidecar } from '@shared/lib/sidecar';
+import { BaseDirectory, writeTextFile } from '@tauri-apps/plugin-fs';
+import type { MutableRefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /** 폴링 중 누적하는 실시간 측정 포인트 */
 export interface LiveRoastPoint {

@@ -1,17 +1,17 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Search, Filter, ChevronDown, ChevronUp, Download, FileText, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
 import { useProfile } from '@entities/profile';
-import { PageLayout } from '@shared/ui/PageLayout';
-import { PageHeader } from '@shared/ui/PageHeader';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
-import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
-import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
-import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
 import { sessionsToCsv } from '@features/export-csv';
-import { confirm, message } from '@tauri-apps/plugin-dialog';
-import { downloadDir } from '@tauri-apps/api/path';
 import { useAuthStore } from '@shared/store/auth';
+import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { PageHeader } from '@shared/ui/PageHeader';
+import { PageLayout } from '@shared/ui/PageLayout';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
+import { downloadDir } from '@tauri-apps/api/path';
+import { confirm, message } from '@tauri-apps/plugin-dialog';
+import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Download, FileText, Filter, Search, X } from 'lucide-react';
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const levelColor: Record<string, string> = {
@@ -483,7 +483,7 @@ const DateRangeFilter = ({
     const fmtLabel = (ym: string) => {
         if (!ym) return '—';
         const [y, m] = ym.split('-');
-        const monthName = months[parseInt(m) - 1] || '';
+        const monthName = months[parseInt(m, 10) - 1] || '';
         return `${monthName} ${y}`;
     };
 

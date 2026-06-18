@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { LogOut } from 'lucide-react';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
-import { useProfile, useUpdateProfile } from '../../../entities/profile';
-import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { useQueryClient } from '@tanstack/react-query';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import { LogOut } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useProfile, useUpdateProfile } from '../../../entities/profile';
 
 const SectionCard = ({ children }: { children: React.ReactNode }) => (
     <section className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">

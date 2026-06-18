@@ -1,16 +1,16 @@
-import { Plus, Search, Cpu, Activity, AlertCircle, Wifi, WifiOff, Trash2, Flame } from 'lucide-react';
+import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
+import { useMachines, VIRTUAL_ID } from '@entities/machine';
+import * as Sentry from '@sentry/react';
+import { sidecar } from '@shared/lib/sidecar';
+import type { View } from '@shared/types/view';
+import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
+import { PageHeader } from '@shared/ui/PageHeader';
+import { PageLayout } from '@shared/ui/PageLayout';
+import { PillButton } from '@shared/ui/PillButton';
+import { Activity, AlertCircle, Cpu, Flame, Plus, Search, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import * as Sentry from '@sentry/react';
 import { AddMachineModal } from '../../widgets/add-machine-modal/ui/AddMachineModal';
-import { useMachines, VIRTUAL_ID } from '@entities/machine';
-import { sidecar } from '@shared/lib/sidecar';
-import { PageLayout } from '@shared/ui/PageLayout';
-import { PageHeader } from '@shared/ui/PageHeader';
-import { PillButton } from '@shared/ui/PillButton';
-import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
-import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
-import type { View } from '@shared/types/view';
 
 const POLL_INTERVAL_MS = 3000;
 

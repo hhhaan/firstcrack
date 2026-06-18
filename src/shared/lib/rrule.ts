@@ -1,4 +1,4 @@
-import { RRule, Frequency } from 'rrule';
+import { Frequency, RRule } from 'rrule';
 
 /**
  * Recurrence interval types mapped to RFC 5545 FREQ values.
@@ -22,10 +22,7 @@ const intervalToFreq: Record<RecurrenceInterval, Frequency> = {
  * @param options - Optional: until date or count limit
  * @returns RFC 5545 RRULE string
  */
-export function buildRRule(
-    interval: RecurrenceInterval,
-    options?: { until?: Date; count?: number },
-): string {
+export function buildRRule(interval: RecurrenceInterval, options?: { until?: Date; count?: number }): string {
     const rruleOptions: Partial<RRuleOptions> = {
         freq: intervalToFreq[interval],
     };
@@ -60,16 +57,18 @@ export function expandRRule(rruleStr: string, dtstart: Date): Date[] {
     dtstartLocal.setHours(0, 0, 0, 0);
 
     const rule = RRule.fromString(rruleStr);
-    const allDates = rule.between(
-        dtstartLocal,
-        new Date(dtstartLocal.getTime() + 365 * 24 * 60 * 60 * 1000),
-        true, // inclusive
-    ).map((d) => {
-        // Normalize to local midnight
-        const local = new Date(d);
-        local.setHours(0, 0, 0, 0);
-        return local;
-    });
+    const allDates = rule
+        .between(
+            dtstartLocal,
+            new Date(dtstartLocal.getTime() + 365 * 24 * 60 * 60 * 1000),
+            true, // inclusive
+        )
+        .map((d) => {
+            // Normalize to local midnight
+            const local = new Date(d);
+            local.setHours(0, 0, 0, 0);
+            return local;
+        });
 
     // Deduplicate by date string
     const seen = new Set<string>();
@@ -91,12 +90,7 @@ export function expandRRule(rruleStr: string, dtstart: Date): Date[] {
  * @param rangeEnd - Range upper bound (inclusive)
  * @returns Array of Date objects within the range
  */
-export function expandRRuleInRange(
-    rruleStr: string,
-    dtstart: Date,
-    rangeStart: Date,
-    rangeEnd: Date,
-): Date[] {
+export function expandRRuleInRange(rruleStr: string, dtstart: Date, rangeStart: Date, rangeEnd: Date): Date[] {
     const dtstartLocal = new Date(dtstart);
     dtstartLocal.setHours(0, 0, 0, 0);
 
@@ -119,8 +113,8 @@ export function expandRRuleInRange(
  * Exception row from roast_plan_batches for a recurring rule.
  */
 export interface RecurrenceException {
-    original_date: string;   // The original recurrence date (ISO date string)
-    scheduled_date: string;  // Actual date (may differ from original if moved)
+    original_date: string; // The original recurrence date (ISO date string)
+    scheduled_date: string; // Actual date (may differ from original if moved)
     exception_type: 'modified' | 'cancelled';
     // Overrides: if 'modified', these fields replace the master's values
     batch_size_kg?: number;
@@ -138,8 +132,8 @@ export interface RecurrenceException {
  * Merged recurrence instance — combines master rule data with any exception overrides.
  */
 export interface RecurrenceInstance {
-    date: string;              // ISO date string (yyyy-MM-dd)
-    originalDate: string;      // The original recurrence date
+    date: string; // ISO date string (yyyy-MM-dd)
+    originalDate: string; // The original recurrence date
     exceptionType: 'normal' | 'modified' | 'cancelled';
     exception?: RecurrenceException; // Only present if modified or cancelled
 }
@@ -220,11 +214,7 @@ function formatDateLocal(d: Date): string {
  * Preview recurrence: return a human-readable list of dates
  * based on the given interval and dtstart.
  */
-export function previewRecurrenceDates(
-    interval: RecurrenceInterval | null,
-    dtstart: Date,
-    limit: number = 5,
-): Date[] {
+export function previewRecurrenceDates(interval: RecurrenceInterval | null, dtstart: Date, limit: number = 5): Date[] {
     if (!interval) return [];
     const rruleStr = buildRRule(interval, { count: limit });
     return expandRRule(rruleStr, dtstart).slice(0, limit);

@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getTabs, type SettingsTabId } from './tabConfig';
+
 export type { SettingsTabId };
-import { RoastSettingsTab } from './RoastSettingsTab';
+
 import { AccountSettingsTab } from './AccountSettingsTab';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
+import { RoastSettingsTab } from './RoastSettingsTab';
 import { WorkspaceSettingsTab } from './WorkspaceSettingsTab';
 
 interface SettingsModalProps {

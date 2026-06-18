@@ -1,12 +1,11 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
-import type { RefObject } from 'react';
 import { CHART_GRID_LEFT, CHART_GRID_RIGHT } from '@features/active-roast/lib/chart-config';
+import type { RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 /** 줌 시 보장하는 최소 표시 구간 (초) */
 export const MIN_VISIBLE_SECS = 60;
 
-const getChartDataWidth = (rect: DOMRect, rightPad: number) =>
-    Math.max(1, rect.width - CHART_GRID_LEFT - rightPad);
+const getChartDataWidth = (rect: DOMRect, rightPad: number) => Math.max(1, rect.width - CHART_GRID_LEFT - rightPad);
 
 export interface ChartZoom {
     zoomRange: { start: number; end: number } | null;
@@ -57,9 +56,7 @@ export const useChartZoom = (
 
     const effectiveZoomRange = useMemo(
         () =>
-            zoomRange
-                ? { start: Math.max(minTime, zoomRange.start), end: Math.min(MAX_TIME, zoomRange.end) }
-                : null,
+            zoomRange ? { start: Math.max(minTime, zoomRange.start), end: Math.min(MAX_TIME, zoomRange.end) } : null,
         [zoomRange, minTime, MAX_TIME],
     );
 

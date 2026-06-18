@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 interface PageHeaderProps {
     title: ReactNode;
@@ -15,11 +15,7 @@ export const PageHeader = ({ title, subtitle, actions, className = '' }: PageHea
             <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
                 {title}
             </h1>
-            {subtitle && (
-                <p className="text-sm text-muted tracking-[0.14px]">
-                    {subtitle}
-                </p>
-            )}
+            {subtitle && <p className="text-sm text-muted tracking-[0.14px]">{subtitle}</p>}
         </div>
         {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>

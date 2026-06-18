@@ -1,11 +1,11 @@
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
 import { locale } from '@tauri-apps/plugin-os';
 import { LazyStore } from '@tauri-apps/plugin-store';
-import { ko as dateFnsKo, enUS, ja as dateFnsJa, zhCN } from 'date-fns/locale';
-import ko from './locales/ko.json';
+import { ja as dateFnsJa, ko as dateFnsKo, enUS, zhCN } from 'date-fns/locale';
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
 import en from './locales/en.json';
 import ja from './locales/ja.json';
+import ko from './locales/ko.json';
 import zhCNJson from './locales/zh-CN.json';
 
 export const supportedLanguages = ['ko', 'en', 'ja', 'zh-CN'] as const;

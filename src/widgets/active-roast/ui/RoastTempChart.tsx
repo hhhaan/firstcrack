@@ -1,47 +1,48 @@
-import React, { useEffect, useRef, useMemo } from 'react';
-import * as echarts from 'echarts';
-import type { EChartsOption } from 'echarts';
+import type { PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import {
+    AXIS_LABEL_FONT,
     CHART_COLORS,
-    getResolvedChartColors,
-    CONTROL_COLORS,
-    ROR_Y_MIN,
-    ROR_Y_MAX,
     CHART_GRID_LEFT,
-    CHART_GRID_TOP,
     CHART_GRID_RIGHT,
     CHART_GRID_RIGHT_WITH_ROR,
-    Y_AXIS_NAME_GAP,
-    PHASE_BAR_HEIGHT,
+    CHART_GRID_TOP,
+    CONTROL_COLORS,
+    CONTROL_GRID_BOTTOM,
+    CONTROL_GRID_BOTTOM_GAP,
+    CONTROL_GRID_TOP,
+    CONTROL_GRID_TOP_WITH_PHASE,
+    getResolvedChartColors,
     PHASE_BAR_BOTTOM,
-    PHASE_BAR_WIDE_THRESHOLD,
-    PHASE_BAR_NARROW_THRESHOLD,
-    PHASE_BAR_TEXT_INSET,
-    PHASE_BAR_STROKE,
-    PHASE_BAR_STROKE_WIDTH,
-    PHASE_BAR_NAME_COLOR,
     PHASE_BAR_DURATION_COLOR,
+    PHASE_BAR_FONT_FAMILY,
     PHASE_BAR_FONT_SIZE,
     PHASE_BAR_FONT_SIZE_NARROW,
-    PHASE_BAR_FONT_FAMILY,
     PHASE_BAR_FONT_WEIGHT,
-    AXIS_LABEL_FONT,
-    TEMP_Y_MIN_C,
-    TEMP_Y_MAX_C,
-    TEMP_Y_MIN_F,
-    TEMP_Y_MAX_F,
-    TEMP_Y_INTERVAL,
-    TEMP_GRID_HEIGHT_WITH_PHASE,
-    CONTROL_GRID_TOP_WITH_PHASE,
+    PHASE_BAR_HEIGHT,
+    PHASE_BAR_NAME_COLOR,
+    PHASE_BAR_NARROW_THRESHOLD,
+    PHASE_BAR_STROKE,
+    PHASE_BAR_STROKE_WIDTH,
+    PHASE_BAR_TEXT_INSET,
+    PHASE_BAR_WIDE_THRESHOLD,
     PHASE_GRID_TOP,
-    TEMP_GRID_HEIGHT,
-    CONTROL_GRID_TOP,
-    CONTROL_GRID_BOTTOM_GAP,
-    CONTROL_GRID_BOTTOM,
+    ROR_Y_MAX,
+    ROR_Y_MIN,
     SINGLE_GRID_BOTTOM,
+    TEMP_GRID_HEIGHT,
+    TEMP_GRID_HEIGHT_WITH_PHASE,
+    TEMP_Y_INTERVAL,
+    TEMP_Y_MAX_C,
+    TEMP_Y_MAX_F,
+    TEMP_Y_MIN_C,
+    TEMP_Y_MIN_F,
+    Y_AXIS_NAME_GAP,
 } from '@features/active-roast/lib/chart-config';
-import type { TurningPoint, TemperatureUnit, PhaseSegment } from '@features/active-roast';
 import { useThemeStore } from '@shared/store/theme';
+import type { EChartsOption } from 'echarts';
+import * as echarts from 'echarts';
+import type React from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 export interface RoastEventMarker {
     timeSec: number;
     event: string;

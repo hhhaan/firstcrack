@@ -1,18 +1,18 @@
-import {
-    format,
-    startOfMonth,
-    endOfMonth,
-    startOfWeek,
-    endOfWeek,
-    eachDayOfInterval,
-    isSameMonth,
-    isSameDay,
-    isToday,
-} from 'date-fns';
 import { useMonthSummary } from '@entities/plan';
-import { toDateKey } from './lib';
-import { DayBatchPreview } from './DayBatchPreview';
+import {
+    eachDayOfInterval,
+    endOfMonth,
+    endOfWeek,
+    format,
+    isSameDay,
+    isSameMonth,
+    isToday,
+    startOfMonth,
+    startOfWeek,
+} from 'date-fns';
 import { useTranslation } from 'react-i18next';
+import { DayBatchPreview } from './DayBatchPreview';
+import { toDateKey } from './lib';
 
 export const MonthView = ({
     selectedDate,

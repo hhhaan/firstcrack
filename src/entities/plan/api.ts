@@ -34,8 +34,7 @@ const mergeRecurrenceRuleMaster = (
     patch: RecurrenceRuleMasterPatch,
 ): Omit<RecurrenceRuleInsert, 'user_id' | 'status' | 'until'> => ({
     machine_id: patch.machine_id !== undefined ? patch.machine_id : existing.machine_id,
-    roast_profile_id:
-        patch.roast_profile_id !== undefined ? patch.roast_profile_id : existing.roast_profile_id,
+    roast_profile_id: patch.roast_profile_id !== undefined ? patch.roast_profile_id : existing.roast_profile_id,
     bean_id: patch.bean_id !== undefined ? patch.bean_id : existing.bean_id,
     blend_id: patch.blend_id !== undefined ? patch.blend_id : existing.blend_id,
     bean_name: patch.bean_name ?? existing.bean_name,
@@ -52,34 +51,21 @@ const mergeRecurrenceRuleMaster = (
 export const recurrenceRuleApi = {
     /** Create a recurrence rule (Master) */
     create: async (rule: RecurrenceRuleInsert): Promise<RecurrenceRule> => {
-        const { data, error } = await supabase
-            .from('recurrence_rules')
-            .insert(rule)
-            .select()
-            .single();
+        const { data, error } = await supabase.from('recurrence_rules').insert(rule).select().single();
         if (error) throw error;
         return data;
     },
 
     /** Get a single recurrence rule by ID */
     get: async (id: string): Promise<RecurrenceRule | null> => {
-        const { data, error } = await supabase
-            .from('recurrence_rules')
-            .select('*')
-            .eq('id', id)
-            .maybeSingle();
+        const { data, error } = await supabase.from('recurrence_rules').select('*').eq('id', id).maybeSingle();
         if (error) throw error;
         return data;
     },
 
     /** Update a recurrence rule (e.g., change rrule or until) */
     update: async (id: string, patch: Partial<RecurrenceRuleInsert>): Promise<RecurrenceRule> => {
-        const { data, error } = await supabase
-            .from('recurrence_rules')
-            .update(patch)
-            .eq('id', id)
-            .select()
-            .single();
+        const { data, error } = await supabase.from('recurrence_rules').update(patch).eq('id', id).select().single();
         if (error) throw error;
         return data;
     },
@@ -120,12 +106,7 @@ export const dayPlanApi = {
     },
 
     updateNotes: async (id: string, notes: string): Promise<DayPlan> => {
-        const { data, error } = await supabase
-            .from('roast_day_plans')
-            .update({ notes })
-            .eq('id', id)
-            .select()
-            .single();
+        const { data, error } = await supabase.from('roast_day_plans').update({ notes }).eq('id', id).select().single();
         if (error) throw error;
         return data;
     },
@@ -191,7 +172,6 @@ export const dayPlanRangeApi = {
 
         return [...summaryMap.values()].sort((a, b) => a.date.localeCompare(b.date));
     },
-
 };
 
 // ── Plan Batches ──────────────────────────────────────────────────────────────
@@ -199,15 +179,8 @@ export const dayPlanRangeApi = {
 export const planBatchApi = {
     list: async (planId: string): Promise<PlanBatchWithProgress[]> => {
         const [batchesResult, sessionsResult] = await Promise.all([
-            supabase
-                .from('roast_plan_batches')
-                .select('*')
-                .eq('plan_id', planId)
-                .order('order_index'),
-            supabase
-                .from('roast_sessions')
-                .select('plan_batch_id')
-                .not('plan_batch_id', 'is', null),
+            supabase.from('roast_plan_batches').select('*').eq('plan_id', planId).order('order_index'),
+            supabase.from('roast_sessions').select('plan_batch_id').not('plan_batch_id', 'is', null),
         ]);
 
         if (batchesResult.error) throw batchesResult.error;
@@ -227,11 +200,7 @@ export const planBatchApi = {
     },
 
     create: async (batch: PlanBatchInsert): Promise<PlanBatch> => {
-        const { data, error } = await supabase
-            .from('roast_plan_batches')
-            .insert(batch)
-            .select()
-            .single();
+        const { data, error } = await supabase.from('roast_plan_batches').insert(batch).select().single();
         if (error) throw error;
         return data;
     },
@@ -278,21 +247,13 @@ export const planBatchApi = {
         }
 
         // One-off batch → update directly
-        const { data, error } = await supabase
-            .from('roast_plan_batches')
-            .update(patch)
-            .eq('id', id)
-            .select()
-            .single();
+        const { data, error } = await supabase.from('roast_plan_batches').update(patch).eq('id', id).select().single();
         if (error) throw error;
         return data;
     },
 
     move: async (id: string, newPlanId: string): Promise<void> => {
-        const { error } = await supabase
-            .from('roast_plan_batches')
-            .update({ plan_id: newPlanId })
-            .eq('id', id);
+        const { error } = await supabase.from('roast_plan_batches').update({ plan_id: newPlanId }).eq('id', id);
         if (error) throw error;
     },
 
@@ -307,27 +268,22 @@ export const planBatchApi = {
     ): Promise<void> => {
         if (meta?.recurrenceRuleId && meta?.originalDate) {
             // Recurring batch → insert cancelled exception
-            const { error } = await supabase
-                .from('roast_plan_batches')
-                .insert({
-                    plan_id: meta.planId ?? '',
-                    recurrence_rule_id: meta.recurrenceRuleId,
-                    scheduled_date: meta.originalDate,
-                    original_date: meta.originalDate,
-                    exception_type: 'cancelled',
-                    bean_name: '__cancelled__',
-                    batch_size_kg: 0,
-                    target_roasted_kg: 0,
-                });
+            const { error } = await supabase.from('roast_plan_batches').insert({
+                plan_id: meta.planId ?? '',
+                recurrence_rule_id: meta.recurrenceRuleId,
+                scheduled_date: meta.originalDate,
+                original_date: meta.originalDate,
+                exception_type: 'cancelled',
+                bean_name: '__cancelled__',
+                batch_size_kg: 0,
+                target_roasted_kg: 0,
+            });
             if (error) throw error;
             return;
         }
 
         // One-off batch → delete directly
-        const { error } = await supabase
-            .from('roast_plan_batches')
-            .delete()
-            .eq('id', id);
+        const { error } = await supabase.from('roast_plan_batches').delete().eq('id', id);
         if (error) throw error;
     },
 
@@ -341,10 +297,7 @@ export const planBatchApi = {
         untilDate.setDate(untilDate.getDate() - 1);
         const untilStr = format(untilDate, 'yyyy-MM-dd');
 
-        const { error } = await supabase
-            .from('recurrence_rules')
-            .update({ until: untilStr })
-            .eq('id', ruleId);
+        const { error } = await supabase.from('recurrence_rules').update({ until: untilStr }).eq('id', ruleId);
         if (error) throw error;
     },
 
@@ -352,10 +305,7 @@ export const planBatchApi = {
      * Delete all instances of a recurring batch (cancels the entire rule).
      */
     deleteAll: async (ruleId: string): Promise<void> => {
-        const { error } = await supabase
-            .from('recurrence_rules')
-            .update({ status: 'cancelled' })
-            .eq('id', ruleId);
+        const { error } = await supabase.from('recurrence_rules').update({ status: 'cancelled' }).eq('id', ruleId);
         if (error) throw error;
     },
 
@@ -394,11 +344,7 @@ export const planBatchApi = {
             status: 'active',
         };
 
-        const { data, error } = await supabase
-            .from('recurrence_rules')
-            .insert(newRule)
-            .select()
-            .single();
+        const { data, error } = await supabase.from('recurrence_rules').insert(newRule).select().single();
         if (error) throw error;
         return data;
     },
@@ -462,11 +408,7 @@ export const planBatchApi = {
      *
      * @returns Array of PlanBatch-like objects (includes recurrence metadata)
      */
-    listForDateRange: async (
-        userId: string,
-        startDate: string,
-        endDate: string,
-    ): Promise<PlanBatchWithProgress[]> => {
+    listForDateRange: async (userId: string, startDate: string, endDate: string): Promise<PlanBatchWithProgress[]> => {
         // 1. Get active recurrence rules
         const rules = await recurrenceRuleApi.listActive(userId);
 
@@ -579,8 +521,7 @@ export const planBatchApi = {
 
                     const batchSize = Number(rule.batch_size_kg) || 0;
                     const targetKg = Number(rule.target_roasted_kg) || 0;
-                    const batchCount =
-                        batchSize > 0 && targetKg > 0 ? Math.ceil(targetKg / batchSize) : 1;
+                    const batchCount = batchSize > 0 && targetKg > 0 ? Math.ceil(targetKg / batchSize) : 1;
 
                     result.push({
                         id: `${rule.id}:${instance.originalDate}`,

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
 import { Check } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const inputCls =
     'w-full px-3.5 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20 dark:focus:border-[#585d61]';

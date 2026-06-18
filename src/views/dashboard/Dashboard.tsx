@@ -1,25 +1,25 @@
-import {
-    TrendingUp,
-    Coffee,
-    Clock,
-    CheckCircle,
-    ArrowRight,
-    Calendar,
-    ChevronRight,
-    Thermometer,
-    Droplets,
-} from 'lucide-react';
-import { useEffect, useRef } from 'react';
-import { type View } from '@shared/types/view';
-import { useDashboard } from './useDashboard';
-import { useWeather } from './useWeather';
 import { useRoastingStore } from '@features/active-roast';
+import { i18n } from '@shared/i18n';
 import { useAuthStore } from '@shared/store/auth';
+import type { View } from '@shared/types/view';
+import { KpiCard } from '@shared/ui/KpiCard';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
-import { KpiCard } from '@shared/ui/KpiCard';
+import {
+    ArrowRight,
+    Calendar,
+    CheckCircle,
+    ChevronRight,
+    Clock,
+    Coffee,
+    Droplets,
+    Thermometer,
+    TrendingUp,
+} from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { i18n } from '@shared/i18n';
+import { useDashboard } from './useDashboard';
+import { useWeather } from './useWeather';
 
 interface DashboardProps {
     onNavigate: (view: View) => void;

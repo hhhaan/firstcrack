@@ -1,5 +1,5 @@
-import { useSyncExternalStore } from 'react';
 import { LazyStore } from '@tauri-apps/plugin-store';
+import { useSyncExternalStore } from 'react';
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
 const STORE_KEY = 'roast.settings';

@@ -1,11 +1,11 @@
-import { Settings2, ChevronDown } from 'lucide-react';
-import { useRef, useEffect } from 'react';
-import { useRoastingStore } from '@features/active-roast/model/status';
-import { STATUS_COLORS, PHASE_COLORS } from '@features/active-roast/lib/colors';
 import { useBeans } from '@entities/bean/queries';
-import { useAuthStore } from '@shared/store/auth';
-import { useRoastProfiles } from '@entities/roast-profile';
 import { useUpdateProfile } from '@entities/profile';
+import { useRoastProfiles } from '@entities/roast-profile';
+import { PHASE_COLORS, STATUS_COLORS } from '@features/active-roast/lib/colors';
+import { useRoastingStore } from '@features/active-roast/model/status';
+import { useAuthStore } from '@shared/store/auth';
+import { ChevronDown, Settings2 } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 

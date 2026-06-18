@@ -1,6 +1,6 @@
 import { supabase } from '@shared/lib/supabase';
-import { addMonths, format, parse } from 'date-fns';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
+import { addMonths, format, parse } from 'date-fns';
 
 const SELECT_WITH_RELATIONS = '*, beans(name, origin), roast_profiles!profile_id(name, target_level)';
 
@@ -97,7 +97,14 @@ export const roastSessionApi = {
             query = query.lt('roasted_at', format(nextMonthStart, 'yyyy-MM-dd'));
         }
 
-        const sortCol = sortKey === 'date' ? 'roasted_at' : sortKey === 'drop' ? 'drop_temp_celsius' : sortKey === 'duration' ? 'duration_seconds' : 'roasted_at';
+        const sortCol =
+            sortKey === 'date'
+                ? 'roasted_at'
+                : sortKey === 'drop'
+                  ? 'drop_temp_celsius'
+                  : sortKey === 'duration'
+                    ? 'duration_seconds'
+                    : 'roasted_at';
         query = query.order(sortCol, { ascending: sortAsc ?? false, nullsFirst: true });
 
         const { data, count, error } = await query;

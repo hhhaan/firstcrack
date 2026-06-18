@@ -1,8 +1,7 @@
-import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
-
-import { useRoastingStore } from './status';
-import { detectTurningPoints } from '@features/active-roast';
 import type { TurningPoint } from '@features/active-roast';
+import { detectTurningPoints } from '@features/active-roast';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRoastingStore } from './status';
 
 const AUTO_CHARGE_WINDOW = 5;
 

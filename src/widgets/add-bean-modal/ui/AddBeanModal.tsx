@@ -1,20 +1,20 @@
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import {
+    buildAutoName,
+    COMMON_ORIGINS,
+    COMMON_PROCESSES,
+    FARMS_BY_REGION,
+    REGIONS_BY_ORIGIN,
+    VARIETIES_BY_ORIGIN,
+} from '@entities/bean/lib/coffee-origins';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Info, Scale, MapPin, Tag, Search, Check } from 'lucide-react';
-import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import type { Bean } from '@shared/types/database.types';
-import {
-    COMMON_ORIGINS,
-    REGIONS_BY_ORIGIN,
-    FARMS_BY_REGION,
-    COMMON_PROCESSES,
-    VARIETIES_BY_ORIGIN,
-    buildAutoName,
-} from '@entities/bean/lib/coffee-origins';
+import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { Check, Info, MapPin, Scale, Search, Tag, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { type BeanForm, beanFormSchema, EMPTY_BEAN_FORM } from '../lib/schema';
 import { useAddBeanSubmit } from './useAddBeanSubmit';
-import { beanFormSchema, EMPTY_BEAN_FORM, type BeanForm } from '../lib/schema';
 
 // ── 모듈 레벨 상수 ──────────────────────────────────────────
 

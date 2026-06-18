@@ -1,10 +1,10 @@
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
-import { getDateFnsLocale } from '@shared/i18n';
-import { useWeekSummary } from '@entities/plan';
 import type { DayPlanSummary } from '@entities/plan';
-import { toDateKey } from './lib';
-import { DayBatchPreview } from './DayBatchPreview';
+import { useWeekSummary } from '@entities/plan';
+import { getDateFnsLocale } from '@shared/i18n';
+import { eachDayOfInterval, endOfWeek, format, isSameDay, isToday, startOfWeek } from 'date-fns';
 import { useTranslation } from 'react-i18next';
+import { DayBatchPreview } from './DayBatchPreview';
+import { toDateKey } from './lib';
 
 export const WeekView = ({
     selectedDate,

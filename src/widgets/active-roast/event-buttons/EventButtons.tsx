@@ -1,5 +1,5 @@
-import type { LogEntry } from '@shared/types/roast';
 import { useThemeStore } from '@shared/store/theme';
+import type { LogEntry } from '@shared/types/roast';
 
 export type EventButtonDef = {
     label: string;

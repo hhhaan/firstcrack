@@ -1,7 +1,7 @@
+import { setLanguage, supportedLanguages } from '@shared/i18n';
+import { type Theme, useThemeStore } from '@shared/store/theme';
 import { Languages, Moon, Sun } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { setLanguage, supportedLanguages } from '@shared/i18n';
-import { useThemeStore, type Theme } from '@shared/store/theme';
 
 const themeOptions: { value: Theme; icon: typeof Sun; labelKey: string; descKey: string }[] = [
     {

@@ -1,6 +1,6 @@
-import { X } from 'lucide-react';
-import type { LogEntry } from '@shared/types/roast';
 import { STATUS_COLORS } from '@features/active-roast/lib/colors';
+import type { LogEntry } from '@shared/types/roast';
+import { X } from 'lucide-react';
 
 export const RoastLog = ({
     entries,
@@ -31,8 +31,7 @@ export const RoastLog = ({
                 </h3>
             )}
             {entries.map((entry, i, arr) => {
-                const canRemove =
-                    entry.event === 'Note' && !!entry.id && !entry.current && !!onRemoveEntry;
+                const canRemove = entry.event === 'Note' && !!entry.id && !entry.current && !!onRemoveEntry;
 
                 return (
                     <div
@@ -121,8 +120,8 @@ export const RoastLog = ({
                             <button
                                 type="button"
                                 onClick={() => onRemoveEntry(entry.id!)}
-                                                                aria-label="Delete note"
-                                                                className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
+                                aria-label="Delete note"
+                                className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
                             >
                                 <X size={12} />
                             </button>

@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
-import { X, Plus, History, Pencil, ChevronRight, Check, ChevronDown } from 'lucide-react';
-import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
-import { useRoastSessions } from '@entities/roast';
-import { useAuthStore } from '@shared/store/auth';
 import { useBeans } from '@entities/bean/queries';
 import { useBlends } from '@entities/blend';
-import type { RoastProfile } from '@shared/types/database.types';
+import { useRoastSessions } from '@entities/roast';
 import type { RoastProfileWithSource } from '@entities/roast-profile';
+import { useAuthStore } from '@shared/store/auth';
+import type { RoastProfile } from '@shared/types/database.types';
+import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { Check, ChevronDown, ChevronRight, History, Pencil, Plus, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 

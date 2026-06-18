@@ -1,4 +1,4 @@
-import { useRef, type MutableRefObject } from 'react';
+import { type MutableRefObject, useRef } from 'react';
 import type uPlot from 'uplot';
 
 const HIT_PX = 8;

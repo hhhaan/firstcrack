@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
+import type { LogEntry } from '@shared/types/roast';
+import { useCallback, useState } from 'react';
 import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
 import { formatTemp } from '../lib/temperature';
 import { parseTimeSec } from '../lib/time';
 import type { TemperatureUnit } from './settings';
-import type { LogEntry } from '@shared/types/roast';
 
 export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, timeStr: string) => {
     const [logEntries, setLogEntries] = useState<LogEntry[]>([]);

@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { useBlends, useDeleteBlend, type BlendWithComponents } from '@entities/blend';
-import { AddBlendModal } from '@widgets/add-blend-modal';
+import { type BlendWithComponents, useBlends, useDeleteBlend } from '@entities/blend';
 import { useAuthStore } from '@shared/store/auth';
+import { AddBlendModal } from '@widgets/add-blend-modal';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 
 const ratioColor = (i: number) => {
     const colors = ['#171717', '#dc2626', '#0ea5e9', '#16a34a', '#d97706', '#8b5cf6'];

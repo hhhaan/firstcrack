@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Edit3, Trash2 } from 'lucide-react';
-import { getStatus, statusConfig, processColor } from '@entities/bean/lib';
-import { useBeanStockSummary, useBeanStockEvents } from '@entities/bean-stock-event';
-import { DeleteBeanModal } from './DeleteBeanModal';
+import { getStatus, processColor, statusConfig } from '@entities/bean/lib';
+import { useBeanStockEvents, useBeanStockSummary } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
+import { Edit3, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { DeleteBeanModal } from './DeleteBeanModal';
 
 interface BeanDetailProps {
     bean: Bean | null;

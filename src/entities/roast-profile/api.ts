@@ -10,7 +10,8 @@ export type RoastProfileWithSource = RoastProfile & {
     default_blend: { id: string; name: string } | null;
 };
 
-const SELECT_WITH_SOURCE = '*, source_session:roast_sessions!source_session_id(tsv_path), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
+const SELECT_WITH_SOURCE =
+    '*, source_session:roast_sessions!source_session_id(tsv_path), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
 
 export const roastProfileApi = {
     list: async (userId: string): Promise<RoastProfileWithSource[]> => {
@@ -30,12 +31,7 @@ export const roastProfileApi = {
     },
 
     update: async ({ id, ...patch }: RoastProfileUpdate): Promise<RoastProfile> => {
-        const { data, error } = await supabase
-            .from('roast_profiles')
-            .update(patch)
-            .eq('id', id)
-            .select()
-            .single();
+        const { data, error } = await supabase.from('roast_profiles').update(patch).eq('id', id).select().single();
         if (error) throw error;
         return data!;
     },

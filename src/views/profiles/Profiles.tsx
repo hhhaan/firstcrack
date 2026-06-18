@@ -1,25 +1,25 @@
-import { Plus, Copy, Pencil, Trash2, MoreHorizontal, Star, GitCompare, Check, AlertCircle } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
-import { type View } from '@shared/types/view';
-import { PageLayout } from '@shared/ui/PageLayout';
-import { PageHeader } from '@shared/ui/PageHeader';
-import { PillButton } from '@shared/ui/PillButton';
-import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
-import uPlot from 'uplot';
-import { generateProfileCurve } from '@shared/data/roast-profiles';
+import { useProfile, useUpdateProfile } from '@entities/profile';
 import {
-    useRoastProfiles,
+    type RoastProfileWithSource,
     useCreateRoastProfile,
     useDeleteRoastProfile,
+    useProfileBeanHistory,
     useRoastProfileCurve,
     useRoastProfileCurves,
-    useProfileBeanHistory,
-    type RoastProfileWithSource,
+    useRoastProfiles,
 } from '@entities/roast-profile';
-import { useProfile, useUpdateProfile } from '@entities/profile';
+import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { useAuthStore } from '@shared/store/auth';
-import { NewProfileModal } from './NewProfileModal';
 import type { RoastProfile } from '@shared/types/database.types';
+import type { View } from '@shared/types/view';
+import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
+import { PageHeader } from '@shared/ui/PageHeader';
+import { PageLayout } from '@shared/ui/PageLayout';
+import { PillButton } from '@shared/ui/PillButton';
+import { AlertCircle, Check, Copy, GitCompare, MoreHorizontal, Pencil, Plus, Star, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import uPlot from 'uplot';
+import { NewProfileModal } from './NewProfileModal';
 
 const COMPARE_COLORS = [
     'var(--color-palette-green)',

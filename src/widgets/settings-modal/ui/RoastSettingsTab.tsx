@@ -1,9 +1,9 @@
 import {
-    useRoastSettings,
-    updateRoastSettings,
     type PollIntervalMs,
     type RorSpanSec,
     type TemperatureUnit,
+    updateRoastSettings,
+    useRoastSettings,
 } from '@features/active-roast';
 
 const temperatureOptions: TemperatureUnit[] = ['C', 'F'];

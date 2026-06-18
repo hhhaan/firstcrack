@@ -1,11 +1,11 @@
-import { Plus } from 'lucide-react';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { AddBatchModal } from '@widgets/add-batch-modal';
 import { RecurringEditScopeModal } from '@widgets/recurring-edit-scope-modal';
-import { BatchCard } from './BatchCard';
-import { batchStatus, getRecurrenceLabel, toDateKey } from './lib';
-import { useScheduleDayView } from './hooks/useScheduleDayView';
+import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { BatchCard } from './BatchCard';
+import { useScheduleDayView } from './hooks/useScheduleDayView';
+import { batchStatus, getRecurrenceLabel, toDateKey } from './lib';
 
 export const ScheduleDayView = ({
     selectedDate,

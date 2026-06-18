@@ -1,5 +1,5 @@
-import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
+import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 
 interface TodayScheduleModalProps {
     open: boolean;

@@ -1,9 +1,9 @@
-import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
-import { dayPlanApi, dayPlanRangeApi, planBatchApi, recurrenceRuleApi, type RecurrenceRuleMasterPatch } from './api';
-import type { PlanBatchInsert, PlanBatchUpdate, PlanBatchWithProgress } from '@shared/types/database.types';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { buildRRule } from '@shared/lib/rrule';
+import type { PlanBatchInsert, PlanBatchUpdate, PlanBatchWithProgress } from '@shared/types/database.types';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns';
+import { dayPlanApi, dayPlanRangeApi, planBatchApi, type RecurrenceRuleMasterPatch, recurrenceRuleApi } from './api';
 
 // ── Query keys ────────────────────────────────────────────────────────────────
 
@@ -50,8 +50,7 @@ export const useDayPlan = (userId: string, date: string) =>
 export const useUpdateDayPlanNotes = (userId: string, date: string) => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, notes }: { id: string; notes: string }) =>
-            dayPlanApi.updateNotes(id, notes),
+        mutationFn: ({ id, notes }: { id: string; notes: string }) => dayPlanApi.updateNotes(id, notes),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: planKeys.day(userId, date) });
         },
@@ -101,7 +100,7 @@ export const useCreatePlanBatch = (planId: string) => {
                 target_roasted_kg: batch.target_roasted_kg,
                 batch_count: Math.ceil(batch.target_roasted_kg / batch.batch_size_kg),
                 yield_pct: batch.yield_pct ?? 1,
-                order_index: batch.order_index ?? (previousBatches?.length ?? 0),
+                order_index: batch.order_index ?? previousBatches?.length ?? 0,
                 machine_id: batch.machine_id ?? null,
                 roast_profile_id: batch.roast_profile_id ?? null,
                 rrule: batch.rrule ?? null,
@@ -205,7 +204,7 @@ export const useCreateRecurringBatches = (userId: string, currentPlanId?: string
                     target_roasted_kg: baseBatch.target_roasted_kg,
                     batch_count: Math.ceil(baseBatch.target_roasted_kg / baseBatch.batch_size_kg),
                     yield_pct: baseBatch.yield_pct ?? 1,
-                    order_index: baseBatch.order_index ?? (previousCurrentPlan?.length ?? 0),
+                    order_index: baseBatch.order_index ?? previousCurrentPlan?.length ?? 0,
                     machine_id: baseBatch.machine_id ?? null,
                     roast_profile_id: baseBatch.roast_profile_id ?? null,
                     rrule: rruleStr,
@@ -222,10 +221,7 @@ export const useCreateRecurringBatches = (userId: string, currentPlanId?: string
                     completed_sessions: 0,
                 };
 
-                qc.setQueryData(
-                    planKeys.batches(currentPlanId),
-                    [...(previousCurrentPlan ?? []), optimistic],
-                );
+                qc.setQueryData(planKeys.batches(currentPlanId), [...(previousCurrentPlan ?? []), optimistic]);
             }
 
             return { previousCurrentPlan };
@@ -249,8 +245,13 @@ export const useCreateRecurringBatches = (userId: string, currentPlanId?: string
 export const useDeleteSingleBatch = () => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, meta }: { id: string; meta?: { recurrenceRuleId?: string; originalDate?: string; planId?: string } }) =>
-            planBatchApi.deleteSingle(id, meta),
+        mutationFn: ({
+            id,
+            meta,
+        }: {
+            id: string;
+            meta?: { recurrenceRuleId?: string; originalDate?: string; planId?: string };
+        }) => planBatchApi.deleteSingle(id, meta),
         onSettled: () => {
             qc.invalidateQueries({ queryKey: ['plan_batches'] });
             qc.invalidateQueries({ queryKey: ['day_plan_range'] });
@@ -288,8 +289,15 @@ export const useDeleteAllBatches = () => {
 export const useUpdateSingleBatch = () => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, patch, meta }: { id: string; patch: PlanBatchUpdate; meta?: { recurrenceRuleId?: string; originalDate?: string } }) =>
-            planBatchApi.updateSingle(id, patch, meta),
+        mutationFn: ({
+            id,
+            patch,
+            meta,
+        }: {
+            id: string;
+            patch: PlanBatchUpdate;
+            meta?: { recurrenceRuleId?: string; originalDate?: string };
+        }) => planBatchApi.updateSingle(id, patch, meta),
         onSettled: (_data, _error, vars) => {
             // Invalidate the specific day plan if possible, otherwise range
             if (vars.patch.plan_id) {

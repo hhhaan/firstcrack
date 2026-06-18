@@ -1,4 +1,4 @@
-import { SENSOR_COLORS, PHASE_COLORS } from '@features/active-roast/lib/colors';
+import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 
 export const MachineControls = ({
     machineCapabilities,

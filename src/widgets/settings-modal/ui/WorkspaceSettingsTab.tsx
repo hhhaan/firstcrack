@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Building2, Link, Check, User } from 'lucide-react';
-import { useWorkspaceStore } from '@shared/store/workspace';
 import { useAuthStore } from '@shared/store/auth';
+import { useWorkspaceStore } from '@shared/store/workspace';
+import { Building2, Check, Link, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useProfile } from '../../../entities/profile';
 
 const SectionCard = ({ children }: { children: React.ReactNode }) => (

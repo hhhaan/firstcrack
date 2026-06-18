@@ -1,25 +1,25 @@
-import { useState, useCallback } from 'react';
-import { format } from 'date-fns';
 import {
-    useDayPlan,
-    useDayBatches,
-    useCreatePlanBatch,
-    useReorderPlanBatches,
-    useCreateRecurringBatches,
-    useDeleteSingleBatch,
-    useDeleteFromThis,
-    useDeleteAllBatches,
-    useUpdateSingleBatch,
-    useUpdateFromThis,
-    useUpdateAllBatches,
     dayPlanApi,
     planBatchApi,
+    useCreatePlanBatch,
+    useCreateRecurringBatches,
+    useDayBatches,
+    useDayPlan,
+    useDeleteAllBatches,
+    useDeleteFromThis,
+    useDeleteSingleBatch,
+    useReorderPlanBatches,
+    useUpdateAllBatches,
+    useUpdateFromThis,
+    useUpdateSingleBatch,
 } from '@entities/plan';
-import type { PlanBatchWithProgress, PlanBatchHandoff, PlanBatchInsert } from '@shared/types/database.types';
+import { getDateFnsLocale, i18n } from '@shared/i18n';
+import { buildRRule } from '@shared/lib/rrule';
+import type { PlanBatchHandoff, PlanBatchInsert, PlanBatchWithProgress } from '@shared/types/database.types';
 import type { NewBatchData } from '@widgets/add-batch-modal';
 import type { EditScope } from '@widgets/recurring-edit-scope-modal';
-import { buildRRule } from '@shared/lib/rrule';
-import { getDateFnsLocale, i18n } from '@shared/i18n';
+import { format } from 'date-fns';
+import { useCallback, useState } from 'react';
 import { toDateKey } from '../lib';
 
 export const useScheduleDayView = ({

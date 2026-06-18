@@ -1,12 +1,12 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@shared/store/auth';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
-import type { ViewMode } from './lib';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useScheduleNav } from './hooks/useScheduleNav';
+import type { ViewMode } from './lib';
+import { MonthView } from './MonthView';
 import { ScheduleDayView } from './ScheduleDayView';
 import { WeekView } from './WeekView';
-import { MonthView } from './MonthView';
-import { useTranslation } from 'react-i18next';
 
 const ViewToggle = ({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode) => void }) => {
     const { t } = useTranslation();

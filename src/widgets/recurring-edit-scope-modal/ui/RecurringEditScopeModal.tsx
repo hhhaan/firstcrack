@@ -1,5 +1,5 @@
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
-import { Pencil, Trash2, ArrowRight, Layers } from 'lucide-react';
+import { ArrowRight, Layers, Pencil, Trash2 } from 'lucide-react';
 
 /**
  * Edit scope for recurring batches.

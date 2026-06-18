@@ -1,5 +1,5 @@
-import { Component, type ReactNode } from 'react';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
+import { Component, type ReactNode } from 'react';
 
 interface Props {
     children: ReactNode;
@@ -51,10 +51,6 @@ const DefaultErrorFallback = ({ error, reset }: { error: Error; reset: () => voi
 
 export const ViewErrorBoundary = ({ children }: { children: ReactNode }) => (
     <QueryErrorResetBoundary>
-        {({ reset }) => (
-            <ErrorBoundary onReset={reset}>
-                {children}
-            </ErrorBoundary>
-        )}
+        {({ reset }) => <ErrorBoundary onReset={reset}>{children}</ErrorBoundary>}
     </QueryErrorResetBoundary>
 );

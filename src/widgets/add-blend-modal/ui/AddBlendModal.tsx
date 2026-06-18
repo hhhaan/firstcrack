@@ -1,14 +1,14 @@
-import { useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { X, ChevronDown } from 'lucide-react';
-import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
-import { useFormEscape } from '@shared/lib/useFormEscape';
-import { useCreateBlend, useUpdateBlend } from '@entities/blend';
-import type { BlendWithComponents } from '@entities/blend';
 import { useBeans } from '@entities/bean';
+import type { BlendWithComponents } from '@entities/blend';
+import { useCreateBlend, useUpdateBlend } from '@entities/blend';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useFormEscape } from '@shared/lib/useFormEscape';
 import { useAuthStore } from '@shared/store/auth';
-import { blendFormSchema, type BlendForm } from '../lib/schema';
+import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { ChevronDown, X } from 'lucide-react';
+import { useEffect } from 'react';
+import { useFieldArray, useForm } from 'react-hook-form';
+import { type BlendForm, blendFormSchema } from '../lib/schema';
 
 type Props = {
     open: boolean;

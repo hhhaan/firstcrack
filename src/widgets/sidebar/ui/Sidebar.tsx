@@ -1,4 +1,3 @@
-import { type ComponentType, type CSSProperties, useState } from 'react';
 import {
     Book,
     Calendar,
@@ -12,10 +11,11 @@ import {
     SidePanelClose,
 } from '@carbon/icons-react';
 import { cn } from '@shared/lib/cn';
-import { useTranslation } from 'react-i18next';
-import { type View } from '@shared/types/view';
 import { useAuthStore } from '@shared/store/auth';
 import { useThemeStore } from '@shared/store/theme';
+import type { View } from '@shared/types/view';
+import { type ComponentType, type CSSProperties, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../entities/profile';
 
 interface SidebarProps {

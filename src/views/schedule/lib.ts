@@ -1,6 +1,6 @@
-import { format } from 'date-fns';
 import { getDateFnsLocale, i18n } from '@shared/i18n';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
+import { format } from 'date-fns';
 
 export type ViewMode = 'day' | 'week' | 'month';
 

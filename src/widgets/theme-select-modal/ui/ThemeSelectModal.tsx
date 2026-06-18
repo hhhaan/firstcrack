@@ -1,7 +1,7 @@
-import { useThemeStore } from '@shared/store/theme';
 import type { Theme } from '@shared/store/theme';
+import { useThemeStore } from '@shared/store/theme';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
-import { Sun, Moon, Monitor } from 'lucide-react';
+import { Monitor, Moon, Sun } from 'lucide-react';
 
 const themeOptions: { value: Theme; icon: typeof Sun; label: string; desc: string }[] = [
     { value: 'light', icon: Sun, label: 'Light', desc: 'Bright and clean interface' },

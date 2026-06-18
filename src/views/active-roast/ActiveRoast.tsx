@@ -1,21 +1,18 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useHotkeys } from 'react-hotkeys-hook';
-import { useWeather } from '@views/dashboard/useWeather';
-import { useAuthStore } from '@shared/store/auth';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
+import { beanStockEventApi } from '@entities/bean-stock-event';
+import { blendApi } from '@entities/blend';
+import { useUpdatePlanBatch } from '@entities/plan';
+import { useProfile } from '@entities/profile';
 import { useCreateRoastSession } from '@entities/roast';
-import { useRoastKeyboardShortcuts } from '@views/useRoastKeyboardShortcuts';
-import { useRoastActions } from '@views/useRoastActions';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ask, message } from '@tauri-apps/plugin-dialog';
-import { readTextFile, remove, BaseDirectory } from '@tauri-apps/plugin-fs';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { Play, Square } from 'lucide-react';
-import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
+import { useRoastProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import {
-    RoastSummaryModal,
-    type RoastSummaryData,
-} from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
-import { RoastTempChart, type RoastEventMarker } from '@widgets/active-roast/ui/RoastTempChart';
+    computePhaseSegments,
+    formatTemp,
+    toDisplayRoR,
+    toDisplayTemp,
+    useRoastSettings,
+} from '@features/active-roast';
 import {
     CHART_GRID_RIGHT,
     CHART_GRID_RIGHT_WITH_ROR,
@@ -23,41 +20,41 @@ import {
     getResolvedEventColor,
 } from '@features/active-roast/lib/chart-config';
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
-
-import type { LogEntry } from '@shared/types/roast';
-import { sidecar } from '@shared/lib/sidecar';
-import {
-    useRoastSettings,
-    toDisplayTemp,
-    toDisplayRoR,
-    formatTemp,
-    computePhaseSegments,
-} from '@features/active-roast';
-
-import {
-    RoastHeader,
-    LiveReadings,
-    MachineControls,
-    EventButtons,
-    RoastLog,
-    PlanBatchContinueModal,
-} from '@widgets/active-roast';
-import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
+import { parseTimeSec } from '@features/active-roast/lib/time';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
-import { useRoastProfiles, useRoastProfileCurve } from '@entities/roast-profile';
-import { useProfile } from '@entities/profile';
-import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
-import { useUpdatePlanBatch } from '@entities/plan';
+import { sidecar } from '@shared/lib/sidecar';
+import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
-import { blendApi } from '@entities/blend';
-import { beanStockEventApi } from '@entities/bean-stock-event';
-
+import type { LogEntry } from '@shared/types/roast';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { ask, message } from '@tauri-apps/plugin-dialog';
+import { BaseDirectory, readTextFile, remove } from '@tauri-apps/plugin-fs';
+import { useWeather } from '@views/dashboard/useWeather';
+import { useRoastActions } from '@views/useRoastActions';
+import { useRoastKeyboardShortcuts } from '@views/useRoastKeyboardShortcuts';
+import {
+    EventButtons,
+    LiveReadings,
+    MachineControls,
+    PlanBatchContinueModal,
+    RoastHeader,
+    RoastLog,
+} from '@widgets/active-roast';
+import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
+import {
+    type RoastSummaryData,
+    RoastSummaryModal,
+} from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
+import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
+import { type RoastEventMarker, RoastTempChart } from '@widgets/active-roast/ui/RoastTempChart';
+import { Play, Square } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
+import { CHART_TOTAL_SECS, useChartData } from './hooks/useChartData';
+import { MIN_VISIBLE_SECS, useChartZoom } from './hooks/useChartZoom';
 import { useSidecarPolling } from './hooks/useSidecarPolling';
-import { useChartData, CHART_TOTAL_SECS } from './hooks/useChartData';
-import { useChartZoom, MIN_VISIBLE_SECS } from './hooks/useChartZoom';
-import { parseTimeSec } from '@features/active-roast/lib/time';
 
 export const ActiveRoast = ({
     isActive,

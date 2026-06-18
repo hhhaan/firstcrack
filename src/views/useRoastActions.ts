@@ -1,9 +1,9 @@
-import { useCallback } from 'react';
-import { sidecar } from '@shared/lib/sidecar';
 import { formatTemp, type TemperatureUnit, type TurningPoint } from '@features/active-roast';
-import { useRoastingStore } from '@features/active-roast/model/status';
 import { parseTimeSec } from '@features/active-roast/lib/time';
+import { useRoastingStore } from '@features/active-roast/model/status';
+import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
+import { useCallback } from 'react';
 
 interface UseRoastActionsParams {
     unit: TemperatureUnit;

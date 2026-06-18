@@ -1,9 +1,9 @@
-import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
-import { roastProfileApi, type RoastProfileWithSource } from './api';
-import type { RoastProfile } from '@shared/types/database.types';
 import { fetchTsvFromR2 } from '@shared/lib/r2';
-import { parseTsv, type TsvPoint } from '@shared/lib/tsv';
 import { supabase } from '@shared/lib/supabase';
+import { parseTsv, type TsvPoint } from '@shared/lib/tsv';
+import type { RoastProfile } from '@shared/types/database.types';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type RoastProfileWithSource, roastProfileApi } from './api';
 
 export const roastProfileKeys = {
     all: (userId: string) => ['roast_profiles', userId] as const,
@@ -53,9 +53,7 @@ export const useDeleteRoastProfile = (userId: string) => {
 
 // TSV는 세션당 immutable — 한 번 fetch 후 영구 캐시.
 const curveQueryConfig = (tsvPath: string | null | undefined, fallbackKey?: string) => ({
-    queryKey: tsvPath
-        ? roastProfileKeys.curve(tsvPath)
-        : ['roast_profile_curve', 'none', fallbackKey ?? ''],
+    queryKey: tsvPath ? roastProfileKeys.curve(tsvPath) : ['roast_profile_curve', 'none', fallbackKey ?? ''],
     queryFn: async (): Promise<TsvPoint[]> => {
         if (!tsvPath) return [];
         return parseTsv(await fetchTsvFromR2(tsvPath));
@@ -65,14 +63,10 @@ const curveQueryConfig = (tsvPath: string | null | undefined, fallbackKey?: stri
     gcTime: Infinity,
 });
 
-export const useRoastProfileCurve = (tsvPath: string | null | undefined) =>
-    useQuery(curveQueryConfig(tsvPath));
+export const useRoastProfileCurve = (tsvPath: string | null | undefined) => useQuery(curveQueryConfig(tsvPath));
 
 // 비교 모드용 — paths 순서대로 결과 배열 반환. 각 fallbackKey는 캐시 충돌 방지용.
-export const useRoastProfileCurves = (
-    paths: (string | null | undefined)[],
-    fallbackKeys: string[] = [],
-) =>
+export const useRoastProfileCurves = (paths: (string | null | undefined)[], fallbackKeys: string[] = []) =>
     useQueries({
         queries: paths.map((p, i) => curveQueryConfig(p, fallbackKeys[i])),
     });

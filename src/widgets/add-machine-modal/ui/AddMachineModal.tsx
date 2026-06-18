@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { Cpu, Radio, ShieldCheck, X, ChevronDown, Wifi, WifiOff, Loader, Info } from 'lucide-react';
-import { openUrl } from '@tauri-apps/plugin-opener';
-import { useTranslation } from 'react-i18next';
-import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
-import { sidecar } from '../../../shared/lib/sidecar';
-import { ROASTER_REGISTRY } from '@entities/machine/roasterRegistry';
 import type { RoasterDef, SerialPort } from '@entities/machine';
+import { ROASTER_REGISTRY } from '@entities/machine/roasterRegistry';
 import { cn } from '@shared/lib/cn';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import { ChevronDown, Cpu, Info, Loader, Radio, ShieldCheck, Wifi, WifiOff, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { sidecar } from '../../../shared/lib/sidecar';
+import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
 
 interface AddMachineModalProps {
     open: boolean;
@@ -132,7 +132,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
     const RTU_ONLY = new Set(['comport', 'baudrate', 'bytesize', 'parity', 'stopbits']);
 
     const isFieldVisible = (fieldKey: string): boolean => {
-        const mode = params['mode']?.toLowerCase() ?? '';
+        const mode = params.mode?.toLowerCase() ?? '';
         if (!mode) return true;
         const isTCP = mode === 'tcp' || mode === 'udp';
         const isRTU = mode === 'rtu' || mode === 'serial';

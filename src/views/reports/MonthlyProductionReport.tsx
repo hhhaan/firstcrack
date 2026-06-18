@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useMemo, useState } from 'react';
 
 interface RoastSession {
     date: string;
@@ -82,7 +82,6 @@ export const MonthlyProductionReport = ({
             avgLossRate: avgLoss,
         };
     }, [sessions]);
-
 
     const today = new Date().toLocaleDateString('ko-KR', {
         year: 'numeric',

@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useMemo } from 'react';
-import * as echarts from 'echarts';
-import type { EChartsOption } from 'echarts';
 import { CHART_COLORS, CONTROL_COLORS } from '@features/active-roast/lib/chart-config';
+import type { EChartsOption } from 'echarts';
+import * as echarts from 'echarts';
+import type React from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 interface Props {
     xs: number[];

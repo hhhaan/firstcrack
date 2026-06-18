@@ -1,5 +1,5 @@
-import { Square } from 'lucide-react';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { Square } from 'lucide-react';
 
 interface EndRoastModalProps {
     open: boolean;

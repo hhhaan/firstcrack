@@ -1,25 +1,25 @@
-import { useState, useEffect, useMemo } from 'react';
-import { X, CalendarIcon, Cpu, Package, AlertTriangle, Repeat } from 'lucide-react';
-import type { RecurrenceInterval } from '@shared/lib/rrule';
-import { CounterInput } from '@shared/ui/CounterInput';
-import { SearchableSelect } from './SearchableSelect';
-import { format } from 'date-fns';
-import { getDateFnsLocale } from '@shared/i18n';
-import { useQueryClient, useQueries } from '@tanstack/react-query';
-import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
-import { Calendar } from '@shared/ui/calendar/Calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
-import { useAuthStore } from '@shared/store/auth';
 import { useBeans } from '@entities/bean/queries';
-import { useMachines, type Machine } from '@entities/machine';
-import { useRoastProfiles } from '@entities/roast-profile/queries';
+import { beanStockEventApi, useBeanStockSummary } from '@entities/bean-stock-event';
+import { type BlendWithComponents, useBlends } from '@entities/blend';
+import { type Machine, useMachines } from '@entities/machine';
 import { dayPlanApi, planBatchApi, planKeys } from '@entities/plan';
-import { cn } from '@shared/lib/cn';
-import type { RoastProfile, Bean, PlanBatchWithProgress } from '@shared/types/database.types';
 import type { RoastProfileWithSource } from '@entities/roast-profile';
-import { useBlends, type BlendWithComponents } from '@entities/blend';
-import { useBeanStockSummary, beanStockEventApi } from '@entities/bean-stock-event';
+import { useRoastProfiles } from '@entities/roast-profile/queries';
+import { getDateFnsLocale } from '@shared/i18n';
+import { cn } from '@shared/lib/cn';
+import type { RecurrenceInterval } from '@shared/lib/rrule';
+import { useAuthStore } from '@shared/store/auth';
+import type { Bean, PlanBatchWithProgress, RoastProfile } from '@shared/types/database.types';
+import { CounterInput } from '@shared/ui/CounterInput';
+import { Calendar } from '@shared/ui/calendar/Calendar';
+import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import { AlertTriangle, CalendarIcon, Cpu, Package, Repeat, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SearchableSelect } from './SearchableSelect';
 
 /**
  * Parse an RRULE string back to a RecurrenceInterval label.

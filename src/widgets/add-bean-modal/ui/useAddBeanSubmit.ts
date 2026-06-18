@@ -59,10 +59,10 @@ export const useAddBeanSubmit = ({
                     farm: formData.farm || null,
                     process: formData.process || null,
                     variety: formData.variety || null,
-                    altitude_masl: formData.altitude ? parseInt(formData.altitude) : null,
+                    altitude_masl: formData.altitude ? parseInt(formData.altitude, 10) : null,
                     stock_grams: 0,
                     capacity_grams: Math.round(parseFloat(formData.capacity) * 1000) || 5000,
-                    cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg) : null,
+                    cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg, 10) : null,
                     tasting_notes: formData.tastingNotes || null,
                     purchase_date: new Date().toISOString().split('T')[0],
                 });
@@ -84,10 +84,10 @@ export const useAddBeanSubmit = ({
                     farm: formData.farm || null,
                     process: formData.process || null,
                     variety: formData.variety || null,
-                    altitude_masl: formData.altitude ? parseInt(formData.altitude) : null,
+                    altitude_masl: formData.altitude ? parseInt(formData.altitude, 10) : null,
                     stock_grams: Math.round(parseFloat(formData.stock) * 1000) || 0,
                     capacity_grams: Math.round(parseFloat(formData.capacity) * 1000) || 5000,
-                    cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg) : null,
+                    cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg, 10) : null,
                     tasting_notes: formData.tastingNotes || null,
                 });
                 onSuccess?.(updated);

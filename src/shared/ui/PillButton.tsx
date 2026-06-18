@@ -1,4 +1,4 @@
-import { type ButtonHTMLAttributes, type ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 interface PillButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     children: ReactNode;

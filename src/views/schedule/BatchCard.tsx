@@ -1,7 +1,7 @@
-import { Package, ChevronUp, ChevronDown, Play, Pencil, Trash2 } from 'lucide-react';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
-import { batchStatus, batchProgress, getRecurrenceLabel } from './lib';
+import { ChevronDown, ChevronUp, Package, Pencil, Play, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { batchProgress, batchStatus, getRecurrenceLabel } from './lib';
 
 const statusStyles: Record<string, string> = {
     pending: 'bg-palette-lavender/10 text-palette-lavender',

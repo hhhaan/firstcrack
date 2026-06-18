@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { supabase } from '@shared/lib/supabase';
-import { openUrl } from '@tauri-apps/plugin-opener';
 import { useAuthStore } from '@shared/store/auth';
 import { Spinner } from '@shared/ui/Spinner';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { useState } from 'react';
 
 const OAUTH_REDIRECT = import.meta.env.PUBLIC_TAURI_REDIRECT;
 

@@ -1,17 +1,17 @@
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { useAuthStore } from '@shared/store/auth';
 import { useBeans, useDeleteBean } from '@entities/bean/queries';
-import { BeanList } from '@widgets/bean-list/ui/BeanList';
-import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
-import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
-import { PageLayout } from '@shared/ui/PageLayout';
-import { PageHeader } from '@shared/ui/PageHeader';
-import { PillButton } from '@shared/ui/PillButton';
-import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
+import { useRoastingStore } from '@features/active-roast/model/status';
+import { useAuthStore } from '@shared/store/auth';
 import type { Bean } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
-import { useRoastingStore } from '@features/active-roast/model/status';
+import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
+import { PageHeader } from '@shared/ui/PageHeader';
+import { PageLayout } from '@shared/ui/PageLayout';
+import { PillButton } from '@shared/ui/PillButton';
+import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
+import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
+import { BeanList } from '@widgets/bean-list/ui/BeanList';
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
 import { BlendList } from './BlendList';
 
 export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {

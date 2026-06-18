@@ -6,7 +6,6 @@ export interface RoastPoint {
     ror: number;
 }
 
-
 export interface LogEntry {
     id?: string;
     time: string;
