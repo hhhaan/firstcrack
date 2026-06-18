@@ -193,6 +193,142 @@
         "today": "今日",
         "batchCount": "{{count}}回"
     },
+    "beans": {
+        "title": "豆在庫",
+        "addBeanLot": "生豆Lot追加",
+        "addBean": "生豆追加",
+        "loading": "読み込み中…",
+        "tab": {
+            "single": "シングル",
+            "blend": "ブレンド"
+        },
+        "empty": "登録された生豆はまだありません",
+        "addFirst": "最初の生豆を追加してください",
+        "blend": {
+            "empty": "登録されたブレンドはまだありません",
+            "addBlendFirst": "最初のブレンドレシピを追加してください",
+            "addBlend": "ブレンド追加",
+            "componentBeans": "構成生豆",
+            "selectBlend": "ブレンドを選択すると詳細が表示されます",
+            "summary_one": "{{count}}種の生豆 · {{total}}%構成",
+            "summary_other": "{{count}}種の生豆 · {{total}}%構成"
+        }
+    },
+    "activeRoast": {
+        "header": {
+            "noBeanSelected": "選択された生豆なし",
+            "target": "ターゲット:",
+            "noTarget": "ターゲットなし",
+            "roastComplete": "ロースト完了",
+            "disconnected": "未接続",
+            "mockRoastInProgress": "モック — ロースト中",
+            "liveRoastInProgress": "ライブ — ロースト中",
+            "machineConnected": "マシン接続済み · ロースト準備完了",
+            "settings": "ロースト設定",
+            "openSettings": "ロースト設定を開く"
+        },
+        "readings": {
+            "beanTemp": "Bean Temp",
+            "envTemp": "Env Temp",
+            "rateOfRise": "Rate of Rise",
+            "phase": "フェーズ"
+        },
+        "controls": {
+            "heater": "ヒーター",
+            "fan": "ファン",
+            "drum": "ドラム"
+        },
+        "log": {
+            "title": "Roast Log",
+            "deleteNote": "ノート削除"
+        },
+        "phase": {
+            "ready": "READY",
+            "preheating": "PREHEATING",
+            "idle": "IDLE",
+            "drying": "Drying",
+            "maillard": "Maillard",
+            "development": "Development"
+        },
+        "actions": {
+            "charge": "Charge",
+            "roastReady": "Roast Ready",
+            "endRoast": "End Roast",
+            "yellow": "Yellow",
+            "fcStart": "FC Start",
+            "fcEnd": "FC End",
+            "markDrop": "Mark Drop",
+            "inProgress": "{{phase}} 進行中",
+            "roastComplete": "ロースト完了",
+            "end": "終了",
+            "now": "現在",
+            "addNotePlaceholder": "ノート追加... (Enterで保存)"
+        },
+        "shortcuts": {
+            "yellow": "⌘1",
+            "fcStart": "⌘2",
+            "fcEnd": "⌘3",
+            "markDrop": "⌘D"
+        },
+        "sidebar": {
+            "bt": "BT",
+            "deltaBt": "ΔBT (30s)",
+            "et": "ET",
+            "deltaEt": "ΔET (30s)",
+            "ror": "RoR",
+            "time": "Time",
+            "dtr": "DTR"
+        },
+        "chart": {
+            "ariaLabel": "Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
+        },
+        "endRoastModal": {
+            "title": "ロースト終了",
+            "description": "タイマーが{{time}}で停止し、ローストが終了します。",
+            "confirm": "終了する",
+            "cancel": "キャンセル"
+        },
+        "summary": {
+            "title": "ロースト完了",
+            "totalTime": "総時間",
+            "development": "Development",
+            "finalBt": "最終BT",
+            "temperature": "温度",
+            "humidity": "湿度",
+            "log": "ログ",
+            "batchWeight": "バッチ重量",
+            "weightUnit": "g",
+            "roastLevel": "ロースト度",
+            "notes": "ノート",
+            "notesPlaceholder": "フレーバーノート、観察、次回の調整...",
+            "save": "保存",
+            "discard": "保存しない",
+            "levels": {
+                "light": "Light",
+                "mediumLight": "Medium-Light",
+                "medium": "Medium",
+                "mediumDark": "Medium-Dark",
+                "dark": "Dark"
+            }
+        },
+        "planBatch": {
+            "backToSchedule": "スケジュールに戻る",
+            "doneForToday": "今日はここまで",
+            "nextSession": "次のセッション",
+            "sessionsComplete": "セッション {{done}}/{{total}} 完了。次のセッションを開始しますか？",
+            "allDone": "{{done}}/{{total}} バッチ完了"
+        },
+        "dialogs": {
+            "roastInProgressTitle": "ロースト中",
+            "roastInProgressMsg": "ローストが進行中です。本当に終了しますか？",
+            "end": "終了",
+            "cancel": "キャンセル",
+            "machineRequiredTitle": "マシン接続が必要",
+            "machineRequiredMsg": "マシンが接続されていません。",
+            "saveFailedTitle": "保存失敗",
+            "saveFailedMsg": "ローストセッションの保存に失敗しました。\n\n{{error}}"
+        }
+    },
     "schedule": {
         "dateFormat": "yyyy年M月d日 (eee)",
         "monthFormat": "yyyy年 M月",

@@ -193,6 +193,142 @@
         "today": "今天",
         "batchCount": "{{count}}次"
     },
+    "beans": {
+        "title": "生豆库存",
+        "addBeanLot": "添加生豆批次",
+        "addBean": "添加生豆",
+        "loading": "加载中…",
+        "tab": {
+            "single": "单品",
+            "blend": "拼配"
+        },
+        "empty": "尚未注册生豆",
+        "addFirst": "添加您的第一支生豆",
+        "blend": {
+            "empty": "尚未注册拼配",
+            "addBlendFirst": "添加您的第一个拼配配方",
+            "addBlend": "添加拼配",
+            "componentBeans": "构成生豆",
+            "selectBlend": "选择拼配以查看详情",
+            "summary_one": "{{count}}支生豆 · {{total}}%组成",
+            "summary_other": "{{count}}支生豆 · {{total}}%组成"
+        }
+    },
+    "activeRoast": {
+        "header": {
+            "noBeanSelected": "未选择生豆",
+            "target": "目标:",
+            "noTarget": "无目标",
+            "roastComplete": "烘焙完成",
+            "disconnected": "未连接",
+            "mockRoastInProgress": "模拟 — 烘焙进行中",
+            "liveRoastInProgress": "实时 — 烘焙进行中",
+            "machineConnected": "设备已连接 · 准备烘焙",
+            "settings": "烘焙设置",
+            "openSettings": "打开烘焙设置"
+        },
+        "readings": {
+            "beanTemp": "Bean Temp",
+            "envTemp": "Env Temp",
+            "rateOfRise": "Rate of Rise",
+            "phase": "阶段"
+        },
+        "controls": {
+            "heater": "加热器",
+            "fan": "风扇",
+            "drum": "滚筒"
+        },
+        "log": {
+            "title": "Roast Log",
+            "deleteNote": "删除备注"
+        },
+        "phase": {
+            "ready": "READY",
+            "preheating": "PREHEATING",
+            "idle": "IDLE",
+            "drying": "Drying",
+            "maillard": "Maillard",
+            "development": "Development"
+        },
+        "actions": {
+            "charge": "Charge",
+            "roastReady": "Roast Ready",
+            "endRoast": "End Roast",
+            "yellow": "Yellow",
+            "fcStart": "FC Start",
+            "fcEnd": "FC End",
+            "markDrop": "Mark Drop",
+            "inProgress": "{{phase}} 进行中",
+            "roastComplete": "烘焙完成",
+            "end": "结束",
+            "now": "当前",
+            "addNotePlaceholder": "添加备注... (Enter保存)"
+        },
+        "shortcuts": {
+            "yellow": "⌘1",
+            "fcStart": "⌘2",
+            "fcEnd": "⌘3",
+            "markDrop": "⌘D"
+        },
+        "sidebar": {
+            "bt": "BT",
+            "deltaBt": "ΔBT (30s)",
+            "et": "ET",
+            "deltaEt": "ΔET (30s)",
+            "ror": "RoR",
+            "time": "Time",
+            "dtr": "DTR"
+        },
+        "chart": {
+            "ariaLabel": "温度曲线图。使用滚轮或 +/- 缩放，拖拽或方向键平移，按 0 重置缩放。"
+        },
+        "endRoastModal": {
+            "title": "结束烘焙",
+            "description": "计时器将在 {{time}} 停止，烘焙结束。",
+            "confirm": "结束",
+            "cancel": "取消"
+        },
+        "summary": {
+            "title": "烘焙完成",
+            "totalTime": "总时间",
+            "development": "Development",
+            "finalBt": "最终 BT",
+            "temperature": "温度",
+            "humidity": "湿度",
+            "log": "记录",
+            "batchWeight": "批次重量",
+            "weightUnit": "g",
+            "roastLevel": "烘焙度",
+            "notes": "备注",
+            "notesPlaceholder": "风味笔记、观察、下次调整...",
+            "save": "保存",
+            "discard": "不保存",
+            "levels": {
+                "light": "Light",
+                "mediumLight": "Medium-Light",
+                "medium": "Medium",
+                "mediumDark": "Medium-Dark",
+                "dark": "Dark"
+            }
+        },
+        "planBatch": {
+            "backToSchedule": "返回计划",
+            "doneForToday": "今天到此为止",
+            "nextSession": "下一批次",
+            "sessionsComplete": "批次 {{done}}/{{total}} 完成。开始下一批次？",
+            "allDone": "{{done}}/{{total}} 批次完成"
+        },
+        "dialogs": {
+            "roastInProgressTitle": "烘焙进行中",
+            "roastInProgressMsg": "烘焙正在进行中。确定要结束吗？",
+            "end": "结束",
+            "cancel": "取消",
+            "machineRequiredTitle": "需要连接设备",
+            "machineRequiredMsg": "设备未连接。",
+            "saveFailedTitle": "保存失败",
+            "saveFailedMsg": "保存烘焙数据失败。\n\n{{error}}"
+        }
+    },
     "schedule": {
         "dateFormat": "yyyy年M月d日 (eee)",
         "monthFormat": "yyyy年 M月",

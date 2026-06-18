@@ -206,5 +206,9 @@ jobs:
           else
             TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
           fi
-          curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
-            --data "{\"text\":\"$TEXT\"}"
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+              --data "{\"text\":\"$TEXT\"}"
+          else
+            echo "SLACK_WEBHOOK_URL not set — skipping notification"
+          fi

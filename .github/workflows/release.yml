@@ -44,6 +44,10 @@ jobs:
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
 
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - uses: actions/checkout@v4
 
@@ -63,10 +67,14 @@ jobs:
           APPLE_ID:      ${{ secrets.APPLE_ID }}
           APPLE_PW:      ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM:    ${{ secrets.APPLE_TEAM_ID }}
-          IS_MACOS:      ${{ runner.os == 'macOS' }}
         run: |
           missing=false
-          check() { [ -z "${!1}" ] && echo "  MISSING: $2" && missing=true; }
+          check() {
+            if [ -z "${!1}" ]; then
+              echo "  MISSING: $2"
+              missing=true
+            fi
+          }
 
           echo "Checking shared secrets..."
           check TAURI_KEY        "TAURI_SIGNING_PRIVATE_KEY"
@@ -78,7 +86,7 @@ jobs:
           check R2_SECRET        "VITE_R2_SECRET_ACCESS_KEY"
           check R2_BUCKET        "VITE_R2_BUCKET_NAME"
 
-          if [ "$IS_MACOS" = "true" ]; then
+          if [ "$RUNNER_OS" = "macOS" ]; then
             echo "Checking macOS signing secrets..."
             check APPLE_CERT      "APPLE_CERTIFICATE"
             check APPLE_CERT_PW   "APPLE_CERTIFICATE_PASSWORD"
@@ -140,7 +148,7 @@ jobs:
         run: npm run build:sidecar
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0.5
+        uses: tauri-apps/tauri-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -192,8 +200,12 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
-            --data "{\"text\":\":x: *Release build FAILED* — \`${GITHUB_REF_NAME}\` | \`${{ matrix.target }}\` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+              --data "{\"text\":\":x: *Release build FAILED* — \`${GITHUB_REF_NAME}\` | \`${{ matrix.target }}\` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
+          else
+            echo "SLACK_WEBHOOK_URL not set — skipping notification"
+          fi
 
   publish-r2:
     needs: [setup, build]

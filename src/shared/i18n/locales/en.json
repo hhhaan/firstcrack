@@ -193,6 +193,144 @@
         "today": "Today",
         "batchCount": "{{count}}x"
     },
+    "beans": {
+        "title": "Bean Inventory",
+        "addBeanLot": "Add Bean Lot",
+        "addBean": "Add Bean",
+        "loading": "Loading…",
+        "tab": {
+            "single": "Single Origin",
+            "blend": "Blend"
+        },
+        "empty": "No beans registered yet",
+        "addFirst": "Add your first bean to get started",
+        "blend": {
+            "empty": "No blends registered yet",
+            "addBlendFirst": "Add your first blend recipe to get started",
+            "addBlend": "Add Blend",
+            "componentBeans": "Component Beans",
+            "selectBlend": "Select a blend to view details",
+            "edit": "Edit",
+            "delete": "Delete",
+            "summary_one": "{{count}} bean · {{total}}% total",
+            "summary_other": "{{count}} beans · {{total}}% total"
+        }
+    },
+    "activeRoast": {
+        "header": {
+            "noBeanSelected": "No Bean Selected",
+            "target": "Target:",
+            "noTarget": "No Target",
+            "roastComplete": "Roast Complete",
+            "disconnected": "Disconnected",
+            "mockRoastInProgress": "Mock — Roast in Progress",
+            "liveRoastInProgress": "Live — Roast in Progress",
+            "machineConnected": "Machine Connected · Ready to Roast",
+            "settings": "Roast settings",
+            "openSettings": "Open roast settings"
+        },
+        "readings": {
+            "beanTemp": "Bean Temp",
+            "envTemp": "Env Temp",
+            "rateOfRise": "Rate of Rise",
+            "phase": "Phase"
+        },
+        "controls": {
+            "heater": "Heater",
+            "fan": "Fan",
+            "drum": "Drum"
+        },
+        "log": {
+            "title": "Roast Log",
+            "deleteNote": "Delete note"
+        },
+        "phase": {
+            "ready": "READY",
+            "preheating": "PREHEATING",
+            "idle": "IDLE",
+            "drying": "Drying",
+            "maillard": "Maillard",
+            "development": "Development"
+        },
+        "actions": {
+            "charge": "Charge",
+            "roastReady": "Roast Ready",
+            "endRoast": "End Roast",
+            "yellow": "Yellow",
+            "fcStart": "FC Start",
+            "fcEnd": "FC End",
+            "markDrop": "Mark Drop",
+            "inProgress": "{{phase}} in progress",
+            "roastComplete": "Roast complete",
+            "end": "End",
+            "now": "Now",
+            "addNotePlaceholder": "Add note... (Enter to save)"
+        },
+        "shortcuts": {
+            "yellow": "⌘1",
+            "fcStart": "⌘2",
+            "fcEnd": "⌘3",
+            "markDrop": "⌘D"
+        },
+        "sidebar": {
+            "bt": "BT",
+            "deltaBt": "ΔBT (30s)",
+            "et": "ET",
+            "deltaEt": "ΔET (30s)",
+            "ror": "RoR",
+            "time": "Time",
+            "dtr": "DTR"
+        },
+        "chart": {
+            "ariaLabel": "Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
+        },
+        "endRoastModal": {
+            "title": "End Roast",
+            "description": "The timer will stop at {{time}} and the roast will end.",
+            "confirm": "End Roast",
+            "cancel": "Cancel"
+        },
+        "summary": {
+            "title": "Roast Complete",
+            "totalTime": "Total Time",
+            "development": "Development",
+            "finalBt": "Final BT",
+            "temperature": "Temperature",
+            "humidity": "Humidity",
+            "log": "Log",
+            "batchWeight": "Batch Weight",
+            "weightUnit": "g",
+            "roastLevel": "Roast Level",
+            "notes": "Notes",
+            "notesPlaceholder": "Flavor notes, observations, adjustments for next time...",
+            "save": "Save",
+            "discard": "Don't Save",
+            "levels": {
+                "light": "Light",
+                "mediumLight": "Medium-Light",
+                "medium": "Medium",
+                "mediumDark": "Medium-Dark",
+                "dark": "Dark"
+            }
+        },
+        "planBatch": {
+            "backToSchedule": "Back to Schedule",
+            "doneForToday": "Done for Today",
+            "nextSession": "Next Session",
+            "sessionsComplete": "Session {{done}}/{{total}} complete. Start the next session?",
+            "allDone": "{{done}}/{{total}} batches complete"
+        },
+        "dialogs": {
+            "roastInProgressTitle": "Roast in Progress",
+            "roastInProgressMsg": "A roast is in progress. Are you sure you want to end it?",
+            "end": "End",
+            "cancel": "Cancel",
+            "machineRequiredTitle": "Machine Connection Required",
+            "machineRequiredMsg": "The machine is not connected.",
+            "saveFailedTitle": "Save Failed",
+            "saveFailedMsg": "Failed to save the roast session.\n\n{{error}}"
+        }
+    },
     "schedule": {
         "dateFormat": "MMM d, yyyy (eee)",
         "monthFormat": "MMMM yyyy",
