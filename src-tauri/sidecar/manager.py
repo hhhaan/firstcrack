@@ -177,35 +177,43 @@ class RoasterManager:
         self._et_display_ema = None
 
     async def _reconnect_loop(self) -> None:
-        """읽기 실패 후 백그라운드 자동 재연결 (3회, 지수 백오프)."""
-        for attempt, delay in enumerate(config.RECONNECT_BACKOFFS):
-            self._reconnect_attempt = attempt + 1
-            await asyncio.sleep(delay)
-            if self._connected or self._adapter is None:
-                self._reconnect_attempt = 0
-                return
-            async with self._lock:
+        """읽기 실패 후 백그라운드 자동 재연결.
+
+        config.RECONNECT_BACKOFFS를 소진한 뒤에는 마지막 간격으로 무한 재시도.
+        사용자가 /disconnect 하면 _disconnect_internal()이 이 태스크를 취소한다.
+        """
+        attempt = 0
+        try:
+            while True:
+                delay = config.RECONNECT_BACKOFFS[
+                    min(attempt, len(config.RECONNECT_BACKOFFS) - 1)
+                ]
+                attempt += 1
+                self._reconnect_attempt = attempt
+                await asyncio.sleep(delay)
                 if self._connected or self._adapter is None:
-                    self._reconnect_attempt = 0
                     return
-                try:
-                    _log.info(
-                        "자동 재연결 시도 (%d/3): %s", attempt + 1, self._roaster_key
-                    )
+                async with self._lock:
+                    if self._connected or self._adapter is None:
+                        return
                     try:
-                        await self._adapter.disconnect()
-                    except Exception:
-                        pass
-                    await self._adapter.connect()
-                    self._connected = True
-                    self._error = None
-                    self._reconnect_attempt = 0
-                    _log.info("자동 재연결 성공: %s", self._roaster_key)
-                    return
-                except Exception as exc:
-                    _log.error("재연결 실패 (%d/3): %s", attempt + 1, exc, exc_info=True)
-        self._reconnect_attempt = 0
-        _log.error("자동 재연결 3회 모두 실패: %s", self._roaster_key)
+                        _log.info("자동 재연결 시도 (%d): %s", attempt, self._roaster_key)
+                        try:
+                            await self._adapter.disconnect()
+                        except Exception:
+                            pass
+                        await self._adapter.connect()
+                        self._connected = True
+                        self._error = None
+                        _log.info("자동 재연결 성공: %s", self._roaster_key)
+                        return
+                    except Exception as exc:
+                        self._error = _format_connection_error(
+                            exc, self._protocol, self._merged_params
+                        )
+                        _log.error("재연결 실패 (%d): %s", attempt, exc)
+        finally:
+            self._reconnect_attempt = 0
 
     async def read_temperatures(self) -> dict[str, Any]:
         if not self._connected or self._adapter is None:

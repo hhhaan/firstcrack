@@ -256,3 +256,66 @@ class TestRorAccumulation:
         latest_ts = readings[-1].timestamp
         for ts, _ in manager._ror_window:
             assert ts >= latest_ts - 30.0
+
+
+# ---------------------------------------------------------------------------
+# _reconnect_loop — infinite retry
+# ---------------------------------------------------------------------------
+
+class FlakyConnectAdapter:
+    """connect가 fail_times번 실패한 뒤 성공하는 페이크."""
+
+    def __init__(self, fail_times: int):
+        self._remaining_failures = fail_times
+        self.connect_call_count = 0
+        self.connected = False
+
+    async def connect(self) -> None:
+        self.connect_call_count += 1
+        if self._remaining_failures > 0:
+            self._remaining_failures -= 1
+            raise ConnectionError("simulated failure")
+        self.connected = True
+
+    async def disconnect(self) -> None:
+        self.connected = False
+
+    async def read(self):
+        raise RuntimeError("not used")
+
+
+class TestInfiniteReconnect:
+    async def test_reconnect_survives_more_than_three_failures(self, manager, monkeypatch):
+        """백오프 3회 소진 후에도 포기하지 않고 마지막 간격으로 계속 재시도한다."""
+        import config
+        monkeypatch.setattr(config, "RECONNECT_BACKOFFS", [0.01, 0.01, 0.01])
+
+        adapter = FlakyConnectAdapter(fail_times=5)  # 기존 로직이면 3회 후 포기 → 실패
+        manager._adapter = adapter
+        manager._connected = False
+        manager._roaster_key = "test"
+        manager._protocol = "virtual"
+        manager._merged_params = {}
+
+        manager._reconnect_task = asyncio.create_task(manager._reconnect_loop())
+        await asyncio.wait_for(manager._reconnect_task, timeout=2.0)
+
+        assert manager._connected is True
+        assert adapter.connect_call_count == 6  # 실패 5 + 성공 1
+        assert manager._error is None
+        assert manager._reconnect_attempt == 0
+
+    async def test_reconnect_stops_when_adapter_removed(self, manager, monkeypatch):
+        """disconnect로 어댑터가 제거되면 루프가 종료된다."""
+        import config
+        monkeypatch.setattr(config, "RECONNECT_BACKOFFS", [0.01])
+
+        adapter = FlakyConnectAdapter(fail_times=10_000)
+        manager._adapter = adapter
+        manager._connected = False
+
+        task = asyncio.create_task(manager._reconnect_loop())
+        await asyncio.sleep(0.05)
+        manager._adapter = None  # disconnect 상당
+        await asyncio.wait_for(task, timeout=2.0)
+        assert manager._reconnect_attempt == 0
