@@ -1,5 +1,5 @@
-import { Square } from 'lucide-react';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { Square } from 'lucide-react';
 
 interface EndRoastModalProps {
     open: boolean;
@@ -18,9 +18,9 @@ export const EndRoastModal = ({ open, timeStr, onClose, onConfirm }: EndRoastMod
             onClose={onClose}
             labelledBy="end-roast-modal-title"
             overlayClassName="z-[10000]"
-            contentClassName="max-w-[420px] w-full bg-main-bg rounded-[20px] p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px]"
+            contentClassName="max-w-[420px] w-full bg-main-bg rounded p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px]"
         >
-            <div className="w-11 h-11 rounded-[14px] bg-[rgba(254,226,226,0.9)] text-[#dc2626] flex items-center justify-center mb-4.5">
+            <div className="w-11 h-11 rounded-md bg-[rgba(254,226,226,0.9)] text-[#dc2626] flex items-center justify-center mb-4.5">
                 <Square size={18} strokeWidth={2} />
             </div>
 

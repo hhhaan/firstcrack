@@ -5,9 +5,33 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 1.0.2). Required when not triggered by a tag.'
+        required: false
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Resolve version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          elif [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            echo "::error::Cannot determine version. Push a semver tag (v*) or supply the 'version' input."
+            exit 1
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Resolved version: $VERSION"
+
   build:
+    needs: setup
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -22,6 +46,53 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        env:
+          TAURI_KEY:     ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_KEY_PW:  ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          SUPABASE_URL:  ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          R2_ID:         ${{ secrets.VITE_R2_ACCOUNT_ID }}
+          R2_ACCESS:     ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+          R2_SECRET:     ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET:     ${{ secrets.VITE_R2_BUCKET_NAME }}
+          APPLE_CERT:    ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERT_PW: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID:      ${{ secrets.APPLE_ID }}
+          APPLE_PW:      ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM:    ${{ secrets.APPLE_TEAM_ID }}
+          IS_MACOS:      ${{ runner.os == 'macOS' }}
+        run: |
+          missing=false
+          check() { [ -z "${!1}" ] && echo "  MISSING: $2" && missing=true; }
+
+          echo "Checking shared secrets..."
+          check TAURI_KEY        "TAURI_SIGNING_PRIVATE_KEY"
+          check TAURI_KEY_PW     "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+          check SUPABASE_URL     "VITE_SUPABASE_URL"
+          check SUPABASE_ANON    "VITE_SUPABASE_ANON_KEY"
+          check R2_ID            "VITE_R2_ACCOUNT_ID"
+          check R2_ACCESS        "VITE_R2_ACCESS_KEY_ID"
+          check R2_SECRET        "VITE_R2_SECRET_ACCESS_KEY"
+          check R2_BUCKET        "VITE_R2_BUCKET_NAME"
+
+          if [ "$IS_MACOS" = "true" ]; then
+            echo "Checking macOS signing secrets..."
+            check APPLE_CERT      "APPLE_CERTIFICATE"
+            check APPLE_CERT_PW   "APPLE_CERTIFICATE_PASSWORD"
+            check APPLE_IDENTITY  "APPLE_SIGNING_IDENTITY"
+            check APPLE_ID        "APPLE_ID"
+            check APPLE_PW        "APPLE_PASSWORD"
+            check APPLE_TEAM      "APPLE_TEAM_ID"
+          fi
+
+          if [ "$missing" = "true" ]; then
+            echo "::error::One or more required secrets are missing – aborting before build."
+            exit 1
+          fi
+          echo "All required secrets present."
 
       - uses: pnpm/action-setup@v4
 
@@ -39,7 +110,8 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          key: rust-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'src-tauri/tauri.conf.json') }}
+          shared-key: rust-${{ matrix.target }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install frontend deps
         run: pnpm install
@@ -79,9 +151,12 @@ jobs:
           VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
           VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
           VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
+          PUBLIC_SITE_URL: https://your-domain.com
+          PUBLIC_TAURI_REDIRECT: firstcrack://auth/callback
           CARGO_INCREMENTAL: "0"
           RUSTFLAGS: "-C debuginfo=0"
-          # macOS 코드 사이닝 & 노타리제이션 (Apple Developer Program)
+          CARGO_NET_RETRY: "3"
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -112,81 +187,17 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.sig
           retention-days: 7
 
-  publish-r2:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Get version from tag
-        id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Upload binaries & latest.json to R2
+      - name: Notify build failure
+        if: failure()
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-          R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
-          VERSION: ${{ steps.version.outputs.VERSION }}
-          R2_BUCKET: first-crack
-          R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          set -e
-          S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
+          curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+            --data "{\"text\":\":x: *Release build FAILED* — \`${GITHUB_REF_NAME}\` | \`${{ matrix.target }}\` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
 
-          # Tauri 2.x app target produces "AppName.app.tar.gz" (no arch/version in name).
-          # Look up per-arch artifact directory to distinguish aarch64 vs x64.
-          AARCH64_TAR=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
-          AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
-          X64_TAR=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
-          X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
-          WIN_MSI=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi" ! -name "*.sig" | head -1)
-          WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
-          AARCH64_DMG=$(find artifacts/macos-aarch64-apple-darwin -name "*.dmg" | head -1)
-          X64_DMG=$(find artifacts/macos-x86_64-apple-darwin -name "*.dmg" | head -1)
-
-          # Validate
-          [ -z "$AARCH64_TAR" ] && echo "ERROR: macOS arm64 .app.tar.gz not found" && exit 1
-          [ -z "$X64_TAR" ]     && echo "ERROR: macOS x64 .app.tar.gz not found"   && exit 1
-          [ -z "$WIN_MSI" ]     && echo "ERROR: Windows MSI not found"              && exit 1
-
-          # Canonical R2 names (arch-suffixed to avoid collision)
-          AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
-          X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
-          WIN_MSI_R2=$(basename "$WIN_MSI")
-
-          # Upload updater artifacts with canonical names
-          $S3 "$AARCH64_TAR" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2"
-          [ -n "$AARCH64_SIG" ] && $S3 "$AARCH64_SIG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2.sig"
-          $S3 "$X64_TAR"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2"
-          [ -n "$X64_SIG" ]     && $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig"
-          $S3 "$WIN_MSI"    "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2"
-          [ -n "$WIN_SIG" ]     && $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig"
-          [ -n "$AARCH64_DMG" ] && $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")"
-          [ -n "$X64_DMG" ]     && $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")"
-
-          # Build latest.json
-          jq --null-input \
-            --arg version "$VERSION" \
-            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
-            --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
-            --arg x64_sig "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
-            --arg x64_url "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
-            --arg win_sig "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
-            --arg win_url "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
-            '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
-            > latest.json
-
-          $S3 latest.json "s3://$R2_BUCKET/releases/latest.json"
-
-          # Landing page fixed-name aliases
-          [ -n "$AARCH64_DMG" ] && $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg"
-          [ -n "$X64_DMG" ]     && $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg"
-          $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi"
+  publish-r2:
+    needs: [setup, build]
+    uses: ./.github/workflows/_publish-r2-reusable.yml
+    with:
+      version: ${{ needs.setup.outputs.version }}
+    secrets: inherit

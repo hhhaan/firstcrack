@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
 import { interpolateProfileBT } from '@shared/data/roast-profiles';
 import type { TsvPoint } from '@shared/lib/tsv';
+import { useMemo } from 'react';
 import type { LiveRoastPoint } from './useSidecarPolling';
 
 /** 차트 전체 x축 범위(초). uPlot에 항상 이 길이를 보장한다. */
@@ -70,11 +70,7 @@ export const useChartData = ({
         const xMin = -preChargeDisplaySec;
         const needsStart = deduped.length === 0 || deduped[0].time > xMin + 0.5;
         const needsEnd = deduped.length === 0 || deduped[deduped.length - 1].time < CHART_TOTAL_SECS - 1;
-        return [
-            ...(needsStart ? [sentinel(xMin)] : []),
-            ...deduped,
-            ...(needsEnd ? [sentinel(CHART_TOTAL_SECS)] : []),
-        ];
+        return [...(needsStart ? [sentinel(xMin)] : []), ...deduped, ...(needsEnd ? [sentinel(CHART_TOTAL_SECS)] : [])];
     }, [livePoints, targetCurvePoints, targetSamples, preChargeDisplaySec]);
 
     return { chartData };

@@ -1,8 +1,9 @@
-import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
-import { roastProfileApi, type RoastProfileWithSource } from './api';
-import type { RoastProfile } from '@shared/types/database.types';
 import { fetchTsvFromR2 } from '@shared/lib/r2';
+import { supabase } from '@shared/lib/supabase';
 import { parseTsv, type TsvPoint } from '@shared/lib/tsv';
+import type { RoastProfile } from '@shared/types/database.types';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type RoastProfileWithSource, roastProfileApi } from './api';
 
 export const roastProfileKeys = {
     all: (userId: string) => ['roast_profiles', userId] as const,
@@ -52,9 +53,7 @@ export const useDeleteRoastProfile = (userId: string) => {
 
 // TSV는 세션당 immutable — 한 번 fetch 후 영구 캐시.
 const curveQueryConfig = (tsvPath: string | null | undefined, fallbackKey?: string) => ({
-    queryKey: tsvPath
-        ? roastProfileKeys.curve(tsvPath)
-        : ['roast_profile_curve', 'none', fallbackKey ?? ''],
+    queryKey: tsvPath ? roastProfileKeys.curve(tsvPath) : ['roast_profile_curve', 'none', fallbackKey ?? ''],
     queryFn: async (): Promise<TsvPoint[]> => {
         if (!tsvPath) return [];
         return parseTsv(await fetchTsvFromR2(tsvPath));
@@ -64,16 +63,49 @@ const curveQueryConfig = (tsvPath: string | null | undefined, fallbackKey?: stri
     gcTime: Infinity,
 });
 
-export const useRoastProfileCurve = (tsvPath: string | null | undefined) =>
-    useQuery(curveQueryConfig(tsvPath));
+export const useRoastProfileCurve = (tsvPath: string | null | undefined) => useQuery(curveQueryConfig(tsvPath));
 
 // 비교 모드용 — paths 순서대로 결과 배열 반환. 각 fallbackKey는 캐시 충돌 방지용.
-export const useRoastProfileCurves = (
-    paths: (string | null | undefined)[],
-    fallbackKeys: string[] = [],
-) =>
+export const useRoastProfileCurves = (paths: (string | null | undefined)[], fallbackKeys: string[] = []) =>
     useQueries({
         queries: paths.map((p, i) => curveQueryConfig(p, fallbackKeys[i])),
     });
 
 export type { RoastProfileWithSource };
+
+// ── Profile Bean History ──────────────────────────────────────────────────────
+
+export type BeanHistoryItem = {
+    name: string;
+    count: number;
+    lastDate: string;
+};
+
+export const useProfileBeanHistory = (profileId: string) =>
+    useQuery({
+        queryKey: ['profile-bean-history', profileId],
+        queryFn: async (): Promise<BeanHistoryItem[]> => {
+            const { data, error } = await supabase
+                .from('roast_sessions')
+                .select('bean_id, roasted_at, beans(name)')
+                .eq('profile_id', profileId)
+                .not('bean_id', 'is', null)
+                .order('roasted_at', { ascending: false });
+            if (error) throw error;
+
+            const grouped: Record<string, { name: string; count: number; lastDate: string }> = {};
+            for (const s of data ?? []) {
+                if (!s.bean_id) continue;
+                if (!grouped[s.bean_id]) {
+                    grouped[s.bean_id] = {
+                        name: (s.beans as { name: string } | null)?.name ?? 'Unknown',
+                        count: 0,
+                        lastDate: s.roasted_at ?? '',
+                    };
+                }
+                grouped[s.bean_id].count++;
+            }
+            return Object.values(grouped).sort((a, b) => b.count - a.count);
+        },
+        enabled: !!profileId,
+    });

@@ -3,7 +3,9 @@ import time
 import logging
 from typing import Any
 
+import config
 from adapters.base import Reading
+from protocol_trace import TRACE
 
 _log = logging.getLogger(__name__)
 
@@ -39,7 +41,7 @@ class S7Adapter:
         self._channels = channels or []
         self._plc: Any = None
         self._read_retries: int = 1
-        self._min_interval: float = 0.04
+        self._min_interval: float = config.S7_MIN_REQUEST_INTERVAL
         self._last_request_ts: float = 0.0
         # 채널 캐시 — connect() 시 한 번만 계산
         self._bt_ch: dict[str, Any] | None = None
@@ -108,7 +110,10 @@ class S7Adapter:
         for attempt in range(self._read_retries + 1):
             self._throttle()
             try:
+                role = ch.get("role", "?")
+                TRACE.record("tx", "s7", f"db_read db={db} offset={offset} size={size} role={role}")
                 ba: bytearray = self._plc.db_read(db, offset, size)
+                TRACE.record("rx", "s7", f"db_read db={db} offset={offset} role={role}", bytes(ba))
                 if len(ba) != size:
                     raise IOError(f"db_read 응답 크기 불일치: {len(ba)} != {size}")
                 value = float(get_real(ba, 0) if ch_type == 1 else get_int(ba, 0))
@@ -116,9 +121,16 @@ class S7Adapter:
                     value /= 10.0
                 elif div == 2:
                     value /= 100.0
-                return round(value, 1)
+                value = round(value, 1)
+                TRACE.record(
+                    "info", "s7",
+                    f"decoded role={role} type={'REAL' if ch_type == 1 else 'INT'} div={div}",
+                    value,
+                )
+                return value
             except Exception as exc:
                 last_exc = exc
+                TRACE.record("err", "s7", f"db={db} offset={offset} attempt={attempt + 1}: {exc}")
                 _log.warning("S7 읽기 실패 (attempt %d/%d): db=%d offset=%d — %s",
                              attempt + 1, self._read_retries + 1, db, offset, exc)
         raise last_exc
@@ -140,7 +152,7 @@ class S7Adapter:
         return Reading(bt=bt, et=et, heater=hp, fan=fc, drum=drum, timestamp=time.monotonic())
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
-        pass  # S7 write_area 확장 시 여기에 구현
+        pass  # 제어 기능 미사용 — 제거 예정
 
     @property
     def connected(self) -> bool:

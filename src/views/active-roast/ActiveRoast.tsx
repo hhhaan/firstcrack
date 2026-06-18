@@ -1,42 +1,60 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useWeather } from '@views/dashboard/useWeather';
-import { useAuthStore } from '@shared/store/auth';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
+import { beanStockEventApi } from '@entities/bean-stock-event';
+import { blendApi } from '@entities/blend';
+import { useUpdatePlanBatch } from '@entities/plan';
+import { useProfile } from '@entities/profile';
 import { useCreateRoastSession } from '@entities/roast';
-import { useRoastKeyboardShortcuts } from '@views/useRoastKeyboardShortcuts';
-import { useRoastActions } from '@views/useRoastActions';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ask, message } from '@tauri-apps/plugin-dialog';
-import { readTextFile, remove, BaseDirectory } from '@tauri-apps/plugin-fs';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { Play, Square } from 'lucide-react';
-import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
+import { useRoastProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import {
-    RoastSummaryModal,
-    type RoastSummaryData,
-} from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
-import { RoastTempChart, type RoastEventMarker } from '@widgets/active-roast/ui/RoastTempChart';
-import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
+    computePhaseSegments,
+    formatTemp,
+    toDisplayRoR,
+    toDisplayTemp,
+    useRoastSettings,
+} from '@features/active-roast';
+import {
+    CHART_GRID_RIGHT,
+    CHART_GRID_RIGHT_WITH_ROR,
+    EVENT_MARKER_COLORS,
+    getResolvedEventColor,
+} from '@features/active-roast/lib/chart-config';
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
-
-import type { LogEntry } from '@shared/types/roast';
-import { sidecar } from '@shared/lib/sidecar';
-import { useRoastSettings, toDisplayTemp, toDisplayRoR, formatTemp, computePhaseSegments } from '@features/active-roast';
-
-import { RoastHeader, LiveReadings, MachineControls, EventButtons, RoastLog } from '@widgets/active-roast';
-import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
+import { parseTimeSec } from '@features/active-roast/lib/time';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
-import { useRoastProfiles, useRoastProfileCurve } from '@entities/roast-profile';
-import { useProfile } from '@entities/profile';
-import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
-import { useUpdatePlanBatch } from '@entities/plan';
+import { sidecar } from '@shared/lib/sidecar';
+import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
-
+import type { LogEntry } from '@shared/types/roast';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { ask, message } from '@tauri-apps/plugin-dialog';
+import { BaseDirectory, readTextFile, remove } from '@tauri-apps/plugin-fs';
+import { useWeather } from '@views/dashboard/useWeather';
+import { useRoastActions } from '@views/useRoastActions';
+import { useRoastKeyboardShortcuts } from '@views/useRoastKeyboardShortcuts';
+import {
+    EventButtons,
+    LiveReadings,
+    MachineControls,
+    PlanBatchContinueModal,
+    RoastHeader,
+    RoastLog,
+} from '@widgets/active-roast';
+import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
+import {
+    type RoastSummaryData,
+    RoastSummaryModal,
+} from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
+import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
+import { type RoastEventMarker, RoastTempChart } from '@widgets/active-roast/ui/RoastTempChart';
+import { Play, Square } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
+import { CHART_TOTAL_SECS, useChartData } from './hooks/useChartData';
+import { MIN_VISIBLE_SECS, useChartZoom } from './hooks/useChartZoom';
 import { useSidecarPolling } from './hooks/useSidecarPolling';
-import { useChartData, CHART_TOTAL_SECS } from './hooks/useChartData';
-import { useChartZoom, MIN_VISIBLE_SECS } from './hooks/useChartZoom';
-import { parseTimeSec } from '@features/active-roast/lib/time';
 
 export const ActiveRoast = ({
     isActive,
@@ -95,7 +113,6 @@ export const ActiveRoast = ({
     const [showEndRoastModal, setShowEndRoastModal] = useState(false);
     const [showSummaryModal, setShowSummaryModal] = useState(false);
     const [summaryData, setSummaryData] = useState<RoastSummaryData | null>(null);
-    const [roastNotes, setRoastNotes] = useState('');
     const [noteInput, setNoteInput] = useState('');
     const [showContinueModal, setShowContinueModal] = useState(false);
 
@@ -112,7 +129,7 @@ export const ActiveRoast = ({
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setTargetProfileId(userProfile?.default_roast_profile_id ?? null);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.default_roast_profile_id]);
 
     // isActive가 true가 될 때마다 store의 pendingBeanId를 소비
@@ -157,18 +174,13 @@ export const ActiveRoast = ({
         () => dbProfiles.find((p) => p.id === targetProfileId) ?? null,
         [dbProfiles, targetProfileId],
     );
-    const { data: targetCurvePoints = [] } = useRoastProfileCurve(
-        targetProfile?.source_session?.tsv_path ?? null,
-    );
+    const { data: targetCurvePoints = [] } = useRoastProfileCurve(targetProfile?.source_session?.tsv_path ?? null);
 
     // charge 후: 실제 버퍼에 쌓인 구간과 설정값 중 짧은 쪽을 사용
     // (ready → charge 대기 시간이 설정값보다 짧으면 빈 공간 없이 딱 맞게)
-    const actualPreSec = charged && livePoints.length > 0 && livePoints[0].time < 0
-        ? Math.ceil(Math.abs(livePoints[0].time))
-        : 0;
-    const effectivePreChargeDisplaySec = charged
-        ? Math.min(roastSettings.preChargeDisplaySec, actualPreSec)
-        : 0;
+    const actualPreSec =
+        charged && livePoints.length > 0 && livePoints[0].time < 0 ? Math.ceil(Math.abs(livePoints[0].time)) : 0;
+    const effectivePreChargeDisplaySec = charged ? Math.min(roastSettings.preChargeDisplaySec, actualPreSec) : 0;
 
     const { chartData } = useChartData({
         livePoints,
@@ -178,6 +190,8 @@ export const ActiveRoast = ({
     /** 차트 x축 끝값. 데이터가 없으면 전체 범위로 고정 */
     const MAX_TIME = chartData.length > 0 ? chartData[chartData.length - 1].time : CHART_TOTAL_SECS;
     const MIN_TIME = -effectivePreChargeDisplaySec;
+    const chartRightGridPad =
+        roastSettings.showRoRChart || roastSettings.showControlChart ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
 
     // ── 차트 줌·패닝·드래그 ──────────────────────────────────────
     const {
@@ -192,7 +206,7 @@ export const ActiveRoast = ({
         handleChartPointerDown,
         handleChartPointerMove,
         endChartDrag,
-    } = useChartZoom(MAX_TIME, MIN_TIME);
+    } = useChartZoom(MAX_TIME, MIN_TIME, chartRightGridPad);
 
     // fullscreen 진입 시 외부 줌 리셋 — ECharts 내부 zoom이 독립적으로 동작한다
     useEffect(() => {
@@ -208,30 +222,31 @@ export const ActiveRoast = ({
         [chartData, effectiveZoomRange],
     );
 
-    const { visibleXs, visibleBtTarget, visibleBtActual, visibleEtActual, visibleRorActual, visibleRorEtActual } = useMemo(() => {
-        const xs: number[] = [];
-        const btTarget: (number | null)[] = [];
-        const btActual: (number | null)[] = [];
-        const etActual: (number | null)[] = [];
-        const rorActual: (number | null)[] = [];
-        const rorEtActual: (number | null)[] = [];
-        for (const p of visibleChartData) {
-            xs.push(p.time);
-            btTarget.push(p.btTarget != null ? toDisplayTemp(p.btTarget, unit) : null);
-            btActual.push(p.btActual != null ? toDisplayTemp(p.btActual, unit) : null);
-            etActual.push(p.etActual != null ? toDisplayTemp(p.etActual, unit) : null);
-            rorActual.push(p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null);
-            rorEtActual.push(p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null);
-        }
-        return {
-            visibleXs: xs,
-            visibleBtTarget: btTarget,
-            visibleBtActual: btActual,
-            visibleEtActual: etActual,
-            visibleRorActual: rorActual,
-            visibleRorEtActual: rorEtActual,
-        };
-    }, [visibleChartData, unit]);
+    const { visibleXs, visibleBtTarget, visibleBtActual, visibleEtActual, visibleRorActual, visibleRorEtActual } =
+        useMemo(() => {
+            const xs: number[] = [];
+            const btTarget: (number | null)[] = [];
+            const btActual: (number | null)[] = [];
+            const etActual: (number | null)[] = [];
+            const rorActual: (number | null)[] = [];
+            const rorEtActual: (number | null)[] = [];
+            for (const p of visibleChartData) {
+                xs.push(p.time);
+                btTarget.push(p.btTarget != null ? toDisplayTemp(p.btTarget, unit) : null);
+                btActual.push(p.btActual != null ? toDisplayTemp(p.btActual, unit) : null);
+                etActual.push(p.etActual != null ? toDisplayTemp(p.etActual, unit) : null);
+                rorActual.push(p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null);
+                rorEtActual.push(p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null);
+            }
+            return {
+                visibleXs: xs,
+                visibleBtTarget: btTarget,
+                visibleBtActual: btActual,
+                visibleEtActual: etActual,
+                visibleRorActual: rorActual,
+                visibleRorEtActual: rorEtActual,
+            };
+        }, [visibleChartData, unit]);
 
     const { visibleControlXs, visibleDrumTemp, visibleHeatPower, visibleFanSpeed } = useMemo(() => {
         const points = effectiveZoomRange
@@ -278,35 +293,11 @@ export const ActiveRoast = ({
         if (!effectiveZoomRange) return;
         const duration = effectiveZoomRange.end - effectiveZoomRange.start;
         const step = Math.max(1, duration * 0.2);
-        const nextStart = Math.max(MIN_TIME, Math.min(MAX_TIME - duration, effectiveZoomRange.start + step * direction));
+        const nextStart = Math.max(
+            MIN_TIME,
+            Math.min(MAX_TIME - duration, effectiveZoomRange.start + step * direction),
+        );
         setZoomRange({ start: nextStart, end: nextStart + duration });
-    };
-
-    const handleChartKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (event.key === '+' || event.key === '=') {
-            event.preventDefault();
-            zoomChart(0.8);
-            return;
-        }
-        if (event.key === '-' || event.key === '_') {
-            event.preventDefault();
-            zoomChart(1.25);
-            return;
-        }
-        if (event.key === '0') {
-            event.preventDefault();
-            setZoomRange(null);
-            return;
-        }
-        if (event.key === 'ArrowLeft') {
-            event.preventDefault();
-            panChart(-1);
-            return;
-        }
-        if (event.key === 'ArrowRight') {
-            event.preventDefault();
-            panChart(1);
-        }
     };
 
     // 머신 disconnect 시 진행 중인 로스트를 초기화한다.
@@ -357,17 +348,6 @@ export const ActiveRoast = ({
         };
     }, []);
 
-    // EndRoast 모달이 열려 있을 때 Escape로 닫는다.
-    useEffect(() => {
-        if (!showEndRoastModal) return undefined;
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (!isActive) return;
-            if (event.key === 'Escape') setShowEndRoastModal(false);
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isActive, showEndRoastModal]);
-
     // ── 실시간 파생값 ─────────────────────────────────────────────
     const rawBT = liveData?.bt ?? null;
     const rawET = liveData?.et ?? null;
@@ -376,7 +356,11 @@ export const ActiveRoast = ({
     const timeStr = `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}`;
 
     // ── 도메인 훅 ─────────────────────────────────────────────────
-    const { logEntries, pressedButtons, markEvent, handleDrop, setLogEntries } = useRoastLog(unit, rawBT, timeStr);
+    const { logEntries, pressedButtons, markEvent, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(
+        unit,
+        rawBT,
+        timeStr,
+    );
 
     const { triggerCharge, handleAutoDrop, handleTurningPoint } = useRoastActions({
         unit,
@@ -441,20 +425,17 @@ export const ActiveRoast = ({
     const eventMarkers = useMemo(
         (): RoastEventMarker[] =>
             logEntries
-                .filter((e) => EVENT_MARKER_COLORS[e.event] && e.event !== 'TP')
+                .filter((e) => EVENT_MARKER_COLORS[e.event] && e.event !== 'TP' && e.event !== 'Note')
                 .map((e) => {
                     const [min, sec] = e.time.split(':').map(Number);
                     const timeSec = Math.max(0, min * 60 + sec);
-                    return { timeSec, event: e.event, color: EVENT_MARKER_COLORS[e.event] };
+                    return { timeSec, event: e.event, color: getResolvedEventColor(e.event) };
                 }),
         [logEntries],
     );
 
     const phaseSegments = useMemo(
-        () =>
-            roastSettings.showPhaseBar
-                ? computePhaseSegments(logEntries, elapsed, charged)
-                : [],
+        () => (roastSettings.showPhaseBar ? computePhaseSegments(logEntries, elapsed, charged) : []),
         [roastSettings.showPhaseBar, logEntries, elapsed, charged],
     );
 
@@ -516,7 +497,6 @@ export const ActiveRoast = ({
         storeEndRoast();
         setIsRunning(false);
         setShowEndRoastModal(false);
-        setRoastNotes('');
         setShowSummaryModal(true);
     };
 
@@ -532,6 +512,10 @@ export const ActiveRoast = ({
         setLogEntries((prev) => prev.map((entry) => (entry.event === event ? { ...entry, time: newTimeStr } : entry)));
     };
 
+    const handleMarkDrop = useCallback(() => {
+        handleDrop();
+    }, [handleDrop]);
+
     useRoastKeyboardShortcuts({
         isActive,
         isFullscreen,
@@ -543,7 +527,72 @@ export const ActiveRoast = ({
         onEnterStandby: handleEnterStandby,
         onManualCharge: handleManualCharge,
         onMarkEvent: markEvent,
+        onMarkDrop: handleMarkDrop,
     });
+
+    // ── 차트 키보드 단축키 (react-hotkeys-hook) ──
+    const chartKeysEnabled = isActive && !showEndRoastModal && !showSummaryModal && !isFullscreen;
+
+    useHotkeys(
+        '+, =',
+        (e) => {
+            e.preventDefault();
+            zoomChart(0.8);
+        },
+        { enabled: chartKeysEnabled },
+        [chartKeysEnabled, MAX_TIME, zoomChart],
+    );
+
+    useHotkeys(
+        '-, _',
+        (e) => {
+            e.preventDefault();
+            zoomChart(1.25);
+        },
+        { enabled: chartKeysEnabled },
+        [chartKeysEnabled, MAX_TIME, zoomChart],
+    );
+
+    useHotkeys(
+        '0',
+        (e) => {
+            e.preventDefault();
+            setZoomRange(null);
+        },
+        { enabled: chartKeysEnabled },
+        [chartKeysEnabled, setZoomRange],
+    );
+
+    useHotkeys(
+        'left',
+        (e) => {
+            e.preventDefault();
+            panChart(-1);
+        },
+        { enabled: chartKeysEnabled },
+        [chartKeysEnabled, panChart],
+    );
+
+    useHotkeys(
+        'right',
+        (e) => {
+            e.preventDefault();
+            panChart(1);
+        },
+        { enabled: chartKeysEnabled },
+        [chartKeysEnabled, panChart],
+    );
+
+    // EndRoast 모달 Escape 닫기 (useRoastKeyboardShortcuts의 escape와 enabled 조건이 상호 배타적)
+    useHotkeys(
+        'escape',
+        (e) => {
+            e.preventDefault();
+            setShowEndRoastModal(false);
+        },
+        { enabled: showEndRoastModal },
+        [showEndRoastModal, setShowEndRoastModal],
+    );
 
     // ── 표시용 파생값 ─────────────────────────────────────────────
 
@@ -599,7 +648,7 @@ export const ActiveRoast = ({
 
     // ── 렌더 ──────────────────────────────────────────────────────
     return (
-        <div className="px-[32px] py-[24px] flex flex-col gap-4 h-screen overflow-hidden">
+        <div className="px-[32px] py-[24px] flex flex-col gap-4 h-full min-h-0 overflow-hidden">
             <RoastHeader
                 phase={roastPhaseName}
                 targetProfileId={targetProfileId}
@@ -630,17 +679,17 @@ export const ActiveRoast = ({
 
             {/* 온도 차트 */}
             <div
-                className={`bg-(--color-roast-bg) flex flex-col mb-5 ${
+                className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
                     isFullscreen
-                        ? 'rounded-none fixed inset-0 z-9999 h-screen w-screen p-10'
-                        : 'rounded-lg relative z-1 px-6 pb-4 pt-6 flex-1'
+                        ? 'fixed inset-0 z-9999 h-screen w-screen p-10'
+                        : 'rounded relative z-1 px-6 pb-4 pt-10 flex-1 dark:border dark:border-[#585d61]'
                 }`}
             >
                 <div className="flex gap-6 flex-1 min-h-0 flex-row">
                     {/* 차트 영역 — 휠·드래그·키보드로 줌/패닝 */}
                     <div
                         ref={chartAreaRef}
-                        className={`relative flex-1 flex flex-col min-w-0 outline-none ${
+                        className={`relative flex-1 flex flex-col min-w-0 min-h-0 outline-none ${
                             effectiveZoomRange
                                 ? isChartDragging
                                     ? 'cursor-grabbing select-none touch-none'
@@ -652,8 +701,6 @@ export const ActiveRoast = ({
                         onPointerMove={isFullscreen ? undefined : handleChartPointerMove}
                         onPointerUp={isFullscreen ? undefined : endChartDrag}
                         onPointerCancel={isFullscreen ? undefined : endChartDrag}
-                        onKeyDown={isFullscreen ? undefined : handleChartKeyDown}
-                        tabIndex={0}
                         role="region"
                         aria-label="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
                     >
@@ -662,7 +709,7 @@ export const ActiveRoast = ({
                         {/* TODO: 필요 시 주석 해제 — 이벤트 기반 단계 표시 pill */}
                         {/* <div className="flex gap-2 mb-3">
                             {[
-                                { label: 'Drying', active: roastPhaseName === 'Drying' && charged },
+                                { labl: 'Drying', active: roastPhaseName === 'Drying' && charged },
                                 { label: 'Maillard', active: roastPhaseName === 'Maillard' },
                                 { label: 'Development', active: roastPhaseName === 'Development' },
                             ].map(({ label, active }) => (
@@ -713,185 +760,199 @@ export const ActiveRoast = ({
                         />
                     </div>
 
-                    {/* 사이드 패널 — 수치 + 조작 버튼 */}
-                    <div className="w-56 flex flex-col gap-4 px-4 pb-5 border-l border-border-subtle overflow-hidden shrink-0">
+                    {/* 사이드 패널 — 수치 + 조작 + 로그 (패널 전체 스크롤) */}
+                    <div className="w-56 flex flex-col gap-3 px-4 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch">
                         <div className="grid grid-cols-1 gap-3">
-                                {/* BT */}
-                                <div className="text-right">
-                                    <div className="text-sm text-muted font-semibold uppercase mb-1">BT</div>
-                                    <div
-                                        className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                                        style={{ color: SENSOR_COLORS.bt }}
-                                    >
-                                        {formatTemp(rawBT, unit)}
-                                    </div>
-                                </div>
-                                {/* ΔBT */}
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-muted font-semibold uppercase">ΔBT (30s)</span>
-                                    <span
-                                        className="font-mono text-2xl font-medium leading-tight"
-                                        style={{ color: SENSOR_COLORS.bt }}
-                                    >
-                                        {deltaBT != null ? `${Number(deltaBT) >= 0 ? '+' : ''}${deltaBT}°` : '—'}
-                                    </span>
-                                </div>
-                                {/* ET */}
-                                <div className="text-right border-t border-border-subtle pt-3">
-                                    <div className="text-sm text-muted font-semibold uppercase mb-1">ET</div>
-                                    <div
-                                        className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                                        style={{ color: SENSOR_COLORS.et }}
-                                    >
-                                        {formatTemp(rawET, unit)}
-                                    </div>
-                                </div>
-                                {/* ΔET */}
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-muted font-semibold uppercase">ΔET (30s)</span>
-                                    <span
-                                        className="font-mono text-2xl font-medium leading-tight"
-                                        style={{ color: SENSOR_COLORS.et }}
-                                    >
-                                        {deltaET != null ? `${Number(deltaET) >= 0 ? '+' : ''}${deltaET}°` : '—'}
-                                    </span>
-                                </div>
-                                {/* RoR */}
-                                <div className="text-right border-t border-border-subtle pt-3">
-                                    <div className="text-sm text-muted font-semibold uppercase mb-1">RoR</div>
-                                    <div
-                                        className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                                        style={{ color: SENSOR_COLORS.ror }}
-                                    >
-                                        {displayRoR}
-                                    </div>
-                                </div>
-                                {/* Time */}
-                                <div className="text-right border-t border-border-subtle pt-3">
-                                    <div className="text-sm text-muted font-semibold uppercase mb-1">Time</div>
-                                    <div
-                                        className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                                        style={{ color: 'var(--color-primary)' }}
-                                    >
-                                        {timeStr}
-                                    </div>
-                                </div>
-                                {/* DTR */}
-                                <div className="flex items-center justify-between border-t border-border-subtle pt-3">
-                                    <span className="text-xs text-muted font-semibold uppercase">DTR</span>
-                                    <span
-                                        className="font-mono text-2xl font-medium leading-tight"
-                                        style={{ color: PHASE_COLORS.development }}
-                                    >
-                                        {dtrPct != null ? `${dtrPct}%` : '—'}
-                                    </span>
+                            {/* BT */}
+                            <div className="text-right">
+                                <div className="text-sm text-muted font-semibold uppercase mb-1">BT</div>
+                                <div
+                                    className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                                    style={{ color: SENSOR_COLORS.bt }}
+                                >
+                                    {formatTemp(rawBT, unit)}
                                 </div>
                             </div>
-                            <div className="border-t border-border-subtle" />
-                            <div className="flex flex-col gap-2">
-                                <div className="flex flex-col gap-1.5">
-                                    {phase === 'preheating' && (
-                                        <button
-                                            onClick={handleEnterStandby}
-                                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
-                                        >
-                                            <Play size={12} />
-                                            Roast Ready
-                                        </button>
-                                    )}
-                                    {phase === 'standby' && (
-                                        <button
-                                            onClick={handleManualCharge}
-                                            className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold bg-[rgba(220,252,231,0.8)] text-[#16a34a] cursor-pointer"
-                                        >
-                                            <Play size={12} />
-                                            Charge
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={handleEndRoastClick}
-                                        disabled={roastEnded || !charged}
-                                        aria-label="End roast"
-                                        className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
-                                            roastEnded || !charged
-                                                ? 'bg-surface text-muted cursor-default'
-                                                : 'bg-[rgba(254,226,226,0.8)] text-[#dc2626] cursor-pointer'
-                                        }`}
-                                    >
-                                        <Square size={12} />
-                                        End Roast
-                                    </button>
-                                </div>
-                                <EventButtons
-                                    variant="sidebar"
-                                    logEntries={logEntries}
-                                    pressedButtons={pressedButtons}
-                                    buttons={[
-                                        {
-                                            label: 'Yellow',
-                                            event: 'Yellow',
-                                            shortcut: '⌘1',
-                                            pressKey: 'Mark Yellow',
-                                            onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow'),
-                                        },
-                                        {
-                                            label: 'FC Start',
-                                            event: 'FC Start',
-                                            shortcut: '⌘2',
-                                            pressKey: 'Mark FC Start',
-                                            onClick: () =>
-                                                markEvent('FC Start', 'First crack started', 'Mark FC Start'),
-                                        },
-                                        {
-                                            label: 'FC End',
-                                            event: 'FC End',
-                                            shortcut: '⌘3',
-                                            pressKey: 'Mark FC End',
-                                            onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
-                                        },
-                                        {
-                                            label: 'Mark Drop',
-                                            event: 'Drop',
-                                            shortcut: '⌘D',
-                                            pressKey: 'Mark Drop',
-                                            onClick: handleDrop,
-                                        },
-                                    ]}
-                                />
-                                <div className="flex gap-1.5 mt-1">
-                                    <input
-                                        type="text"
-                                        value={noteInput}
-                                        onChange={(e) => setNoteInput(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && noteInput.trim()) {
-                                                markEvent('Note', noteInput.trim());
-                                                setNoteInput('');
-                                            }
-                                        }}
-                                        placeholder="Add note..."
-                                        className="flex-1 text-xs px-2 py-1.5 rounded-md bg-surface text-primary placeholder:text-muted focus:outline-none border border-border-subtle focus:border-border"
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            if (!noteInput.trim()) return;
-                                            markEvent('Note', noteInput.trim());
-                                            setNoteInput('');
-                                        }}
-                                        disabled={!noteInput.trim()}
-                                        className="px-2.5 py-1.5 rounded-md border-none text-xs font-semibold bg-surface text-muted hover:text-primary disabled:opacity-40 cursor-pointer"
-                                    >
-                                        +
-                                    </button>
+                            {/* ΔBT */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-muted font-semibold uppercase">ΔBT (30s)</span>
+                                <span
+                                    className="font-mono text-2xl font-medium leading-tight"
+                                    style={{ color: SENSOR_COLORS.bt }}
+                                >
+                                    {deltaBT != null ? `${Number(deltaBT) >= 0 ? '+' : ''}${deltaBT}°` : '—'}
+                                </span>
+                            </div>
+                            {/* ET */}
+                            <div className="text-right border-t border-border-subtle pt-3">
+                                <div className="text-sm text-muted font-semibold uppercase mb-1">ET</div>
+                                <div
+                                    className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                                    style={{ color: SENSOR_COLORS.et }}
+                                >
+                                    {formatTemp(rawET, unit)}
                                 </div>
                             </div>
-                            <div className="border-t border-border-subtle" />
-                            <RoastLog
+                            {/* ΔET */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-muted font-semibold uppercase">ΔET (30s)</span>
+                                <span
+                                    className="font-mono text-2xl font-medium leading-tight"
+                                    style={{ color: SENSOR_COLORS.et }}
+                                >
+                                    {deltaET != null ? `${Number(deltaET) >= 0 ? '+' : ''}${deltaET}°` : '—'}
+                                </span>
+                            </div>
+                            {/* RoR */}
+                            <div className="text-right border-t border-border-subtle pt-3">
+                                <div className="text-sm text-muted font-semibold uppercase mb-1">RoR</div>
+                                <div
+                                    className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                                    style={{ color: SENSOR_COLORS.ror }}
+                                >
+                                    {displayRoR}
+                                </div>
+                            </div>
+                            {/* Time */}
+                            <div className="text-right border-t border-border-subtle pt-3">
+                                <div className="text-sm text-muted font-semibold uppercase mb-1">Time</div>
+                                <div
+                                    className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                                    style={{ color: 'var(--color-primary)' }}
+                                >
+                                    {timeStr}
+                                </div>
+                            </div>
+                            {/* DTR */}
+                            <div className="flex items-center justify-between border-t border-border-subtle pt-3">
+                                <span className="text-xs text-muted font-semibold uppercase">DTR</span>
+                                <span
+                                    className="font-mono text-2xl font-medium leading-tight"
+                                    style={{ color: PHASE_COLORS.development }}
+                                >
+                                    {dtrPct != null ? `${dtrPct}%` : '—'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="border-t border-border-subtle" />
+
+                        {/* Control Panel */}
+                        <div className="flex flex-col gap-1.5">
+                            <div className="flex flex-col gap-1.5">
+                                {phase === 'preheating' && (
+                                    <button
+                                        onClick={handleEnterStandby}
+                                        className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
+                                        style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
+                                    >
+                                        <Play size={12} />
+                                        Roast Ready
+                                    </button>
+                                )}
+                                {phase === 'standby' && (
+                                    <button
+                                        onClick={handleManualCharge}
+                                        className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
+                                        style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
+                                    >
+                                        <Play size={12} />
+                                        Charge
+                                    </button>
+                                )}
+                                <button
+                                    onClick={handleEndRoastClick}
+                                    disabled={roastEnded || !charged}
+                                    aria-label="End roast"
+                                    className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
+                                        roastEnded || !charged
+                                            ? 'bg-surface dark:bg-surface-elevated text-muted cursor-default'
+                                            : 'cursor-pointer'
+                                    }`}
+                                    style={
+                                        roastEnded || !charged
+                                            ? undefined
+                                            : { background: PHASE_COLORS.dangerBg, color: PHASE_COLORS.danger }
+                                    }
+                                >
+                                    <Square size={12} />
+                                    End Roast
+                                </button>
+                            </div>
+                            <EventButtons
                                 variant="sidebar"
-                                entries={roastLogDisplayEntries}
-                                eventMarkerColor={EVENT_MARKER_COLORS}
+                                logEntries={logEntries}
+                                pressedButtons={pressedButtons}
+                                buttons={[
+                                    {
+                                        label: 'Yellow',
+                                        event: 'Yellow',
+                                        shortcut: '⌘1',
+                                        pressKey: 'Mark Yellow',
+                                        onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow'),
+                                    },
+                                    {
+                                        label: 'FC Start',
+                                        event: 'FC Start',
+                                        shortcut: '⌘2',
+                                        pressKey: 'Mark FC Start',
+                                        onClick: () => markEvent('FC Start', 'First crack started', 'Mark FC Start'),
+                                    },
+                                    {
+                                        label: 'FC End',
+                                        event: 'FC End',
+                                        shortcut: '⌘3',
+                                        pressKey: 'Mark FC End',
+                                        onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
+                                    },
+                                    {
+                                        label: 'Mark Drop',
+                                        event: 'Drop',
+                                        shortcut: '⌘D',
+                                        pressKey: 'Mark Drop',
+                                        onClick: handleDrop,
+                                    },
+                                ]}
                             />
                         </div>
+
+                        {/* Add Note */}
+                        <div className="flex flex-col gap-1.5">
+                            <textarea
+                                value={noteInput}
+                                onChange={(e) => setNoteInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey && noteInput.trim()) {
+                                        e.preventDefault();
+                                        markEvent('Note', noteInput.trim());
+                                        setNoteInput('');
+                                    }
+                                }}
+                                placeholder="Add note... (Enter to save)"
+                                className="h-16 text-xs px-2 py-1.5 rounded bg-surface dark:bg-surface-elevated text-primary placeholder:text-muted focus:outline-none focus:border-border resize-none"
+                            />
+                            <button
+                                onClick={() => {
+                                    if (!noteInput.trim()) return;
+                                    markEvent('Note', noteInput.trim());
+                                    setNoteInput('');
+                                }}
+                                disabled={!noteInput.trim()}
+                                className="px-2.5 py-1.5 rounded-md border-none text-xs font-semibold bg-surface dark:bg-surface-elevated text-muted hover:text-primary disabled:opacity-40 cursor-pointer"
+                            >
+                                +
+                            </button>
+                        </div>
+
+                        <div className="border-t border-border-subtle" />
+
+                        <RoastLog
+                            variant="sidebar"
+                            entries={roastLogDisplayEntries}
+                            eventMarkerColor={EVENT_MARKER_COLORS}
+                            onRemoveEntry={removeLogEntry}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -904,9 +965,7 @@ export const ActiveRoast = ({
             <RoastSummaryModal
                 open={showSummaryModal}
                 summaryData={summaryData}
-                roastNotes={roastNotes}
                 eventMarkerColor={EVENT_MARKER_COLORS}
-                onRoastNotesChange={setRoastNotes}
                 isSaving={isSaving}
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
@@ -919,7 +978,7 @@ export const ActiveRoast = ({
                     setSummaryData(null);
                     resetActiveRoast();
                 }}
-                onSave={async (notes) => {
+                onSave={async ({ notes, weightGrams: saveWeight, roastLevel: saveLevel }) => {
                     if (!user) return;
                     const durationSeconds = elapsed;
                     const roastedAt =
@@ -960,12 +1019,12 @@ export const ActiveRoast = ({
 
                         const savedSession = await saveRoastSession({
                             user_id: user.id,
-                            weight_grams: 0, // TODO: UI에서 로스트 전 또는 후 무게 입력받기
+                            weight_grams: saveWeight,
                             status: 'completed',
                             roasted_at: roastedAt,
                             duration_seconds: durationSeconds,
                             drop_temp_celsius: rawBT != null ? Math.round(rawBT) : null,
-                            roast_level: null, // TODO: UI에서 로스트 레벨(light/medium/dark) 선택받기
+                            roast_level: saveLevel,
                             scheduled_at: null,
                             notes: notes || null,
                             ambient_temp_celsius: weatherData?.temperature ?? null,
@@ -975,22 +1034,56 @@ export const ActiveRoast = ({
                             tsv_path: tsvPath,
                             plan_batch_id: planBatchHandoff?.planBatchId ?? null,
                         });
-                        // TODO: 일반 로스팅(배치 없음) 시에도 생두 재고 감소 처리 필요.
-                        //       weight_grams UI 입력 기능 구현 후 여기서 createInventoryLog 호출 추가.
-                        await Promise.all([
-                            selectedBeanId && planBatchHandoff?.batchSizeKg && user
-                                ? createInventoryLog({
-                                      user_id: user.id,
-                                      bean_id: selectedBeanId,
-                                      change_grams: -Math.round(planBatchHandoff.batchSizeKg * 1000),
-                                      type: 'roast',
-                                      roast_session_id: savedSession.id,
-                                  })
-                                : null,
-                            batchDone && planBatchHandoff
-                                ? updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' })
-                                : null,
-                        ]);
+                        const stockDeductions: Promise<unknown>[] = [];
+
+                        // 배치의 batchSizeKg 또는 사용자 입력 weightGrams 중 유효한 값 사용
+                        const deductionGrams = planBatchHandoff?.batchSizeKg
+                            ? Math.round(planBatchHandoff.batchSizeKg * 1000)
+                            : saveWeight > 0
+                              ? saveWeight
+                              : 0;
+
+                        // 단일 생두 → bean_inventory_logs (배치 여부 관계없이 동작)
+                        if (selectedBeanId && deductionGrams > 0 && user) {
+                            stockDeductions.push(
+                                createInventoryLog({
+                                    user_id: user.id,
+                                    bean_id: selectedBeanId,
+                                    change_grams: -deductionGrams,
+                                    type: 'roast',
+                                    roast_session_id: savedSession.id,
+                                }),
+                            );
+                        }
+
+                        // 블렌드 → bean_stock_events (각 구성 생두별 차감)
+                        if (deductionGrams > 0 && user && planBatchHandoff?.blendId) {
+                            try {
+                                const blendWithComponents = await blendApi.get(planBatchHandoff.blendId);
+                                const chargeGrams = deductionGrams;
+                                for (const comp of blendWithComponents.blend_components) {
+                                    stockDeductions.push(
+                                        beanStockEventApi.insert({
+                                            user_id: user.id,
+                                            bean_id: comp.bean_id,
+                                            delta_grams: -Math.round(chargeGrams * (Number(comp.ratio_pct) / 100)),
+                                            event_type: 'roast',
+                                            reference_id: savedSession.id,
+                                            note: `${blendWithComponents.name} 블렌드 차감`,
+                                        }),
+                                    );
+                                }
+                            } catch (err) {
+                                console.error('[RoastSummary] blend stock deduction failed:', err);
+                            }
+                        }
+
+                        // 배치 status 업데이트 (phantom 예약 방지)
+                        if (batchDone && planBatchHandoff) {
+                            stockDeductions.push(updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' }));
+                        }
+
+                        await Promise.all(stockDeductions);
                         setShowSummaryModal(false);
                         setSummaryData(null);
                         resetActiveRoast();
@@ -1007,42 +1100,14 @@ export const ActiveRoast = ({
                 }}
             />
 
-            {/* Plan batch continue modal */}
-            {showContinueModal && planBatchHandoff && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.18)] border border-black/8 p-8 w-[360px] flex flex-col gap-5">
-                        <div>
-                            <p className="text-[15px] font-semibold text-primary">
-                                {planBatchHandoff.beanName}
-                            </p>
-                            <p className="text-[13px] text-secondary mt-1">
-                                {batchDone
-                                    ? `배치 완료 (${sessionsAfter}/${planBatchHandoff.batchCount})`
-                                    : `세션 ${sessionsAfter}/${planBatchHandoff.batchCount} 완료. 다음 세션을 진행할까요?`}
-                            </p>
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => {
-                                    setShowContinueModal(false);
-                                    onPlanBatchComplete?.();
-                                }}
-                                className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-surface text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors"
-                            >
-                                {batchDone ? '일정으로 돌아가기' : '오늘은 여기까지'}
-                            </button>
-                            {!batchDone && (
-                                <button
-                                    onClick={() => setShowContinueModal(false)}
-                                    className="flex-1 px-4 py-2.5 rounded-xl border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
-                                >
-                                    다음 세션 시작
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <PlanBatchContinueModal
+                show={showContinueModal}
+                planBatchHandoff={planBatchHandoff}
+                batchDone={batchDone}
+                sessionsAfter={sessionsAfter}
+                onPlanBatchComplete={onPlanBatchComplete}
+                onDismiss={() => setShowContinueModal(false)}
+            />
         </div>
     );
 };

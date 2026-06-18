@@ -5,16 +5,11 @@ import logging
 from typing import Any
 from pymodbus.framer import FramerType
 from adapters.base import Reading
+from protocol_trace import TRACE
+
+import config
 
 _log = logging.getLogger(__name__)
-
-# 500ms 폴링 기준으로 artisan 공식 min(delay/2000, 0.4)에 정렬.
-# delay=500ms → cap=0.25s. TCP는 0.25s, RTU는 0.3s(시리얼 응답 지연 여유).
-# 한 폴링 사이클에서 채널 3개(BT/ET/drum)를 순차 read하므로,
-# 채널당 worst-case = timeout × (1 + retries) 가 사이클 예산을 너무 넘기지 않게 한다.
-_TCP_TIMEOUT = 0.25
-_RTU_TIMEOUT = 0.3
-_RTU_CONNECT_DELAY = 0.5  # Artisan modbus_serial_connect_delay — 느린 RTU 장비 대응
 
 
 def _bcd_decode(raw: int) -> int:
@@ -91,9 +86,6 @@ class ModbusAdapter:
         #   UI에서 RTU 머신 선택 시 pollIntervalMs를 자동으로 1000ms로 올리는 옵션 필요.
         #   (artisan 권장도 RTU=1s 폴링)
         self._read_retries: int = 0 if self._mode == "tcp" else 1
-        self._consecutive_errors: int = 0
-        self._acceptable_errors: int = 3  # 3회 연속 실패까지 last-reading 유지, 그 뒤 disconnect
-        self._last_reading: Reading | None = None
 
     async def connect(self) -> None:
         from pymodbus.client import AsyncModbusTcpClient, AsyncModbusSerialClient  # type: ignore[import]
@@ -105,13 +97,13 @@ class ModbusAdapter:
 
         if self._mode == "tcp":
             self._client = AsyncModbusTcpClient(
-                host=self._host, port=self._port, timeout=_TCP_TIMEOUT
+                host=self._host, port=self._port, timeout=config.MODBUS_TCP_TIMEOUT
             )
             _log.info(
                 "ModbusAdapter connecting: TCP %s:%d timeout=%.1fs",
                 self._host,
                 self._port,
-                _TCP_TIMEOUT,
+                config.MODBUS_TCP_TIMEOUT,
             )
         else:
             self._client = AsyncModbusSerialClient(
@@ -121,7 +113,7 @@ class ModbusAdapter:
                 bytesize=self._bytesize,
                 parity=self._parity,
                 stopbits=self._stopbits,
-                timeout=_RTU_TIMEOUT,
+                timeout=config.MODBUS_RTU_TIMEOUT,
             )
             _log.info(
                 "ModbusAdapter connecting: RTU port=%s baudrate=%d bytesize=%d parity=%s stopbits=%g timeout=%.1fs",
@@ -130,7 +122,7 @@ class ModbusAdapter:
                 self._bytesize,
                 self._parity,
                 self._stopbits,
-                _RTU_TIMEOUT,
+                config.MODBUS_RTU_TIMEOUT,
             )
 
         await self._client.connect()
@@ -140,15 +132,22 @@ class ModbusAdapter:
                 f"{'%s:%d' % (self._host, self._port) if self._mode == 'tcp' else self._comport}"
             )
         if self._mode != "tcp":
-            await asyncio.sleep(_RTU_CONNECT_DELAY)
+            await asyncio.sleep(config.MODBUS_RTU_CONNECT_DELAY)
         else:
             await asyncio.sleep(0.3)  # Artisan: "avoid possible hickups on startup"
         _log.info("ModbusAdapter connected OK (mode=%s)", self._mode)
 
     async def disconnect(self) -> None:
         if self._client is not None:
-            self._client.close()
-            self._client = None
+            client, self._client = self._client, None
+            try:
+                # 불량 시리얼 포트에서 close()가 행하면 이후 모든 lock이 막힌다
+                await asyncio.wait_for(
+                    asyncio.to_thread(client.close),
+                    timeout=config.MODBUS_CLOSE_TIMEOUT,
+                )
+            except Exception as exc:
+                _log.warning("MODBUS close 실패/타임아웃 (무시): %s", exc)
 
     async def _read_channel(self, cfg: dict[str, Any]) -> float:
         """단일 채널(BT 또는 ET) 읽기. retry 포함."""
@@ -176,6 +175,10 @@ class ModbusAdapter:
                     count,
                     unit_id,
                 )
+                TRACE.record(
+                    "tx", "modbus",
+                    f"func={func} register={register}(0x{register:04X}) count={count} unit={unit_id}",
+                )
                 if func == 1:
                     result = await self._client.read_coils(
                         register, count=count, device_id=unit_id
@@ -200,9 +203,11 @@ class ModbusAdapter:
 
                 # func=1/2: bit 반환
                 if func in (1, 2):
+                    TRACE.record("rx", "modbus", f"register={register} bits", list(result.bits[:count]))
                     _log.debug("READ OK: bits=%s", result.bits)
                     return float(result.bits[0]) if result.bits else 0.0
 
+                TRACE.record("rx", "modbus", f"register={register} raw", list(result.registers))
                 _log.debug("READ OK: registers=%s", result.registers)
 
                 if is_float:
@@ -242,9 +247,18 @@ class ModbusAdapter:
                 if temp_mode == "F":
                     value = (value - 32.0) * 5.0 / 9.0
 
-                return round(value, 1)
+                value = round(value, 1)
+                TRACE.record(
+                    "info", "modbus",
+                    f"decoded register={register} float={is_float} bcd32={is_bcd32} "
+                    f"bcd16={is_bcd16} signed={is_signed} div={div} mode={temp_mode} "
+                    f"word_order={self._word_order}",
+                    value,
+                )
+                return value
             except Exception as exc:
                 last_exc = exc
+                TRACE.record("err", "modbus", f"register={register} attempt={attempt + 1}: {exc}")
                 _log.warning(
                     "MODBUS 읽기 실패 (attempt %d/%d): register=%d unit=%d — %s",
                     attempt + 1,
@@ -263,39 +277,13 @@ class ModbusAdapter:
         et_cfg = self._regs.get("ET")
         drum_cfg = self._regs.get("drum")
 
-        try:
-            bt = await self._read_channel(bt_cfg) if bt_cfg else -1.0
-            et = await self._read_channel(et_cfg) if et_cfg else -1.0
-            drum = await self._read_channel(drum_cfg) if drum_cfg else 0.0
-        except Exception as exc:
-            self._consecutive_errors += 1
-            if (
-                self._consecutive_errors <= self._acceptable_errors
-                and self._last_reading is not None
-            ):
-                _log.warning(
-                    "읽기 실패 (%d/%d회), 이전 값 유지: %s",
-                    self._consecutive_errors,
-                    self._acceptable_errors,
-                    exc,
-                )
-                # timestamp 갱신: RoR 윈도우 슬라이딩이 멈추지 않도록
-                return Reading(
-                    bt=self._last_reading.bt,
-                    et=self._last_reading.et,
-                    heater=self._last_reading.heater,
-                    fan=self._last_reading.fan,
-                    drum=self._last_reading.drum,
-                    timestamp=time.monotonic(),
-                )
-            raise
+        bt = await self._read_channel(bt_cfg) if bt_cfg else -1.0
+        et = await self._read_channel(et_cfg) if et_cfg else -1.0
+        drum = await self._read_channel(drum_cfg) if drum_cfg else 0.0
 
-        self._consecutive_errors = 0
-        reading = Reading(
+        return Reading(
             bt=bt, et=et, heater=0.0, fan=0.0, drum=drum, timestamp=time.monotonic()
         )
-        self._last_reading = reading
-        return reading
 
     async def control(
         self,
@@ -303,7 +291,7 @@ class ModbusAdapter:
         fan: float | None = None,
         drum: float | None = None,
     ) -> None:
-        pass  # 대부분 읽기 전용. 제어 필요 시 write_register 확장.
+        pass  # 제어 기능 미사용 — 제거 예정
 
     @property
     def connected(self) -> bool:

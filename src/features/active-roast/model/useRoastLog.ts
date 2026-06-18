@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
+import type { LogEntry } from '@shared/types/roast';
+import { useCallback, useState } from 'react';
 import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
 import { formatTemp } from '../lib/temperature';
 import { parseTimeSec } from '../lib/time';
 import type { TemperatureUnit } from './settings';
-import type { LogEntry } from '@shared/types/roast';
 
 export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, timeStr: string) => {
     const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
@@ -30,6 +30,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, timeStr
                 }
 
                 const newEntry: LogEntry = {
+                    id: crypto.randomUUID(),
                     time: timeStr,
                     event,
                     temp: rawBT !== null ? formatTemp(rawBT, unit) : '',
@@ -50,6 +51,10 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, timeStr
         markEvent('Drop', 'Coffee dropped', 'Drop');
     }, [markEvent]);
 
+    const removeLogEntry = useCallback((id: string) => {
+        setLogEntries((prev) => prev.filter((entry) => entry.id !== id));
+    }, []);
+
     return {
         logEntries,
         pressedButtons,
@@ -57,5 +62,6 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, timeStr
         flashButton,
         handleDrop,
         setLogEntries, // reset할 때 필요
+        removeLogEntry,
     };
 };

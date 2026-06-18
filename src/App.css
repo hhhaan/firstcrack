@@ -1,9 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-@import 'tailwindcss';
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 @font-face {
-    font-family: 'Pretendard';
-    src: url('/fonts/PretendardVariable.woff2') format('woff2-variations');
+    font-family: "Pretendard";
+    src: url("/fonts/PretendardVariable.woff2") format("woff2-variations");
     font-weight: 100 900;
     font-style: normal;
     font-display: swap;
@@ -18,14 +20,16 @@
     }
 }
 
+/* ── Light theme ─────────────────────────────────────────────── */
 @theme {
-    --font-display: 'Inter', 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-body: 'Inter', 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: "Inter", "Pretendard", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body: "Inter", "Pretendard", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: monospace;
 
     --color-main-bg: #ffffff;
     --color-roast-bg: #ffffff;
-    --color-surface: #f5f5f5;
+    --color-surface: #efeff0;
+    --color-surface-elevated: #efeff0;
     --color-surface-warm: rgba(245, 242, 239, 0.8);
     --color-surface-warm-solid: #f5f2ef;
 
@@ -35,6 +39,20 @@
 
     --color-border: #e5e5e5;
     --color-border-subtle: rgba(0, 0, 0, 0.05);
+    --color-divider: #efeff0;
+
+    --color-palette-black: #0b0b0b;
+    --color-palette-yellow: #ffff54;
+    --color-palette-green: #81fba5;
+    --color-palette-teal: #72ebbc;
+    --color-palette-blue: #44bffc;
+    --color-palette-indigo: #5c41ff;
+    --color-palette-purple: #756afc;
+    --color-palette-violet: #8080f0;
+    --color-palette-lavender: #a6b0ff;
+    --color-palette-gray-light: #e4e4e4;
+    --color-palette-gray: #a3a2a2;
+    --color-palette-gray-dark: #6c6a6b;
 
     --shadow-inset: rgba(0, 0, 0, 0.075) 0px 0px 0px 0.5px inset;
     --shadow-outline: rgba(0, 0, 0, 0.06) 0px 0px 0px 1px;
@@ -44,6 +62,148 @@
     --shadow-ring:
         rgba(0, 0, 0, 0.06) 0px 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 1px 2px, rgba(0, 0, 0, 0.04) 0px 2px 4px;
     --shadow-edge: rgba(0, 0, 0, 0.08) 0px 0px 0px 0.5px;
+}
+
+/* ── Sensor & chart tokens (light) ──────────────────────────── */
+:root {
+    --color-sensor-bt: #22a85a;
+    --color-sensor-bt-target: rgba(40, 180, 130, 0.65);
+    --color-sensor-et: #4a85c5;
+    --color-sensor-ror: #f1c21b;
+    --color-chart-grid: rgba(0, 0, 0, 0.08);
+    --color-chart-grid-stroke: rgba(0, 0, 0, 0.1);
+    --color-chart-axis-label: #666;
+    --color-chart-current-line: rgba(0, 0, 0, 0.3);
+    --color-chart-phaseline: rgba(0, 0, 0, 0.07);
+    --color-chart-phasebar-stroke: rgba(0, 0, 0, 0.08);
+    --color-chart-phasebar-name: #444;
+    --color-chart-phasebar-duration: #555;
+    --color-chart-tooltip-bg: #fff;
+    --color-chart-tooltip-border: rgba(0, 0, 0, 0.08);
+    --color-scrollbar-thumb: rgba(0, 0, 0, 0.1);
+    --color-scrollbar-thumb-hover: rgba(0, 0, 0, 0.16);
+
+    --color-phase-ready: #22a85a;
+    --color-phase-ready-bg: rgba(34, 168, 90, 0.1);
+    --color-phase-drying: #d4a017;
+    --color-phase-maillard: #1976d2;
+    --color-phase-development: #5c4fd4;
+    --color-phase-danger: #dc2626;
+    --color-phase-danger-bg: rgba(220, 38, 38, 0.1);
+
+    /* Palette (light) */
+    --color-palette-yellow: #d97706;
+    --color-palette-green: #059669;
+    --color-palette-teal: #0d9488;
+    --color-palette-blue: #2563eb;
+    --color-palette-indigo: #4338ca;
+    --color-palette-purple: #6d28d9;
+    --color-palette-violet: #7c3aed;
+    --color-palette-lavender: #818cf8;
+
+    /* Event marker colors (light) */
+    --color-event-yellow: #d97706;
+    --color-event-fc-start: #2563eb;
+    --color-event-fc-end: #7c3aed;
+    --color-event-end: #6366f1;
+    --color-event-note: #059669;
+    --color-event-tp: #059669;
+    --color-event-drop: #4f46e5;
+
+    /* Control chart colors (light) */
+    --color-control-drum: #059669;
+    --color-control-heat: #d97706;
+    --color-control-heat-area: rgba(217, 119, 6, 0.15);
+    --color-control-fan: #2563eb;
+    --color-control-fan-area: rgba(37, 99, 235, 0.15);
+
+    /* Chart misc (light) */
+    --color-chart-axis-pointer: #64748b;
+    --color-chart-tooltip-time: #9ca3af;
+    --color-chart-marker-label: #0b0b0b;
+}
+
+/* ── Dark theme ──────────────────────────────────────────────── */
+html.dark {
+    --color-main-bg: #181d21;
+    --color-roast-bg: #181d21;
+    --color-surface: #181d21;
+    --color-surface-elevated: #262b30;
+    --color-surface-warm: rgba(30, 28, 26, 0.8);
+    --color-surface-warm-solid: #272b30;
+
+    --color-primary: #e5e5e5;
+    --color-secondary: #a3a3a3;
+    --color-muted: #8a8580;
+
+    --color-border: #585d61;
+    --color-border-subtle: rgba(255, 255, 255, 0.08);
+    --color-divider: #585d61;
+
+    --shadow-inset: rgba(0, 0, 0, 0.4) 0px 0px 0px 0.5px inset;
+    --shadow-outline: rgba(0, 0, 0, 0.3) 0px 0px 0px 1px;
+    --shadow-elevation: rgba(0, 0, 0, 0.3) 0px 4px 4px;
+    --shadow-card: rgba(0, 0, 0, 0.6) 0px 0px 1px, rgba(0, 0, 0, 0.2) 0px 4px 4px;
+    --shadow-warm: rgba(0, 0, 0, 0.3) 0px 6px 16px;
+    --shadow-ring: rgba(0, 0, 0, 0.3) 0px 0px 0px 1px, rgba(0, 0, 0, 0.2) 0px 1px 2px, rgba(0, 0, 0, 0.2) 0px 2px 4px;
+    --shadow-edge: rgba(0, 0, 0, 0.4) 0px 0px 0px 0.5px;
+
+    /* Sensor & chart tokens (dark) */
+    --color-sensor-bt: #4be08c;
+    --color-sensor-bt-target: rgba(75, 224, 140, 0.65);
+    --color-sensor-et: #beacf8;
+    --color-sensor-ror: #ffff54;
+    --color-chart-grid: rgba(255, 255, 255, 0.1);
+    --color-chart-grid-stroke: rgba(255, 255, 255, 0.12);
+    --color-chart-axis-label: #888;
+    --color-chart-current-line: rgba(255, 255, 255, 0.3);
+    --color-chart-phaseline: rgba(255, 255, 255, 0.08);
+    --color-chart-phasebar-stroke: rgba(255, 255, 255, 0.12);
+    --color-chart-phasebar-name: #bbb;
+    --color-chart-phasebar-duration: #999;
+    --color-chart-tooltip-bg: #181d21;
+    --color-chart-tooltip-border: rgba(255, 255, 255, 0.1);
+    --color-scrollbar-thumb: rgba(255, 255, 255, 0.12);
+    --color-scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+
+    --color-phase-ready: #81fba5;
+    --color-phase-ready-bg: rgba(129, 251, 165, 0.15);
+    --color-phase-drying: #ffff54;
+    --color-phase-maillard: #44bffc;
+    --color-phase-development: #756afc;
+    --color-phase-danger: #ffffff;
+    --color-phase-danger-bg: rgba(255, 255, 255, 0.12);
+
+    /* Palette (dark) */
+    --color-palette-yellow: #ffff54;
+    --color-palette-green: #81fba5;
+    --color-palette-teal: #72ebbc;
+    --color-palette-blue: #44bffc;
+    --color-palette-indigo: #5c41ff;
+    --color-palette-purple: #756afc;
+    --color-palette-violet: #8080f0;
+    --color-palette-lavender: #a6b0ff;
+
+    /* Event marker colors (dark) */
+    --color-event-yellow: #ffff54;
+    --color-event-fc-start: #44bffc;
+    --color-event-fc-end: #756afc;
+    --color-event-end: #8080f0;
+    --color-event-note: #72ebbc;
+    --color-event-tp: #81fba5;
+    --color-event-drop: #a6b0ff;
+
+    /* Control chart colors (dark) */
+    --color-control-drum: #72ebbc;
+    --color-control-heat: #ffff54;
+    --color-control-heat-area: rgba(255, 255, 84, 0.15);
+    --color-control-fan: #44bffc;
+    --color-control-fan-area: rgba(68, 191, 252, 0.15);
+
+    /* Chart misc (dark) */
+    --color-chart-axis-pointer: #64748b;
+    --color-chart-tooltip-time: #9ca3af;
+    --color-chart-marker-label: #ffffff;
 }
 
 html,
@@ -62,17 +222,17 @@ body {
     font-variant-numeric: tabular-nums lining-nums;
     font-kerning: normal;
     font-feature-settings:
-        'kern' 1,
-        'tnum' 1,
-        'lnum' 1,
-        'zero' 1;
+        "kern" 1,
+        "tnum" 1,
+        "lnum" 1,
+        "zero" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
-html[lang='en'] {
-    --font-display: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+html[lang="en"] {
+    --font-display: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 ::-webkit-scrollbar {
@@ -82,17 +242,17 @@ html[lang='en'] {
     background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--color-scrollbar-thumb);
     border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.16);
+    background: var(--color-scrollbar-thumb-hover);
 }
 
 /* Recharts overrides */
 .recharts-wrapper .recharts-cartesian-grid-horizontal line,
 .recharts-wrapper .recharts-cartesian-grid-vertical line {
-    stroke: rgba(0, 0, 0, 0.05);
+    stroke: var(--color-chart-grid-stroke, rgba(0, 0, 0, 0.05));
 }
 .recharts-tooltip-wrapper {
     outline: none;
@@ -123,16 +283,15 @@ html[lang='en'] {
     body > *:not(#print-root) {
         display: none !important;
     }
-    #print-root [data-report='true'] {
+    #print-root [data-report="true"] {
         position: static !important;
         width: 210mm !important;
         margin: 0 auto !important;
         box-sizing: border-box !important;
     }
-    #print-root [data-report='true'],
-    #print-root [data-report='true'] * {
+    #print-root [data-report="true"],
+    #print-root [data-report="true"] * {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
 }
-

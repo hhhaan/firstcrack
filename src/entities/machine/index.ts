@@ -1,11 +1,11 @@
+export { useMachines, VIRTUAL_ID } from './model';
+export { ROASTER_REGISTRY } from './roasterRegistry';
 export type {
     Machine,
-    SerialPort,
-    RoasterFormField,
     RoasterDef,
+    RoasterFormField,
     RoastersResponse,
+    SerialPort,
     SidecarStatus,
     TemperatureReading,
 } from './types';
-export { useMachines, VIRTUAL_ID } from './model';
-export { ROASTER_REGISTRY } from './roasterRegistry';

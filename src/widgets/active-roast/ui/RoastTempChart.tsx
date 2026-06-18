@@ -1,22 +1,48 @@
-import React, { useEffect, useRef, useMemo } from 'react';
-import * as echarts from 'echarts';
-import type { EChartsOption } from 'echarts';
+import type { PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import {
-    CHART_COLORS, CONTROL_COLORS, ROR_Y_MIN, ROR_Y_MAX,
-    CHART_GRID_LEFT, CHART_GRID_TOP, CHART_GRID_RIGHT, CHART_GRID_RIGHT_WITH_ROR,
-    PHASE_BAR_HEIGHT, PHASE_BAR_BOTTOM,
-    PHASE_BAR_WIDE_THRESHOLD, PHASE_BAR_NARROW_THRESHOLD, PHASE_BAR_TEXT_INSET,
-    PHASE_BAR_STROKE, PHASE_BAR_STROKE_WIDTH,
-    PHASE_BAR_NAME_COLOR, PHASE_BAR_DURATION_COLOR,
-    PHASE_BAR_FONT_SIZE, PHASE_BAR_FONT_SIZE_NARROW, PHASE_BAR_FONT_FAMILY, PHASE_BAR_FONT_WEIGHT,
-    AXIS_LABEL_FONT, AXIS_LABEL_FONT_SM,
-    TEMP_Y_MIN_C, TEMP_Y_MAX_C, TEMP_Y_MIN_F, TEMP_Y_MAX_F, TEMP_Y_INTERVAL,
-    TEMP_GRID_HEIGHT_WITH_PHASE, CONTROL_GRID_TOP_WITH_PHASE, PHASE_GRID_TOP,
-    TEMP_GRID_HEIGHT, CONTROL_GRID_TOP, CONTROL_GRID_BOTTOM_GAP, CONTROL_GRID_BOTTOM,
+    AXIS_LABEL_FONT,
+    CHART_COLORS,
+    CHART_GRID_LEFT,
+    CHART_GRID_RIGHT,
+    CHART_GRID_RIGHT_WITH_ROR,
+    CHART_GRID_TOP,
+    CONTROL_COLORS,
+    CONTROL_GRID_BOTTOM,
+    CONTROL_GRID_BOTTOM_GAP,
+    CONTROL_GRID_TOP,
+    CONTROL_GRID_TOP_WITH_PHASE,
+    getResolvedChartColors,
+    PHASE_BAR_BOTTOM,
+    PHASE_BAR_DURATION_COLOR,
+    PHASE_BAR_FONT_FAMILY,
+    PHASE_BAR_FONT_SIZE,
+    PHASE_BAR_FONT_SIZE_NARROW,
+    PHASE_BAR_FONT_WEIGHT,
+    PHASE_BAR_HEIGHT,
+    PHASE_BAR_NAME_COLOR,
+    PHASE_BAR_NARROW_THRESHOLD,
+    PHASE_BAR_STROKE,
+    PHASE_BAR_STROKE_WIDTH,
+    PHASE_BAR_TEXT_INSET,
+    PHASE_BAR_WIDE_THRESHOLD,
+    PHASE_GRID_TOP,
+    ROR_Y_MAX,
+    ROR_Y_MIN,
     SINGLE_GRID_BOTTOM,
+    TEMP_GRID_HEIGHT,
+    TEMP_GRID_HEIGHT_WITH_PHASE,
+    TEMP_Y_INTERVAL,
+    TEMP_Y_MAX_C,
+    TEMP_Y_MAX_F,
+    TEMP_Y_MIN_C,
+    TEMP_Y_MIN_F,
+    Y_AXIS_NAME_GAP,
 } from '@features/active-roast/lib/chart-config';
-import type { TurningPoint, TemperatureUnit, PhaseSegment } from '@features/active-roast';
-
+import { useThemeStore } from '@shared/store/theme';
+import type { EChartsOption } from 'echarts';
+import * as echarts from 'echarts';
+import type React from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 export interface RoastEventMarker {
     timeSec: number;
     event: string;
@@ -60,6 +86,16 @@ const fmtSec = (v: number) => {
     return `${sign}${m}:${String(s).padStart(2, '0')}`;
 };
 
+/** Approximate perceived brightness of a hex color (0–255). */
+const luminance = (hex: string): number => {
+    const c = hex.replace('#', '');
+    if (c.length < 6) return 255;
+    const r = parseInt(c.substring(0, 2), 16);
+    const g = parseInt(c.substring(2, 4), 16);
+    const b = parseInt(c.substring(4, 6), 16);
+    return (r * 299 + g * 587 + b * 114) / 1000;
+};
+
 export const RoastTempChart: React.FC<Props> = ({
     xs,
     btTarget,
@@ -71,6 +107,7 @@ export const RoastTempChart: React.FC<Props> = ({
     temperatureUnit = 'C',
     height,
     onCursorIdx,
+    onEventMarkerDrag,
     showET = true,
     showTargetCurve = true,
     showRoR = true,
@@ -81,6 +118,16 @@ export const RoastTempChart: React.FC<Props> = ({
 }) => {
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
+    const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+
+    // ── 마커 드래그 상태 ─────────────────────────────────────────
+    const dragStateRef = useRef<{
+        active: boolean;
+        eventName: string;
+        startX: number;
+        startTimeSec: number;
+    } | null>(null);
+    const PIXEL_THRESHOLD = 10;
 
     // ECharts 초기화
     useEffect((): (() => void) | undefined => {
@@ -106,6 +153,11 @@ export const RoastTempChart: React.FC<Props> = ({
     }, []);
 
     const option = useMemo((): EChartsOption => {
+        const colors = getResolvedChartColors();
+        const axisLabelStyle = { ...AXIS_LABEL_FONT, color: colors.axisLabel };
+        const axisNameStyle = { color: colors.axisLabel };
+        const rightYAxisLabel = { ...axisLabelStyle, margin: 4 };
+
         const unitLabel = temperatureUnit === 'C' ? '℃' : '℉';
         const rorUnit = temperatureUnit === 'C' ? '℃/min' : '℉/min';
 
@@ -129,16 +181,16 @@ export const RoastTempChart: React.FC<Props> = ({
         const tpMarkLines = turningPoints.map((tp) => ({
             xAxis: tp.timeSec,
             lineStyle: {
-                color: CHART_COLORS.tp,
+                color: colors.tp,
                 width: 1.5,
                 type: 'solid' as const,
                 opacity: 1,
             },
             label: {
                 show: true,
-                position: 'end',
+                position: 'start',
                 formatter: 'TP',
-                color: CHART_COLORS.tp,
+                color: colors.tp,
                 fontSize: 12,
                 fontWeight: 700,
             },
@@ -153,16 +205,13 @@ export const RoastTempChart: React.FC<Props> = ({
                 opacity: 0.8,
             },
             label: {
-                show: true,
-                position: 'end',
-                formatter: m.event,
-                color: m.color,
-                fontSize: 11,
-                fontWeight: 600,
+                show: false,
             },
         }));
 
-        const markPointData = eventMarkers.map((m) => ({
+        const markPointData = eventMarkers.map((m) => {
+            const isLight = luminance(m.color) > 160;
+            return {
                 name: m.event,
                 value: [m.timeSec, null],
                 xAxis: m.timeSec,
@@ -174,16 +223,17 @@ export const RoastTempChart: React.FC<Props> = ({
                     position: 'top',
                     formatter: m.event,
                     fontSize: 10,
-                    color: CHART_COLORS.markerLabelColor,
+                    color: isLight ? '#0B0B0B' : CHART_COLORS.markerLabelColor,
                     backgroundColor: m.color,
                     padding: [2, 4],
-                    borderRadius: 2,
                 },
-        }));
+            };
+        });
 
         const xMin = xs[0] ?? 0;
         const xMax = xs[xs.length - 1] ?? 1200;
-        const rightMargin = showRoR ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
+        const hasRightYAxis = showRoR || !!controlData;
+        const rightMargin = hasRightYAxis ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
         const leftMargin = CHART_GRID_LEFT;
         const topMargin = CHART_GRID_TOP;
 
@@ -194,7 +244,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 data: makeSeriesData(btTarget),
-                lineStyle: { color: CHART_COLORS.btTarget, width: 1.5, type: 'dashed' },
+                lineStyle: { color: colors.btTarget, width: 1.5, type: 'dashed' },
                 showSymbol: false,
                 smooth: false,
             },
@@ -204,12 +254,13 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 data: xs.map((x, i) => [x, btActual[i]]),
-                lineStyle: { color: CHART_COLORS.btActual, width: 1.8 },
+                lineStyle: { color: colors.btActual, width: 1.8 },
                 showSymbol: false,
                 ...getSmoothConfig(0.7),
                 markLine: {
-                    silent: true,
-                    symbol: 'none',
+                    silent: false,
+                    symbol: ['none', 'circle'],
+                    symbolSize: [0, 8],
                     data: [...eventMarkLines, ...tpMarkLines],
                 },
                 markPoint: { data: markPointData },
@@ -220,7 +271,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 data: xs.map((x, i) => [x, etActual[i]]),
-                lineStyle: { color: CHART_COLORS.etActual, width: 1.5 },
+                lineStyle: { color: colors.etActual, width: 1.5 },
                 showSymbol: false,
                 ...getSmoothConfig(0.65),
             },
@@ -230,26 +281,21 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 1,
                 data: xs.map((x, i) => [x, rorActual[i]]),
-                lineStyle: { color: CHART_COLORS.rorActual, width: 1.2 },
+                lineStyle: { color: colors.rorActual, width: 1.2 },
                 showSymbol: false,
                 ...getSmoothConfig(0.28),
-                areaStyle: {
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: `${CHART_COLORS.rorActual}33` },
-                        { offset: 1, color: `${CHART_COLORS.rorActual}00` },
-                    ]),
+            },
+            showRoR &&
+                showRoRET && {
+                    name: 'ET RoR',
+                    type: 'line',
+                    xAxisIndex: 0,
+                    yAxisIndex: 1,
+                    data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
+                    lineStyle: { color: colors.etActual, width: 1.0, type: 'dashed' },
+                    showSymbol: false,
+                    ...getSmoothConfig(0.28),
                 },
-            },
-            showRoR && showRoRET && {
-                name: 'ET RoR',
-                type: 'line',
-                xAxisIndex: 0,
-                yAxisIndex: 1,
-                data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
-                lineStyle: { color: CHART_COLORS.etActual, width: 1.0, type: 'dashed' },
-                showSymbol: false,
-                ...getSmoothConfig(0.28),
-            },
         ].filter(Boolean) as object[];
 
         // ── Phase bar (로스팅 단계 시각화) ────────────────────────────────────
@@ -344,14 +390,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 return { type: 'group', children };
             },
             // 각 단계 데이터: [startSec, endSec, durationSec, percentage, color, name]
-            data: phaseSegments.map((seg) => [
-                seg.startSec,
-                seg.endSec,
-                seg.durationSec,
-                seg.pct,
-                seg.color,
-                seg.name,
-            ]),
+            data: phaseSegments.map((seg) => [seg.startSec, seg.endSec, seg.durationSec, seg.pct, seg.color, seg.name]),
             z: 5,
         });
 
@@ -365,207 +404,235 @@ export const RoastTempChart: React.FC<Props> = ({
             // 시간 축 라벨은:
             // - Phase bar 있으면 → grid[1] 하단에 표시
             // - Phase bar 없으면 → grid[2] 하단에 표시
-            const controlBottom = hasPhaseBar ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP : CONTROL_GRID_BOTTOM;
-            const grids: { left: number; right: number; top: string | number; height?: string; bottom?: string | number }[] = hasPhaseBar
+            const controlBottom = hasPhaseBar
+                ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP
+                : CONTROL_GRID_BOTTOM;
+            const grids: {
+                left: number;
+                right: number;
+                top: string | number;
+                height?: string;
+                bottom?: string | number;
+            }[] = hasPhaseBar
                 ? [
-                    { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT_WITH_PHASE },
-                    { left: leftMargin, right: rightMargin, top: CONTROL_GRID_TOP_WITH_PHASE, height: `${PHASE_BAR_HEIGHT}px` },
-                    { left: leftMargin, right: rightMargin, top: PHASE_GRID_TOP, bottom: controlBottom },
+                      { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT_WITH_PHASE },
+                      {
+                          left: leftMargin,
+                          right: rightMargin,
+                          top: CONTROL_GRID_TOP_WITH_PHASE,
+                          height: `${PHASE_BAR_HEIGHT}px`,
+                      },
+                      { left: leftMargin, right: rightMargin, top: PHASE_GRID_TOP, bottom: controlBottom },
                   ]
                 : [
-                    { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT },
-                    { left: leftMargin, right: rightMargin, top: CONTROL_GRID_TOP, bottom: controlBottom },
+                      { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT },
+                      { left: leftMargin, right: rightMargin, top: CONTROL_GRID_TOP, bottom: controlBottom },
                   ];
             const xAxes = hasPhaseBar
                 ? [
-                    {
-                        gridIndex: 0,
-                        type: 'value' as const,
-                        min: xMin,
-                        max: xMax,
-                        axisLabel: { show: false },
-                        axisTick: { show: false },
-                        axisLine: { show: false },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
-                        interval: 60,
-                        splitNumber: 15,
-                    },
-                    {
-                        gridIndex: 1,
-                        type: 'value',
-                        min: xMin,
-                        max: xMax,
-                        axisLabel: { show: false },
-                        axisTick: { show: false },
-                        axisLine: { show: false },
-                        splitLine: { show: false },
-                        interval: 60,
-                        splitNumber: 15,
-                    },
-                    {
-                        gridIndex: 2,
-                        type: 'value',
-                        min: xMin,
-                        max: xMax,
-                        axisLabel: { formatter: fmtSec, ...AXIS_LABEL_FONT },
-                        axisTick: { show: false },
-                        interval: 60,
-                        splitNumber: 15,
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
-                    },
+                      {
+                          gridIndex: 0,
+                          type: 'value' as const,
+                          min: xMin,
+                          max: xMax,
+                          axisLabel: { show: false },
+                          axisTick: { show: false },
+                          axisLine: { show: false },
+                          splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+                          interval: 60,
+                          splitNumber: 15,
+                      },
+                      {
+                          gridIndex: 1,
+                          type: 'value',
+                          min: xMin,
+                          max: xMax,
+                          axisLabel: { show: false },
+                          axisTick: { show: false },
+                          axisLine: { show: false },
+                          splitLine: { show: false },
+                          interval: 60,
+                          splitNumber: 15,
+                      },
+                      {
+                          gridIndex: 2,
+                          type: 'value',
+                          min: xMin,
+                          max: xMax,
+                          axisLabel: { formatter: fmtSec, ...axisLabelStyle },
+                          axisTick: { show: false },
+                          interval: 60,
+                          splitNumber: 15,
+                          splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+                      },
                   ]
                 : [
-                    {
-                        gridIndex: 0,
-                        type: 'value',
-                        min: xMin,
-                        max: xMax,
-                        axisLabel: { show: false },
-                        axisTick: { show: false },
-                        axisLine: { show: false },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
-                        interval: 60,
-                        splitNumber: 15,
-                    },
-                    {
-                        gridIndex: 1,
-                        type: 'value',
-                        min: xMin,
-                        max: xMax,
-                        axisLabel: { formatter: fmtSec, ...AXIS_LABEL_FONT },
-                        axisTick: { show: false },
-                        interval: 60,
-                        splitNumber: 15,
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
-                    },
+                      {
+                          gridIndex: 0,
+                          type: 'value',
+                          min: xMin,
+                          max: xMax,
+                          axisLabel: { show: false },
+                          axisTick: { show: false },
+                          axisLine: { show: false },
+                          splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+                          interval: 60,
+                          splitNumber: 15,
+                      },
+                      {
+                          gridIndex: 1,
+                          type: 'value',
+                          min: xMin,
+                          max: xMax,
+                          axisLabel: { formatter: fmtSec, ...axisLabelStyle },
+                          axisTick: { show: false },
+                          interval: 60,
+                          splitNumber: 15,
+                          splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+                      },
                   ];
             const yAxes = hasPhaseBar
                 ? [
-                    {
-                        gridIndex: 0,
-                        type: 'value',
-                        name: `Temperature (${unitLabel})`,
-                        nameLocation: 'middle',
-                        nameGap: 16,
-                        axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
-                        minorTick: { show: true, splitNumber: 2 },
-                        minorSplitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLineMinor, width: 0.5 } },
-                        min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
-                        max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
-                        interval: TEMP_Y_INTERVAL,
-                    },
-                    {
-                        gridIndex: 0,
-                        type: 'value',
-                        name: `RoR (${rorUnit})`,
-                        nameLocation: 'middle',
-                        nameGap: 16,
-                        position: 'right',
-                        axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT },
-                        splitLine: { show: false },
-                        min: ROR_Y_MIN,
-                        max: ROR_Y_MAX,
-                        interval: 20,
-                    },
-                    {
-                        gridIndex: 1,
-                        type: 'value',
-                        min: 0,
-                        max: 1,
-                        show: false,
-                    },
-                    {
-                        gridIndex: 2,
-                        type: 'value',
-                        name: 'Drum (rpm)',
-                        nameLocation: 'middle',
-                        position: 'left',
-                        axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT_SM },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
-                        min: 0,
-                        max: 100,
-                    },
-                    {
-                        gridIndex: 2,
-                        type: 'value',
-                        name: 'Power / Speed (%)',
-                        nameLocation: 'middle',
-                        position: 'right',
-                        axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT_SM },
-                        splitLine: { show: false },
-                        min: 0,
-                        max: 100,
-                    },
+                      {
+                          gridIndex: 0,
+                          type: 'value',
+                          name: `Temperature (${unitLabel})`,
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          nameTextStyle: axisNameStyle,
+                          axisLine: { onZero: false },
+                          axisLabel: axisLabelStyle,
+                          splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+                          minorTick: { show: true, splitNumber: 2 },
+                          minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
+                          min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
+                          max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
+                          interval: TEMP_Y_INTERVAL,
+                      },
+                      {
+                          gridIndex: 0,
+                          type: 'value',
+                          name: `RoR (${rorUnit})`,
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          nameTextStyle: axisNameStyle,
+                          position: 'right',
+                          axisLine: { onZero: false },
+                          axisLabel: rightYAxisLabel,
+                          splitLine: { show: false },
+                          min: ROR_Y_MIN,
+                          max: ROR_Y_MAX,
+                          interval: 20,
+                      },
+                      {
+                          gridIndex: 1,
+                          type: 'value',
+                          min: 0,
+                          max: 1,
+                          show: false,
+                      },
+                      {
+                          gridIndex: 2,
+                          type: 'value',
+                          name: 'Drum (rpm)',
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          nameTextStyle: axisNameStyle,
+                          position: 'left',
+                          axisLine: { onZero: false },
+                          axisLabel: rightYAxisLabel,
+                          splitLine: { show: true, lineStyle: { color: colors.gridLine } },
+                          min: 0,
+                          max: 100,
+                      },
+                      {
+                          gridIndex: 2,
+                          type: 'value',
+                          name: 'Power / Speed (%)',
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          nameTextStyle: axisNameStyle,
+                          position: 'right',
+                          axisLine: { onZero: false },
+                          axisLabel: { show: false },
+                          splitLine: { show: false },
+                          min: 0,
+                          max: 100,
+                      },
                   ]
                 : [
-                    {
-                        gridIndex: 0,
-                        type: 'value',
-                        name: `Temperature (${unitLabel})`,
-                        nameLocation: 'middle',
-                        nameGap: 16,
-                        axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 0.5 } },
-                        minorTick: { show: true, splitNumber: 2 },
-                        minorSplitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLineMinor, width: 0.5 } },
-                        min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
-                        max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
-                        interval: TEMP_Y_INTERVAL,
-                    },
-                    {
-                        gridIndex: 0,
-                        type: 'value',
-                        name: `RoR (${rorUnit})`,
-                        nameLocation: 'middle',
-                        nameGap: 16,
-                        position: 'right',
-                        axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT },
-                        splitLine: { show: false },
-                        min: ROR_Y_MIN,
-                        max: ROR_Y_MAX,
-                        interval: 20,
-                    },
-                    {
-                        gridIndex: 1,
-                        type: 'value',
-                        name: 'Drum (rpm)',
-                        nameLocation: 'middle',
-                        position: 'left',
-                        axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT_SM },
-                        splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
-                        min: 0,
-                        max: 100,
-                    },
-                    {
-                        gridIndex: 1,
-                        type: 'value',
-                        name: 'Power / Speed (%)',
-                        nameLocation: 'middle',
-                        position: 'right',
-                        axisLine: { onZero: false },
-                        axisLabel: { ...AXIS_LABEL_FONT_SM },
-                        splitLine: { show: false },
-                        min: 0,
-                        max: 100,
-                    },
+                      {
+                          gridIndex: 0,
+                          type: 'value',
+                          name: `Temperature (${unitLabel})`,
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          nameTextStyle: axisNameStyle,
+                          axisLine: { onZero: false },
+                          axisLabel: axisLabelStyle,
+                          splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+                          minorTick: { show: true, splitNumber: 2 },
+                          minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
+                          min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
+                          max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
+                          interval: TEMP_Y_INTERVAL,
+                      },
+                      {
+                          gridIndex: 0,
+                          type: 'value',
+                          name: `RoR (${rorUnit})`,
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          nameTextStyle: axisNameStyle,
+                          position: 'right',
+                          axisLine: { onZero: false },
+                          axisLabel: rightYAxisLabel,
+                          splitLine: { show: false },
+                          min: ROR_Y_MIN,
+                          max: ROR_Y_MAX,
+                          interval: 20,
+                      },
+                      {
+                          gridIndex: 1,
+                          type: 'value',
+                          name: 'Drum (rpm)',
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          nameTextStyle: axisNameStyle,
+                          position: 'left',
+                          axisLine: { onZero: false },
+                          axisLabel: rightYAxisLabel,
+                          splitLine: { show: true, lineStyle: { color: colors.gridLine } },
+                          min: 0,
+                          max: 100,
+                      },
+                      {
+                          gridIndex: 1,
+                          type: 'value',
+                          name: 'Power / Speed (%)',
+                          nameLocation: 'middle',
+                          nameGap: Y_AXIS_NAME_GAP,
+                          nameTextStyle: axisNameStyle,
+                          position: 'right',
+                          axisLine: { onZero: false },
+                          axisLabel: { show: false },
+                          splitLine: { show: false },
+                          min: 0,
+                          max: 100,
+                      },
                   ];
             return {
                 backgroundColor: 'transparent',
                 animation: false,
-                axisPointer: { link: [{ xAxisIndex: 'all' }], label: { show: false } },
+                axisPointer: { link: [{ xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1] }], label: { show: false } },
                 grid: grids,
                 xAxis: xAxes as EChartsOption['xAxis'],
                 yAxis: yAxes as EChartsOption['yAxis'],
                 tooltip: {
                     trigger: 'axis',
+                    borderWidth: 1,
+                    borderColor: 'rgba(0,0,0,0.08)',
+                    extraCssText: 'box-shadow: none;',
                     axisPointer: { type: 'line', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
                 },
                 series: [
@@ -573,22 +640,22 @@ export const RoastTempChart: React.FC<Props> = ({
                     {
                         name: 'Drum',
                         type: 'line',
-                        color: CONTROL_COLORS.drum,
+                        color: colors.controlDrum,
                         xAxisIndex: hasPhaseBar ? 2 : 1,
                         yAxisIndex: hasPhaseBar ? 3 : 2,
                         data: cxs.map((x, i) => [x, drumTemp[i]]),
-                        lineStyle: { color: CONTROL_COLORS.drum, width: 1.5 },
+                        lineStyle: { color: colors.controlDrum, width: 1.5 },
                         showSymbol: false,
                         smooth: 0.3,
                     },
                     {
                         name: 'Heat',
                         type: 'line',
-                        color: CONTROL_COLORS.heat,
+                        color: colors.controlHeat,
                         xAxisIndex: hasPhaseBar ? 2 : 1,
                         yAxisIndex: hasPhaseBar ? 4 : 3,
                         data: cxs.map((x, i) => [x, heatPower[i]]),
-                        lineStyle: { color: CONTROL_COLORS.heat, width: 1.5 },
+                        lineStyle: { color: colors.controlHeat, width: 1.5 },
                         showSymbol: false,
                         step: 'end',
                         smooth: false,
@@ -596,11 +663,11 @@ export const RoastTempChart: React.FC<Props> = ({
                     {
                         name: 'Fan',
                         type: 'line',
-                        color: CONTROL_COLORS.fan,
+                        color: colors.controlFan,
                         xAxisIndex: hasPhaseBar ? 2 : 1,
                         yAxisIndex: hasPhaseBar ? 4 : 3,
                         data: cxs.map((x, i) => [x, fanSpeed[i]]),
-                        lineStyle: { color: CONTROL_COLORS.fan, width: 1.5 },
+                        lineStyle: { color: colors.controlFan, width: 1.5 },
                         showSymbol: false,
                         step: 'end',
                         smooth: false,
@@ -612,24 +679,30 @@ export const RoastTempChart: React.FC<Props> = ({
                         type: 'inside',
                         xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1],
                         zoomOnMouseWheel: true,
-                        moveOnMouseMove: true,
+                        moveOnMouseMove: false,
+                        moveOnMouseWheel: true,
                     },
                 ],
             };
         }
 
-        const singleBottom = hasPhaseBar ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP : SINGLE_GRID_BOTTOM;
+        const singleBottom = hasPhaseBar
+            ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP
+            : SINGLE_GRID_BOTTOM;
         return {
             backgroundColor: 'transparent',
             animation: false,
             grid: [
-                { left: leftMargin, right: showRoR ? 50 : 12, top: topMargin, bottom: singleBottom },
+                { left: leftMargin, right: rightMargin, top: topMargin, bottom: singleBottom },
                 ...(hasPhaseBar
-                    ? [{ left: leftMargin, right: showRoR ? 50 : 12, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
+                    ? [{ left: leftMargin, right: rightMargin, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
                     : []),
             ],
             tooltip: {
                 trigger: 'axis',
+                borderWidth: 1,
+                borderColor: 'rgba(0,0,0,0.08)',
+                extraCssText: 'box-shadow: none;',
                 axisPointer: { type: 'cross', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 formatter: (params: any) => {
@@ -638,13 +711,13 @@ export const RoastTempChart: React.FC<Props> = ({
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     params.forEach((p: any) => {
                         if (p.seriesName === 'BT Target')
-                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget};border-radius:2px"></div>Target BT: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
+                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget}"></div>Target BT: <span>${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
                         if (p.seriesName === 'BT Actual')
-                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual};border-radius:2px"></div>Bean Temp: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
+                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
                         if (p.seriesName === 'ET Actual' && showET)
-                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual};border-radius:2px"></div>Env Temp: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
+                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual}"></div>Env Temp: <span>${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
                         if (p.seriesName === 'RoR' && showRoR)
-                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual};border-radius:2px"></div>RoR: <span style="font-weight:600">${p.value[1]?.toFixed(1)}${rorUnit}</span></div>`;
+                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual}"></div>RoR: <span>${p.value[1]?.toFixed(1)}${rorUnit}</span></div>`;
                     });
                     return html;
                 },
@@ -656,29 +729,32 @@ export const RoastTempChart: React.FC<Props> = ({
                     name: hasPhaseBar ? undefined : 'Time (min)',
                     nameLocation: 'middle',
                     nameGap: 16,
+                    nameTextStyle: axisNameStyle,
                     min: xMin,
                     max: xMax,
                     axisLabel: hasPhaseBar
                         ? { show: false }
-                        : { formatter: (v: number) => fmtSec(v), fontSize: 11, fontFamily: 'monospace' },
+                        : { formatter: (v: number) => fmtSec(v), ...axisLabelStyle },
                     axisTick: hasPhaseBar ? { show: false } : undefined,
                     interval: 60,
                     splitNumber: 15,
-                    splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine, width: 1 } },
+                    splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 1 } },
                 },
                 ...(hasPhaseBar
-                    ? [{
-                          gridIndex: 1,
-                          type: 'value' as const,
-                          min: xMin,
-                          max: xMax,
-                          axisLabel: { formatter: fmtSec, ...AXIS_LABEL_FONT },
-                          axisTick: { show: false },
-                          axisLine: { show: false },
-                          splitLine: { show: false },
-                          interval: 60,
-                          splitNumber: 15,
-                      }]
+                    ? [
+                          {
+                              gridIndex: 1,
+                              type: 'value' as const,
+                              min: xMin,
+                              max: xMax,
+                              axisLabel: { formatter: fmtSec, ...axisLabelStyle },
+                              axisTick: { show: false },
+                              axisLine: { show: false },
+                              splitLine: { show: false },
+                              interval: 60,
+                              splitNumber: 15,
+                          },
+                      ]
                     : []),
             ],
             yAxis: [
@@ -687,10 +763,11 @@ export const RoastTempChart: React.FC<Props> = ({
                     type: 'value',
                     name: `Temperature (${unitLabel})`,
                     nameLocation: 'middle',
-                    nameGap: 16,
+                    nameGap: Y_AXIS_NAME_GAP,
+                    nameTextStyle: axisNameStyle,
                     axisLine: { onZero: false },
-                    axisLabel: { ...AXIS_LABEL_FONT },
-                    splitLine: { show: true, lineStyle: { color: CHART_COLORS.gridLine } },
+                    axisLabel: axisLabelStyle,
+                    splitLine: { show: true, lineStyle: { color: colors.gridLine } },
                     min: temperatureUnit === 'F' ? 122 : 50,
                     max: temperatureUnit === 'F' ? 482 : 250,
                     interval: 20,
@@ -700,27 +777,38 @@ export const RoastTempChart: React.FC<Props> = ({
                     type: 'value',
                     name: `RoR (${rorUnit})`,
                     nameLocation: 'middle',
-                    nameGap: 16,
+                    nameGap: Y_AXIS_NAME_GAP,
+                    nameTextStyle: axisNameStyle,
                     position: 'right',
                     axisLine: { onZero: false },
-                    axisLabel: { ...AXIS_LABEL_FONT },
+                    axisLabel: rightYAxisLabel,
                     splitLine: { show: false },
                     min: ROR_Y_MIN,
                     max: ROR_Y_MAX,
                     interval: 20,
                 },
                 ...(hasPhaseBar
-                    ? [{
-                          gridIndex: 1,
-                          type: 'value' as const,
-                          min: 0,
-                          max: 1,
-                          show: false,
-                      }]
+                    ? [
+                          {
+                              gridIndex: 1,
+                              type: 'value' as const,
+                              min: 0,
+                              max: 1,
+                              show: false,
+                          },
+                      ]
                     : []),
             ],
             series: [...tempSeries, ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : [])],
-            dataZoom: [{ type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: true, moveOnMouseMove: true }],
+            dataZoom: [
+                {
+                    type: 'inside',
+                    xAxisIndex: 0,
+                    zoomOnMouseWheel: true,
+                    moveOnMouseMove: false,
+                    moveOnMouseWheel: true,
+                },
+            ],
         };
     }, [
         xs,
@@ -738,6 +826,7 @@ export const RoastTempChart: React.FC<Props> = ({
         rorEtActual,
         controlData,
         phaseSegments,
+        resolvedTheme,
     ]);
 
     // 옵션 적용 — controlData/phaseBar 유무가 바뀌면 grid/axis 구조가 달라지므로 notMerge로 완전 교체
@@ -782,6 +871,71 @@ export const RoastTempChart: React.FC<Props> = ({
         };
     }, [xs, onCursorIdx]);
 
+    // ── 마커 드래그 (chart.getZr()로 마크라인 핸들 감지) ──────────
+    useEffect(() => {
+        const chart = chartInstanceRef.current;
+        if (!chart || !onEventMarkerDrag) return;
+
+        const zr = chart.getZr();
+        if (!zr) return;
+
+        const handleZrPointerDown = (e: Record<string, unknown>) => {
+            if (!chart) return;
+            const evt = e.event as MouseEvent | undefined;
+            const mx = evt?.offsetX ?? (e.offsetX as number);
+            if (mx == null) return;
+            const yMid = (chart.convertToPixel({ yAxisIndex: 0 }, 150) as number) ?? 200;
+            for (const marker of eventMarkers) {
+                const pixel = chart.convertToPixel({ xAxisIndex: 0 }, [marker.timeSec, yMid]);
+                if (pixel == null) continue;
+                const px = Array.isArray(pixel) ? pixel[0] : pixel;
+                const dist = Math.abs(mx - px);
+                if (dist <= PIXEL_THRESHOLD) {
+                    dragStateRef.current = {
+                        active: true,
+                        eventName: marker.event,
+                        startX: mx,
+                        startTimeSec: marker.timeSec,
+                    };
+                    break;
+                }
+            }
+        };
+
+        const handleZrPointerMove = (e: Record<string, unknown>) => {
+            const ds = dragStateRef.current;
+            if (!ds || !ds.active || !chart) return;
+            const evt = e.event as MouseEvent | undefined;
+            const mx = evt?.offsetX ?? (e.offsetX as number);
+            const my = evt?.offsetY ?? (e.offsetY as number);
+            if (mx == null) return;
+            const point = chart.convertFromPixel({ xAxisIndex: 0 }, [mx, my]);
+            if (!point) return;
+            const xVal = Array.isArray(point) ? point[0] : point;
+            const clamped = Math.max(0, Math.round(xVal));
+            if (clamped !== ds.startTimeSec) {
+                onEventMarkerDrag(ds.eventName, clamped);
+                dragStateRef.current = { ...ds, startTimeSec: clamped };
+            }
+        };
+
+        const handleZrPointerUp = () => {
+            if (dragStateRef.current) {
+                dragStateRef.current = null;
+            }
+        };
+
+        zr.on('mousedown', handleZrPointerDown);
+        zr.on('mousemove', handleZrPointerMove);
+        zr.on('mouseup', handleZrPointerUp);
+
+        return () => {
+            zr.off('mousedown', handleZrPointerDown);
+            zr.off('mousemove', handleZrPointerMove);
+            zr.off('mouseup', handleZrPointerUp);
+        };
+    }, [eventMarkers, onEventMarkerDrag]);
+
     useEffect(() => {
         chartInstanceRef.current?.resize({ height });
     }, [height]);
@@ -797,7 +951,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         { color: CONTROL_COLORS.fan, label: 'Fan' },
                     ].map(({ color, label }) => (
                         <div key={label} className="flex items-center gap-1.5">
-                            <div style={{ width: 16, height: 2, borderRadius: 1, background: color }} />
+                            <div style={{ width: 16, height: 2, background: color }} />
                             <span className="text-[11px] text-muted tracking-[0.14px]">{label}</span>
                         </div>
                     ))}

@@ -1,13 +1,13 @@
-import { create } from 'zustand'
-import type { PlanBatchHandoff } from '../types/database.types'
+import { create } from 'zustand';
+import type { PlanBatchHandoff } from '../types/database.types';
 
 interface RoastSessionState {
-    planBatchHandoff: PlanBatchHandoff | null
+    planBatchHandoff: PlanBatchHandoff | null;
 }
 
 interface RoastSessionActions {
-    startBatch: (handoff: PlanBatchHandoff) => void
-    completeBatch: () => void
+    startBatch: (handoff: PlanBatchHandoff) => void;
+    completeBatch: () => void;
 }
 
 export const useRoastSessionStore = create<RoastSessionState & RoastSessionActions>((set) => ({
@@ -16,4 +16,4 @@ export const useRoastSessionStore = create<RoastSessionState & RoastSessionActio
     startBatch: (handoff) => set({ planBatchHandoff: handoff }),
 
     completeBatch: () => set({ planBatchHandoff: null }),
-}))
+}));

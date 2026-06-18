@@ -8,6 +8,7 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
+  envPrefix: ["VITE_", "PUBLIC_"],
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

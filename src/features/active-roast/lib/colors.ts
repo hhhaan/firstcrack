@@ -1,29 +1,32 @@
-// Sensor data line colors
+// Sensor data line colors — use CSS variables for theme support
+// Values are resolved from :root (light) / html.dark (dark) at runtime
 export const SENSOR_COLORS = {
-    bt: '#16a34a',
-    btBg: 'rgba(22,163,74,0.08)',
-    btTarget: 'rgba(16,185,129,0.7)',
-    btTargetHover: 'rgba(16,185,129,0.8)',
-    btTargetStrong: 'rgba(16,185,129,0.9)',
-    et: '#2563eb',
-    etChart: 'rgba(37,99,235,0.7)',
-    etBg: 'rgba(219,234,254,0.5)',
-    ror: '#FFC107',
-    rorBg: 'rgba(255,235,59,0.5)',
+    bt: 'var(--color-sensor-bt)',
+    btBg: 'var(--color-sensor-bt-bg, rgba(34,168,90,0.08))',
+    btTarget: 'var(--color-sensor-bt-target, rgba(40,180,130,0.65))',
+    btTargetHover: 'var(--color-sensor-bt-target-hover, rgba(40,180,130,0.75))',
+    btTargetStrong: 'var(--color-sensor-bt-target-strong, rgba(40,180,130,0.85))',
+    // light: #4a85c5 / dark: #BEACF8
+    et: 'var(--color-sensor-et)',
+    etChart: 'var(--color-sensor-et)',
+    etBg: 'var(--color-sensor-et-bg, rgba(190,215,245,0.5))',
+    // light: #e8a828 / dark: #FFFF54
+    ror: 'var(--color-sensor-ror)',
+    rorBg: 'var(--color-sensor-ror-bg, rgba(232,168,40,0.25))',
 } as const;
 
 export const PHASE_COLORS = {
-    ready: '#16a34a',
-    readyBg: 'rgba(220,252,231,0.8)',
-    drying: '#d97706',
-    maillard: '#b45309',
-    development: '#ea580c',
-    danger: '#dc2626',
-    dangerBg: 'rgba(254,226,226,0.8)',
+    ready: 'var(--color-phase-ready)',
+    readyBg: 'var(--color-phase-ready-bg)',
+    drying: 'var(--color-phase-drying)',
+    maillard: 'var(--color-phase-maillard)',
+    development: 'var(--color-phase-development)',
+    danger: 'var(--color-phase-danger)',
+    dangerBg: 'var(--color-phase-danger-bg)',
 } as const;
 
 // Connected status dot (brighter green, distinct from PHASE_COLORS.ready)
 export const STATUS_COLORS = {
-    active: '#22c55e',
-    activeGlow: 'rgba(34,197,94,0.2)',
+    active: '#81FBA5',
+    activeGlow: 'rgba(129,251,165,0.2)',
 } as const;

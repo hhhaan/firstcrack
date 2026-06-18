@@ -1,147 +1,335 @@
 {
-  "common": {
-    "cancel": "キャンセル",
-    "close": "閉じる",
-    "connected": "接続済み",
-    "connecting": "接続中...",
-    "disconnected": "未接続",
-    "live": "ライブ",
-    "offline": "オフライン"
-  },
-  "sidebar": {
-    "roasteryDashboard": "ロースタリーダッシュボード",
-    "expand": "サイドバーを展開",
-    "collapse": "サイドバーを折りたたむ",
-    "workspaceSelector": "ワークスペース選択",
-    "workspace": "ワークスペース",
-    "settings": "設定",
-    "workspacePreferences": "ワークスペース設定",
-    "nav": {
-      "dashboard": "ダッシュボード",
-      "roast": "ロースト中",
-      "history": "ロースト履歴",
-      "beans": "豆在庫",
-      "profiles": "プロファイル",
-      "machines": "マシン",
-      "schedule": "ロースト予定"
-    }
-  },
-  "settings": {
-    "title": "ワークスペース設定",
-    "close": "設定を閉じる",
-    "whyTitle": "設定に含まれる理由",
-    "whyDescription": "これらの項目はアプリ全体の体験に影響します。運用データは設定画面を軽く保つため、サイドバーの主要画面に置きます。",
-    "tabs": {
-      "general": {
-        "label": "一般",
-        "title": "ワークスペース設定",
-        "description": "ロースタリーのワークスペース全体に適用される既定値を管理します。",
-        "interfaceTitle": "インターフェース",
-        "interfaceDescription": "アプリ全体に適用される軽量な設定です。",
-        "language": "言語",
-        "languageDescription": "アプリの表示言語を選択します。",
-        "defaultLandingView": "既定の開始画面",
-        "temperatureUnit": "温度単位",
-        "weightUnit": "重量単位",
-        "displayTitle": "表示の既定値",
-        "displayDescription": "ダッシュボードとナビゲーションの動作をセッション間で一貫させます。",
-        "expandedSidebar": "既定でサイドバーを展開",
-        "liveMetricsPanel": "ライブ指標パネルを表示",
-        "compactDataCards": "コンパクトなデータカードを使用"
-      },
-      "notifications": {
-        "label": "通知",
-        "title": "通知とリマインダー",
-        "description": "サイドバーの作業画面を重複させず、必要なメッセージだけを受け取ります。",
-        "operationalTitle": "運用通知",
-        "operationalDescription": "ロースト中や機器監視中に役立つ通知です。",
-        "milestoneAlerts": "ローストマイルストーン通知",
-        "disconnectWarning": "マシン切断警告",
-        "maintenanceReminder": "メンテナンス通知",
-        "deliveryTitle": "通知方法",
-        "deliveryDescription": "作業中に通知を表示する方法です。",
-        "bannerNotifications": "バナー通知",
-        "soundAlerts": "サウンド通知",
-        "highPriorityOnly": "高優先度の通知のみ"
-      },
-      "session": {
-        "label": "セッション",
-        "title": "ローストセッションの動作",
-        "description": "各ローストセッションの開始から終了までに適用される小さな既定値です。",
-        "startTitle": "セッション開始",
-        "startDescription": "オペレーターがすばやく開始できるようにする自動化です。",
-        "autoStartTimer": "ローストタイマーを自動開始",
-        "openActiveRoast": "ロースト中画面をすぐに開く",
-        "confirmBeforeStart": "セッション開始前に確認",
-        "endTitle": "セッション終了",
-        "endDescription": "サマリーと最終確認を一貫させます。",
-        "showSummary": "終了後にローストサマリーを表示",
-        "confirmDiscard": "セッション破棄前に確認",
-        "keepNotesVisible": "ローストノートを表示したままにする"
-      },
-      "system": {
-        "label": "システム",
-        "title": "システムとデータ",
-        "description": "アプリ全体の操作、ローカルデータの状態、エクスポート関連の制御をまとめます。",
-        "dataTitle": "データ制御",
-        "dataDescription": "豆、マシン、プロファイル画面に直接属さないワークスペース操作です。",
-        "exportWorkspace": "現在のワークスペースデータをエクスポート",
-        "backupSnapshot": "ローカルバックアップスナップショットを作成",
-        "preserveLogs": "アクティビティログを保持",
-        "environmentTitle": "環境",
-        "environmentDescription": "アプリ自体の状態と安全性に関する設定です。",
-        "healthBadge": "接続状態バッジを表示",
-        "checkServices": "ローカルデバイスサービスを確認",
-        "confirmResets": "リセット前の確認を必須にする"
-      }
-    }
-  },
-  "language": {
-    "ko": "한국어",
-    "en": "English",
-    "ja": "日本語",
-    "zh-CN": "简体中文"
-  },
-  "machines": {
-    "title": "マシン一覧",
-    "registered": "{{count}}台登録済み",
-    "connectedSuffix": "{{name}} 接続済み",
-    "noActiveConnection": "アクティブな接続なし",
-    "addMachine": "マシンを追加",
-    "empty": "登録済みのマシンはまだありません",
-    "addFirst": "最初のマシンを追加",
-    "searchPlaceholder": "マシンを検索...",
-    "removeMachine": "マシンを削除",
-    "temperature": {
-      "bean": "豆温度",
-      "environment": "環境温度",
-      "ror": "RoR",
-      "rateOfRise": "上昇率"
+    "common": {
+        "cancel": "キャンセル",
+        "close": "閉じる",
+        "connected": "接続済み",
+        "connecting": "接続中...",
+        "disconnected": "未接続",
+        "live": "ライブ",
+        "offline": "オフライン"
     },
-    "notConnectedHint": "接続されていません。接続ボタンを押して開始してください。",
-    "connection": "接続",
-    "disconnect": "切断",
-    "connect": "接続",
-    "startRoasting": "ローストを開始",
-    "selectMachine": "マシンを選択してください"
-  },
-  "addMachine": {
-    "onboarding": "マシンオンボーディング",
-    "title": "新しいマシンを追加",
-    "roasterModel": "ロースターモデル",
-    "loadingRoasters": "ロースターを読み込み中...",
-    "selectPort": "ポートを選択...",
-    "defaultPort": "既定値",
-    "selectRoaster": "ロースターを選択...",
-    "connectionSettings": "接続設定",
-    "fieldRequired": "{{field}} は必須です",
-    "failedToAdd": "マシンの追加に失敗しました",
-    "connectionFailed": "接続に失敗しました",
-    "testConnection": "接続テスト",
-    "testingConnection": "接続をテスト中...",
-    "connectedWithBt": "接続済み - BT {{bt}}°C",
-    "addOnly": "追加のみ",
-    "addAndConnect": "追加して接続",
-    "adding": "追加中..."
-  }
+    "sidebar": {
+        "roasteryDashboard": "ロースタリーダッシュボード",
+        "expand": "サイドバーを展開",
+        "collapse": "サイドバーを折りたたむ",
+        "workspaceSelector": "ワークスペース選択",
+        "workspace": "ワークスペース",
+        "settings": "設定",
+        "workspacePreferences": "ワークスペース設定",
+        "nav": {
+            "dashboard": "ダッシュボード",
+            "roast": "ロースト中",
+            "history": "ロースト履歴",
+            "beans": "豆在庫",
+            "profiles": "プロファイル",
+            "machines": "マシン",
+            "schedule": "ロースト予定"
+        }
+    },
+    "settings": {
+        "title": "ワークスペース設定",
+        "close": "設定を閉じる",
+        "whyTitle": "設定に含まれる理由",
+        "whyDescription": "これらの項目はアプリ全体の体験に影響します。運用データは設定画面を軽く保つため、サイドバーの主要画面に置きます。",
+        "tabs": {
+            "general": {
+                "label": "一般",
+                "title": "ワークスペース設定",
+                "description": "ロースタリーのワークスペース全体に適用される既定値を管理します。",
+                "interfaceTitle": "インターフェース",
+                "interfaceDescription": "アプリ全体に適用される軽量な設定です。",
+                "theme": "外観",
+                "themeDescription": "アプリの表示スタイルを選択します。システムはOS設定に従います。",
+                "themeLight": "ライト",
+                "themeLightDescription": "明るくクリーンな画面",
+                "themeDark": "ダーク",
+                "themeDarkDescription": "目に優しい暗い画面",
+                "themeSystem": "システム",
+                "themeSystemDescription": "OS設定に合わせる",
+                "language": "言語",
+                "languageDescription": "アプリの表示言語を選択します。",
+                "defaultLandingView": "既定の開始画面",
+                "temperatureUnit": "温度単位",
+                "weightUnit": "重量単位",
+                "displayTitle": "表示の既定値",
+                "displayDescription": "ダッシュボードとナビゲーションの動作をセッション間で一貫させます。",
+                "expandedSidebar": "既定でサイドバーを展開",
+                "liveMetricsPanel": "ライブ指標パネルを表示",
+                "compactDataCards": "コンパクトなデータカードを使用"
+            },
+            "notifications": {
+                "label": "通知",
+                "title": "通知とリマインダー",
+                "description": "サイドバーの作業画面を重複させず、必要なメッセージだけを受け取ります。",
+                "operationalTitle": "運用通知",
+                "operationalDescription": "ロースト中や機器監視中に役立つ通知です。",
+                "milestoneAlerts": "ローストマイルストーン通知",
+                "disconnectWarning": "マシン切断警告",
+                "maintenanceReminder": "メンテナンス通知",
+                "deliveryTitle": "通知方法",
+                "deliveryDescription": "作業中に通知を表示する方法です。",
+                "bannerNotifications": "バナー通知",
+                "soundAlerts": "サウンド通知",
+                "highPriorityOnly": "高優先度の通知のみ"
+            },
+            "session": {
+                "label": "セッション",
+                "title": "ローストセッションの動作",
+                "description": "各ローストセッションの開始から終了までに適用される小さな既定値です。",
+                "startTitle": "セッション開始",
+                "startDescription": "オペレーターがすばやく開始できるようにする自動化です。",
+                "autoStartTimer": "ローストタイマーを自動開始",
+                "openActiveRoast": "ロースト中画面をすぐに開く",
+                "confirmBeforeStart": "セッション開始前に確認",
+                "endTitle": "セッション終了",
+                "endDescription": "サマリーと最終確認を一貫させます。",
+                "showSummary": "終了後にローストサマリーを表示",
+                "confirmDiscard": "セッション破棄前に確認",
+                "keepNotesVisible": "ローストノートを表示したままにする"
+            },
+            "system": {
+                "label": "システム",
+                "title": "システムとデータ",
+                "description": "アプリ全体の操作、ローカルデータの状態、エクスポート関連の制御をまとめます。",
+                "dataTitle": "データ制御",
+                "dataDescription": "豆、マシン、プロファイル画面に直接属さないワークスペース操作です。",
+                "exportWorkspace": "現在のワークスペースデータをエクスポート",
+                "backupSnapshot": "ローカルバックアップスナップショットを作成",
+                "preserveLogs": "アクティビティログを保持",
+                "environmentTitle": "環境",
+                "environmentDescription": "アプリ自体の状態と安全性に関する設定です。",
+                "healthBadge": "接続状態バッジを表示",
+                "checkServices": "ローカルデバイスサービスを確認",
+                "confirmResets": "リセット前の確認を必須にする"
+            }
+        }
+    },
+    "language": {
+        "ko": "한국어",
+        "en": "English",
+        "ja": "日本語",
+        "zh-CN": "简体中文"
+    },
+    "machines": {
+        "title": "マシン一覧",
+        "registered": "{{count}}台登録済み",
+        "connectedSuffix": "{{name}} 接続済み",
+        "noActiveConnection": "アクティブな接続なし",
+        "addMachine": "マシンを追加",
+        "empty": "登録済みのマシンはまだありません",
+        "addFirst": "最初のマシンを追加",
+        "searchPlaceholder": "マシンを検索...",
+        "removeMachine": "マシンを削除",
+        "temperature": {
+            "bean": "豆温度",
+            "environment": "環境温度",
+            "ror": "RoR",
+            "rateOfRise": "上昇率"
+        },
+        "notConnectedHint": "接続されていません。接続ボタンを押して開始してください。",
+        "connection": "接続",
+        "disconnect": "切断",
+        "connect": "接続",
+        "startRoasting": "ローストを開始",
+        "selectMachine": "マシンを選択してください"
+    },
+    "addMachine": {
+        "onboarding": "マシンオンボーディング",
+        "title": "新しいマシンを追加",
+        "roasterModel": "ロースターモデル",
+        "loadingRoasters": "ロースターを読み込み中...",
+        "selectPort": "ポートを選択...",
+        "defaultPort": "既定値",
+        "selectRoaster": "ロースターを選択...",
+        "connectionSettings": "接続設定",
+        "fieldRequired": "{{field}} は必須です",
+        "failedToAdd": "マシンの追加に失敗しました",
+        "connectionFailed": "接続に失敗しました",
+        "testConnection": "接続テスト",
+        "testingConnection": "接続をテスト中...",
+        "connectedWithBt": "接続済み - BT {{bt}}°C",
+        "addOnly": "追加のみ",
+        "addAndConnect": "追加して接続",
+        "adding": "追加中..."
+    },
+    "dashboard": {
+        "greeting": {
+            "morning": "おはようございます",
+            "afternoon": "こんにちは",
+            "evening": "こんばんは"
+        },
+        "viewActiveRoast": "進行中のローストを見る",
+        "kpi": {
+            "batchesThisMonth": "今月のバッチ数",
+            "beansRoasted": "ローストした豆の量",
+            "avgRoastTime": "平均ロースト時間",
+            "successRate": "成功率"
+        },
+        "recentSessions": "最近のセッション",
+        "viewAll": "すべて表示",
+        "table": {
+            "date": "日付",
+            "bean": "豆",
+            "profile": "プロファイル",
+            "weight": "重量",
+            "dropTemp": "排気温度",
+            "duration": "時間",
+            "level": "ロースト度"
+        },
+        "loading": "読み込み中...",
+        "noSessions": "まだセッションがありません",
+        "monthlyBatches": "月別バッチ",
+        "thisMonth": "今月",
+        "batches": "回",
+        "kgRoasted": "kg ロースト",
+        "beanOrigins": "産地数",
+        "upcomingBatches": "予定バッチ",
+        "noUpcoming": "予定されたバッチはありません",
+        "inventoryAlerts": "在庫アラート",
+        "allStockOk": "すべての在庫は正常です",
+        "outOfStock": "在庫切れ",
+        "lowStock": "在庫不足",
+        "kgRemaining": "残り{{kg}}kg",
+        "today": "今日",
+        "batchCount": "{{count}}回"
+    },
+    "schedule": {
+        "dateFormat": "yyyy年M月d日 (eee)",
+        "monthFormat": "yyyy年 M月",
+        "viewToggle": {
+            "day": "日",
+            "week": "週",
+            "month": "月"
+        },
+        "today": "今日",
+        "addBatch": "新規バッチ追加",
+        "loading": "読み込み中...",
+        "emptyState": {
+            "title": "今日のバッチはありません。\n新しいバッチを追加してスケジュールを始めましょう。",
+            "action": "新規バッチ追加"
+        },
+        "weekDay": {
+            "batchCount": "{{count}}個のバッチ"
+        },
+        "monthDay": {
+            "headers": ["月", "火", "水", "木", "金", "土", "日"]
+        },
+        "overflowMore": "+{{count}}件",
+        "status": {
+            "pending": "待機",
+            "inProgress": "進行中",
+            "inProgressWith": "進行中 {{progress}}",
+            "done": "完了",
+            "skipped": "スキップ"
+        },
+        "start": "開始",
+        "detail": {
+            "target": "目標 {{kg}} kg",
+            "batch": "Batch {{kg}} kg",
+            "count": "{{count}}回"
+        },
+        "recurrence": {
+            "daily": "毎日",
+            "weekly": "毎週",
+            "biweekly": "隔週",
+            "monthly": "毎月",
+            "repeat": "繰り返し",
+            "none": "なし"
+        },
+        "deleteConfirm": {
+            "single": "このバッチのみ削除しますか？",
+            "fromThis": "{{date}}以降のすべての繰り返しバッチを削除しますか？",
+            "all": "繰り返し予定をすべて削除しますか？過去の記録は保持されます。",
+            "batch": "\"{{name}}\" バッチを削除しますか？"
+        },
+        "error": {
+            "createRecurring": "繰り返しバッチの追加に失敗しました:",
+            "createBatch": "バッチの追加に失敗しました:"
+        }
+    },
+    "addBatchModal": {
+        "batchType": {
+            "singleOrigin": "Single Origin",
+            "preRoastBlend": "Pre-roast Blend",
+            "postRoastBlend": "Post-roast Blend"
+        },
+        "type": "バッチタイプ",
+        "date": "日付",
+        "machine": "マシン",
+        "roastProfile": "ロストプロファイル",
+        "profilePlaceholder": "プロファイル選択...",
+        "greenCoffeeLot": "Green Coffee Lot",
+        "lotPlaceholder": "Lot選択...",
+        "stock": "在庫 {{kg}} kg",
+        "shortage": "在庫不足 — 利用可能 {{effective}}g / 必要 {{needed}}g",
+        "blend": "ブレンド",
+        "blendPlaceholder": "ブレンド選択...",
+        "blendComposition": "{{count}}種の生豆構成",
+        "blendShortage": "{{name}}: 利用可能 {{effective}}g / 必要 {{needed}}g",
+        "targetRoasted": "目標 Roasted (kg)",
+        "batchSize": "Batch Size (kg)",
+        "yield": "Yield (%)",
+        "batches": "バッチ",
+        "greenNeeded": "Green必要 (kg)",
+        "currentStock": "現在の在庫:",
+        "needed": "/ 必要:",
+        "insufficientStock": "在庫不足",
+        "recurrence": "繰り返し",
+        "none": "なし",
+        "notes": "メモ (Notes)",
+        "notesPlaceholder": "特記事項、顧客情報など...",
+        "dateChanged": "{{date}}に移動されます",
+        "cancel": "キャンセル",
+        "saving": "保存中...",
+        "save": "保存",
+        "addBatch": "バッチ追加",
+        "editBatch": "バッチ編集",
+        "saveFailed": "保存失敗:",
+        "unknown": "不明"
+    },
+    "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+    "history": {
+        "title": "ロースト履歴",
+        "subtitle": "{{count}}件のセッション",
+        "subtitleLoading": "読み込み中...",
+        "loading": "読み込み中...",
+        "error": "セッションの読み込みに失敗しました。もう一度お試しください。",
+        "noSessionsFound": "セッションが見つかりません",
+        "filteredFrom": " (全{{count}}件からフィルター)",
+        "pagination": "{{start}}～{{end}} / 全{{total}}",
+        "noNotes": "記録されたノートはありません。",
+        "searchPlaceholder": "豆、プロファイル、産地で検索...",
+        "allLevels": "すべてのロースト度",
+        "allOrigins": "すべての産地",
+        "datePresets": {
+            "all": "全期間",
+            "this-month": "今月",
+            "last-month": "先月",
+            "3-months": "過去3ヶ月",
+            "6-months": "過去6ヶ月",
+            "this-year": "今年",
+            "custom": "カスタム",
+            "period": "期間"
+        },
+        "customRange": {
+            "start": "開始",
+            "end": "終了",
+            "year": "年",
+            "month": "月",
+            "apply": "適用"
+        },
+        "expanded": {
+            "origin": "産地",
+            "dropTemp": "排気温度",
+            "duration": "時間",
+            "notes": "ノート"
+        },
+        "monthlyReport": "月次レポート",
+        "exportCsv": "Export CSV",
+        "exportConfirm": "保存先: {{path}}\n{{count}}件のセッションをCSVにエクスポートしますか？",
+        "exportNoSessions": "エクスポートするセッションがありません。",
+        "exportTitle": "First Crack",
+        "exportOkLabel": "エクスポート",
+        "exportCancelLabel": "キャンセル"
+    }
 }

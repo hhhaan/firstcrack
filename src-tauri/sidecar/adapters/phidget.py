@@ -97,7 +97,7 @@ class PhidgetAdapter:
         return Reading(bt=bt, et=et, heater=0.0, fan=0.0, drum=0.0, timestamp=time.monotonic())
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
-        pass  # 온도 센서는 읽기 전용
+        pass  # 제어 기능 미사용 — 제거 예정
 
     @property
     def connected(self) -> bool:

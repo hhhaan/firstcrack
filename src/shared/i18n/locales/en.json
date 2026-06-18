@@ -1,147 +1,335 @@
 {
-  "common": {
-    "cancel": "Cancel",
-    "close": "Close",
-    "connected": "Connected",
-    "connecting": "Connecting...",
-    "disconnected": "Disconnected",
-    "live": "Live",
-    "offline": "Offline"
-  },
-  "sidebar": {
-    "roasteryDashboard": "Roastery Dashboard",
-    "expand": "Expand sidebar",
-    "collapse": "Collapse sidebar",
-    "workspaceSelector": "Workspace selector",
-    "workspace": "Workspace",
-    "settings": "Settings",
-    "workspacePreferences": "Workspace preferences",
-    "nav": {
-      "dashboard": "Dashboard",
-      "roast": "Active Roast",
-      "history": "Roast History",
-      "beans": "Bean Inventory",
-      "profiles": "Profiles",
-      "machines": "Machines",
-      "schedule": "Roast Schedule"
-    }
-  },
-  "settings": {
-    "title": "Workspace settings",
-    "close": "Close settings",
-    "whyTitle": "Why this is in settings",
-    "whyDescription": "These controls affect the whole application experience. Dedicated operational data should stay in the main sidebar views so the settings area remains lightweight.",
-    "tabs": {
-      "general": {
-        "label": "General",
-        "title": "Workspace preferences",
-        "description": "Control the app-wide defaults that shape how the roastery workspace feels day to day.",
-        "interfaceTitle": "Interface",
-        "interfaceDescription": "Lightweight preferences that apply across the whole app.",
-        "language": "Language",
-        "languageDescription": "Choose the display language for the app.",
-        "defaultLandingView": "Default landing view",
-        "temperatureUnit": "Temperature unit",
-        "weightUnit": "Weight unit",
-        "displayTitle": "Display defaults",
-        "displayDescription": "Keep the dashboard and navigation behavior consistent between sessions.",
-        "expandedSidebar": "Expanded sidebar by default",
-        "liveMetricsPanel": "Show live metrics panel",
-        "compactDataCards": "Use compact data cards"
-      },
-      "notifications": {
-        "label": "Notifications",
-        "title": "Alerts and reminders",
-        "description": "Choose which messages need your attention without duplicating workflow screens from the sidebar.",
-        "operationalTitle": "Operational alerts",
-        "operationalDescription": "Useful prompts during roasting and equipment monitoring.",
-        "milestoneAlerts": "Roast milestone alerts",
-        "disconnectWarning": "Machine disconnect warning",
-        "maintenanceReminder": "Maintenance reminder",
-        "deliveryTitle": "Delivery style",
-        "deliveryDescription": "How the app should surface notifications while you work.",
-        "bannerNotifications": "Banner notifications",
-        "soundAlerts": "Sound alerts",
-        "highPriorityOnly": "Only high-priority alerts"
-      },
-      "session": {
-        "label": "Session",
-        "title": "Roast session behavior",
-        "description": "Set the small workflow defaults that affect each roast session from start to finish.",
-        "startTitle": "Session start",
-        "startDescription": "Automations that help the operator begin quickly.",
-        "autoStartTimer": "Auto-start roast timer",
-        "openActiveRoast": "Open active roast view immediately",
-        "confirmBeforeStart": "Confirm before starting session",
-        "endTitle": "Session end",
-        "endDescription": "Consistency for summaries and final review.",
-        "showSummary": "Show roast summary after end",
-        "confirmDiscard": "Confirm before discarding session",
-        "keepNotesVisible": "Keep roast notes visible"
-      },
-      "system": {
-        "label": "System",
-        "title": "System and data",
-        "description": "A home for global app actions, local data health, and export-related controls.",
-        "dataTitle": "Data controls",
-        "dataDescription": "Workspace-level actions that do not belong to beans, machines, or profiles directly.",
-        "exportWorkspace": "Export current workspace data",
-        "backupSnapshot": "Create local backup snapshot",
-        "preserveLogs": "Preserve activity logs",
-        "environmentTitle": "Environment",
-        "environmentDescription": "Status and safety-oriented preferences for the app itself.",
-        "healthBadge": "Show connection health badge",
-        "checkServices": "Check local device services",
-        "confirmResets": "Require confirmation for resets"
-      }
-    }
-  },
-  "language": {
-    "ko": "한국어",
-    "en": "English",
-    "ja": "日本語",
-    "zh-CN": "简体中文"
-  },
-  "machines": {
-    "title": "Machine Inventory",
-    "registered": "{{count}} registered",
-    "connectedSuffix": "{{name}} connected",
-    "noActiveConnection": "no active connection",
-    "addMachine": "Add Machine",
-    "empty": "No machines registered yet",
-    "addFirst": "Add your first machine",
-    "searchPlaceholder": "Search machines...",
-    "removeMachine": "Remove machine",
-    "temperature": {
-      "bean": "Bean Temp",
-      "environment": "Env Temp",
-      "ror": "RoR",
-      "rateOfRise": "Rate of Rise"
+    "common": {
+        "cancel": "Cancel",
+        "close": "Close",
+        "connected": "Connected",
+        "connecting": "Connecting...",
+        "disconnected": "Disconnected",
+        "live": "Live",
+        "offline": "Offline"
     },
-    "notConnectedHint": "Not connected. Press Connect to start.",
-    "connection": "Connection",
-    "disconnect": "Disconnect",
-    "connect": "Connect",
-    "startRoasting": "Start Roasting",
-    "selectMachine": "Select a machine"
-  },
-  "addMachine": {
-    "onboarding": "Machine onboarding",
-    "title": "Add a new machine",
-    "roasterModel": "Roaster Model",
-    "loadingRoasters": "Loading roasters...",
-    "selectPort": "Select a port...",
-    "defaultPort": "default",
-    "selectRoaster": "Select a roaster...",
-    "connectionSettings": "Connection settings",
-    "fieldRequired": "{{field}} is required",
-    "failedToAdd": "Failed to add machine",
-    "connectionFailed": "Connection failed",
-    "testConnection": "Test Connection",
-    "testingConnection": "Testing connection...",
-    "connectedWithBt": "Connected - BT {{bt}}°C",
-    "addOnly": "Add only",
-    "addAndConnect": "Add & Connect",
-    "adding": "Adding..."
-  }
+    "sidebar": {
+        "roasteryDashboard": "Roastery Dashboard",
+        "expand": "Expand sidebar",
+        "collapse": "Collapse sidebar",
+        "workspaceSelector": "Workspace selector",
+        "workspace": "Workspace",
+        "settings": "Settings",
+        "workspacePreferences": "Workspace preferences",
+        "nav": {
+            "dashboard": "Dashboard",
+            "roast": "Active Roast",
+            "history": "Roast History",
+            "beans": "Bean Inventory",
+            "profiles": "Profiles",
+            "machines": "Machines",
+            "schedule": "Roast Schedule"
+        }
+    },
+    "settings": {
+        "title": "Workspace settings",
+        "close": "Close settings",
+        "whyTitle": "Why this is in settings",
+        "whyDescription": "These controls affect the whole application experience. Dedicated operational data should stay in the main sidebar views so the settings area remains lightweight.",
+        "tabs": {
+            "general": {
+                "label": "General",
+                "title": "Workspace preferences",
+                "description": "Control the app-wide defaults that shape how the roastery workspace feels day to day.",
+                "interfaceTitle": "Interface",
+                "interfaceDescription": "Lightweight preferences that apply across the whole app.",
+                "theme": "Appearance",
+                "themeDescription": "Choose how the app looks. System follows your OS setting.",
+                "themeLight": "Light",
+                "themeLightDescription": "Bright and clean",
+                "themeDark": "Dark",
+                "themeDarkDescription": "Easier on the eyes",
+                "themeSystem": "System",
+                "themeSystemDescription": "Match OS setting",
+                "language": "Language",
+                "languageDescription": "Choose the display language for the app.",
+                "defaultLandingView": "Default landing view",
+                "temperatureUnit": "Temperature unit",
+                "weightUnit": "Weight unit",
+                "displayTitle": "Display defaults",
+                "displayDescription": "Keep the dashboard and navigation behavior consistent between sessions.",
+                "expandedSidebar": "Expanded sidebar by default",
+                "liveMetricsPanel": "Show live metrics panel",
+                "compactDataCards": "Use compact data cards"
+            },
+            "notifications": {
+                "label": "Notifications",
+                "title": "Alerts and reminders",
+                "description": "Choose which messages need your attention without duplicating workflow screens from the sidebar.",
+                "operationalTitle": "Operational alerts",
+                "operationalDescription": "Useful prompts during roasting and equipment monitoring.",
+                "milestoneAlerts": "Roast milestone alerts",
+                "disconnectWarning": "Machine disconnect warning",
+                "maintenanceReminder": "Maintenance reminder",
+                "deliveryTitle": "Delivery style",
+                "deliveryDescription": "How the app should surface notifications while you work.",
+                "bannerNotifications": "Banner notifications",
+                "soundAlerts": "Sound alerts",
+                "highPriorityOnly": "Only high-priority alerts"
+            },
+            "session": {
+                "label": "Session",
+                "title": "Roast session behavior",
+                "description": "Set the small workflow defaults that affect each roast session from start to finish.",
+                "startTitle": "Session start",
+                "startDescription": "Automations that help the operator begin quickly.",
+                "autoStartTimer": "Auto-start roast timer",
+                "openActiveRoast": "Open active roast view immediately",
+                "confirmBeforeStart": "Confirm before starting session",
+                "endTitle": "Session end",
+                "endDescription": "Consistency for summaries and final review.",
+                "showSummary": "Show roast summary after end",
+                "confirmDiscard": "Confirm before discarding session",
+                "keepNotesVisible": "Keep roast notes visible"
+            },
+            "system": {
+                "label": "System",
+                "title": "System and data",
+                "description": "A home for global app actions, local data health, and export-related controls.",
+                "dataTitle": "Data controls",
+                "dataDescription": "Workspace-level actions that do not belong to beans, machines, or profiles directly.",
+                "exportWorkspace": "Export current workspace data",
+                "backupSnapshot": "Create local backup snapshot",
+                "preserveLogs": "Preserve activity logs",
+                "environmentTitle": "Environment",
+                "environmentDescription": "Status and safety-oriented preferences for the app itself.",
+                "healthBadge": "Show connection health badge",
+                "checkServices": "Check local device services",
+                "confirmResets": "Require confirmation for resets"
+            }
+        }
+    },
+    "language": {
+        "ko": "한국어",
+        "en": "English",
+        "ja": "日本語",
+        "zh-CN": "简体中文"
+    },
+    "machines": {
+        "title": "Machine Inventory",
+        "registered": "{{count}} registered",
+        "connectedSuffix": "{{name}} connected",
+        "noActiveConnection": "no active connection",
+        "addMachine": "Add Machine",
+        "empty": "No machines registered yet",
+        "addFirst": "Add your first machine",
+        "searchPlaceholder": "Search machines...",
+        "removeMachine": "Remove machine",
+        "temperature": {
+            "bean": "Bean Temp",
+            "environment": "Env Temp",
+            "ror": "RoR",
+            "rateOfRise": "Rate of Rise"
+        },
+        "notConnectedHint": "Not connected. Press Connect to start.",
+        "connection": "Connection",
+        "disconnect": "Disconnect",
+        "connect": "Connect",
+        "startRoasting": "Start Roasting",
+        "selectMachine": "Select a machine"
+    },
+    "addMachine": {
+        "onboarding": "Machine onboarding",
+        "title": "Add a new machine",
+        "roasterModel": "Roaster Model",
+        "loadingRoasters": "Loading roasters...",
+        "selectPort": "Select a port...",
+        "defaultPort": "default",
+        "selectRoaster": "Select a roaster...",
+        "connectionSettings": "Connection settings",
+        "fieldRequired": "{{field}} is required",
+        "failedToAdd": "Failed to add machine",
+        "connectionFailed": "Connection failed",
+        "testConnection": "Test Connection",
+        "testingConnection": "Testing connection...",
+        "connectedWithBt": "Connected - BT {{bt}}°C",
+        "addOnly": "Add only",
+        "addAndConnect": "Add & Connect",
+        "adding": "Adding..."
+    },
+    "dashboard": {
+        "greeting": {
+            "morning": "Good morning",
+            "afternoon": "Good afternoon",
+            "evening": "Good evening"
+        },
+        "viewActiveRoast": "View Active Roast",
+        "kpi": {
+            "batchesThisMonth": "Batches This Month",
+            "beansRoasted": "Beans Roasted",
+            "avgRoastTime": "Avg Roast Time",
+            "successRate": "Success Rate"
+        },
+        "recentSessions": "Recent Sessions",
+        "viewAll": "View all",
+        "table": {
+            "date": "Date",
+            "bean": "Bean",
+            "profile": "Profile",
+            "weight": "Weight",
+            "dropTemp": "Drop Temp",
+            "duration": "Duration",
+            "level": "Level"
+        },
+        "loading": "Loading...",
+        "noSessions": "No sessions yet",
+        "monthlyBatches": "Monthly Batches",
+        "thisMonth": "This Month",
+        "batches": "batches",
+        "kgRoasted": "kg roasted",
+        "beanOrigins": "bean origins",
+        "upcomingBatches": "Upcoming Batches",
+        "noUpcoming": "No upcoming batches",
+        "inventoryAlerts": "Inventory Alerts",
+        "allStockOk": "All stock levels OK",
+        "outOfStock": "Out of Stock",
+        "lowStock": "Low Stock",
+        "kgRemaining": "{{kg}}kg remaining",
+        "today": "Today",
+        "batchCount": "{{count}}x"
+    },
+    "schedule": {
+        "dateFormat": "MMM d, yyyy (eee)",
+        "monthFormat": "MMMM yyyy",
+        "viewToggle": {
+            "day": "Day",
+            "week": "Week",
+            "month": "Month"
+        },
+        "today": "Today",
+        "addBatch": "New Batch",
+        "loading": "Loading...",
+        "emptyState": {
+            "title": "No batches for this day.\nStart by adding a new batch.",
+            "action": "New Batch"
+        },
+        "weekDay": {
+            "batchCount": "{{count}} batches"
+        },
+        "monthDay": {
+            "headers": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        },
+        "overflowMore": "+{{count}} more",
+        "status": {
+            "pending": "Pending",
+            "inProgress": "In Progress",
+            "inProgressWith": "In Progress {{progress}}",
+            "done": "Done",
+            "skipped": "Skipped"
+        },
+        "start": "Start",
+        "detail": {
+            "target": "Target {{kg}} kg",
+            "batch": "Batch {{kg}} kg",
+            "count": "{{count}}x"
+        },
+        "recurrence": {
+            "daily": "Daily",
+            "weekly": "Weekly",
+            "biweekly": "Biweekly",
+            "monthly": "Monthly",
+            "repeat": "Repeat",
+            "none": "None"
+        },
+        "deleteConfirm": {
+            "single": "Delete this batch?",
+            "fromThis": "Delete all recurring batches from {{date}}?",
+            "all": "Delete the entire recurring schedule? Past records will be preserved.",
+            "batch": "Delete \"{{name}}\"?"
+        },
+        "error": {
+            "createRecurring": "Failed to add recurring batch:",
+            "createBatch": "Failed to add batch:"
+        }
+    },
+    "addBatchModal": {
+        "batchType": {
+            "singleOrigin": "Single Origin",
+            "preRoastBlend": "Pre-roast Blend",
+            "postRoastBlend": "Post-roast Blend"
+        },
+        "type": "Batch Type",
+        "date": "Date",
+        "machine": "Machine",
+        "roastProfile": "Roast Profile",
+        "profilePlaceholder": "Select profile...",
+        "greenCoffeeLot": "Green Coffee Lot",
+        "lotPlaceholder": "Select lot...",
+        "stock": "Stock {{kg}} kg",
+        "shortage": "Insufficient stock — available {{effective}}g / needed {{needed}}g",
+        "blend": "Blend",
+        "blendPlaceholder": "Select blend...",
+        "blendComposition": "{{count}} beans",
+        "blendShortage": "{{name}}: available {{effective}}g / needed {{needed}}g",
+        "targetRoasted": "Target Roasted (kg)",
+        "batchSize": "Batch Size (kg)",
+        "yield": "Yield (%)",
+        "batches": "batches",
+        "greenNeeded": "Green needed (kg)",
+        "currentStock": "Current stock:",
+        "needed": "/ needed:",
+        "insufficientStock": "Insufficient stock",
+        "recurrence": "Repeat",
+        "none": "None",
+        "notes": "Notes",
+        "notesPlaceholder": "Special instructions, customer info...",
+        "dateChanged": "Will be moved to {{date}}",
+        "cancel": "Cancel",
+        "saving": "Saving...",
+        "save": "Save",
+        "addBatch": "Add Batch",
+        "editBatch": "Edit Batch",
+        "saveFailed": "Save failed:",
+        "unknown": "Unknown"
+    },
+    "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "history": {
+        "title": "Roast History",
+        "subtitle": "{{count}} sessions recorded",
+        "subtitleLoading": "Loading...",
+        "loading": "Loading...",
+        "error": "Failed to load sessions. Please try again.",
+        "noSessionsFound": "No sessions found",
+        "filteredFrom": " (filtered from {{count}})",
+        "pagination": "{{start}}–{{end}} of {{total}}",
+        "noNotes": "No notes recorded.",
+        "searchPlaceholder": "Search by bean, profile, or origin...",
+        "allLevels": "All Levels",
+        "allOrigins": "All Origins",
+        "datePresets": {
+            "all": "All Time",
+            "this-month": "This Month",
+            "last-month": "Last Month",
+            "3-months": "Last 3 Months",
+            "6-months": "Last 6 Months",
+            "this-year": "This Year",
+            "custom": "Custom Range",
+            "period": "Period"
+        },
+        "customRange": {
+            "start": "Start",
+            "end": "End",
+            "year": "Year",
+            "month": "Month",
+            "apply": "Apply"
+        },
+        "expanded": {
+            "origin": "Origin",
+            "dropTemp": "Drop Temp",
+            "duration": "Duration",
+            "notes": "Notes"
+        },
+        "monthlyReport": "Monthly Report",
+        "exportCsv": "Export CSV",
+        "exportConfirm": "Save to: {{path}}\nExport {{count}} session(s) as CSV?",
+        "exportNoSessions": "No sessions to export.",
+        "exportTitle": "First Crack",
+        "exportOkLabel": "Export",
+        "exportCancelLabel": "Cancel"
+    }
 }

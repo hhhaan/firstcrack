@@ -1,0 +1,75 @@
+{
+    "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
+    "assist": { "actions": { "source": { "organizeImports": "on" } } },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "preset": "recommended",
+            "a11y": {
+                "useButtonType": "warn",
+                "noLabelWithoutControl": "warn",
+                "noStaticElementInteractions": "warn",
+                "useKeyWithClickEvents": "warn",
+                "noSvgWithoutTitle": "warn",
+                "useSemanticElements": "warn",
+                "noAutofocus": "warn"
+            },
+            "correctness": {
+                "noUnusedVariables": "error",
+                "useExhaustiveDependencies": "warn"
+            },
+            "complexity": {
+                "noForEach": "warn",
+                "useLiteralKeys": "error",
+                "noImportantStyles": "warn"
+            },
+            "style": {
+                "noDefaultExport": "error",
+                "useConst": "error",
+                "useTemplate": "warn",
+                "useImportType": "error",
+                "noNonNullAssertion": "warn"
+            },
+            "suspicious": {
+                "noConsole": "warn",
+                "noDoubleEquals": "error",
+                "noExplicitAny": "warn",
+                "noArrayIndexKey": "warn",
+                "noGlobalIsNan": "warn",
+                "noConfusingVoidType": "warn",
+                "useIterableCallbackReturn": "warn"
+            }
+        }
+    },
+    "formatter": {
+        "enabled": true,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineWidth": 120,
+        "lineEnding": "lf"
+    },
+    "javascript": {
+        "formatter": {
+            "quoteStyle": "single",
+            "semicolons": "always",
+            "trailingCommas": "all",
+            "arrowParentheses": "always"
+        }
+    },
+    "json": {
+        "formatter": {
+            "trailingCommas": "none"
+        }
+    },
+    "css": {
+        "parser": {
+            "tailwindDirectives": true
+        },
+        "formatter": {
+            "enabled": true
+        }
+    },
+    "files": {
+        "includes": ["**", "!**/dist", "!**/build", "!**/.next", "!**/coverage", "!**/src-tauri", "!**/node_modules"]
+    }
+}

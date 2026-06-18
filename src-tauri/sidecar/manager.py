@@ -4,16 +4,11 @@ import time
 from collections import deque
 from typing import Any
 
+import config
 from adapters import make_adapter
 from roaster_registry import ROASTER_REGISTRY
 
 _log = logging.getLogger(__name__)
-
-# EMA 평활화 계수: 낮을수록 더 부드럽고 lag 증가 (0 < α < 1)
-# 0.2 = 매우 부드러움, 0.5 = 균형, 0.8 = 거의 raw
-_EMA_ALPHA = 0.2
-
-_DISPLAY_ALPHA = 0.16
 
 
 def _format_connection_error(
@@ -112,6 +107,9 @@ class RoasterManager:
         self._lock: asyncio.Lock = asyncio.Lock()
         self._reconnect_task: asyncio.Task[None] | None = None
         self._reconnect_attempt: int = 0
+        self._ror_warmup: int = 0
+        self._consecutive_errors: int = 0
+        self._last_good: dict[str, Any] | None = None
 
     async def connect(self, roaster_key: str, params: dict[str, Any]) -> None:
         async with self._lock:
@@ -136,6 +134,7 @@ class RoasterManager:
             self._bt_display_ema = None
             self._et_display_ema = None
             self._error = None
+            self._ror_warmup = config.ROR_WARMUP_READS
 
             try:
                 await self._adapter.connect()
@@ -146,8 +145,10 @@ class RoasterManager:
                     reading = await self._adapter.read()
                     if reading.bt > 0:
                         self._data_ok = True
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # 연결은 성공했으나 첫 read 실패 — 폴링에서 재시도되므로 치명적이지 않다.
+                    # 단, status.connected가 _data_ok=False로 인해 false로 보이므로 단서를 남긴다.
+                    _log.warning("warmup read 실패 (폴링에서 재시도): %s", exc)
             except Exception as exc:
                 self._error = _format_connection_error(exc, protocol, merged)
                 self._connected = False
@@ -178,39 +179,53 @@ class RoasterManager:
         self._et_ema = None
         self._bt_display_ema = None
         self._et_display_ema = None
+        self._consecutive_errors = 0
+        self._last_good = None
 
     async def _reconnect_loop(self) -> None:
-        """읽기 실패 후 백그라운드 자동 재연결 (3회, 지수 백오프)."""
-        for attempt, delay in enumerate([2.0, 5.0, 10.0]):
-            self._reconnect_attempt = attempt + 1
-            await asyncio.sleep(delay)
-            if self._connected or self._adapter is None:
-                self._reconnect_attempt = 0
-                return
-            async with self._lock:
+        """읽기 실패 후 백그라운드 자동 재연결.
+
+        config.RECONNECT_BACKOFFS를 소진한 뒤에는 마지막 간격으로 무한 재시도.
+        사용자가 /disconnect 하면 _disconnect_internal()이 이 태스크를 취소한다.
+        """
+        attempt = 0
+        try:
+            while True:
+                delay = config.RECONNECT_BACKOFFS[
+                    min(attempt, len(config.RECONNECT_BACKOFFS) - 1)
+                ]
+                attempt += 1
+                self._reconnect_attempt = attempt
+                await asyncio.sleep(delay)
                 if self._connected or self._adapter is None:
-                    self._reconnect_attempt = 0
                     return
-                try:
-                    _log.info(
-                        "자동 재연결 시도 (%d/3): %s", attempt + 1, self._roaster_key
-                    )
+                async with self._lock:
+                    if self._connected or self._adapter is None:
+                        return
                     try:
-                        await self._adapter.disconnect()
-                    except Exception:
-                        pass
-                    await self._adapter.connect()
-                    self._connected = True
-                    self._error = None
-                    self._reconnect_attempt = 0
-                    _log.info("자동 재연결 성공: %s", self._roaster_key)
-                    return
-                except Exception as exc:
-                    _log.error("재연결 실패 (%d/3): %s", attempt + 1, exc, exc_info=True)
-        self._reconnect_attempt = 0
-        _log.error("자동 재연결 3회 모두 실패: %s", self._roaster_key)
+                        _log.info("자동 재연결 시도 (%d): %s", attempt, self._roaster_key)
+                        try:
+                            await self._adapter.disconnect()
+                        except Exception:
+                            pass
+                        await self._adapter.connect()
+                        self._connected = True
+                        self._consecutive_errors = 0
+                        self._error = None
+                        _log.info("자동 재연결 성공: %s", self._roaster_key)
+                        return
+                    except Exception as exc:
+                        self._error = _format_connection_error(
+                            exc, self._protocol, self._merged_params
+                        )
+                        _log.error("재연결 실패 (%d): %s", attempt, exc)
+        finally:
+            self._reconnect_attempt = 0
 
     async def read_temperatures(self) -> dict[str, Any]:
+        reconnecting = (
+            self._reconnect_task is not None and not self._reconnect_task.done()
+        )
         if not self._connected or self._adapter is None:
             return {
                 "bt": None,
@@ -221,10 +236,30 @@ class RoasterManager:
                 "fan": 0,
                 "drum": 0,
                 "timestamp": time.monotonic(),
+                "stale": False,
+                "reconnecting": reconnecting,
             }
         try:
             reading = await self._adapter.read()
         except Exception as exc:
+            self._consecutive_errors += 1
+            if (
+                self._consecutive_errors <= config.STALE_TOLERANCE_READS
+                and self._last_good is not None
+            ):
+                # fail-open: 일시 오류는 이전 값을 유지해 로스팅을 계속한다 (Artisan 방식)
+                _log.warning(
+                    "읽기 실패 (%d/%d) — 이전 값 유지: %s",
+                    self._consecutive_errors,
+                    config.STALE_TOLERANCE_READS,
+                    exc,
+                )
+                return {
+                    **self._last_good,
+                    "stale": True,
+                    "reconnecting": reconnecting,
+                    "timestamp": time.monotonic(),
+                }
             self._error = _format_connection_error(
                 exc, self._protocol, self._merged_params
             )
@@ -241,7 +276,11 @@ class RoasterManager:
                 "fan": 0,
                 "drum": 0,
                 "timestamp": time.monotonic(),
+                "stale": False,
+                "reconnecting": True,
             }
+
+        self._consecutive_errors = 0
 
         if reading.bt > 0:
             self._data_ok = True
@@ -249,16 +288,32 @@ class RoasterManager:
         if reading.et > 0:
             self._add_to_et_ror_window(reading.timestamp, reading.et)
 
-        return {
+        if self._ror_warmup > 0:
+            self._ror_warmup -= 1
+            ror = 0.0
+            ror_et = 0.0
+        else:
+            ror = round(self._compute_ror(), 2)
+            ror_et = round(self._compute_et_ror(), 2)
+
+        payload = {
             "bt": round(self._bt_display_ema if self._bt_display_ema is not None else reading.bt, 1),
             "et": round(self._et_display_ema if self._et_display_ema is not None else reading.et, 1),
-            "ror": round(self._compute_ror(), 2),
-            "ror_et": round(self._compute_et_ror(), 2),
+            "ror": ror,
+            "ror_et": ror_et,
             "heater": int(round(reading.heater)),
             "fan": int(round(reading.fan)),
             "drum": round(reading.drum, 1),
             "timestamp": reading.timestamp,
+            "stale": False,
+            "reconnecting": reconnecting,
         }
+        self._last_good = payload
+        return payload
+
+    async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
+        if self._adapter is not None and hasattr(self._adapter, "control"):
+            await self._adapter.control(heater=heater, fan=fan, drum=drum)
 
     async def enter_standby(self) -> None:
         """UI의 READY 버튼과 연동. 어댑터가 지원하면 standby 진입을 알린다."""
@@ -274,6 +329,7 @@ class RoasterManager:
             self._et_ema = None
             self._bt_display_ema = None
             self._et_display_ema = None
+            self._ror_warmup = config.ROR_WARMUP_READS
             if self._adapter is not None and hasattr(self._adapter, "start_roast"):
                 await self._adapter.start_roast()
 
@@ -287,16 +343,12 @@ class RoasterManager:
             self._bt_display_ema = None
             self._et_display_ema = None
             if self._adapter is not None and self._connected:
+                # connect()만 재호출하면 어댑터에 따라 기존 소켓/핸들이 누수된다
+                try:
+                    await self._adapter.disconnect()
+                except Exception:
+                    pass
                 await self._adapter.connect()
-
-    async def send_control(
-        self,
-        heater: float | None = None,
-        fan: float | None = None,
-        drum: float | None = None,
-    ) -> None:
-        if self._connected and self._adapter is not None:
-            await self._adapter.control(heater=heater, fan=fan, drum=drum)
 
     def status(self) -> dict[str, Any]:
         uptime = round(time.monotonic() - self._start_time, 1) if self._connected else 0
@@ -314,17 +366,46 @@ class RoasterManager:
             "error": self._error,
         }
 
+    async def probe(self) -> dict[str, Any]:
+        """단발 진단 읽기 — EMA/stale 처리를 우회하고 어댑터 원시 값과 소요 시간을 반환.
+
+        실기기에서 Artisan과 값을 직접 비교(A/B)하기 위한 디버깅 전용 경로.
+        """
+        adapter = self._adapter
+        if adapter is None:
+            return {"ok": False, "error": "연결된 어댑터 없음"}
+        t0 = time.monotonic()
+        try:
+            r = await adapter.read()
+            return {
+                "ok": True,
+                "elapsed_ms": round((time.monotonic() - t0) * 1000, 1),
+                "raw": {
+                    "bt": r.bt,
+                    "et": r.et,
+                    "heater": r.heater,
+                    "fan": r.fan,
+                    "drum": r.drum,
+                },
+            }
+        except Exception as exc:
+            return {
+                "ok": False,
+                "elapsed_ms": round((time.monotonic() - t0) * 1000, 1),
+                "error": str(exc),
+            }
+
     def _add_to_ror_window(self, ts: float, bt: float) -> None:
         if self._bt_ema is None:
             self._bt_ema = bt
         else:
-            self._bt_ema = _EMA_ALPHA * bt + (1.0 - _EMA_ALPHA) * self._bt_ema
+            self._bt_ema = config.EMA_ALPHA * bt + (1.0 - config.EMA_ALPHA) * self._bt_ema
         if self._bt_display_ema is None:
             self._bt_display_ema = bt
         else:
-            self._bt_display_ema = _DISPLAY_ALPHA * bt + (1.0 - _DISPLAY_ALPHA) * self._bt_display_ema
+            self._bt_display_ema = config.DISPLAY_ALPHA * bt + (1.0 - config.DISPLAY_ALPHA) * self._bt_display_ema
         self._ror_window.append((ts, self._bt_ema))
-        cutoff = ts - 30.0
+        cutoff = ts - config.ROR_WINDOW_SECS
         while self._ror_window and self._ror_window[0][0] < cutoff:
             self._ror_window.popleft()
 
@@ -332,13 +413,13 @@ class RoasterManager:
         if self._et_ema is None:
             self._et_ema = et
         else:
-            self._et_ema = _EMA_ALPHA * et + (1.0 - _EMA_ALPHA) * self._et_ema
+            self._et_ema = config.EMA_ALPHA * et + (1.0 - config.EMA_ALPHA) * self._et_ema
         if self._et_display_ema is None:
             self._et_display_ema = et
         else:
-            self._et_display_ema = _DISPLAY_ALPHA * et + (1.0 - _DISPLAY_ALPHA) * self._et_display_ema
+            self._et_display_ema = config.DISPLAY_ALPHA * et + (1.0 - config.DISPLAY_ALPHA) * self._et_display_ema
         self._et_ror_window.append((ts, self._et_ema))
-        cutoff = ts - 30.0
+        cutoff = ts - config.ROR_WINDOW_SECS
         while self._et_ror_window and self._et_ror_window[0][0] < cutoff:
             self._et_ror_window.popleft()
 

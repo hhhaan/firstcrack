@@ -12,70 +12,8 @@ on:
 
 jobs:
   publish-r2:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download artifacts from build run
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          run-id: ${{ inputs.run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload binaries & latest.json to R2
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-          R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
-          VERSION: ${{ inputs.version }}
-          R2_BUCKET: first-crack
-          R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
-        run: |
-          set -e
-          S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
-
-          AARCH64_TAR=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
-          AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
-          X64_TAR=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
-          X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
-          WIN_MSI=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi" ! -name "*.sig" | head -1)
-          WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
-          AARCH64_DMG=$(find artifacts/macos-aarch64-apple-darwin -name "*.dmg" | head -1)
-          X64_DMG=$(find artifacts/macos-x86_64-apple-darwin -name "*.dmg" | head -1)
-
-          [ -z "$AARCH64_TAR" ] && echo "ERROR: macOS arm64 .app.tar.gz not found" && exit 1
-          [ -z "$X64_TAR" ]     && echo "ERROR: macOS x64 .app.tar.gz not found"   && exit 1
-          [ -z "$WIN_MSI" ]     && echo "ERROR: Windows MSI not found"              && exit 1
-
-          AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
-          X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
-          WIN_MSI_R2=$(basename "$WIN_MSI")
-
-          $S3 "$AARCH64_TAR" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2"
-          [ -n "$AARCH64_SIG" ] && $S3 "$AARCH64_SIG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2.sig"
-          $S3 "$X64_TAR"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2"
-          [ -n "$X64_SIG" ]     && $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig"
-          $S3 "$WIN_MSI"    "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2"
-          [ -n "$WIN_SIG" ]     && $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig"
-          [ -n "$AARCH64_DMG" ] && $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")"
-          [ -n "$X64_DMG" ]     && $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")"
-
-          jq --null-input \
-            --arg version "$VERSION" \
-            --arg pub_date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
-            --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
-            --arg x64_sig "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
-            --arg x64_url "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
-            --arg win_sig "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
-            --arg win_url "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
-            '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
-            > latest.json
-
-          $S3 latest.json "s3://$R2_BUCKET/releases/latest.json"
-
-          [ -n "$AARCH64_DMG" ] && $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg"
-          [ -n "$X64_DMG" ]     && $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg"
-          $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi"
+    uses: ./.github/workflows/_publish-r2-reusable.yml
+    with:
+      version: ${{ inputs.version }}
+      run_id: ${{ inputs.run_id }}
+    secrets: inherit

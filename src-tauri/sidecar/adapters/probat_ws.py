@@ -7,6 +7,7 @@ import logging
 from typing import Any
 
 from adapters.base import Reading
+from protocol_trace import TRACE
 
 _log = logging.getLogger(__name__)
 
@@ -93,6 +94,7 @@ class ProbatWSAdapter:
             separators=(",", ":"),
         )
         try:
+            TRACE.record("tx", "probat_ws", f"getData id={msg_id}", request)
             await self._ws.send(request)
         except Exception as exc:
             raise self._on_ws_error(exc) from exc
@@ -113,8 +115,13 @@ class ProbatWSAdapter:
             except json.JSONDecodeError:
                 continue
             if j.get("id") != msg_id:
+                TRACE.record(
+                    "info", "probat_ws",
+                    f"unmatched id={j.get('id')} (expected {msg_id})", j,
+                )
                 continue
 
+            TRACE.record("rx", "probat_ws", f"response id={msg_id}", j)
             data: dict[str, Any] = j.get("data", {})
             nodes = self._channel_nodes
 
@@ -136,10 +143,11 @@ class ProbatWSAdapter:
                 timestamp=time.monotonic(),
             )
 
+        TRACE.record("err", "probat_ws", f"getData 응답 타임아웃 id={msg_id}")
         raise TimeoutError(f"Probat WS getData 응답 타임아웃 (id={msg_id})")
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
-        pass  # Probat WS 제어 명령은 별도 push message — 현재 읽기 전용
+        pass  # 제어 기능 미사용 — 제거 예정
 
     @property
     def connected(self) -> bool:

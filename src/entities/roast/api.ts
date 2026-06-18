@@ -1,5 +1,6 @@
 import { supabase } from '@shared/lib/supabase';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
+import { addMonths, format, parse } from 'date-fns';
 
 const SELECT_WITH_RELATIONS = '*, beans(name, origin), roast_profiles!profile_id(name, target_level)';
 
@@ -78,36 +79,35 @@ export const roastSessionApi = {
         const from = (safePage - 1) * pageSize;
         const to = from + pageSize - 1;
 
-        // Count query
-        let countQuery = supabase
+        let query = supabase
             .from('roast_sessions')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId);
-
-        if (status) countQuery = countQuery.eq('status', status);
-        if (level) countQuery = countQuery.eq('roast_level', level);
-        if (fromYM) countQuery = countQuery.gte('roasted_at', `${fromYM}-01`);
-        if (toYM) countQuery = countQuery.lte('roasted_at', `${toYM}-31`);
-
-        const { count, error: countError } = await countQuery;
-        if (countError) throw countError;
-
-        // Data query
-        let dataQuery = supabase
-            .from('roast_sessions')
-            .select(SELECT_WITH_RELATIONS)
+            .select(SELECT_WITH_RELATIONS, { count: 'exact' })
             .eq('user_id', userId)
             .range(from, to);
 
-        if (status) dataQuery = dataQuery.eq('status', status);
-        if (level) dataQuery = dataQuery.eq('roast_level', level);
-        if (fromYM) dataQuery = dataQuery.gte('roasted_at', `${fromYM}-01`);
-        if (toYM) dataQuery = dataQuery.lte('roasted_at', `${toYM}-31`);
+        if (status) query = query.eq('status', status);
+        if (level) query = query.eq('roast_level', level);
+        if (fromYM) query = query.gte('roasted_at', `${fromYM}-01`);
 
-        const sortCol = sortKey === 'date' ? 'roasted_at' : sortKey === 'drop' ? 'drop_temp_celsius' : sortKey === 'duration' ? 'duration_seconds' : 'roasted_at';
-        dataQuery = dataQuery.order(sortCol, { ascending: sortAsc ?? false, nullsFirst: true });
+        if (toYM) {
+            // Half-open interval [startOfMonth, startOfNextMonth).
+            // lt(startOfNextMonth) safely includes the full target month regardless of days in month.
+            const monthStart = parse(toYM, 'yyyy-MM', new Date());
+            const nextMonthStart = addMonths(monthStart, 1);
+            query = query.lt('roasted_at', format(nextMonthStart, 'yyyy-MM-dd'));
+        }
 
-        const { data, error } = await dataQuery;
+        const sortCol =
+            sortKey === 'date'
+                ? 'roasted_at'
+                : sortKey === 'drop'
+                  ? 'drop_temp_celsius'
+                  : sortKey === 'duration'
+                    ? 'duration_seconds'
+                    : 'roasted_at';
+        query = query.order(sortCol, { ascending: sortAsc ?? false, nullsFirst: true });
+
+        const { data, count, error } = await query;
         if (error) throw error;
         return { data: data || [], total: count ?? 0 };
     },

@@ -1,6 +1,6 @@
+import type { User } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import type { User } from '@supabase/supabase-js';
 
 type Plan = 'free' | 'pro' | 'team';
 

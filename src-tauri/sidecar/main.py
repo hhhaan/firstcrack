@@ -10,7 +10,6 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
   POST /disconnect
   GET  /temperatures  → {"bt", "et", "ror", "heater", "fan", "timestamp"}
   POST /start         → Charge 버튼 연동: 가상 머신 타이머 리셋 + RoR 윈도우 초기화
-  POST /control       → {"heater"?, "fan"?, "drum"?}
 
 어댑터 추가 방법:
   1. adapters/<protocol>.py 에 XxxAdapter 클래스 작성
@@ -19,11 +18,14 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
 """
 
 import logging
+import os
+import time
 from typing import Any
 
 from aiohttp import web
 
 from manager import RoasterManager
+from protocol_trace import TRACE
 from roaster_registry import ROASTER_REGISTRY, PROTOCOL_FORM_FIELDS
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
@@ -119,6 +121,20 @@ async def handle_reset(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+async def handle_control(request: web.Request) -> web.Response:
+    try:
+        body = await request.json()
+    except Exception:
+        return web.Response(status=400, text="invalid json")
+    manager: RoasterManager = request.app["manager"]
+    await manager.control(
+        heater=body.get("heater"),
+        fan=body.get("fan"),
+        drum=body.get("drum"),
+    )
+    return web.json_response({"ok": True})
+
+
 def _is_na(s: str) -> bool:
     return not s or s.lower() == "n/a"
 
@@ -143,19 +159,41 @@ async def handle_serial_ports(request: web.Request) -> web.Response:
         ports = []
     return web.json_response(ports)
 
+async def handle_debug_trace_get(request: web.Request) -> web.Response:
+    entries = TRACE.dump()
+    return web.json_response(
+        {"enabled": TRACE.enabled, "count": len(entries), "entries": entries}
+    )
 
-async def handle_control(request: web.Request) -> web.Response:
-    manager: RoasterManager = request.app["manager"]
+
+async def handle_debug_trace_post(request: web.Request) -> web.Response:
     try:
         body: dict[str, Any] = await request.json()
     except Exception:
         return web.json_response({"error": "invalid JSON"}, status=400)
-    await manager.send_control(
-        heater=body.get("heater"),
-        fan=body.get("fan"),
-        drum=body.get("drum"),
-    )
-    return web.json_response({"ok": True})
+    if "enabled" in body:
+        TRACE.enabled = bool(body["enabled"])
+        _log.info("프로토콜 트레이스 %s", "ON" if TRACE.enabled else "OFF")
+    if body.get("clear"):
+        TRACE.clear()
+    return web.json_response({"enabled": TRACE.enabled})
+
+
+async def handle_debug_probe(request: web.Request) -> web.Response:
+    """단발 원시 읽기 + 그 동안의 트레이스. Artisan A/B 비교용.
+
+    probe 중 트레이스를 일시 활성화한다. probe 완료 후 트레이스 상태는 probe 시점의
+    활성화 여부로 복원된다 (best-effort — 동시 /debug/trace POST 요청이 있으면 그 값이 우선).
+    finally 블록을 쓰지 않는 이유: probe 예외를 숨기지 않기 위해 직접 복원한다.
+    """
+    manager: RoasterManager = request.app["manager"]
+    prev_enabled = TRACE.enabled
+    TRACE.enabled = True
+    t0 = round(time.monotonic(), 4)
+    result = await manager.probe()
+    TRACE.enabled = prev_enabled  # best-effort restore; concurrent /debug/trace POST takes precedence
+    result["trace"] = [e for e in TRACE.dump() if e["ts"] >= t0]
+    return web.json_response(result)
 
 
 # ---------------------------------------------------------------------------
@@ -193,6 +231,9 @@ def create_app() -> web.Application:
     app.router.add_post("/start", handle_start)
     app.router.add_post("/reset", handle_reset)
     app.router.add_post("/control", handle_control)
+    app.router.add_get("/debug/trace", handle_debug_trace_get)
+    app.router.add_post("/debug/trace", handle_debug_trace_post)
+    app.router.add_get("/debug/probe", handle_debug_probe)
     app.router.add_route("OPTIONS", "/{path_info:.*}", lambda r: web.Response())
     return app
 

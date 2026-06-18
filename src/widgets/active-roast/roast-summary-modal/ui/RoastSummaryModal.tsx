@@ -1,5 +1,9 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Spinner } from '@shared/ui/Spinner';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { type RoastSummaryForm, roastSummarySchema } from '../lib/schema';
 
 export interface RoastLogEntry {
     time: string;
@@ -18,23 +22,27 @@ export interface RoastSummaryData {
 interface RoastSummaryModalProps {
     open: boolean;
     summaryData: RoastSummaryData | null;
-    roastNotes: string;
     eventMarkerColor: Record<string, string>;
-    onRoastNotesChange: (notes: string) => void;
     onClose: () => void;
     onDiscard: () => void;
-    onSave: (notes: string) => Promise<void>;
+    onSave: (data: { notes: string; weightGrams: number; roastLevel: string | null }) => Promise<void>;
     isSaving?: boolean;
     ambientTemp?: number | null;
     ambientHumidity?: number | null;
 }
 
+const ROAST_LEVELS = [
+    { value: 'light', label: 'Light' },
+    { value: 'medium-light', label: 'Medium-Light' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'medium-dark', label: 'Medium-Dark' },
+    { value: 'dark', label: 'Dark' },
+] as const;
+
 export const RoastSummaryModal = ({
     open,
     summaryData,
-    roastNotes,
     eventMarkerColor,
-    onRoastNotesChange,
     onClose,
     onDiscard,
     onSave,
@@ -42,6 +50,31 @@ export const RoastSummaryModal = ({
     ambientTemp,
     ambientHumidity,
 }: RoastSummaryModalProps) => {
+    const {
+        register,
+        handleSubmit,
+        watch,
+        setValue,
+        reset,
+        formState: { errors },
+    } = useForm<RoastSummaryForm>({
+        resolver: zodResolver(roastSummarySchema),
+        defaultValues: {
+            notes: '',
+            weightGrams: 0,
+            roastLevel: null,
+        },
+    });
+
+    const roastLevel = watch('roastLevel');
+
+    // Reset form when modal opens with new summaryData
+    useEffect(() => {
+        if (open && summaryData) {
+            reset({ notes: '', weightGrams: 0, roastLevel: null });
+        }
+    }, [open, summaryData, reset]);
+
     if (!open || !summaryData) {
         return null;
     }
@@ -51,9 +84,9 @@ export const RoastSummaryModal = ({
             onClose={onClose}
             labelledBy="roast-summary-modal-title"
             overlayClassName="z-[10000]"
-            contentClassName="max-w-[420px] w-full bg-main-bg rounded-[20px] p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px]"
+            contentClassName="max-w-[420px] w-full bg-main-bg rounded p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px]"
         >
-            <div className="w-11 h-11 rounded-xl bg-[rgba(220,252,231,0.9)] text-[#16a34a] flex items-center justify-center mb-4.5">
+            <div className="w-11 h-11 rounded-md bg-[rgba(220,252,231,0.9)] text-[#16a34a] flex items-center justify-center mb-4.5">
                 <svg
                     width="18"
                     height="18"
@@ -70,13 +103,10 @@ export const RoastSummaryModal = ({
 
             <h2
                 id="roast-summary-modal-title"
-                className="text-[28px] font-normal leading-[1.05] text-primary tracking-[-0.5px] mb-2.5"
+                className="text-[28px] font-normal leading-[1.05] text-primary tracking-[-0.5px] mb-6"
             >
                 Roast Complete
             </h2>
-            <p className="text-sm text-secondary leading-[1.6] mb-5">
-                Ethiopia Yirgacheffe · Natural · Guji Zone · Profile: Signature Light
-            </p>
 
             <div className="grid grid-cols-3 gap-2 mb-5">
                 {[
@@ -84,7 +114,7 @@ export const RoastSummaryModal = ({
                     { label: 'Development', value: summaryData.development },
                     { label: 'Final BT', value: summaryData.finalBt },
                 ].map(({ label, value }) => (
-                    <div key={label} className="bg-surface rounded-lg px-2.5 py-2.5 ">
+                    <div key={label} className="bg-surface rounded px-2.5 py-2.5 ">
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">{label}</div>
                         <div className="font-(--font-mono) text-sm text-primary">{value}</div>
                     </div>
@@ -93,11 +123,11 @@ export const RoastSummaryModal = ({
 
             {ambientTemp != null && ambientHumidity != null && (
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                    <div className="bg-surface rounded-lg px-2.5 py-2.5 ">
+                    <div className="bg-surface rounded px-2.5 py-2.5 ">
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">Temperature</div>
                         <div className="font-(--font-mono) text-sm text-primary">{ambientTemp}°C</div>
                     </div>
-                    <div className="bg-surface rounded-lg px-2.5 py-2.5 ">
+                    <div className="bg-surface rounded px-2.5 py-2.5 ">
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">Humidity</div>
                         <div className="font-(--font-mono) text-sm text-primary">{ambientHumidity}%</div>
                     </div>
@@ -129,20 +159,55 @@ export const RoastSummaryModal = ({
                 </div>
             </div>
 
+            <div className="mb-5">
+                <div className="text-[11px] font-semibold text-muted uppercase tracking-[0.4px] mb-2">Batch Weight</div>
+                <div className="flex items-center gap-2">
+                    <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        {...register('weightGrams', { valueAsNumber: true })}
+                        placeholder="0"
+                        className="w-full px-3.5 py-2.5 rounded border-none bg-surface text-primary text-[13px] font-(--font-mono) outline-none box-border"
+                    />
+                    <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">g</span>
+                </div>
+                {errors.weightGrams && <p className="text-[11px] text-red-500 mt-1">{errors.weightGrams.message}</p>}
+            </div>
+
+            <div className="mb-5">
+                <div className="text-[11px] font-semibold text-muted uppercase tracking-[0.4px] mb-2">Roast Level</div>
+                <div className="flex flex-wrap gap-1.5">
+                    {ROAST_LEVELS.map(({ value, label }) => (
+                        <button
+                            key={value}
+                            type="button"
+                            onClick={() => setValue('roastLevel', roastLevel === value ? null : value)}
+                            className={`px-3 py-1.5 rounded-md text-[12px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
+                                roastLevel === value
+                                    ? 'bg-primary text-white'
+                                    : 'bg-surface text-secondary hover:text-primary'
+                            }`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             <div className="mb-6">
                 <div className="text-[11px] font-semibold text-muted uppercase tracking-[0.4px] mb-2">Notes</div>
                 <textarea
-                    value={roastNotes}
-                    onChange={(event) => onRoastNotesChange(event.target.value)}
+                    {...register('notes')}
                     placeholder="Flavor notes, observations, adjustments for next time..."
-                    rows={3}
-                    className="w-full px-3.5 py-2.5 rounded-lg border-none bg-surface text-primary text-[13px] font-(--font-body) resize-none  outline-none box-border"
+                    rows={2}
+                    className="w-full px-3.5 py-2.5 rounded border-none bg-surface text-primary text-[13px] font-(--font-body) resize-none outline-none box-border"
                 />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button
-                    onClick={() => onSave(roastNotes)}
+                    onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
                     disabled={isSaving}
                     className="w-full py-3 rounded-lg border-none bg-[rgba(220,252,231,0.9)] text-[#16a34a] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >

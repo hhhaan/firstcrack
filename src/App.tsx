@@ -1,60 +1,46 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRoastSessionStore } from './shared/store/roastSession';
-import { type PlanBatchHandoff } from './shared/types/database.types';
-import { onOpenUrl, getCurrent } from '@tauri-apps/plugin-deep-link';
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
-import { confirm } from '@tauri-apps/plugin-dialog';
+import * as Sentry from '@sentry/react';
 import { supabase } from '@shared/lib/supabase';
+import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRoastSessionStore } from './shared/store/roastSession';
+import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
-import { Sidebar } from './widgets/sidebar/ui/Sidebar';
-import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
-import { Login } from './views/login';
 import { Spinner } from '@shared/ui/Spinner';
-import { Dashboard } from './views/dashboard';
-import { ActiveRoast } from './views/active-roast';
-import { History } from './views/history';
-import { Beans } from './views/bean';
-import { Profiles } from './views/profiles';
-import { Machines } from './views/machines';
-import { Schedule } from './views/schedule';
-import { type View } from './shared/types/view';
+import { useUpdateChecker } from './features/updater';
 import { useAuthStore } from './shared/store/auth';
+import { useThemeStore } from './shared/store/theme';
+import type { View } from './shared/types/view';
 import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
+import { ActiveRoast } from './views/active-roast';
+import { Beans } from './views/bean';
+import { Dashboard } from './views/dashboard';
+import { History } from './views/history';
+import { Login } from './views/login';
+import { Machines } from './views/machines';
+import { Profiles } from './views/profiles';
+import { Schedule } from './views/schedule';
+import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
+import { Sidebar } from './widgets/sidebar/ui/Sidebar';
+import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
 
 export const App = () => {
     const user = useAuthStore((s) => s.user);
     const loading = useAuthStore((s) => s.loading);
     const init = useAuthStore((s) => s.init);
+    const theme = useThemeStore((s) => s.theme);
+    const initTheme = useThemeStore((s) => s.initTheme);
 
     useEffect(() => init(), [init]);
+    useEffect(() => initTheme(), [initTheme]);
 
-    // Auto-updater: check for updates on startup
+    // Auto-updater: silent background download → system notification
+    const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
+
     useEffect(() => {
-        const checkForUpdates = async () => {
-            if (import.meta.env.DEV) return;
-
-            try {
-                const update = await check();
-                if (update) {
-                    console.log(`[updater] new version found: ${update.version}`);
-                    const confirmed = await confirm(
-                        `새로운 버전(${update.version})이 준비되었습니다. 지금 업데이트하고 다시 시작할까요?`,
-                        { title: '업데이트 알림', kind: 'info' }
-                    );
-
-                    if (confirmed) {
-                        await update.downloadAndInstall();
-                        await relaunch();
-                    }
-                }
-            } catch (error) {
-                console.error('[updater] failed to check for updates:', error);
-            }
-        };
-
-        checkForUpdates();
-    }, []);
+        checkAndDownload();
+        const id = setInterval(checkAndDownload, 4 * 60 * 60 * 1000);
+        return () => clearInterval(id);
+    }, [checkAndDownload]);
 
     // dev mode: Google OAuth 콜백 처리 (PKCE: ?code= / implicit: #access_token=)
     useEffect(() => {
@@ -140,10 +126,13 @@ export const App = () => {
         setSettingsOpen(true);
     };
 
-    const handleStartBatch = useCallback((handoff: PlanBatchHandoff) => {
-        startBatch(handoff);
-        setView('roast');
-    }, [startBatch]);
+    const handleStartBatch = useCallback(
+        (handoff: PlanBatchHandoff) => {
+            startBatch(handoff);
+            setView('roast');
+        },
+        [startBatch],
+    );
 
     const handlePlanBatchComplete = useCallback(() => {
         completeBatch();
@@ -166,59 +155,121 @@ export const App = () => {
         );
     if (!user) return <Login />;
 
+    const sentryFallback = ({ error, resetError }: { error: unknown; resetError: () => void }) => (
+        <div className="flex flex-col items-center justify-center h-screen gap-4 p-8 text-center bg-[var(--color-surface)]">
+            <p className="text-sm text-red-400">
+                {error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'}
+            </p>
+            <button
+                onClick={resetError}
+                className="px-4 py-2 text-sm rounded-md bg-stone-700 hover:bg-stone-600 text-stone-100 transition-colors"
+            >
+                다시 시도
+            </button>
+        </div>
+    );
+
     return (
-        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-            <Sidebar
-                activeView={view}
-                onNavigate={setView}
-                collapsed={sidebarCollapsed}
-                onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
-                onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
-            />
-            <div style={{ flex: 1, overflow: 'auto', background: 'var(--color-surface)' }}>
-                {view === 'dashboard' && (
-                    <ViewErrorBoundary>
-                        <Dashboard onNavigate={setView} />
-                    </ViewErrorBoundary>
-                )}
-                {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
+        <Sentry.ErrorBoundary fallback={sentryFallback}>
+            <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+                {theme === null && <ThemeSelectModal />}
+                <Sidebar
+                    activeView={view}
+                    onNavigate={setView}
+                    collapsed={sidebarCollapsed}
+                    onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
+                    onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
+                />
+                <div
+                    style={{
+                        flex: 1,
+                        minHeight: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: view === 'roast' ? 'hidden' : 'auto',
+                        background: 'var(--color-surface)',
+                    }}
+                >
+                    {view === 'dashboard' && (
+                        <ViewErrorBoundary>
+                            <Dashboard onNavigate={setView} />
+                        </ViewErrorBoundary>
+                    )}
+                    {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
             TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
-                <div style={{ display: view === 'roast' ? 'block' : 'none' }}>
-                    <ViewErrorBoundary>
-                        <ActiveRoast
-                            isActive={view === 'roast'}
-                            onOpenRoastSettings={() => openSettings('roast')}
-                            onPlanBatchComplete={handlePlanBatchComplete}
-                        />
-                    </ViewErrorBoundary>
+                    <div
+                        style={{
+                            display: view === 'roast' ? 'flex' : 'none',
+                            flexDirection: 'column',
+                            flex: view === 'roast' ? 1 : undefined,
+                            height: view === 'roast' ? undefined : '100%',
+                            minHeight: 0,
+                            overflow: 'hidden',
+                        }}
+                    >
+                        <ViewErrorBoundary>
+                            <ActiveRoast
+                                isActive={view === 'roast'}
+                                onOpenRoastSettings={() => openSettings('roast')}
+                                onPlanBatchComplete={handlePlanBatchComplete}
+                            />
+                        </ViewErrorBoundary>
+                    </div>
+                    {view === 'history' && (
+                        <ViewErrorBoundary>
+                            <History />
+                        </ViewErrorBoundary>
+                    )}
+                    {view === 'beans' && (
+                        <ViewErrorBoundary>
+                            <Beans onNavigate={setView} />
+                        </ViewErrorBoundary>
+                    )}
+                    {view === 'profiles' && (
+                        <ViewErrorBoundary>
+                            <Profiles onNavigate={setView} />
+                        </ViewErrorBoundary>
+                    )}
+                    <div style={{ display: view === 'machines' ? 'block' : 'none' }}>
+                        <ViewErrorBoundary>
+                            <Machines isActive={view === 'machines'} onNavigate={setView} />
+                        </ViewErrorBoundary>
+                    </div>
+                    {view === 'schedule' && (
+                        <ViewErrorBoundary>
+                            <Schedule onStartBatch={handleStartBatch} />
+                        </ViewErrorBoundary>
+                    )}
                 </div>
-                {view === 'history' && (
-                    <ViewErrorBoundary>
-                        <History />
-                    </ViewErrorBoundary>
-                )}
-                {view === 'beans' && (
-                    <ViewErrorBoundary>
-                        <Beans onNavigate={setView} />
-                    </ViewErrorBoundary>
-                )}
-                {view === 'profiles' && (
-                    <ViewErrorBoundary>
-                        <Profiles onNavigate={setView} />
-                    </ViewErrorBoundary>
-                )}
-                <div style={{ display: view === 'machines' ? 'block' : 'none' }}>
-                    <ViewErrorBoundary>
-                        <Machines isActive={view === 'machines'} onNavigate={setView} />
-                    </ViewErrorBoundary>
-                </div>
-                {view === 'schedule' && (
-                    <ViewErrorBoundary>
-                        <Schedule onStartBatch={handleStartBatch} />
-                    </ViewErrorBoundary>
+                <SettingsModal
+                    open={settingsOpen}
+                    initialTab={settingsInitialTab}
+                    onClose={() => setSettingsOpen(false)}
+                />
+
+                {state.status === 'ready' && (
+                    <button
+                        onClick={applyAndRelaunch}
+                        style={{
+                            position: 'fixed',
+                            bottom: 24,
+                            right: 24,
+                            zIndex: 9999,
+                            padding: '10px 20px',
+                            borderRadius: 9999,
+                            border: 'none',
+                            background: 'var(--color-accent, #2563eb)',
+                            color: '#fff',
+                            fontSize: 14,
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+                        }}
+                    >
+                        새 업데이트 (v{state.version}) 재시작
+                    </button>
                 )}
             </div>
-            <SettingsModal open={settingsOpen} initialTab={settingsInitialTab} onClose={() => setSettingsOpen(false)} />
-        </div>
+        </Sentry.ErrorBoundary>
     );
 };

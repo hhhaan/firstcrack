@@ -1,0 +1,210 @@
+name: _Publish to R2 (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version string (e.g. 1.0.2)'
+        required: true
+        type: string
+      run_id:
+        description: 'Artifact run ID to download from (empty = current run — only safe for workflow_call callers where github.run_id == parent run ID)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  publish-r2:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          # For workflow_call callers: github.run_id is the parent run — artifacts are found correctly.
+          # For direct dispatch: always pass run_id explicitly.
+          run-id: ${{ inputs.run_id || github.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate artifact signatures
+        run: |
+          set -e
+          AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+          X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+          WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
+
+          verify_sig() {
+            local file="$1" label="$2"
+            if [ ! -f "$file" ]; then
+              echo "::error::$label .sig file not found: $file"
+              exit 1
+            fi
+            if [ ! -s "$file" ]; then
+              echo "::error::$label .sig file is empty: $file"
+              exit 1
+            fi
+            echo "  OK: $label ($(wc -c < "$file") bytes)"
+          }
+
+          verify_sig "$AARCH64_SIG" "macOS aarch64"
+          verify_sig "$X64_SIG"     "macOS x86_64"
+          verify_sig "$WIN_SIG"     "Windows x86_64"
+          echo "All .sig files valid."
+
+      - name: Backup current latest.json
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+          R2_BUCKET: first-crack
+          VERSION: ${{ inputs.version }}
+        run: |
+          TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          BACKUP_KEY="releases/latest.json.${VERSION}.${TIMESTAMP}.bak"
+          aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
+            "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+            --endpoint-url "$R2_ENDPOINT" --region auto \
+            --content-type "application/json" && \
+            echo "BACKUP_KEY=${BACKUP_KEY}" >> $GITHUB_ENV || \
+            echo "No existing latest.json to backup (first release?)"
+
+      - name: Upload binaries & latest.json to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+          VERSION: ${{ inputs.version }}
+          R2_BUCKET: first-crack
+          R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+        run: |
+          set -e
+          S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
+
+          AARCH64_TAR=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+          AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+          X64_TAR=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+          X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+          WIN_MSI=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi" ! -name "*.sig" | head -1)
+          WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
+          AARCH64_DMG=$(find artifacts/macos-aarch64-apple-darwin -name "*.dmg" | head -1)
+          X64_DMG=$(find artifacts/macos-x86_64-apple-darwin -name "*.dmg" | head -1)
+
+          [ -z "$AARCH64_TAR" ] && echo "ERROR: macOS arm64 .app.tar.gz not found" && exit 1
+          [ -z "$X64_TAR" ]     && echo "ERROR: macOS x64 .app.tar.gz not found"   && exit 1
+          [ -z "$WIN_MSI" ]     && echo "ERROR: Windows MSI not found"              && exit 1
+
+          AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
+          X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
+          WIN_MSI_R2=$(basename "$WIN_MSI")
+
+          # Phase 1: fire all binary uploads in parallel
+          pids=""
+          $S3 "$AARCH64_TAR" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2" & pids="$pids $!"
+          [ -n "$AARCH64_SIG" ] && { $S3 "$AARCH64_SIG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2.sig" & pids="$pids $!"; }
+          $S3 "$X64_TAR"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2" & pids="$pids $!"
+          [ -n "$X64_SIG" ]     && { $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig" & pids="$pids $!"; }
+          $S3 "$WIN_MSI"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2" & pids="$pids $!"
+          [ -n "$WIN_SIG" ]     && { $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig" & pids="$pids $!"; }
+          [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")" & pids="$pids $!"; }
+          [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")" & pids="$pids $!"; }
+
+          # Build latest.json while uploads run
+          jq --null-input \
+            --arg version   "$VERSION" \
+            --arg pub_date  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
+            --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
+            --arg x64_sig   "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
+            --arg x64_url   "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
+            --arg win_sig   "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
+            --arg win_url   "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
+            '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
+            > latest.json
+
+          # Wait for all Phase 1 binary uploads
+          fail=0
+          for pid in $pids; do wait $pid || fail=1; done
+          [ $fail -eq 1 ] && echo "ERROR: one or more binary uploads failed" && exit 1
+
+          # Phase 2: latest.json + landing page aliases (parallel)
+          pids=""
+          $S3 latest.json "s3://$R2_BUCKET/releases/latest.json" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "application/json" & pids="$pids $!"
+          [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" & pids="$pids $!"; }
+          [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" & pids="$pids $!"; }
+          $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
+
+          fail=0
+          for pid in $pids; do wait $pid || fail=1; done
+          [ $fail -eq 1 ] && echo "ERROR: one or more latest/landing uploads failed" && exit 1
+
+      - name: Purge Cloudflare cache for latest.json
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+          echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Cloudflare cache purge failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+      - name: Rollback latest.json on failure
+        if: failure() && env.BACKUP_KEY != ''
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+          R2_BUCKET: first-crack
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+        run: |
+          echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
+          if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+              "s3://${R2_BUCKET}/releases/latest.json" \
+              --endpoint-url "$R2_ENDPOINT" --region auto \
+              --cache-control "no-cache, no-store, must-revalidate" \
+              --content-type "application/json"; then
+            echo "Rollback complete. Purging CF cache..."
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+            echo "CF purge after rollback: HTTP $HTTP_CODE"
+            echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
+          else
+            echo "::error::Rollback FAILED — latest.json may be in broken state"
+            echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
+          fi
+
+      - name: Notify publish result
+        if: always()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ "${{ job.status }}" = "success" ]; then
+            TEXT=":white_check_mark: *Release published* — v${VERSION} | <${RUN_URL}|View run>"
+          elif [ "$ROLLBACK_STATUS" = "success" ]; then
+            TEXT=":x: *Release publish FAILED* — v${VERSION} | :white_check_mark: latest.json rolled back | <${RUN_URL}|View run>"
+          elif [ "$ROLLBACK_STATUS" = "failed" ]; then
+            TEXT=":rotating_light: *Release publish FAILED + Rollback FAILED* — v${VERSION} — latest.json 수동 확인 필요 | <${RUN_URL}|View run>"
+          else
+            TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
+          fi
+          curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+            --data "{\"text\":\"$TEXT\"}"

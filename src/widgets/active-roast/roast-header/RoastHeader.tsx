@@ -1,11 +1,11 @@
-import { Settings2, ChevronDown } from 'lucide-react';
-import { useRef, useEffect } from 'react';
-import { useRoastingStore } from '@features/active-roast/model/status';
-import { STATUS_COLORS, PHASE_COLORS } from '@features/active-roast/lib/colors';
 import { useBeans } from '@entities/bean/queries';
-import { useAuthStore } from '@shared/store/auth';
-import { useRoastProfiles } from '@entities/roast-profile';
 import { useUpdateProfile } from '@entities/profile';
+import { useRoastProfiles } from '@entities/roast-profile';
+import { PHASE_COLORS, STATUS_COLORS } from '@features/active-roast/lib/colors';
+import { useRoastingStore } from '@features/active-roast/model/status';
+import { useAuthStore } from '@shared/store/auth';
+import { ChevronDown, Settings2 } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
@@ -63,7 +63,7 @@ const beanOptionDisplay: BeanOptionDisplay = (b) => joinDisplay([b.origin, b.reg
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export const RoastHeader = ({
-    phase,
+    phase: _phase,
     targetProfileId,
     selectedBeanId,
     onTargetProfileChange,
@@ -82,7 +82,6 @@ export const RoastHeader = ({
     const charged = useRoastingStore((s) => s.charged);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const sidecarError = useRoastingStore((s) => s.sidecarError);
-    const elapsed = useRoastingStore((s) => s.elapsed);
     const user = useAuthStore((s) => s.user);
     const { data: beans = [] } = useBeans(user?.id ?? '');
     const { data: dbProfiles = [] } = useRoastProfiles(user?.id ?? '');
@@ -90,12 +89,12 @@ export const RoastHeader = ({
     // 드롭다운을 빠르게 바꿀 때 매번 DB 쓰기가 발생하는 걸 막기 위한 디바운스 타이머.
     // 300ms 안에 다시 바뀌면 이전 요청은 취소되고 마지막 값만 저장됨.
     const profileSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    useEffect(() => () => { if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current); }, []);
-
-    // ─── Derived values ──────────────────────────────────────────────────────
-    const elapsedMin = Math.floor(elapsed / 60);
-    const elapsedSec = elapsed % 60;
-    const timeStr = charged ? `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}` : '—';
+    useEffect(
+        () => () => {
+            if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current);
+        },
+        [],
+    );
 
     const handleProfileChange = (id: string | null) => {
         // 같은 값이면 DB 쓰기 스킵 (no-op guard)
@@ -194,18 +193,20 @@ export const RoastHeader = ({
 
             {/* ─── Right side: elapsed time + settings ────────────────────── */}
             <div className="flex items-start gap-3">
+                {/*
                 <div className="text-right">
                     <div className="font-mono text-[44px] font-semibold text-primary tracking-[-2px] leading-none mb-1">
                         {timeStr}
                     </div>
                     <div className="text-[13px] text-muted tracking-[0.14px]">{phase} phase</div>
                 </div>
+                */}
                 {onOpenRoastSettings && (
                     <button
                         onClick={onOpenRoastSettings}
                         aria-label="Open roast settings"
                         title="Roast settings"
-                        className="w-8.5 h-8.5 rounded-[10px] border-none bg-surface text-muted flex items-center justify-center cursor-pointer shrink-0 mt-1.5"
+                        className="w-8.5 h-8.5 rounded-md border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer shrink-0 mt-1.5"
                     >
                         <Settings2 size={15} strokeWidth={1.9} />
                     </button>

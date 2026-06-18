@@ -1,21 +1,25 @@
+import { useRoastingStore } from '@features/active-roast';
+import { i18n } from '@shared/i18n';
+import { useAuthStore } from '@shared/store/auth';
+import type { View } from '@shared/types/view';
+import { KpiCard } from '@shared/ui/KpiCard';
+import { PageLayout } from '@shared/ui/PageLayout';
+import { PillButton } from '@shared/ui/PillButton';
 import {
-    TrendingUp,
-    Coffee,
-    Clock,
-    CheckCircle,
     ArrowRight,
     Calendar,
+    CheckCircle,
     ChevronRight,
-    Thermometer,
+    Clock,
+    Coffee,
     Droplets,
+    Thermometer,
+    TrendingUp,
 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { type View } from '@shared/types/view';
+import { useTranslation } from 'react-i18next';
 import { useDashboard } from './useDashboard';
 import { useWeather } from './useWeather';
-import { useRoastingStore } from '@features/active-roast';
-import { useAuthStore } from '@shared/store/auth';
-import { PageLayout } from '@shared/ui/PageLayout';
 
 interface DashboardProps {
     onNavigate: (view: View) => void;
@@ -26,6 +30,7 @@ interface BarCanvasProps {
 }
 
 const BarCanvas = ({ data }: BarCanvasProps) => {
+    const { t } = useTranslation();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -44,7 +49,8 @@ const BarCanvas = ({ data }: BarCanvasProps) => {
         ctx.scale(dpr, dpr);
 
         const cs = getComputedStyle(document.documentElement);
-        const colorPrimary = cs.getPropertyValue('--color-primary').trim() || '#171717';
+        const isDark = document.documentElement.classList.contains('dark');
+        const colorPrimary = isDark ? '#e5e5e5' : '#0B0B0B';
         const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#9ca3af';
 
         const maxVal = Math.max(...data.map((d) => d.batches), 1);
@@ -129,7 +135,7 @@ const BarCanvas = ({ data }: BarCanvasProps) => {
             return;
         }
 
-        tt.textContent = `${data[idx].month}: ${data[idx].batches} batches`;
+        tt.textContent = `${data[idx].month}: ${data[idx].batches} ${t('dashboard.batches')}`;
         tt.style.display = 'block';
         tt.style.left = `${e.clientX - rect.left + 10}px`;
         tt.style.top = `${e.clientY - rect.top - 30}px`;
@@ -157,19 +163,19 @@ const BarCanvas = ({ data }: BarCanvasProps) => {
 };
 
 const levelColor: Record<string, string> = {
-    Light: '#a16207',
-    'Medium-Light': '#92400e',
-    Medium: '#7c2d12',
-    'Medium-Dark': '#431407',
-    Dark: '#1c0a00',
+    Light: 'var(--color-palette-yellow)',
+    'Medium-Light': 'var(--color-palette-teal)',
+    Medium: 'var(--color-palette-blue)',
+    'Medium-Dark': 'var(--color-palette-purple)',
+    Dark: 'var(--color-palette-violet)',
 };
 
 const levelBg: Record<string, string> = {
-    Light: 'rgba(254,243,199,0.8)',
-    'Medium-Light': 'rgba(254,231,200,0.8)',
-    Medium: 'rgba(253,220,198,0.8)',
-    'Medium-Dark': 'rgba(240,180,150,0.8)',
-    Dark: 'rgba(220,140,100,0.8)',
+    Light: 'color-mix(in srgb, var(--color-palette-yellow) 20%, transparent)',
+    'Medium-Light': 'color-mix(in srgb, var(--color-palette-teal) 15%, transparent)',
+    Medium: 'color-mix(in srgb, var(--color-palette-blue) 12%, transparent)',
+    'Medium-Dark': 'color-mix(in srgb, var(--color-palette-purple) 12%, transparent)',
+    Dark: 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
 };
 
 const formatDuration = (seconds: number) => {
@@ -180,9 +186,9 @@ const formatDuration = (seconds: number) => {
 
 const formatDate = (iso: string) => {
     const d = new Date(iso);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const lang = i18n.language === 'zh-CN' ? 'zh-CN' : i18n.language;
+    return d.toLocaleDateString(lang, { month: 'short', day: 'numeric' });
 };
-
 
 const pctChange = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? '+∞%' : '0%';
@@ -200,28 +206,29 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
     const db = useDashboard(userId);
     const isRoasting = useRoastingStore((s) => s.isRoasting);
     const weather = useWeather();
+    const { t } = useTranslation();
 
     const stats = [
         {
-            label: 'Batches This Month',
+            label: t('dashboard.kpi.batchesThisMonth'),
             value: db.loading ? '—' : String(db.batchesThisMonth),
             change: db.loading ? '' : pctChange(db.batchesThisMonth, db.batchesLastMonth),
             icon: Coffee,
         },
         {
-            label: 'Beans Roasted',
+            label: t('dashboard.kpi.beansRoasted'),
             value: db.loading ? '—' : `${db.kgRoastedThisMonth.toFixed(1)} kg`,
             change: db.loading ? '' : pctChange(db.kgRoastedThisMonth, db.kgRoastedLastMonth),
             icon: TrendingUp,
         },
         {
-            label: 'Avg Roast Time',
+            label: t('dashboard.kpi.avgRoastTime'),
             value: db.loading ? '—' : formatDuration(db.avgDurationSeconds),
             change: db.loading ? '' : durationDiff(db.avgDurationSeconds, db.avgDurationLastMonthSeconds),
             icon: Clock,
         },
         {
-            label: 'Success Rate',
+            label: t('dashboard.kpi.successRate'),
             value: '96%',
             change: '+2%',
             icon: CheckCircle,
@@ -234,16 +241,27 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             <div className="mb-8 flex items-end justify-between">
                 <div>
                     <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
-                        {(() => {
-                            const h = new Date().getHours();
-                            if (h < 12) return 'Good morning';
-                            if (h < 18) return 'Good afternoon';
-                            return 'Good evening';
-                        })()}
+                        {t(
+                            `dashboard.greeting.${(() => {
+                                const h = new Date().getHours();
+                                if (h < 12) return 'morning';
+                                if (h < 18) return 'afternoon';
+                                return 'evening';
+                            })()}`,
+                        )}
                         {/* , Han */}
                     </h1>
                     <p className="text-[15px] text-secondary tracking-[0.15px] font-normal flex items-center gap-2.5">
-                        {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                        {new Date().toLocaleDateString(
+                            i18n.language === 'ko'
+                                ? 'en-US'
+                                : i18n.language === 'zh-CN'
+                                  ? 'zh-CN'
+                                  : i18n.language === 'ja'
+                                    ? 'ja-JP'
+                                    : 'en-US',
+                            { weekday: 'long', month: 'long', day: 'numeric' },
+                        )}
                         {weather.data && (
                             <>
                                 <span className="text-muted/40">·</span>
@@ -259,67 +277,49 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         )}
                     </p>
                 </div>
-                <button
-                    onClick={() => onNavigate('roast')}
-                    className="flex items-center gap-2 px-4.5 py-2.5 rounded-full bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
-                >
+                <PillButton onClick={() => onNavigate('roast')}>
                     <span
-                        className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-green-400 animate-pulse' : 'bg-white/40'}`}
+                        className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-palette-green animate-pulse' : 'bg-white/40'}`}
                     />
-                    View Active Roast
+                    {t('dashboard.viewActiveRoast')}
                     <ArrowRight size={14} strokeWidth={2} />
-                </button>
+                </PillButton>
             </div>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-4 gap-4 mb-8">
-                {stats.map(({ label, value, change, icon: Icon }) => {
-                    const isPositive = change.startsWith('+');
-                    const isNeutral = change === '';
-                    return (
-                        <div key={label} className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5 border border-[#E5E5E5]">
-                            <div className="flex items-start justify-between mb-3.5">
-                                <div className="w-8.5 h-8.5 rounded-lg bg-surface flex items-center justify-center">
-                                    <Icon size={16} strokeWidth={1.5} color="var(--color-secondary)" />
-                                </div>
-                                {!isNeutral && (
-                                    <span
-                                        className={`text-xs font-medium px-2 py-0.5 rounded-full tracking-[0.14px] ${
-                                            isPositive
-                                                ? 'text-green-600 bg-[rgba(220,252,231,0.8)]'
-                                                : 'text-red-600 bg-[rgba(254,226,226,0.8)]'
-                                        }`}
-                                    >
-                                        {change}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="text-[26px] font-semibold text-primary leading-[1.2] mb-1 tracking-[-0.5px]">
-                                {value}
-                            </div>
-                            <div className="text-[13px] text-muted tracking-[0.14px]">{label}</div>
-                        </div>
-                    );
-                })}
+                {stats.map((stat) => (
+                    <KpiCard key={stat.label} {...stat} />
+                ))}
             </div>
 
             {/* Main Grid */}
             <div className="grid grid-cols-[1fr_320px] gap-5 mb-5">
                 {/* Recent Sessions */}
-                <div className="bg-main-bg rounded-lg overflow-hidden border border-[#E5E5E5]">
-                    <div className="px-6 pt-4.5 pb-3.5 flex items-center justify-between border-b border-[#E5E5E5]">
-                        <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Recent Sessions</h2>
+                <div className="bg-main-bg rounded-lg overflow-hidden dark:border dark:border-[#585d61]">
+                    <div className="px-6 pt-4.5 pb-3.5 flex items-center justify-between border-b border-divider">
+                        <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">
+                            {t('dashboard.recentSessions')}
+                        </h2>
                         <button
                             onClick={() => onNavigate('history')}
                             className="flex items-center gap-1 text-[13px] font-medium text-muted bg-transparent border-0 cursor-pointer tracking-[0.14px]"
                         >
-                            View all <ChevronRight size={13} strokeWidth={2} />
+                            {t('dashboard.viewAll')} <ChevronRight size={13} strokeWidth={2} />
                         </button>
                     </div>
                     <table className="w-full border-collapse">
                         <thead>
-                            <tr className="border-b border-[#E5E5E5]">
-                                {['Date', 'Bean', 'Profile', 'Weight', 'Drop Temp', 'Duration', 'Level'].map((h) => (
+                            <tr className="border-b border-divider">
+                                {[
+                                    t('dashboard.table.date'),
+                                    t('dashboard.table.bean'),
+                                    t('dashboard.table.profile'),
+                                    t('dashboard.table.weight'),
+                                    t('dashboard.table.dropTemp'),
+                                    t('dashboard.table.duration'),
+                                    t('dashboard.table.level'),
+                                ].map((h) => (
                                     <th
                                         key={h}
                                         className="px-6 py-2.5 text-left text-xs font-medium text-muted tracking-[0.5px] uppercase"
@@ -333,13 +333,13 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                             {db.loading ? (
                                 <tr>
                                     <td colSpan={7} className="px-6 py-8 text-center text-[13px] text-muted">
-                                        Loading...
+                                        {t('dashboard.loading')}
                                     </td>
                                 </tr>
                             ) : db.recentSessions.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="px-6 py-8 text-center text-[13px] text-muted">
-                                        No sessions yet
+                                        {t('dashboard.noSessions')}
                                     </td>
                                 </tr>
                             ) : (
@@ -349,7 +349,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                         <tr
                                             key={session.id}
                                             className={
-                                                i < db.recentSessions.length - 1 ? 'border-b border-[#E5E5E5]' : ''
+                                                i < db.recentSessions.length - 1 ? 'border-b border-divider' : ''
                                             }
                                         >
                                             <td className="px-6 py-3 text-[13px] text-muted font-normal whitespace-nowrap">
@@ -396,29 +396,33 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </div>
 
                 {/* Monthly chart */}
-                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5] w-full flex flex-col">
+                <div className="bg-main-bg rounded-lg px-6 py-5 w-full flex flex-col dark:border dark:border-[#585d61]">
                     <div className="flex items-center justify-between mb-5 shrink-0">
-                        <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Monthly Batches</h2>
+                        <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">
+                            {t('dashboard.monthlyBatches')}
+                        </h2>
                         <Calendar size={15} strokeWidth={1.5} color="var(--color-muted)" />
                     </div>
                     <div className="flex-1 min-h-[120px]">
                         <BarCanvas data={db.monthlyBatches} />
                     </div>
 
-                    <div className="mt-5 pt-4 border-t border-[#E5E5E5] shrink-0">
-                        <div className="text-xs text-muted mb-3 tracking-[0.5px] uppercase font-medium text-center">This Month</div>
+                    <div className="mt-5 pt-4 border-t border-divider shrink-0">
+                        <div className="text-xs text-muted mb-3 tracking-[0.5px] uppercase font-medium text-center">
+                            {t('dashboard.thisMonth')}
+                        </div>
                         <div className="flex items-center justify-center gap-0 w-full">
-                            <div className="flex-1 text-center max-w-[160px]">
+                            <div className="flex-1 text-center border-x border-divider max-w-[160px]">
                                 <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
                                     {db.loading ? '—' : db.batchesThisMonth}
                                 </div>
-                                <div className="text-xs text-muted tracking-[0.14px]">batches</div>
+                                <div className="text-xs text-muted tracking-[0.14px]">{t('dashboard.batches')}</div>
                             </div>
-                            <div className="flex-1 text-center border-x border-[#E5E5E5] max-w-[160px]">
+                            <div className="flex-1 text-center max-w-[160px]">
                                 <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
                                     {db.loading ? '—' : db.kgRoastedThisMonth.toFixed(1)}
                                 </div>
-                                <div className="text-xs text-muted tracking-[0.14px]">kg roasted</div>
+                                <div className="text-xs text-muted tracking-[0.14px]">{t('dashboard.kgRoasted')}</div>
                             </div>
                             <div className="flex-1 text-center max-w-[160px]">
                                 <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
@@ -426,7 +430,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                         ? '—'
                                         : new Set(db.recentSessions.map((s) => s.beans?.origin).filter(Boolean)).size}
                                 </div>
-                                <div className="text-xs text-muted tracking-[0.14px]">bean origins</div>
+                                <div className="text-xs text-muted tracking-[0.14px]">{t('dashboard.beanOrigins')}</div>
                             </div>
                         </div>
                     </div>
@@ -436,9 +440,11 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             {/* Upcoming + Inventory Alerts */}
             <div className="grid grid-cols-2 gap-5">
                 {/* Upcoming */}
-                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
+                <div className="bg-main-bg rounded-lg px-6 py-5 dark:border dark:border-[#585d61]">
                     <div className="flex items-center justify-between mb-3.5">
-                        <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">Upcoming Batches</h2>
+                        <h2 className="text-[15px] font-medium text-primary tracking-[0.15px]">
+                            {t('dashboard.upcomingBatches')}
+                        </h2>
                         <button
                             onClick={() => onNavigate('schedule')}
                             className="flex items-center justify-center border-none bg-transparent text-muted cursor-pointer hover:text-primary transition-colors p-0"
@@ -447,17 +453,21 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         </button>
                     </div>
                     {db.loading ? (
-                        <p className="text-[13px] text-muted py-2">Loading...</p>
+                        <p className="text-[13px] text-muted py-2">{t('dashboard.loading')}</p>
                     ) : db.upcomingBatches.length === 0 ? (
-                        <p className="text-[13px] text-muted py-2">예정된 배치가 없습니다</p>
+                        <p className="text-[13px] text-muted py-2">{t('dashboard.noUpcoming')}</p>
                     ) : (
                         db.upcomingBatches.map((item, i) => (
                             <div
                                 key={item.id}
-                                className={`flex items-center gap-3 py-2.5 ${i < db.upcomingBatches.length - 1 ? 'border-b border-[#E5E5E5]' : ''}`}
+                                className={`flex items-center gap-3 py-2.5 ${i < db.upcomingBatches.length - 1 ? 'border-b border-divider' : ''}`}
                             >
                                 <div className="w-8.5 h-8.5 rounded-lg bg-surface-warm-solid flex items-center justify-center shrink-0">
-                                    <Calendar size={14} strokeWidth={1.5} color="var(--color-secondary)" />
+                                    <Calendar
+                                        size={14}
+                                        strokeWidth={1.5}
+                                        className="text-secondary dark:text-[#a3a3a3]"
+                                    />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5">
@@ -465,11 +475,15 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                             {item.bean_name}
                                         </span>
                                         <span className="shrink-0 text-[11px] font-medium text-secondary bg-surface px-1.5 py-0.5 rounded">
-                                            {item.batch_count}회 · {item.target_roasted_kg}kg
+                                            {t('dashboard.batchCount', { count: item.batch_count })} ·{' '}
+                                            {item.target_roasted_kg}kg
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted tracking-[0.14px]">
-                                        {item.date === new Date().toISOString().slice(0, 10) ? '오늘' : item.date} · {item.batch_type}
+                                        {item.date === new Date().toISOString().slice(0, 10)
+                                            ? t('dashboard.today')
+                                            : item.date}{' '}
+                                        · {item.status}
                                     </div>
                                 </div>
                             </div>
@@ -478,22 +492,24 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 </div>
 
                 {/* Inventory Alerts */}
-                <div className="bg-main-bg rounded-lg px-6 py-5 border border-[#E5E5E5]">
-                    <h2 className="text-[15px] font-medium text-primary tracking-[0.15px] mb-3.5">Inventory Alerts</h2>
+                <div className="bg-main-bg rounded-lg px-6 py-5 dark:border dark:border-[#585d61]">
+                    <h2 className="text-[15px] font-medium text-primary tracking-[0.15px] mb-3.5">
+                        {t('dashboard.inventoryAlerts')}
+                    </h2>
                     {db.loading ? (
-                        <p className="text-[13px] text-muted py-2">Loading...</p>
+                        <p className="text-[13px] text-muted py-2">{t('dashboard.loading')}</p>
                     ) : db.inventoryAlerts.length === 0 ? (
-                        <p className="text-[13px] text-muted py-2">All stock levels OK</p>
+                        <p className="text-[13px] text-muted py-2">{t('dashboard.allStockOk')}</p>
                     ) : (
                         db.inventoryAlerts.map((item, i) => {
                             const isOut = item.stock_grams === 0;
-                            const color = isOut ? '#dc2626' : '#d97706';
-                            const bg = isOut ? 'rgba(254,226,226,0.8)' : 'rgba(254,243,199,0.8)';
-                            const status = isOut ? 'Out of Stock' : 'Low Stock';
+                            const color = isOut ? '#8080F0' : '#FFFF54';
+                            const bg = isOut ? 'rgba(128,128,240,0.12)' : 'rgba(255,255,84,0.2)';
+                            const status = isOut ? t('dashboard.outOfStock') : t('dashboard.lowStock');
                             return (
                                 <div
                                     key={item.id}
-                                    className={`flex items-center gap-3 py-2.5 ${i < db.inventoryAlerts.length - 1 ? 'border-b border-[#E5E5E5]' : ''}`}
+                                    className={`flex items-center gap-3 py-2.5 ${i < db.inventoryAlerts.length - 1 ? 'border-b border-divider' : ''}`}
                                 >
                                     <div
                                         className="w-8.5 h-8.5 rounded-lg flex items-center justify-center shrink-0"
@@ -506,7 +522,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                             {item.name}
                                         </div>
                                         <div className="text-xs text-muted tracking-[0.14px]">
-                                            {(item.stock_grams / 1000).toFixed(2)}kg remaining
+                                            {t('dashboard.kgRemaining', { kg: (item.stock_grams / 1000).toFixed(2) })}
                                         </div>
                                     </div>
                                     <span

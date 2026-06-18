@@ -20,7 +20,7 @@ const Skeleton = () => (
                     background: 'var(--color-main-bg)',
                     borderRadius: 8,
                     padding: '14px 16px',
-                    border: '1px solid #E5E5E5',
+                    border: '1px solid var(--color-border)',
                 }}
             >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -75,7 +75,7 @@ export const BeanList = ({ beans, isLoading, selectedId, onSelect, search, onSea
                     borderRadius: 8,
                     padding: '9px 12px',
                     marginBottom: 10,
-                    border: '1px solid #E5E5E5',
+                    border: '1px solid var(--color-border)',
                 }}
             >
                 <Search size={14} strokeWidth={2} color="var(--color-muted)" />
@@ -115,7 +115,9 @@ export const BeanList = ({ beans, isLoading, selectedId, onSelect, search, onSea
                                     borderRadius: 8,
                                     padding: '14px 16px',
                                     cursor: 'pointer',
-                                    border: isSelected ? '1px solid rgba(0,0,0,0.08)' : '1px solid #E5E5E5',
+                                    border: isSelected
+                                        ? '1px solid var(--color-border)'
+                                        : '1px solid var(--color-border)',
                                     transition: 'all 0.15s',
                                 }}
                             >
@@ -196,7 +198,8 @@ export const BeanList = ({ beans, isLoading, selectedId, onSelect, search, onSea
                                         fontFamily: 'var(--font-mono)',
                                     }}
                                 >
-                                    {(bean.stock_grams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
+                                    {(bean.stock_grams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}
+                                    kg
                                 </div>
                             </div>
                         );

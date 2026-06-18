@@ -1,66 +1,70 @@
 export interface SerialPort {
-  device: string;
-  description: string;
+    device: string;
+    description: string;
 }
 
 export interface Machine {
-  id: string;
-  name: string;
-  roasterKey: string;
-  displayName: string;
-  brand: string;
-  models: string[];
-  protocol: string;
-  connectionParams: Record<string, unknown>;
-  capabilities: string[];
-  pid: { Kp: number; Ki: number; Kd: number } | null;
-  createdAt: string;
+    id: string;
+    name: string;
+    roasterKey: string;
+    displayName: string;
+    brand: string;
+    models: string[];
+    protocol: string;
+    connectionParams: Record<string, unknown>;
+    capabilities: string[];
+    pid: { Kp: number; Ki: number; Kd: number } | null;
+    createdAt: string;
 }
 
 // GET /roasters 응답
 export interface RoasterFormField {
-  key: string;
-  label: string;
-  type: 'text' | 'number' | 'select';
-  required: boolean;
-  placeholder?: string;
-  options?: { value: string; label: string }[];
+    key: string;
+    label: string;
+    type: 'text' | 'number' | 'select';
+    required: boolean;
+    placeholder?: string;
+    options?: { value: string; label: string }[];
 }
 
 export interface RoasterDef {
-  display_name: string;
-  brand: string;
-  models: string[];
-  protocol: string;
-  capabilities: string[];
-  pid: { Kp: number; Ki: number; Kd: number } | null;
-  form_fields: RoasterFormField[];
-  default_params: Record<string, unknown>;
+    display_name: string;
+    brand: string;
+    models: string[];
+    protocol: string;
+    capabilities: string[];
+    pid: { Kp: number; Ki: number; Kd: number } | null;
+    form_fields: RoasterFormField[];
+    default_params: Record<string, unknown>;
 }
 
 export type RoastersResponse = Record<string, RoasterDef>;
 
 // GET /status 응답
 export interface SidecarStatus {
-  connected: boolean;
-  reconnecting?: boolean;
-  reconnect_attempt?: number;
-  roaster: string;
-  display_name: string;
-  brand: string;
-  capabilities: string[];
-  uptime: number;
-  error: string | null;
+    connected: boolean;
+    reconnecting?: boolean;
+    reconnect_attempt?: number;
+    roaster: string;
+    display_name: string;
+    brand: string;
+    capabilities: string[];
+    uptime: number;
+    error: string | null;
 }
 
 // GET /temperatures 응답
 export interface TemperatureReading {
-  bt: number | null;
-  et: number | null;
-  ror: number;
-  ror_et: number;
-  heater: number;
-  fan: number;
-  drum: number;
-  timestamp: number;
+    bt: number | null;
+    et: number | null;
+    ror: number;
+    ror_et: number;
+    heater: number;
+    fan: number;
+    drum: number;
+    timestamp: number;
+    /** 직전 read 실패로 이전 값을 유지 중인지 (사이드카 fail-open) */
+    stale?: boolean;
+    /** 백그라운드 자동 재연결 진행 중인지 */
+    reconnecting?: boolean;
 }

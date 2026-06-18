@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
 import { locationStore } from '@shared/lib/locationStore';
+import { useQuery } from '@tanstack/react-query';
 
 const WEATHER_TTL = 30 * 60 * 1000;
 
@@ -11,8 +11,8 @@ export interface WeatherData {
 const fetchOpenMeteo = async (lat: number, lng: number): Promise<WeatherData> => {
     const res = await fetch(
         `https://api.open-meteo.com/v1/forecast` +
-        `?latitude=${lat}&longitude=${lng}` +
-        `&current=temperature_2m,relative_humidity_2m`,
+            `?latitude=${lat}&longitude=${lng}` +
+            `&current=temperature_2m,relative_humidity_2m`,
     );
     if (!res.ok) throw new Error('weather fetch failed');
     const json = await res.json();

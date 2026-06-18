@@ -1,25 +1,22 @@
-import type { LogEntry } from '@shared/types/roast';
 import { STATUS_COLORS } from '@features/active-roast/lib/colors';
+import type { LogEntry } from '@shared/types/roast';
+import { X } from 'lucide-react';
 
 export const RoastLog = ({
     entries,
     eventMarkerColor,
     variant,
+    onRemoveEntry,
 }: {
     entries: LogEntry[];
     eventMarkerColor: Record<string, string>;
     variant: 'sidebar' | 'main';
+    onRemoveEntry?: (id: string) => void;
 }) => {
     const isSidebar = variant === 'sidebar';
 
     return (
-        <div
-            style={
-                isSidebar
-                    ? { flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }
-                    : { display: 'flex', flexDirection: 'column', gap: 0 }
-            }
-        >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             {isSidebar && (
                 <h3
                     style={{
@@ -28,16 +25,17 @@ export const RoastLog = ({
                         fontWeight: 600,
                         textTransform: 'uppercase',
                         marginBottom: 10,
-                        flexShrink: 0,
                     }}
                 >
                     Roast Log
                 </h3>
             )}
-            <div style={isSidebar ? { overflowY: 'auto', flex: 1 } : undefined}>
-                {entries.map((entry, i, arr) => (
+            {entries.map((entry, i, arr) => {
+                const canRemove = entry.event === 'Note' && !!entry.id && !entry.current && !!onRemoveEntry;
+
+                return (
                     <div
-                        key={i}
+                        key={entry.id ?? `${entry.time}-${entry.event}-${i}`}
                         style={{
                             display: 'flex',
                             gap: isSidebar ? 10 : 12,
@@ -106,19 +104,31 @@ export const RoastLog = ({
                                     {entry.temp}
                                 </span>
                             </div>
-                            <div
-                                style={{
-                                    fontSize: isSidebar ? 11 : 12,
-                                    color: 'var(--color-muted)',
-                                    letterSpacing: isSidebar ? 'normal' : '0.14px',
-                                }}
-                            >
-                                {entry.note}
-                            </div>
+                            {entry.note && (
+                                <div
+                                    style={{
+                                        fontSize: isSidebar ? 11 : 12,
+                                        color: 'var(--color-muted)',
+                                        letterSpacing: isSidebar ? 'normal' : '0.14px',
+                                    }}
+                                >
+                                    {entry.note}
+                                </div>
+                            )}
                         </div>
+                        {canRemove && (
+                            <button
+                                type="button"
+                                onClick={() => onRemoveEntry(entry.id!)}
+                                aria-label="Delete note"
+                                className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
+                            >
+                                <X size={12} />
+                            </button>
+                        )}
                     </div>
-                ))}
-            </div>
+                );
+            })}
         </div>
     );
 };

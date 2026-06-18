@@ -1,9 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { profileApi } from './api';
 import type { Profile } from '@shared/types/database.types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { profileApi } from './api';
 
 type ProfilePatch = Partial<
-    Pick<Profile, 'display_name' | 'avatar_url' | 'business_name' | 'business_registration_number' | 'default_roast_profile_id'>
+    Pick<
+        Profile,
+        'display_name' | 'avatar_url' | 'business_name' | 'business_registration_number' | 'default_roast_profile_id'
+    >
 >;
 
 export const profileKeys = {

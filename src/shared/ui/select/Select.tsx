@@ -1,6 +1,6 @@
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { cn } from '@shared/lib/cn';
+import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import type { ComponentPropsWithoutRef, ComponentRef } from 'react';
 import { forwardRef } from 'react';
 
@@ -73,8 +73,7 @@ export const SelectContent = forwardRef<
                 'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
                 'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
                 'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2',
-                position === 'popper' &&
-                    'data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1',
+                position === 'popper' && 'data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1',
                 className,
             )}
             position={position}
@@ -82,10 +81,7 @@ export const SelectContent = forwardRef<
         >
             <SelectScrollUpButton />
             <SelectPrimitive.Viewport
-                className={cn(
-                    'p-1',
-                    position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)]',
-                )}
+                className={cn('p-1', position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)]')}
             >
                 {children}
             </SelectPrimitive.Viewport>
@@ -137,10 +133,6 @@ export const SelectSeparator = forwardRef<
     ComponentRef<typeof SelectPrimitive.Separator>,
     ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>
 >(({ className, ...props }, ref) => (
-    <SelectPrimitive.Separator
-        ref={ref}
-        className={cn('-mx-1 my-1 h-px bg-border-subtle', className)}
-        {...props}
-    />
+    <SelectPrimitive.Separator ref={ref} className={cn('-mx-1 my-1 h-px bg-border-subtle', className)} {...props} />
 ));
 SelectSeparator.displayName = SelectPrimitive.Separator.displayName;

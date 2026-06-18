@@ -36,6 +36,6 @@ const generateFullRoastData = (): RoastPoint[] => {
         });
     }
     return points;
-}
+};
 
 export const fullData: RoastPoint[] = generateFullRoastData();

@@ -12,26 +12,24 @@ export const KpiCard = ({ label, value, change, icon: Icon }: KpiCardProps) => {
     const isNeutral = change === '';
 
     return (
-        <div className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5 shadow-(--shadow-ring)">
+        <div className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5 dark:border dark:border-[#585d61]">
             <div className="flex items-start justify-between mb-3.5">
-                <div className="w-8.5 h-8.5 rounded-lg bg-surface flex items-center justify-center shadow-(--shadow-inset)">
-                    <Icon size={16} strokeWidth={1.5} color="var(--color-secondary)" />
+                <div className="w-8.5 h-8.5 rounded-lg bg-surface dark:bg-[#2a2f34] flex items-center justify-center">
+                    <Icon size={16} strokeWidth={1.5} className="text-secondary dark:text-[#a3a3a3]" />
                 </div>
                 {!isNeutral && (
                     <span
                         className={`text-xs font-medium px-2 py-0.5 rounded-full tracking-[0.14px] ${
                             isPositive
-                                ? 'text-green-600 bg-[rgba(220,252,231,0.8)]'
-                                : 'text-red-600 bg-[rgba(254,226,226,0.8)]'
+                                ? 'text-palette-green bg-palette-green/15'
+                                : 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/15'
                         }`}
                     >
                         {change}
                     </span>
                 )}
             </div>
-            <div className="text-[26px] font-semibold text-primary leading-[1.2] mb-1 tracking-[-0.5px]">
-                {value}
-            </div>
+            <div className="text-[26px] font-semibold text-primary leading-[1.2] mb-1 tracking-[-0.5px]">{value}</div>
             <div className="text-[13px] text-muted tracking-[0.14px]">{label}</div>
         </div>
     );

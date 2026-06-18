@@ -1,149 +1,337 @@
 {
-  "common": {
-    "cancel": "취소",
-    "close": "닫기",
-    "connected": "연결됨",
-    "connecting": "연결 중...",
-    "disconnected": "연결 안 됨",
-    "live": "실시간",
-    "offline": "오프라인"
-  },
-  "sidebar": {
-    "roasteryDashboard": "로스터리 대시보드",
-    "expand": "사이드바 열기",
-    "collapse": "사이드바 닫기",
-    "workspaceSelector": "워크스페이스 선택",
-    "workspace": "워크스페이스",
-    "settings": "설정",
-    "workspacePreferences": "워크스페이스 환경설정",
-    "nav": {
-      "dashboard": "대시보드",
-      "roast": "진행 중인 로스팅",
-      "history": "로스팅 기록",
-      "beans": "원두 재고",
-      "profiles": "프로파일",
-      "machines": "머신",
-      "schedule": "로스팅 일정"
-    }
-  },
-  "settings": {
-    "title": "워크스페이스 설정",
-    "close": "설정 닫기",
-    "whyTitle": "설정에 있는 이유",
-    "whyDescription": "이 항목들은 앱 전체 경험에 영향을 줍니다. 운영 데이터는 설정 화면을 가볍게 유지하기 위해 사이드바의 주요 화면에 둡니다.",
-    "tabs": {
-      "general": {
-        "label": "일반",
-        "title": "워크스페이스 환경설정",
-        "description": "로스터리 워크스페이스 전반에 적용되는 기본값을 관리합니다.",
-        "interfaceTitle": "인터페이스",
-        "interfaceDescription": "앱 전체에 적용되는 가벼운 환경설정입니다.",
-        "language": "언어",
-        "languageDescription": "앱 표시 언어를 선택합니다.",
-        "defaultLandingView": "기본 시작 화면",
-        "temperatureUnit": "온도 단위",
-        "weightUnit": "무게 단위",
-        "displayTitle": "표시 기본값",
-        "displayDescription": "대시보드와 내비게이션 동작을 세션 간 일관되게 유지합니다.",
-        "expandedSidebar": "기본으로 사이드바 열린 상태 유지",
-        "liveMetricsPanel": "실시간 지표 패널 표시",
-        "compactDataCards": "촘촘한 데이터 카드 사용"
-      },
-      "notifications": {
-        "label": "알림",
-        "title": "알림과 리마인더",
-        "description": "작업 화면을 방해하지 않으면서 필요한 메시지를 받습니다.",
-        "operationalTitle": "운영 알림",
-        "operationalDescription": "로스팅과 장비 모니터링 중 유용한 알림입니다.",
-        "milestoneAlerts": "로스팅 마일스톤 알림",
-        "disconnectWarning": "머신 연결 해제 경고",
-        "maintenanceReminder": "정비 리마인더",
-        "deliveryTitle": "알림 방식",
-        "deliveryDescription": "작업 중 알림을 표시하는 방식입니다.",
-        "bannerNotifications": "배너 알림",
-        "soundAlerts": "사운드 알림",
-        "highPriorityOnly": "높은 우선순위 알림만"
-      },
-      "session": {
-        "label": "세션",
-        "title": "로스팅 세션 동작",
-        "description": "각 로스팅 세션의 시작부터 종료까지 적용되는 작업 기본값입니다.",
-        "startTitle": "세션 시작",
-        "startDescription": "오퍼레이터가 빠르게 시작하도록 돕는 자동화입니다.",
-        "autoStartTimer": "로스팅 타이머 자동 시작",
-        "openActiveRoast": "진행 중 로스팅 화면 즉시 열기",
-        "confirmBeforeStart": "세션 시작 전 확인",
-        "endTitle": "세션 종료",
-        "endDescription": "요약과 최종 검토를 일관되게 유지합니다.",
-        "showSummary": "종료 후 로스팅 요약 표시",
-        "confirmDiscard": "세션 폐기 전 확인",
-        "keepNotesVisible": "로스팅 노트 계속 표시"
-      },
-      "system": {
-        "label": "시스템",
-        "title": "시스템과 데이터",
-        "description": "전역 앱 작업, 로컬 데이터 상태, 내보내기 관련 제어를 모읍니다.",
-        "dataTitle": "데이터 제어",
-        "dataDescription": "원두, 머신, 프로파일 화면에 직접 속하지 않는 워크스페이스 작업입니다.",
-        "exportWorkspace": "현재 워크스페이스 데이터 내보내기",
-        "backupSnapshot": "로컬 백업 스냅샷 생성",
-        "preserveLogs": "활동 로그 보존",
-        "environmentTitle": "환경",
-        "environmentDescription": "앱 자체의 상태와 안전 관련 환경설정입니다.",
-        "healthBadge": "연결 상태 배지 표시",
-        "checkServices": "로컬 장치 서비스 확인",
-        "confirmResets": "초기화 전 확인 요구"
-      }
-    }
-  },
-  "language": {
-    "ko": "한국어",
-    "en": "English",
-    "ja": "日本語",
-    "zh-CN": "简体中文"
-  },
-  "machines": {
-    "title": "머신 목록",
-    "registered": "{{count}}대 등록됨",
-    "connectedSuffix": "{{name}} 연결됨",
-    "noActiveConnection": "활성 연결 없음",
-    "addMachine": "머신 추가",
-    "empty": "아직 등록된 머신이 없습니다",
-    "addFirst": "첫 머신 추가",
-    "searchPlaceholder": "머신 검색...",
-    "removeMachine": "머신 제거",
-    "temperature": {
-      "bean": "원두 온도",
-      "environment": "환경 온도",
-      "ror": "RoR",
-      "rateOfRise": "상승률"
+    "common": {
+        "cancel": "취소",
+        "close": "닫기",
+        "connected": "연결됨",
+        "connecting": "연결 중...",
+        "disconnected": "연결 안 됨",
+        "live": "실시간",
+        "offline": "오프라인"
     },
-    "notConnectedHint": "연결되어 있지 않습니다. 연결 버튼을 눌러 시작하세요.",
-    "connection": "연결",
-    "disconnect": "연결 해제",
-    "connect": "연결",
-    "startRoasting": "로스팅 시작",
-    "selectMachine": "머신을 선택하세요"
-  },
-  "addMachine": {
-    "onboarding": "머신 온보딩",
-    "title": "새 머신 추가",
-    "roasterModel": "로스터 모델",
-    "loadingRoasters": "로스터 불러오는 중...",
-    "selectPort": "포트 선택...",
-    "defaultPort": "기본값",
-    "selectRoaster": "로스터 선택...",
-    "connectionSettings": "연결 설정",
-    "fieldRequired": "{{field}}은(는) 필수입니다",
-    "failedToAdd": "머신 추가에 실패했습니다",
-    "connectionFailed": "연결에 실패했습니다",
-    "testConnection": "연결 테스트",
-    "testingConnection": "연결 테스트 중...",
-    "connectedWithBt": "연결됨 - BT {{bt}}°C",
-    "addOnly": "추가만 하기",
-    "addAndConnect": "추가 후 연결",
-    "adding": "추가 중...",
-    "phidgetDriverNotice": "해당 기기는 Phidget22 시스템 드라이버가 별도로 필요합니다.",
-    "phidgetDriverLink": "드라이버 설치 안내 보기"
-  }
+    "sidebar": {
+        "roasteryDashboard": "로스터리 대시보드",
+        "expand": "사이드바 열기",
+        "collapse": "사이드바 닫기",
+        "workspaceSelector": "워크스페이스 선택",
+        "workspace": "워크스페이스",
+        "settings": "설정",
+        "workspacePreferences": "워크스페이스 환경설정",
+        "nav": {
+            "dashboard": "대시보드",
+            "roast": "진행 중인 로스팅",
+            "history": "로스팅 기록",
+            "beans": "생두 재고",
+            "profiles": "프로파일",
+            "machines": "머신",
+            "schedule": "로스팅 일정"
+        }
+    },
+    "settings": {
+        "title": "워크스페이스 설정",
+        "close": "설정 닫기",
+        "whyTitle": "설정에 있는 이유",
+        "whyDescription": "이 항목들은 앱 전체 경험에 영향을 줍니다. 운영 데이터는 설정 화면을 가볍게 유지하기 위해 사이드바의 주요 화면에 둡니다.",
+        "tabs": {
+            "general": {
+                "label": "일반",
+                "title": "워크스페이스 환경설정",
+                "description": "로스터리 워크스페이스 전반에 적용되는 기본값을 관리합니다.",
+                "interfaceTitle": "인터페이스",
+                "interfaceDescription": "앱 전체에 적용되는 가벼운 환경설정입니다.",
+                "theme": "화면 모드",
+                "themeDescription": "앱 화면 스타일을 선택합니다. 시스템은 OS 설정을 따릅니다.",
+                "themeLight": "라이트",
+                "themeLightDescription": "밝고 깔끔한 화면",
+                "themeDark": "다크",
+                "themeDarkDescription": "눈이 편한 어두운 화면",
+                "themeSystem": "시스템",
+                "themeSystemDescription": "OS 설정 따르기",
+                "language": "언어",
+                "languageDescription": "앱 표시 언어를 선택합니다.",
+                "defaultLandingView": "기본 시작 화면",
+                "temperatureUnit": "온도 단위",
+                "weightUnit": "무게 단위",
+                "displayTitle": "표시 기본값",
+                "displayDescription": "대시보드와 내비게이션 동작을 세션 간 일관되게 유지합니다.",
+                "expandedSidebar": "기본으로 사이드바 열린 상태 유지",
+                "liveMetricsPanel": "실시간 지표 패널 표시",
+                "compactDataCards": "촘촘한 데이터 카드 사용"
+            },
+            "notifications": {
+                "label": "알림",
+                "title": "알림과 리마인더",
+                "description": "작업 화면을 방해하지 않으면서 필요한 메시지를 받습니다.",
+                "operationalTitle": "운영 알림",
+                "operationalDescription": "로스팅과 장비 모니터링 중 유용한 알림입니다.",
+                "milestoneAlerts": "로스팅 마일스톤 알림",
+                "disconnectWarning": "머신 연결 해제 경고",
+                "maintenanceReminder": "정비 리마인더",
+                "deliveryTitle": "알림 방식",
+                "deliveryDescription": "작업 중 알림을 표시하는 방식입니다.",
+                "bannerNotifications": "배너 알림",
+                "soundAlerts": "사운드 알림",
+                "highPriorityOnly": "높은 우선순위 알림만"
+            },
+            "session": {
+                "label": "세션",
+                "title": "로스팅 세션 동작",
+                "description": "각 로스팅 세션의 시작부터 종료까지 적용되는 작업 기본값입니다.",
+                "startTitle": "세션 시작",
+                "startDescription": "오퍼레이터가 빠르게 시작하도록 돕는 자동화입니다.",
+                "autoStartTimer": "로스팅 타이머 자동 시작",
+                "openActiveRoast": "진행 중 로스팅 화면 즉시 열기",
+                "confirmBeforeStart": "세션 시작 전 확인",
+                "endTitle": "세션 종료",
+                "endDescription": "요약과 최종 검토를 일관되게 유지합니다.",
+                "showSummary": "종료 후 로스팅 요약 표시",
+                "confirmDiscard": "세션 폐기 전 확인",
+                "keepNotesVisible": "로스팅 노트 계속 표시"
+            },
+            "system": {
+                "label": "시스템",
+                "title": "시스템과 데이터",
+                "description": "전역 앱 작업, 로컬 데이터 상태, 내보내기 관련 제어를 모읍니다.",
+                "dataTitle": "데이터 제어",
+                "dataDescription": "원두, 머신, 프로파일 화면에 직접 속하지 않는 워크스페이스 작업입니다.",
+                "exportWorkspace": "현재 워크스페이스 데이터 내보내기",
+                "backupSnapshot": "로컬 백업 스냅샷 생성",
+                "preserveLogs": "활동 로그 보존",
+                "environmentTitle": "환경",
+                "environmentDescription": "앱 자체의 상태와 안전 관련 환경설정입니다.",
+                "healthBadge": "연결 상태 배지 표시",
+                "checkServices": "로컬 장치 서비스 확인",
+                "confirmResets": "초기화 전 확인 요구"
+            }
+        }
+    },
+    "language": {
+        "ko": "한국어",
+        "en": "English",
+        "ja": "日本語",
+        "zh-CN": "简体中文"
+    },
+    "machines": {
+        "title": "머신 목록",
+        "registered": "{{count}}대 등록됨",
+        "connectedSuffix": "{{name}} 연결됨",
+        "noActiveConnection": "활성 연결 없음",
+        "addMachine": "머신 추가",
+        "empty": "아직 등록된 머신이 없습니다",
+        "addFirst": "첫 머신 추가",
+        "searchPlaceholder": "머신 검색...",
+        "removeMachine": "머신 제거",
+        "temperature": {
+            "bean": "원두 온도",
+            "environment": "환경 온도",
+            "ror": "RoR",
+            "rateOfRise": "상승률"
+        },
+        "notConnectedHint": "연결되어 있지 않습니다. 연결 버튼을 눌러 시작하세요.",
+        "connection": "연결",
+        "disconnect": "연결 해제",
+        "connect": "연결",
+        "startRoasting": "로스팅 시작",
+        "selectMachine": "머신을 선택하세요"
+    },
+    "addMachine": {
+        "onboarding": "머신 온보딩",
+        "title": "새 머신 추가",
+        "roasterModel": "로스터 모델",
+        "loadingRoasters": "로스터 불러오는 중...",
+        "selectPort": "포트 선택...",
+        "defaultPort": "기본값",
+        "selectRoaster": "로스터 선택...",
+        "connectionSettings": "연결 설정",
+        "fieldRequired": "{{field}}은(는) 필수입니다",
+        "failedToAdd": "머신 추가에 실패했습니다",
+        "connectionFailed": "연결에 실패했습니다",
+        "testConnection": "연결 테스트",
+        "testingConnection": "연결 테스트 중...",
+        "connectedWithBt": "연결됨 - BT {{bt}}°C",
+        "addOnly": "추가만 하기",
+        "addAndConnect": "추가 후 연결",
+        "adding": "추가 중...",
+        "phidgetDriverNotice": "해당 기기는 Phidget22 시스템 드라이버가 별도로 필요합니다.",
+        "phidgetDriverLink": "드라이버 설치 안내 보기"
+    },
+    "dashboard": {
+        "greeting": {
+            "morning": "Good morning",
+            "afternoon": "Good afternoon",
+            "evening": "Good evening"
+        },
+        "viewActiveRoast": "진행 중 로스팅 보기",
+        "kpi": {
+            "batchesThisMonth": "이번 달 배치",
+            "beansRoasted": "로스팅된 생두량",
+            "avgRoastTime": "평균 로스팅 시간",
+            "successRate": "성공률"
+        },
+        "recentSessions": "최근 세션",
+        "viewAll": "전체 보기",
+        "table": {
+            "date": "날짜",
+            "bean": "원두",
+            "profile": "프로파일",
+            "weight": "중량",
+            "dropTemp": "투하 온도",
+            "duration": "시간",
+            "level": "로스팅도"
+        },
+        "loading": "로딩 중...",
+        "noSessions": "아직 세션이 없습니다",
+        "monthlyBatches": "월별 배치",
+        "thisMonth": "이번 달",
+        "batches": "회",
+        "kgRoasted": "kg 로스팅",
+        "beanOrigins": "산지 수",
+        "upcomingBatches": "예정된 배치",
+        "noUpcoming": "예정된 배치가 없습니다",
+        "inventoryAlerts": "재고 알림",
+        "allStockOk": "모든 재고가 정상입니다",
+        "outOfStock": "품절",
+        "lowStock": "재고 부족",
+        "kgRemaining": "{{kg}}kg 남음",
+        "today": "오늘",
+        "batchCount": "{{count}}회"
+    },
+    "schedule": {
+        "dateFormat": "yyyy년 M월 d일 (eee)",
+        "monthFormat": "yyyy년 M월",
+        "viewToggle": {
+            "day": "일",
+            "week": "주",
+            "month": "월"
+        },
+        "today": "오늘",
+        "addBatch": "새 배치 추가",
+        "loading": "불러오는 중...",
+        "emptyState": {
+            "title": "오늘의 배치가 없습니다.\n새 배치를 추가하여 일정을 시작하세요.",
+            "action": "새 배치 추가"
+        },
+        "weekDay": {
+            "batchCount": "{{count}}개 배치"
+        },
+        "monthDay": {
+            "headers": ["월", "화", "수", "목", "금", "토", "일"]
+        },
+        "overflowMore": "+{{count}}개 더",
+        "status": {
+            "pending": "대기",
+            "inProgress": "진행중",
+            "inProgressWith": "진행중 {{progress}}",
+            "done": "완료",
+            "skipped": "건너뜀"
+        },
+        "start": "시작",
+        "detail": {
+            "target": "목표 {{kg}} kg",
+            "batch": "Batch {{kg}} kg",
+            "count": "{{count}}회"
+        },
+        "recurrence": {
+            "daily": "매일",
+            "weekly": "매주",
+            "biweekly": "격주",
+            "monthly": "매월",
+            "repeat": "반복",
+            "none": "없음"
+        },
+        "deleteConfirm": {
+            "single": "이 배치만 삭제하시겠습니까?",
+            "fromThis": "{{date}} 이후 모든 반복 배치를 삭제하시겠습니까?",
+            "all": "전체 반복 일정을 삭제하시겠습니까? 과거 기록은 유지됩니다.",
+            "batch": "\"{{name}}\" 배치를 삭제하시겠습니까?"
+        },
+        "error": {
+            "createRecurring": "반복 배치 추가 실패:",
+            "createBatch": "배치 추가 실패:"
+        }
+    },
+    "addBatchModal": {
+        "batchType": {
+            "singleOrigin": "Single Origin",
+            "preRoastBlend": "Pre-roast Blend",
+            "postRoastBlend": "Post-roast Blend"
+        },
+        "type": "배치 타입",
+        "date": "날짜",
+        "machine": "머신",
+        "roastProfile": "로스트 프로파일",
+        "profilePlaceholder": "프로파일 선택...",
+        "greenCoffeeLot": "Green Coffee Lot",
+        "lotPlaceholder": "Lot 선택...",
+        "stock": "재고 {{kg}} kg",
+        "shortage": "재고 부족 — 가용 {{effective}}g / 필요 {{needed}}g",
+        "blend": "블렌드",
+        "blendPlaceholder": "블렌드 선택...",
+        "blendComposition": "{{count}}개 생두 구성",
+        "blendShortage": "{{name}}: 가용 {{effective}}g / 필요 {{needed}}g",
+        "targetRoasted": "목표 Roasted (kg)",
+        "batchSize": "Batch Size (kg)",
+        "yield": "Yield (%)",
+        "batches": "배치",
+        "greenNeeded": "Green 필요 (kg)",
+        "currentStock": "현재 재고:",
+        "needed": "/ 필요:",
+        "insufficientStock": "재고 부족",
+        "recurrence": "반복",
+        "none": "없음",
+        "notes": "메모 (Notes)",
+        "notesPlaceholder": "특이사항, 고객사용 등...",
+        "dateChanged": "{{date}}로 이동됩니다",
+        "cancel": "취소",
+        "saving": "저장 중...",
+        "save": "저장",
+        "addBatch": "배치 추가",
+        "editBatch": "배치 편집",
+        "saveFailed": "저장 실패:",
+        "unknown": "알 수 없음"
+    },
+    "months": ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
+    "history": {
+        "title": "Roast History",
+        "subtitle": "{{count}}회 기록됨",
+        "subtitleLoading": "불러오는 중...",
+        "loading": "불러오는 중...",
+        "error": "세션을 불러오지 못했습니다. 다시 시도해주세요.",
+        "noSessionsFound": "검색 결과가 없습니다",
+        "filteredFrom": " (전체 {{count}}개에서 필터링)",
+        "pagination": "{{start}}–{{end}} / 총 {{total}}",
+        "noNotes": "기록된 노트가 없습니다.",
+        "searchPlaceholder": "원두, 프로파일 또는 산지 검색...",
+        "allLevels": "전체 로스팅도",
+        "allOrigins": "전체 산지",
+        "datePresets": {
+            "all": "전체",
+            "this-month": "이번 달",
+            "last-month": "지난 달",
+            "3-months": "최근 3개월",
+            "6-months": "최근 6개월",
+            "this-year": "올해",
+            "custom": "직접 설정",
+            "period": "기간"
+        },
+        "customRange": {
+            "start": "시작",
+            "end": "종료",
+            "year": "년도",
+            "month": "월",
+            "apply": "적용"
+        },
+        "expanded": {
+            "origin": "산지",
+            "dropTemp": "투하 온도",
+            "duration": "시간",
+            "notes": "노트"
+        },
+        "monthlyReport": "월간 보고서",
+        "exportCsv": "Export CSV",
+        "exportConfirm": "저장 위치: {{path}}\n{{count}}개 세션을 CSV로 내보내시겠습니까?",
+        "exportNoSessions": "내보낼 세션이 없습니다.",
+        "exportTitle": "First Crack",
+        "exportOkLabel": "내보내기",
+        "exportCancelLabel": "취소"
+    }
 }

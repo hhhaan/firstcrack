@@ -1,20 +1,21 @@
-import { type FC, useState } from 'react';
-import { cn } from '@shared/lib/cn';
 import {
-    LayoutDashboard,
-    Flame,
-    ClipboardList,
-    Coffee,
-    BookOpen,
-    Settings,
+    Book,
+    Calendar,
     ChevronDown,
-    PanelLeft,
-    Cpu,
-    CalendarDays,
-} from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { type View } from '@shared/types/view';
+    Chip,
+    CropGrowth,
+    Dashboard,
+    Fire,
+    RecentlyViewed,
+    Settings,
+    SidePanelClose,
+} from '@carbon/icons-react';
+import { cn } from '@shared/lib/cn';
 import { useAuthStore } from '@shared/store/auth';
+import { useThemeStore } from '@shared/store/theme';
+import type { View } from '@shared/types/view';
+import { type ComponentType, type CSSProperties, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../entities/profile';
 
 interface SidebarProps {
@@ -25,33 +26,37 @@ interface SidebarProps {
     onOpenSettings: (tab?: string) => void;
 }
 
-const navItems: { id: View; labelKey: string; icon: FC<{ size?: number; strokeWidth?: number; color?: string }> }[] = [
-    { id: 'dashboard', labelKey: 'sidebar.nav.dashboard', icon: LayoutDashboard },
-    { id: 'schedule', labelKey: 'sidebar.nav.schedule', icon: CalendarDays },
-    { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Flame },
-    { id: 'history', labelKey: 'sidebar.nav.history', icon: ClipboardList },
-    { id: 'beans', labelKey: 'sidebar.nav.beans', icon: Coffee },
-    { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: BookOpen },
-    { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Cpu },
+type SidebarIcon = ComponentType<{ size?: number; className?: string; style?: CSSProperties }>;
+
+const navItems: { id: View; labelKey: string; icon: SidebarIcon }[] = [
+    { id: 'dashboard', labelKey: 'sidebar.nav.dashboard', icon: Dashboard },
+    { id: 'schedule', labelKey: 'sidebar.nav.schedule', icon: Calendar },
+    { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Fire },
+    { id: 'history', labelKey: 'sidebar.nav.history', icon: RecentlyViewed },
+    { id: 'beans', labelKey: 'sidebar.nav.beans', icon: CropGrowth },
+    { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: Book },
+    { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Chip },
 ];
 
 export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, onOpenSettings }: SidebarProps) => {
     const { t } = useTranslation();
     const [isHeaderHovered, setIsHeaderHovered] = useState(false);
     const user = useAuthStore((s) => s.user);
+    const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+    const logoSrc = resolvedTheme === 'dark' ? '/logo_dark.png' : '/logo.png';
     const { data: profile } = useProfile(user?.id ?? '');
     const workspaceName = profile?.business_name || 'My Roastery';
     const workspaceInitial = workspaceName.charAt(0).toUpperCase();
 
     return (
         <aside
-            className="shrink-0 h-screen bg-main-bg border-r border-border flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out"
+            className="shrink-0 h-screen bg-main-bg border-r border-border dark:border-[#585d61] flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out"
             style={{ width: collapsed ? 68 : 240 }}
         >
             {/* Header */}
             <div
                 className={cn(
-                    'border-b border-border-subtle transition-all duration-200',
+                    'border-b border-border-subtle dark:border-[#585d61] transition-all duration-200',
                     collapsed ? 'px-4 pt-4 pb-3.5' : 'px-5 pt-5 pb-4',
                 )}
                 onMouseEnter={() => setIsHeaderHovered(true)}
@@ -66,7 +71,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                     isHeaderHovered ? 'opacity-0 scale-90 invisible' : 'opacity-100 scale-100 visible',
                                 )}
                             >
-                                <img src="/logo.png" alt="First Crack" className="w-8 h-8 shrink-0" />
+                                <img src={logoSrc} alt="First Crack" className="w-8 h-8 shrink-0" />
                             </div>
                             <button
                                 onClick={onToggleCollapse}
@@ -77,7 +82,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                     isHeaderHovered ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-90 invisible',
                                 )}
                             >
-                                <PanelLeft size={18} strokeWidth={1.9} />
+                                <SidePanelClose size={18} />
                             </button>
                         </div>
                     ) : (
@@ -93,7 +98,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                     }
                                 }}
                             >
-                                <img src="/logo.png" alt="First Crack" className="w-8 h-8 shrink-0" />
+                                <img src={logoSrc} alt="First Crack" className="w-8 h-8 shrink-0" />
                             </div>
                             <button
                                 onClick={onToggleCollapse}
@@ -101,7 +106,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 title={t('sidebar.collapse')}
                                 className="w-9 h-9 rounded-lg border-none bg-transparent text-muted flex items-center justify-center cursor-pointer shrink-0 transition-all duration-200 hover:bg-surface hover:shadow-(--shadow-inset) hover:text-primary"
                             >
-                                <PanelLeft size={18} strokeWidth={1.9} />
+                                <SidePanelClose size={18} />
                             </button>
                         </>
                     )}
@@ -130,7 +135,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                         <span className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
                             {workspaceName}
                         </span>
-                        <ChevronDown size={14} strokeWidth={1.9} color="var(--color-muted)" className="shrink-0 ml-1" />
+                        <ChevronDown size={14} className="shrink-0 ml-1 text-muted" />
                     </div>
                 </button>
             </div>
@@ -158,11 +163,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-surface/50 h-9 overflow-hidden"
                             >
                                 <div className="w-9 h-9 shrink-0 flex items-center justify-center">
-                                    <Icon
-                                        size={18}
-                                        strokeWidth={isActive ? 1.9 : 1.5}
-                                        color={isActive ? 'var(--color-primary)' : 'var(--color-muted)'}
-                                    />
+                                    <Icon size={18} className={isActive ? 'text-primary' : 'text-muted'} />
                                 </div>
                                 <div
                                     className={cn(
@@ -186,15 +187,23 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             </nav>
 
             {/* Footer */}
-            <div className="p-4 border-t border-border-subtle">
+            <div className="p-4 border-t border-border-subtle dark:border-[#585d61]">
                 <button
                     onClick={() => onOpenSettings()}
                     aria-label={t('sidebar.settings')}
                     title={collapsed ? t('sidebar.settings') : undefined}
-                    className="w-full flex items-center rounded-lg border-none cursor-pointer shadow-(--shadow-inset) bg-transparent hover:bg-surface/50 transition-colors h-11 overflow-hidden"
+                    className={cn(
+                        'w-full flex items-center rounded-lg border-none cursor-pointer',
+                        'bg-transparent transition-colors h-11 overflow-hidden',
+                        'hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-primary',
+                    )}
+                    style={{
+                        transitionProperty: 'background',
+                        transitionDuration: '140ms',
+                    }}
                 >
                     <div className="w-9 h-11 shrink-0 flex items-center justify-center">
-                        <div className="w-7 h-7 rounded-full bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary shrink-0 shadow-(--shadow-inset)">
+                        <div className="w-7 h-7 rounded-full bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary shrink-0">
                             H
                         </div>
                     </div>
@@ -204,7 +213,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                             collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[160px]',
                         )}
                     >
-                        <div className="text-left min-w-0 flex-1">
+                        <div className="text-left min-w-0 flex-1 ">
                             <div className="text-[13px] font-medium text-primary tracking-[0.14px]">
                                 {t('sidebar.settings')}
                             </div>
@@ -212,7 +221,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 {t('sidebar.workspacePreferences')}
                             </div>
                         </div>
-                        <Settings size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 ml-1" />
+                        <Settings size={14} className={cn('shrink-0 ml-1 text-muted', 'dark:text-white')} />
                     </div>
                 </button>
             </div>

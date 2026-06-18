@@ -1,3 +1,4 @@
+import { useThemeStore } from '@shared/store/theme';
 import type { LogEntry } from '@shared/types/roast';
 
 export type EventButtonDef = {
@@ -20,6 +21,7 @@ export const EventButtons = ({
     variant: 'sidebar' | 'main';
 }) => {
     const isSidebar = variant === 'sidebar';
+    const isDark = useThemeStore((s) => s.resolvedTheme) === 'dark';
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isSidebar ? 8 : 10 }}>
@@ -40,14 +42,19 @@ export const EventButtons = ({
                             padding: isSidebar ? '8px 4px' : '9px 12px',
                             borderRadius: 6,
                             border: 'none',
-                            background: registered || pressed ? 'var(--color-primary)' : 'var(--color-surface)',
+                            background:
+                                registered || pressed
+                                    ? 'var(--color-primary)'
+                                    : isDark
+                                      ? 'var(--color-surface-elevated)'
+                                      : '#F2F2F2',
                             color: registered || pressed ? 'white' : 'var(--color-secondary)',
                             fontSize: isSidebar ? 11 : 13,
                             fontWeight: registered || pressed ? 600 : 500,
                             cursor: 'pointer',
                             letterSpacing: isSidebar ? 'normal' : '0.14px',
                             // boxShadow: pressed || registered ? 'none' : 'var(--shadow-inset)',
-                            transition: 'background 0s, color 0s',
+                            transition: 'background 0.1s ease, color 0.1s ease',
                         }}
                     >
                         <span>{label}</span>

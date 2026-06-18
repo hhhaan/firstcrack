@@ -1,14 +1,11 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { CHART_GRID_LEFT, CHART_GRID_RIGHT } from '@features/active-roast/lib/chart-config';
 import type { RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 /** 줌 시 보장하는 최소 표시 구간 (초) */
 export const MIN_VISIBLE_SECS = 60;
 
-/** uPlot 레이아웃과 맞춘 Y축 여백·오른쪽 패딩 */
-const Y_AXIS_WIDTH = 36;
-const RIGHT_PAD = 12;
-
-const getChartDataWidth = (rect: DOMRect) => Math.max(1, rect.width - Y_AXIS_WIDTH - RIGHT_PAD);
+const getChartDataWidth = (rect: DOMRect, rightPad: number) => Math.max(1, rect.width - CHART_GRID_LEFT - rightPad);
 
 export interface ChartZoom {
     zoomRange: { start: number; end: number } | null;
@@ -38,8 +35,13 @@ export interface ChartZoom {
  *
  * @param MAX_TIME 현재 chartData의 마지막 시간(초). 줌 범위 클램핑에 사용.
  * @param minTime x축 최솟값(초). pre-charge 구간이 있을 때 음수. 기본값 0.
+ * @param rightGridPad ECharts grid.right(px). 오른쪽 보조 Y축 있을 때 CHART_GRID_RIGHT_WITH_ROR.
  */
-export const useChartZoom = (MAX_TIME: number, minTime: number = 0): ChartZoom => {
+export const useChartZoom = (
+    MAX_TIME: number,
+    minTime: number = 0,
+    rightGridPad: number = CHART_GRID_RIGHT,
+): ChartZoom => {
     const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);
     const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
     const [isChartDragging, setIsChartDragging] = useState(false);
@@ -54,20 +56,20 @@ export const useChartZoom = (MAX_TIME: number, minTime: number = 0): ChartZoom =
 
     const effectiveZoomRange = useMemo(
         () =>
-            zoomRange
-                ? { start: Math.max(minTime, zoomRange.start), end: Math.min(MAX_TIME, zoomRange.end) }
-                : null,
+            zoomRange ? { start: Math.max(minTime, zoomRange.start), end: Math.min(MAX_TIME, zoomRange.end) } : null,
         [zoomRange, minTime, MAX_TIME],
     );
 
-    // uPlot이 height를 JS로 강제 설정하므로 flex-1 방식 대신 ResizeObserver로 높이를 계산한다.
-    // ChartLegend는 absolute(0px 플로우), phase pill(~22px) + mb-3(12px) ≈ 36px를 뺀다.
+    // ECharts는 명시적 height(px)가 필요하므로 ResizeObserver로 chartAreaRef 높이를 그대로 반영한다.
+    // ChartLegend는 absolute라 플로우 높이에 포함되지 않는다.
     useEffect(() => {
         const el = chartAreaRef.current;
         if (!el) return;
-        const obs = new ResizeObserver(() => {
-            setMainChartHeight(Math.max(180, el.offsetHeight - 36));
-        });
+        const updateHeight = () => {
+            setMainChartHeight(Math.max(180, el.offsetHeight));
+        };
+        updateHeight();
+        const obs = new ResizeObserver(updateHeight);
         obs.observe(el);
         return () => obs.disconnect();
     }, []);
@@ -81,8 +83,8 @@ export const useChartZoom = (MAX_TIME: number, minTime: number = 0): ChartZoom =
         if (event.deltaY < 0 && currentDuration <= MIN_VISIBLE_SECS) return;
         if (event.deltaY > 0 && currentStart === minTime && currentEnd === MAX_TIME) return;
         const rect = event.currentTarget.getBoundingClientRect();
-        const dataWidth = getChartDataWidth(rect);
-        const mouseX = event.clientX - rect.left - Y_AXIS_WIDTH;
+        const dataWidth = getChartDataWidth(rect, rightGridPad);
+        const mouseX = event.clientX - rect.left - CHART_GRID_LEFT;
         const pointerRatio = dataWidth > 0 ? Math.max(0, Math.min(1, mouseX / dataWidth)) : 0.5;
         const focusTime = currentStart + pointerRatio * currentDuration;
         const zoomFactor = event.deltaY < 0 ? 0.8 : 1.25;
@@ -123,7 +125,7 @@ export const useChartZoom = (MAX_TIME: number, minTime: number = 0): ChartZoom =
         const duration = drag.startRange.end - drag.startRange.start;
         if (duration <= 0) return;
         const rect = event.currentTarget.getBoundingClientRect();
-        const dataWidth = getChartDataWidth(rect);
+        const dataWidth = getChartDataWidth(rect, rightGridPad);
         const deltaPx = event.clientX - drag.startX;
         const deltaTime = -(deltaPx / dataWidth) * duration;
         const nextStart = Math.max(minTime, Math.min(MAX_TIME - duration, drag.startRange.start + deltaTime));

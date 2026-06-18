@@ -1,2 +1,8 @@
 allowBuilds:
+  '@carbon/icon-helpers': false
+  '@carbon/icons-react': false
   esbuild: true
+  gifsicle: true
+  jpegtran-bin: true
+  msgpackr-extract: false
+  optipng-bin: true

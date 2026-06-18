@@ -1,14 +1,24 @@
-export { dayPlanApi, dayPlanRangeApi, planBatchApi } from './api';
-export type { DayPlanSummary, DayPlanBatchItem } from './api';
+export type { DayPlanBatchItem, DayPlanSummary, RecurrenceRuleMasterPatch } from './api';
+export { dayPlanApi, dayPlanRangeApi, planBatchApi, recurrenceRuleApi } from './api';
 export {
     planKeys,
-    useDayPlan,
-    useUpdateDayPlanNotes,
-    usePlanBatches,
     useCreatePlanBatch,
-    useUpdatePlanBatch,
+    useCreateRecurringBatches,
+    useDayBatches,
+    useDayPlan,
+    useDeleteAllBatches,
+    useDeleteFromThis,
     useDeletePlanBatch,
-    useReorderPlanBatches,
+    useDeleteSingleBatch,
     useMonthSummary,
+    usePlanBatches,
+    useRangeBatches,
+    useRecurrenceRules,
+    useReorderPlanBatches,
+    useUpdateAllBatches,
+    useUpdateDayPlanNotes,
+    useUpdateFromThis,
+    useUpdatePlanBatch,
+    useUpdateSingleBatch,
     useWeekSummary,
 } from './queries';

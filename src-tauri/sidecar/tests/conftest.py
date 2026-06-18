@@ -54,6 +54,17 @@ class FakeAdapter:
         self.control_calls.append({"heater": heater, "fan": fan, "drum": drum})
 
 
+@pytest.fixture(autouse=True)
+def reset_trace():
+    """Reset global TRACE singleton before/after each test to prevent state leakage."""
+    from protocol_trace import TRACE
+    TRACE.enabled = False
+    TRACE.clear()
+    yield
+    TRACE.enabled = False
+    TRACE.clear()
+
+
 @pytest.fixture
 async def manager():
     m = RoasterManager()

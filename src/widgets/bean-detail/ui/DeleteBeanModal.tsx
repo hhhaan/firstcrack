@@ -1,5 +1,5 @@
-import { Trash2 } from 'lucide-react';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { Trash2 } from 'lucide-react';
 
 interface DeleteBeanModalProps {
     open: boolean;

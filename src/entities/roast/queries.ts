@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { roastSessionApi } from './api';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { roastSessionApi } from './api';
 
 export const roastSessionKeys = {
     all: (userId: string) => ['roast_sessions', userId] as const,
@@ -59,7 +59,17 @@ export const useRoastSessionsPaginated = (params: {
     toYM?: string | null;
 }) =>
     useQuery({
-        queryKey: ['roast_sessions', 'paginated', params.userId, params.page, params.sortKey, params.sortAsc, params.level, params.fromYM, params.toYM],
+        queryKey: [
+            'roast_sessions',
+            'paginated',
+            params.userId,
+            params.page,
+            params.sortKey,
+            params.sortAsc,
+            params.level,
+            params.fromYM,
+            params.toYM,
+        ],
         queryFn: () => roastSessionApi.listPaginated(params),
         staleTime: Infinity,
         enabled: !!params.userId,

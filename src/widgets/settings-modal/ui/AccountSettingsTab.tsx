@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
-import { LogOut } from 'lucide-react';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
-import { useProfile, useUpdateProfile } from '../../../entities/profile';
-import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { useQueryClient } from '@tanstack/react-query';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import { LogOut } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useProfile, useUpdateProfile } from '../../../entities/profile';
 
 const SectionCard = ({ children }: { children: React.ReactNode }) => (
-    <section className="bg-white border border-[#E5E7EB] rounded-xl p-5">{children}</section>
+    <section className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
+        {children}
+    </section>
 );
 
 export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
@@ -87,7 +89,7 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                     <div>
                         <div className="text-[15px] font-semibold text-[#111827]">{displayName || '—'}</div>
                         <div className="text-[13px] text-[#6B7280] mt-1">{user?.email || '—'}</div>
-                        <span className="inline-block mt-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#F3F4F6] text-[#6B7280] capitalize">
+                        <span className="inline-block mt-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-palette-lavender/12 text-palette-lavender capitalize">
                             {profile?.plan ?? 'free'}
                         </span>
                     </div>

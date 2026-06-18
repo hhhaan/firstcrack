@@ -10,9 +10,11 @@ const TP_LOOKBACK_SEC = 30;
 const movingAvg = (data: number[], w: number): number[] => {
     const half = Math.floor(w / 2);
     return data.map((_, i) => {
-        let sum = 0, count = 0;
+        let sum = 0,
+            count = 0;
         for (let j = Math.max(0, i - half); j <= Math.min(data.length - 1, i + half); j++) {
-            sum += data[j]; count++;
+            sum += data[j];
+            count++;
         }
         return count > 0 ? sum / count : 0;
     });

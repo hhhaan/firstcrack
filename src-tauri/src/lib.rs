@@ -144,6 +144,8 @@ pub fn run() {
         "https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944",
         sentry::ClientOptions {
             release: sentry::release_name!(),
+            environment: Some(std::borrow::Cow::Borrowed("production")),
+            traces_sample_rate: 0.1,
             ..Default::default()
         },
     ));
@@ -165,6 +167,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::default().build())
         // CommandChild has no Drop impl — storing via manage() keeps it alive for the app lifetime.
         .manage(SidecarChild(Mutex::new(None)))

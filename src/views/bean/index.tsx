@@ -1,21 +1,25 @@
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { useAuthStore } from '@shared/store/auth';
 import { useBeans, useDeleteBean } from '@entities/bean/queries';
-import { getStatus } from '@entities/bean/lib';
-import { BeanList } from '@widgets/bean-list/ui/BeanList';
-import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
-import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
-import { PageLayout } from '@shared/ui/PageLayout';
+import { useRoastingStore } from '@features/active-roast/model/status';
+import { useAuthStore } from '@shared/store/auth';
 import type { Bean } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
-import { useRoastingStore } from '@features/active-roast/model/status';
+import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
+import { PageHeader } from '@shared/ui/PageHeader';
+import { PageLayout } from '@shared/ui/PageLayout';
+import { PillButton } from '@shared/ui/PillButton';
+import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
+import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
+import { BeanList } from '@widgets/bean-list/ui/BeanList';
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
+import { BlendList } from './BlendList';
 
 export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
     const userId = useAuthStore((s) => s.user?.id ?? '');
     const { data: beans = [], isLoading } = useBeans(userId);
     const { mutate: deleteBean } = useDeleteBean(userId);
 
+    const [tab, setTab] = useState<'single' | 'blend'>('single');
     const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -36,22 +40,6 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
 
     const selected = beans.find((b) => b.id === selectedId) ?? beans[0] ?? null;
 
-    const stats = beans.reduce(
-        (acc, b) => {
-            const s = getStatus(b);
-            if (s === 'Low') {
-                acc.active++;
-                acc.low++;
-            } else if (s === 'Out') {
-                acc.out++;
-            } else {
-                acc.active++;
-            }
-            return acc;
-        },
-        { active: 0, low: 0, out: 0 },
-    );
-
     return (
         <PageLayout>
             <AddBeanModal
@@ -67,64 +55,90 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 }}
             />
 
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28 }}>
-                <div>
-                    <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
-                        Bean Inventory
-                    </h1>
-                    <p style={{ fontSize: 14, color: 'var(--color-muted)', letterSpacing: '0.14px' }}>
-                        {isLoading ? (
-                            <span
-                                style={{
-                                    display: 'inline-block',
-                                    width: 180,
-                                    height: 14,
-                                    borderRadius: 6,
-                                    background: 'var(--color-surface)',
-                                    verticalAlign: 'middle',
-                                }}
-                                className="animate-pulse"
-                            />
-                        ) : (
-                            <>
-                                {stats.active} active lots · {stats.low} low stock · {stats.out} out of stock
-                            </>
-                        )}
-                    </p>
-                </div>
+            <PageHeader
+                title="Bean Inventory"
+                actions={
+                    <PillButton onClick={() => setIsAddModalOpen(true)}>
+                        <Plus size={15} strokeWidth={2.5} />
+                        Add Bean Lot
+                    </PillButton>
+                }
+            />
+
+            <div className="flex border-b border-(--color-border) dark:border-[#585d61] mb-4">
                 <button
-                    type="button"
-                    onClick={() => openModal('new')}
-                    className="flex items-center gap-2 px-[18px] py-[10px] rounded-full border-none bg-(--color-primary) text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
+                    className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'single' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
+                    onClick={() => setTab('single')}
                 >
-                    <Plus size={15} strokeWidth={2.5} />
-                    Add Bean Lot
+                    싱글
+                </button>
+                <button
+                    className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'blend' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
+                    onClick={() => setTab('blend')}
+                >
+                    블렌드
                 </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: 20 }}>
-                <BeanList
-                    beans={beans}
-                    isLoading={isLoading}
-                    selectedId={selected?.id ?? null}
-                    onSelect={setSelectedId}
-                    search={search}
-                    onSearchChange={setSearch}
-                />
-                <BeanDetail
-                    bean={selected}
-                    isLoading={isLoading}
-                    onEdit={(bean) => openModal('edit', bean.id, bean)}
-                    onRestock={(id) => openModal('restock', id)}
-                    onStartRoast={() => {
-                        if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
-                        onNavigate?.('roast');
-                    }}
-                    onDelete={(id) => {
-                        deleteBean(id, { onSuccess: () => setSelectedId(null) });
-                    }}
-                />
-            </div>
+            {tab === 'single' && (
+                <>
+                    {!isLoading && beans.length === 0 ? (
+                        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
+                            {/* <Coffee size={40} strokeWidth={1.5} className="text-muted" /> */}
+                            <div className="text-[13px] text-muted text-center leading-relaxed">
+                                등록된 원두가 없습니다.
+                                <br />첫 번째 원두를 추가해 보세요.
+                            </div>
+                            <button
+                                onClick={() => setIsAddModalOpen(true)}
+                                className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
+                            >
+                                <Plus size={14} strokeWidth={2} />
+                                생두 추가
+                            </button>
+                        </div>
+                    ) : (
+                        <MasterDetailLayout
+                            left={
+                                <div className="flex flex-col gap-2">
+                                    <button
+                                        onClick={() => setIsAddModalOpen(true)}
+                                        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] dark:border-[#585d61] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 transition-colors tracking-[0.14px]"
+                                    >
+                                        <Plus size={14} strokeWidth={2} />
+                                        Add Bean
+                                    </button>
+                                    <BeanList
+                                        beans={beans}
+                                        isLoading={isLoading}
+                                        selectedId={selected?.id ?? null}
+                                        onSelect={setSelectedId}
+                                        search={search}
+                                        onSearchChange={setSearch}
+                                    />
+                                </div>
+                            }
+                            detail={
+                                <BeanDetail
+                                    bean={selected}
+                                    isLoading={isLoading}
+                                    onEdit={(bean) => openModal('edit', bean.id, bean)}
+                                    onRestock={(id) => openModal('restock', id)}
+                                    onStartRoast={() => {
+                                        if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
+                                        onNavigate?.('roast');
+                                    }}
+                                    onDelete={(id) => {
+                                        deleteBean(id, { onSuccess: () => setSelectedId(null) });
+                                    }}
+                                />
+                            }
+                        />
+                    )}
+                </>
+            )}
+
+            {tab === 'blend' && <BlendList />}
         </PageLayout>
     );
 };

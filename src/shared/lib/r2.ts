@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 // TODO: VITE_R2_* 자격증명이 client 번들에 노출됨.
 // 후속 PR에서 Cloudflare Worker + Supabase JWT 검증 + presigned URL로 이전 예정.

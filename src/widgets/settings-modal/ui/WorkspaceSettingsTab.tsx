@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Building2, Link, Check, User } from 'lucide-react';
-import { useWorkspaceStore } from '@shared/store/workspace';
 import { useAuthStore } from '@shared/store/auth';
+import { useWorkspaceStore } from '@shared/store/workspace';
+import { Building2, Check, Link, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useProfile } from '../../../entities/profile';
 
 const SectionCard = ({ children }: { children: React.ReactNode }) => (
-    <section className="bg-white border border-[#E5E7EB] rounded-xl p-5">{children}</section>
+    <section className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
+        {children}
+    </section>
 );
 
 const inputCls =
@@ -105,7 +107,7 @@ export const WorkspaceSettingsTab = () => {
                 >
                     <User size={14} strokeWidth={2} />
                     Invite members
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#F3F4F6] text-[#6B7280] ml-auto">
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-palette-lavender/12 text-palette-lavender ml-auto">
                         Coming soon
                     </span>
                 </button>

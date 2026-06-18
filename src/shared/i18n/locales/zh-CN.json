@@ -1,147 +1,335 @@
 {
-  "common": {
-    "cancel": "取消",
-    "close": "关闭",
-    "connected": "已连接",
-    "connecting": "连接中...",
-    "disconnected": "未连接",
-    "live": "实时",
-    "offline": "离线"
-  },
-  "sidebar": {
-    "roasteryDashboard": "烘焙工作台",
-    "expand": "展开侧边栏",
-    "collapse": "收起侧边栏",
-    "workspaceSelector": "工作区选择",
-    "workspace": "工作区",
-    "settings": "设置",
-    "workspacePreferences": "工作区偏好",
-    "nav": {
-      "dashboard": "仪表盘",
-      "roast": "正在烘焙",
-      "history": "烘焙记录",
-      "beans": "生豆库存",
-      "profiles": "曲线",
-      "machines": "设备",
-      "schedule": "烘焙计划"
-    }
-  },
-  "settings": {
-    "title": "工作区设置",
-    "close": "关闭设置",
-    "whyTitle": "为什么放在设置中",
-    "whyDescription": "这些选项会影响整个应用体验。专用的运营数据应保留在侧边栏主视图中，让设置区域保持轻量。",
-    "tabs": {
-      "general": {
-        "label": "通用",
-        "title": "工作区偏好",
-        "description": "管理影响日常烘焙工作区体验的全局默认值。",
-        "interfaceTitle": "界面",
-        "interfaceDescription": "应用全局生效的轻量偏好设置。",
-        "language": "语言",
-        "languageDescription": "选择应用显示语言。",
-        "defaultLandingView": "默认起始视图",
-        "temperatureUnit": "温度单位",
-        "weightUnit": "重量单位",
-        "displayTitle": "显示默认值",
-        "displayDescription": "在不同会话之间保持仪表盘和导航行为一致。",
-        "expandedSidebar": "默认展开侧边栏",
-        "liveMetricsPanel": "显示实时指标面板",
-        "compactDataCards": "使用紧凑数据卡片"
-      },
-      "notifications": {
-        "label": "通知",
-        "title": "提醒与通知",
-        "description": "选择需要关注的消息，同时避免与侧边栏工作流页面重复。",
-        "operationalTitle": "运营提醒",
-        "operationalDescription": "烘焙和设备监控时有用的提示。",
-        "milestoneAlerts": "烘焙节点提醒",
-        "disconnectWarning": "设备断开警告",
-        "maintenanceReminder": "维护提醒",
-        "deliveryTitle": "通知方式",
-        "deliveryDescription": "工作时应用显示通知的方式。",
-        "bannerNotifications": "横幅通知",
-        "soundAlerts": "声音提醒",
-        "highPriorityOnly": "仅高优先级提醒"
-      },
-      "session": {
-        "label": "会话",
-        "title": "烘焙会话行为",
-        "description": "设置每次烘焙从开始到结束会影响流程的小型默认值。",
-        "startTitle": "会话开始",
-        "startDescription": "帮助操作者快速开始的自动化选项。",
-        "autoStartTimer": "自动开始烘焙计时",
-        "openActiveRoast": "立即打开正在烘焙视图",
-        "confirmBeforeStart": "开始会话前确认",
-        "endTitle": "会话结束",
-        "endDescription": "保持总结和最终复盘的一致性。",
-        "showSummary": "结束后显示烘焙总结",
-        "confirmDiscard": "丢弃会话前确认",
-        "keepNotesVisible": "保持烘焙备注可见"
-      },
-      "system": {
-        "label": "系统",
-        "title": "系统与数据",
-        "description": "用于全局应用操作、本地数据健康状态和导出相关控制。",
-        "dataTitle": "数据控制",
-        "dataDescription": "不直接属于生豆、设备或曲线页面的工作区级操作。",
-        "exportWorkspace": "导出当前工作区数据",
-        "backupSnapshot": "创建本地备份快照",
-        "preserveLogs": "保留活动日志",
-        "environmentTitle": "环境",
-        "environmentDescription": "应用自身状态与安全相关的偏好设置。",
-        "healthBadge": "显示连接健康徽章",
-        "checkServices": "检查本地设备服务",
-        "confirmResets": "重置前要求确认"
-      }
-    }
-  },
-  "language": {
-    "ko": "한국어",
-    "en": "English",
-    "ja": "日本語",
-    "zh-CN": "简体中文"
-  },
-  "machines": {
-    "title": "设备列表",
-    "registered": "已注册 {{count}} 台",
-    "connectedSuffix": "{{name}} 已连接",
-    "noActiveConnection": "无活动连接",
-    "addMachine": "添加设备",
-    "empty": "尚未注册设备",
-    "addFirst": "添加第一台设备",
-    "searchPlaceholder": "搜索设备...",
-    "removeMachine": "移除设备",
-    "temperature": {
-      "bean": "豆温",
-      "environment": "环境温度",
-      "ror": "RoR",
-      "rateOfRise": "升温率"
+    "common": {
+        "cancel": "取消",
+        "close": "关闭",
+        "connected": "已连接",
+        "connecting": "连接中...",
+        "disconnected": "未连接",
+        "live": "实时",
+        "offline": "离线"
     },
-    "notConnectedHint": "尚未连接。点击连接开始。",
-    "connection": "连接",
-    "disconnect": "断开连接",
-    "connect": "连接",
-    "startRoasting": "开始烘焙",
-    "selectMachine": "请选择设备"
-  },
-  "addMachine": {
-    "onboarding": "设备引导",
-    "title": "添加新设备",
-    "roasterModel": "烘焙机型号",
-    "loadingRoasters": "正在加载烘焙机...",
-    "selectPort": "选择端口...",
-    "defaultPort": "默认",
-    "selectRoaster": "选择烘焙机...",
-    "connectionSettings": "连接设置",
-    "fieldRequired": "{{field}} 为必填项",
-    "failedToAdd": "添加设备失败",
-    "connectionFailed": "连接失败",
-    "testConnection": "测试连接",
-    "testingConnection": "正在测试连接...",
-    "connectedWithBt": "已连接 - BT {{bt}}°C",
-    "addOnly": "仅添加",
-    "addAndConnect": "添加并连接",
-    "adding": "正在添加..."
-  }
+    "sidebar": {
+        "roasteryDashboard": "烘焙工作台",
+        "expand": "展开侧边栏",
+        "collapse": "收起侧边栏",
+        "workspaceSelector": "工作区选择",
+        "workspace": "工作区",
+        "settings": "设置",
+        "workspacePreferences": "工作区偏好",
+        "nav": {
+            "dashboard": "仪表盘",
+            "roast": "正在烘焙",
+            "history": "烘焙记录",
+            "beans": "生豆库存",
+            "profiles": "曲线",
+            "machines": "设备",
+            "schedule": "烘焙计划"
+        }
+    },
+    "settings": {
+        "title": "工作区设置",
+        "close": "关闭设置",
+        "whyTitle": "为什么放在设置中",
+        "whyDescription": "这些选项会影响整个应用体验。专用的运营数据应保留在侧边栏主视图中，让设置区域保持轻量。",
+        "tabs": {
+            "general": {
+                "label": "通用",
+                "title": "工作区偏好",
+                "description": "管理影响日常烘焙工作区体验的全局默认值。",
+                "interfaceTitle": "界面",
+                "interfaceDescription": "应用全局生效的轻量偏好设置。",
+                "theme": "外观",
+                "themeDescription": "选择应用显示样式。系统会跟随操作系统设置。",
+                "themeLight": "浅色",
+                "themeLightDescription": "明亮清爽",
+                "themeDark": "深色",
+                "themeDarkDescription": "护眼暗色",
+                "themeSystem": "系统",
+                "themeSystemDescription": "跟随系统设置",
+                "language": "语言",
+                "languageDescription": "选择应用显示语言。",
+                "defaultLandingView": "默认起始视图",
+                "temperatureUnit": "温度单位",
+                "weightUnit": "重量单位",
+                "displayTitle": "显示默认值",
+                "displayDescription": "在不同会话之间保持仪表盘和导航行为一致。",
+                "expandedSidebar": "默认展开侧边栏",
+                "liveMetricsPanel": "显示实时指标面板",
+                "compactDataCards": "使用紧凑数据卡片"
+            },
+            "notifications": {
+                "label": "通知",
+                "title": "提醒与通知",
+                "description": "选择需要关注的消息，同时避免与侧边栏工作流页面重复。",
+                "operationalTitle": "运营提醒",
+                "operationalDescription": "烘焙和设备监控时有用的提示。",
+                "milestoneAlerts": "烘焙节点提醒",
+                "disconnectWarning": "设备断开警告",
+                "maintenanceReminder": "维护提醒",
+                "deliveryTitle": "通知方式",
+                "deliveryDescription": "工作时应用显示通知的方式。",
+                "bannerNotifications": "横幅通知",
+                "soundAlerts": "声音提醒",
+                "highPriorityOnly": "仅高优先级提醒"
+            },
+            "session": {
+                "label": "会话",
+                "title": "烘焙会话行为",
+                "description": "设置每次烘焙从开始到结束会影响流程的小型默认值。",
+                "startTitle": "会话开始",
+                "startDescription": "帮助操作者快速开始的自动化选项。",
+                "autoStartTimer": "自动开始烘焙计时",
+                "openActiveRoast": "立即打开正在烘焙视图",
+                "confirmBeforeStart": "开始会话前确认",
+                "endTitle": "会话结束",
+                "endDescription": "保持总结和最终复盘的一致性。",
+                "showSummary": "结束后显示烘焙总结",
+                "confirmDiscard": "丢弃会话前确认",
+                "keepNotesVisible": "保持烘焙备注可见"
+            },
+            "system": {
+                "label": "系统",
+                "title": "系统与数据",
+                "description": "用于全局应用操作、本地数据健康状态和导出相关控制。",
+                "dataTitle": "数据控制",
+                "dataDescription": "不直接属于生豆、设备或曲线页面的工作区级操作。",
+                "exportWorkspace": "导出当前工作区数据",
+                "backupSnapshot": "创建本地备份快照",
+                "preserveLogs": "保留活动日志",
+                "environmentTitle": "环境",
+                "environmentDescription": "应用自身状态与安全相关的偏好设置。",
+                "healthBadge": "显示连接健康徽章",
+                "checkServices": "检查本地设备服务",
+                "confirmResets": "重置前要求确认"
+            }
+        }
+    },
+    "language": {
+        "ko": "한국어",
+        "en": "English",
+        "ja": "日本語",
+        "zh-CN": "简体中文"
+    },
+    "machines": {
+        "title": "设备列表",
+        "registered": "已注册 {{count}} 台",
+        "connectedSuffix": "{{name}} 已连接",
+        "noActiveConnection": "无活动连接",
+        "addMachine": "添加设备",
+        "empty": "尚未注册设备",
+        "addFirst": "添加第一台设备",
+        "searchPlaceholder": "搜索设备...",
+        "removeMachine": "移除设备",
+        "temperature": {
+            "bean": "豆温",
+            "environment": "环境温度",
+            "ror": "RoR",
+            "rateOfRise": "升温率"
+        },
+        "notConnectedHint": "尚未连接。点击连接开始。",
+        "connection": "连接",
+        "disconnect": "断开连接",
+        "connect": "连接",
+        "startRoasting": "开始烘焙",
+        "selectMachine": "请选择设备"
+    },
+    "addMachine": {
+        "onboarding": "设备引导",
+        "title": "添加新设备",
+        "roasterModel": "烘焙机型号",
+        "loadingRoasters": "正在加载烘焙机...",
+        "selectPort": "选择端口...",
+        "defaultPort": "默认",
+        "selectRoaster": "选择烘焙机...",
+        "connectionSettings": "连接设置",
+        "fieldRequired": "{{field}} 为必填项",
+        "failedToAdd": "添加设备失败",
+        "connectionFailed": "连接失败",
+        "testConnection": "测试连接",
+        "testingConnection": "正在测试连接...",
+        "connectedWithBt": "已连接 - BT {{bt}}°C",
+        "addOnly": "仅添加",
+        "addAndConnect": "添加并连接",
+        "adding": "正在添加..."
+    },
+    "dashboard": {
+        "greeting": {
+            "morning": "早上好",
+            "afternoon": "下午好",
+            "evening": "晚上好"
+        },
+        "viewActiveRoast": "查看正在烘焙",
+        "kpi": {
+            "batchesThisMonth": "本月批次数",
+            "beansRoasted": "烘焙豆量",
+            "avgRoastTime": "平均烘焙时间",
+            "successRate": "成功率"
+        },
+        "recentSessions": "最近记录",
+        "viewAll": "查看全部",
+        "table": {
+            "date": "日期",
+            "bean": "生豆",
+            "profile": "曲线",
+            "weight": "重量",
+            "dropTemp": "下豆温度",
+            "duration": "时长",
+            "level": "烘焙度"
+        },
+        "loading": "加载中...",
+        "noSessions": "暂无记录",
+        "monthlyBatches": "月度批次",
+        "thisMonth": "本月",
+        "batches": "次",
+        "kgRoasted": "kg 烘焙量",
+        "beanOrigins": "产地数",
+        "upcomingBatches": "计划批次",
+        "noUpcoming": "暂无计划批次",
+        "inventoryAlerts": "库存提醒",
+        "allStockOk": "所有库存正常",
+        "outOfStock": "缺货",
+        "lowStock": "库存不足",
+        "kgRemaining": "剩余{{kg}}kg",
+        "today": "今天",
+        "batchCount": "{{count}}次"
+    },
+    "schedule": {
+        "dateFormat": "yyyy年M月d日 (eee)",
+        "monthFormat": "yyyy年 M月",
+        "viewToggle": {
+            "day": "日",
+            "week": "周",
+            "month": "月"
+        },
+        "today": "今天",
+        "addBatch": "新建批次",
+        "loading": "加载中...",
+        "emptyState": {
+            "title": "今天暂无批次。\n添加新批次开始计划。",
+            "action": "新建批次"
+        },
+        "weekDay": {
+            "batchCount": "{{count}}个批次"
+        },
+        "monthDay": {
+            "headers": ["一", "二", "三", "四", "五", "六", "日"]
+        },
+        "overflowMore": "+{{count}}个",
+        "status": {
+            "pending": "待处理",
+            "inProgress": "进行中",
+            "inProgressWith": "进行中 {{progress}}",
+            "done": "已完成",
+            "skipped": "已跳过"
+        },
+        "start": "开始",
+        "detail": {
+            "target": "目标 {{kg}} kg",
+            "batch": "Batch {{kg}} kg",
+            "count": "{{count}}次"
+        },
+        "recurrence": {
+            "daily": "每天",
+            "weekly": "每周",
+            "biweekly": "隔周",
+            "monthly": "每月",
+            "repeat": "重复",
+            "none": "无"
+        },
+        "deleteConfirm": {
+            "single": "删除此批次？",
+            "fromThis": "删除{{date}}之后的所有重复批次？",
+            "all": "删除所有重复计划？历史记录将保留。",
+            "batch": "删除\"{{name}}\"？"
+        },
+        "error": {
+            "createRecurring": "添加重复批次失败：",
+            "createBatch": "添加批次失败："
+        }
+    },
+    "addBatchModal": {
+        "batchType": {
+            "singleOrigin": "Single Origin",
+            "preRoastBlend": "Pre-roast Blend",
+            "postRoastBlend": "Post-roast Blend"
+        },
+        "type": "批次类型",
+        "date": "日期",
+        "machine": "设备",
+        "roastProfile": "烘焙曲线",
+        "profilePlaceholder": "选择曲线...",
+        "greenCoffeeLot": "Green Coffee Lot",
+        "lotPlaceholder": "选择批次...",
+        "stock": "库存 {{kg}} kg",
+        "shortage": "库存不足 — 可用 {{effective}}g / 需要 {{needed}}g",
+        "blend": "拼配",
+        "blendPlaceholder": "选择拼配...",
+        "blendComposition": "{{count}}种生豆组成",
+        "blendShortage": "{{name}}: 可用 {{effective}}g / 需要 {{needed}}g",
+        "targetRoasted": "目标烘焙量 (kg)",
+        "batchSize": "Batch Size (kg)",
+        "yield": "Yield (%)",
+        "batches": "批次",
+        "greenNeeded": "生豆需要 (kg)",
+        "currentStock": "当前库存:",
+        "needed": "/ 需要:",
+        "insufficientStock": "库存不足",
+        "recurrence": "重复",
+        "none": "无",
+        "notes": "备注",
+        "notesPlaceholder": "特殊说明、客户信息等...",
+        "dateChanged": "将移动到 {{date}}",
+        "cancel": "取消",
+        "saving": "保存中...",
+        "save": "保存",
+        "addBatch": "添加批次",
+        "editBatch": "编辑批次",
+        "saveFailed": "保存失败:",
+        "unknown": "未知"
+    },
+    "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+    "history": {
+        "title": "烘焙记录",
+        "subtitle": "{{count}}条记录",
+        "subtitleLoading": "加载中...",
+        "loading": "加载中...",
+        "error": "加载会话失败，请重试。",
+        "noSessionsFound": "未找到会话",
+        "filteredFrom": "（从{{count}}条中筛选）",
+        "pagination": "第{{start}}–{{end}}条，共{{total}}条",
+        "noNotes": "无备注记录。",
+        "searchPlaceholder": "搜索生豆、曲线或产地...",
+        "allLevels": "全部烘焙度",
+        "allOrigins": "全部产地",
+        "datePresets": {
+            "all": "全部",
+            "this-month": "本月",
+            "last-month": "上月",
+            "3-months": "最近3个月",
+            "6-months": "最近6个月",
+            "this-year": "今年",
+            "custom": "自定义",
+            "period": "时间"
+        },
+        "customRange": {
+            "start": "开始",
+            "end": "结束",
+            "year": "年",
+            "month": "月",
+            "apply": "应用"
+        },
+        "expanded": {
+            "origin": "产地",
+            "dropTemp": "下豆温度",
+            "duration": "时长",
+            "notes": "备注"
+        },
+        "monthlyReport": "月度报告",
+        "exportCsv": "Export CSV",
+        "exportConfirm": "保存到：{{path}}\n导出{{count}}条会话为CSV？",
+        "exportNoSessions": "没有可导出的会话。",
+        "exportTitle": "First Crack",
+        "exportOkLabel": "导出",
+        "exportCancelLabel": "取消"
+    }
 }
