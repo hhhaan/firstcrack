@@ -2,9 +2,9 @@ import type { Bean } from '../../shared/types/database.types';
 
 export type BeanStatus = 'Good' | 'Low' | 'Out';
 
-export const getStatus = (bean: Bean): BeanStatus => {
-    if (bean.stock_grams === 0) return 'Out';
-    if (bean.stock_grams <= bean.low_stock_threshold_grams) return 'Low';
+export const getStatus = (effectiveGrams: number, lowStockThresholdGrams: number): BeanStatus => {
+    if (effectiveGrams <= 0) return 'Out';
+    if (effectiveGrams <= lowStockThresholdGrams) return 'Low';
     return 'Good';
 };
 
