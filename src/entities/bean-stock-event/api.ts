@@ -118,7 +118,12 @@ export const beanStockEventApi = {
 
         let virtualReserved = 0;
         for (const rule of rules) {
-            const dates = expandRRuleInRange(rule.rrule, new Date(rule.dtstart), today, horizon);
+            let dates: Date[];
+            try {
+                dates = expandRRuleInRange(rule.rrule, new Date(rule.dtstart), today, horizon);
+            } catch {
+                continue; // skip corrupt rrule; don't crash the whole summary
+            }
             const excluded = excludedByRule.get(rule.id) ?? new Set<string>();
             // C-1: use formatDateLocal (local tz) not toISOString (UTC) to match DB original_date strings
             const virtualDates = dates.filter((d) => !excluded.has(formatDateLocal(d)));
@@ -236,7 +241,12 @@ export const beanStockEventApi = {
 
             for (const rule of rulesRes.data) {
                 if (!rule.bean_id) continue;
-                const dates = expandRRuleInRange(rule.rrule, new Date(rule.dtstart), today, horizon);
+                let dates: Date[];
+                try {
+                    dates = expandRRuleInRange(rule.rrule, new Date(rule.dtstart), today, horizon);
+                } catch {
+                    continue; // skip corrupt rrule; don't crash the whole summary
+                }
                 const excluded = excludedByRule.get(rule.id) ?? new Set<string>();
                 // C-1: formatDateLocal (local tz) to match DB original_date strings
                 const virtualDates = dates.filter((d) => !excluded.has(formatDateLocal(d)));

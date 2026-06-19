@@ -96,6 +96,7 @@ export const useAddBeanSubmit = ({
                 onSuccess?.(updated);
             } else if (tab === 'restock' && selectedBeanId && restockAmount) {
                 const amount = Math.round(parseFloat(restockAmount) * 1000);
+                if (!Number.isFinite(amount) || amount <= 0) return;
                 const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
                 await insertStockEvent.mutateAsync({
                     user_id: userId,

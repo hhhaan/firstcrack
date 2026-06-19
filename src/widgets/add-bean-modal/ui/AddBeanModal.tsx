@@ -170,7 +170,7 @@ export const AddBeanModal = ({
         } else {
             reset(EMPTY_BEAN_FORM);
         }
-    }, [open, initialTab, initialBeanId, initialData, reset]);
+    }, [open, initialTab, initialBeanId, initialData, reset, stockSummaries]);
 
     const handleNumericBeforeInput = (e: React.FormEvent<HTMLInputElement>) => {
         const ev = e.nativeEvent as InputEvent;
