@@ -102,6 +102,7 @@ export const ActiveRoast = ({
     const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
     const userSelectedTargetRef = useRef(false);
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(null);
+    const [handoffBeanName, setHandoffBeanName] = useState<string | null>(null);
     const [isRunning, setIsRunning] = useState(false);
     const isRunningRef = useRef(isRunning);
     useEffect(() => {
@@ -147,6 +148,9 @@ export const ActiveRoast = ({
         if (!planBatchHandoff) return;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         if (planBatchHandoff.beanId) setSelectedBeanId(planBatchHandoff.beanId);
+        // beanId가 없어도 beanName은 폴백으로 저장 (미등록 원두 대응)
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setHandoffBeanName(planBatchHandoff.beanName || null);
         if (planBatchHandoff.profileId) {
             userSelectedTargetRef.current = true;
             setTargetProfileId(planBatchHandoff.profileId);
@@ -660,6 +664,7 @@ export const ActiveRoast = ({
                 phase={roastPhaseName}
                 targetProfileId={targetProfileId}
                 selectedBeanId={selectedBeanId}
+                fallbackBeanName={handoffBeanName}
                 onTargetProfileChange={handleTargetProfileChange}
                 onBeanChange={setSelectedBeanId}
                 onOpenRoastSettings={onOpenRoastSettings}

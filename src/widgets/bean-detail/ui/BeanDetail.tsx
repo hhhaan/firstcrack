@@ -183,20 +183,20 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
 
                 <div className="mt-6 space-y-3">
                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                        <div className="bg-gray-50 dark:bg-surface-elevated rounded-lg p-2">
-                            <p className="text-gray-400 dark:text-white">현재 재고</p>
-                            <p className="font-semibold">{summary?.currentGrams ?? 0}g</p>
-                        </div>
-                        <div className="bg-yellow-50 dark:bg-[#1a1e23] rounded-lg p-2">
-                            <p className="text-gray-400 dark:text-white">예약됨</p>
-                            <p className="font-semibold text-yellow-700 dark:text-yellow-300">
-                                {summary?.reservedGrams ?? 0}g
+                        <div className="bg-gray-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
+                            <p className="text-muted dark:text-muted">현재 재고</p>
+                            <p className="font-semibold text-primary dark:text-primary">
+                                {summary?.currentGrams ?? 0}g
                             </p>
                         </div>
-                        <div className="bg-green-50 dark:bg-[#1a1e23] rounded-lg p-2">
-                            <p className="text-gray-400 dark:text-white">가용</p>
+                        <div className="bg-yellow-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
+                            <p className="text-muted dark:text-muted">예약됨</p>
+                            <p className="font-semibold text-palette-yellow">{summary?.reservedGrams ?? 0}g</p>
+                        </div>
+                        <div className="bg-green-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
+                            <p className="text-muted dark:text-muted">가용</p>
                             <p
-                                className={`font-semibold ${(summary?.effectiveGrams ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-300'}`}
+                                className={`font-semibold ${(summary?.effectiveGrams ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-palette-green'}`}
                             >
                                 {summary?.effectiveGrams ?? 0}g
                             </p>
