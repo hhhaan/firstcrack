@@ -1,6 +1,6 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
-import { AlertCircle, GitCompare, MoreHorizontal, Pencil } from 'lucide-react';
+import { AlertCircle, GitCompare, Pencil } from 'lucide-react';
 import { useRoastProfileCurves } from '@entities/roast-profile';
 import { ProfileCurveChart, COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import type { SeriesData } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';

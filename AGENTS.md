@@ -2,7 +2,7 @@
 
 # AGENT RULES
 - NO chat/greetings/summaries. Output ONLY precise code diffs (modified lines only).
-- Keep `repomix-output.txt` updated via `rtk repomix --silent` before/after code changes.
+- Keep `repomix-output.xml` updated via `rtk repomix --silent` before/after code changes.
 - ALWAYS prefix all bash/shell commands with `rtk ` (e.g., `rtk ls`, `rtk git`, `rtk npm`).
 - [Exception] Omit `rtk ` prefix ONLY if output compression breaks error debugging.
 

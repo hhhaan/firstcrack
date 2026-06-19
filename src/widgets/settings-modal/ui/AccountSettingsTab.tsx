@@ -2,7 +2,6 @@ import { useProfile, useUpdateProfile } from '@entities/profile';
 import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
-import { useWorkspaceStore } from '@shared/store/workspace';
 import { useQueryClient } from '@tanstack/react-query';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Link, LogOut, User } from 'lucide-react';
@@ -28,21 +27,12 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
     const user = useAuthStore((s) => s.user);
     const { data: profile } = useProfile(user?.id ?? '');
     const updateProfile = useUpdateProfile(user?.id ?? '');
-    const workspaceName = useWorkspaceStore((s) => s.workspaceName);
-    const setWorkspaceName = useWorkspaceStore((s) => s.setWorkspaceName);
-
-    const [localWorkspaceName, setLocalWorkspaceName] = useState(workspaceName);
-    const [workspaceSaveStatus, setWorkspaceSaveStatus] = useState<'idle' | 'saved'>('idle');
     const [displayName, setDisplayName] = useState('');
     const [businessName, setBusinessName] = useState('');
     const [businessRegNumber, setBusinessRegNumber] = useState('');
     const [location, setLocation] = useState('');
     const [profileSaveStatus, setProfileSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    useEffect(() => {
-        setLocalWorkspaceName(workspaceName);
-    }, [workspaceName]);
 
     useEffect(() => {
         if (profile?.display_name) setDisplayName(profile.display_name);
@@ -71,14 +61,6 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
         },
         [],
     );
-
-    const handleSaveWorkspace = () => {
-        const trimmed = localWorkspaceName.trim();
-        if (!trimmed) return;
-        setWorkspaceName(trimmed);
-        setWorkspaceSaveStatus('saved');
-        setTimeout(() => setWorkspaceSaveStatus('idle'), 2000);
-    };
 
     const handleSaveProfile = async () => {
         if (!user) return;
