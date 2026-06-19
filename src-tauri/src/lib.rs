@@ -174,11 +174,9 @@ pub fn run() {
         .setup(|app| {
             // Single-instance 플러그인이 twin 없음을 보장한 이후이므로,
             // 포트를 점유한 프로세스는 이전 크래시의 좀비다.
-            if sidecar_healthy() {
-                eprintln!("[sidecar-guard] 포트 9999 응답 감지 → 좀비 정리");
-                kill_zombie_sidecar();
-                std::thread::sleep(std::time::Duration::from_millis(200));
-            }
+            // healthy 여부와 무관하게 항상 정리 (비응답 좀비도 포트를 점유할 수 있음).
+            kill_zombie_sidecar();
+            std::thread::sleep(std::time::Duration::from_millis(200));
 
             let sidecar_command = app.shell().sidecar("sidecar")?;
             let (rx, child) = sidecar_command.spawn()?;
@@ -227,12 +225,9 @@ pub fn run() {
                     );
                     tokio::time::sleep(std::time::Duration::from_secs(delay)).await;
 
-                    // 재시작 직전에도 좀비 가드 — 죽은 프로세스가 포트를 잡고 있는 케이스
-                    if sidecar_healthy() {
-                        eprintln!("[sidecar-restart] 포트 9999 응답 감지 → 좀비 정리");
-                        kill_zombie_sidecar();
-                        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-                    }
+                    // 재시작 직전 좀비 가드 — 비응답 좀비도 무조건 정리
+                    kill_zombie_sidecar();
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
                     let respawn = app_handle
                         .shell()
