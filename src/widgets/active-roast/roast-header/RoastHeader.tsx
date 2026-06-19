@@ -66,6 +66,7 @@ export const RoastHeader = ({
     phase: _phase,
     targetProfileId,
     selectedBeanId,
+    fallbackBeanName,
     onTargetProfileChange,
     onBeanChange,
     onOpenRoastSettings,
@@ -73,6 +74,7 @@ export const RoastHeader = ({
     phase: string;
     targetProfileId: string | null;
     selectedBeanId: string | null;
+    fallbackBeanName?: string | null;
     onTargetProfileChange: (id: string | null) => void;
     onBeanChange: (id: string | null) => void;
     onOpenRoastSettings?: () => void;
@@ -148,9 +150,7 @@ export const RoastHeader = ({
 
                 <div className="relative inline-flex items-center mb-1 min-w-0">
                     <span className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
-                        {selectedBean
-                            ? joinDisplay([selectedBean.origin, selectedBean.region], ' ')
-                            : 'No Bean Selected'}
+                        {selectedBean ? selectedBean.name : (fallbackBeanName ?? 'No Bean Selected')}
                     </span>
 
                     <select

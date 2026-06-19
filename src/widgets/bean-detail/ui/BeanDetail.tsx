@@ -53,7 +53,8 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
     if (isLoading) return <Skeleton />;
     if (!bean) return <Empty hasAny={false} />;
 
-    const status = getStatus(bean);
+    const effectiveGrams = summary?.effectiveGrams ?? 0;
+    const status = getStatus(effectiveGrams, bean.low_stock_threshold_grams);
     const cfg = statusConfig[status];
 
     return (
@@ -118,7 +119,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                             value: bean.altitude_masl ? `${bean.altitude_masl.toLocaleString()} masl` : '—',
                         },
                         { label: 'Received', value: bean.purchase_date ?? '—' },
-                        { label: 'Current Stock', value: `${(bean.stock_grams / 1000).toFixed(2)}kg` },
+                        { label: 'Current Stock', value: `${(effectiveGrams / 1000).toFixed(2)}kg` },
                     ].map(({ label, value }) => (
                         <div key={label}>
                             <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-0.75">
@@ -151,14 +152,14 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                     <div className="flex justify-between mb-1.5">
                         <span className="text-xs font-medium text-secondary tracking-[0.14px]">Stock Level</span>
                         <span className="text-xs text-muted font-mono">
-                            {(bean.stock_grams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
+                            {(effectiveGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
                         </span>
                     </div>
                     <div className="h-1.5 bg-surface rounded-full overflow-hidden">
                         <div
                             className="h-full rounded-full transition-all duration-500"
                             style={{
-                                width: `${Math.min(100, (bean.stock_grams / bean.capacity_grams) * 100)}%`,
+                                width: `${Math.min(100, (effectiveGrams / bean.capacity_grams) * 100)}%`,
                                 background: cfg.color,
                             }}
                         />
@@ -182,20 +183,20 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
 
                 <div className="mt-6 space-y-3">
                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                        <div className="bg-gray-50 dark:bg-surface-elevated rounded-lg p-2">
-                            <p className="text-gray-400 dark:text-white">현재 재고</p>
-                            <p className="font-semibold">{summary?.currentGrams ?? 0}g</p>
-                        </div>
-                        <div className="bg-yellow-50 dark:bg-[#1a1e23] rounded-lg p-2">
-                            <p className="text-gray-400 dark:text-white">예약됨</p>
-                            <p className="font-semibold text-yellow-700 dark:text-yellow-300">
-                                {summary?.reservedGrams ?? 0}g
+                        <div className="bg-gray-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
+                            <p className="text-muted dark:text-muted">현재 재고</p>
+                            <p className="font-semibold text-primary dark:text-primary">
+                                {summary?.currentGrams ?? 0}g
                             </p>
                         </div>
-                        <div className="bg-green-50 dark:bg-[#1a1e23] rounded-lg p-2">
-                            <p className="text-gray-400 dark:text-white">가용</p>
+                        <div className="bg-yellow-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
+                            <p className="text-muted dark:text-muted">예약됨</p>
+                            <p className="font-semibold text-palette-yellow">{summary?.reservedGrams ?? 0}g</p>
+                        </div>
+                        <div className="bg-green-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
+                            <p className="text-muted dark:text-muted">가용</p>
                             <p
-                                className={`font-semibold ${(summary?.effectiveGrams ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-300'}`}
+                                className={`font-semibold ${(summary?.effectiveGrams ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-palette-green'}`}
                             >
                                 {summary?.effectiveGrams ?? 0}g
                             </p>

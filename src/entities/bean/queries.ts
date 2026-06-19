@@ -25,8 +25,26 @@ export const useCreateBean = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: beanApi.create,
-        onSuccess: (newBean) => {
-            qc.setQueryData<Bean[]>(beanKeys.all(userId), (prev = []) => [newBean, ...prev]);
+        onMutate: async (newBean) => {
+            await qc.cancelQueries({ queryKey: beanKeys.all(userId) });
+            const prev = qc.getQueryData<Bean[]>(beanKeys.all(userId));
+            const tempId = `opt_${crypto.randomUUID()}`;
+            const optimistic = {
+                id: tempId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                ...newBean,
+            } as Bean;
+            qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) => [optimistic, ...old]);
+            return { prev, tempId };
+        },
+        onError: (_err, _vars, ctx) => {
+            if (ctx?.prev) qc.setQueryData(beanKeys.all(userId), ctx.prev);
+        },
+        onSuccess: (realBean, _vars, ctx) => {
+            qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) =>
+                old.map((b) => (b.id === ctx!.tempId ? realBean : b)),
+            );
         },
     });
 };
@@ -35,9 +53,24 @@ export const useUpdateBean = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: beanApi.update,
+        onMutate: async ({ id, ...patch }) => {
+            await qc.cancelQueries({ queryKey: beanKeys.all(userId) });
+            await qc.cancelQueries({ queryKey: beanKeys.detail(id) });
+            const prevList = qc.getQueryData<Bean[]>(beanKeys.all(userId));
+            const prevDetail = qc.getQueryData<Bean>(beanKeys.detail(id));
+            qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) =>
+                old.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+            );
+            if (prevDetail) qc.setQueryData<Bean>(beanKeys.detail(id), { ...prevDetail, ...patch });
+            return { prevList, prevDetail };
+        },
+        onError: (_err, { id }, ctx) => {
+            if (ctx?.prevList) qc.setQueryData(beanKeys.all(userId), ctx.prevList);
+            if (ctx?.prevDetail) qc.setQueryData(beanKeys.detail(id), ctx.prevDetail);
+        },
         onSuccess: (updated) => {
-            qc.setQueryData<Bean[]>(beanKeys.all(userId), (prev = []) =>
-                prev.map((b) => (b.id === updated.id ? updated : b)),
+            qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) =>
+                old.map((b) => (b.id === updated.id ? updated : b)),
             );
             qc.setQueryData(beanKeys.detail(updated.id), updated);
         },

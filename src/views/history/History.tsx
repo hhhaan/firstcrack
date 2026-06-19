@@ -7,12 +7,14 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
+import { RoastTempChart } from '@widgets/active-roast/ui/RoastTempChart';
 import { downloadDir } from '@tauri-apps/api/path';
 import { confirm, message } from '@tauri-apps/plugin-dialog';
 import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Download, FileText, Filter, Search, X } from 'lucide-react';
 import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useHistoryChart } from './hooks/useHistoryChart';
 
 const levelColor: Record<string, string> = {
     Light: 'var(--color-palette-yellow)',
@@ -125,6 +127,8 @@ type ExpandedRowProps = {
 
 function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
     const { t } = useTranslation();
+    const { xs, btActual, etActual, rorActual, isLoading, isError } = useHistoryChart(session.tsv_path ?? null);
+
     return (
         <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)]">
             <td colSpan={7} className="px-4 py-4 md:px-6">
@@ -155,6 +159,33 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                         </div>
                     </div>
                 </div>
+
+                {session.tsv_path && (
+                    <div className="mt-4">
+                        {isLoading ? (
+                            <div className="flex h-[220px] items-center justify-center text-xs text-muted">
+                                Loading chart…
+                            </div>
+                        ) : isError ? (
+                            <div className="flex h-[220px] items-center justify-center text-xs text-muted">
+                                Chart unavailable
+                            </div>
+                        ) : (
+                            <RoastTempChart
+                                xs={xs}
+                                btActual={btActual}
+                                etActual={etActual}
+                                rorActual={rorActual}
+                                btTarget={[]}
+                                currentTimeSec={0}
+                                eventMarkers={[]}
+                                showTargetCurve={false}
+                                showRoRET={false}
+                                height={220}
+                            />
+                        )}
+                    </div>
+                )}
             </td>
         </tr>
     );

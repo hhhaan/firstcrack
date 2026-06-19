@@ -6,6 +6,7 @@ import {
     REGIONS_BY_ORIGIN,
     VARIETIES_BY_ORIGIN,
 } from '@entities/bean/lib/coffee-origins';
+import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import type { Bean } from '@shared/types/database.types';
@@ -79,7 +80,7 @@ interface AddBeanModalProps {
     onClose: () => void;
     userId: string;
     existingBeans: Bean[];
-    initialTab?: 'new' | 'restock' | 'edit';
+    initialTab?: 'new' | 'restock' | 'edit' | 'adjust';
     initialBeanId?: string | null;
     initialData?: Bean | null;
     onSuccess?: (bean: Bean | null) => void;
@@ -95,11 +96,17 @@ export const AddBeanModal = ({
     initialData = null,
     onSuccess,
 }: AddBeanModalProps) => {
-    const [tab, setTab] = useState<'new' | 'restock' | 'edit'>(initialTab);
+    const [tab, setTab] = useState<'new' | 'restock' | 'edit' | 'adjust'>(initialTab);
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(initialBeanId);
     const [restockAmount, setRestockAmount] = useState('');
+    const [adjustType, setAdjustType] = useState<'adjustment' | 'write_off'>('adjustment');
+    const [adjustSign, setAdjustSign] = useState<'+' | '-'>('+');
+    const [adjustAmount, setAdjustAmount] = useState('');
+    const [adjustNote, setAdjustNote] = useState('');
     const [nameIsAuto, setNameIsAuto] = useState(true);
     const [showAllBeans, setShowAllBeans] = useState(false);
+
+    const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
 
     const {
         register,
@@ -121,6 +128,10 @@ export const AddBeanModal = ({
         tab,
         selectedBeanId,
         restockAmount,
+        adjustType,
+        adjustSign,
+        adjustAmount,
+        adjustNote,
         existingBeans,
         initialData: initialData ?? null,
         onSuccess,
@@ -135,6 +146,10 @@ export const AddBeanModal = ({
         setTab(initialTab);
         setSelectedBeanId(initialBeanId);
         setRestockAmount('');
+        setAdjustType('adjustment');
+        setAdjustSign('+');
+        setAdjustAmount('');
+        setAdjustNote('');
         setShowAllBeans(false);
         const hasData = initialData && (initialTab === 'edit' || initialTab === 'new');
         setNameIsAuto(!hasData);
@@ -147,7 +162,7 @@ export const AddBeanModal = ({
                 process: initialData.process ?? 'Washed',
                 variety: initialData.variety ?? '',
                 altitude: initialData.altitude_masl?.toString() ?? '',
-                stock: initialData.stock_grams ? (initialData.stock_grams / 1000).toString() : '',
+                stock: initialData?.id ? ((stockSummaries[initialData.id]?.effectiveGrams ?? 0) / 1000).toString() : '',
                 capacity: initialData.capacity_grams ? (initialData.capacity_grams / 1000).toString() : '5',
                 costPerKg: initialData.cost_per_kg?.toString() ?? '',
                 tastingNotes: initialData.tasting_notes ?? '',
@@ -155,7 +170,7 @@ export const AddBeanModal = ({
         } else {
             reset(EMPTY_BEAN_FORM);
         }
-    }, [open, initialTab, initialBeanId, initialData, reset]);
+    }, [open, initialTab, initialBeanId, initialData, reset, stockSummaries]);
 
     const handleNumericBeforeInput = (e: React.FormEvent<HTMLInputElement>) => {
         const ev = e.nativeEvent as InputEvent;
@@ -172,7 +187,12 @@ export const AddBeanModal = ({
         onPaste: handleNumericPaste,
     };
 
-    const isSubmitDisabled = isSubmitting || (tab === 'restock' && (!selectedBeanId || !restockAmount));
+    const restockGrams = Math.round((parseFloat(restockAmount) || 0) * 1000);
+    const adjustGrams = Math.round((parseFloat(adjustAmount) || 0) * 1000);
+    const isSubmitDisabled =
+        isSubmitting ||
+        (tab === 'restock' && (!selectedBeanId || restockGrams <= 0)) ||
+        (tab === 'adjust' && (!selectedBeanId || adjustGrams <= 0));
 
     const BEAN_LIMIT = 4;
     const visibleBeans = showAllBeans ? existingBeans : existingBeans.slice(0, BEAN_LIMIT);
@@ -234,7 +254,13 @@ export const AddBeanModal = ({
                             id="add-bean-modal-title"
                             className="font-(--font-display) text-2xl text-primary tracking-[-0.02em] m-0"
                         >
-                            {tab === 'new' ? 'New Bean Lot' : tab === 'edit' ? 'Edit Bean Details' : 'Restock Existing'}
+                            {tab === 'new'
+                                ? 'New Bean Lot'
+                                : tab === 'edit'
+                                  ? 'Edit Bean Details'
+                                  : tab === 'restock'
+                                    ? 'Restock Existing'
+                                    : 'Adjust Stock'}
                         </h2>
                     </div>
                     <button
@@ -249,10 +275,13 @@ export const AddBeanModal = ({
                     <div className="px-8 pb-5">
                         <div className="flex bg-surface p-1 rounded-2xl shadow-(--shadow-inset)">
                             <button onClick={() => setTab('new')} className={tabCls(tab === 'new')}>
-                                New Arrival
+                                New Lot
                             </button>
                             <button onClick={() => setTab('restock')} className={tabCls(tab === 'restock')}>
-                                Restock Existing
+                                Restock
+                            </button>
+                            <button onClick={() => setTab('adjust')} className={tabCls(tab === 'adjust')}>
+                                Adjust
                             </button>
                         </div>
                     </div>
@@ -261,7 +290,155 @@ export const AddBeanModal = ({
 
             {/* Scrollable Body */}
             <div className="p-8 overflow-y-auto flex-1">
-                {tab === 'new' || tab === 'edit' ? (
+                {tab === 'adjust' ? (
+                    <div className="flex flex-col gap-6">
+                        {/* Bean selector */}
+                        <div>
+                            <label className={labelCls}>
+                                <Search size={14} /> Select Bean
+                            </label>
+                            <div className="grid gap-2.5 p-1">
+                                {visibleBeans.map((bean) => {
+                                    const isSelected = selectedBeanId === bean.id;
+                                    return (
+                                        <div
+                                            key={bean.id}
+                                            onClick={() => setSelectedBeanId(bean.id)}
+                                            className={`px-4.5 py-3.5 rounded-2xl border border-black/6 dark:border-[#585d61] flex items-center justify-between cursor-pointer transition-all duration-200 ${
+                                                isSelected
+                                                    ? 'bg-primary dark:bg-black dark:border-white text-white shadow-[0_8px_20px_rgba(0,0,0,0.12)]'
+                                                    : 'bg-white/70 dark:bg-surface-elevated text-primary shadow-(--shadow-ring)'
+                                            }`}
+                                        >
+                                            <div>
+                                                <div className="text-sm font-semibold">{bean.name}</div>
+                                                <div className="text-xs opacity-70">
+                                                    {bean.origin ?? '—'} · {bean.process ?? '—'}
+                                                </div>
+                                            </div>
+                                            {isSelected ? (
+                                                <Check size={18} strokeWidth={2.5} />
+                                            ) : (
+                                                <div className="text-[13px] font-mono opacity-60">
+                                                    {((stockSummaries[bean.id]?.effectiveGrams ?? 0) / 1000).toFixed(2)}
+                                                    kg
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                                {!showAllBeans && hiddenBeanCount > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllBeans(true)}
+                                        className="py-2.5 rounded-2xl border border-black/6 dark:border-[#585d61] bg-white/50 dark:bg-surface-elevated text-sm font-medium text-muted cursor-pointer hover:bg-white/80 dark:hover:bg-[#262b31] transition-all duration-200"
+                                    >
+                                        +{hiddenBeanCount} more
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Operation type + amount */}
+                        <div
+                            className="p-6 rounded-[20px] flex flex-col gap-4 transition-opacity duration-200"
+                            style={{
+                                background: 'var(--color-surface-warm-solid)',
+                                boxShadow: 'var(--shadow-warm)',
+                                opacity: selectedBeanId ? 1 : 0.5,
+                                pointerEvents: selectedBeanId ? 'auto' : 'none',
+                            }}
+                        >
+                            {/* Type toggle */}
+                            <div className="flex bg-surface p-1 rounded-xl shadow-(--shadow-inset)">
+                                <button
+                                    type="button"
+                                    onClick={() => setAdjustType('adjustment')}
+                                    className={tabCls(adjustType === 'adjustment')}
+                                >
+                                    재고 조정
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setAdjustType('write_off');
+                                        setAdjustSign('+');
+                                    }}
+                                    className={tabCls(adjustType === 'write_off')}
+                                >
+                                    폐기 처리
+                                </button>
+                            </div>
+
+                            {/* Amount */}
+                            <div>
+                                <label className={labelCls}>
+                                    <Scale size={14} />{' '}
+                                    {adjustType === 'write_off' ? 'Discard Amount (kg)' : 'Amount (kg)'}
+                                </label>
+                                <div className="flex items-center gap-3">
+                                    {adjustType === 'adjustment' && (
+                                        <div className="flex rounded-xl overflow-hidden border border-black/8 dark:border-[#585d61] shrink-0">
+                                            {(['+', '-'] as const).map((sign) => (
+                                                <button
+                                                    key={sign}
+                                                    type="button"
+                                                    onClick={() => setAdjustSign(sign)}
+                                                    className={`w-11 h-full text-lg font-semibold transition-all duration-150 ${
+                                                        adjustSign === sign
+                                                            ? 'bg-primary text-white dark:bg-black'
+                                                            : 'bg-white/80 dark:bg-surface-elevated text-muted'
+                                                    }`}
+                                                >
+                                                    {sign}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <input
+                                        {...NUMERIC_INPUT_PROPS}
+                                        className={`${inputCls} text-2xl font-semibold p-4`}
+                                        placeholder="0"
+                                        value={adjustAmount}
+                                        onChange={(e) => setAdjustAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+                                    />
+                                    <div className="text-lg font-medium text-muted shrink-0">kg</div>
+                                </div>
+                                {(() => {
+                                    const isDeduction =
+                                        adjustType === 'write_off' ||
+                                        (adjustType === 'adjustment' && adjustSign === '-');
+                                    const current = selectedBeanId
+                                        ? (stockSummaries[selectedBeanId]?.effectiveGrams ?? 0)
+                                        : 0;
+                                    if (isDeduction && adjustGrams > 0 && adjustGrams > current) {
+                                        return (
+                                            <p className="text-xs text-amber-500 dark:text-amber-400 mt-2">
+                                                현재 재고({(current / 1000).toFixed(2)}kg)를 초과합니다.
+                                            </p>
+                                        );
+                                    }
+                                    return null;
+                                })()}
+                            </div>
+
+                            {/* Note */}
+                            <div>
+                                <label className={labelCls}>
+                                    <Info size={14} /> 사유 (선택)
+                                </label>
+                                <input
+                                    className={inputCls}
+                                    placeholder={
+                                        adjustType === 'write_off' ? '예: 유통기한 초과' : '예: 실측 후 재고 보정'
+                                    }
+                                    value={adjustNote}
+                                    onChange={(e) => setAdjustNote(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                ) : tab === 'new' || tab === 'edit' ? (
                     <form
                         id="bean-form"
                         onSubmit={rhfSubmit((data) => submitBean(data))}
@@ -507,7 +684,8 @@ export const AddBeanModal = ({
                                                 <Check size={18} strokeWidth={2.5} />
                                             ) : (
                                                 <div className="text-[13px] font-mono opacity-60">
-                                                    {(bean.stock_grams / 1000).toFixed(2)}kg
+                                                    {((stockSummaries[bean.id]?.effectiveGrams ?? 0) / 1000).toFixed(2)}
+                                                    kg
                                                 </div>
                                             )}
                                         </div>
@@ -603,7 +781,13 @@ export const AddBeanModal = ({
                             onClick={() => submitBean(getValues())}
                             className="flex-2 py-3.5 rounded-2xl border border-transparent dark:border-white bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                            {isSubmitting ? 'Saving...' : 'Confirm Restock'}
+                            {isSubmitting
+                                ? 'Saving...'
+                                : tab === 'restock'
+                                  ? 'Confirm Restock'
+                                  : adjustType === 'write_off'
+                                    ? 'Confirm Write-off'
+                                    : 'Confirm Adjustment'}
                         </button>
                     )}
                 </div>
