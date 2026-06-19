@@ -1,5 +1,5 @@
 import { useBeans } from '@entities/bean/queries';
-import { beanStockEventApi, useBeanStockSummary } from '@entities/bean-stock-event';
+import { beanStockEventApi, useBeanStockSummaries, useBeanStockSummary } from '@entities/bean-stock-event';
 import { type BlendWithComponents, useBlends } from '@entities/blend';
 import { type Machine, useMachines } from '@entities/machine';
 import { dayPlanApi, planBatchApi, planKeys } from '@entities/plan';
@@ -113,6 +113,7 @@ export const AddBatchModal = ({
     const { t } = useTranslation();
 
     const { data: beans = [] } = useBeans(userId);
+    const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
     const { machines } = useMachines();
     const { data: profiles = [] } = useRoastProfiles(userId);
     const { data: blends = [] } = useBlends(userId);
@@ -173,12 +174,12 @@ export const AddBatchModal = ({
     const selectedMachine = machines.find((m) => m.id === machineId);
     const selectedBlend = blends.find((b) => b.id === blendId);
 
-    const stockKg = selectedBean ? selectedBean.stock_grams / 1000 : 0;
-    const stockSufficient = greenNeeded === 0 || stockKg >= greenNeeded;
-    const stockPct = greenNeeded > 0 ? Math.min(100, (stockKg / greenNeeded) * 100) : 100;
-
     const selectedBeanId = batchType === 'Single Origin' ? beanId : null;
     const { data: stockSummary } = useBeanStockSummary(selectedBeanId ?? '');
+    const effectiveStockKg = (stockSummary?.effectiveGrams ?? 0) / 1000;
+    const stockSufficient = greenNeeded === 0 || effectiveStockKg >= greenNeeded;
+    const stockPct = greenNeeded > 0 ? Math.min(100, (effectiveStockKg / greenNeeded) * 100) : 100;
+
     const plannedGrams = batchSizeNum * batchCount * 1000;
     const isShortage = !!stockSummary && plannedGrams > 0 && stockSummary.effectiveGrams < plannedGrams;
 
@@ -261,7 +262,9 @@ export const AddBatchModal = ({
                     target_roasted_kg: targetNum,
                     batch_size_kg: batchSizeNum,
                     yield_pct: yieldNum / 100,
-                    green_lot: selectedBean ? `${selectedBean.name} (${stockKg.toFixed(0)}kg)` : editingBatch.green_lot,
+                    green_lot: selectedBean
+                        ? `${selectedBean.name} (${effectiveStockKg.toFixed(0)}kg)`
+                        : editingBatch.green_lot,
                     notes,
                 });
 
@@ -304,7 +307,7 @@ export const AddBatchModal = ({
                 yieldPct: yieldNum,
                 batchCount,
                 greenNeeded,
-                greenLot: selectedBean ? `${selectedBean.name} (${stockKg.toFixed(0)}kg)` : '',
+                greenLot: selectedBean ? `${selectedBean.name} (${effectiveStockKg.toFixed(0)}kg)` : '',
                 notes,
                 recurringInterval: recurringInterval ?? undefined,
             });
@@ -480,7 +483,7 @@ export const AddBatchModal = ({
                                     renderLabel={(item) => (item as Bean).name}
                                     renderOption={(item) => {
                                         const b = item as Bean;
-                                        const kg = (b.stock_grams / 1000).toFixed(1);
+                                        const kg = ((stockSummaries[b.id]?.effectiveGrams ?? 0) / 1000).toFixed(1);
                                         return (
                                             <div>
                                                 <div className="text-primary font-medium">{b.name}</div>
@@ -614,7 +617,7 @@ export const AddBatchModal = ({
                                 <div className="text-[13px] font-semibold text-primary">{selectedBean.name}</div>
                                 <div className="text-[12px] text-secondary mt-0.5">
                                     {t('addBatchModal.currentStock')}{' '}
-                                    <span className="font-medium text-primary">{stockKg.toFixed(1)} kg</span>
+                                    <span className="font-medium text-primary">{effectiveStockKg.toFixed(1)} kg</span>
                                     {greenNeeded > 0 && (
                                         <span className="text-muted ml-2">
                                             {t('addBatchModal.needed')} {greenNeeded} kg

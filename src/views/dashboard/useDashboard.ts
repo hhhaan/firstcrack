@@ -1,5 +1,6 @@
 import { supabase } from '@shared/lib/supabase';
 import type { Bean, RoastSessionWithRelations } from '@shared/types/database.types';
+import { beanStockEventApi } from '@entities/bean-stock-event';
 import { useQuery } from '@tanstack/react-query';
 
 export interface MonthlyBatch {
@@ -16,6 +17,14 @@ export interface UpcomingBatch {
     date: string;
 }
 
+export interface InventoryAlert {
+    id: string;
+    name: string;
+    effectiveGrams: number;
+    capacityGrams: number;
+    lowStockThresholdGrams: number;
+}
+
 export interface DashboardData {
     batchesThisMonth: number;
     batchesLastMonth: number;
@@ -25,7 +34,7 @@ export interface DashboardData {
     avgDurationLastMonthSeconds: number;
     recentSessions: RoastSessionWithRelations[];
     upcomingBatches: UpcomingBatch[];
-    inventoryAlerts: Bean[];
+    inventoryAlerts: InventoryAlert[];
     monthlyBatches: MonthlyBatch[];
     loading: boolean;
     error: string | null;
@@ -40,7 +49,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
 
-    const [completedRes, upcomingPlansRes, alertsRes, monthlyRes] = await Promise.all([
+    const [completedRes, upcomingPlansRes, alertsRes, stockSummaries, monthlyRes] = await Promise.all([
         supabase
             .from('roast_sessions')
             .select('*, beans(name, origin), roast_profiles!profile_id(name, target_level)')
@@ -59,6 +68,9 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
 
         // 전체 가져와서 클라이언트에서 필터 (PostgREST는 컬럼 간 비교 미지원)
         supabase.from('beans').select('*').eq('user_id', userId),
+
+        // 재고 요약 (이벤트 기반)
+        beanStockEventApi.getStockSummariesByUser(userId),
 
         supabase
             .from('roast_sessions')
@@ -126,7 +138,18 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     }) as MonthlyBatch[];
 
     const allBeans = (alertsRes.data ?? []) as Bean[];
-    const inventoryAlerts = allBeans.filter((b) => b.stock_grams <= b.low_stock_threshold_grams);
+    const inventoryAlerts: InventoryAlert[] = allBeans
+        .filter((b) => {
+            const effectiveGrams = stockSummaries?.[b.id]?.effectiveGrams ?? 0;
+            return effectiveGrams <= b.low_stock_threshold_grams;
+        })
+        .map((b) => ({
+            id: b.id,
+            name: b.name,
+            effectiveGrams: stockSummaries?.[b.id]?.effectiveGrams ?? 0,
+            capacityGrams: b.capacity_grams,
+            lowStockThresholdGrams: b.low_stock_threshold_grams,
+        }));
 
     return {
         batchesThisMonth: thisMonth.length,

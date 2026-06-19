@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react';
 import { getStatus, statusConfig } from '../../../entities/bean/lib';
+import type { StockSummary } from '../../../entities/bean-stock-event';
 import type { Bean } from '../../../shared/types/database.types';
 
 interface BeanListProps {
@@ -9,6 +10,7 @@ interface BeanListProps {
     onSelect: (id: string) => void;
     search: string;
     onSearchChange: (value: string) => void;
+    stockSummaries: Record<string, StockSummary>;
 }
 
 const Skeleton = () => (
@@ -58,7 +60,15 @@ const Skeleton = () => (
     </div>
 );
 
-export const BeanList = ({ beans, isLoading, selectedId, onSelect, search, onSearchChange }: BeanListProps) => {
+export const BeanList = ({
+    beans,
+    isLoading,
+    selectedId,
+    onSelect,
+    search,
+    onSearchChange,
+    stockSummaries,
+}: BeanListProps) => {
     const searchLower = search.toLowerCase();
     const filtered = beans.filter(
         (b) => b.name.toLowerCase().includes(searchLower) || (b.origin ?? '').toLowerCase().includes(searchLower),
@@ -101,9 +111,11 @@ export const BeanList = ({ beans, isLoading, selectedId, onSelect, search, onSea
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {filtered.map((bean) => {
-                        const status = getStatus(bean);
+                        const summary = stockSummaries[bean.id];
+                        const effectiveGrams = summary?.effectiveGrams ?? 0;
+                        const status = getStatus(effectiveGrams, bean.low_stock_threshold_grams);
                         const cfg = statusConfig[status];
-                        const pct = Math.min(100, (bean.stock_grams / bean.capacity_grams) * 100);
+                        const pct = Math.min(100, (effectiveGrams / bean.capacity_grams) * 100);
                         const isSelected = selectedId === bean.id;
 
                         return (
@@ -198,7 +210,7 @@ export const BeanList = ({ beans, isLoading, selectedId, onSelect, search, onSea
                                         fontFamily: 'var(--font-mono)',
                                     }}
                                 >
-                                    {(bean.stock_grams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}
+                                    {(effectiveGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}
                                     kg
                                 </div>
                             </div>

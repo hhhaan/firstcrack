@@ -6,6 +6,7 @@ import {
     REGIONS_BY_ORIGIN,
     VARIETIES_BY_ORIGIN,
 } from '@entities/bean/lib/coffee-origins';
+import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import type { Bean } from '@shared/types/database.types';
@@ -101,6 +102,8 @@ export const AddBeanModal = ({
     const [nameIsAuto, setNameIsAuto] = useState(true);
     const [showAllBeans, setShowAllBeans] = useState(false);
 
+    const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
+
     const {
         register,
         handleSubmit: rhfSubmit,
@@ -147,7 +150,7 @@ export const AddBeanModal = ({
                 process: initialData.process ?? 'Washed',
                 variety: initialData.variety ?? '',
                 altitude: initialData.altitude_masl?.toString() ?? '',
-                stock: initialData.stock_grams ? (initialData.stock_grams / 1000).toString() : '',
+                stock: initialData?.id ? ((stockSummaries[initialData.id]?.effectiveGrams ?? 0) / 1000).toString() : '',
                 capacity: initialData.capacity_grams ? (initialData.capacity_grams / 1000).toString() : '5',
                 costPerKg: initialData.cost_per_kg?.toString() ?? '',
                 tastingNotes: initialData.tasting_notes ?? '',
@@ -507,7 +510,8 @@ export const AddBeanModal = ({
                                                 <Check size={18} strokeWidth={2.5} />
                                             ) : (
                                                 <div className="text-[13px] font-mono opacity-60">
-                                                    {(bean.stock_grams / 1000).toFixed(2)}kg
+                                                    {((stockSummaries[bean.id]?.effectiveGrams ?? 0) / 1000).toFixed(2)}
+                                                    kg
                                                 </div>
                                             )}
                                         </div>

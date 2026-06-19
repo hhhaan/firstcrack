@@ -502,7 +502,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         <p className="text-[13px] text-muted py-2">{t('dashboard.allStockOk')}</p>
                     ) : (
                         db.inventoryAlerts.map((item, i) => {
-                            const isOut = item.stock_grams === 0;
+                            const isOut = item.effectiveGrams <= 0;
                             const color = isOut ? '#8080F0' : '#FFFF54';
                             const bg = isOut ? 'rgba(128,128,240,0.12)' : 'rgba(255,255,84,0.2)';
                             const status = isOut ? t('dashboard.outOfStock') : t('dashboard.lowStock');
@@ -522,7 +522,9 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                             {item.name}
                                         </div>
                                         <div className="text-xs text-muted tracking-[0.14px]">
-                                            {t('dashboard.kgRemaining', { kg: (item.stock_grams / 1000).toFixed(2) })}
+                                            {t('dashboard.kgRemaining', {
+                                                kg: (item.effectiveGrams / 1000).toFixed(2),
+                                            })}
                                         </div>
                                     </div>
                                     <span

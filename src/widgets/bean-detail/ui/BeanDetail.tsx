@@ -53,7 +53,8 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
     if (isLoading) return <Skeleton />;
     if (!bean) return <Empty hasAny={false} />;
 
-    const status = getStatus(bean);
+    const effectiveGrams = summary?.effectiveGrams ?? 0;
+    const status = getStatus(effectiveGrams, bean.low_stock_threshold_grams);
     const cfg = statusConfig[status];
 
     return (
@@ -118,7 +119,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                             value: bean.altitude_masl ? `${bean.altitude_masl.toLocaleString()} masl` : '—',
                         },
                         { label: 'Received', value: bean.purchase_date ?? '—' },
-                        { label: 'Current Stock', value: `${(bean.stock_grams / 1000).toFixed(2)}kg` },
+                        { label: 'Current Stock', value: `${(effectiveGrams / 1000).toFixed(2)}kg` },
                     ].map(({ label, value }) => (
                         <div key={label}>
                             <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-0.75">
@@ -151,14 +152,14 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                     <div className="flex justify-between mb-1.5">
                         <span className="text-xs font-medium text-secondary tracking-[0.14px]">Stock Level</span>
                         <span className="text-xs text-muted font-mono">
-                            {(bean.stock_grams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
+                            {(effectiveGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
                         </span>
                     </div>
                     <div className="h-1.5 bg-surface rounded-full overflow-hidden">
                         <div
                             className="h-full rounded-full transition-all duration-500"
                             style={{
-                                width: `${Math.min(100, (bean.stock_grams / bean.capacity_grams) * 100)}%`,
+                                width: `${Math.min(100, (effectiveGrams / bean.capacity_grams) * 100)}%`,
                                 background: cfg.color,
                             }}
                         />

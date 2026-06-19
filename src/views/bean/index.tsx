@@ -1,4 +1,5 @@
 import { useBeans, useDeleteBean } from '@entities/bean/queries';
+import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
 import type { Bean } from '@shared/types/database.types';
@@ -17,6 +18,7 @@ import { BlendList } from './BlendList';
 export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
     const userId = useAuthStore((s) => s.user?.id ?? '');
     const { data: beans = [], isLoading } = useBeans(userId);
+    const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
     const { mutate: deleteBean } = useDeleteBean(userId);
 
     const [tab, setTab] = useState<'single' | 'blend'>('single');
@@ -115,6 +117,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                                         onSelect={setSelectedId}
                                         search={search}
                                         onSearchChange={setSearch}
+                                        stockSummaries={stockSummaries}
                                     />
                                 </div>
                             }
