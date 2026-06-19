@@ -1,5 +1,4 @@
 import { useCreateBean, useUpdateBean } from '@entities/bean/queries';
-import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
 import { useInsertStockEvent } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
 
@@ -40,11 +39,9 @@ export const useAddBeanSubmit = ({
 }: UseAddBeanSubmitParams) => {
     const createBean = useCreateBean(userId);
     const updateBean = useUpdateBean(userId);
-    const createInventoryLog = useCreateBeanInventoryLog(userId);
     const insertStockEvent = useInsertStockEvent();
 
-    const isSubmitting =
-        createBean.isPending || updateBean.isPending || createInventoryLog.isPending || insertStockEvent.isPending;
+    const isSubmitting = createBean.isPending || updateBean.isPending || insertStockEvent.isPending;
 
     const handleSubmit = async (formData: FormData) => {
         if (isSubmitting) return;
@@ -67,11 +64,11 @@ export const useAddBeanSubmit = ({
                     purchase_date: new Date().toISOString().split('T')[0],
                 });
                 if (stockGrams > 0) {
-                    await createInventoryLog.mutateAsync({
+                    await insertStockEvent.mutateAsync({
                         user_id: userId,
                         bean_id: newBean.id,
-                        change_grams: stockGrams,
-                        type: 'purchase',
+                        delta_grams: stockGrams,
+                        event_type: 'purchase',
                     });
                 }
                 onSuccess?.(newBean);
@@ -85,7 +82,6 @@ export const useAddBeanSubmit = ({
                     process: formData.process || null,
                     variety: formData.variety || null,
                     altitude_masl: formData.altitude ? parseInt(formData.altitude, 10) : null,
-                    stock_grams: Math.round(parseFloat(formData.stock) * 1000) || 0,
                     capacity_grams: Math.round(parseFloat(formData.capacity) * 1000) || 5000,
                     cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg, 10) : null,
                     tasting_notes: formData.tastingNotes || null,
@@ -94,12 +90,6 @@ export const useAddBeanSubmit = ({
             } else if (tab === 'restock' && selectedBeanId && restockAmount) {
                 const amount = Math.round(parseFloat(restockAmount) * 1000);
                 const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
-                await createInventoryLog.mutateAsync({
-                    user_id: userId,
-                    bean_id: selectedBeanId,
-                    change_grams: amount,
-                    type: 'purchase',
-                });
                 await insertStockEvent.mutateAsync({
                     user_id: userId,
                     bean_id: selectedBeanId,

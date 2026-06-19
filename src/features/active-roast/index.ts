@@ -1,4 +1,6 @@
 // model
+export type { DeductRoastStockParams } from './model/useDeductRoastStock';
+export { useDeductRoastStock } from './model/useDeductRoastStock';
 
 export type { PhaseSegment } from './lib/phases';
 export { computePhaseSegments } from './lib/phases';

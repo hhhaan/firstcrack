@@ -1,7 +1,4 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { useCreateBeanInventoryLog } from '@entities/bean-inventory/queries';
-import { beanStockEventApi } from '@entities/bean-stock-event';
-import { blendApi } from '@entities/blend';
 import { useUpdatePlanBatch } from '@entities/plan';
 import { useProfile } from '@entities/profile';
 import { useCreateRoastSession } from '@entities/roast';
@@ -21,6 +18,7 @@ import {
 } from '@features/active-roast/lib/chart-config';
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import { parseTimeSec } from '@features/active-roast/lib/time';
+import { useDeductRoastStock } from '@features/active-roast/model/useDeductRoastStock';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
@@ -389,8 +387,8 @@ export const ActiveRoast = ({
 
     // ── 사용자 인증 + 로스팅 저장 ─────────────────────────────────
     const { mutateAsync: saveRoastSession, isPending: isSaving } = useCreateRoastSession(user?.id ?? '');
-    const { mutateAsync: createInventoryLog } = useCreateBeanInventoryLog(user?.id ?? '');
     const { mutateAsync: updatePlanBatch } = useUpdatePlanBatch(planBatchHandoff?.planId ?? '');
+    const deductRoastStock = useDeductRoastStock();
     useEffect(() => {
         tpTimeSecRef.current = turningPoints[0]?.timeSec ?? null;
     }, [turningPoints]);
@@ -1052,56 +1050,22 @@ export const ActiveRoast = ({
                             tsv_path: tsvPath,
                             plan_batch_id: planBatchHandoff?.planBatchId ?? null,
                         });
-                        const stockDeductions: Promise<unknown>[] = [];
-
-                        // 배치의 batchSizeKg 또는 사용자 입력 weightGrams 중 유효한 값 사용
                         const deductionGrams = planBatchHandoff?.batchSizeKg
                             ? Math.round(planBatchHandoff.batchSizeKg * 1000)
                             : saveWeight > 0
                               ? saveWeight
                               : 0;
 
-                        // 단일 생두 → bean_inventory_logs (배치 여부 관계없이 동작)
-                        if (selectedBeanId && deductionGrams > 0 && user) {
-                            stockDeductions.push(
-                                createInventoryLog({
-                                    user_id: user.id,
-                                    bean_id: selectedBeanId,
-                                    change_grams: -deductionGrams,
-                                    type: 'roast',
-                                    roast_session_id: savedSession.id,
-                                }),
-                            );
-                        }
+                        await deductRoastStock({
+                            deductionGrams,
+                            singleBeanId: selectedBeanId ?? null,
+                            blendId: planBatchHandoff?.blendId ?? null,
+                            sessionId: savedSession.id,
+                        });
 
-                        // 블렌드 → bean_stock_events (각 구성 생두별 차감)
-                        if (deductionGrams > 0 && user && planBatchHandoff?.blendId) {
-                            try {
-                                const blendWithComponents = await blendApi.get(planBatchHandoff.blendId);
-                                const chargeGrams = deductionGrams;
-                                for (const comp of blendWithComponents.blend_components) {
-                                    stockDeductions.push(
-                                        beanStockEventApi.insert({
-                                            user_id: user.id,
-                                            bean_id: comp.bean_id,
-                                            delta_grams: -Math.round(chargeGrams * (Number(comp.ratio_pct) / 100)),
-                                            event_type: 'roast',
-                                            reference_id: savedSession.id,
-                                            note: `${blendWithComponents.name} 블렌드 차감`,
-                                        }),
-                                    );
-                                }
-                            } catch (err) {
-                                console.error('[RoastSummary] blend stock deduction failed:', err);
-                            }
-                        }
-
-                        // 배치 status 업데이트 (phantom 예약 방지)
                         if (batchDone && planBatchHandoff) {
-                            stockDeductions.push(updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' }));
+                            await updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' });
                         }
-
-                        await Promise.all(stockDeductions);
                         setShowSummaryModal(false);
                         setSummaryData(null);
                         resetActiveRoast();
