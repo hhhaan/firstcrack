@@ -203,7 +203,7 @@ export function mergeRecurrenceExceptions(
 /**
  * Format a Date to yyyy-MM-dd in local timezone.
  */
-function formatDateLocal(d: Date): string {
+export function formatDateLocal(d: Date): string {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
