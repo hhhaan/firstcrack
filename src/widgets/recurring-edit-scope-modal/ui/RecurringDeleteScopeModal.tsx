@@ -1,6 +1,6 @@
-import { useTranslation } from 'react-i18next';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { EditScope } from './RecurringEditScopeModal';
 
 interface RecurringDeleteScopeModalProps {

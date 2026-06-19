@@ -1,6 +1,6 @@
+import { beanStockEventApi } from '@entities/bean-stock-event';
 import { supabase } from '@shared/lib/supabase';
 import type { Bean, RoastSessionWithRelations } from '@shared/types/database.types';
-import { beanStockEventApi } from '@entities/bean-stock-event';
 import { useQuery } from '@tanstack/react-query';
 
 export interface MonthlyBatch {

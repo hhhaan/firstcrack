@@ -1,6 +1,6 @@
+import { resolveColor } from '@shared/ui/Sparkline';
 import { useEffect, useRef } from 'react';
 import uPlot from 'uplot';
-import { resolveColor } from '@shared/ui/Sparkline';
 
 export const COMPARE_COLORS = [
     'var(--color-palette-green)',

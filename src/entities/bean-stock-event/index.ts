@@ -3,7 +3,7 @@ export { beanStockEventApi } from './api';
 export {
     stockEventKeys,
     useBeanStockEvents,
-    useBeanStockSummary,
     useBeanStockSummaries,
+    useBeanStockSummary,
     useInsertStockEvent,
 } from './queries';

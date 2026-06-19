@@ -1,9 +1,9 @@
-import { useProfileBeanHistory } from '@entities/roast-profile';
 import type { RoastProfileWithSource } from '@entities/roast-profile';
+import { useProfileBeanHistory } from '@entities/roast-profile';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import type { View } from '@shared/types/view';
-import { AlertCircle, Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
+import { AlertCircle, Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 
 const fmtDuration = (sec: number | null): string => {
     if (sec == null) return '—';

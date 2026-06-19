@@ -7,6 +7,7 @@ import {
     useRoastProfiles,
     useUpdateRoastProfile,
 } from '@entities/roast-profile';
+import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { useAuthStore } from '@shared/store/auth';
 import type { RoastProfile } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
@@ -15,10 +16,9 @@ import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
 import { Sparkline } from '@shared/ui/Sparkline';
-import { generateProfileCurve } from '@shared/data/roast-profiles';
-import { Check, GitCompare, Plus, Star } from 'lucide-react';
 import { ProfileCompare } from '@widgets/profile-compare/ui/ProfileCompare';
 import { ProfileDetail } from '@widgets/profile-detail/ui/ProfileDetail';
+import { Check, GitCompare, Plus, Star } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NewProfileModal } from './NewProfileModal';
 

@@ -1,6 +1,6 @@
-import { useTranslation } from 'react-i18next';
 import { formatTemp, type TemperatureUnit } from '@features/active-roast';
 import { SENSOR_COLORS } from '@features/active-roast/lib/colors';
+import { useTranslation } from 'react-i18next';
 
 export const LiveReadings = ({
     rawBT,

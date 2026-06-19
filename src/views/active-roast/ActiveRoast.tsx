@@ -18,9 +18,9 @@ import {
 } from '@features/active-roast/lib/chart-config';
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import { parseTimeSec } from '@features/active-roast/lib/time';
-import { useDeductRoastStock } from '@features/active-roast/model/useDeductRoastStock';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
+import { useDeductRoastStock } from '@features/active-roast/model/useDeductRoastStock';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { sidecar } from '@shared/lib/sidecar';
 import { useAuthStore } from '@shared/store/auth';

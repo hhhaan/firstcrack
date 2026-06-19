@@ -1,6 +1,6 @@
-import { useTranslation } from 'react-i18next';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { ArrowRight, Layers, Pencil } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Edit scope for recurring batches.

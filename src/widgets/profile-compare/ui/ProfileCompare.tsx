@@ -1,9 +1,9 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
-import { generateProfileCurve } from '@shared/data/roast-profiles';
-import { AlertCircle, GitCompare, Pencil } from 'lucide-react';
 import { useRoastProfileCurves } from '@entities/roast-profile';
-import { ProfileCurveChart, COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
+import { generateProfileCurve } from '@shared/data/roast-profiles';
 import type { SeriesData } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
+import { COMPARE_COLORS, ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
+import { AlertCircle, GitCompare, Pencil } from 'lucide-react';
 
 const fmtDuration = (sec: number | null): string => {
     if (sec == null) return '—';

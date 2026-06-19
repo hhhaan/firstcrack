@@ -1,6 +1,6 @@
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { AddBatchModal } from '@widgets/add-batch-modal';
-import { RecurringEditScopeModal, RecurringDeleteScopeModal } from '@widgets/recurring-edit-scope-modal';
+import { RecurringDeleteScopeModal, RecurringEditScopeModal } from '@widgets/recurring-edit-scope-modal';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BatchCard } from './BatchCard';
