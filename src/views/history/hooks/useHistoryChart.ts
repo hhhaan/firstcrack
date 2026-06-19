@@ -4,7 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 export const useHistoryChart = (tsvPath: string | null) => {
-    const { data: points = [], isLoading } = useQuery({
+    const {
+        data: points = [],
+        isLoading,
+        isError,
+    } = useQuery({
         queryKey: ['history-chart', tsvPath],
         queryFn: async () => parseTsv(await fetchTsvFromR2(tsvPath!)),
         enabled: !!tsvPath,
@@ -17,5 +21,5 @@ export const useHistoryChart = (tsvPath: string | null) => {
     const etActual = useMemo(() => points.map((p) => p.et), [points]);
     const rorActual = useMemo(() => points.map((p) => p.ror), [points]);
 
-    return { xs, btActual, etActual, rorActual, isLoading };
+    return { xs, btActual, etActual, rorActual, isLoading, isError };
 };

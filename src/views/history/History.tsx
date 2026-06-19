@@ -127,7 +127,7 @@ type ExpandedRowProps = {
 
 function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
     const { t } = useTranslation();
-    const { xs, btActual, etActual, rorActual, isLoading } = useHistoryChart(session.tsv_path ?? null);
+    const { xs, btActual, etActual, rorActual, isLoading, isError } = useHistoryChart(session.tsv_path ?? null);
 
     return (
         <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)]">
@@ -165,6 +165,10 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                         {isLoading ? (
                             <div className="flex h-[220px] items-center justify-center text-xs text-muted">
                                 Loading chart…
+                            </div>
+                        ) : isError ? (
+                            <div className="flex h-[220px] items-center justify-center text-xs text-muted">
+                                Chart unavailable
                             </div>
                         ) : (
                             <RoastTempChart
