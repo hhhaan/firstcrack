@@ -1,9 +1,11 @@
-import { formatTemp, type TemperatureUnit, type TurningPoint } from '@features/active-roast';
-import { parseTimeSec } from '@features/active-roast/lib/time';
-import { useRoastingStore } from '@features/active-roast/model/status';
 import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback } from 'react';
+import { formatTemp } from '../lib/temperature';
+import { parseTimeSec } from '../lib/time';
+import type { TurningPoint } from '../lib/turningPoints';
+import type { TemperatureUnit } from './settings';
+import { useRoastingStore } from './status';
 
 interface UseRoastActionsParams {
     unit: TemperatureUnit;

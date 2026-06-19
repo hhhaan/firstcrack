@@ -1,6 +1,6 @@
 import { useBeans, useDeleteBean } from '@entities/bean/queries';
 import { useBeanStockSummaries } from '@entities/bean-stock-event';
-import { useRoastingStore } from '@features/active-roast/model/status';
+import { useRoastingStore } from '@features/active-roast';
 import { useAuthStore } from '@shared/store/auth';
 import type { Bean } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
@@ -11,9 +11,9 @@ import { PillButton } from '@shared/ui/PillButton';
 import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
 import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
 import { BeanList } from '@widgets/bean-list/ui/BeanList';
+import { BlendList } from '@widgets/blend-list/ui/BlendList';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
-import { BlendList } from './BlendList';
 
 export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
     const userId = useAuthStore((s) => s.user?.id ?? '');

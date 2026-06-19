@@ -8,6 +8,8 @@ import {
     formatTemp,
     toDisplayRoR,
     toDisplayTemp,
+    useRoastActions,
+    useRoastKeyboardShortcuts,
     useRoastSettings,
 } from '@features/active-roast';
 import {
@@ -30,8 +32,6 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { BaseDirectory, readTextFile, remove } from '@tauri-apps/plugin-fs';
 import { useWeather } from '@views/dashboard/useWeather';
-import { useRoastActions } from '@views/useRoastActions';
-import { useRoastKeyboardShortcuts } from '@views/useRoastKeyboardShortcuts';
 import {
     EventButtons,
     LiveReadings,

@@ -12,3 +12,5 @@ export type { RoastingState, RoastPhase } from './model/status';
 export { useRoastingStore } from './model/status';
 export type { DeductRoastStockParams } from './model/useDeductRoastStock';
 export { useDeductRoastStock } from './model/useDeductRoastStock';
+export { useRoastActions } from './model/useRoastActions';
+export { useRoastKeyboardShortcuts } from './model/useRoastKeyboardShortcuts';
