@@ -237,16 +237,28 @@ async def handle_debug_probe(request: web.Request) -> web.Response:
 # ---------------------------------------------------------------------------
 
 
+# Tauri 프론트엔드가 사용하는 origin 목록.
+# macOS 번들: "tauri://localhost", Windows 번들: "http://tauri.localhost",
+# dev(Vite): "http://localhost:1420"
+_ALLOWED_ORIGINS = frozenset({
+    "tauri://localhost",
+    "http://tauri.localhost",
+    "http://localhost:1420",
+})
+
+
 @web.middleware
 async def cors_middleware(request: web.Request, handler: Any) -> web.Response:
     if request.method == "OPTIONS":
         resp = web.Response()
     else:
         resp = await handler(request)
-    # TODO (T8): 프로덕션에서는 "tauri://localhost" 로 제한 필요.
-    # dev: "http://localhost:1420", prod: "tauri://localhost"
-    # Tauri sidecar 번들링 완료 후 실제 origin 확인 뒤 교체.
-    resp.headers["Access-Control-Allow-Origin"] = "*"
+
+    origin = request.headers.get("Origin", "")
+    if origin in _ALLOWED_ORIGINS:
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        # Chromium의 Private Network Access(LNA) 정책 대응 — preflight에서 요구됨
+        resp.headers["Access-Control-Allow-Private-Network"] = "true"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
     return resp
