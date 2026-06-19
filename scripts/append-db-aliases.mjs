@@ -17,11 +17,6 @@ export type RoastSessionWithRelations = RoastSession & {
   roast_profiles: Pick<RoastProfile, 'name' | 'target_level'> | null
 }
 
-export type BeanInventoryLog = Database['public']['Tables']['bean_inventory_logs']['Row']
-export type BeanInventoryLogInsert = Database['public']['Tables']['bean_inventory_logs']['Insert']
-export type BeanInventoryLogUpdate = Database['public']['Tables']['bean_inventory_logs']['Update']
-
-export type BeanInventoryLogType = 'purchase' | 'roast' | 'adjustment' | 'waste'
 
 export type DayPlan = Database['public']['Tables']['roast_day_plans']['Row']
 

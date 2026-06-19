@@ -33,61 +33,6 @@ export type Database = {
     };
     public: {
         Tables: {
-            bean_inventory_logs: {
-                Row: {
-                    bean_id: string;
-                    change_grams: number;
-                    created_at: string;
-                    id: string;
-                    note: string | null;
-                    roast_session_id: string | null;
-                    type: string;
-                    user_id: string;
-                };
-                Insert: {
-                    bean_id: string;
-                    change_grams: number;
-                    created_at?: string;
-                    id?: string;
-                    note?: string | null;
-                    roast_session_id?: string | null;
-                    type: string;
-                    user_id: string;
-                };
-                Update: {
-                    bean_id?: string;
-                    change_grams?: number;
-                    created_at?: string;
-                    id?: string;
-                    note?: string | null;
-                    roast_session_id?: string | null;
-                    type?: string;
-                    user_id?: string;
-                };
-                Relationships: [
-                    {
-                        foreignKeyName: 'bean_inventory_logs_bean_id_fkey';
-                        columns: ['bean_id'];
-                        isOneToOne: false;
-                        referencedRelation: 'beans';
-                        referencedColumns: ['id'];
-                    },
-                    {
-                        foreignKeyName: 'bean_inventory_logs_roast_session_id_fkey';
-                        columns: ['roast_session_id'];
-                        isOneToOne: false;
-                        referencedRelation: 'roast_sessions';
-                        referencedColumns: ['id'];
-                    },
-                    {
-                        foreignKeyName: 'bean_inventory_logs_user_id_fkey';
-                        columns: ['user_id'];
-                        isOneToOne: false;
-                        referencedRelation: 'profiles';
-                        referencedColumns: ['id'];
-                    },
-                ];
-            };
             bean_stock_events: {
                 Row: {
                     bean_id: string;
@@ -143,7 +88,6 @@ export type Database = {
                     process: string | null;
                     purchase_date: string | null;
                     region: string | null;
-                    stock_grams: number;
                     tasting_notes: string | null;
                     updated_at: string;
                     user_id: string;
@@ -163,7 +107,6 @@ export type Database = {
                     process?: string | null;
                     purchase_date?: string | null;
                     region?: string | null;
-                    stock_grams?: number;
                     tasting_notes?: string | null;
                     updated_at?: string;
                     user_id: string;
@@ -183,7 +126,6 @@ export type Database = {
                     process?: string | null;
                     purchase_date?: string | null;
                     region?: string | null;
-                    stock_grams?: number;
                     tasting_notes?: string | null;
                     updated_at?: string;
                     user_id?: string;
@@ -923,7 +865,10 @@ export type Database = {
             };
         };
         Functions: {
-            [_ in never]: never;
+            insert_stock_events_batch: {
+                Args: { p_events: Json };
+                Returns: undefined;
+            };
         };
         Enums: {
             [_ in never]: never;
@@ -1067,12 +1012,6 @@ export type RoastSessionWithRelations = RoastSession & {
     beans: Pick<Bean, 'name' | 'origin'> | null;
     roast_profiles: Pick<RoastProfile, 'name' | 'target_level'> | null;
 };
-
-export type BeanInventoryLog = Database['public']['Tables']['bean_inventory_logs']['Row'];
-export type BeanInventoryLogInsert = Database['public']['Tables']['bean_inventory_logs']['Insert'];
-export type BeanInventoryLogUpdate = Database['public']['Tables']['bean_inventory_logs']['Update'];
-
-export type BeanInventoryLogType = 'purchase' | 'roast' | 'adjustment' | 'waste';
 
 export type DayPlan = Database['public']['Tables']['roast_day_plans']['Row'];
 
