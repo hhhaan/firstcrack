@@ -19,6 +19,7 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
 
 import logging
 import os
+import sys
 import time
 from typing import Any
 
@@ -30,6 +31,34 @@ from roaster_registry import ROASTER_REGISTRY, PROTOCOL_FORM_FIELDS
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 _log = logging.getLogger(__name__)
+
+
+def _pid_alive(pid: int) -> bool:
+    """부모 프로세스 생존 여부 확인 (표준 라이브러리만 사용)."""
+    try:
+        if sys.platform == "win32":
+            import ctypes
+            SYNCHRONIZE = 0x00100000
+            handle = ctypes.windll.kernel32.OpenProcess(SYNCHRONIZE, False, pid)
+            if handle:
+                ctypes.windll.kernel32.CloseHandle(handle)
+                return True
+            return False
+        else:
+            os.kill(pid, 0)
+            return True
+    except (OSError, ProcessLookupError):
+        return False
+
+
+async def parent_watchdog(parent_pid: int) -> None:
+    """Tauri 부모 프로세스가 죽으면 sidecar도 즉시 종료."""
+    import asyncio
+    while True:
+        await asyncio.sleep(1.0)
+        if not _pid_alive(parent_pid):
+            _log.info("부모 프로세스(PID %d) 종료 감지 — sidecar 종료", parent_pid)
+            os._exit(0)
 
 class _SilencePolling(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
@@ -119,6 +148,13 @@ async def handle_reset(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
     await manager.reset_roast()
     return web.json_response({"ok": True})
+
+
+async def handle_shutdown(request: web.Request) -> web.Response:
+    """Tauri Exit 핸들러에서 호출하는 graceful shutdown 엔드포인트."""
+    import asyncio
+    asyncio.get_event_loop().call_later(0.05, os._exit, 0)
+    return web.Response(text="ok")
 
 
 async def handle_control(request: web.Request) -> web.Response:
@@ -219,6 +255,15 @@ async def cors_middleware(request: web.Request, handler: Any) -> web.Response:
 def create_app() -> web.Application:
     app = web.Application(middlewares=[cors_middleware])
     app["manager"] = RoasterManager()
+
+    async def _start_watchdog(app: web.Application) -> None:
+        import asyncio
+        pid_str = os.environ.get("SIDECAR_PARENT_PID")
+        if pid_str:
+            asyncio.create_task(parent_watchdog(int(pid_str)))
+
+    app.on_startup.append(_start_watchdog)
+
     # 클라이언트는 src/entities/machine/roasterRegistry.ts (정적 복사본)를 사용.
     # GET /roasters는 현재 호출되지 않음 — 향후 단일화 시 활성화.
     app.router.add_get("/roasters", handle_roasters)
@@ -234,6 +279,7 @@ def create_app() -> web.Application:
     app.router.add_get("/debug/trace", handle_debug_trace_get)
     app.router.add_post("/debug/trace", handle_debug_trace_post)
     app.router.add_get("/debug/probe", handle_debug_probe)
+    app.router.add_post("/shutdown", handle_shutdown)
     app.router.add_route("OPTIONS", "/{path_info:.*}", lambda r: web.Response())
     return app
 

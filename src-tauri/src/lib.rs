@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 use std::time::Instant;
-use tauri::{Manager, RunEvent};
+use tauri::{Emitter, Manager, RunEvent};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 
@@ -103,41 +103,6 @@ fn kill_zombie_sidecar() {
     }
 }
 
-/// 사이드카가 이미 살아있는지 헬스체크.
-/// TCP connect만으로는 listen만 하고 응답 못 하는 좀비를 잡지 못하므로
-/// GET /status 응답까지 확인한다. 200 OK 라인을 받으면 healthy.
-fn sidecar_healthy() -> bool {
-    use std::io::{Read, Write};
-    use std::time::Duration;
-
-    let mut stream = match std::net::TcpStream::connect_timeout(
-        &"127.0.0.1:9999".parse().unwrap(),
-        Duration::from_millis(300),
-    ) {
-        Ok(s) => s,
-        Err(_) => return false,
-    };
-    let _ = stream.set_read_timeout(Some(Duration::from_millis(500)));
-    let _ = stream.set_write_timeout(Some(Duration::from_millis(300)));
-
-    if stream
-        .write_all(b"GET /status HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
-        .is_err()
-    {
-        return false;
-    }
-
-    // 16바이트면 "HTTP/1.X 200 OK\r" 전체를 수신하기에 충분하다.
-    // windows(3)으로 "200" substring을 찾는 것이 naive해 보이지만,
-    // 응답 시작 16바이트 안에는 HTTP 버전 + 상태코드만 존재하므로 오탐 없음.
-    let mut buf = [0u8; 16];
-    let n = match stream.read(&mut buf) {
-        Ok(n) => n,
-        Err(_) => return false,
-    };
-    let prefix = &buf[..n];
-    prefix.starts_with(b"HTTP/1.") && prefix.windows(3).any(|w| w == b"200")
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -180,7 +145,8 @@ pub fn run() {
             std::thread::sleep(std::time::Duration::from_millis(200));
 
             let sidecar_command = app.shell().sidecar("sidecar")?;
-            let (rx, child) = sidecar_command.spawn()?;
+            let parent_pid = std::process::id().to_string();
+            let (rx, child) = sidecar_command.env("SIDECAR_PARENT_PID", &parent_pid).spawn()?;
             *app.state::<SidecarChild>().0.lock().unwrap() = Some(child);
 
             // stdout/stderr 드레인 + Terminated 감지 시 백오프 재시작.
@@ -265,7 +231,22 @@ pub fn run() {
 
     app.run(|app, event| {
         if let RunEvent::Exit = event {
-            // 정상 종료 시 사이드카를 명시적으로 kill해 포트를 즉시 해제
+            // 1. graceful shutdown: /shutdown 엔드포인트로 sidecar 자체 종료 유도 (C1)
+            {
+                use std::io::Write;
+                use std::time::Duration;
+                if let Ok(mut stream) = std::net::TcpStream::connect_timeout(
+                    &"127.0.0.1:9999".parse().unwrap(),
+                    Duration::from_millis(200),
+                ) {
+                    let _ = stream.write_all(
+                        b"POST /shutdown HTTP/1.0\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    );
+                    // sidecar가 /shutdown 후 os._exit(0) — 0.3초면 충분
+                    std::thread::sleep(Duration::from_millis(300));
+                }
+            }
+            // 2. fallback: 부트로더 kill (워치독으로 자식은 이미 죽어 있어야 함)
             if let Some(child) = app.state::<SidecarChild>().0.lock().unwrap().take() {
                 let _ = child.kill();
             }
