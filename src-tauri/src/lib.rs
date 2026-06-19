@@ -186,7 +186,7 @@ pub fn run() {
                             "[sidecar-restart] {}회 재시작 모두 실패 — 사이드카 복구 포기",
                             RESTART_BACKOFFS_SECS.len()
                         );
-                        // TODO → Task 4에서 sidecar-dead 이벤트 emit으로 교체
+                        let _ = app_handle.emit("sidecar-dead", ());
                         break;
                     }
 

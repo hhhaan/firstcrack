@@ -7,6 +7,7 @@ import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
 import { Spinner } from '@shared/ui/Spinner';
 import { useUpdateChecker } from './features/updater';
+import { useSidecarDeadListener } from './features/sidecar';
 import { useAuthStore } from './shared/store/auth';
 import { useThemeStore } from './shared/store/theme';
 import type { View } from './shared/types/view';
@@ -35,6 +36,7 @@ export const App = () => {
 
     // Auto-updater: silent background download → system notification
     const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
+    const { isDead: isSidecarDead } = useSidecarDeadListener();
 
     useEffect(() => {
         checkAndDownload();
@@ -246,6 +248,13 @@ export const App = () => {
                     initialTab={settingsInitialTab}
                     onClose={() => setSettingsOpen(false)}
                 />
+
+                {isSidecarDead && (
+                    <div className="fixed bottom-6 left-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-lg bg-red-900/90 border border-red-700 text-red-100 text-sm shadow-lg">
+                        <span>하드웨어 연결 서비스가 응답하지 않습니다.</span>
+                        <span className="text-red-300">앱을 재시작해 주세요.</span>
+                    </div>
+                )}
 
                 {state.status === 'ready' && (
                     <button
