@@ -4,7 +4,8 @@
 # Regenerate repomix output for downstream AI tools
 repomix --quiet
 
-npx biome check src
+# Auto-fix import sorting, formatting, and safe lint fixes
+npx biome check --write src
 
 npx tsc --noEmit --pretty
 npx react-doctor --diff
