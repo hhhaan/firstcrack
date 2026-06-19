@@ -1,5 +1,3 @@
-import type { Bean } from '../../shared/types/database.types';
-
 export type BeanStatus = 'Good' | 'Low' | 'Out';
 
 export const getStatus = (effectiveGrams: number, lowStockThresholdGrams: number): BeanStatus => {
