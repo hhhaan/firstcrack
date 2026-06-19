@@ -41,7 +41,11 @@ fn kill_zombie_sidecar() {
                     .output();
                 if let Ok(n) = name_check {
                     let name = String::from_utf8_lossy(&n.stdout).to_lowercase();
-                    if name.contains("sidecar") || name.contains("python") {
+                    // release에서는 "sidecar"만 매칭 — 사용자의 무관한 python 서버 오살 방지 (W3)
+                    // debug에서는 "python"도 추가해 venv dev 서버 정리 허용
+                    let should_kill = name.contains("sidecar")
+                        || (cfg!(debug_assertions) && name.contains("python"));
+                    if should_kill {
                         let _ = std::process::Command::new("kill")
                             .args(["-9", pid_str])
                             .output();
@@ -90,9 +94,12 @@ fn kill_zombie_sidecar() {
                     .output();
                 if let Ok(t) = tasklist {
                     let name = String::from_utf8_lossy(&t.stdout).to_lowercase();
-                    if name.contains("sidecar") || name.contains("python") {
+                    // /T: 부트로더→자식 전체 트리 킬 (W2). release는 "sidecar"만 (W3).
+                    let should_kill = name.contains("sidecar")
+                        || (cfg!(debug_assertions) && name.contains("python"));
+                    if should_kill {
                         let _ = std::process::Command::new("taskkill")
-                            .args(["/F", "/PID", &pid])
+                            .args(["/F", "/T", "/PID", &pid])
                             .creation_flags(CREATE_NO_WINDOW)
                             .output();
                         eprintln!("[sidecar-guard] Windows 좀비 사이드카 kill: PID {pid}");
