@@ -1,4 +1,5 @@
 use std::sync::Mutex;
+use std::time::Instant;
 use tauri::{Manager, RunEvent};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
@@ -183,11 +184,12 @@ pub fn run() {
             *app.state::<SidecarChild>().0.lock().unwrap() = Some(child);
 
             // stdout/stderr 드레인 + Terminated 감지 시 백오프 재시작.
-            // RESTART_BACKOFFS_SECS만큼 시도, 성공하면 카운터 리셋.
+            // 30초 미만 생존은 "빠른 사망"으로 간주해 attempts 증가 (C2).
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let mut current_rx = rx;
                 let mut attempts: usize = 0;
+                let mut spawned_at = Instant::now();
 
                 loop {
                     while let Some(event) = current_rx.recv().await {
@@ -206,21 +208,27 @@ pub fn run() {
                         }
                     }
 
+                    // 30초 미만 생존 = 빠른 사망 → 실패로 카운트. 충분히 살았으면 리셋.
+                    if spawned_at.elapsed() < std::time::Duration::from_secs(30) {
+                        attempts += 1;
+                    } else {
+                        attempts = 0;
+                    }
+
                     if attempts >= RESTART_BACKOFFS_SECS.len() {
                         eprintln!(
                             "[sidecar-restart] {}회 재시작 모두 실패 — 사이드카 복구 포기",
                             RESTART_BACKOFFS_SECS.len()
                         );
-                        // TODO: 프론트엔드에 "사이드카 복구 실패, 앱 재시작 필요" 토스트 emit.
-                        //       app_handle.emit("sidecar-dead", ()) 등으로 알림 후 UI에서 처리.
+                        // TODO → Task 4에서 sidecar-dead 이벤트 emit으로 교체
                         break;
                     }
 
-                    let delay = RESTART_BACKOFFS_SECS[attempts];
+                    let delay = RESTART_BACKOFFS_SECS[attempts.saturating_sub(1).min(RESTART_BACKOFFS_SECS.len() - 1)];
                     eprintln!(
                         "[sidecar-restart] {}초 후 재시작 ({}/{})",
                         delay,
-                        attempts + 1,
+                        attempts,
                         RESTART_BACKOFFS_SECS.len()
                     );
                     tokio::time::sleep(std::time::Duration::from_secs(delay)).await;
@@ -229,20 +237,20 @@ pub fn run() {
                     kill_zombie_sidecar();
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
+                    let parent_pid = std::process::id().to_string();
                     let respawn = app_handle
                         .shell()
                         .sidecar("sidecar")
-                        .and_then(|cmd| cmd.spawn().map_err(Into::into));
+                        .and_then(|cmd| cmd.env("SIDECAR_PARENT_PID", &parent_pid).spawn().map_err(Into::into));
 
                     match respawn {
                         Ok((new_rx, new_child)) => {
                             *app_handle.state::<SidecarChild>().0.lock().unwrap() = Some(new_child);
                             current_rx = new_rx;
-                            attempts = 0;
+                            spawned_at = Instant::now();
                             eprintln!("[sidecar-restart] 재시작 성공");
                         }
                         Err(e) => {
-                            attempts += 1;
                             eprintln!("[sidecar-restart] spawn 실패: {e}");
                         }
                     }
