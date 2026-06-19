@@ -18,9 +18,13 @@ export interface FormData {
 
 interface UseAddBeanSubmitParams {
     userId: string;
-    tab: 'new' | 'restock' | 'edit';
+    tab: 'new' | 'restock' | 'edit' | 'adjust';
     selectedBeanId: string | null;
     restockAmount: string;
+    adjustType: 'adjustment' | 'write_off';
+    adjustSign: '+' | '-';
+    adjustAmount: string;
+    adjustNote: string;
     existingBeans: Bean[];
     initialData: Bean | null;
     onSuccess?: (bean: Bean | null) => void;
@@ -32,6 +36,10 @@ export const useAddBeanSubmit = ({
     tab,
     selectedBeanId,
     restockAmount,
+    adjustType,
+    adjustSign,
+    adjustAmount,
+    adjustNote,
     existingBeans,
     initialData,
     onSuccess,
@@ -94,6 +102,20 @@ export const useAddBeanSubmit = ({
                     bean_id: selectedBeanId,
                     delta_grams: amount,
                     event_type: 'purchase',
+                });
+                onSuccess?.(currentBean ?? null);
+            } else if (tab === 'adjust' && selectedBeanId && adjustAmount) {
+                const rawGrams = Math.round(parseFloat(adjustAmount) * 1000);
+                if (!Number.isFinite(rawGrams) || rawGrams <= 0) return;
+                const delta =
+                    adjustType === 'write_off' ? -Math.abs(rawGrams) : adjustSign === '+' ? rawGrams : -rawGrams;
+                const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
+                await insertStockEvent.mutateAsync({
+                    user_id: userId,
+                    bean_id: selectedBeanId,
+                    delta_grams: delta,
+                    event_type: adjustType,
+                    note: adjustNote || null,
                 });
                 onSuccess?.(currentBean ?? null);
             }
