@@ -145,6 +145,19 @@ pub fn run() {
         // CommandChild has no Drop impl — storing via manage() keeps it alive for the app lifetime.
         .manage(SidecarChild(Mutex::new(None)))
         .setup(|app| {
+            // DEBUG: `tauri dev` 시 beforeDevCommand가 띄운 venv Python 사이드카를
+            // 존중한다. 포트 9999가 이미 응답하면 스폰을 건너뜀 (X1).
+            #[cfg(debug_assertions)]
+            {
+                if std::net::TcpStream::connect_timeout(
+                    &"127.0.0.1:9999".parse().unwrap(),
+                    std::time::Duration::from_millis(300),
+                ).is_ok() {
+                    eprintln!("[sidecar-guard] debug: 포트 9999 감지 — 외부 dev 사이드카 존중, 스폰 건너뜀");
+                    return Ok(());
+                }
+            }
+
             // Single-instance 플러그인이 twin 없음을 보장한 이후이므로,
             // 포트를 점유한 프로세스는 이전 크래시의 좀비다.
             // healthy 여부와 무관하게 항상 정리 (비응답 좀비도 포트를 점유할 수 있음).
