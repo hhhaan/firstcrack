@@ -57,7 +57,6 @@ export const useAddBeanSubmit = ({
                     process: formData.process || null,
                     variety: formData.variety || null,
                     altitude_masl: formData.altitude ? parseInt(formData.altitude, 10) : null,
-                    stock_grams: 0,
                     capacity_grams: Math.round(parseFloat(formData.capacity) * 1000) || 5000,
                     cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg, 10) : null,
                     tasting_notes: formData.tastingNotes || null,
