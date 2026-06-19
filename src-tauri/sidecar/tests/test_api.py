@@ -211,13 +211,33 @@ class TestRoastersEndpoint:
 
 class TestCors:
     async def test_options_preflight_succeeds(self, client):
-        resp = await client.options("/status")
+        resp = await client.options("/status", headers={"Origin": "tauri://localhost"})
         assert resp.status == 200
         assert "Access-Control-Allow-Origin" in resp.headers
 
-    async def test_get_response_has_cors_header(self, client):
-        resp = await client.get("/status")
-        assert resp.headers.get("Access-Control-Allow-Origin") == "*"
+    async def test_allowed_tauri_mac_origin(self, client):
+        resp = await client.get("/status", headers={"Origin": "tauri://localhost"})
+        assert resp.headers.get("Access-Control-Allow-Origin") == "tauri://localhost"
+
+    async def test_allowed_tauri_win_origin(self, client):
+        resp = await client.get("/status", headers={"Origin": "http://tauri.localhost"})
+        assert resp.headers.get("Access-Control-Allow-Origin") == "http://tauri.localhost"
+
+    async def test_allowed_dev_origin(self, client):
+        resp = await client.get("/status", headers={"Origin": "http://localhost:1420"})
+        assert resp.headers.get("Access-Control-Allow-Origin") == "http://localhost:1420"
+
+    async def test_unknown_origin_not_reflected(self, client):
+        resp = await client.get("/status", headers={"Origin": "http://evil.com"})
+        assert resp.headers.get("Access-Control-Allow-Origin") != "http://evil.com"
+
+    async def test_private_network_header_on_allowed_origin(self, client):
+        resp = await client.get("/status", headers={"Origin": "tauri://localhost"})
+        assert resp.headers.get("Access-Control-Allow-Private-Network") == "true"
+
+    async def test_no_private_network_header_on_unknown_origin(self, client):
+        resp = await client.get("/status", headers={"Origin": "http://evil.com"})
+        assert "Access-Control-Allow-Private-Network" not in resp.headers
 
 
 # ---------------------------------------------------------------------------

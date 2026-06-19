@@ -5,7 +5,7 @@ import { blendApi } from '@entities/blend';
 import { useUpdatePlanBatch } from '@entities/plan';
 import { useProfile } from '@entities/profile';
 import { useCreateRoastSession } from '@entities/roast';
-import { useRoastProfileCurve, useRoastProfiles } from '@entities/roast-profile';
+import { useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import {
     computePhaseSegments,
     formatTemp,
@@ -102,6 +102,7 @@ export const ActiveRoast = ({
 
     // ── UI 상태 ───────────────────────────────────────────────────
     const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
+    const userSelectedTargetRef = useRef(false);
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(null);
     const [isRunning, setIsRunning] = useState(false);
     const isRunningRef = useRef(isRunning);
@@ -124,7 +125,7 @@ export const ActiveRoast = ({
     // userProfile이 undefined이면 아직 로딩 중이므로 null로 덮어쓰는 오류 방지.
     // chargedRef: deps 배열에 charged 없이 최신 값을 읽어 stale closure 버그 방지.
     useEffect(() => {
-        if (chargedRef.current) return;
+        if (chargedRef.current || userSelectedTargetRef.current) return;
         if (userProfile !== undefined) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setTargetProfileId(userProfile?.default_roast_profile_id ?? null);
@@ -148,7 +149,10 @@ export const ActiveRoast = ({
         if (!planBatchHandoff) return;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         if (planBatchHandoff.beanId) setSelectedBeanId(planBatchHandoff.beanId);
-        if (planBatchHandoff.profileId) setTargetProfileId(planBatchHandoff.profileId);
+        if (planBatchHandoff.profileId) {
+            userSelectedTargetRef.current = true;
+            setTargetProfileId(planBatchHandoff.profileId);
+        }
     }, [planBatchHandoff]);
 
     // ── 공유 ref (여러 훅·핸들러에서 참조) ───────────────────────
@@ -174,7 +178,7 @@ export const ActiveRoast = ({
         () => dbProfiles.find((p) => p.id === targetProfileId) ?? null,
         [dbProfiles, targetProfileId],
     );
-    const { data: targetCurvePoints = [] } = useRoastProfileCurve(targetProfile?.source_session?.tsv_path ?? null);
+    const { points: targetCurvePoints, source: targetCurveSource } = useResolvedProfileCurve(targetProfile);
 
     // charge 후: 실제 버퍼에 쌓인 구간과 설정값 중 짧은 쪽을 사용
     // (ready → charge 대기 시간이 설정값보다 짧으면 빈 공간 없이 딱 맞게)
@@ -646,6 +650,11 @@ export const ActiveRoast = ({
         ];
     }, [logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit]);
 
+    const handleTargetProfileChange = useCallback((id: string | null) => {
+        userSelectedTargetRef.current = true;
+        setTargetProfileId(id);
+    }, []);
+
     // ── 렌더 ──────────────────────────────────────────────────────
     return (
         <div className="px-[32px] py-[24px] flex flex-col gap-4 h-full min-h-0 overflow-hidden">
@@ -653,7 +662,7 @@ export const ActiveRoast = ({
                 phase={roastPhaseName}
                 targetProfileId={targetProfileId}
                 selectedBeanId={selectedBeanId}
-                onTargetProfileChange={setTargetProfileId}
+                onTargetProfileChange={handleTargetProfileChange}
                 onBeanChange={setSelectedBeanId}
                 onOpenRoastSettings={onOpenRoastSettings}
             />
@@ -704,7 +713,14 @@ export const ActiveRoast = ({
                         role="region"
                         aria-label="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
                     >
-                        <ChartLegend />
+                        <ChartLegend
+                            showTarget={!!targetProfileId && targetCurvePoints.length > 0}
+                            targetLabel={
+                                targetProfile
+                                    ? `${targetProfile.name}${targetCurveSource === 'synthetic' ? ' (estimated)' : ''}`
+                                    : undefined
+                            }
+                        />
 
                         {/* TODO: 필요 시 주석 해제 — 이벤트 기반 단계 표시 pill */}
                         {/* <div className="flex gap-2 mb-3">
@@ -741,7 +757,9 @@ export const ActiveRoast = ({
                             }}
                             onEventMarkerDrag={handleEventMarkerDrag}
                             showET={roastSettings.showET}
-                            showTargetCurve={roastSettings.showTargetCurve}
+                            showTargetCurve={
+                                roastSettings.showTargetCurve && !!targetProfileId && targetCurvePoints.length > 0
+                            }
                             showRoR={roastSettings.showRoRChart}
                             showRoRET={roastSettings.showRoRET}
                             rorEtActual={visibleRorEtActual}

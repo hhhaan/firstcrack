@@ -1,9 +1,20 @@
+import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { fetchTsvFromR2 } from '@shared/lib/r2';
 import { supabase } from '@shared/lib/supabase';
 import { parseTsv, type TsvPoint } from '@shared/lib/tsv';
 import type { RoastProfile } from '@shared/types/database.types';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { type RoastProfileWithSource, roastProfileApi } from './api';
+
+export type ProfileCurveSource = 'session' | 'synthetic' | 'none';
+
+const resolveTsvPath = (profile: RoastProfileWithSource | null): string | null => {
+    if (!profile?.source_session) return null;
+    const session = profile.source_session as { tsv_path: string | null } | { tsv_path: string | null }[];
+    if (Array.isArray(session)) return session[0]?.tsv_path ?? null;
+    return session.tsv_path ?? null;
+};
 
 export const roastProfileKeys = {
     all: (userId: string) => ['roast_profiles', userId] as const,
@@ -64,6 +75,27 @@ const curveQueryConfig = (tsvPath: string | null | undefined, fallbackKey?: stri
 });
 
 export const useRoastProfileCurve = (tsvPath: string | null | undefined) => useQuery(curveQueryConfig(tsvPath));
+
+/** 실측 TSV 우선, 없으면 drop_temp/duration 기반 synthetic 곡선 반환 */
+export const useResolvedProfileCurve = (profile: RoastProfileWithSource | null) => {
+    const tsvPath = profile ? resolveTsvPath(profile) : null;
+    const { data: real = [], isLoading, isError } = useRoastProfileCurve(tsvPath);
+    const synthetic = useMemo(
+        () =>
+            profile
+                ? generateProfileCurve(profile.drop_temp_celsius ?? 200, profile.duration_sec ?? 720).map((p) => ({
+                      t: p.t,
+                      bt: p.bt,
+                      et: null as number | null,
+                      ror: null as number | null,
+                  }))
+                : [],
+        [profile],
+    );
+    const points = real.length > 0 ? real : synthetic;
+    const source: ProfileCurveSource = real.length > 0 ? 'session' : synthetic.length > 0 ? 'synthetic' : 'none';
+    return { points, source, isLoading, isError };
+};
 
 // 비교 모드용 — paths 순서대로 결과 배열 반환. 각 fallbackKey는 캐시 충돌 방지용.
 export const useRoastProfileCurves = (paths: (string | null | undefined)[], fallbackKeys: string[] = []) =>

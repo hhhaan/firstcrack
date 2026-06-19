@@ -35,6 +35,18 @@ const visibilityOptions = [
     },
 ];
 
+const sectionTitleCls = 'text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-0.5';
+const sectionDescCls = 'text-[13px] text-[#6B7280] dark:text-[#999] m-0';
+const optionRowCls =
+    'flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] cursor-pointer';
+const optionRowStaticCls =
+    'flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21]';
+const checkboxCls = 'w-4 h-4 accent-[#111827] dark:accent-[#F2F2F2]';
+const optionLabelCls = 'text-[14px] font-medium text-[#111827] dark:text-[#e5e5e5]';
+const optionDescCls = 'text-[12px] text-[#6B7280] dark:text-[#999] mt-0.5';
+const numberInputWrapCls =
+    'flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#262b31]';
+
 const NumberInput = ({
     value,
     onChange,
@@ -50,7 +62,7 @@ const NumberInput = ({
     step?: number;
     suffix?: string;
 }) => (
-    <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E5E7EB] bg-white">
+    <div className={numberInputWrapCls}>
         <input
             type="number"
             value={value}
@@ -61,9 +73,9 @@ const NumberInput = ({
                 const v = parseFloat(e.target.value);
                 if (!isNaN(v)) onChange(v);
             }}
-            className="w-14 bg-transparent text-[13px] font-medium text-[#111827] text-right outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-14 bg-transparent text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5] text-right outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
         />
-        {suffix && <span className="text-[12px] text-[#6B7280]">{suffix}</span>}
+        {suffix && <span className="text-[12px] text-[#6B7280] dark:text-[#999]">{suffix}</span>}
     </div>
 );
 
@@ -87,10 +99,10 @@ const RangeRow = ({
     suffix?: string;
 }) => (
     <div className="flex items-center justify-between gap-3">
-        <span className="text-[13px] text-[#374151] shrink-0">{label}</span>
+        <span className="text-[13px] text-[#374151] dark:text-[#ccc] shrink-0">{label}</span>
         <div className="flex items-center gap-2">
             <NumberInput value={minVal} onChange={onMinChange} min={min} max={maxVal - 1} suffix={suffix} />
-            <span className="text-[12px] text-[#9CA3AF]">–</span>
+            <span className="text-[12px] text-[#9CA3AF] dark:text-[#666]">–</span>
             <NumberInput value={maxVal} onChange={onMaxChange} min={minVal + 1} max={max} suffix={suffix} />
         </div>
     </div>
@@ -103,9 +115,9 @@ const SectionCard = ({ children }: { children: React.ReactNode }) => (
 );
 
 const CheckboxRow = ({ checked, label, onChange }: { checked: boolean; label: string; onChange: () => void }) => (
-    <label className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] bg-white cursor-pointer">
-        <input type="checkbox" checked={checked} onChange={onChange} className="w-4 h-4 accent-[#111827]" />
-        <span className="text-[14px] font-medium text-[#111827]">{label}</span>
+    <label className={optionRowCls}>
+        <input type="checkbox" checked={checked} onChange={onChange} className={checkboxCls} />
+        <span className={optionLabelCls}>{label}</span>
     </label>
 );
 
@@ -116,8 +128,8 @@ export const RoastSettingsTab = () => {
         <>
             <SectionCard>
                 <div className="mb-4">
-                    <h4 className="text-[15px] font-semibold text-[#111827] m-0 mb-0.5">Temperature Unit</h4>
-                    <p className="text-[13px] text-[#6B7280] m-0">Display temperatures in Celsius or Fahrenheit.</p>
+                    <h4 className={sectionTitleCls}>Temperature Unit</h4>
+                    <p className={sectionDescCls}>Display temperatures in Celsius or Fahrenheit.</p>
                 </div>
                 <div className="grid gap-1.5">
                     {temperatureOptions.map((u) => (
@@ -133,8 +145,8 @@ export const RoastSettingsTab = () => {
 
             <SectionCard>
                 <div className="mb-4">
-                    <h4 className="text-[15px] font-semibold text-[#111827] m-0 mb-0.5">Update Rate</h4>
-                    <p className="text-[13px] text-[#6B7280] m-0">
+                    <h4 className={sectionTitleCls}>Update Rate</h4>
+                    <p className={sectionDescCls}>
                         How often to poll the machine for temperature data during a live session.
                     </p>
                 </div>
@@ -152,8 +164,8 @@ export const RoastSettingsTab = () => {
 
             <SectionCard>
                 <div className="mb-4">
-                    <h4 className="text-[15px] font-semibold text-[#111827] m-0 mb-0.5">RoR Span</h4>
-                    <p className="text-[13px] text-[#6B7280] m-0">
+                    <h4 className={sectionTitleCls}>RoR Span</h4>
+                    <p className={sectionDescCls}>
                         Time window for Rate of Rise calculation. Shorter spans react faster; longer spans are smoother.
                     </p>
                 </div>
@@ -171,26 +183,21 @@ export const RoastSettingsTab = () => {
 
             <SectionCard>
                 <div className="mb-4">
-                    <h4 className="text-[15px] font-semibold text-[#111827] m-0 mb-0.5">Data Visibility</h4>
-                    <p className="text-[13px] text-[#6B7280] m-0">
-                        Choose which data series are displayed on the roasting chart.
-                    </p>
+                    <h4 className={sectionTitleCls}>Data Visibility</h4>
+                    <p className={sectionDescCls}>Choose which data series are displayed on the roasting chart.</p>
                 </div>
                 <div className="grid gap-1.5">
                     {visibilityOptions.map(({ key, label, description }) => (
-                        <label
-                            key={key}
-                            className="flex items-start gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] bg-white cursor-pointer"
-                        >
+                        <label key={key} className={`${optionRowCls} items-start`}>
                             <input
                                 type="checkbox"
                                 checked={roastSettings[key]}
                                 onChange={(e) => updateRoastSettings({ [key]: e.target.checked })}
-                                className="mt-0.5 shrink-0 accent-[#111827]"
+                                className={`mt-0.5 shrink-0 ${checkboxCls}`}
                             />
                             <div>
-                                <div className="text-[14px] font-medium text-[#111827]">{label}</div>
-                                <div className="text-[12px] text-[#6B7280] mt-0.5">{description}</div>
+                                <div className={optionLabelCls}>{label}</div>
+                                <div className={optionDescCls}>{description}</div>
                             </div>
                         </label>
                     ))}
@@ -199,10 +206,8 @@ export const RoastSettingsTab = () => {
 
             <SectionCard>
                 <div className="mb-4">
-                    <h4 className="text-[15px] font-semibold text-[#111827] m-0 mb-0.5">Axis Range</h4>
-                    <p className="text-[13px] text-[#6B7280] m-0">
-                        Set the visible range for the temperature and RoR axes.
-                    </p>
+                    <h4 className={sectionTitleCls}>Axis Range</h4>
+                    <p className={sectionDescCls}>Set the visible range for the temperature and RoR axes.</p>
                 </div>
                 <div className="grid gap-1.5">
                     <RangeRow
@@ -230,10 +235,8 @@ export const RoastSettingsTab = () => {
 
             <SectionCard>
                 <div className="mb-4">
-                    <h4 className="text-[15px] font-semibold text-[#111827] m-0 mb-0.5">Phase Temperatures</h4>
-                    <p className="text-[13px] text-[#6B7280] m-0">
-                        BT thresholds for automatic event marking on the chart.
-                    </p>
+                    <h4 className={sectionTitleCls}>Phase Temperatures</h4>
+                    <p className={sectionDescCls}>BT thresholds for automatic event marking on the chart.</p>
                 </div>
                 <div className="grid gap-1.5">
                     {[
@@ -248,13 +251,10 @@ export const RoastSettingsTab = () => {
                             description: 'BT at which First Crack is auto-marked',
                         },
                     ].map(({ label, key, description }) => (
-                        <div
-                            key={key}
-                            className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] bg-white"
-                        >
+                        <div key={key} className={optionRowStaticCls}>
                             <div>
-                                <div className="text-[14px] font-medium text-[#111827]">{label}</div>
-                                <div className="text-[12px] text-[#6B7280] mt-0.5">{description}</div>
+                                <div className={optionLabelCls}>{label}</div>
+                                <div className={optionDescCls}>{description}</div>
                             </div>
                             <NumberInput
                                 value={roastSettings[key]}
@@ -270,15 +270,15 @@ export const RoastSettingsTab = () => {
 
             <SectionCard>
                 <div className="mb-4">
-                    <h4 className="text-[15px] font-semibold text-[#111827] m-0 mb-0.5">Auto Charge Detection</h4>
-                    <p className="text-[13px] text-[#6B7280] m-0">
+                    <h4 className={sectionTitleCls}>Auto Charge Detection</h4>
+                    <p className={sectionDescCls}>
                         Charge is triggered when BT drops by this amount within the detection window.
                     </p>
                 </div>
-                <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] bg-white">
+                <div className={optionRowStaticCls}>
                     <div>
-                        <div className="text-[14px] font-medium text-[#111827]">Drop Threshold</div>
-                        <div className="text-[12px] text-[#6B7280] mt-0.5">Minimum BT drop to detect bean charge</div>
+                        <div className={optionLabelCls}>Drop Threshold</div>
+                        <div className={optionDescCls}>Minimum BT drop to detect bean charge</div>
                     </div>
                     <NumberInput
                         value={roastSettings.autoChargeDropC}

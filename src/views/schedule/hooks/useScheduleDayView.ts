@@ -36,7 +36,8 @@ export const useScheduleDayView = ({
     const [editingBatch, setEditingBatch] = useState<PlanBatchWithProgress | null>(null);
     const [editScope, setEditScope] = useState<EditScope | null>(null);
     const [scopeBatch, setScopeBatch] = useState<PlanBatchWithProgress | null>(null);
-    const [isScopeModalOpen, setIsScopeModalOpen] = useState(false);
+    const [isEditScopeModalOpen, setIsEditScopeModalOpen] = useState(false);
+    const [isDeleteScopeModalOpen, setIsDeleteScopeModalOpen] = useState(false);
 
     const { data: dayPlan, isLoading: isDayPlanLoading } = useDayPlan(userId, dateKey);
     const planId = dayPlan?.id ?? '';
@@ -93,7 +94,7 @@ export const useScheduleDayView = ({
                 }
             }
 
-            setIsScopeModalOpen(false);
+            setIsDeleteScopeModalOpen(false);
             setScopeBatch(null);
         },
         [deleteSingleBatch, deleteFromThis, deleteAllBatches, dateKey, selectedDate, userId],
@@ -102,7 +103,7 @@ export const useScheduleDayView = ({
     const handleEdit = useCallback((batch: PlanBatchWithProgress) => {
         if (batch.recurrence_rule_id) {
             setScopeBatch(batch);
-            setIsScopeModalOpen(true);
+            setIsEditScopeModalOpen(true);
         } else {
             setEditingBatch(batch);
             setEditScope(null);
@@ -113,7 +114,7 @@ export const useScheduleDayView = ({
         (batch: PlanBatchWithProgress) => {
             if (batch.recurrence_rule_id) {
                 setScopeBatch(batch);
-                setIsScopeModalOpen(true);
+                setIsDeleteScopeModalOpen(true);
             } else {
                 if (window.confirm(i18n.t('schedule.deleteConfirm.batch', { name: batch.bean_name }))) {
                     deleteSingleBatch.mutate({ id: batch.id });
@@ -123,18 +124,21 @@ export const useScheduleDayView = ({
         [deleteSingleBatch],
     );
 
-    const handleScopeConfirm = useCallback(
-        (scope: EditScope, action: 'edit' | 'delete') => {
+    const handleEditScopeConfirm = useCallback(
+        (scope: EditScope) => {
             if (!scopeBatch) return;
+            setEditScope(scope);
+            setEditingBatch(scopeBatch);
+            setIsEditScopeModalOpen(false);
+            setScopeBatch(null);
+        },
+        [scopeBatch],
+    );
 
-            if (action === 'delete') {
-                handleScopeDelete(scope, scopeBatch);
-            } else {
-                setEditScope(scope);
-                setEditingBatch(scopeBatch);
-                setIsScopeModalOpen(false);
-                setScopeBatch(null);
-            }
+    const handleDeleteScopeConfirm = useCallback(
+        (scope: EditScope) => {
+            if (!scopeBatch) return;
+            handleScopeDelete(scope, scopeBatch);
         },
         [scopeBatch, handleScopeDelete],
     );
@@ -345,8 +349,10 @@ export const useScheduleDayView = ({
         editingBatch,
         editScope,
         scopeBatch,
-        isScopeModalOpen,
-        setIsScopeModalOpen,
+        isEditScopeModalOpen,
+        setIsEditScopeModalOpen,
+        isDeleteScopeModalOpen,
+        setIsDeleteScopeModalOpen,
         setEditingBatch,
         setEditScope,
         setScopeBatch,
@@ -355,6 +361,7 @@ export const useScheduleDayView = ({
         handleStart,
         handleEdit,
         handleBatchDelete,
-        handleScopeConfirm,
+        handleEditScopeConfirm,
+        handleDeleteScopeConfirm,
     };
 };

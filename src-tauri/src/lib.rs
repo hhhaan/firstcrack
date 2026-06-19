@@ -1,5 +1,6 @@
 use std::sync::Mutex;
-use tauri::{Manager, RunEvent};
+use std::time::Instant;
+use tauri::{Emitter, Manager, RunEvent};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 
@@ -40,7 +41,11 @@ fn kill_zombie_sidecar() {
                     .output();
                 if let Ok(n) = name_check {
                     let name = String::from_utf8_lossy(&n.stdout).to_lowercase();
-                    if name.contains("sidecar") || name.contains("python") {
+                    // release에서는 "sidecar"만 매칭 — 사용자의 무관한 python 서버 오살 방지 (W3)
+                    // debug에서는 "python"도 추가해 venv dev 서버 정리 허용
+                    let should_kill = name.contains("sidecar")
+                        || (cfg!(debug_assertions) && name.contains("python"));
+                    if should_kill {
                         let _ = std::process::Command::new("kill")
                             .args(["-9", pid_str])
                             .output();
@@ -89,9 +94,12 @@ fn kill_zombie_sidecar() {
                     .output();
                 if let Ok(t) = tasklist {
                     let name = String::from_utf8_lossy(&t.stdout).to_lowercase();
-                    if name.contains("sidecar") || name.contains("python") {
+                    // /T: 부트로더→자식 전체 트리 킬 (W2). release는 "sidecar"만 (W3).
+                    let should_kill = name.contains("sidecar")
+                        || (cfg!(debug_assertions) && name.contains("python"));
+                    if should_kill {
                         let _ = std::process::Command::new("taskkill")
-                            .args(["/F", "/PID", &pid])
+                            .args(["/F", "/T", "/PID", &pid])
                             .creation_flags(CREATE_NO_WINDOW)
                             .output();
                         eprintln!("[sidecar-guard] Windows 좀비 사이드카 kill: PID {pid}");
@@ -102,41 +110,6 @@ fn kill_zombie_sidecar() {
     }
 }
 
-/// 사이드카가 이미 살아있는지 헬스체크.
-/// TCP connect만으로는 listen만 하고 응답 못 하는 좀비를 잡지 못하므로
-/// GET /status 응답까지 확인한다. 200 OK 라인을 받으면 healthy.
-fn sidecar_healthy() -> bool {
-    use std::io::{Read, Write};
-    use std::time::Duration;
-
-    let mut stream = match std::net::TcpStream::connect_timeout(
-        &"127.0.0.1:9999".parse().unwrap(),
-        Duration::from_millis(300),
-    ) {
-        Ok(s) => s,
-        Err(_) => return false,
-    };
-    let _ = stream.set_read_timeout(Some(Duration::from_millis(500)));
-    let _ = stream.set_write_timeout(Some(Duration::from_millis(300)));
-
-    if stream
-        .write_all(b"GET /status HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
-        .is_err()
-    {
-        return false;
-    }
-
-    // 16바이트면 "HTTP/1.X 200 OK\r" 전체를 수신하기에 충분하다.
-    // windows(3)으로 "200" substring을 찾는 것이 naive해 보이지만,
-    // 응답 시작 16바이트 안에는 HTTP 버전 + 상태코드만 존재하므로 오탐 없음.
-    let mut buf = [0u8; 16];
-    let n = match stream.read(&mut buf) {
-        Ok(n) => n,
-        Err(_) => return false,
-    };
-    let prefix = &buf[..n];
-    prefix.starts_with(b"HTTP/1.") && prefix.windows(3).any(|w| w == b"200")
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -172,24 +145,37 @@ pub fn run() {
         // CommandChild has no Drop impl — storing via manage() keeps it alive for the app lifetime.
         .manage(SidecarChild(Mutex::new(None)))
         .setup(|app| {
-            // Single-instance 플러그인이 twin 없음을 보장한 이후이므로,
-            // 포트를 점유한 프로세스는 이전 크래시의 좀비다.
-            if sidecar_healthy() {
-                eprintln!("[sidecar-guard] 포트 9999 응답 감지 → 좀비 정리");
-                kill_zombie_sidecar();
-                std::thread::sleep(std::time::Duration::from_millis(200));
+            // DEBUG: `tauri dev` 시 beforeDevCommand가 띄운 venv Python 사이드카를
+            // 존중한다. 포트 9999가 이미 응답하면 스폰을 건너뜀 (X1).
+            #[cfg(debug_assertions)]
+            {
+                if std::net::TcpStream::connect_timeout(
+                    &"127.0.0.1:9999".parse().unwrap(),
+                    std::time::Duration::from_millis(300),
+                ).is_ok() {
+                    eprintln!("[sidecar-guard] debug: 포트 9999 감지 — 외부 dev 사이드카 존중, 스폰 건너뜀");
+                    return Ok(());
+                }
             }
 
+            // Single-instance 플러그인이 twin 없음을 보장한 이후이므로,
+            // 포트를 점유한 프로세스는 이전 크래시의 좀비다.
+            // healthy 여부와 무관하게 항상 정리 (비응답 좀비도 포트를 점유할 수 있음).
+            kill_zombie_sidecar();
+            std::thread::sleep(std::time::Duration::from_millis(200));
+
             let sidecar_command = app.shell().sidecar("sidecar")?;
-            let (rx, child) = sidecar_command.spawn()?;
+            let parent_pid = std::process::id().to_string();
+            let (rx, child) = sidecar_command.env("SIDECAR_PARENT_PID", &parent_pid).spawn()?;
             *app.state::<SidecarChild>().0.lock().unwrap() = Some(child);
 
             // stdout/stderr 드레인 + Terminated 감지 시 백오프 재시작.
-            // RESTART_BACKOFFS_SECS만큼 시도, 성공하면 카운터 리셋.
+            // 30초 미만 생존은 "빠른 사망"으로 간주해 attempts 증가 (C2).
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let mut current_rx = rx;
                 let mut attempts: usize = 0;
+                let mut spawned_at = Instant::now();
 
                 loop {
                     while let Some(event) = current_rx.recv().await {
@@ -208,46 +194,49 @@ pub fn run() {
                         }
                     }
 
+                    // 30초 미만 생존 = 빠른 사망 → 실패로 카운트. 충분히 살았으면 리셋.
+                    if spawned_at.elapsed() < std::time::Duration::from_secs(30) {
+                        attempts += 1;
+                    } else {
+                        attempts = 0;
+                    }
+
                     if attempts >= RESTART_BACKOFFS_SECS.len() {
                         eprintln!(
                             "[sidecar-restart] {}회 재시작 모두 실패 — 사이드카 복구 포기",
                             RESTART_BACKOFFS_SECS.len()
                         );
-                        // TODO: 프론트엔드에 "사이드카 복구 실패, 앱 재시작 필요" 토스트 emit.
-                        //       app_handle.emit("sidecar-dead", ()) 등으로 알림 후 UI에서 처리.
+                        let _ = app_handle.emit("sidecar-dead", ());
                         break;
                     }
 
-                    let delay = RESTART_BACKOFFS_SECS[attempts];
+                    let delay = RESTART_BACKOFFS_SECS[attempts.saturating_sub(1).min(RESTART_BACKOFFS_SECS.len() - 1)];
                     eprintln!(
                         "[sidecar-restart] {}초 후 재시작 ({}/{})",
                         delay,
-                        attempts + 1,
+                        attempts,
                         RESTART_BACKOFFS_SECS.len()
                     );
                     tokio::time::sleep(std::time::Duration::from_secs(delay)).await;
 
-                    // 재시작 직전에도 좀비 가드 — 죽은 프로세스가 포트를 잡고 있는 케이스
-                    if sidecar_healthy() {
-                        eprintln!("[sidecar-restart] 포트 9999 응답 감지 → 좀비 정리");
-                        kill_zombie_sidecar();
-                        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-                    }
+                    // 재시작 직전 좀비 가드 — 비응답 좀비도 무조건 정리
+                    kill_zombie_sidecar();
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
+                    let parent_pid = std::process::id().to_string();
                     let respawn = app_handle
                         .shell()
                         .sidecar("sidecar")
-                        .and_then(|cmd| cmd.spawn().map_err(Into::into));
+                        .and_then(|cmd| cmd.env("SIDECAR_PARENT_PID", &parent_pid).spawn().map_err(Into::into));
 
                     match respawn {
                         Ok((new_rx, new_child)) => {
                             *app_handle.state::<SidecarChild>().0.lock().unwrap() = Some(new_child);
                             current_rx = new_rx;
-                            attempts = 0;
+                            spawned_at = Instant::now();
                             eprintln!("[sidecar-restart] 재시작 성공");
                         }
                         Err(e) => {
-                            attempts += 1;
                             eprintln!("[sidecar-restart] spawn 실패: {e}");
                         }
                     }
@@ -262,7 +251,22 @@ pub fn run() {
 
     app.run(|app, event| {
         if let RunEvent::Exit = event {
-            // 정상 종료 시 사이드카를 명시적으로 kill해 포트를 즉시 해제
+            // 1. graceful shutdown: /shutdown 엔드포인트로 sidecar 자체 종료 유도 (C1)
+            {
+                use std::io::Write;
+                use std::time::Duration;
+                if let Ok(mut stream) = std::net::TcpStream::connect_timeout(
+                    &"127.0.0.1:9999".parse().unwrap(),
+                    Duration::from_millis(200),
+                ) {
+                    let _ = stream.write_all(
+                        b"POST /shutdown HTTP/1.0\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    );
+                    // sidecar가 /shutdown 후 os._exit(0) — 0.3초면 충분
+                    std::thread::sleep(Duration::from_millis(300));
+                }
+            }
+            // 2. fallback: 부트로더 kill (워치독으로 자식은 이미 죽어 있어야 함)
             if let Some(child) = app.state::<SidecarChild>().0.lock().unwrap().take() {
                 let _ = child.kill();
             }

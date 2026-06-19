@@ -381,6 +381,41 @@
         "error": {
             "createRecurring": "添加重复批次失败：",
             "createBatch": "添加批次失败："
+        },
+        "recurringEditScope": {
+            "title": "更改重复计划",
+            "recurringBatch": "重复批次 — {{recurrence}}",
+            "single": {
+                "title": "仅此批次",
+                "description": "仅修改所选日期的批次，其余计划保持不变。"
+            },
+            "fromThis": {
+                "title": "此批次及以后",
+                "description": "所选日期之后的所有重复批次将被修改。"
+            },
+            "all": {
+                "title": "所有重复批次",
+                "description": "所有重复批次将被修改，历史记录将保留。"
+            },
+            "deleteSingle": "删除此批次",
+            "deleteFromThis": "删除后续批次",
+            "deleteAll": "删除所有重复"
+        },
+        "recurringDeleteScope": {
+            "title": "删除重复计划",
+            "recurringBatch": "重复批次 — {{recurrence}}",
+            "single": {
+                "title": "仅删除此批次",
+                "description": "仅删除所选日期的批次，其余计划保持不变。"
+            },
+            "fromThis": {
+                "title": "删除此批次及以后",
+                "description": "所选日期之后的所有重复批次将被删除。"
+            },
+            "all": {
+                "title": "删除所有重复批次",
+                "description": "所有重复批次将被删除，历史记录将保留。"
+            }
         }
     },
     "addBatchModal": {
