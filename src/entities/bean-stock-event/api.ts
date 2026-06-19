@@ -82,7 +82,7 @@ export const beanStockEventApi = {
         // ── 2. Virtual recurring instances within horizon ──
         const { data: rules, error: ruleErr } = await supabase
             .from('recurrence_rules')
-            .select('id, rrule, dtstart, batch_size_kg, target_roasted_kg')
+            .select('id, rrule, dtstart, batch_size_kg, target_roasted_kg, yield_pct')
             .eq('bean_id', beanId)
             .eq('status', 'active');
         if (ruleErr) throw ruleErr;
@@ -125,7 +125,9 @@ export const beanStockEventApi = {
             if (!virtualDates.length) continue;
             const batchSize = Number(rule.batch_size_kg) || 0;
             const targetKg = Number(rule.target_roasted_kg) || 0;
-            const batchCount = batchSize > 0 && targetKg > 0 ? Math.ceil(targetKg / batchSize) : 1;
+            const yieldPct = Number(rule.yield_pct) > 0 ? Number(rule.yield_pct) : 1;
+            const roastedPerBatch = batchSize * yieldPct;
+            const batchCount = roastedPerBatch > 0 && targetKg > 0 ? Math.ceil(targetKg / roastedPerBatch) : 1;
             virtualReserved += virtualDates.length * batchCount * batchSize * 1000;
         }
 
@@ -168,7 +170,7 @@ export const beanStockEventApi = {
                 .or(`scheduled_date.is.null,scheduled_date.lte.${horizonStr}`),
             supabase
                 .from('recurrence_rules')
-                .select('id, bean_id, rrule, dtstart, batch_size_kg, target_roasted_kg')
+                .select('id, bean_id, rrule, dtstart, batch_size_kg, target_roasted_kg, yield_pct')
                 .eq('user_id', userId)
                 .eq('status', 'active')
                 .not('bean_id', 'is', null),
@@ -241,7 +243,9 @@ export const beanStockEventApi = {
                 if (!virtualDates.length) continue;
                 const batchSize = Number(rule.batch_size_kg) || 0;
                 const targetKg = Number(rule.target_roasted_kg) || 0;
-                const batchCount = batchSize > 0 && targetKg > 0 ? Math.ceil(targetKg / batchSize) : 1;
+                const yieldPct = Number(rule.yield_pct) > 0 ? Number(rule.yield_pct) : 1;
+                const roastedPerBatch = batchSize * yieldPct;
+                const batchCount = roastedPerBatch > 0 && targetKg > 0 ? Math.ceil(targetKg / roastedPerBatch) : 1;
                 reservedMap[rule.bean_id] =
                     (reservedMap[rule.bean_id] ?? 0) + virtualDates.length * batchCount * batchSize * 1000;
             }
