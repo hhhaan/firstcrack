@@ -212,6 +212,13 @@ class RoasterManager:
                         self._connected = True
                         self._consecutive_errors = 0
                         self._error = None
+                        self._ror_window.clear()
+                        self._et_ror_window.clear()
+                        self._bt_ema = None
+                        self._et_ema = None
+                        self._bt_display_ema = None
+                        self._et_display_ema = None
+                        self._ror_warmup = config.ROR_WARMUP_READS
                         _log.info("자동 재연결 성공: %s", self._roaster_key)
                         return
                     except Exception as exc:

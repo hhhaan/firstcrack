@@ -322,6 +322,51 @@ class TestInfiniteReconnect:
 
 
 # ---------------------------------------------------------------------------
+# TestReconnectStateReset — RoR/EMA cleared on successful auto-reconnect
+# ---------------------------------------------------------------------------
+
+class TestReconnectStateReset:
+    async def test_ror_state_cleared_on_successful_reconnect(self, manager, monkeypatch):
+        """재연결 성공 시 RoR 윈도우와 EMA 상태를 초기화해야 한다.
+
+        재연결 전 RoR 윈도우에 쌓인 데이터는 연결 끊김 동안의 시간을
+        포함하므로, 재연결 후 그대로 사용하면 RoR 계산이 왜곡된다.
+        """
+        import config
+        monkeypatch.setattr(config, "RECONNECT_BACKOFFS", [0.01])
+
+        adapter = FlakyConnectAdapter(fail_times=0)  # 즉시 성공
+        manager._adapter = adapter
+        manager._connected = False
+        manager._roaster_key = "test"
+        manager._protocol = "virtual"
+        manager._merged_params = {}
+
+        # Populate stale RoR state spanning the disconnect gap
+        t = time.monotonic()
+        manager._ror_window.append((t - 20.0, 150.0))
+        manager._ror_window.append((t - 10.0, 155.0))
+        manager._et_ror_window.append((t - 20.0, 200.0))
+        manager._bt_ema = 152.0
+        manager._et_ema = 202.0
+        manager._bt_display_ema = 155.0
+        manager._et_display_ema = 200.0
+        manager._ror_warmup = 0  # warmup consumed — stale window would give wrong RoR
+
+        manager._reconnect_task = asyncio.create_task(manager._reconnect_loop())
+        await asyncio.wait_for(manager._reconnect_task, timeout=2.0)
+
+        assert manager._connected is True
+        assert len(manager._ror_window) == 0, "RoR 윈도우가 초기화되어야 한다"
+        assert len(manager._et_ror_window) == 0, "ET RoR 윈도우가 초기화되어야 한다"
+        assert manager._bt_ema is None, "BT EMA가 초기화되어야 한다"
+        assert manager._et_ema is None, "ET EMA가 초기화되어야 한다"
+        assert manager._bt_display_ema is None, "BT display EMA가 초기화되어야 한다"
+        assert manager._et_display_ema is None, "ET display EMA가 초기화되어야 한다"
+        assert manager._ror_warmup == config.ROR_WARMUP_READS, "RoR warmup이 재설정되어야 한다"
+
+
+# ---------------------------------------------------------------------------
 # TestManagerStaleData
 # ---------------------------------------------------------------------------
 
