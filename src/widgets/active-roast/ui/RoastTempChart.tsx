@@ -161,6 +161,31 @@ export const RoastTempChart: React.FC<Props> = ({
         const unitLabel = temperatureUnit === 'C' ? '℃' : '℉';
         const rorUnit = temperatureUnit === 'C' ? '℃/min' : '℉/min';
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const formatAxisTooltip = (params: any) => {
+            const timeSec = params[0]?.axisValue ?? 0;
+            let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            params.forEach((p: any) => {
+                const y = p.value?.[1];
+                if (p.seriesName === 'BT Target' && y != null)
+                    html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget}"></div>Target BT: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+                if (p.seriesName === 'BT Actual' && y != null)
+                    html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+                if (p.seriesName === 'ET Actual' && showET && y != null)
+                    html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual}"></div>Env Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+                if (p.seriesName === 'RoR' && showRoR && y != null)
+                    html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual}"></div>RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
+                if (controlData && p.seriesName === 'Drum' && y != null)
+                    html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlDrum}"></div>Drum: <span>${y} RPM</span></div>`;
+                if (controlData && p.seriesName === 'Heat' && y != null)
+                    html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlHeat}"></div>Heat: <span>${y}%</span></div>`;
+                if (controlData && p.seriesName === 'Fan' && y != null)
+                    html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlFan}"></div>Fan: <span>${y}%</span></div>`;
+            });
+            return html;
+        };
+
         // 🔥 TypeError 해결: ECharts가 undefined 값을 처리 못해서
         // 명시적으로 [x값, y값] 튜플로 변환하면 getRawIndex 에러 방지
         // arr[i]가 undefined면 null로 변환하여 ECharts 렌더링 안정화
@@ -638,6 +663,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     borderColor: 'rgba(0,0,0,0.08)',
                     extraCssText: 'box-shadow: none;',
                     axisPointer: { type: 'line', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
+                    formatter: formatAxisTooltip,
                 },
                 series: [
                     ...tempSeries,
@@ -708,23 +734,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 borderColor: 'rgba(0,0,0,0.08)',
                 extraCssText: 'box-shadow: none;',
                 axisPointer: { type: 'cross', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                formatter: (params: any) => {
-                    const timeSec = params[0]?.axisValue ?? 0;
-                    let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    params.forEach((p: any) => {
-                        if (p.seriesName === 'BT Target')
-                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget}"></div>Target BT: <span>${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
-                        if (p.seriesName === 'BT Actual')
-                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
-                        if (p.seriesName === 'ET Actual' && showET)
-                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual}"></div>Env Temp: <span>${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
-                        if (p.seriesName === 'RoR' && showRoR)
-                            html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual}"></div>RoR: <span>${p.value[1]?.toFixed(1)}${rorUnit}</span></div>`;
-                    });
-                    return html;
-                },
+                formatter: formatAxisTooltip,
             },
             xAxis: [
                 {

@@ -336,10 +336,10 @@
         "pagination": "{{start}}–{{end}} / 총 {{total}}",
         "noNotes": "기록된 노트가 없습니다.",
         "searchPlaceholder": "원두, 프로파일 또는 산지 검색...",
-        "allLevels": "전체 로스팅도",
-        "allOrigins": "전체 산지",
+        "allLevels": "로스팅 레벨",
+        "allOrigins": "산지",
         "datePresets": {
-            "all": "전체",
+            "all": "기간",
             "this-month": "이번 달",
             "last-month": "지난 달",
             "3-months": "최근 3개월",

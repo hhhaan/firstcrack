@@ -931,207 +931,6 @@ This section contains the contents of the repository's files.
 5: };
 </file>
 
-<file path="src/features/active-roast/model/useRoastActions.ts">
- 1: import { sidecar } from '@shared/lib/sidecar';
- 2: import type { LogEntry } from '@shared/types/roast';
- 3: import { useCallback } from 'react';
- 4: import { formatTemp } from '../lib/temperature';
- 5: import { parseTimeSec } from '../lib/time';
- 6: import type { TurningPoint } from '../lib/turningPoints';
- 7: import type { TemperatureUnit } from './settings';
- 8: import { useRoastingStore } from './status';
- 9: 
-10: interface UseRoastActionsParams {
-11:     unit: TemperatureUnit;
-12:     rawBT: number | null;
-13:     setLogEntries: React.Dispatch<React.SetStateAction<LogEntry[]>>;
-14:     setIsRunning: React.Dispatch<React.SetStateAction<boolean>>;
-15:     setShowEndRoastModal: React.Dispatch<React.SetStateAction<boolean>>;
-16:     storeStartCharge: () => void;
-17:     roastStartTimeRef: React.MutableRefObject<number>;
-18: }
-19: 
-20: interface UseRoastActionsReturn {
-21:     triggerCharge: (btAtCharge?: number | null) => void;
-22:     handleAutoDrop: () => void;
-23:     handleTurningPoint: (tp: TurningPoint) => void;
-24: }
-25: 
-26: export const useRoastActions = ({
-27:     unit,
-28:     rawBT,
-29:     setLogEntries,
-30:     setIsRunning,
-31:     setShowEndRoastModal,
-32:     storeStartCharge,
-33:     roastStartTimeRef,
-34: }: UseRoastActionsParams): UseRoastActionsReturn => {
-35:     const triggerCharge = useCallback(
-36:         (btAtCharge?: number | null) => {
-37:             sidecar.startRoast().catch(() => {});
-38:             roastStartTimeRef.current = Date.now();
-39:             storeStartCharge();
-40:             setIsRunning(true);
-41:             const temp = btAtCharge != null ? formatTemp(btAtCharge, unit) : formatTemp(rawBT, unit);
-42:             setLogEntries([{ time: '0:00', event: 'Charge', temp, note: 'Bean drop detected' }]);
-43:         },
-44:         [unit, rawBT, setLogEntries, setIsRunning, storeStartCharge, roastStartTimeRef],
-45:     );
-46: 
-47:     const handleAutoDrop = useCallback(() => {
-48:         setLogEntries((prev) => {
-49:             if (prev.some((e) => e.event === 'Drop')) return prev;
-50:             const elapsed = useRoastingStore.getState().elapsed;
-51:             const min2 = Math.floor(elapsed / 60);
-52:             const sec2 = elapsed % 60;
-53:             return [
-54:                 ...prev,
-55:                 {
-56:                     time: `${min2}:${String(sec2).padStart(2, '0')}`,
-57:                     event: 'Drop',
-58:                     temp: formatTemp(rawBT, unit),
-59:                     note: 'Bean drop detected',
-60:                 },
-61:             ];
-62:         });
-63:         setShowEndRoastModal(true);
-64:     }, [rawBT, unit, setLogEntries, setShowEndRoastModal]);
-65: 
-66:     const handleTurningPoint = useCallback(
-67:         (tp: TurningPoint) => {
-68:             const timeMin = Math.floor(tp.timeSec / 60);
-69:             const tpSec = Math.floor(tp.timeSec % 60);
-70:             const tpTimeStr = `${timeMin}:${String(tpSec).padStart(2, '0')}`;
-71:             setLogEntries((prev) => {
-72:                 if (prev.some((e) => e.event === 'TP')) return prev;
-73:                 const newEntry = {
-74:                     time: tpTimeStr,
-75:                     event: 'TP',
-76:                     temp: formatTemp(tp.temp, unit),
-77:                     note: 'Turning Point detected',
-78:                 };
-79:                 return [...prev, newEntry].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
-80:             });
-81:         },
-82:         [unit, setLogEntries],
-83:     );
-84: 
-85:     return { triggerCharge, handleAutoDrop, handleTurningPoint };
-86: };
-</file>
-
-<file path="src/features/active-roast/model/useRoastKeyboardShortcuts.ts">
-  1: import { useHotkeys } from 'react-hotkeys-hook';
-  2: 
-  3: interface UseRoastKeyboardShortcutsParams {
-  4:     isActive: boolean;
-  5:     isFullscreen: boolean;
-  6:     showEndRoastModal: boolean;
-  7:     showSummaryModal: boolean;
-  8:     phase: string;
-  9:     onToggleFullscreen: () => void;
- 10:     onExitFullscreen: () => void;
- 11:     onEnterStandby: () => void;
- 12:     onManualCharge: () => void;
- 13:     onMarkEvent: (event: string, note: string, pressKey: string) => void;
- 14:     onMarkDrop: () => void;
- 15: }
- 16: 
- 17: export const useRoastKeyboardShortcuts = ({
- 18:     isActive,
- 19:     isFullscreen,
- 20:     showEndRoastModal,
- 21:     showSummaryModal,
- 22:     phase,
- 23:     onToggleFullscreen,
- 24:     onExitFullscreen,
- 25:     onEnterStandby,
- 26:     onManualCharge,
- 27:     onMarkEvent,
- 28:     onMarkDrop,
- 29: }: UseRoastKeyboardShortcutsParams) => {
- 30:     const enabled = isActive && !showEndRoastModal && !showSummaryModal;
- 31: 
- 32:     // Escape → exit fullscreen (only when fullscreen and no modal open)
- 33:     useHotkeys(
- 34:         'escape',
- 35:         (e) => {
- 36:             e.preventDefault();
- 37:             onExitFullscreen();
- 38:         },
- 39:         { enabled: enabled && isFullscreen },
- 40:         [enabled, isFullscreen, onExitFullscreen],
- 41:     );
- 42: 
- 43:     // F → toggle fullscreen (case-insensitive — library normalises via toLowerCase)
- 44:     useHotkeys(
- 45:         'f',
- 46:         (e) => {
- 47:             e.preventDefault();
- 48:             onToggleFullscreen();
- 49:         },
- 50:         { enabled },
- 51:         [enabled, onToggleFullscreen],
- 52:     );
- 53: 
- 54:     // Ctrl/Meta + Enter → enter standby or charge
- 55:     useHotkeys(
- 56:         'mod+enter',
- 57:         (e) => {
- 58:             e.preventDefault();
- 59:             if (phase === 'preheating') onEnterStandby();
- 60:             else if (phase === 'standby') onManualCharge();
- 61:         },
- 62:         { enabled },
- 63:         [enabled, phase, onEnterStandby, onManualCharge],
- 64:     );
- 65: 
- 66:     // Ctrl/Meta + 1 → Mark Yellow
- 67:     useHotkeys(
- 68:         'mod+1',
- 69:         (e) => {
- 70:             e.preventDefault();
- 71:             onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
- 72:         },
- 73:         { enabled },
- 74:         [enabled, onMarkEvent],
- 75:     );
- 76: 
- 77:     // Ctrl/Meta + 2 → Mark FC Start
- 78:     useHotkeys(
- 79:         'mod+2',
- 80:         (e) => {
- 81:             e.preventDefault();
- 82:             onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
- 83:         },
- 84:         { enabled },
- 85:         [enabled, onMarkEvent],
- 86:     );
- 87: 
- 88:     // Ctrl/Meta + 3 → Mark FC End
- 89:     useHotkeys(
- 90:         'mod+3',
- 91:         (e) => {
- 92:             e.preventDefault();
- 93:             onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
- 94:         },
- 95:         { enabled },
- 96:         [enabled, onMarkEvent],
- 97:     );
- 98: 
- 99:     // Ctrl/Meta + D → Mark Drop (case-insensitive)
-100:     useHotkeys(
-101:         'mod+d',
-102:         (e) => {
-103:             e.preventDefault();
-104:             onMarkDrop();
-105:         },
-106:         { enabled },
-107:         [enabled, onMarkDrop],
-108:     );
-109: };
-</file>
-
 <file path="src/shared/data/index.ts">
 1: export * from './roast-mock-data';
 </file>
@@ -1250,160 +1049,6 @@ This section contains the contents of the repository's files.
 1: export { ActiveRoast } from './ActiveRoast';
 </file>
 
-<file path="src/views/bean/Beans.tsx">
-  1: import { useBeans, useDeleteBean } from '@entities/bean/queries';
-  2: import { useBeanStockSummaries } from '@entities/bean-stock-event';
-  3: import { useRoastingStore } from '@features/active-roast';
-  4: import { useAuthStore } from '@shared/store/auth';
-  5: import type { Bean } from '@shared/types/database.types';
-  6: import type { View } from '@shared/types/view';
-  7: import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
-  8: import { PageHeader } from '@shared/ui/PageHeader';
-  9: import { PageLayout } from '@shared/ui/PageLayout';
- 10: import { PillButton } from '@shared/ui/PillButton';
- 11: import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
- 12: import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
- 13: import { BeanList } from '@widgets/bean-list/ui/BeanList';
- 14: import { BlendList } from '@widgets/blend-list/ui/BlendList';
- 15: import { Plus } from 'lucide-react';
- 16: import { useState } from 'react';
- 17: 
- 18: export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
- 19:     const userId = useAuthStore((s) => s.user?.id ?? '');
- 20:     const { data: beans = [], isLoading } = useBeans(userId);
- 21:     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
- 22:     const { mutate: deleteBean } = useDeleteBean(userId);
- 23: 
- 24:     const [tab, setTab] = useState<'single' | 'blend'>('single');
- 25:     const [search, setSearch] = useState('');
- 26:     const [selectedId, setSelectedId] = useState<string | null>(null);
- 27:     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
- 28:     const [modalConfig, setModalConfig] = useState<{
- 29:         tab: 'new' | 'restock' | 'edit';
- 30:         beanId: string | null;
- 31:         initialData?: Bean | null;
- 32:     }>({ tab: 'new', beanId: null });
- 33: 
- 34:     const openModal = (
- 35:         tab: 'new' | 'restock' | 'edit',
- 36:         beanId: string | null = null,
- 37:         initialData: Bean | null = null,
- 38:     ) => {
- 39:         setModalConfig({ tab, beanId, initialData });
- 40:         setIsAddModalOpen(true);
- 41:     };
- 42: 
- 43:     const selected = beans.find((b) => b.id === selectedId) ?? beans[0] ?? null;
- 44: 
- 45:     return (
- 46:         <PageLayout>
- 47:             <AddBeanModal
- 48:                 open={isAddModalOpen}
- 49:                 onClose={() => setIsAddModalOpen(false)}
- 50:                 userId={userId}
- 51:                 existingBeans={beans}
- 52:                 initialTab={modalConfig.tab}
- 53:                 initialBeanId={modalConfig.beanId}
- 54:                 initialData={modalConfig.initialData}
- 55:                 onSuccess={(bean) => {
- 56:                     if (bean) setSelectedId(bean.id);
- 57:                 }}
- 58:             />
- 59: 
- 60:             <PageHeader
- 61:                 title="Bean Inventory"
- 62:                 actions={
- 63:                     <PillButton onClick={() => setIsAddModalOpen(true)}>
- 64:                         <Plus size={15} strokeWidth={2.5} />
- 65:                         Add Bean Lot
- 66:                     </PillButton>
- 67:                 }
- 68:             />
- 69: 
- 70:             <div className="flex border-b border-(--color-border) dark:border-[#585d61] mb-4">
- 71:                 <button
- 72:                     className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'single' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
- 73:                     onClick={() => setTab('single')}
- 74:                 >
- 75:                     싱글
- 76:                 </button>
- 77:                 <button
- 78:                     className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'blend' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
- 79:                     onClick={() => setTab('blend')}
- 80:                 >
- 81:                     블렌드
- 82:                 </button>
- 83:             </div>
- 84: 
- 85:             {tab === 'single' && (
- 86:                 <>
- 87:                     {!isLoading && beans.length === 0 ? (
- 88:                         <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
- 89:                             {/* <Coffee size={40} strokeWidth={1.5} className="text-muted" /> */}
- 90:                             <div className="text-[13px] text-muted text-center leading-relaxed">
- 91:                                 등록된 원두가 없습니다.
- 92:                                 <br />첫 번째 원두를 추가해 보세요.
- 93:                             </div>
- 94:                             <button
- 95:                                 onClick={() => setIsAddModalOpen(true)}
- 96:                                 className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
- 97:                             >
- 98:                                 <Plus size={14} strokeWidth={2} />
- 99:                                 생두 추가
-100:                             </button>
-101:                         </div>
-102:                     ) : (
-103:                         <MasterDetailLayout
-104:                             left={
-105:                                 <div className="flex flex-col gap-2">
-106:                                     <button
-107:                                         onClick={() => setIsAddModalOpen(true)}
-108:                                         className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] dark:border-[#585d61] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 transition-colors tracking-[0.14px]"
-109:                                     >
-110:                                         <Plus size={14} strokeWidth={2} />
-111:                                         Add Bean
-112:                                     </button>
-113:                                     <BeanList
-114:                                         beans={beans}
-115:                                         isLoading={isLoading}
-116:                                         selectedId={selected?.id ?? null}
-117:                                         onSelect={setSelectedId}
-118:                                         search={search}
-119:                                         onSearchChange={setSearch}
-120:                                         stockSummaries={stockSummaries}
-121:                                     />
-122:                                 </div>
-123:                             }
-124:                             detail={
-125:                                 <BeanDetail
-126:                                     bean={selected}
-127:                                     isLoading={isLoading}
-128:                                     onEdit={(bean) => openModal('edit', bean.id, bean)}
-129:                                     onRestock={(id) => openModal('restock', id)}
-130:                                     onStartRoast={() => {
-131:                                         if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
-132:                                         onNavigate?.('roast');
-133:                                     }}
-134:                                     onDelete={(id) => {
-135:                                         deleteBean(id, { onSuccess: () => setSelectedId(null) });
-136:                                     }}
-137:                                 />
-138:                             }
-139:                         />
-140:                     )}
-141:                 </>
-142:             )}
-143: 
-144:             {tab === 'blend' && <BlendList />}
-145:         </PageLayout>
-146:     );
-147: };
-</file>
-
-<file path="src/views/bean/index.ts">
-1: export { Beans } from './Beans';
-</file>
-
 <file path="src/views/dashboard/index.ts">
 1: export { Dashboard } from './Dashboard';
 </file>
@@ -1515,209 +1160,6 @@ This section contains the contents of the repository's files.
 
 <file path="src/widgets/add-blend-modal/index.ts">
 1: export { AddBlendModal } from './ui/AddBlendModal';
-</file>
-
-<file path="src/widgets/blend-list/ui/BlendList.tsx">
-  1: import { type BlendWithComponents, useBlends, useDeleteBlend } from '@entities/blend';
-  2: import { useAuthStore } from '@shared/store/auth';
-  3: import { AddBlendModal } from '@widgets/add-blend-modal';
-  4: import { Pencil, Plus, Trash2 } from 'lucide-react';
-  5: import { useState } from 'react';
-  6: 
-  7: const ratioColor = (i: number) => {
-  8:     const colors = ['#171717', '#dc2626', '#0ea5e9', '#16a34a', '#d97706', '#8b5cf6'];
-  9:     return colors[i % colors.length];
- 10: };
- 11: 
- 12: export const BlendList = () => {
- 13:     const userId = useAuthStore((s) => s.user?.id ?? '');
- 14:     const { data: blends = [], isLoading } = useBlends(userId);
- 15:     const deleteBlend = useDeleteBlend(userId);
- 16: 
- 17:     const [modalOpen, setModalOpen] = useState(false);
- 18:     const [editing, setEditing] = useState<BlendWithComponents | null>(null);
- 19:     const [selectedId, setSelectedId] = useState<string | null>(null);
- 20: 
- 21:     const selected = blends.find((b) => b.id === selectedId) ?? blends[0] ?? null;
- 22: 
- 23:     const handleDelete = (id: string) => {
- 24:         deleteBlend.mutate(id);
- 25:         if (selectedId === id) setSelectedId(blends.find((b) => b.id !== id)?.id ?? null);
- 26:     };
- 27: 
- 28:     const totalRatio = (components: BlendWithComponents['blend_components']) =>
- 29:         components.reduce((sum, c) => sum + c.ratio_pct, 0);
- 30: 
- 31:     if (!isLoading && blends.length === 0) {
- 32:         return (
- 33:             <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
- 34:                 {/* <GitCompare size={40} strokeWidth={1.5} className="text-muted" /> */}
- 35:                 <div className="text-[13px] text-muted text-center leading-relaxed">
- 36:                     등록된 블렌드가 없습니다.
- 37:                     <br />첫 번째 블렌드 레시피를 추가해 보세요.
- 38:                 </div>
- 39:                 <button
- 40:                     onClick={() => {
- 41:                         setEditing(null);
- 42:                         setModalOpen(true);
- 43:                     }}
- 44:                     className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
- 45:                 >
- 46:                     <Plus size={14} strokeWidth={2} />
- 47:                     블렌드 추가
- 48:                 </button>
- 49:                 <AddBlendModal
- 50:                     key={editing?.id ?? 'new'}
- 51:                     open={modalOpen}
- 52:                     onClose={() => setModalOpen(false)}
- 53:                     editing={editing}
- 54:                 />
- 55:             </div>
- 56:         );
- 57:     }
- 58: 
- 59:     return (
- 60:         <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
- 61:             {/* Left: Blend list */}
- 62:             <div className="flex flex-col gap-2">
- 63:                 <button
- 64:                     onClick={() => {
- 65:                         setEditing(null);
- 66:                         setModalOpen(true);
- 67:                     }}
- 68:                     className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] dark:border-[#585d61] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 dark:hover:border-[#585d61] transition-colors tracking-[0.14px] mb-1"
- 69:                 >
- 70:                     <Plus size={14} strokeWidth={2} />
- 71:                     Add Blend
- 72:                 </button>
- 73: 
- 74:                 {isLoading ? (
- 75:                     <div className="flex items-center justify-center py-12 text-sm text-muted dark:text-white">
- 76:                         Loading…
- 77:                     </div>
- 78:                 ) : blends.length === 0 ? null : (
- 79:                     blends.map((blend) => {
- 80:                         return (
- 81:                             <div
- 82:                                 key={blend.id}
- 83:                                 onClick={() => setSelectedId(blend.id)}
- 84:                                 className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150"
- 85:                             >
- 86:                                 <div className="flex items-start justify-between mb-1.5">
- 87:                                     <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
- 88:                                         {blend.name}
- 89:                                     </span>
- 90:                                 </div>
- 91:                                 {blend.description && (
- 92:                                     <p className="text-[12px] text-muted tracking-[0.14px] mb-2 line-clamp-2">
- 93:                                         {blend.description}
- 94:                                     </p>
- 95:                                 )}
- 96:                                 <div className="flex flex-wrap gap-1.5">
- 97:                                     {blend.blend_components.map((c) => (
- 98:                                         <span
- 99:                                             key={c.id}
-100:                                             className="text-[11px] text-muted bg-surface dark:bg-surface-elevated px-2 py-0.5 rounded-full tracking-[0.14px]"
-101:                                         >
-102:                                             {c.beans.name} {c.ratio_pct}%
-103:                                         </span>
-104:                                     ))}
-105:                                 </div>
-106:                             </div>
-107:                         );
-108:                     })
-109:                 )}
-110:             </div>
-111: 
-112:             {/* Right: Blend detail */}
-113:             {selected ? (
-114:                 <div className="bg-main-bg rounded-lg px-8 py-7 h-fit dark:border dark:border-[#585d61]">
-115:                     <div className="flex items-start justify-between mb-6">
-116:                         <div>
-117:                             <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
-118:                                 {selected.name}
-119:                             </h2>
-120:                             {selected.description && (
-121:                                 <p className="text-sm text-secondary tracking-[0.14px] leading-normal">
-122:                                     {selected.description}
-123:                                 </p>
-124:                             )}
-125:                         </div>
-126:                         <div className="flex gap-2">
-127:                             <button
-128:                                 onClick={() => {
-129:                                     setEditing(selected);
-130:                                     setModalOpen(true);
-131:                                 }}
-132:                                 className="w-9 h-9 rounded-[10px] border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer"
-133:                                 title="Edit"
-134:                             >
-135:                                 <Pencil size={14} strokeWidth={2} />
-136:                             </button>
-137:                             <button
-138:                                 onClick={() => handleDelete(selected.id)}
-139:                                 className="w-9 h-9 rounded-[10px] border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer"
-140:                                 title="Delete"
-141:                                 style={{ color: '#dc2626' }}
-142:                             >
-143:                                 <Trash2 size={14} strokeWidth={2} />
-144:                             </button>
-145:                         </div>
-146:                     </div>
-147: 
-148:                     {/* Component breakdown */}
-149:                     <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4.5 py-4 mb-6">
-150:                         <div className="text-[12px] font-semibold text-secondary mb-3 tracking-[0.14px]">
-151:                             Component Beans
-152:                         </div>
-153:                         <div className="space-y-2.5">
-154:                             {selected.blend_components.map((c, i) => (
-155:                                 <div key={c.id}>
-156:                                     <div className="flex justify-between items-center mb-1">
-157:                                         <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
-158:                                             {c.beans.name}
-159:                                         </span>
-160:                                         <span className="text-[12px] font-mono font-semibold text-secondary">
-161:                                             {c.ratio_pct}%
-162:                                         </span>
-163:                                     </div>
-164:                                     <div className="h-1.5 bg-white/70 dark:bg-white/8 rounded-full overflow-hidden">
-165:                                         <div
-166:                                             className="h-full rounded-full transition-all"
-167:                                             style={{
-168:                                                 width: `${(c.ratio_pct / totalRatio(selected.blend_components)) * 100}%`,
-169:                                                 backgroundColor: ratioColor(i),
-170:                                             }}
-171:                                         />
-172:                                     </div>
-173:                                 </div>
-174:                             ))}
-175:                         </div>
-176:                     </div>
-177: 
-178:                     {/* Summary bar */}
-179:                     <div className="flex items-center gap-2.5 px-4 py-3 rounded-lg bg-surface-warm-solid dark:bg-[#1a1e23]">
-180:                         <span className="text-[12px] text-muted tracking-[0.14px]">
-181:                             {selected.blend_components.length} bean{selected.blend_components.length !== 1 ? 's' : ''} ·{' '}
-182:                             {totalRatio(selected.blend_components)}% total
-183:                         </span>
-184:                     </div>
-185:                 </div>
-186:             ) : blends.length > 0 ? (
-187:                 <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg py-15 px-8 flex items-center justify-center text-sm text-muted tracking-[0.14px]">
-188:                     Select a blend to view details
-189:                 </div>
-190:             ) : null}
-191: 
-192:             <AddBlendModal
-193:                 key={editing?.id ?? 'new'}
-194:                 open={modalOpen}
-195:                 onClose={() => setModalOpen(false)}
-196:                 editing={editing}
-197:             />
-198:         </div>
-199:     );
-200: };
 </file>
 
 <file path="src-tauri/sidecar/adapters/__init__.py">
@@ -7155,6 +6597,207 @@ This section contains the contents of the repository's files.
 109: };
 </file>
 
+<file path="src/features/active-roast/model/useRoastActions.ts">
+ 1: import { sidecar } from '@shared/lib/sidecar';
+ 2: import type { LogEntry } from '@shared/types/roast';
+ 3: import { useCallback } from 'react';
+ 4: import { formatTemp } from '../lib/temperature';
+ 5: import { parseTimeSec } from '../lib/time';
+ 6: import type { TurningPoint } from '../lib/turningPoints';
+ 7: import type { TemperatureUnit } from './settings';
+ 8: import { useRoastingStore } from './status';
+ 9: 
+10: interface UseRoastActionsParams {
+11:     unit: TemperatureUnit;
+12:     rawBT: number | null;
+13:     setLogEntries: React.Dispatch<React.SetStateAction<LogEntry[]>>;
+14:     setIsRunning: React.Dispatch<React.SetStateAction<boolean>>;
+15:     setShowEndRoastModal: React.Dispatch<React.SetStateAction<boolean>>;
+16:     storeStartCharge: () => void;
+17:     roastStartTimeRef: React.MutableRefObject<number>;
+18: }
+19: 
+20: interface UseRoastActionsReturn {
+21:     triggerCharge: (btAtCharge?: number | null) => void;
+22:     handleAutoDrop: () => void;
+23:     handleTurningPoint: (tp: TurningPoint) => void;
+24: }
+25: 
+26: export const useRoastActions = ({
+27:     unit,
+28:     rawBT,
+29:     setLogEntries,
+30:     setIsRunning,
+31:     setShowEndRoastModal,
+32:     storeStartCharge,
+33:     roastStartTimeRef,
+34: }: UseRoastActionsParams): UseRoastActionsReturn => {
+35:     const triggerCharge = useCallback(
+36:         (btAtCharge?: number | null) => {
+37:             sidecar.startRoast().catch(() => {});
+38:             roastStartTimeRef.current = Date.now();
+39:             storeStartCharge();
+40:             setIsRunning(true);
+41:             const temp = btAtCharge != null ? formatTemp(btAtCharge, unit) : formatTemp(rawBT, unit);
+42:             setLogEntries([{ time: '0:00', event: 'Charge', temp, note: 'Bean drop detected' }]);
+43:         },
+44:         [unit, rawBT, setLogEntries, setIsRunning, storeStartCharge, roastStartTimeRef],
+45:     );
+46: 
+47:     const handleAutoDrop = useCallback(() => {
+48:         setLogEntries((prev) => {
+49:             if (prev.some((e) => e.event === 'Drop')) return prev;
+50:             const elapsed = useRoastingStore.getState().elapsed;
+51:             const min2 = Math.floor(elapsed / 60);
+52:             const sec2 = elapsed % 60;
+53:             return [
+54:                 ...prev,
+55:                 {
+56:                     time: `${min2}:${String(sec2).padStart(2, '0')}`,
+57:                     event: 'Drop',
+58:                     temp: formatTemp(rawBT, unit),
+59:                     note: 'Bean drop detected',
+60:                 },
+61:             ];
+62:         });
+63:         setShowEndRoastModal(true);
+64:     }, [rawBT, unit, setLogEntries, setShowEndRoastModal]);
+65: 
+66:     const handleTurningPoint = useCallback(
+67:         (tp: TurningPoint) => {
+68:             const timeMin = Math.floor(tp.timeSec / 60);
+69:             const tpSec = Math.floor(tp.timeSec % 60);
+70:             const tpTimeStr = `${timeMin}:${String(tpSec).padStart(2, '0')}`;
+71:             setLogEntries((prev) => {
+72:                 if (prev.some((e) => e.event === 'TP')) return prev;
+73:                 const newEntry = {
+74:                     time: tpTimeStr,
+75:                     event: 'TP',
+76:                     temp: formatTemp(tp.temp, unit),
+77:                     note: 'Turning Point detected',
+78:                 };
+79:                 return [...prev, newEntry].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
+80:             });
+81:         },
+82:         [unit, setLogEntries],
+83:     );
+84: 
+85:     return { triggerCharge, handleAutoDrop, handleTurningPoint };
+86: };
+</file>
+
+<file path="src/features/active-roast/model/useRoastKeyboardShortcuts.ts">
+  1: import { useHotkeys } from 'react-hotkeys-hook';
+  2: 
+  3: interface UseRoastKeyboardShortcutsParams {
+  4:     isActive: boolean;
+  5:     isFullscreen: boolean;
+  6:     showEndRoastModal: boolean;
+  7:     showSummaryModal: boolean;
+  8:     phase: string;
+  9:     onToggleFullscreen: () => void;
+ 10:     onExitFullscreen: () => void;
+ 11:     onEnterStandby: () => void;
+ 12:     onManualCharge: () => void;
+ 13:     onMarkEvent: (event: string, note: string, pressKey: string) => void;
+ 14:     onMarkDrop: () => void;
+ 15: }
+ 16: 
+ 17: export const useRoastKeyboardShortcuts = ({
+ 18:     isActive,
+ 19:     isFullscreen,
+ 20:     showEndRoastModal,
+ 21:     showSummaryModal,
+ 22:     phase,
+ 23:     onToggleFullscreen,
+ 24:     onExitFullscreen,
+ 25:     onEnterStandby,
+ 26:     onManualCharge,
+ 27:     onMarkEvent,
+ 28:     onMarkDrop,
+ 29: }: UseRoastKeyboardShortcutsParams) => {
+ 30:     const enabled = isActive && !showEndRoastModal && !showSummaryModal;
+ 31: 
+ 32:     // Escape → exit fullscreen (only when fullscreen and no modal open)
+ 33:     useHotkeys(
+ 34:         'escape',
+ 35:         (e) => {
+ 36:             e.preventDefault();
+ 37:             onExitFullscreen();
+ 38:         },
+ 39:         { enabled: enabled && isFullscreen },
+ 40:         [enabled, isFullscreen, onExitFullscreen],
+ 41:     );
+ 42: 
+ 43:     // F → toggle fullscreen (case-insensitive — library normalises via toLowerCase)
+ 44:     useHotkeys(
+ 45:         'f',
+ 46:         (e) => {
+ 47:             e.preventDefault();
+ 48:             onToggleFullscreen();
+ 49:         },
+ 50:         { enabled },
+ 51:         [enabled, onToggleFullscreen],
+ 52:     );
+ 53: 
+ 54:     // Ctrl/Meta + Enter → enter standby or charge
+ 55:     useHotkeys(
+ 56:         'mod+enter',
+ 57:         (e) => {
+ 58:             e.preventDefault();
+ 59:             if (phase === 'preheating') onEnterStandby();
+ 60:             else if (phase === 'standby') onManualCharge();
+ 61:         },
+ 62:         { enabled },
+ 63:         [enabled, phase, onEnterStandby, onManualCharge],
+ 64:     );
+ 65: 
+ 66:     // Ctrl/Meta + 1 → Mark Yellow
+ 67:     useHotkeys(
+ 68:         'mod+1',
+ 69:         (e) => {
+ 70:             e.preventDefault();
+ 71:             onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
+ 72:         },
+ 73:         { enabled },
+ 74:         [enabled, onMarkEvent],
+ 75:     );
+ 76: 
+ 77:     // Ctrl/Meta + 2 → Mark FC Start
+ 78:     useHotkeys(
+ 79:         'mod+2',
+ 80:         (e) => {
+ 81:             e.preventDefault();
+ 82:             onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
+ 83:         },
+ 84:         { enabled },
+ 85:         [enabled, onMarkEvent],
+ 86:     );
+ 87: 
+ 88:     // Ctrl/Meta + 3 → Mark FC End
+ 89:     useHotkeys(
+ 90:         'mod+3',
+ 91:         (e) => {
+ 92:             e.preventDefault();
+ 93:             onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
+ 94:         },
+ 95:         { enabled },
+ 96:         [enabled, onMarkEvent],
+ 97:     );
+ 98: 
+ 99:     // Ctrl/Meta + D → Mark Drop (case-insensitive)
+100:     useHotkeys(
+101:         'mod+d',
+102:         (e) => {
+103:             e.preventDefault();
+104:             onMarkDrop();
+105:         },
+106:         { enabled },
+107:         [enabled, onMarkDrop],
+108:     );
+109: };
+</file>
+
 <file path="src/features/export-csv/lib/csv-export.ts">
  1: import type { RoastSessionWithRelations } from '@shared/types/database.types';
  2: 
@@ -8151,6 +7794,160 @@ This section contains the contents of the repository's files.
 27: };
 28: 
 29: export { resolveColor };
+</file>
+
+<file path="src/views/bean/Beans.tsx">
+  1: import { useBeans, useDeleteBean } from '@entities/bean/queries';
+  2: import { useBeanStockSummaries } from '@entities/bean-stock-event';
+  3: import { useRoastingStore } from '@features/active-roast';
+  4: import { useAuthStore } from '@shared/store/auth';
+  5: import type { Bean } from '@shared/types/database.types';
+  6: import type { View } from '@shared/types/view';
+  7: import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
+  8: import { PageHeader } from '@shared/ui/PageHeader';
+  9: import { PageLayout } from '@shared/ui/PageLayout';
+ 10: import { PillButton } from '@shared/ui/PillButton';
+ 11: import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
+ 12: import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
+ 13: import { BeanList } from '@widgets/bean-list/ui/BeanList';
+ 14: import { BlendList } from '@widgets/blend-list/ui/BlendList';
+ 15: import { Plus } from 'lucide-react';
+ 16: import { useState } from 'react';
+ 17: 
+ 18: export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
+ 19:     const userId = useAuthStore((s) => s.user?.id ?? '');
+ 20:     const { data: beans = [], isLoading } = useBeans(userId);
+ 21:     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
+ 22:     const { mutate: deleteBean } = useDeleteBean(userId);
+ 23: 
+ 24:     const [tab, setTab] = useState<'single' | 'blend'>('single');
+ 25:     const [search, setSearch] = useState('');
+ 26:     const [selectedId, setSelectedId] = useState<string | null>(null);
+ 27:     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+ 28:     const [modalConfig, setModalConfig] = useState<{
+ 29:         tab: 'new' | 'restock' | 'edit';
+ 30:         beanId: string | null;
+ 31:         initialData?: Bean | null;
+ 32:     }>({ tab: 'new', beanId: null });
+ 33: 
+ 34:     const openModal = (
+ 35:         tab: 'new' | 'restock' | 'edit',
+ 36:         beanId: string | null = null,
+ 37:         initialData: Bean | null = null,
+ 38:     ) => {
+ 39:         setModalConfig({ tab, beanId, initialData });
+ 40:         setIsAddModalOpen(true);
+ 41:     };
+ 42: 
+ 43:     const selected = beans.find((b) => b.id === selectedId) ?? beans[0] ?? null;
+ 44: 
+ 45:     return (
+ 46:         <PageLayout>
+ 47:             <AddBeanModal
+ 48:                 open={isAddModalOpen}
+ 49:                 onClose={() => setIsAddModalOpen(false)}
+ 50:                 userId={userId}
+ 51:                 existingBeans={beans}
+ 52:                 initialTab={modalConfig.tab}
+ 53:                 initialBeanId={modalConfig.beanId}
+ 54:                 initialData={modalConfig.initialData}
+ 55:                 onSuccess={(bean) => {
+ 56:                     if (bean) setSelectedId(bean.id);
+ 57:                 }}
+ 58:             />
+ 59: 
+ 60:             <PageHeader
+ 61:                 title="Bean Inventory"
+ 62:                 actions={
+ 63:                     <PillButton onClick={() => setIsAddModalOpen(true)}>
+ 64:                         <Plus size={15} strokeWidth={2.5} />
+ 65:                         Add Bean Lot
+ 66:                     </PillButton>
+ 67:                 }
+ 68:             />
+ 69: 
+ 70:             <div className="flex border-b border-(--color-border) dark:border-[#585d61] mb-4">
+ 71:                 <button
+ 72:                     className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'single' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
+ 73:                     onClick={() => setTab('single')}
+ 74:                 >
+ 75:                     싱글
+ 76:                 </button>
+ 77:                 <button
+ 78:                     className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'blend' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
+ 79:                     onClick={() => setTab('blend')}
+ 80:                 >
+ 81:                     블렌드
+ 82:                 </button>
+ 83:             </div>
+ 84: 
+ 85:             {tab === 'single' && (
+ 86:                 <>
+ 87:                     {!isLoading && beans.length === 0 ? (
+ 88:                         <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
+ 89:                             {/* <Coffee size={40} strokeWidth={1.5} className="text-muted" /> */}
+ 90:                             <div className="text-[13px] text-muted text-center leading-relaxed">
+ 91:                                 등록된 원두가 없습니다.
+ 92:                                 <br />첫 번째 원두를 추가해 보세요.
+ 93:                             </div>
+ 94:                             <button
+ 95:                                 onClick={() => setIsAddModalOpen(true)}
+ 96:                                 className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
+ 97:                             >
+ 98:                                 <Plus size={14} strokeWidth={2} />
+ 99:                                 생두 추가
+100:                             </button>
+101:                         </div>
+102:                     ) : (
+103:                         <MasterDetailLayout
+104:                             left={
+105:                                 <div className="flex flex-col gap-2">
+106:                                     <button
+107:                                         onClick={() => setIsAddModalOpen(true)}
+108:                                         className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] dark:border-[#585d61] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 transition-colors tracking-[0.14px]"
+109:                                     >
+110:                                         <Plus size={14} strokeWidth={2} />
+111:                                         Add Bean
+112:                                     </button>
+113:                                     <BeanList
+114:                                         beans={beans}
+115:                                         isLoading={isLoading}
+116:                                         selectedId={selected?.id ?? null}
+117:                                         onSelect={setSelectedId}
+118:                                         search={search}
+119:                                         onSearchChange={setSearch}
+120:                                         stockSummaries={stockSummaries}
+121:                                     />
+122:                                 </div>
+123:                             }
+124:                             detail={
+125:                                 <BeanDetail
+126:                                     bean={selected}
+127:                                     isLoading={isLoading}
+128:                                     onEdit={(bean) => openModal('edit', bean.id, bean)}
+129:                                     onRestock={(id) => openModal('restock', id)}
+130:                                     onStartRoast={() => {
+131:                                         if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
+132:                                         onNavigate?.('roast');
+133:                                     }}
+134:                                     onDelete={(id) => {
+135:                                         deleteBean(id, { onSuccess: () => setSelectedId(null) });
+136:                                     }}
+137:                                 />
+138:                             }
+139:                         />
+140:                     )}
+141:                 </>
+142:             )}
+143: 
+144:             {tab === 'blend' && <BlendList />}
+145:         </PageLayout>
+146:     );
+147: };
+</file>
+
+<file path="src/views/bean/index.ts">
+1: export { Beans } from './Beans';
 </file>
 
 <file path="src/views/dashboard/useWeather.ts">
@@ -9280,6 +9077,209 @@ This section contains the contents of the repository's files.
 49:         </ModalShell>
 50:     );
 51: };
+</file>
+
+<file path="src/widgets/blend-list/ui/BlendList.tsx">
+  1: import { type BlendWithComponents, useBlends, useDeleteBlend } from '@entities/blend';
+  2: import { useAuthStore } from '@shared/store/auth';
+  3: import { AddBlendModal } from '@widgets/add-blend-modal';
+  4: import { Pencil, Plus, Trash2 } from 'lucide-react';
+  5: import { useState } from 'react';
+  6: 
+  7: const ratioColor = (i: number) => {
+  8:     const colors = ['#171717', '#dc2626', '#0ea5e9', '#16a34a', '#d97706', '#8b5cf6'];
+  9:     return colors[i % colors.length];
+ 10: };
+ 11: 
+ 12: export const BlendList = () => {
+ 13:     const userId = useAuthStore((s) => s.user?.id ?? '');
+ 14:     const { data: blends = [], isLoading } = useBlends(userId);
+ 15:     const deleteBlend = useDeleteBlend(userId);
+ 16: 
+ 17:     const [modalOpen, setModalOpen] = useState(false);
+ 18:     const [editing, setEditing] = useState<BlendWithComponents | null>(null);
+ 19:     const [selectedId, setSelectedId] = useState<string | null>(null);
+ 20: 
+ 21:     const selected = blends.find((b) => b.id === selectedId) ?? blends[0] ?? null;
+ 22: 
+ 23:     const handleDelete = (id: string) => {
+ 24:         deleteBlend.mutate(id);
+ 25:         if (selectedId === id) setSelectedId(blends.find((b) => b.id !== id)?.id ?? null);
+ 26:     };
+ 27: 
+ 28:     const totalRatio = (components: BlendWithComponents['blend_components']) =>
+ 29:         components.reduce((sum, c) => sum + c.ratio_pct, 0);
+ 30: 
+ 31:     if (!isLoading && blends.length === 0) {
+ 32:         return (
+ 33:             <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
+ 34:                 {/* <GitCompare size={40} strokeWidth={1.5} className="text-muted" /> */}
+ 35:                 <div className="text-[13px] text-muted text-center leading-relaxed">
+ 36:                     등록된 블렌드가 없습니다.
+ 37:                     <br />첫 번째 블렌드 레시피를 추가해 보세요.
+ 38:                 </div>
+ 39:                 <button
+ 40:                     onClick={() => {
+ 41:                         setEditing(null);
+ 42:                         setModalOpen(true);
+ 43:                     }}
+ 44:                     className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
+ 45:                 >
+ 46:                     <Plus size={14} strokeWidth={2} />
+ 47:                     블렌드 추가
+ 48:                 </button>
+ 49:                 <AddBlendModal
+ 50:                     key={editing?.id ?? 'new'}
+ 51:                     open={modalOpen}
+ 52:                     onClose={() => setModalOpen(false)}
+ 53:                     editing={editing}
+ 54:                 />
+ 55:             </div>
+ 56:         );
+ 57:     }
+ 58: 
+ 59:     return (
+ 60:         <div className="grid gap-5" style={{ gridTemplateColumns: '350px 1fr' }}>
+ 61:             {/* Left: Blend list */}
+ 62:             <div className="flex flex-col gap-2">
+ 63:                 <button
+ 64:                     onClick={() => {
+ 65:                         setEditing(null);
+ 66:                         setModalOpen(true);
+ 67:                     }}
+ 68:                     className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] dark:border-[#585d61] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 dark:hover:border-[#585d61] transition-colors tracking-[0.14px] mb-1"
+ 69:                 >
+ 70:                     <Plus size={14} strokeWidth={2} />
+ 71:                     Add Blend
+ 72:                 </button>
+ 73: 
+ 74:                 {isLoading ? (
+ 75:                     <div className="flex items-center justify-center py-12 text-sm text-muted dark:text-white">
+ 76:                         Loading…
+ 77:                     </div>
+ 78:                 ) : blends.length === 0 ? null : (
+ 79:                     blends.map((blend) => {
+ 80:                         return (
+ 81:                             <div
+ 82:                                 key={blend.id}
+ 83:                                 onClick={() => setSelectedId(blend.id)}
+ 84:                                 className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150"
+ 85:                             >
+ 86:                                 <div className="flex items-start justify-between mb-1.5">
+ 87:                                     <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
+ 88:                                         {blend.name}
+ 89:                                     </span>
+ 90:                                 </div>
+ 91:                                 {blend.description && (
+ 92:                                     <p className="text-[12px] text-muted tracking-[0.14px] mb-2 line-clamp-2">
+ 93:                                         {blend.description}
+ 94:                                     </p>
+ 95:                                 )}
+ 96:                                 <div className="flex flex-wrap gap-1.5">
+ 97:                                     {blend.blend_components.map((c) => (
+ 98:                                         <span
+ 99:                                             key={c.id}
+100:                                             className="text-[11px] text-muted bg-surface dark:bg-surface-elevated px-2 py-0.5 rounded-full tracking-[0.14px]"
+101:                                         >
+102:                                             {c.beans.name} {c.ratio_pct}%
+103:                                         </span>
+104:                                     ))}
+105:                                 </div>
+106:                             </div>
+107:                         );
+108:                     })
+109:                 )}
+110:             </div>
+111: 
+112:             {/* Right: Blend detail */}
+113:             {selected ? (
+114:                 <div className="bg-main-bg rounded-lg px-8 py-7 h-fit dark:border dark:border-[#585d61]">
+115:                     <div className="flex items-start justify-between mb-6">
+116:                         <div>
+117:                             <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
+118:                                 {selected.name}
+119:                             </h2>
+120:                             {selected.description && (
+121:                                 <p className="text-sm text-secondary tracking-[0.14px] leading-normal">
+122:                                     {selected.description}
+123:                                 </p>
+124:                             )}
+125:                         </div>
+126:                         <div className="flex gap-2">
+127:                             <button
+128:                                 onClick={() => {
+129:                                     setEditing(selected);
+130:                                     setModalOpen(true);
+131:                                 }}
+132:                                 className="w-9 h-9 rounded-[10px] border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer"
+133:                                 title="Edit"
+134:                             >
+135:                                 <Pencil size={14} strokeWidth={2} />
+136:                             </button>
+137:                             <button
+138:                                 onClick={() => handleDelete(selected.id)}
+139:                                 className="w-9 h-9 rounded-[10px] border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer"
+140:                                 title="Delete"
+141:                                 style={{ color: '#dc2626' }}
+142:                             >
+143:                                 <Trash2 size={14} strokeWidth={2} />
+144:                             </button>
+145:                         </div>
+146:                     </div>
+147: 
+148:                     {/* Component breakdown */}
+149:                     <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4.5 py-4 mb-6">
+150:                         <div className="text-[12px] font-semibold text-secondary mb-3 tracking-[0.14px]">
+151:                             Component Beans
+152:                         </div>
+153:                         <div className="space-y-2.5">
+154:                             {selected.blend_components.map((c, i) => (
+155:                                 <div key={c.id}>
+156:                                     <div className="flex justify-between items-center mb-1">
+157:                                         <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
+158:                                             {c.beans.name}
+159:                                         </span>
+160:                                         <span className="text-[12px] font-mono font-semibold text-secondary">
+161:                                             {c.ratio_pct}%
+162:                                         </span>
+163:                                     </div>
+164:                                     <div className="h-1.5 bg-white/70 dark:bg-white/8 rounded-full overflow-hidden">
+165:                                         <div
+166:                                             className="h-full rounded-full transition-all"
+167:                                             style={{
+168:                                                 width: `${(c.ratio_pct / totalRatio(selected.blend_components)) * 100}%`,
+169:                                                 backgroundColor: ratioColor(i),
+170:                                             }}
+171:                                         />
+172:                                     </div>
+173:                                 </div>
+174:                             ))}
+175:                         </div>
+176:                     </div>
+177: 
+178:                     {/* Summary bar */}
+179:                     <div className="flex items-center gap-2.5 px-4 py-3 rounded-lg bg-surface-warm-solid dark:bg-[#1a1e23]">
+180:                         <span className="text-[12px] text-muted tracking-[0.14px]">
+181:                             {selected.blend_components.length} bean{selected.blend_components.length !== 1 ? 's' : ''} ·{' '}
+182:                             {totalRatio(selected.blend_components)}% total
+183:                         </span>
+184:                     </div>
+185:                 </div>
+186:             ) : blends.length > 0 ? (
+187:                 <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg py-15 px-8 flex items-center justify-center text-sm text-muted tracking-[0.14px]">
+188:                     Select a blend to view details
+189:                 </div>
+190:             ) : null}
+191: 
+192:             <AddBlendModal
+193:                 key={editing?.id ?? 'new'}
+194:                 open={modalOpen}
+195:                 onClose={() => setModalOpen(false)}
+196:                 editing={editing}
+197:             />
+198:         </div>
+199:     );
+200: };
 </file>
 
 <file path="src/widgets/settings-modal/ui/tabConfig.ts">
@@ -17928,25 +17928,6 @@ This section contains the contents of the repository's files.
 32: } as const;
 </file>
 
-<file path="src/features/active-roast/index.ts">
- 1: // model
- 2: 
- 3: export type { PhaseSegment } from './lib/phases';
- 4: export { computePhaseSegments } from './lib/phases';
- 5: // lib
- 6: export { formatTemp, toDisplayRoR, toDisplayTemp } from './lib/temperature';
- 7: export type { TurningPoint } from './lib/turningPoints';
- 8: export { detectTurningPoints } from './lib/turningPoints';
- 9: export type { PollIntervalMs, RoastSettings, RorSpanSec, TemperatureUnit } from './model/settings';
-10: export { updateRoastSettings, useRoastSettings } from './model/settings';
-11: export type { RoastingState, RoastPhase } from './model/status';
-12: export { useRoastingStore } from './model/status';
-13: export type { DeductRoastStockParams } from './model/useDeductRoastStock';
-14: export { useDeductRoastStock } from './model/useDeductRoastStock';
-15: export { useRoastActions } from './model/useRoastActions';
-16: export { useRoastKeyboardShortcuts } from './model/useRoastKeyboardShortcuts';
-</file>
-
 <file path="src/shared/types/database.types.ts">
    1: export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
    2: 
@@ -21322,6 +21303,25 @@ This section contains the contents of the repository's files.
 215:     secrets: inherit
 </file>
 
+<file path="src/features/active-roast/index.ts">
+ 1: // model
+ 2: 
+ 3: export type { PhaseSegment } from './lib/phases';
+ 4: export { computePhaseSegments } from './lib/phases';
+ 5: // lib
+ 6: export { formatTemp, toDisplayRoR, toDisplayTemp } from './lib/temperature';
+ 7: export type { TurningPoint } from './lib/turningPoints';
+ 8: export { detectTurningPoints } from './lib/turningPoints';
+ 9: export type { PollIntervalMs, RoastSettings, RorSpanSec, TemperatureUnit } from './model/settings';
+10: export { updateRoastSettings, useRoastSettings } from './model/settings';
+11: export type { RoastingState, RoastPhase } from './model/status';
+12: export { useRoastingStore } from './model/status';
+13: export type { DeductRoastStockParams } from './model/useDeductRoastStock';
+14: export { useDeductRoastStock } from './model/useDeductRoastStock';
+15: export { useRoastActions } from './model/useRoastActions';
+16: export { useRoastKeyboardShortcuts } from './model/useRoastKeyboardShortcuts';
+</file>
+
 <file path="src/shared/ui/KpiCard.tsx">
  1: import type { LucideIcon } from 'lucide-react';
  2: 
@@ -22197,6 +22197,228 @@ This section contains the contents of the repository's files.
 224:         </ModalShell>
 225:     );
 226: };
+</file>
+
+<file path="src/widgets/add-blend-modal/ui/AddBlendModal.tsx">
+  1: import { useBeans } from '@entities/bean';
+  2: import type { BlendWithComponents } from '@entities/blend';
+  3: import { useCreateBlend, useUpdateBlend } from '@entities/blend';
+  4: import { zodResolver } from '@hookform/resolvers/zod';
+  5: import { useFormEscape } from '@shared/lib/useFormEscape';
+  6: import { useAuthStore } from '@shared/store/auth';
+  7: import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+  8: import { ChevronDown, X } from 'lucide-react';
+  9: import { useEffect } from 'react';
+ 10: import { useFieldArray, useForm } from 'react-hook-form';
+ 11: import { type BlendForm, blendFormSchema } from '../lib/schema';
+ 12: 
+ 13: type Props = {
+ 14:     open: boolean;
+ 15:     onClose: () => void;
+ 16:     editing?: BlendWithComponents | null;
+ 17: };
+ 18: 
+ 19: const inputCls =
+ 20:     'w-full px-3.5 py-3 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all';
+ 21: 
+ 22: const labelCls = 'flex items-center gap-1.5 text-xs font-semibold text-muted mb-2 tracking-[0.02em] uppercase';
+ 23: 
+ 24: export const AddBlendModal = ({ open, onClose, editing }: Props) => {
+ 25:     const userId = useAuthStore((s) => s.user?.id ?? '');
+ 26:     const { data: beans = [] } = useBeans(userId);
+ 27:     const createBlend = useCreateBlend(userId);
+ 28:     const updateBlend = useUpdateBlend(userId);
+ 29: 
+ 30:     const {
+ 31:         register,
+ 32:         handleSubmit,
+ 33:         control,
+ 34:         reset,
+ 35:         watch,
+ 36:         formState: { errors, isValid },
+ 37:     } = useForm<BlendForm>({
+ 38:         resolver: zodResolver(blendFormSchema),
+ 39:         mode: 'onChange',
+ 40:         defaultValues: {
+ 41:             name: '',
+ 42:             description: '',
+ 43:             components: [{ bean_id: '', ratio_pct: 100 }],
+ 44:         },
+ 45:     });
+ 46: 
+ 47:     const { fields, append, remove } = useFieldArray({ control, name: 'components' });
+ 48: 
+ 49:     useFormEscape(open, onClose);
+ 50: 
+ 51:     const components = watch('components');
+ 52:     const totalRatio = components?.reduce((s, c) => s + (c.ratio_pct ?? 0), 0) ?? 0;
+ 53: 
+ 54:     // Reset form when opening or switching between create/edit
+ 55:     useEffect(() => {
+ 56:         if (!open) return;
+ 57:         if (editing) {
+ 58:             reset({
+ 59:                 name: editing.name ?? '',
+ 60:                 description: editing.description ?? '',
+ 61:                 components: editing.blend_components.map((c) => ({
+ 62:                     bean_id: c.bean_id,
+ 63:                     ratio_pct: Number(c.ratio_pct),
+ 64:                 })),
+ 65:             });
+ 66:         } else {
+ 67:             reset({
+ 68:                 name: '',
+ 69:                 description: '',
+ 70:                 components: [{ bean_id: '', ratio_pct: 100 }],
+ 71:             });
+ 72:         }
+ 73:     }, [open, editing, reset]);
+ 74: 
+ 75:     if (!open) return null;
+ 76: 
+ 77:     const onSubmit = async (data: BlendForm) => {
+ 78:         if (editing) {
+ 79:             await updateBlend.mutateAsync({
+ 80:                 id: editing.id,
+ 81:                 patch: { name: data.name.trim(), description: data.description.trim() || undefined },
+ 82:                 components: data.components,
+ 83:             });
+ 84:         } else {
+ 85:             await createBlend.mutateAsync({
+ 86:                 blend: { name: data.name.trim(), description: data.description.trim() || undefined, user_id: userId },
+ 87:                 components: data.components,
+ 88:             });
+ 89:         }
+ 90:         onClose();
+ 91:     };
+ 92: 
+ 93:     return (
+ 94:         <ModalShell
+ 95:             onClose={onClose}
+ 96:             labelledBy="add-blend-modal-title"
+ 97:             contentClassName="max-w-[560px] w-full max-h-[min(720px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.96)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white dark:border-[#585d61] overflow-hidden"
+ 98:         >
+ 99:             {/* Header */}
+100:             <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
+101:                 <div className="flex items-center justify-between px-8 pt-6 pb-5">
+102:                     <h2
+103:                         id="add-blend-modal-title"
+104:                         className="font-(--font-display) text-2xl text-primary tracking-[-0.02em] m-0"
+105:                     >
+106:                         {editing ? '블렌드 수정' : '블렌드 추가'}
+107:                     </h2>
+108:                     <button
+109:                         onClick={onClose}
+110:                         className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
+111:                     >
+112:                         <X size={18} strokeWidth={2.5} />
+113:                     </button>
+114:                 </div>
+115:             </div>
+116: 
+117:             {/* Scrollable Body */}
+118:             <form onSubmit={handleSubmit(onSubmit)} className="p-8 overflow-y-auto flex-1 space-y-4">
+119:                 {/* Name */}
+120:                 <div>
+121:                     <label className={labelCls}>블렌드 이름</label>
+122:                     <input {...register('name')} className={inputCls} placeholder="블렌드 이름" />
+123:                     {errors.name && <p className="text-[11px] text-red-500 mt-1">{errors.name.message}</p>}
+124:                 </div>
+125: 
+126:                 {/* Description */}
+127:                 <div>
+128:                     <label className={labelCls}>설명 (선택)</label>
+129:                     <input {...register('description')} className={inputCls} placeholder="설명 (선택)" />
+130:                 </div>
+131: 
+132:                 {/* Components */}
+133:                 <div>
+134:                     <div className="flex items-center justify-between mb-3">
+135:                         <label className={labelCls + ' mb-0'}>구성 생두</label>
+136:                         <span
+137:                             className={`text-xs font-semibold ${totalRatio === 100 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}
+138:                         >
+139:                             합계 {totalRatio}%
+140:                         </span>
+141:                     </div>
+142:                     {errors.components?.root && (
+143:                         <p className="text-[11px] text-red-500 mb-2">{errors.components.root.message}</p>
+144:                     )}
+145: 
+146:                     <div className="space-y-2">
+147:                         {fields.map((field, idx) => (
+148:                             <div key={field.id} className="flex gap-2 items-center">
+149:                                 <div className="relative flex-1">
+150:                                     <select
+151:                                         {...register(`components.${idx}.bean_id`)}
+152:                                         className="w-full px-3 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all appearance-none cursor-pointer"
+153:                                         style={{ paddingRight: '2rem' }}
+154:                                     >
+155:                                         <option value="">생두 선택</option>
+156:                                         {beans.map((b) => (
+157:                                             <option key={b.id} value={b.id}>
+158:                                                 {b.name}
+159:                                             </option>
+160:                                         ))}
+161:                                     </select>
+162:                                     <ChevronDown
+163:                                         size={16}
+164:                                         strokeWidth={2}
+165:                                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+166:                                     />
+167:                                 </div>
+168:                                 <input
+169:                                     type="number"
+170:                                     {...register(`components.${idx}.ratio_pct`, { valueAsNumber: true })}
+171:                                     className="w-20 px-3 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary text-right outline-none transition-all"
+172:                                     placeholder="%"
+173:                                     min={1}
+174:                                     max={100}
+175:                                 />
+176:                                 <span className="text-sm text-muted">%</span>
+177:                                 {fields.length > 1 && (
+178:                                     <button
+179:                                         type="button"
+180:                                         className="w-8 h-8 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:text-red-500"
+181:                                         onClick={() => remove(idx)}
+182:                                     >
+183:                                         <X size={14} strokeWidth={2.5} />
+184:                                     </button>
+185:                                 )}
+186:                             </div>
+187:                         ))}
+188:                     </div>
+189: 
+190:                     <button
+191:                         type="button"
+192:                         className="mt-3 text-sm text-primary font-medium underline cursor-pointer"
+193:                         onClick={() => append({ bean_id: '', ratio_pct: 0 })}
+194:                     >
+195:                         + 생두 추가
+196:                     </button>
+197:                 </div>
+198: 
+199:                 {/* Footer */}
+200:                 <div className="!mt-8 flex gap-3">
+201:                     <button
+202:                         type="button"
+203:                         onClick={onClose}
+204:                         className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
+205:                     >
+206:                         취소
+207:                     </button>
+208:                     <button
+209:                         type="submit"
+210:                         disabled={!isValid}
+211:                         className="flex-1 py-3.5 rounded-2xl border border-transparent dark:border-white bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+212:                     >
+213:                         {editing ? '저장' : '추가'}
+214:                     </button>
+215:                 </div>
+216:             </form>
+217:         </ModalShell>
+218:     );
+219: };
 </file>
 
 <file path="src/widgets/recurring-edit-scope-modal/ui/RecurringEditScopeModal.tsx">
@@ -23616,228 +23838,6 @@ This section contains the contents of the repository's files.
 119:         </>
 120:     );
 121: };
-</file>
-
-<file path="src/widgets/add-blend-modal/ui/AddBlendModal.tsx">
-  1: import { useBeans } from '@entities/bean';
-  2: import type { BlendWithComponents } from '@entities/blend';
-  3: import { useCreateBlend, useUpdateBlend } from '@entities/blend';
-  4: import { zodResolver } from '@hookform/resolvers/zod';
-  5: import { useFormEscape } from '@shared/lib/useFormEscape';
-  6: import { useAuthStore } from '@shared/store/auth';
-  7: import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
-  8: import { ChevronDown, X } from 'lucide-react';
-  9: import { useEffect } from 'react';
- 10: import { useFieldArray, useForm } from 'react-hook-form';
- 11: import { type BlendForm, blendFormSchema } from '../lib/schema';
- 12: 
- 13: type Props = {
- 14:     open: boolean;
- 15:     onClose: () => void;
- 16:     editing?: BlendWithComponents | null;
- 17: };
- 18: 
- 19: const inputCls =
- 20:     'w-full px-3.5 py-3 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all';
- 21: 
- 22: const labelCls = 'flex items-center gap-1.5 text-xs font-semibold text-muted mb-2 tracking-[0.02em] uppercase';
- 23: 
- 24: export const AddBlendModal = ({ open, onClose, editing }: Props) => {
- 25:     const userId = useAuthStore((s) => s.user?.id ?? '');
- 26:     const { data: beans = [] } = useBeans(userId);
- 27:     const createBlend = useCreateBlend(userId);
- 28:     const updateBlend = useUpdateBlend(userId);
- 29: 
- 30:     const {
- 31:         register,
- 32:         handleSubmit,
- 33:         control,
- 34:         reset,
- 35:         watch,
- 36:         formState: { errors, isValid },
- 37:     } = useForm<BlendForm>({
- 38:         resolver: zodResolver(blendFormSchema),
- 39:         mode: 'onChange',
- 40:         defaultValues: {
- 41:             name: '',
- 42:             description: '',
- 43:             components: [{ bean_id: '', ratio_pct: 100 }],
- 44:         },
- 45:     });
- 46: 
- 47:     const { fields, append, remove } = useFieldArray({ control, name: 'components' });
- 48: 
- 49:     useFormEscape(open, onClose);
- 50: 
- 51:     const components = watch('components');
- 52:     const totalRatio = components?.reduce((s, c) => s + (c.ratio_pct ?? 0), 0) ?? 0;
- 53: 
- 54:     // Reset form when opening or switching between create/edit
- 55:     useEffect(() => {
- 56:         if (!open) return;
- 57:         if (editing) {
- 58:             reset({
- 59:                 name: editing.name ?? '',
- 60:                 description: editing.description ?? '',
- 61:                 components: editing.blend_components.map((c) => ({
- 62:                     bean_id: c.bean_id,
- 63:                     ratio_pct: Number(c.ratio_pct),
- 64:                 })),
- 65:             });
- 66:         } else {
- 67:             reset({
- 68:                 name: '',
- 69:                 description: '',
- 70:                 components: [{ bean_id: '', ratio_pct: 100 }],
- 71:             });
- 72:         }
- 73:     }, [open, editing, reset]);
- 74: 
- 75:     if (!open) return null;
- 76: 
- 77:     const onSubmit = async (data: BlendForm) => {
- 78:         if (editing) {
- 79:             await updateBlend.mutateAsync({
- 80:                 id: editing.id,
- 81:                 patch: { name: data.name.trim(), description: data.description.trim() || undefined },
- 82:                 components: data.components,
- 83:             });
- 84:         } else {
- 85:             await createBlend.mutateAsync({
- 86:                 blend: { name: data.name.trim(), description: data.description.trim() || undefined, user_id: userId },
- 87:                 components: data.components,
- 88:             });
- 89:         }
- 90:         onClose();
- 91:     };
- 92: 
- 93:     return (
- 94:         <ModalShell
- 95:             onClose={onClose}
- 96:             labelledBy="add-blend-modal-title"
- 97:             contentClassName="max-w-[560px] w-full max-h-[min(720px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.96)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white dark:border-[#585d61] overflow-hidden"
- 98:         >
- 99:             {/* Header */}
-100:             <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
-101:                 <div className="flex items-center justify-between px-8 pt-6 pb-5">
-102:                     <h2
-103:                         id="add-blend-modal-title"
-104:                         className="font-(--font-display) text-2xl text-primary tracking-[-0.02em] m-0"
-105:                     >
-106:                         {editing ? '블렌드 수정' : '블렌드 추가'}
-107:                     </h2>
-108:                     <button
-109:                         onClick={onClose}
-110:                         className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
-111:                     >
-112:                         <X size={18} strokeWidth={2.5} />
-113:                     </button>
-114:                 </div>
-115:             </div>
-116: 
-117:             {/* Scrollable Body */}
-118:             <form onSubmit={handleSubmit(onSubmit)} className="p-8 overflow-y-auto flex-1 space-y-4">
-119:                 {/* Name */}
-120:                 <div>
-121:                     <label className={labelCls}>블렌드 이름</label>
-122:                     <input {...register('name')} className={inputCls} placeholder="블렌드 이름" />
-123:                     {errors.name && <p className="text-[11px] text-red-500 mt-1">{errors.name.message}</p>}
-124:                 </div>
-125: 
-126:                 {/* Description */}
-127:                 <div>
-128:                     <label className={labelCls}>설명 (선택)</label>
-129:                     <input {...register('description')} className={inputCls} placeholder="설명 (선택)" />
-130:                 </div>
-131: 
-132:                 {/* Components */}
-133:                 <div>
-134:                     <div className="flex items-center justify-between mb-3">
-135:                         <label className={labelCls + ' mb-0'}>구성 생두</label>
-136:                         <span
-137:                             className={`text-xs font-semibold ${totalRatio === 100 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}
-138:                         >
-139:                             합계 {totalRatio}%
-140:                         </span>
-141:                     </div>
-142:                     {errors.components?.root && (
-143:                         <p className="text-[11px] text-red-500 mb-2">{errors.components.root.message}</p>
-144:                     )}
-145: 
-146:                     <div className="space-y-2">
-147:                         {fields.map((field, idx) => (
-148:                             <div key={field.id} className="flex gap-2 items-center">
-149:                                 <div className="relative flex-1">
-150:                                     <select
-151:                                         {...register(`components.${idx}.bean_id`)}
-152:                                         className="w-full px-3 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all appearance-none cursor-pointer"
-153:                                         style={{ paddingRight: '2rem' }}
-154:                                     >
-155:                                         <option value="">생두 선택</option>
-156:                                         {beans.map((b) => (
-157:                                             <option key={b.id} value={b.id}>
-158:                                                 {b.name}
-159:                                             </option>
-160:                                         ))}
-161:                                     </select>
-162:                                     <ChevronDown
-163:                                         size={16}
-164:                                         strokeWidth={2}
-165:                                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-166:                                     />
-167:                                 </div>
-168:                                 <input
-169:                                     type="number"
-170:                                     {...register(`components.${idx}.ratio_pct`, { valueAsNumber: true })}
-171:                                     className="w-20 px-3 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary text-right outline-none transition-all"
-172:                                     placeholder="%"
-173:                                     min={1}
-174:                                     max={100}
-175:                                 />
-176:                                 <span className="text-sm text-muted">%</span>
-177:                                 {fields.length > 1 && (
-178:                                     <button
-179:                                         type="button"
-180:                                         className="w-8 h-8 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:text-red-500"
-181:                                         onClick={() => remove(idx)}
-182:                                     >
-183:                                         <X size={14} strokeWidth={2.5} />
-184:                                     </button>
-185:                                 )}
-186:                             </div>
-187:                         ))}
-188:                     </div>
-189: 
-190:                     <button
-191:                         type="button"
-192:                         className="mt-3 text-sm text-primary font-medium underline cursor-pointer"
-193:                         onClick={() => append({ bean_id: '', ratio_pct: 0 })}
-194:                     >
-195:                         + 생두 추가
-196:                     </button>
-197:                 </div>
-198: 
-199:                 {/* Footer */}
-200:                 <div className="!mt-8 flex gap-3">
-201:                     <button
-202:                         type="button"
-203:                         onClick={onClose}
-204:                         className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
-205:                     >
-206:                         취소
-207:                     </button>
-208:                     <button
-209:                         type="submit"
-210:                         disabled={!isValid}
-211:                         className="flex-1 py-3.5 rounded-2xl border border-transparent dark:border-white bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-212:                     >
-213:                         {editing ? '저장' : '추가'}
-214:                     </button>
-215:                 </div>
-216:             </form>
-217:         </ModalShell>
-218:     );
-219: };
 </file>
 
 <file path="src/widgets/settings-modal/ui/AccountSettingsTab.tsx">
@@ -31268,10 +31268,10 @@ This section contains the contents of the repository's files.
 336:         "pagination": "{{start}}–{{end}} / 총 {{total}}",
 337:         "noNotes": "기록된 노트가 없습니다.",
 338:         "searchPlaceholder": "원두, 프로파일 또는 산지 검색...",
-339:         "allLevels": "전체 로스팅도",
-340:         "allOrigins": "전체 산지",
+339:         "allLevels": "로스팅 레벨",
+340:         "allOrigins": "산지",
 341:         "datePresets": {
-342:             "all": "전체",
+342:             "all": "기간",
 343:             "this-month": "이번 달",
 344:             "last-month": "지난 달",
 345:             "3-months": "최근 3개월",
@@ -32917,330 +32917,330 @@ This section contains the contents of the repository's files.
 161:         const unitLabel = temperatureUnit === 'C' ? '℃' : '℉';
 162:         const rorUnit = temperatureUnit === 'C' ? '℃/min' : '℉/min';
 163: 
-164:         // 🔥 TypeError 해결: ECharts가 undefined 값을 처리 못해서
-165:         // 명시적으로 [x값, y값] 튜플로 변환하면 getRawIndex 에러 방지
-166:         // arr[i]가 undefined면 null로 변환하여 ECharts 렌더링 안정화
-167:         const makeSeriesData = (arr: (number | null)[]) => xs.map((x, i) => [x, arr[i] ?? null]);
-168: 
-169:         // 커피 로스팅 차트에 최적화된 스무딩 설정
-170:         // - BT(Bean Temp): 0.42 → 자연스러운 곡선, 노이즈 최소화
-171:         // - ET(Environment Temp): 0.38 → BT보다 약간 덜 휘게 (안정적 표현)
-172:         // - RoR(Rate of Rise): 0.28 → 센서 노이즈 많아서 더 부드럽게
-173:         // - smoothMonotone 'x' → 시간축 방향으로만 스무딩 (역행 방지)
-174:         // - sampling 'lttb' → Largest-Triangle-Three-Buckets 알고리즘 (성능 + 품질)
-175:         const getSmoothConfig = (strength: number = 0.4) => ({
-176:             smooth: strength,
-177:             smoothMonotone: 'x' as const,
-178:             sampling: 'lttb' as const,
-179:         });
-180: 
-181:         const tpMarkLines = turningPoints.map((tp) => ({
-182:             xAxis: tp.timeSec,
-183:             lineStyle: {
-184:                 color: colors.tp,
-185:                 width: 1.5,
-186:                 type: 'solid' as const,
-187:                 opacity: 1,
-188:             },
-189:             label: {
-190:                 show: true,
-191:                 position: 'start',
-192:                 formatter: 'TP',
-193:                 color: colors.tp,
-194:                 fontSize: 12,
-195:                 fontWeight: 700,
-196:             },
-197:         }));
-198: 
-199:         const eventMarkLines = eventMarkers.map((m) => ({
-200:             xAxis: m.timeSec,
-201:             lineStyle: {
-202:                 color: m.color,
-203:                 width: 1.5,
-204:                 type: 'solid' as const,
-205:                 opacity: 0.8,
-206:             },
-207:             label: {
-208:                 show: false,
-209:             },
-210:         }));
-211: 
-212:         const markPointData = eventMarkers.map((m) => {
-213:             const isLight = luminance(m.color) > 160;
-214:             return {
-215:                 name: m.event,
-216:                 value: [m.timeSec, null],
-217:                 xAxis: m.timeSec,
-218:                 symbol: 'circle',
-219:                 symbolSize: 10,
-220:                 itemStyle: { color: m.color, borderColor: CHART_COLORS.markerLabelColor, borderWidth: 2 },
-221:                 label: {
-222:                     show: true,
-223:                     position: 'top',
-224:                     formatter: m.event,
-225:                     fontSize: 10,
-226:                     color: isLight ? '#0B0B0B' : CHART_COLORS.markerLabelColor,
-227:                     backgroundColor: m.color,
-228:                     padding: [2, 4],
-229:                 },
-230:             };
-231:         });
-232: 
-233:         const xMin = xs[0] ?? 0;
-234:         const xMax = xs[xs.length - 1] ?? 1200;
-235:         const hasRightYAxis = showRoR || !!controlData;
-236:         const rightMargin = hasRightYAxis ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
-237:         const leftMargin = CHART_GRID_LEFT;
-238:         const topMargin = CHART_GRID_TOP;
-239: 
-240:         const tempSeries = [
-241:             showTargetCurve && {
-242:                 name: 'BT Target',
-243:                 type: 'line',
-244:                 xAxisIndex: 0,
-245:                 yAxisIndex: 0,
-246:                 z: 1,
-247:                 data: makeSeriesData(btTarget),
-248:                 lineStyle: { color: colors.btTarget, width: 1.5, type: 'dashed', opacity: 0.55 },
-249:                 areaStyle: { color: colors.btTarget, opacity: 0.06 },
-250:                 showSymbol: false,
-251:                 smooth: false,
-252:             },
-253:             {
-254:                 name: 'BT Actual',
-255:                 type: 'line',
-256:                 xAxisIndex: 0,
-257:                 yAxisIndex: 0,
-258:                 z: 2,
-259:                 data: xs.map((x, i) => [x, btActual[i]]),
-260:                 lineStyle: { color: colors.btActual, width: 1.8 },
-261:                 showSymbol: false,
-262:                 ...getSmoothConfig(0.7),
-263:                 markLine: {
-264:                     silent: false,
-265:                     symbol: ['none', 'circle'],
-266:                     symbolSize: [0, 8],
-267:                     data: [...eventMarkLines, ...tpMarkLines],
-268:                 },
-269:                 markPoint: { data: markPointData },
-270:             },
-271:             showET && {
-272:                 name: 'ET Actual',
-273:                 type: 'line',
-274:                 xAxisIndex: 0,
-275:                 yAxisIndex: 0,
-276:                 z: 2,
-277:                 data: xs.map((x, i) => [x, etActual[i]]),
-278:                 lineStyle: { color: colors.etActual, width: 1.5 },
-279:                 showSymbol: false,
-280:                 ...getSmoothConfig(0.65),
-281:             },
-282:             showRoR && {
-283:                 name: 'RoR',
-284:                 type: 'line',
-285:                 xAxisIndex: 0,
-286:                 yAxisIndex: 1,
-287:                 data: xs.map((x, i) => [x, rorActual[i]]),
-288:                 lineStyle: { color: colors.rorActual, width: 1.2 },
-289:                 showSymbol: false,
-290:                 ...getSmoothConfig(0.28),
-291:             },
-292:             showRoR &&
-293:                 showRoRET && {
-294:                     name: 'ET RoR',
-295:                     type: 'line',
-296:                     xAxisIndex: 0,
-297:                     yAxisIndex: 1,
-298:                     data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
-299:                     lineStyle: { color: colors.etActual, width: 1.0, type: 'dashed' },
-300:                     showSymbol: false,
-301:                     ...getSmoothConfig(0.28),
-302:                 },
-303:         ].filter(Boolean) as object[];
-304: 
-305:         // ── Phase bar (로스팅 단계 시각화) ────────────────────────────────────
-306:         // 로스팅 프로필을 "Dry", "Development", "Cooling" 등의 단계로 나누어
-307:         // 차트 하단에 색상 막대로 표시하고 각 단계의 시간과 비율을 표기.
-308:         // - phaseSegments가 있을 때만 활성화
-309:         // - 활성화 시 하단에 별도 grid(3번째)를 추가하고 시간 축 라벨을 그쪽으로 이동
-310:         const hasPhaseBar = phaseSegments.length > 0;
-311: 
-312:         const buildPhaseSeries = (xAxisIdx: number, yAxisIdx: number) => ({
-313:             type: 'custom' as const,
-314:             xAxisIndex: xAxisIdx,
-315:             yAxisIndex: yAxisIdx,
-316:             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-317:             renderItem: (params: any, api: any) => {
-318:                 // 시간축(x) 데이터를 픽셀 좌표로 변환
-319:                 const startPx = api.coord([api.value(0), 0])[0];
-320:                 const endPx = api.coord([api.value(1), 0])[0];
-321:                 const width = Math.max(0, endPx - startPx);
-322:                 const { y, height: h } = params.coordSys;
-323: 
-324:                 // 각 단계의 메타데이터
-325:                 const durSec = api.value(2) as number;
-326:                 const pct = api.value(3) as number;
-327:                 const color = api.value(4) as string;
-328:                 const name = api.value(5) as string;
-329:                 const durMin = Math.floor(durSec / 60);
-330:                 const durS = String(durSec % 60).padStart(2, '0');
-331:                 const durLabel = `${durMin}:${durS}  ${pct}%`;
-332: 
-333:                 // 단계별 배경 박스 생성
-334:                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-335:                 const children: any[] = [
-336:                     {
-337:                         type: 'rect',
-338:                         shape: { x: startPx, y, width, height: h },
-339:                         style: { fill: color, stroke: PHASE_BAR_STROKE, lineWidth: PHASE_BAR_STROKE_WIDTH },
-340:                         silent: true,
-341:                     },
-342:                 ];
-343: 
-344:                 // 너비에 따라 텍스트 배치 전략 변경
-345:                 // - width > WIDE: 단계명 좌측 + 시간 우측 (여유있음)
-346:                 // - width > NARROW: 시간을 중앙에 (공간 제한)
-347:                 // - width ≤ NARROW: 텍스트 생략 (너무 좁음)
-348:                 if (width > PHASE_BAR_WIDE_THRESHOLD) {
-349:                     children.push({
-350:                         type: 'text',
-351:                         style: {
-352:                             text: name,
-353:                             x: startPx + PHASE_BAR_TEXT_INSET,
-354:                             y: y + h / 2,
-355:                             fontSize: PHASE_BAR_FONT_SIZE,
-356:                             fontFamily: PHASE_BAR_FONT_FAMILY,
-357:                             fontWeight: PHASE_BAR_FONT_WEIGHT,
-358:                             fill: PHASE_BAR_NAME_COLOR,
-359:                             textVerticalAlign: 'middle',
-360:                         },
-361:                         silent: true,
-362:                     });
-363:                     children.push({
-364:                         type: 'text',
-365:                         style: {
-366:                             text: durLabel,
-367:                             x: endPx - PHASE_BAR_TEXT_INSET,
-368:                             y: y + h / 2,
-369:                             fontSize: PHASE_BAR_FONT_SIZE,
-370:                             fontFamily: PHASE_BAR_FONT_FAMILY,
-371:                             fill: PHASE_BAR_DURATION_COLOR,
-372:                             textAlign: 'right',
-373:                             textVerticalAlign: 'middle',
-374:                         },
-375:                         silent: true,
-376:                     });
-377:                 } else if (width > PHASE_BAR_NARROW_THRESHOLD) {
-378:                     children.push({
-379:                         type: 'text',
-380:                         style: {
-381:                             text: durLabel,
-382:                             x: (startPx + endPx) / 2,
-383:                             y: y + h / 2,
-384:                             fontSize: PHASE_BAR_FONT_SIZE_NARROW,
-385:                             fontFamily: PHASE_BAR_FONT_FAMILY,
-386:                             fill: PHASE_BAR_DURATION_COLOR,
-387:                             textAlign: 'center',
-388:                             textVerticalAlign: 'middle',
-389:                         },
-390:                         silent: true,
-391:                     });
-392:                 }
-393: 
-394:                 return { type: 'group', children };
-395:             },
-396:             // 각 단계 데이터: [startSec, endSec, durationSec, percentage, color, name]
-397:             data: phaseSegments.map((seg) => [seg.startSec, seg.endSec, seg.durationSec, seg.pct, seg.color, seg.name]),
-398:             z: 5,
-399:         });
-400: 
-401:         if (controlData) {
-402:             const { xs: cxs, drumTemp, heatPower, fanSpeed } = controlData;
-403:             // Grid 레이아웃:
-404:             // [0] 온도 차트 (BT, ET, RoR) - 상단 48%
-405:             // [1] Phase bar (Drying/Maillard/Development) - 중간 (있을 때만)
-406:             // [2] 제어 데이터 (Drum, Heat, Fan) - 하단
-407:             //
-408:             // 시간 축 라벨은:
-409:             // - Phase bar 있으면 → grid[1] 하단에 표시
-410:             // - Phase bar 없으면 → grid[2] 하단에 표시
-411:             const controlBottom = hasPhaseBar
-412:                 ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP
-413:                 : CONTROL_GRID_BOTTOM;
-414:             const grids: {
-415:                 left: number;
-416:                 right: number;
-417:                 top: string | number;
-418:                 height?: string;
-419:                 bottom?: string | number;
-420:             }[] = hasPhaseBar
-421:                 ? [
-422:                       { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT_WITH_PHASE },
-423:                       {
-424:                           left: leftMargin,
-425:                           right: rightMargin,
-426:                           top: CONTROL_GRID_TOP_WITH_PHASE,
-427:                           height: `${PHASE_BAR_HEIGHT}px`,
-428:                       },
-429:                       { left: leftMargin, right: rightMargin, top: PHASE_GRID_TOP, bottom: controlBottom },
-430:                   ]
-431:                 : [
-432:                       { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT },
-433:                       { left: leftMargin, right: rightMargin, top: CONTROL_GRID_TOP, bottom: controlBottom },
-434:                   ];
-435:             const xAxes = hasPhaseBar
-436:                 ? [
-437:                       {
-438:                           gridIndex: 0,
-439:                           type: 'value' as const,
-440:                           min: xMin,
-441:                           max: xMax,
-442:                           axisLabel: { show: false },
-443:                           axisTick: { show: false },
-444:                           axisLine: { show: false },
-445:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
-446:                           interval: 60,
-447:                           splitNumber: 15,
-448:                       },
-449:                       {
-450:                           gridIndex: 1,
-451:                           type: 'value',
-452:                           min: xMin,
-453:                           max: xMax,
-454:                           axisLabel: { show: false },
-455:                           axisTick: { show: false },
-456:                           axisLine: { show: false },
-457:                           splitLine: { show: false },
-458:                           interval: 60,
-459:                           splitNumber: 15,
-460:                       },
-461:                       {
-462:                           gridIndex: 2,
-463:                           type: 'value',
-464:                           min: xMin,
-465:                           max: xMax,
-466:                           axisLabel: { formatter: fmtSec, ...axisLabelStyle },
-467:                           axisTick: { show: false },
-468:                           interval: 60,
-469:                           splitNumber: 15,
+164:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+165:         const formatAxisTooltip = (params: any) => {
+166:             const timeSec = params[0]?.axisValue ?? 0;
+167:             let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
+168:             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+169:             params.forEach((p: any) => {
+170:                 const y = p.value?.[1];
+171:                 if (p.seriesName === 'BT Target' && y != null)
+172:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget}"></div>Target BT: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+173:                 if (p.seriesName === 'BT Actual' && y != null)
+174:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+175:                 if (p.seriesName === 'ET Actual' && showET && y != null)
+176:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual}"></div>Env Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+177:                 if (p.seriesName === 'RoR' && showRoR && y != null)
+178:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual}"></div>RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
+179:                 if (controlData && p.seriesName === 'Drum' && y != null)
+180:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlDrum}"></div>Drum: <span>${y} RPM</span></div>`;
+181:                 if (controlData && p.seriesName === 'Heat' && y != null)
+182:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlHeat}"></div>Heat: <span>${y}%</span></div>`;
+183:                 if (controlData && p.seriesName === 'Fan' && y != null)
+184:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlFan}"></div>Fan: <span>${y}%</span></div>`;
+185:             });
+186:             return html;
+187:         };
+188: 
+189:         // 🔥 TypeError 해결: ECharts가 undefined 값을 처리 못해서
+190:         // 명시적으로 [x값, y값] 튜플로 변환하면 getRawIndex 에러 방지
+191:         // arr[i]가 undefined면 null로 변환하여 ECharts 렌더링 안정화
+192:         const makeSeriesData = (arr: (number | null)[]) => xs.map((x, i) => [x, arr[i] ?? null]);
+193: 
+194:         // 커피 로스팅 차트에 최적화된 스무딩 설정
+195:         // - BT(Bean Temp): 0.42 → 자연스러운 곡선, 노이즈 최소화
+196:         // - ET(Environment Temp): 0.38 → BT보다 약간 덜 휘게 (안정적 표현)
+197:         // - RoR(Rate of Rise): 0.28 → 센서 노이즈 많아서 더 부드럽게
+198:         // - smoothMonotone 'x' → 시간축 방향으로만 스무딩 (역행 방지)
+199:         // - sampling 'lttb' → Largest-Triangle-Three-Buckets 알고리즘 (성능 + 품질)
+200:         const getSmoothConfig = (strength: number = 0.4) => ({
+201:             smooth: strength,
+202:             smoothMonotone: 'x' as const,
+203:             sampling: 'lttb' as const,
+204:         });
+205: 
+206:         const tpMarkLines = turningPoints.map((tp) => ({
+207:             xAxis: tp.timeSec,
+208:             lineStyle: {
+209:                 color: colors.tp,
+210:                 width: 1.5,
+211:                 type: 'solid' as const,
+212:                 opacity: 1,
+213:             },
+214:             label: {
+215:                 show: true,
+216:                 position: 'start',
+217:                 formatter: 'TP',
+218:                 color: colors.tp,
+219:                 fontSize: 12,
+220:                 fontWeight: 700,
+221:             },
+222:         }));
+223: 
+224:         const eventMarkLines = eventMarkers.map((m) => ({
+225:             xAxis: m.timeSec,
+226:             lineStyle: {
+227:                 color: m.color,
+228:                 width: 1.5,
+229:                 type: 'solid' as const,
+230:                 opacity: 0.8,
+231:             },
+232:             label: {
+233:                 show: false,
+234:             },
+235:         }));
+236: 
+237:         const markPointData = eventMarkers.map((m) => {
+238:             const isLight = luminance(m.color) > 160;
+239:             return {
+240:                 name: m.event,
+241:                 value: [m.timeSec, null],
+242:                 xAxis: m.timeSec,
+243:                 symbol: 'circle',
+244:                 symbolSize: 10,
+245:                 itemStyle: { color: m.color, borderColor: CHART_COLORS.markerLabelColor, borderWidth: 2 },
+246:                 label: {
+247:                     show: true,
+248:                     position: 'top',
+249:                     formatter: m.event,
+250:                     fontSize: 10,
+251:                     color: isLight ? '#0B0B0B' : CHART_COLORS.markerLabelColor,
+252:                     backgroundColor: m.color,
+253:                     padding: [2, 4],
+254:                 },
+255:             };
+256:         });
+257: 
+258:         const xMin = xs[0] ?? 0;
+259:         const xMax = xs[xs.length - 1] ?? 1200;
+260:         const hasRightYAxis = showRoR || !!controlData;
+261:         const rightMargin = hasRightYAxis ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
+262:         const leftMargin = CHART_GRID_LEFT;
+263:         const topMargin = CHART_GRID_TOP;
+264: 
+265:         const tempSeries = [
+266:             showTargetCurve && {
+267:                 name: 'BT Target',
+268:                 type: 'line',
+269:                 xAxisIndex: 0,
+270:                 yAxisIndex: 0,
+271:                 z: 1,
+272:                 data: makeSeriesData(btTarget),
+273:                 lineStyle: { color: colors.btTarget, width: 1.5, type: 'dashed', opacity: 0.55 },
+274:                 areaStyle: { color: colors.btTarget, opacity: 0.06 },
+275:                 showSymbol: false,
+276:                 smooth: false,
+277:             },
+278:             {
+279:                 name: 'BT Actual',
+280:                 type: 'line',
+281:                 xAxisIndex: 0,
+282:                 yAxisIndex: 0,
+283:                 z: 2,
+284:                 data: xs.map((x, i) => [x, btActual[i]]),
+285:                 lineStyle: { color: colors.btActual, width: 1.8 },
+286:                 showSymbol: false,
+287:                 ...getSmoothConfig(0.7),
+288:                 markLine: {
+289:                     silent: false,
+290:                     symbol: ['none', 'circle'],
+291:                     symbolSize: [0, 8],
+292:                     data: [...eventMarkLines, ...tpMarkLines],
+293:                 },
+294:                 markPoint: { data: markPointData },
+295:             },
+296:             showET && {
+297:                 name: 'ET Actual',
+298:                 type: 'line',
+299:                 xAxisIndex: 0,
+300:                 yAxisIndex: 0,
+301:                 z: 2,
+302:                 data: xs.map((x, i) => [x, etActual[i]]),
+303:                 lineStyle: { color: colors.etActual, width: 1.5 },
+304:                 showSymbol: false,
+305:                 ...getSmoothConfig(0.65),
+306:             },
+307:             showRoR && {
+308:                 name: 'RoR',
+309:                 type: 'line',
+310:                 xAxisIndex: 0,
+311:                 yAxisIndex: 1,
+312:                 data: xs.map((x, i) => [x, rorActual[i]]),
+313:                 lineStyle: { color: colors.rorActual, width: 1.2 },
+314:                 showSymbol: false,
+315:                 ...getSmoothConfig(0.28),
+316:             },
+317:             showRoR &&
+318:                 showRoRET && {
+319:                     name: 'ET RoR',
+320:                     type: 'line',
+321:                     xAxisIndex: 0,
+322:                     yAxisIndex: 1,
+323:                     data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
+324:                     lineStyle: { color: colors.etActual, width: 1.0, type: 'dashed' },
+325:                     showSymbol: false,
+326:                     ...getSmoothConfig(0.28),
+327:                 },
+328:         ].filter(Boolean) as object[];
+329: 
+330:         // ── Phase bar (로스팅 단계 시각화) ────────────────────────────────────
+331:         // 로스팅 프로필을 "Dry", "Development", "Cooling" 등의 단계로 나누어
+332:         // 차트 하단에 색상 막대로 표시하고 각 단계의 시간과 비율을 표기.
+333:         // - phaseSegments가 있을 때만 활성화
+334:         // - 활성화 시 하단에 별도 grid(3번째)를 추가하고 시간 축 라벨을 그쪽으로 이동
+335:         const hasPhaseBar = phaseSegments.length > 0;
+336: 
+337:         const buildPhaseSeries = (xAxisIdx: number, yAxisIdx: number) => ({
+338:             type: 'custom' as const,
+339:             xAxisIndex: xAxisIdx,
+340:             yAxisIndex: yAxisIdx,
+341:             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+342:             renderItem: (params: any, api: any) => {
+343:                 // 시간축(x) 데이터를 픽셀 좌표로 변환
+344:                 const startPx = api.coord([api.value(0), 0])[0];
+345:                 const endPx = api.coord([api.value(1), 0])[0];
+346:                 const width = Math.max(0, endPx - startPx);
+347:                 const { y, height: h } = params.coordSys;
+348: 
+349:                 // 각 단계의 메타데이터
+350:                 const durSec = api.value(2) as number;
+351:                 const pct = api.value(3) as number;
+352:                 const color = api.value(4) as string;
+353:                 const name = api.value(5) as string;
+354:                 const durMin = Math.floor(durSec / 60);
+355:                 const durS = String(durSec % 60).padStart(2, '0');
+356:                 const durLabel = `${durMin}:${durS}  ${pct}%`;
+357: 
+358:                 // 단계별 배경 박스 생성
+359:                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+360:                 const children: any[] = [
+361:                     {
+362:                         type: 'rect',
+363:                         shape: { x: startPx, y, width, height: h },
+364:                         style: { fill: color, stroke: PHASE_BAR_STROKE, lineWidth: PHASE_BAR_STROKE_WIDTH },
+365:                         silent: true,
+366:                     },
+367:                 ];
+368: 
+369:                 // 너비에 따라 텍스트 배치 전략 변경
+370:                 // - width > WIDE: 단계명 좌측 + 시간 우측 (여유있음)
+371:                 // - width > NARROW: 시간을 중앙에 (공간 제한)
+372:                 // - width ≤ NARROW: 텍스트 생략 (너무 좁음)
+373:                 if (width > PHASE_BAR_WIDE_THRESHOLD) {
+374:                     children.push({
+375:                         type: 'text',
+376:                         style: {
+377:                             text: name,
+378:                             x: startPx + PHASE_BAR_TEXT_INSET,
+379:                             y: y + h / 2,
+380:                             fontSize: PHASE_BAR_FONT_SIZE,
+381:                             fontFamily: PHASE_BAR_FONT_FAMILY,
+382:                             fontWeight: PHASE_BAR_FONT_WEIGHT,
+383:                             fill: PHASE_BAR_NAME_COLOR,
+384:                             textVerticalAlign: 'middle',
+385:                         },
+386:                         silent: true,
+387:                     });
+388:                     children.push({
+389:                         type: 'text',
+390:                         style: {
+391:                             text: durLabel,
+392:                             x: endPx - PHASE_BAR_TEXT_INSET,
+393:                             y: y + h / 2,
+394:                             fontSize: PHASE_BAR_FONT_SIZE,
+395:                             fontFamily: PHASE_BAR_FONT_FAMILY,
+396:                             fill: PHASE_BAR_DURATION_COLOR,
+397:                             textAlign: 'right',
+398:                             textVerticalAlign: 'middle',
+399:                         },
+400:                         silent: true,
+401:                     });
+402:                 } else if (width > PHASE_BAR_NARROW_THRESHOLD) {
+403:                     children.push({
+404:                         type: 'text',
+405:                         style: {
+406:                             text: durLabel,
+407:                             x: (startPx + endPx) / 2,
+408:                             y: y + h / 2,
+409:                             fontSize: PHASE_BAR_FONT_SIZE_NARROW,
+410:                             fontFamily: PHASE_BAR_FONT_FAMILY,
+411:                             fill: PHASE_BAR_DURATION_COLOR,
+412:                             textAlign: 'center',
+413:                             textVerticalAlign: 'middle',
+414:                         },
+415:                         silent: true,
+416:                     });
+417:                 }
+418: 
+419:                 return { type: 'group', children };
+420:             },
+421:             // 각 단계 데이터: [startSec, endSec, durationSec, percentage, color, name]
+422:             data: phaseSegments.map((seg) => [seg.startSec, seg.endSec, seg.durationSec, seg.pct, seg.color, seg.name]),
+423:             z: 5,
+424:         });
+425: 
+426:         if (controlData) {
+427:             const { xs: cxs, drumTemp, heatPower, fanSpeed } = controlData;
+428:             // Grid 레이아웃:
+429:             // [0] 온도 차트 (BT, ET, RoR) - 상단 48%
+430:             // [1] Phase bar (Drying/Maillard/Development) - 중간 (있을 때만)
+431:             // [2] 제어 데이터 (Drum, Heat, Fan) - 하단
+432:             //
+433:             // 시간 축 라벨은:
+434:             // - Phase bar 있으면 → grid[1] 하단에 표시
+435:             // - Phase bar 없으면 → grid[2] 하단에 표시
+436:             const controlBottom = hasPhaseBar
+437:                 ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP
+438:                 : CONTROL_GRID_BOTTOM;
+439:             const grids: {
+440:                 left: number;
+441:                 right: number;
+442:                 top: string | number;
+443:                 height?: string;
+444:                 bottom?: string | number;
+445:             }[] = hasPhaseBar
+446:                 ? [
+447:                       { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT_WITH_PHASE },
+448:                       {
+449:                           left: leftMargin,
+450:                           right: rightMargin,
+451:                           top: CONTROL_GRID_TOP_WITH_PHASE,
+452:                           height: `${PHASE_BAR_HEIGHT}px`,
+453:                       },
+454:                       { left: leftMargin, right: rightMargin, top: PHASE_GRID_TOP, bottom: controlBottom },
+455:                   ]
+456:                 : [
+457:                       { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT },
+458:                       { left: leftMargin, right: rightMargin, top: CONTROL_GRID_TOP, bottom: controlBottom },
+459:                   ];
+460:             const xAxes = hasPhaseBar
+461:                 ? [
+462:                       {
+463:                           gridIndex: 0,
+464:                           type: 'value' as const,
+465:                           min: xMin,
+466:                           max: xMax,
+467:                           axisLabel: { show: false },
+468:                           axisTick: { show: false },
+469:                           axisLine: { show: false },
 470:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
-471:                       },
-472:                   ]
-473:                 : [
+471:                           interval: 60,
+472:                           splitNumber: 15,
+473:                       },
 474:                       {
-475:                           gridIndex: 0,
+475:                           gridIndex: 1,
 476:                           type: 'value',
 477:                           min: xMin,
 478:                           max: xMax,
 479:                           axisLabel: { show: false },
 480:                           axisTick: { show: false },
 481:                           axisLine: { show: false },
-482:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+482:                           splitLine: { show: false },
 483:                           interval: 60,
 484:                           splitNumber: 15,
 485:                       },
 486:                       {
-487:                           gridIndex: 1,
+487:                           gridIndex: 2,
 488:                           type: 'value',
 489:                           min: xMin,
 490:                           max: xMax,
@@ -33250,476 +33250,486 @@ This section contains the contents of the repository's files.
 494:                           splitNumber: 15,
 495:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
 496:                       },
-497:                   ];
-498:             const yAxes = hasPhaseBar
-499:                 ? [
-500:                       {
-501:                           gridIndex: 0,
-502:                           type: 'value',
-503:                           name: `Temperature (${unitLabel})`,
-504:                           nameLocation: 'middle',
-505:                           nameGap: Y_AXIS_NAME_GAP,
-506:                           nameTextStyle: axisNameStyle,
-507:                           axisLine: { onZero: false },
-508:                           axisLabel: axisLabelStyle,
-509:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
-510:                           minorTick: { show: true, splitNumber: 2 },
-511:                           minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
-512:                           min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
-513:                           max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
-514:                           interval: TEMP_Y_INTERVAL,
-515:                       },
-516:                       {
-517:                           gridIndex: 0,
-518:                           type: 'value',
-519:                           name: `RoR (${rorUnit})`,
-520:                           nameLocation: 'middle',
-521:                           nameGap: Y_AXIS_NAME_GAP,
-522:                           nameTextStyle: axisNameStyle,
-523:                           position: 'right',
-524:                           axisLine: { onZero: false },
-525:                           axisLabel: rightYAxisLabel,
-526:                           splitLine: { show: false },
-527:                           min: ROR_Y_MIN,
-528:                           max: ROR_Y_MAX,
-529:                           interval: 20,
-530:                       },
-531:                       {
-532:                           gridIndex: 1,
-533:                           type: 'value',
-534:                           min: 0,
-535:                           max: 1,
-536:                           show: false,
-537:                       },
-538:                       {
-539:                           gridIndex: 2,
-540:                           type: 'value',
-541:                           name: 'Drum (rpm)',
-542:                           nameLocation: 'middle',
-543:                           nameGap: Y_AXIS_NAME_GAP,
-544:                           nameTextStyle: axisNameStyle,
-545:                           position: 'left',
-546:                           axisLine: { onZero: false },
-547:                           axisLabel: rightYAxisLabel,
-548:                           splitLine: { show: true, lineStyle: { color: colors.gridLine } },
-549:                           min: 0,
-550:                           max: 100,
-551:                       },
-552:                       {
-553:                           gridIndex: 2,
-554:                           type: 'value',
-555:                           name: 'Power / Speed (%)',
-556:                           nameLocation: 'middle',
-557:                           nameGap: Y_AXIS_NAME_GAP,
-558:                           nameTextStyle: axisNameStyle,
-559:                           position: 'right',
-560:                           axisLine: { onZero: false },
-561:                           axisLabel: { show: false },
-562:                           splitLine: { show: false },
-563:                           min: 0,
-564:                           max: 100,
-565:                       },
-566:                   ]
-567:                 : [
-568:                       {
-569:                           gridIndex: 0,
-570:                           type: 'value',
-571:                           name: `Temperature (${unitLabel})`,
-572:                           nameLocation: 'middle',
-573:                           nameGap: Y_AXIS_NAME_GAP,
-574:                           nameTextStyle: axisNameStyle,
-575:                           axisLine: { onZero: false },
-576:                           axisLabel: axisLabelStyle,
-577:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
-578:                           minorTick: { show: true, splitNumber: 2 },
-579:                           minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
-580:                           min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
-581:                           max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
-582:                           interval: TEMP_Y_INTERVAL,
-583:                       },
-584:                       {
-585:                           gridIndex: 0,
-586:                           type: 'value',
-587:                           name: `RoR (${rorUnit})`,
-588:                           nameLocation: 'middle',
-589:                           nameGap: Y_AXIS_NAME_GAP,
-590:                           nameTextStyle: axisNameStyle,
-591:                           position: 'right',
-592:                           axisLine: { onZero: false },
-593:                           axisLabel: rightYAxisLabel,
-594:                           splitLine: { show: false },
-595:                           min: ROR_Y_MIN,
-596:                           max: ROR_Y_MAX,
-597:                           interval: 20,
-598:                       },
-599:                       {
-600:                           gridIndex: 1,
-601:                           type: 'value',
-602:                           name: 'Drum (rpm)',
-603:                           nameLocation: 'middle',
-604:                           nameGap: Y_AXIS_NAME_GAP,
-605:                           nameTextStyle: axisNameStyle,
-606:                           position: 'left',
-607:                           axisLine: { onZero: false },
-608:                           axisLabel: rightYAxisLabel,
-609:                           splitLine: { show: true, lineStyle: { color: colors.gridLine } },
-610:                           min: 0,
-611:                           max: 100,
-612:                       },
-613:                       {
-614:                           gridIndex: 1,
-615:                           type: 'value',
-616:                           name: 'Power / Speed (%)',
-617:                           nameLocation: 'middle',
-618:                           nameGap: Y_AXIS_NAME_GAP,
-619:                           nameTextStyle: axisNameStyle,
-620:                           position: 'right',
-621:                           axisLine: { onZero: false },
-622:                           axisLabel: { show: false },
-623:                           splitLine: { show: false },
-624:                           min: 0,
-625:                           max: 100,
-626:                       },
-627:                   ];
-628:             return {
-629:                 backgroundColor: 'transparent',
-630:                 animation: false,
-631:                 axisPointer: { link: [{ xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1] }], label: { show: false } },
-632:                 grid: grids,
-633:                 xAxis: xAxes as EChartsOption['xAxis'],
-634:                 yAxis: yAxes as EChartsOption['yAxis'],
-635:                 tooltip: {
-636:                     trigger: 'axis',
-637:                     borderWidth: 1,
-638:                     borderColor: 'rgba(0,0,0,0.08)',
-639:                     extraCssText: 'box-shadow: none;',
-640:                     axisPointer: { type: 'line', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
-641:                 },
-642:                 series: [
-643:                     ...tempSeries,
-644:                     {
-645:                         name: 'Drum',
-646:                         type: 'line',
-647:                         color: colors.controlDrum,
-648:                         xAxisIndex: hasPhaseBar ? 2 : 1,
-649:                         yAxisIndex: hasPhaseBar ? 3 : 2,
-650:                         data: cxs.map((x, i) => [x, drumTemp[i]]),
-651:                         lineStyle: { color: colors.controlDrum, width: 1.5 },
-652:                         showSymbol: false,
-653:                         smooth: 0.3,
-654:                     },
-655:                     {
-656:                         name: 'Heat',
-657:                         type: 'line',
-658:                         color: colors.controlHeat,
-659:                         xAxisIndex: hasPhaseBar ? 2 : 1,
-660:                         yAxisIndex: hasPhaseBar ? 4 : 3,
-661:                         data: cxs.map((x, i) => [x, heatPower[i]]),
-662:                         lineStyle: { color: colors.controlHeat, width: 1.5 },
-663:                         showSymbol: false,
-664:                         step: 'end',
-665:                         smooth: false,
-666:                     },
-667:                     {
-668:                         name: 'Fan',
-669:                         type: 'line',
-670:                         color: colors.controlFan,
-671:                         xAxisIndex: hasPhaseBar ? 2 : 1,
-672:                         yAxisIndex: hasPhaseBar ? 4 : 3,
-673:                         data: cxs.map((x, i) => [x, fanSpeed[i]]),
-674:                         lineStyle: { color: colors.controlFan, width: 1.5 },
-675:                         showSymbol: false,
-676:                         step: 'end',
-677:                         smooth: false,
-678:                     },
-679:                     ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : []),
-680:                 ],
-681:                 dataZoom: [
-682:                     {
-683:                         type: 'inside',
-684:                         xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1],
-685:                         zoomOnMouseWheel: true,
-686:                         moveOnMouseMove: false,
-687:                         moveOnMouseWheel: true,
-688:                     },
-689:                 ],
-690:             };
-691:         }
-692: 
-693:         const singleBottom = hasPhaseBar
-694:             ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP
-695:             : SINGLE_GRID_BOTTOM;
-696:         return {
-697:             backgroundColor: 'transparent',
-698:             animation: false,
-699:             grid: [
-700:                 { left: leftMargin, right: rightMargin, top: topMargin, bottom: singleBottom },
-701:                 ...(hasPhaseBar
-702:                     ? [{ left: leftMargin, right: rightMargin, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
-703:                     : []),
-704:             ],
-705:             tooltip: {
-706:                 trigger: 'axis',
-707:                 borderWidth: 1,
-708:                 borderColor: 'rgba(0,0,0,0.08)',
-709:                 extraCssText: 'box-shadow: none;',
-710:                 axisPointer: { type: 'cross', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
-711:                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-712:                 formatter: (params: any) => {
-713:                     const timeSec = params[0]?.axisValue ?? 0;
-714:                     let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
-715:                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-716:                     params.forEach((p: any) => {
-717:                         if (p.seriesName === 'BT Target')
-718:                             html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget}"></div>Target BT: <span>${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
-719:                         if (p.seriesName === 'BT Actual')
-720:                             html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
-721:                         if (p.seriesName === 'ET Actual' && showET)
-722:                             html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual}"></div>Env Temp: <span>${p.value[1]?.toFixed(1)}${unitLabel}</span></div>`;
-723:                         if (p.seriesName === 'RoR' && showRoR)
-724:                             html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual}"></div>RoR: <span>${p.value[1]?.toFixed(1)}${rorUnit}</span></div>`;
-725:                     });
-726:                     return html;
-727:                 },
-728:             },
-729:             xAxis: [
-730:                 {
-731:                     gridIndex: 0,
-732:                     type: 'value',
-733:                     name: hasPhaseBar ? undefined : 'Time (min)',
-734:                     nameLocation: 'middle',
-735:                     nameGap: 16,
-736:                     nameTextStyle: axisNameStyle,
-737:                     min: xMin,
-738:                     max: xMax,
-739:                     axisLabel: hasPhaseBar
-740:                         ? { show: false }
-741:                         : { formatter: (v: number) => fmtSec(v), ...axisLabelStyle },
-742:                     axisTick: hasPhaseBar ? { show: false } : undefined,
-743:                     interval: 60,
-744:                     splitNumber: 15,
-745:                     splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 1 } },
-746:                 },
-747:                 ...(hasPhaseBar
-748:                     ? [
-749:                           {
-750:                               gridIndex: 1,
-751:                               type: 'value' as const,
-752:                               min: xMin,
-753:                               max: xMax,
-754:                               axisLabel: { formatter: fmtSec, ...axisLabelStyle },
-755:                               axisTick: { show: false },
-756:                               axisLine: { show: false },
-757:                               splitLine: { show: false },
-758:                               interval: 60,
-759:                               splitNumber: 15,
-760:                           },
-761:                       ]
-762:                     : []),
-763:             ],
-764:             yAxis: [
-765:                 {
-766:                     gridIndex: 0,
-767:                     type: 'value',
-768:                     name: `Temperature (${unitLabel})`,
-769:                     nameLocation: 'middle',
-770:                     nameGap: Y_AXIS_NAME_GAP,
-771:                     nameTextStyle: axisNameStyle,
-772:                     axisLine: { onZero: false },
-773:                     axisLabel: axisLabelStyle,
-774:                     splitLine: { show: true, lineStyle: { color: colors.gridLine } },
-775:                     min: temperatureUnit === 'F' ? 122 : 50,
-776:                     max: temperatureUnit === 'F' ? 482 : 250,
-777:                     interval: 20,
-778:                 },
-779:                 {
-780:                     gridIndex: 0,
-781:                     type: 'value',
-782:                     name: `RoR (${rorUnit})`,
-783:                     nameLocation: 'middle',
-784:                     nameGap: Y_AXIS_NAME_GAP,
-785:                     nameTextStyle: axisNameStyle,
-786:                     position: 'right',
-787:                     axisLine: { onZero: false },
-788:                     axisLabel: rightYAxisLabel,
-789:                     splitLine: { show: false },
-790:                     min: ROR_Y_MIN,
-791:                     max: ROR_Y_MAX,
-792:                     interval: 20,
-793:                 },
-794:                 ...(hasPhaseBar
-795:                     ? [
-796:                           {
-797:                               gridIndex: 1,
-798:                               type: 'value' as const,
-799:                               min: 0,
-800:                               max: 1,
-801:                               show: false,
-802:                           },
-803:                       ]
-804:                     : []),
-805:             ],
-806:             series: [...tempSeries, ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : [])],
-807:             dataZoom: [
-808:                 {
-809:                     type: 'inside',
-810:                     xAxisIndex: 0,
-811:                     zoomOnMouseWheel: true,
-812:                     moveOnMouseMove: false,
-813:                     moveOnMouseWheel: true,
-814:                 },
+497:                   ]
+498:                 : [
+499:                       {
+500:                           gridIndex: 0,
+501:                           type: 'value',
+502:                           min: xMin,
+503:                           max: xMax,
+504:                           axisLabel: { show: false },
+505:                           axisTick: { show: false },
+506:                           axisLine: { show: false },
+507:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+508:                           interval: 60,
+509:                           splitNumber: 15,
+510:                       },
+511:                       {
+512:                           gridIndex: 1,
+513:                           type: 'value',
+514:                           min: xMin,
+515:                           max: xMax,
+516:                           axisLabel: { formatter: fmtSec, ...axisLabelStyle },
+517:                           axisTick: { show: false },
+518:                           interval: 60,
+519:                           splitNumber: 15,
+520:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+521:                       },
+522:                   ];
+523:             const yAxes = hasPhaseBar
+524:                 ? [
+525:                       {
+526:                           gridIndex: 0,
+527:                           type: 'value',
+528:                           name: `Temperature (${unitLabel})`,
+529:                           nameLocation: 'middle',
+530:                           nameGap: Y_AXIS_NAME_GAP,
+531:                           nameTextStyle: axisNameStyle,
+532:                           axisLine: { onZero: false },
+533:                           axisLabel: axisLabelStyle,
+534:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+535:                           minorTick: { show: true, splitNumber: 2 },
+536:                           minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
+537:                           min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
+538:                           max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
+539:                           interval: TEMP_Y_INTERVAL,
+540:                       },
+541:                       {
+542:                           gridIndex: 0,
+543:                           type: 'value',
+544:                           name: `RoR (${rorUnit})`,
+545:                           nameLocation: 'middle',
+546:                           nameGap: Y_AXIS_NAME_GAP,
+547:                           nameTextStyle: axisNameStyle,
+548:                           position: 'right',
+549:                           axisLine: { onZero: false },
+550:                           axisLabel: rightYAxisLabel,
+551:                           splitLine: { show: false },
+552:                           min: ROR_Y_MIN,
+553:                           max: ROR_Y_MAX,
+554:                           interval: 20,
+555:                       },
+556:                       {
+557:                           gridIndex: 1,
+558:                           type: 'value',
+559:                           min: 0,
+560:                           max: 1,
+561:                           show: false,
+562:                       },
+563:                       {
+564:                           gridIndex: 2,
+565:                           type: 'value',
+566:                           name: 'Drum (rpm)',
+567:                           nameLocation: 'middle',
+568:                           nameGap: Y_AXIS_NAME_GAP,
+569:                           nameTextStyle: axisNameStyle,
+570:                           position: 'left',
+571:                           axisLine: { onZero: false },
+572:                           axisLabel: rightYAxisLabel,
+573:                           splitLine: { show: true, lineStyle: { color: colors.gridLine } },
+574:                           min: 0,
+575:                           max: 100,
+576:                       },
+577:                       {
+578:                           gridIndex: 2,
+579:                           type: 'value',
+580:                           name: 'Power / Speed (%)',
+581:                           nameLocation: 'middle',
+582:                           nameGap: Y_AXIS_NAME_GAP,
+583:                           nameTextStyle: axisNameStyle,
+584:                           position: 'right',
+585:                           axisLine: { onZero: false },
+586:                           axisLabel: { show: false },
+587:                           splitLine: { show: false },
+588:                           min: 0,
+589:                           max: 100,
+590:                       },
+591:                   ]
+592:                 : [
+593:                       {
+594:                           gridIndex: 0,
+595:                           type: 'value',
+596:                           name: `Temperature (${unitLabel})`,
+597:                           nameLocation: 'middle',
+598:                           nameGap: Y_AXIS_NAME_GAP,
+599:                           nameTextStyle: axisNameStyle,
+600:                           axisLine: { onZero: false },
+601:                           axisLabel: axisLabelStyle,
+602:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+603:                           minorTick: { show: true, splitNumber: 2 },
+604:                           minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
+605:                           min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
+606:                           max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
+607:                           interval: TEMP_Y_INTERVAL,
+608:                       },
+609:                       {
+610:                           gridIndex: 0,
+611:                           type: 'value',
+612:                           name: `RoR (${rorUnit})`,
+613:                           nameLocation: 'middle',
+614:                           nameGap: Y_AXIS_NAME_GAP,
+615:                           nameTextStyle: axisNameStyle,
+616:                           position: 'right',
+617:                           axisLine: { onZero: false },
+618:                           axisLabel: rightYAxisLabel,
+619:                           splitLine: { show: false },
+620:                           min: ROR_Y_MIN,
+621:                           max: ROR_Y_MAX,
+622:                           interval: 20,
+623:                       },
+624:                       {
+625:                           gridIndex: 1,
+626:                           type: 'value',
+627:                           name: 'Drum (rpm)',
+628:                           nameLocation: 'middle',
+629:                           nameGap: Y_AXIS_NAME_GAP,
+630:                           nameTextStyle: axisNameStyle,
+631:                           position: 'left',
+632:                           axisLine: { onZero: false },
+633:                           axisLabel: rightYAxisLabel,
+634:                           splitLine: { show: true, lineStyle: { color: colors.gridLine } },
+635:                           min: 0,
+636:                           max: 100,
+637:                       },
+638:                       {
+639:                           gridIndex: 1,
+640:                           type: 'value',
+641:                           name: 'Power / Speed (%)',
+642:                           nameLocation: 'middle',
+643:                           nameGap: Y_AXIS_NAME_GAP,
+644:                           nameTextStyle: axisNameStyle,
+645:                           position: 'right',
+646:                           axisLine: { onZero: false },
+647:                           axisLabel: { show: false },
+648:                           splitLine: { show: false },
+649:                           min: 0,
+650:                           max: 100,
+651:                       },
+652:                   ];
+653:             return {
+654:                 backgroundColor: 'transparent',
+655:                 animation: false,
+656:                 axisPointer: { link: [{ xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1] }], label: { show: false } },
+657:                 grid: grids,
+658:                 xAxis: xAxes as EChartsOption['xAxis'],
+659:                 yAxis: yAxes as EChartsOption['yAxis'],
+660:                 tooltip: {
+661:                     trigger: 'axis',
+662:                     borderWidth: 1,
+663:                     borderColor: 'rgba(0,0,0,0.08)',
+664:                     extraCssText: 'box-shadow: none;',
+665:                     axisPointer: { type: 'line', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
+666:                     formatter: formatAxisTooltip,
+667:                 },
+668:                 series: [
+669:                     ...tempSeries,
+670:                     {
+671:                         name: 'Drum',
+672:                         type: 'line',
+673:                         color: colors.controlDrum,
+674:                         xAxisIndex: hasPhaseBar ? 2 : 1,
+675:                         yAxisIndex: hasPhaseBar ? 3 : 2,
+676:                         data: cxs.map((x, i) => [x, drumTemp[i]]),
+677:                         lineStyle: { color: colors.controlDrum, width: 1.5 },
+678:                         showSymbol: false,
+679:                         smooth: 0.3,
+680:                     },
+681:                     {
+682:                         name: 'Heat',
+683:                         type: 'line',
+684:                         color: colors.controlHeat,
+685:                         xAxisIndex: hasPhaseBar ? 2 : 1,
+686:                         yAxisIndex: hasPhaseBar ? 4 : 3,
+687:                         data: cxs.map((x, i) => [x, heatPower[i]]),
+688:                         lineStyle: { color: colors.controlHeat, width: 1.5 },
+689:                         showSymbol: false,
+690:                         step: 'end',
+691:                         smooth: false,
+692:                     },
+693:                     {
+694:                         name: 'Fan',
+695:                         type: 'line',
+696:                         color: colors.controlFan,
+697:                         xAxisIndex: hasPhaseBar ? 2 : 1,
+698:                         yAxisIndex: hasPhaseBar ? 4 : 3,
+699:                         data: cxs.map((x, i) => [x, fanSpeed[i]]),
+700:                         lineStyle: { color: colors.controlFan, width: 1.5 },
+701:                         showSymbol: false,
+702:                         step: 'end',
+703:                         smooth: false,
+704:                     },
+705:                     ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : []),
+706:                 ],
+707:                 dataZoom: [
+708:                     {
+709:                         type: 'inside',
+710:                         xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1],
+711:                         zoomOnMouseWheel: true,
+712:                         moveOnMouseMove: false,
+713:                         moveOnMouseWheel: true,
+714:                     },
+715:                 ],
+716:             };
+717:         }
+718: 
+719:         const singleBottom = hasPhaseBar
+720:             ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP
+721:             : SINGLE_GRID_BOTTOM;
+722:         return {
+723:             backgroundColor: 'transparent',
+724:             animation: false,
+725:             grid: [
+726:                 { left: leftMargin, right: rightMargin, top: topMargin, bottom: singleBottom },
+727:                 ...(hasPhaseBar
+728:                     ? [{ left: leftMargin, right: rightMargin, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
+729:                     : []),
+730:             ],
+731:             tooltip: {
+732:                 trigger: 'axis',
+733:                 borderWidth: 1,
+734:                 borderColor: 'rgba(0,0,0,0.08)',
+735:                 extraCssText: 'box-shadow: none;',
+736:                 axisPointer: { type: 'cross', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
+737:                 formatter: formatAxisTooltip,
+738:             },
+739:             xAxis: [
+740:                 {
+741:                     gridIndex: 0,
+742:                     type: 'value',
+743:                     name: hasPhaseBar ? undefined : 'Time (min)',
+744:                     nameLocation: 'middle',
+745:                     nameGap: 16,
+746:                     nameTextStyle: axisNameStyle,
+747:                     min: xMin,
+748:                     max: xMax,
+749:                     axisLabel: hasPhaseBar
+750:                         ? { show: false }
+751:                         : { formatter: (v: number) => fmtSec(v), ...axisLabelStyle },
+752:                     axisTick: hasPhaseBar ? { show: false } : undefined,
+753:                     interval: 60,
+754:                     splitNumber: 15,
+755:                     splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 1 } },
+756:                 },
+757:                 ...(hasPhaseBar
+758:                     ? [
+759:                           {
+760:                               gridIndex: 1,
+761:                               type: 'value' as const,
+762:                               min: xMin,
+763:                               max: xMax,
+764:                               axisLabel: { formatter: fmtSec, ...axisLabelStyle },
+765:                               axisTick: { show: false },
+766:                               axisLine: { show: false },
+767:                               splitLine: { show: false },
+768:                               interval: 60,
+769:                               splitNumber: 15,
+770:                           },
+771:                       ]
+772:                     : []),
+773:             ],
+774:             yAxis: [
+775:                 {
+776:                     gridIndex: 0,
+777:                     type: 'value',
+778:                     name: `Temperature (${unitLabel})`,
+779:                     nameLocation: 'middle',
+780:                     nameGap: Y_AXIS_NAME_GAP,
+781:                     nameTextStyle: axisNameStyle,
+782:                     axisLine: { onZero: false },
+783:                     axisLabel: axisLabelStyle,
+784:                     splitLine: { show: true, lineStyle: { color: colors.gridLine } },
+785:                     min: temperatureUnit === 'F' ? 122 : 50,
+786:                     max: temperatureUnit === 'F' ? 482 : 250,
+787:                     interval: 20,
+788:                 },
+789:                 {
+790:                     gridIndex: 0,
+791:                     type: 'value',
+792:                     name: `RoR (${rorUnit})`,
+793:                     nameLocation: 'middle',
+794:                     nameGap: Y_AXIS_NAME_GAP,
+795:                     nameTextStyle: axisNameStyle,
+796:                     position: 'right',
+797:                     axisLine: { onZero: false },
+798:                     axisLabel: rightYAxisLabel,
+799:                     splitLine: { show: false },
+800:                     min: ROR_Y_MIN,
+801:                     max: ROR_Y_MAX,
+802:                     interval: 20,
+803:                 },
+804:                 ...(hasPhaseBar
+805:                     ? [
+806:                           {
+807:                               gridIndex: 1,
+808:                               type: 'value' as const,
+809:                               min: 0,
+810:                               max: 1,
+811:                               show: false,
+812:                           },
+813:                       ]
+814:                     : []),
 815:             ],
-816:         };
-817:     }, [
-818:         xs,
-819:         btTarget,
-820:         btActual,
-821:         etActual,
-822:         rorActual,
-823:         eventMarkers,
-824:         turningPoints,
-825:         temperatureUnit,
-826:         showET,
-827:         showTargetCurve,
-828:         showRoR,
-829:         showRoRET,
-830:         rorEtActual,
-831:         controlData,
-832:         phaseSegments,
-833:         resolvedTheme,
-834:     ]);
-835: 
-836:     // 옵션 적용 — controlData/phaseBar 유무가 바뀌면 grid/axis 구조가 달라지므로 notMerge로 완전 교체
-837:     const prevHasControlData = useRef(!!controlData);
-838:     const prevHasPhaseBar = useRef(phaseSegments.length > 0);
-839:     useEffect(() => {
-840:         const chart = chartInstanceRef.current;
-841:         if (!chart) return;
-842:         const hasPhaseBar = phaseSegments.length > 0;
-843:         const structureChanged =
-844:             prevHasControlData.current !== !!controlData || prevHasPhaseBar.current !== hasPhaseBar;
-845:         prevHasControlData.current = !!controlData;
-846:         prevHasPhaseBar.current = hasPhaseBar;
-847:         chart.setOption(option, {
-848:             notMerge: structureChanged,
-849:             lazyUpdate: !structureChanged,
-850:         });
-851:         // eslint-disable-next-line react-hooks/exhaustive-deps
-852:     }, [option]);
-853: 
-854:     // 마우스 호버
-855:     useEffect(() => {
-856:         const chart = chartInstanceRef.current;
-857:         if (!chart || !onCursorIdx) return;
-858: 
-859:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-860:         const handleMouseMove = (e: any) => {
-861:             const pixel: [number, number] = [e.offsetX, e.offsetY];
-862:             const point = chart.convertFromPixel({ xAxisIndex: 0 }, pixel);
-863:             if (point && xs.length) {
-864:                 const idx = xs.reduce(
-865:                     (prev, curr, i) => (Math.abs(curr - point[0]) < Math.abs(xs[prev] - point[0]) ? i : prev),
-866:                     0,
-867:                 );
-868:                 onCursorIdx(idx);
-869:             }
-870:         };
-871: 
-872:         chart.on('mousemove', handleMouseMove);
-873:         return () => {
-874:             chart.off('mousemove', handleMouseMove);
-875:         };
-876:     }, [xs, onCursorIdx]);
-877: 
-878:     // ── 마커 드래그 (chart.getZr()로 마크라인 핸들 감지) ──────────
-879:     useEffect(() => {
-880:         const chart = chartInstanceRef.current;
-881:         if (!chart || !onEventMarkerDrag) return;
-882: 
-883:         const zr = chart.getZr();
-884:         if (!zr) return;
-885: 
-886:         const handleZrPointerDown = (e: Record<string, unknown>) => {
-887:             if (!chart) return;
-888:             const evt = e.event as MouseEvent | undefined;
-889:             const mx = evt?.offsetX ?? (e.offsetX as number);
-890:             if (mx == null) return;
-891:             const yMid = (chart.convertToPixel({ yAxisIndex: 0 }, 150) as number) ?? 200;
-892:             for (const marker of eventMarkers) {
-893:                 const pixel = chart.convertToPixel({ xAxisIndex: 0 }, [marker.timeSec, yMid]);
-894:                 if (pixel == null) continue;
-895:                 const px = Array.isArray(pixel) ? pixel[0] : pixel;
-896:                 const dist = Math.abs(mx - px);
-897:                 if (dist <= PIXEL_THRESHOLD) {
-898:                     dragStateRef.current = {
-899:                         active: true,
-900:                         eventName: marker.event,
-901:                         startX: mx,
-902:                         startTimeSec: marker.timeSec,
-903:                     };
-904:                     break;
-905:                 }
-906:             }
-907:         };
-908: 
-909:         const handleZrPointerMove = (e: Record<string, unknown>) => {
-910:             const ds = dragStateRef.current;
-911:             if (!ds || !ds.active || !chart) return;
-912:             const evt = e.event as MouseEvent | undefined;
-913:             const mx = evt?.offsetX ?? (e.offsetX as number);
-914:             const my = evt?.offsetY ?? (e.offsetY as number);
-915:             if (mx == null) return;
-916:             const point = chart.convertFromPixel({ xAxisIndex: 0 }, [mx, my]);
-917:             if (!point) return;
-918:             const xVal = Array.isArray(point) ? point[0] : point;
-919:             const clamped = Math.max(0, Math.round(xVal));
-920:             if (clamped !== ds.startTimeSec) {
-921:                 onEventMarkerDrag(ds.eventName, clamped);
-922:                 dragStateRef.current = { ...ds, startTimeSec: clamped };
-923:             }
-924:         };
-925: 
-926:         const handleZrPointerUp = () => {
-927:             if (dragStateRef.current) {
-928:                 dragStateRef.current = null;
-929:             }
-930:         };
-931: 
-932:         zr.on('mousedown', handleZrPointerDown);
-933:         zr.on('mousemove', handleZrPointerMove);
-934:         zr.on('mouseup', handleZrPointerUp);
+816:             series: [...tempSeries, ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : [])],
+817:             dataZoom: [
+818:                 {
+819:                     type: 'inside',
+820:                     xAxisIndex: 0,
+821:                     zoomOnMouseWheel: true,
+822:                     moveOnMouseMove: false,
+823:                     moveOnMouseWheel: true,
+824:                 },
+825:             ],
+826:         };
+827:     }, [
+828:         xs,
+829:         btTarget,
+830:         btActual,
+831:         etActual,
+832:         rorActual,
+833:         eventMarkers,
+834:         turningPoints,
+835:         temperatureUnit,
+836:         showET,
+837:         showTargetCurve,
+838:         showRoR,
+839:         showRoRET,
+840:         rorEtActual,
+841:         controlData,
+842:         phaseSegments,
+843:         resolvedTheme,
+844:     ]);
+845: 
+846:     // 옵션 적용 — controlData/phaseBar 유무가 바뀌면 grid/axis 구조가 달라지므로 notMerge로 완전 교체
+847:     const prevHasControlData = useRef(!!controlData);
+848:     const prevHasPhaseBar = useRef(phaseSegments.length > 0);
+849:     useEffect(() => {
+850:         const chart = chartInstanceRef.current;
+851:         if (!chart) return;
+852:         const hasPhaseBar = phaseSegments.length > 0;
+853:         const structureChanged =
+854:             prevHasControlData.current !== !!controlData || prevHasPhaseBar.current !== hasPhaseBar;
+855:         prevHasControlData.current = !!controlData;
+856:         prevHasPhaseBar.current = hasPhaseBar;
+857:         chart.setOption(option, {
+858:             notMerge: structureChanged,
+859:             lazyUpdate: !structureChanged,
+860:         });
+861:         // eslint-disable-next-line react-hooks/exhaustive-deps
+862:     }, [option]);
+863: 
+864:     // 마우스 호버
+865:     useEffect(() => {
+866:         const chart = chartInstanceRef.current;
+867:         if (!chart || !onCursorIdx) return;
+868: 
+869:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+870:         const handleMouseMove = (e: any) => {
+871:             const pixel: [number, number] = [e.offsetX, e.offsetY];
+872:             const point = chart.convertFromPixel({ xAxisIndex: 0 }, pixel);
+873:             if (point && xs.length) {
+874:                 const idx = xs.reduce(
+875:                     (prev, curr, i) => (Math.abs(curr - point[0]) < Math.abs(xs[prev] - point[0]) ? i : prev),
+876:                     0,
+877:                 );
+878:                 onCursorIdx(idx);
+879:             }
+880:         };
+881: 
+882:         chart.on('mousemove', handleMouseMove);
+883:         return () => {
+884:             chart.off('mousemove', handleMouseMove);
+885:         };
+886:     }, [xs, onCursorIdx]);
+887: 
+888:     // ── 마커 드래그 (chart.getZr()로 마크라인 핸들 감지) ──────────
+889:     useEffect(() => {
+890:         const chart = chartInstanceRef.current;
+891:         if (!chart || !onEventMarkerDrag) return;
+892: 
+893:         const zr = chart.getZr();
+894:         if (!zr) return;
+895: 
+896:         const handleZrPointerDown = (e: Record<string, unknown>) => {
+897:             if (!chart) return;
+898:             const evt = e.event as MouseEvent | undefined;
+899:             const mx = evt?.offsetX ?? (e.offsetX as number);
+900:             if (mx == null) return;
+901:             const yMid = (chart.convertToPixel({ yAxisIndex: 0 }, 150) as number) ?? 200;
+902:             for (const marker of eventMarkers) {
+903:                 const pixel = chart.convertToPixel({ xAxisIndex: 0 }, [marker.timeSec, yMid]);
+904:                 if (pixel == null) continue;
+905:                 const px = Array.isArray(pixel) ? pixel[0] : pixel;
+906:                 const dist = Math.abs(mx - px);
+907:                 if (dist <= PIXEL_THRESHOLD) {
+908:                     dragStateRef.current = {
+909:                         active: true,
+910:                         eventName: marker.event,
+911:                         startX: mx,
+912:                         startTimeSec: marker.timeSec,
+913:                     };
+914:                     break;
+915:                 }
+916:             }
+917:         };
+918: 
+919:         const handleZrPointerMove = (e: Record<string, unknown>) => {
+920:             const ds = dragStateRef.current;
+921:             if (!ds || !ds.active || !chart) return;
+922:             const evt = e.event as MouseEvent | undefined;
+923:             const mx = evt?.offsetX ?? (e.offsetX as number);
+924:             const my = evt?.offsetY ?? (e.offsetY as number);
+925:             if (mx == null) return;
+926:             const point = chart.convertFromPixel({ xAxisIndex: 0 }, [mx, my]);
+927:             if (!point) return;
+928:             const xVal = Array.isArray(point) ? point[0] : point;
+929:             const clamped = Math.max(0, Math.round(xVal));
+930:             if (clamped !== ds.startTimeSec) {
+931:                 onEventMarkerDrag(ds.eventName, clamped);
+932:                 dragStateRef.current = { ...ds, startTimeSec: clamped };
+933:             }
+934:         };
 935: 
-936:         return () => {
-937:             zr.off('mousedown', handleZrPointerDown);
-938:             zr.off('mousemove', handleZrPointerMove);
-939:             zr.off('mouseup', handleZrPointerUp);
+936:         const handleZrPointerUp = () => {
+937:             if (dragStateRef.current) {
+938:                 dragStateRef.current = null;
+939:             }
 940:         };
-941:     }, [eventMarkers, onEventMarkerDrag]);
-942: 
-943:     useEffect(() => {
-944:         chartInstanceRef.current?.resize({ height });
-945:     }, [height]);
-946: 
-947:     return (
-948:         <div style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}>
-949:             <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
-950:             {controlData && (
-951:                 <div className="absolute flex items-center gap-4" style={{ bottom: -5, left: 25 }}>
-952:                     {[
-953:                         { color: CONTROL_COLORS.drum, label: 'Drum' },
-954:                         { color: CONTROL_COLORS.heat, label: 'Heat' },
-955:                         { color: CONTROL_COLORS.fan, label: 'Fan' },
-956:                     ].map(({ color, label }) => (
-957:                         <div key={label} className="flex items-center gap-1.5">
-958:                             <div style={{ width: 16, height: 2, background: color }} />
-959:                             <span className="text-[11px] text-muted tracking-[0.14px]">{label}</span>
-960:                         </div>
-961:                     ))}
-962:                 </div>
-963:             )}
-964:         </div>
-965:     );
-966: };
+941: 
+942:         zr.on('mousedown', handleZrPointerDown);
+943:         zr.on('mousemove', handleZrPointerMove);
+944:         zr.on('mouseup', handleZrPointerUp);
+945: 
+946:         return () => {
+947:             zr.off('mousedown', handleZrPointerDown);
+948:             zr.off('mousemove', handleZrPointerMove);
+949:             zr.off('mouseup', handleZrPointerUp);
+950:         };
+951:     }, [eventMarkers, onEventMarkerDrag]);
+952: 
+953:     useEffect(() => {
+954:         chartInstanceRef.current?.resize({ height });
+955:     }, [height]);
+956: 
+957:     return (
+958:         <div style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}>
+959:             <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
+960:             {controlData && (
+961:                 <div className="absolute flex items-center gap-4" style={{ bottom: -5, left: 25 }}>
+962:                     {[
+963:                         { color: CONTROL_COLORS.drum, label: 'Drum' },
+964:                         { color: CONTROL_COLORS.heat, label: 'Heat' },
+965:                         { color: CONTROL_COLORS.fan, label: 'Fan' },
+966:                     ].map(({ color, label }) => (
+967:                         <div key={label} className="flex items-center gap-1.5">
+968:                             <div style={{ width: 16, height: 2, background: color }} />
+969:                             <span className="text-[11px] text-muted tracking-[0.14px]">{label}</span>
+970:                         </div>
+971:                     ))}
+972:                 </div>
+973:             )}
+974:         </div>
+975:     );
+976: };
 </file>
 
 <file path="src/views/history/History.tsx">
