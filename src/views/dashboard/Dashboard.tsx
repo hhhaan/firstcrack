@@ -226,10 +226,14 @@ const getGreeting = () => {
 
 const localeForDate = () => {
     switch (i18n.language) {
-        case 'ko': return 'en-US';
-        case 'zh-CN': return 'zh-CN';
-        case 'ja': return 'ja-JP';
-        default: return 'en-US';
+        case 'ko':
+            return 'en-US';
+        case 'zh-CN':
+            return 'zh-CN';
+        case 'ja':
+            return 'ja-JP';
+        default:
+            return 'en-US';
     }
 };
 
@@ -277,10 +281,11 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         {/* , Han */}
                     </h1>
                     <p className="text-[15px] text-secondary tracking-[0.15px] font-normal flex items-center gap-2.5">
-                        {new Date().toLocaleDateString(
-                            localeForDate(),
-                            { weekday: 'long', month: 'long', day: 'numeric' },
-                        )}
+                        {new Date().toLocaleDateString(localeForDate(), {
+                            weekday: 'long',
+                            month: 'long',
+                            day: 'numeric',
+                        })}
                         {weather.data && (
                             <>
                                 <span className="text-muted/40">·</span>
@@ -528,11 +533,12 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         db.inventoryAlerts.map((item, i) => {
                             const color = alertColor[item.reason] ?? '#FFFF54';
                             const bg = alertBg[item.reason] ?? 'rgba(255,255,84,0.2)';
-                            const status = item.reason === 'out'
-                                ? t('dashboard.outOfStock')
-                                : item.reason === 'schedule'
-                                  ? t('dashboard.scheduleStockAlert')
-                                  : t('dashboard.lowStock');
+                            const status =
+                                item.reason === 'out'
+                                    ? t('dashboard.outOfStock')
+                                    : item.reason === 'schedule'
+                                      ? t('dashboard.scheduleStockAlert')
+                                      : t('dashboard.lowStock');
                             return (
                                 <div
                                     key={item.id}
