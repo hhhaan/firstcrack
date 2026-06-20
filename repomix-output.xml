@@ -11071,13 +11071,17 @@ This section contains the contents of the repository's files.
 10:         description: 'Version string (e.g. 1.0.2)'
 11:         required: true
 12: 
-13: jobs:
-14:   publish-r2:
-15:     uses: ./.github/workflows/_publish-r2-reusable.yml
-16:     with:
-17:       version: ${{ inputs.version }}
-18:       run_id: ${{ inputs.run_id }}
-19:     secrets: inherit
+13: permissions:
+14:   contents: read
+15:   actions: read
+16: 
+17: jobs:
+18:   publish-r2:
+19:     uses: ./.github/workflows/_publish-r2-reusable.yml
+20:     with:
+21:       version: ${{ inputs.version }}
+22:       run_id: ${{ inputs.run_id }}
+23:     secrets: inherit
 </file>
 
 <file path="src/entities/bean/queries.ts">
@@ -21146,6 +21150,376 @@ This section contains the contents of the repository's files.
 36: };
 </file>
 
+<file path="src/views/schedule/hooks/useScheduleDayView.ts">
+  1: import {
+  2:     dayPlanApi,
+  3:     planBatchApi,
+  4:     useCreatePlanBatch,
+  5:     useCreateRecurringBatches,
+  6:     useDayBatches,
+  7:     useDayPlan,
+  8:     useDeleteAllBatches,
+  9:     useDeleteFromThis,
+ 10:     useDeleteSingleBatch,
+ 11:     useReorderPlanBatches,
+ 12:     useUpdateAllBatches,
+ 13:     useUpdateFromThis,
+ 14:     useUpdateSingleBatch,
+ 15: } from '@entities/plan';
+ 16: import { getDateFnsLocale, i18n } from '@shared/i18n';
+ 17: import { buildRRule } from '@shared/lib/rrule';
+ 18: import type { PlanBatchHandoff, PlanBatchInsert, PlanBatchWithProgress } from '@shared/types/database.types';
+ 19: import type { NewBatchData } from '@widgets/add-batch-modal';
+ 20: import type { EditScope } from '@widgets/recurring-edit-scope-modal';
+ 21: import { format } from 'date-fns';
+ 22: import { useCallback, useState } from 'react';
+ 23: import { toDateKey } from '../lib';
+ 24: 
+ 25: export const useScheduleDayView = ({
+ 26:     userId,
+ 27:     selectedDate,
+ 28:     onStartBatch,
+ 29: }: {
+ 30:     userId: string;
+ 31:     selectedDate: Date;
+ 32:     onStartBatch: (handoff: PlanBatchHandoff) => void;
+ 33: }) => {
+ 34:     const dateKey = toDateKey(selectedDate);
+ 35:     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+ 36:     const [editingBatch, setEditingBatch] = useState<PlanBatchWithProgress | null>(null);
+ 37:     const [editScope, setEditScope] = useState<EditScope | null>(null);
+ 38:     const [scopeBatch, setScopeBatch] = useState<PlanBatchWithProgress | null>(null);
+ 39:     const [isEditScopeModalOpen, setIsEditScopeModalOpen] = useState(false);
+ 40:     const [isDeleteScopeModalOpen, setIsDeleteScopeModalOpen] = useState(false);
+ 41: 
+ 42:     const { data: dayPlan, isLoading: isDayPlanLoading } = useDayPlan(userId, dateKey);
+ 43:     const planId = dayPlan?.id ?? '';
+ 44: 
+ 45:     const { data: batches = [], isLoading: isBatchesLoading } = useDayBatches(userId, dateKey);
+ 46:     const isLoading = isDayPlanLoading || isBatchesLoading;
+ 47: 
+ 48:     const createBatch = useCreatePlanBatch(planId);
+ 49:     const reorderBatches = useReorderPlanBatches(planId);
+ 50:     const createRecurringBatches = useCreateRecurringBatches(userId, planId);
+ 51:     const deleteSingleBatch = useDeleteSingleBatch();
+ 52:     const deleteFromThis = useDeleteFromThis();
+ 53:     const deleteAllBatches = useDeleteAllBatches();
+ 54:     const updateSingleBatch = useUpdateSingleBatch();
+ 55:     const updateFromThis = useUpdateFromThis();
+ 56:     const updateAllBatches = useUpdateAllBatches();
+ 57: 
+ 58:     const handleScopeDelete = useCallback(
+ 59:         async (scope: EditScope, batch: PlanBatchWithProgress) => {
+ 60:             if (!batch.recurrence_rule_id) return;
+ 61: 
+ 62:             if (scope === 'single') {
+ 63:                 if (window.confirm(i18n.t('schedule.deleteConfirm.single'))) {
+ 64:                     let targetPlanId = batch.plan_id;
+ 65:                     if (!targetPlanId && batch.recurrence_rule_id && batch.scheduled_date) {
+ 66:                         const plan = await dayPlanApi.getOrCreate(userId, batch.scheduled_date);
+ 67:                         targetPlanId = plan.id;
+ 68:                     }
+ 69:                     deleteSingleBatch.mutate({
+ 70:                         id: batch.id,
+ 71:                         meta: {
+ 72:                             recurrenceRuleId: batch.recurrence_rule_id,
+ 73:                             originalDate: batch.scheduled_date ?? dateKey,
+ 74:                             planId: targetPlanId ?? '',
+ 75:                         },
+ 76:                     });
+ 77:                 }
+ 78:             } else if (scope === 'from_this') {
+ 79:                 if (
+ 80:                     window.confirm(
+ 81:                         i18n.t('schedule.deleteConfirm.fromThis', {
+ 82:                             date: format(selectedDate, 'M월 d일', { locale: getDateFnsLocale() }),
+ 83:                         }),
+ 84:                     )
+ 85:                 ) {
+ 86:                     deleteFromThis.mutate({
+ 87:                         ruleId: batch.recurrence_rule_id,
+ 88:                         fromDate: dateKey,
+ 89:                     });
+ 90:                 }
+ 91:             } else if (scope === 'all') {
+ 92:                 if (window.confirm(i18n.t('schedule.deleteConfirm.all'))) {
+ 93:                     deleteAllBatches.mutate(batch.recurrence_rule_id);
+ 94:                 }
+ 95:             }
+ 96: 
+ 97:             setIsDeleteScopeModalOpen(false);
+ 98:             setScopeBatch(null);
+ 99:         },
+100:         [deleteSingleBatch, deleteFromThis, deleteAllBatches, dateKey, selectedDate, userId],
+101:     );
+102: 
+103:     const handleEdit = useCallback((batch: PlanBatchWithProgress) => {
+104:         if (batch.recurrence_rule_id) {
+105:             setScopeBatch(batch);
+106:             setIsEditScopeModalOpen(true);
+107:         } else {
+108:             setEditingBatch(batch);
+109:             setEditScope(null);
+110:         }
+111:     }, []);
+112: 
+113:     const handleBatchDelete = useCallback(
+114:         (batch: PlanBatchWithProgress) => {
+115:             if (batch.recurrence_rule_id) {
+116:                 setScopeBatch(batch);
+117:                 setIsDeleteScopeModalOpen(true);
+118:             } else {
+119:                 if (window.confirm(i18n.t('schedule.deleteConfirm.batch', { name: batch.bean_name }))) {
+120:                     deleteSingleBatch.mutate({ id: batch.id });
+121:                 }
+122:             }
+123:         },
+124:         [deleteSingleBatch],
+125:     );
+126: 
+127:     const handleEditScopeConfirm = useCallback(
+128:         (scope: EditScope) => {
+129:             if (!scopeBatch) return;
+130:             setEditScope(scope);
+131:             setEditingBatch(scopeBatch);
+132:             setIsEditScopeModalOpen(false);
+133:             setScopeBatch(null);
+134:         },
+135:         [scopeBatch],
+136:     );
+137: 
+138:     const handleDeleteScopeConfirm = useCallback(
+139:         (scope: EditScope) => {
+140:             if (!scopeBatch) return;
+141:             handleScopeDelete(scope, scopeBatch);
+142:         },
+143:         [scopeBatch, handleScopeDelete],
+144:     );
+145: 
+146:     const handleAddBatch = useCallback(
+147:         async (data: NewBatchData) => {
+148:             if (editScope && editingBatch?.recurrence_rule_id) {
+149:                 const basePatch = {
+150:                     id: editingBatch.id,
+151:                     plan_id: '',
+152:                     bean_name: data.beanName || editingBatch.bean_name,
+153:                     bean_id: data.beanId,
+154:                     blend_id: data.blendId ?? null,
+155:                     batch_type: data.batchType,
+156:                     roast_profile_id: data.profileId,
+157:                     machine_id: data.machineId,
+158:                     target_roasted_kg: data.targetRoasted,
+159:                     batch_size_kg: data.batchSize,
+160:                     yield_pct: data.yieldPct / 100,
+161:                     notes: data.notes,
+162:                     green_lot: data.greenLot,
+163:                 };
+164: 
+165:                 if (editScope === 'single') {
+166:                     let targetPlanId = editingBatch.plan_id;
+167:                     if (!targetPlanId && editingBatch.recurrence_rule_id) {
+168:                         const scheduleDate = editingBatch.scheduled_date ?? dateKey;
+169:                         const plan = await dayPlanApi.getOrCreate(userId, scheduleDate);
+170:                         targetPlanId = plan.id;
+171:                     }
+172:                     updateSingleBatch.mutate({
+173:                         id: editingBatch.id,
+174:                         patch: { ...basePatch, plan_id: targetPlanId ?? '' },
+175:                         meta: {
+176:                             recurrenceRuleId: editingBatch.recurrence_rule_id,
+177:                             originalDate: editingBatch.scheduled_date ?? dateKey,
+178:                         },
+179:                     });
+180:                 } else {
+181:                     const instanceDate = editingBatch.scheduled_date ?? dateKey;
+182:                     const masterPatch = {
+183:                         machine_id: data.machineId || null,
+184:                         roast_profile_id: data.profileId,
+185:                         bean_id: data.beanId,
+186:                         blend_id: data.blendId ?? null,
+187:                         bean_name: data.beanName || editingBatch.bean_name,
+188:                         green_lot: data.greenLot,
+189:                         batch_size_kg: data.batchSize,
+190:                         yield_pct: data.yieldPct / 100,
+191:                         target_roasted_kg: data.targetRoasted,
+192:                         notes: data.notes,
+193:                         batch_type: data.batchType,
+194:                         ...(data.recurringInterval ? { rrule: buildRRule(data.recurringInterval) } : {}),
+195:                     };
+196: 
+197:                     if (editScope === 'from_this') {
+198:                         updateFromThis.mutate({
+199:                             ruleId: editingBatch.recurrence_rule_id,
+200:                             fromDate: instanceDate,
+201:                             patch: { ...masterPatch, dtstart: instanceDate, userId },
+202:                         });
+203:                     } else if (editScope === 'all') {
+204:                         updateAllBatches.mutate({
+205:                             ruleId: editingBatch.recurrence_rule_id,
+206:                             patch: masterPatch,
+207:                         });
+208:                     }
+209:                 }
+210:                 return;
+211:             }
+212: 
+213:             const baseBatch: Omit<PlanBatchInsert, 'plan_id'> = {
+214:                 order_index: batches.length,
+215:                 bean_name: data.beanName || data.batchType,
+216:                 bean_id: data.beanId,
+217:                 blend_id: data.blendId ?? null,
+218:                 batch_type: data.batchType,
+219:                 roast_profile_id: data.profileId,
+220:                 machine_id: data.machineId || null,
+221:                 target_roasted_kg: data.targetRoasted,
+222:                 batch_size_kg: data.batchSize,
+223:                 yield_pct: data.yieldPct / 100,
+224:                 notes: data.notes,
+225:                 green_lot: data.greenLot,
+226:                 status: 'pending',
+227:             };
+228: 
+229:             if (data.recurringInterval) {
+230:                 createRecurringBatches.mutate(
+231:                     { baseBatch, interval: data.recurringInterval, dtstart: data.date },
+232:                     {
+233:                         onError: (err) => {
+234:                             console.error('[Schedule] createRecurringBatches failed:', err);
+235:                             alert(
+236:                                 i18n.t('schedule.error.createRecurring') +
+237:                                     ` ${err instanceof Error ? err.message : String(err)}`,
+238:                             );
+239:                         },
+240:                     },
+241:                 );
+242:             } else if (planId) {
+243:                 createBatch.mutate({ ...baseBatch, plan_id: planId } as PlanBatchInsert, {
+244:                     onError: (err) => {
+245:                         console.error('[Schedule] createBatch failed:', err);
+246:                         alert(
+247:                             i18n.t('schedule.error.createBatch') +
+248:                                 ` ${err instanceof Error ? err.message : String(err)}`,
+249:                         );
+250:                     },
+251:                 });
+252:             }
+253:         },
+254:         [
+255:             planId,
+256:             batches.length,
+257:             createBatch,
+258:             createRecurringBatches,
+259:             editScope,
+260:             editingBatch,
+261:             updateSingleBatch,
+262:             updateFromThis,
+263:             updateAllBatches,
+264:             dateKey,
+265:             userId,
+266:         ],
+267:     );
+268: 
+269:     const handleMove = useCallback(
+270:         (index: number, dir: 'up' | 'down') => {
+271:             const next = [...batches];
+272:             const swapWith = dir === 'up' ? index - 1 : index + 1;
+273:             [next[index], next[swapWith]] = [next[swapWith], next[index]];
+274:             reorderBatches.mutate(next.map((b) => b.id));
+275:         },
+276:         [batches, reorderBatches],
+277:     );
+278: 
+279:     const handleStart = useCallback(
+280:         async (batch: PlanBatchWithProgress) => {
+281:             let targetId = batch.id;
+282:             let targetPlanId = batch.plan_id;
+283: 
+284:             if (!batch.plan_id && batch.recurrence_rule_id && batch.scheduled_date) {
+285:                 try {
+286:                     const realBatch = await planBatchApi.materialize(
+287:                         userId,
+288:                         batch.recurrence_rule_id,
+289:                         batch.scheduled_date,
+290:                         batch.original_date ?? batch.scheduled_date,
+291:                         {
+292:                             bean_name: batch.bean_name,
+293:                             batch_size_kg: Number(batch.batch_size_kg),
+294:                             target_roasted_kg: Number(batch.target_roasted_kg),
+295:                             machine_id: batch.machine_id,
+296:                             bean_id: batch.bean_id,
+297:                             roast_profile_id: batch.roast_profile_id,
+298:                             notes: batch.notes,
+299:                             green_lot: batch.green_lot,
+300:                             batch_type: batch.batch_type,
+301:                             status: 'in-progress',
+302:                         },
+303:                     );
+304:                     targetId = realBatch.id;
+305:                     targetPlanId = realBatch.plan_id;
+306:                 } catch (err) {
+307:                     console.error('[Schedule] materialize failed:', err);
+308:                     return;
+309:                 }
+310:             } else if (targetPlanId) {
+311:                 updateSingleBatch.mutate({
+312:                     id: batch.id,
+313:                     patch: {
+314:                         id: batch.id,
+315:                         plan_id: batch.plan_id,
+316:                         status: 'in-progress',
+317:                     },
+318:                     ...(batch.recurrence_rule_id && batch.original_date
+319:                         ? {
+320:                               meta: {
+321:                                   recurrenceRuleId: batch.recurrence_rule_id,
+322:                                   originalDate: batch.original_date,
+323:                               },
+324:                           }
+325:                         : {}),
+326:                 });
+327:             }
+328: 
+329:             onStartBatch({
+330:                 planBatchId: targetId,
+331:                 planId: targetPlanId,
+332:                 beanId: batch.bean_id,
+333:                 blendId: (batch as PlanBatchWithProgress & { blend_id?: string | null }).blend_id ?? null,
+334:                 beanName: batch.bean_name,
+335:                 batchSizeKg: Number(batch.batch_size_kg),
+336:                 profileId: batch.roast_profile_id,
+337:                 batchCount: batch.batch_count,
+338:                 completedSessions: batch.completed_sessions,
+339:             });
+340:         },
+341:         [updateSingleBatch, onStartBatch, userId],
+342:     );
+343: 
+344:     return {
+345:         isLoading,
+346:         isAddModalOpen,
+347:         setIsAddModalOpen,
+348:         batches,
+349:         editingBatch,
+350:         editScope,
+351:         scopeBatch,
+352:         isEditScopeModalOpen,
+353:         setIsEditScopeModalOpen,
+354:         isDeleteScopeModalOpen,
+355:         setIsDeleteScopeModalOpen,
+356:         setEditingBatch,
+357:         setEditScope,
+358:         setScopeBatch,
+359:         handleAddBatch,
+360:         handleMove,
+361:         handleStart,
+362:         handleEdit,
+363:         handleBatchDelete,
+364:         handleEditScopeConfirm,
+365:         handleDeleteScopeConfirm,
+366:     };
+367: };
+</file>
+
 <file path="src/views/schedule/BatchCard.tsx">
   1: import type { PlanBatchWithProgress } from '@shared/types/database.types';
   2: import { ChevronDown, ChevronUp, Package, Pencil, Play, Trash2 } from 'lucide-react';
@@ -22473,227 +22847,6 @@ This section contains the contents of the repository's files.
 75: }
 </file>
 
-<file path=".github/workflows/_publish-r2-reusable.yml">
-  1: name: _Publish to R2 (reusable)
-  2: 
-  3: on:
-  4:   workflow_call:
-  5:     inputs:
-  6:       version:
-  7:         description: 'Version string (e.g. 1.0.2)'
-  8:         required: true
-  9:         type: string
- 10:       run_id:
- 11:         description: 'Artifact run ID to download from (empty = current run — only safe for workflow_call callers where github.run_id == parent run ID)'
- 12:         required: false
- 13:         type: string
- 14:         default: ''
- 15: 
- 16: permissions:
- 17:   contents: read
- 18:   actions: read
- 19: 
- 20: jobs:
- 21:   publish-r2:
- 22:     runs-on: ubuntu-latest
- 23: 
- 24:     steps:
- 25:       - name: Download artifacts
- 26:         uses: actions/download-artifact@v4
- 27:         with:
- 28:           path: artifacts
- 29:           # For workflow_call callers: github.run_id is the parent run — artifacts are found correctly.
- 30:           # For direct dispatch: always pass run_id explicitly.
- 31:           run-id: ${{ inputs.run_id || github.run_id }}
- 32:           github-token: ${{ secrets.GITHUB_TOKEN }}
- 33: 
- 34:       - name: Validate artifact signatures
- 35:         run: |
- 36:           set -e
- 37:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 38:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 39:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
- 40: 
- 41:           verify_sig() {
- 42:             local file="$1" label="$2"
- 43:             if [ ! -f "$file" ]; then
- 44:               echo "::error::$label .sig file not found: $file"
- 45:               exit 1
- 46:             fi
- 47:             if [ ! -s "$file" ]; then
- 48:               echo "::error::$label .sig file is empty: $file"
- 49:               exit 1
- 50:             fi
- 51:             echo "  OK: $label ($(wc -c < "$file") bytes)"
- 52:           }
- 53: 
- 54:           verify_sig "$AARCH64_SIG" "macOS aarch64"
- 55:           verify_sig "$X64_SIG"     "macOS x86_64"
- 56:           verify_sig "$WIN_SIG"     "Windows x86_64"
- 57:           echo "All .sig files valid."
- 58: 
- 59:       - name: Backup current latest.json
- 60:         env:
- 61:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
- 62:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
- 63:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
- 64:           R2_BUCKET: first-crack
- 65:           VERSION: ${{ inputs.version }}
- 66:         run: |
- 67:           TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
- 68:           BACKUP_KEY="releases/latest.json.${VERSION}.${TIMESTAMP}.bak"
- 69:           aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
- 70:             "s3://${R2_BUCKET}/${BACKUP_KEY}" \
- 71:             --endpoint-url "$R2_ENDPOINT" --region auto \
- 72:             --content-type "application/json" && \
- 73:             echo "BACKUP_KEY=${BACKUP_KEY}" >> $GITHUB_ENV || \
- 74:             echo "No existing latest.json to backup (first release?)"
- 75: 
- 76:       - name: Upload binaries & latest.json to R2
- 77:         env:
- 78:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
- 79:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
- 80:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
- 81:           VERSION: ${{ inputs.version }}
- 82:           R2_BUCKET: first-crack
- 83:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
- 84:         run: |
- 85:           set -e
- 86:           S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
- 87: 
- 88:           AARCH64_TAR=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
- 89:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 90:           X64_TAR=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
- 91:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 92:           WIN_MSI=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi" ! -name "*.sig" | head -1)
- 93:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
- 94:           AARCH64_DMG=$(find artifacts/macos-aarch64-apple-darwin -name "*.dmg" | head -1)
- 95:           X64_DMG=$(find artifacts/macos-x86_64-apple-darwin -name "*.dmg" | head -1)
- 96: 
- 97:           [ -z "$AARCH64_TAR" ] && echo "ERROR: macOS arm64 .app.tar.gz not found" && exit 1
- 98:           [ -z "$X64_TAR" ]     && echo "ERROR: macOS x64 .app.tar.gz not found"   && exit 1
- 99:           [ -z "$WIN_MSI" ]     && echo "ERROR: Windows MSI not found"              && exit 1
-100: 
-101:           AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
-102:           X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
-103:           WIN_MSI_R2=$(basename "$WIN_MSI")
-104: 
-105:           # Phase 1: fire all binary uploads in parallel
-106:           pids=""
-107:           $S3 "$AARCH64_TAR" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2" & pids="$pids $!"
-108:           [ -n "$AARCH64_SIG" ] && { $S3 "$AARCH64_SIG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2.sig" & pids="$pids $!"; }
-109:           $S3 "$X64_TAR"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2" & pids="$pids $!"
-110:           [ -n "$X64_SIG" ]     && { $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig" & pids="$pids $!"; }
-111:           $S3 "$WIN_MSI"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2" & pids="$pids $!"
-112:           [ -n "$WIN_SIG" ]     && { $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig" & pids="$pids $!"; }
-113:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")" & pids="$pids $!"; }
-114:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")" & pids="$pids $!"; }
-115: 
-116:           # Build latest.json while uploads run
-117:           jq --null-input \
-118:             --arg version   "$VERSION" \
-119:             --arg pub_date  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-120:             --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
-121:             --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
-122:             --arg x64_sig   "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
-123:             --arg x64_url   "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
-124:             --arg win_sig   "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
-125:             --arg win_url   "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
-126:             '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
-127:             > latest.json
-128: 
-129:           # Wait for all Phase 1 binary uploads
-130:           fail=0
-131:           for pid in $pids; do wait $pid || fail=1; done
-132:           [ $fail -eq 1 ] && echo "ERROR: one or more binary uploads failed" && exit 1
-133: 
-134:           # Phase 2: latest.json + landing page aliases (parallel)
-135:           pids=""
-136:           $S3 latest.json "s3://$R2_BUCKET/releases/latest.json" \
-137:             --cache-control "no-cache, no-store, must-revalidate" \
-138:             --content-type "application/json" & pids="$pids $!"
-139:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" & pids="$pids $!"; }
-140:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" & pids="$pids $!"; }
-141:           $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
-142: 
-143:           fail=0
-144:           for pid in $pids; do wait $pid || fail=1; done
-145:           [ $fail -eq 1 ] && echo "ERROR: one or more latest/landing uploads failed" && exit 1
-146: 
-147:       - name: Purge Cloudflare cache for latest.json
-148:         env:
-149:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-150:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-151:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
-152:         run: |
-153:           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-154:             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-155:             -H "Authorization: Bearer ${CF_API_TOKEN}" \
-156:             -H "Content-Type: application/json" \
-157:             --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
-158:           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-159:           BODY=$(echo "$RESPONSE" | head -1)
-160:           echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
-161:           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-162:             echo "::error::Cloudflare cache purge failed with HTTP $HTTP_CODE"
-163:             exit 1
-164:           fi
-165: 
-166:       - name: Rollback latest.json on failure
-167:         if: failure() && env.BACKUP_KEY != ''
-168:         env:
-169:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-170:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-171:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
-172:           R2_BUCKET: first-crack
-173:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-174:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-175:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
-176:         run: |
-177:           echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
-178:           if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
-179:               "s3://${R2_BUCKET}/releases/latest.json" \
-180:               --endpoint-url "$R2_ENDPOINT" --region auto \
-181:               --cache-control "no-cache, no-store, must-revalidate" \
-182:               --content-type "application/json"; then
-183:             echo "Rollback complete. Purging CF cache..."
-184:             RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-185:               "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-186:               -H "Authorization: Bearer ${CF_API_TOKEN}" \
-187:               -H "Content-Type: application/json" \
-188:               --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
-189:             HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-190:             echo "CF purge after rollback: HTTP $HTTP_CODE"
-191:             echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
-192:           else
-193:             echo "::error::Rollback FAILED — latest.json may be in broken state"
-194:             echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
-195:           fi
-196: 
-197:       - name: Notify publish result
-198:         if: always()
-199:         env:
-200:           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-201:           VERSION: ${{ inputs.version }}
-202:         run: |
-203:           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-204:           if [ "${{ job.status }}" = "success" ]; then
-205:             TEXT=":white_check_mark: *Release published* — v${VERSION} | <${RUN_URL}|View run>"
-206:           elif [ "$ROLLBACK_STATUS" = "success" ]; then
-207:             TEXT=":x: *Release publish FAILED* — v${VERSION} | :white_check_mark: latest.json rolled back | <${RUN_URL}|View run>"
-208:           elif [ "$ROLLBACK_STATUS" = "failed" ]; then
-209:             TEXT=":rotating_light: *Release publish FAILED + Rollback FAILED* — v${VERSION} — latest.json 수동 확인 필요 | <${RUN_URL}|View run>"
-210:           else
-211:             TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
-212:           fi
-213:           if [ -n "$SLACK_WEBHOOK" ]; then
-214:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
-215:               --data "{\"text\":\"$TEXT\"}"
-216:           else
-217:             echo "SLACK_WEBHOOK_URL not set — skipping notification"
-218:           fi
-</file>
-
 <file path=".github/workflows/release.yml">
   1: name: Release
   2: 
@@ -23351,376 +23504,6 @@ This section contains the contents of the repository's files.
 161: export const DRUM_LINE_WIDTH = 3;
 162: export const DRUM_LINE_SMOOTH = 0.3;
 163: export const DRUM_MARK_LINE_WIDTH = 2;
-</file>
-
-<file path="src/views/schedule/hooks/useScheduleDayView.ts">
-  1: import {
-  2:     dayPlanApi,
-  3:     planBatchApi,
-  4:     useCreatePlanBatch,
-  5:     useCreateRecurringBatches,
-  6:     useDayBatches,
-  7:     useDayPlan,
-  8:     useDeleteAllBatches,
-  9:     useDeleteFromThis,
- 10:     useDeleteSingleBatch,
- 11:     useReorderPlanBatches,
- 12:     useUpdateAllBatches,
- 13:     useUpdateFromThis,
- 14:     useUpdateSingleBatch,
- 15: } from '@entities/plan';
- 16: import { getDateFnsLocale, i18n } from '@shared/i18n';
- 17: import { buildRRule } from '@shared/lib/rrule';
- 18: import type { PlanBatchHandoff, PlanBatchInsert, PlanBatchWithProgress } from '@shared/types/database.types';
- 19: import type { NewBatchData } from '@widgets/add-batch-modal';
- 20: import type { EditScope } from '@widgets/recurring-edit-scope-modal';
- 21: import { format } from 'date-fns';
- 22: import { useCallback, useState } from 'react';
- 23: import { toDateKey } from '../lib';
- 24: 
- 25: export const useScheduleDayView = ({
- 26:     userId,
- 27:     selectedDate,
- 28:     onStartBatch,
- 29: }: {
- 30:     userId: string;
- 31:     selectedDate: Date;
- 32:     onStartBatch: (handoff: PlanBatchHandoff) => void;
- 33: }) => {
- 34:     const dateKey = toDateKey(selectedDate);
- 35:     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
- 36:     const [editingBatch, setEditingBatch] = useState<PlanBatchWithProgress | null>(null);
- 37:     const [editScope, setEditScope] = useState<EditScope | null>(null);
- 38:     const [scopeBatch, setScopeBatch] = useState<PlanBatchWithProgress | null>(null);
- 39:     const [isEditScopeModalOpen, setIsEditScopeModalOpen] = useState(false);
- 40:     const [isDeleteScopeModalOpen, setIsDeleteScopeModalOpen] = useState(false);
- 41: 
- 42:     const { data: dayPlan, isLoading: isDayPlanLoading } = useDayPlan(userId, dateKey);
- 43:     const planId = dayPlan?.id ?? '';
- 44: 
- 45:     const { data: batches = [], isLoading: isBatchesLoading } = useDayBatches(userId, dateKey);
- 46:     const isLoading = isDayPlanLoading || isBatchesLoading;
- 47: 
- 48:     const createBatch = useCreatePlanBatch(planId);
- 49:     const reorderBatches = useReorderPlanBatches(planId);
- 50:     const createRecurringBatches = useCreateRecurringBatches(userId, planId);
- 51:     const deleteSingleBatch = useDeleteSingleBatch();
- 52:     const deleteFromThis = useDeleteFromThis();
- 53:     const deleteAllBatches = useDeleteAllBatches();
- 54:     const updateSingleBatch = useUpdateSingleBatch();
- 55:     const updateFromThis = useUpdateFromThis();
- 56:     const updateAllBatches = useUpdateAllBatches();
- 57: 
- 58:     const handleScopeDelete = useCallback(
- 59:         async (scope: EditScope, batch: PlanBatchWithProgress) => {
- 60:             if (!batch.recurrence_rule_id) return;
- 61: 
- 62:             if (scope === 'single') {
- 63:                 if (window.confirm(i18n.t('schedule.deleteConfirm.single'))) {
- 64:                     let targetPlanId = batch.plan_id;
- 65:                     if (!targetPlanId && batch.recurrence_rule_id && batch.scheduled_date) {
- 66:                         const plan = await dayPlanApi.getOrCreate(userId, batch.scheduled_date);
- 67:                         targetPlanId = plan.id;
- 68:                     }
- 69:                     deleteSingleBatch.mutate({
- 70:                         id: batch.id,
- 71:                         meta: {
- 72:                             recurrenceRuleId: batch.recurrence_rule_id,
- 73:                             originalDate: batch.scheduled_date ?? dateKey,
- 74:                             planId: targetPlanId ?? '',
- 75:                         },
- 76:                     });
- 77:                 }
- 78:             } else if (scope === 'from_this') {
- 79:                 if (
- 80:                     window.confirm(
- 81:                         i18n.t('schedule.deleteConfirm.fromThis', {
- 82:                             date: format(selectedDate, 'M월 d일', { locale: getDateFnsLocale() }),
- 83:                         }),
- 84:                     )
- 85:                 ) {
- 86:                     deleteFromThis.mutate({
- 87:                         ruleId: batch.recurrence_rule_id,
- 88:                         fromDate: dateKey,
- 89:                     });
- 90:                 }
- 91:             } else if (scope === 'all') {
- 92:                 if (window.confirm(i18n.t('schedule.deleteConfirm.all'))) {
- 93:                     deleteAllBatches.mutate(batch.recurrence_rule_id);
- 94:                 }
- 95:             }
- 96: 
- 97:             setIsDeleteScopeModalOpen(false);
- 98:             setScopeBatch(null);
- 99:         },
-100:         [deleteSingleBatch, deleteFromThis, deleteAllBatches, dateKey, selectedDate, userId],
-101:     );
-102: 
-103:     const handleEdit = useCallback((batch: PlanBatchWithProgress) => {
-104:         if (batch.recurrence_rule_id) {
-105:             setScopeBatch(batch);
-106:             setIsEditScopeModalOpen(true);
-107:         } else {
-108:             setEditingBatch(batch);
-109:             setEditScope(null);
-110:         }
-111:     }, []);
-112: 
-113:     const handleBatchDelete = useCallback(
-114:         (batch: PlanBatchWithProgress) => {
-115:             if (batch.recurrence_rule_id) {
-116:                 setScopeBatch(batch);
-117:                 setIsDeleteScopeModalOpen(true);
-118:             } else {
-119:                 if (window.confirm(i18n.t('schedule.deleteConfirm.batch', { name: batch.bean_name }))) {
-120:                     deleteSingleBatch.mutate({ id: batch.id });
-121:                 }
-122:             }
-123:         },
-124:         [deleteSingleBatch],
-125:     );
-126: 
-127:     const handleEditScopeConfirm = useCallback(
-128:         (scope: EditScope) => {
-129:             if (!scopeBatch) return;
-130:             setEditScope(scope);
-131:             setEditingBatch(scopeBatch);
-132:             setIsEditScopeModalOpen(false);
-133:             setScopeBatch(null);
-134:         },
-135:         [scopeBatch],
-136:     );
-137: 
-138:     const handleDeleteScopeConfirm = useCallback(
-139:         (scope: EditScope) => {
-140:             if (!scopeBatch) return;
-141:             handleScopeDelete(scope, scopeBatch);
-142:         },
-143:         [scopeBatch, handleScopeDelete],
-144:     );
-145: 
-146:     const handleAddBatch = useCallback(
-147:         async (data: NewBatchData) => {
-148:             if (editScope && editingBatch?.recurrence_rule_id) {
-149:                 const basePatch = {
-150:                     id: editingBatch.id,
-151:                     plan_id: '',
-152:                     bean_name: data.beanName || editingBatch.bean_name,
-153:                     bean_id: data.beanId,
-154:                     blend_id: data.blendId ?? null,
-155:                     batch_type: data.batchType,
-156:                     roast_profile_id: data.profileId,
-157:                     machine_id: data.machineId,
-158:                     target_roasted_kg: data.targetRoasted,
-159:                     batch_size_kg: data.batchSize,
-160:                     yield_pct: data.yieldPct / 100,
-161:                     notes: data.notes,
-162:                     green_lot: data.greenLot,
-163:                 };
-164: 
-165:                 if (editScope === 'single') {
-166:                     let targetPlanId = editingBatch.plan_id;
-167:                     if (!targetPlanId && editingBatch.recurrence_rule_id) {
-168:                         const scheduleDate = editingBatch.scheduled_date ?? dateKey;
-169:                         const plan = await dayPlanApi.getOrCreate(userId, scheduleDate);
-170:                         targetPlanId = plan.id;
-171:                     }
-172:                     updateSingleBatch.mutate({
-173:                         id: editingBatch.id,
-174:                         patch: { ...basePatch, plan_id: targetPlanId ?? '' },
-175:                         meta: {
-176:                             recurrenceRuleId: editingBatch.recurrence_rule_id,
-177:                             originalDate: editingBatch.scheduled_date ?? dateKey,
-178:                         },
-179:                     });
-180:                 } else {
-181:                     const instanceDate = editingBatch.scheduled_date ?? dateKey;
-182:                     const masterPatch = {
-183:                         machine_id: data.machineId || null,
-184:                         roast_profile_id: data.profileId,
-185:                         bean_id: data.beanId,
-186:                         blend_id: data.blendId ?? null,
-187:                         bean_name: data.beanName || editingBatch.bean_name,
-188:                         green_lot: data.greenLot,
-189:                         batch_size_kg: data.batchSize,
-190:                         yield_pct: data.yieldPct / 100,
-191:                         target_roasted_kg: data.targetRoasted,
-192:                         notes: data.notes,
-193:                         batch_type: data.batchType,
-194:                         ...(data.recurringInterval ? { rrule: buildRRule(data.recurringInterval) } : {}),
-195:                     };
-196: 
-197:                     if (editScope === 'from_this') {
-198:                         updateFromThis.mutate({
-199:                             ruleId: editingBatch.recurrence_rule_id,
-200:                             fromDate: instanceDate,
-201:                             patch: { ...masterPatch, dtstart: instanceDate, userId },
-202:                         });
-203:                     } else if (editScope === 'all') {
-204:                         updateAllBatches.mutate({
-205:                             ruleId: editingBatch.recurrence_rule_id,
-206:                             patch: masterPatch,
-207:                         });
-208:                     }
-209:                 }
-210:                 return;
-211:             }
-212: 
-213:             const baseBatch: Omit<PlanBatchInsert, 'plan_id'> = {
-214:                 order_index: batches.length,
-215:                 bean_name: data.beanName || data.batchType,
-216:                 bean_id: data.beanId,
-217:                 blend_id: data.blendId ?? null,
-218:                 batch_type: data.batchType,
-219:                 roast_profile_id: data.profileId,
-220:                 machine_id: data.machineId || null,
-221:                 target_roasted_kg: data.targetRoasted,
-222:                 batch_size_kg: data.batchSize,
-223:                 yield_pct: data.yieldPct / 100,
-224:                 notes: data.notes,
-225:                 green_lot: data.greenLot,
-226:                 status: 'pending',
-227:             };
-228: 
-229:             if (data.recurringInterval) {
-230:                 createRecurringBatches.mutate(
-231:                     { baseBatch, interval: data.recurringInterval, dtstart: data.date },
-232:                     {
-233:                         onError: (err) => {
-234:                             console.error('[Schedule] createRecurringBatches failed:', err);
-235:                             alert(
-236:                                 i18n.t('schedule.error.createRecurring') +
-237:                                     ` ${err instanceof Error ? err.message : String(err)}`,
-238:                             );
-239:                         },
-240:                     },
-241:                 );
-242:             } else if (planId) {
-243:                 createBatch.mutate({ ...baseBatch, plan_id: planId } as PlanBatchInsert, {
-244:                     onError: (err) => {
-245:                         console.error('[Schedule] createBatch failed:', err);
-246:                         alert(
-247:                             i18n.t('schedule.error.createBatch') +
-248:                                 ` ${err instanceof Error ? err.message : String(err)}`,
-249:                         );
-250:                     },
-251:                 });
-252:             }
-253:         },
-254:         [
-255:             planId,
-256:             batches.length,
-257:             createBatch,
-258:             createRecurringBatches,
-259:             editScope,
-260:             editingBatch,
-261:             updateSingleBatch,
-262:             updateFromThis,
-263:             updateAllBatches,
-264:             dateKey,
-265:             userId,
-266:         ],
-267:     );
-268: 
-269:     const handleMove = useCallback(
-270:         (index: number, dir: 'up' | 'down') => {
-271:             const next = [...batches];
-272:             const swapWith = dir === 'up' ? index - 1 : index + 1;
-273:             [next[index], next[swapWith]] = [next[swapWith], next[index]];
-274:             reorderBatches.mutate(next.map((b) => b.id));
-275:         },
-276:         [batches, reorderBatches],
-277:     );
-278: 
-279:     const handleStart = useCallback(
-280:         async (batch: PlanBatchWithProgress) => {
-281:             let targetId = batch.id;
-282:             let targetPlanId = batch.plan_id;
-283: 
-284:             if (!batch.plan_id && batch.recurrence_rule_id && batch.scheduled_date) {
-285:                 try {
-286:                     const realBatch = await planBatchApi.materialize(
-287:                         userId,
-288:                         batch.recurrence_rule_id,
-289:                         batch.scheduled_date,
-290:                         batch.original_date ?? batch.scheduled_date,
-291:                         {
-292:                             bean_name: batch.bean_name,
-293:                             batch_size_kg: Number(batch.batch_size_kg),
-294:                             target_roasted_kg: Number(batch.target_roasted_kg),
-295:                             machine_id: batch.machine_id,
-296:                             bean_id: batch.bean_id,
-297:                             roast_profile_id: batch.roast_profile_id,
-298:                             notes: batch.notes,
-299:                             green_lot: batch.green_lot,
-300:                             batch_type: batch.batch_type,
-301:                             status: 'in-progress',
-302:                         },
-303:                     );
-304:                     targetId = realBatch.id;
-305:                     targetPlanId = realBatch.plan_id;
-306:                 } catch (err) {
-307:                     console.error('[Schedule] materialize failed:', err);
-308:                     return;
-309:                 }
-310:             } else if (targetPlanId) {
-311:                 updateSingleBatch.mutate({
-312:                     id: batch.id,
-313:                     patch: {
-314:                         id: batch.id,
-315:                         plan_id: batch.plan_id,
-316:                         status: 'in-progress',
-317:                     },
-318:                     ...(batch.recurrence_rule_id && batch.original_date
-319:                         ? {
-320:                               meta: {
-321:                                   recurrenceRuleId: batch.recurrence_rule_id,
-322:                                   originalDate: batch.original_date,
-323:                               },
-324:                           }
-325:                         : {}),
-326:                 });
-327:             }
-328: 
-329:             onStartBatch({
-330:                 planBatchId: targetId,
-331:                 planId: targetPlanId,
-332:                 beanId: batch.bean_id,
-333:                 blendId: (batch as PlanBatchWithProgress & { blend_id?: string | null }).blend_id ?? null,
-334:                 beanName: batch.bean_name,
-335:                 batchSizeKg: Number(batch.batch_size_kg),
-336:                 profileId: batch.roast_profile_id,
-337:                 batchCount: batch.batch_count,
-338:                 completedSessions: batch.completed_sessions,
-339:             });
-340:         },
-341:         [updateSingleBatch, onStartBatch, userId],
-342:     );
-343: 
-344:     return {
-345:         isLoading,
-346:         isAddModalOpen,
-347:         setIsAddModalOpen,
-348:         batches,
-349:         editingBatch,
-350:         editScope,
-351:         scopeBatch,
-352:         isEditScopeModalOpen,
-353:         setIsEditScopeModalOpen,
-354:         isDeleteScopeModalOpen,
-355:         setIsDeleteScopeModalOpen,
-356:         setEditingBatch,
-357:         setEditScope,
-358:         setScopeBatch,
-359:         handleAddBatch,
-360:         handleMove,
-361:         handleStart,
-362:         handleEdit,
-363:         handleBatchDelete,
-364:         handleEditScopeConfirm,
-365:         handleDeleteScopeConfirm,
-366:     };
-367: };
 </file>
 
 <file path="src/views/schedule/ScheduleDayView.tsx">
@@ -25189,6 +24972,227 @@ This section contains the contents of the repository's files.
 298:         return self._client is not None and self._client.connected
 </file>
 
+<file path=".github/workflows/_publish-r2-reusable.yml">
+  1: name: _Publish to R2 (reusable)
+  2: 
+  3: on:
+  4:   workflow_call:
+  5:     inputs:
+  6:       version:
+  7:         description: 'Version string (e.g. 1.0.2)'
+  8:         required: true
+  9:         type: string
+ 10:       run_id:
+ 11:         description: 'Artifact run ID to download from (empty = current run — only safe for workflow_call callers where github.run_id == parent run ID)'
+ 12:         required: false
+ 13:         type: string
+ 14:         default: ''
+ 15: 
+ 16: permissions:
+ 17:   contents: read
+ 18:   actions: read
+ 19: 
+ 20: jobs:
+ 21:   publish-r2:
+ 22:     runs-on: ubuntu-latest
+ 23: 
+ 24:     steps:
+ 25:       - name: Download artifacts
+ 26:         uses: actions/download-artifact@v4
+ 27:         with:
+ 28:           path: artifacts
+ 29:           # For workflow_call callers: github.run_id is the parent run — artifacts are found correctly.
+ 30:           # For direct dispatch: always pass run_id explicitly.
+ 31:           run-id: ${{ inputs.run_id || github.run_id }}
+ 32:           github-token: ${{ secrets.GITHUB_TOKEN }}
+ 33: 
+ 34:       - name: Validate artifact signatures
+ 35:         run: |
+ 36:           set -e
+ 37:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 38:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 39:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
+ 40: 
+ 41:           verify_sig() {
+ 42:             local file="$1" label="$2"
+ 43:             if [ ! -f "$file" ]; then
+ 44:               echo "::error::$label .sig file not found: $file"
+ 45:               exit 1
+ 46:             fi
+ 47:             if [ ! -s "$file" ]; then
+ 48:               echo "::error::$label .sig file is empty: $file"
+ 49:               exit 1
+ 50:             fi
+ 51:             echo "  OK: $label ($(wc -c < "$file") bytes)"
+ 52:           }
+ 53: 
+ 54:           verify_sig "$AARCH64_SIG" "macOS aarch64"
+ 55:           verify_sig "$X64_SIG"     "macOS x86_64"
+ 56:           verify_sig "$WIN_SIG"     "Windows x86_64"
+ 57:           echo "All .sig files valid."
+ 58: 
+ 59:       - name: Backup current latest.json
+ 60:         env:
+ 61:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+ 62:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+ 63:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+ 64:           R2_BUCKET: first-crack
+ 65:           VERSION: ${{ inputs.version }}
+ 66:         run: |
+ 67:           TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+ 68:           BACKUP_KEY="releases/latest.json.${VERSION}.${TIMESTAMP}.bak"
+ 69:           aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
+ 70:             "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+ 71:             --endpoint-url "$R2_ENDPOINT" --region auto \
+ 72:             --content-type "application/json" && \
+ 73:             echo "BACKUP_KEY=${BACKUP_KEY}" >> $GITHUB_ENV || \
+ 74:             echo "No existing latest.json to backup (first release?)"
+ 75: 
+ 76:       - name: Upload binaries & latest.json to R2
+ 77:         env:
+ 78:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+ 79:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+ 80:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+ 81:           VERSION: ${{ inputs.version }}
+ 82:           R2_BUCKET: first-crack
+ 83:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+ 84:         run: |
+ 85:           set -e
+ 86:           S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
+ 87: 
+ 88:           AARCH64_TAR=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+ 89:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 90:           X64_TAR=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+ 91:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 92:           WIN_MSI=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi" ! -name "*.sig" | head -1)
+ 93:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
+ 94:           AARCH64_DMG=$(find artifacts/macos-aarch64-apple-darwin -name "*.dmg" | head -1)
+ 95:           X64_DMG=$(find artifacts/macos-x86_64-apple-darwin -name "*.dmg" | head -1)
+ 96: 
+ 97:           [ -z "$AARCH64_TAR" ] && echo "ERROR: macOS arm64 .app.tar.gz not found" && exit 1
+ 98:           [ -z "$X64_TAR" ]     && echo "ERROR: macOS x64 .app.tar.gz not found"   && exit 1
+ 99:           [ -z "$WIN_MSI" ]     && echo "ERROR: Windows MSI not found"              && exit 1
+100: 
+101:           AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
+102:           X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
+103:           WIN_MSI_R2=$(basename "$WIN_MSI")
+104: 
+105:           # Phase 1: fire all binary uploads in parallel
+106:           pids=""
+107:           $S3 "$AARCH64_TAR" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2" & pids="$pids $!"
+108:           [ -n "$AARCH64_SIG" ] && { $S3 "$AARCH64_SIG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2.sig" & pids="$pids $!"; }
+109:           $S3 "$X64_TAR"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2" & pids="$pids $!"
+110:           [ -n "$X64_SIG" ]     && { $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig" & pids="$pids $!"; }
+111:           $S3 "$WIN_MSI"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2" & pids="$pids $!"
+112:           [ -n "$WIN_SIG" ]     && { $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig" & pids="$pids $!"; }
+113:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")" & pids="$pids $!"; }
+114:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")" & pids="$pids $!"; }
+115: 
+116:           # Build latest.json while uploads run
+117:           jq --null-input \
+118:             --arg version   "$VERSION" \
+119:             --arg pub_date  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+120:             --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
+121:             --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
+122:             --arg x64_sig   "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
+123:             --arg x64_url   "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
+124:             --arg win_sig   "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
+125:             --arg win_url   "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
+126:             '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
+127:             > latest.json
+128: 
+129:           # Wait for all Phase 1 binary uploads
+130:           fail=0
+131:           for pid in $pids; do wait $pid || fail=1; done
+132:           [ $fail -eq 1 ] && echo "ERROR: one or more binary uploads failed" && exit 1
+133: 
+134:           # Phase 2: latest.json + landing page aliases (parallel)
+135:           pids=""
+136:           $S3 latest.json "s3://$R2_BUCKET/releases/latest.json" \
+137:             --cache-control "no-cache, no-store, must-revalidate" \
+138:             --content-type "application/json" & pids="$pids $!"
+139:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" & pids="$pids $!"; }
+140:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" & pids="$pids $!"; }
+141:           $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
+142: 
+143:           fail=0
+144:           for pid in $pids; do wait $pid || fail=1; done
+145:           [ $fail -eq 1 ] && echo "ERROR: one or more latest/landing uploads failed" && exit 1
+146: 
+147:       - name: Purge Cloudflare cache for latest.json
+148:         env:
+149:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+150:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+151:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+152:         run: |
+153:           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+154:             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+155:             -H "Authorization: Bearer ${CF_API_TOKEN}" \
+156:             -H "Content-Type: application/json" \
+157:             --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+158:           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+159:           BODY=$(echo "$RESPONSE" | head -1)
+160:           echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
+161:           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+162:             echo "::error::Cloudflare cache purge failed with HTTP $HTTP_CODE"
+163:             exit 1
+164:           fi
+165: 
+166:       - name: Rollback latest.json on failure
+167:         if: failure() && env.BACKUP_KEY != ''
+168:         env:
+169:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+170:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+171:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+172:           R2_BUCKET: first-crack
+173:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+174:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+175:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+176:         run: |
+177:           echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
+178:           if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+179:               "s3://${R2_BUCKET}/releases/latest.json" \
+180:               --endpoint-url "$R2_ENDPOINT" --region auto \
+181:               --cache-control "no-cache, no-store, must-revalidate" \
+182:               --content-type "application/json"; then
+183:             echo "Rollback complete. Purging CF cache..."
+184:             RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+185:               "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+186:               -H "Authorization: Bearer ${CF_API_TOKEN}" \
+187:               -H "Content-Type: application/json" \
+188:               --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+189:             HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+190:             echo "CF purge after rollback: HTTP $HTTP_CODE"
+191:             echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
+192:           else
+193:             echo "::error::Rollback FAILED — latest.json may be in broken state"
+194:             echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
+195:           fi
+196: 
+197:       - name: Notify publish result
+198:         if: always()
+199:         env:
+200:           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+201:           VERSION: ${{ inputs.version }}
+202:         run: |
+203:           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+204:           if [ "${{ job.status }}" = "success" ]; then
+205:             TEXT=":white_check_mark: *Release published* — v${VERSION} | <${RUN_URL}|View run>"
+206:           elif [ "$ROLLBACK_STATUS" = "success" ]; then
+207:             TEXT=":x: *Release publish FAILED* — v${VERSION} | :white_check_mark: latest.json rolled back | <${RUN_URL}|View run>"
+208:           elif [ "$ROLLBACK_STATUS" = "failed" ]; then
+209:             TEXT=":rotating_light: *Release publish FAILED + Rollback FAILED* — v${VERSION} — latest.json 수동 확인 필요 | <${RUN_URL}|View run>"
+210:           else
+211:             TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
+212:           fi
+213:           if [ -n "$SLACK_WEBHOOK" ]; then
+214:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+215:               --data "{\"text\":\"$TEXT\"}"
+216:           else
+217:             echo "SLACK_WEBHOOK_URL not set — skipping notification"
+218:           fi
+</file>
+
 <file path="src/views/profiles/NewProfileModal.tsx">
   1: import { useBeans } from '@entities/bean/queries';
   2: import { useBlends } from '@entities/blend';
@@ -26086,6 +26090,740 @@ This section contains the contents of the repository's files.
 215:         </div>
 216:     );
 217: };
+</file>
+
+<file path="src/widgets/add-batch-modal/ui/AddBatchModal.tsx">
+  1: import { useBeans } from '@entities/bean/queries';
+  2: import { beanStockEventApi, useBeanStockSummaries, useBeanStockSummary } from '@entities/bean-stock-event';
+  3: import { type BlendWithComponents, useBlends } from '@entities/blend';
+  4: import { type Machine, useMachines } from '@entities/machine';
+  5: import { dayPlanApi, planBatchApi, planKeys } from '@entities/plan';
+  6: import type { RoastProfileWithSource } from '@entities/roast-profile';
+  7: import { useRoastProfiles } from '@entities/roast-profile/queries';
+  8: import { getDateFnsLocale } from '@shared/i18n';
+  9: import { cn } from '@shared/lib/cn';
+ 10: import type { RecurrenceInterval } from '@shared/lib/rrule';
+ 11: import { useAuthStore } from '@shared/store/auth';
+ 12: import type { Bean, PlanBatchWithProgress, RoastProfile } from '@shared/types/database.types';
+ 13: import { CounterInput } from '@shared/ui/CounterInput';
+ 14: import { Calendar } from '@shared/ui/calendar/Calendar';
+ 15: import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+ 16: import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
+ 17: import { useQueries, useQueryClient } from '@tanstack/react-query';
+ 18: import { format } from 'date-fns';
+ 19: import { AlertTriangle, CalendarIcon, Cpu, Package, Repeat, X } from 'lucide-react';
+ 20: import { useEffect, useMemo, useState } from 'react';
+ 21: import { useTranslation } from 'react-i18next';
+ 22: import { SearchableSelect } from './SearchableSelect';
+ 23: 
+ 24: /**
+ 25:  * Parse an RRULE string back to a RecurrenceInterval label.
+ 26:  * Used to pre-populate the recurrence selection when editing an existing batch.
+ 27:  */
+ 28: function parseRruleToInterval(rrule: string | null): RecurrenceInterval | null {
+ 29:     if (!rrule) return null;
+ 30:     if (rrule.includes('FREQ=DAILY')) return 'daily';
+ 31:     if (rrule.includes('FREQ=WEEKLY') && rrule.includes('INTERVAL=2')) return 'biweekly';
+ 32:     if (rrule.includes('FREQ=WEEKLY')) return 'weekly';
+ 33:     if (rrule.includes('FREQ=MONTHLY')) return 'monthly';
+ 34:     return null;
+ 35: }
+ 36: 
+ 37: // ── Types ─────────────────────────────────────────────────────────────────────
+ 38: 
+ 39: type BatchType = 'Single Origin' | 'Pre-roast Blend' | 'Post-roast Blend';
+ 40: 
+ 41: const RECURRENCE_OPTIONS: { value: RecurrenceInterval }[] = [
+ 42:     { value: 'daily' },
+ 43:     { value: 'weekly' },
+ 44:     { value: 'biweekly' },
+ 45:     { value: 'monthly' },
+ 46: ];
+ 47: 
+ 48: export interface NewBatchData {
+ 49:     date: Date;
+ 50:     machineId: string;
+ 51:     machineName: string;
+ 52:     batchType: BatchType;
+ 53:     profileId: string | null;
+ 54:     profileName: string;
+ 55:     beanId: string | null;
+ 56:     blendId: string | null;
+ 57:     beanName: string;
+ 58:     targetRoasted: number;
+ 59:     batchSize: number;
+ 60:     yieldPct: number;
+ 61:     batchCount: number;
+ 62:     greenNeeded: number;
+ 63:     greenLot: string;
+ 64:     notes: string;
+ 65:     recurringInterval?: RecurrenceInterval | null;
+ 66: }
+ 67: 
+ 68: /** Edit scope for recurring batch operations */
+ 69: export type EditScope = 'single' | 'from_this' | 'all';
+ 70: 
+ 71: interface AddBatchModalProps {
+ 72:     open: boolean;
+ 73:     onClose: () => void;
+ 74:     onAdd?: (data: NewBatchData) => void;
+ 75:     editingBatch?: PlanBatchWithProgress | null;
+ 76:     editScope?: EditScope | null;
+ 77:     currentDateKey?: string;
+ 78:     onSaved?: () => void;
+ 79: }
+ 80: 
+ 81: // ── Style helpers ─────────────────────────────────────────────────────────────
+ 82: 
+ 83: const inputCls =
+ 84:     'w-full px-3.5 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20 dark:focus:border-[#585d61]';
+ 85: const labelCls = 'flex items-center gap-1.5 text-[11px] font-semibold text-muted mb-1.5 tracking-[0.04em] uppercase';
+ 86: const tabCls = (active: boolean) =>
+ 87:     `flex-1 py-2 rounded-xl border-none text-[13px] cursor-pointer transition-all duration-200 ${
+ 88:         active
+ 89:             ? 'bg-white dark:bg-surface-elevated font-semibold text-primary dark:text-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
+ 90:             : 'bg-transparent font-medium text-muted dark:text-white hover:text-secondary dark:hover:text-white/70'
+ 91:     }`;
+ 92: 
+ 93: const DEFAULT_YIELD = 82;
+ 94: const DEFAULT_BATCH_SIZE = 25;
+ 95: 
+ 96: // ── Helpers ───────────────────────────────────────────────────────────────────
+ 97: 
+ 98: const todayDate = () => new Date();
+ 99: 
+100: // ── Main component ────────────────────────────────────────────────────────────
+101: 
+102: export const AddBatchModal = ({
+103:     open,
+104:     onClose,
+105:     onAdd,
+106:     editingBatch,
+107:     editScope,
+108:     currentDateKey,
+109:     onSaved,
+110: }: AddBatchModalProps) => {
+111:     const userId = useAuthStore((s) => s.user?.id ?? '');
+112:     const qc = useQueryClient();
+113:     const { t } = useTranslation();
+114: 
+115:     const { data: beans = [] } = useBeans(userId);
+116:     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
+117:     const { machines } = useMachines();
+118:     const { data: profiles = [] } = useRoastProfiles(userId);
+119:     const { data: blends = [] } = useBlends(userId);
+120: 
+121:     const isEdit = !!editingBatch;
+122:     const isDateDisabled = editScope === 'all';
+123:     const isRruleVisible = !isEdit || editScope === 'from_this' || editScope === 'all';
+124: 
+125:     const [saving, setSaving] = useState(false);
+126:     const [date, setDate] = useState<Date | undefined>(
+127:         editingBatch && currentDateKey ? new Date(currentDateKey + 'T00:00:00') : todayDate(),
+128:     );
+129:     const [calendarOpen, setCalendarOpen] = useState(false);
+130:     const [recurringInterval, setRecurringInterval] = useState<RecurrenceInterval | null>(null);
+131: 
+132:     useEffect(() => {
+133:         if (!open) return;
+134:         // Reset form fields when modal opens
+135:         // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset on open
+136:         setRecurringInterval(editingBatch?.rrule ? parseRruleToInterval(editingBatch.rrule) : null);
+137:     }, [open, editingBatch?.rrule]);
+138:     const [machineId, setMachineId] = useState(() => editingBatch?.machine_id ?? machines[0]?.id ?? '');
+139:     const [batchType, setBatchType] = useState<BatchType>(
+140:         () => (editingBatch?.batch_type as BatchType) || 'Single Origin',
+141:     );
+142:     const [profileId, setProfileId] = useState(() => editingBatch?.roast_profile_id ?? '');
+143:     const [beanId, setBeanId] = useState(() => editingBatch?.bean_id ?? '');
+144:     const [blendId, setBlendId] = useState<string | null>(() => editingBatch?.blend_id ?? null);
+145:     const [targetRoasted, setTargetRoasted] = useState(() =>
+146:         editingBatch ? String(editingBatch.target_roasted_kg) : '',
+147:     );
+148:     const [batchSize, setBatchSize] = useState(() =>
+149:         editingBatch ? String(editingBatch.batch_size_kg) : String(DEFAULT_BATCH_SIZE),
+150:     );
+151:     const [yieldPct, setYieldPct] = useState(() =>
+152:         editingBatch ? String(Math.round((editingBatch.yield_pct ?? 0.82) * 100)) : String(DEFAULT_YIELD),
+153:     );
+154:     const [notes, setNotes] = useState(() => editingBatch?.notes ?? '');
+155: 
+156:     useEffect(() => {
+157:         if (!open) return;
+158:         const fn = (e: KeyboardEvent) => {
+159:             if (e.key === 'Escape') onClose();
+160:         };
+161:         window.addEventListener('keydown', fn);
+162:         return () => window.removeEventListener('keydown', fn);
+163:     }, [open, onClose]);
+164: 
+165:     // Derived calculations
+166:     const targetNum = parseFloat(targetRoasted) || 0;
+167:     const batchSizeNum = parseFloat(batchSize) || DEFAULT_BATCH_SIZE;
+168:     const yieldNum = parseFloat(yieldPct) || DEFAULT_YIELD;
+169:     const batchCount = targetNum > 0 ? Math.ceil(targetNum / batchSizeNum) : 0;
+170:     const greenNeeded = targetNum > 0 && yieldNum > 0 ? Math.round((targetNum / (yieldNum / 100)) * 10) / 10 : 0;
+171: 
+172:     const selectedBean = beans.find((b) => b.id === beanId) as Bean | undefined;
+173:     const selectedProfile = profiles.find((p) => p.id === profileId) as RoastProfile | undefined;
+174:     const selectedMachine = machines.find((m) => m.id === machineId);
+175:     const selectedBlend = blends.find((b) => b.id === blendId);
+176: 
+177:     const selectedBeanId = batchType === 'Single Origin' ? beanId : null;
+178:     const { data: stockSummary } = useBeanStockSummary(selectedBeanId ?? '');
+179:     const effectiveStockKg = (stockSummary?.effectiveGrams ?? 0) / 1000;
+180:     const stockSufficient = greenNeeded === 0 || effectiveStockKg >= greenNeeded;
+181:     const stockPct = greenNeeded > 0 ? Math.min(100, (effectiveStockKg / greenNeeded) * 100) : 100;
+182: 
+183:     const plannedGrams = batchSizeNum * batchCount * 1000;
+184:     const isShortage = !!stockSummary && plannedGrams > 0 && stockSummary.effectiveGrams < plannedGrams;
+185: 
+186:     // ── Blend component stock checks ────────────────────────────────────────
+187:     const isBlendType = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
+188:     const blendComponents = useMemo(() => {
+189:         if (!isBlendType || !selectedBlend) return [];
+190:         return (selectedBlend as BlendWithComponents).blend_components ?? [];
+191:     }, [isBlendType, selectedBlend]);
+192: 
+193:     const blendStockQueries = useQueries({
+194:         queries: blendComponents.map((comp) => ({
+195:             queryKey: ['bean-stock-summary', comp.bean_id],
+196:             queryFn: () => beanStockEventApi.getStockSummary(comp.bean_id),
+197:             enabled: !!comp.bean_id,
+198:         })),
+199:     });
+200: 
+201:     const blendShortages = useMemo(() => {
+202:         if (blendComponents.length === 0 || plannedGrams === 0) return [];
+203:         return blendComponents.map((comp, i) => {
+204:             const neededGrams = Math.round((Number(comp.ratio_pct) / 100) * plannedGrams);
+205:             const summary = blendStockQueries[i]?.data;
+206:             return {
+207:                 beanName: (comp as { beans?: { name: string } }).beans?.name ?? t('addBatchModal.unknown'),
+208:                 ratioPct: comp.ratio_pct,
+209:                 neededGrams,
+210:                 effectiveGrams: summary?.effectiveGrams ?? 0,
+211:                 isShort: summary ? summary.effectiveGrams < neededGrams : false,
+212:             };
+213:         });
+214:     }, [blendComponents, plannedGrams, blendStockQueries]);
+215: 
+216:     // 프로파일 선택 시 default_bean_id / default_blend_id 자동 pre-fill
+217:     const handleProfileSelect = (id: string) => {
+218:         setProfileId(id);
+219:         if (!id) return;
+220:         const selected = profiles.find((p) => p.id === id) as RoastProfileWithSource | undefined;
+221:         if (selected?.default_bean_id) {
+222:             setBatchType('Single Origin');
+223:             setBeanId(selected.default_bean_id);
+224:         } else if (selected?.default_blend_id) {
+225:             setBatchType('Pre-roast Blend');
+226:             setBlendId(selected.default_blend_id);
+227:         }
+228:     };
+229: 
+230:     const newDateKey = date ? format(date, 'yyyy-MM-dd') : '';
+231:     const dateChanged = isEdit && currentDateKey && newDateKey !== currentDateKey;
+232: 
+233:     const canSubmit = date !== undefined && !!machineId && targetNum > 0 && batchSizeNum > 0 && !saving;
+234: 
+235:     const handleSubmit = async () => {
+236:         if (!canSubmit || !date) return;
+237: 
+238:         if (isEdit && editingBatch) {
+239:             setSaving(true);
+240:             try {
+241:                 let targetPlanId = editingBatch.plan_id;
+242: 
+243:                 // If date changed, get-or-create the target day plan
+244:                 if (dateChanged && newDateKey) {
+245:                     const newPlan = await dayPlanApi.getOrCreate(userId, newDateKey);
+246:                     targetPlanId = newPlan.id;
+247:                     await planBatchApi.move(editingBatch.id, targetPlanId);
+248:                 }
+249: 
+250:                 const isBlendType = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
+251:                 await planBatchApi.updateSingle(editingBatch.id, {
+252:                     id: editingBatch.id,
+253:                     plan_id: editingBatch.plan_id,
+254:                     machine_id: machineId || null,
+255:                     batch_type: batchType,
+256:                     roast_profile_id: profileId || null,
+257:                     bean_id: isBlendType ? null : beanId || null,
+258:                     blend_id: isBlendType ? blendId || null : null,
+259:                     bean_name: isBlendType
+260:                         ? (selectedBlend?.name ?? editingBatch.bean_name)
+261:                         : (selectedBean?.name ?? editingBatch.bean_name),
+262:                     target_roasted_kg: targetNum,
+263:                     batch_size_kg: batchSizeNum,
+264:                     yield_pct: yieldNum / 100,
+265:                     green_lot: selectedBean
+266:                         ? `${selectedBean.name} (${effectiveStockKg.toFixed(0)}kg)`
+267:                         : editingBatch.green_lot,
+268:                     notes,
+269:                 });
+270: 
+271:                 qc.invalidateQueries({ queryKey: planKeys.batches(editingBatch.plan_id) });
+272:                 if (currentDateKey) {
+273:                     qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, currentDateKey) });
+274:                 }
+275:                 if (dateChanged) {
+276:                     qc.invalidateQueries({ queryKey: planKeys.batches(targetPlanId) });
+277:                     qc.invalidateQueries({ queryKey: ['day_plan_range', userId] });
+278:                     if (newDateKey) {
+279:                         qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, newDateKey) });
+280:                     }
+281:                 } else {
+282:                     qc.invalidateQueries({ queryKey: ['day_batches'] });
+283:                 }
+284: 
+285:                 onSaved?.();
+286:                 onClose();
+287:             } catch (err) {
+288:                 console.error('[AddBatchModal] save failed:', err);
+289:                 alert(t('addBatchModal.saveFailed') + ` ${err instanceof Error ? err.message : String(err)}`);
+290:             } finally {
+291:                 setSaving(false);
+292:             }
+293:         } else {
+294:             const isBlendTypeAdd = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
+295:             onAdd?.({
+296:                 date,
+297:                 machineId,
+298:                 machineName: selectedMachine?.name ?? selectedMachine?.displayName ?? machineId,
+299:                 batchType,
+300:                 profileId: profileId || null,
+301:                 profileName: selectedProfile?.name ?? '',
+302:                 beanId: isBlendTypeAdd ? null : beanId || null,
+303:                 blendId: isBlendTypeAdd ? blendId || null : null,
+304:                 beanName: isBlendTypeAdd ? (selectedBlend?.name ?? '') : (selectedBean?.name ?? ''),
+305:                 targetRoasted: targetNum,
+306:                 batchSize: batchSizeNum,
+307:                 yieldPct: yieldNum,
+308:                 batchCount,
+309:                 greenNeeded,
+310:                 greenLot: selectedBean ? `${selectedBean.name} (${effectiveStockKg.toFixed(0)}kg)` : '',
+311:                 notes,
+312:                 recurringInterval: recurringInterval ?? undefined,
+313:             });
+314:             onClose();
+315:         }
+316:     };
+317: 
+318:     if (!open) return null;
+319: 
+320:     // Bean items for searchable select
+321:     const beanItems = beans.map((b) => ({ ...b }));
+322:     const profileItems = profiles.map((p) => ({ ...p }));
+323: 
+324:     return (
+325:         <ModalShell
+326:             onClose={onClose}
+327:             labelledBy="add-batch-modal-title"
+328:             contentClassName="max-w-[600px] w-full max-h-[min(840px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.97)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.22)] border border-white dark:border-[#585d61] overflow-hidden"
+329:         >
+330:             {/* Header */}
+331:             <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm border-b border-black/4 dark:border-[#585d61] px-8 pt-6 pb-5 flex items-center justify-between">
+332:                 <div>
+333:                     <h2
+334:                         id="add-batch-modal-title"
+335:                         className="font-(--font-display) text-[22px] text-primary tracking-[-0.02em] m-0"
+336:                     >
+337:                         {isEdit ? t('addBatchModal.editBatch') : t('addBatchModal.addBatch')}
+338:                     </h2>
+339:                     {isEdit && editingBatch && (
+340:                         <p className="text-[12px] text-muted mt-0.5 m-0">{editingBatch.bean_name}</p>
+341:                     )}
+342:                 </div>
+343:                 <button
+344:                     type="button"
+345:                     onClick={onClose}
+346:                     className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all hover:text-primary"
+347:                 >
+348:                     <X size={17} strokeWidth={2.5} />
+349:                 </button>
+350:             </div>
+351: 
+352:             {/* Scrollable body */}
+353:             <div className="flex-1 overflow-y-auto p-8 space-y-6">
+354:                 {/* Row 1 — 날짜 + 머신 */}
+355:                 <div className="grid grid-cols-2 gap-4">
+356:                     <div>
+357:                         <label className={labelCls}>
+358:                             <CalendarIcon size={12} /> {t('addBatchModal.date')}
+359:                         </label>
+360:                         <Popover
+361:                             open={calendarOpen}
+362:                             onOpenChange={(open) => {
+363:                                 if (!isDateDisabled) setCalendarOpen(open);
+364:                             }}
+365:                         >
+366:                             <PopoverTrigger asChild>
+367:                                 <button
+368:                                     type="button"
+369:                                     disabled={isDateDisabled}
+370:                                     className={cn(
+371:                                         inputCls,
+372:                                         'flex items-center gap-2 text-left',
+373:                                         !isDateDisabled && 'cursor-pointer',
+374:                                         isDateDisabled && 'opacity-60 cursor-not-allowed',
+375:                                         !date && 'text-muted',
+376:                                     )}
+377:                                 >
+378:                                     <CalendarIcon size={13} className="text-muted shrink-0" />
+379:                                     <span>
+380:                                         {date
+381:                                             ? format(date, 'M월 d일 (eee)', { locale: getDateFnsLocale() })
+382:                                             : t('addBatchModal.date')}
+383:                                     </span>
+384:                                     {dateChanged && (
+385:                                         <span className="ml-auto text-[10px] text-amber-600 font-semibold shrink-0">
+386:                                             이동
+387:                                         </span>
+388:                                     )}
+389:                                 </button>
+390:                             </PopoverTrigger>
+391:                             <PopoverContent className="w-auto p-0">
+392:                                 <Calendar
+393:                                     mode="single"
+394:                                     selected={date}
+395:                                     onSelect={(d) => {
+396:                                         setDate(d);
+397:                                         setCalendarOpen(false);
+398:                                     }}
+399:                                     locale={getDateFnsLocale()}
+400:                                 />
+401:                             </PopoverContent>
+402:                         </Popover>
+403:                     </div>
+404:                     <div>
+405:                         <label className={labelCls}>
+406:                             <Cpu size={12} /> {t('addBatchModal.machine')}
+407:                         </label>
+408:                         <SearchableSelect
+409:                             placeholder={t('addBatchModal.machine')}
+410:                             items={machines}
+411:                             selectedId={machineId}
+412:                             onSelect={setMachineId}
+413:                             renderLabel={(item) => {
+414:                                 const m = item as Machine;
+415:                                 return m.name || m.displayName;
+416:                             }}
+417:                             renderOption={(item) => {
+418:                                 const m = item as Machine;
+419:                                 return (
+420:                                     <div>
+421:                                         <div className="text-primary font-medium">{m.name || m.displayName}</div>
+422:                                         <div className="text-[11px] text-muted mt-0.5">{m.brand}</div>
+423:                                     </div>
+424:                                 );
+425:                             }}
+426:                         />
+427:                     </div>
+428:                 </div>
+429: 
+430:                 {/* Batch type tabs */}
+431:                 <div>
+432:                     <label className={labelCls}>{t('addBatchModal.type')}</label>
+433:                     <div className="flex bg-surface p-1 rounded-2xl shadow-(--shadow-inset)">
+434:                         {(['Single Origin', 'Pre-roast Blend', 'Post-roast Blend'] as BatchType[]).map((bt) => (
+435:                             <button
+436:                                 key={bt}
+437:                                 type="button"
+438:                                 onClick={() => setBatchType(bt)}
+439:                                 className={tabCls(batchType === bt)}
+440:                             >
+441:                                 {bt === 'Single Origin'
+442:                                     ? t('addBatchModal.batchType.singleOrigin')
+443:                                     : bt === 'Pre-roast Blend'
+444:                                       ? t('addBatchModal.batchType.preRoastBlend')
+445:                                       : t('addBatchModal.batchType.postRoastBlend')}
+446:                             </button>
+447:                         ))}
+448:                     </div>
+449:                 </div>
+450: 
+451:                 {/* Profile + Bean/Blend */}
+452:                 <div className="grid grid-cols-2 gap-4">
+453:                     <div>
+454:                         <label className={labelCls}>{t('addBatchModal.roastProfile')}</label>
+455:                         <SearchableSelect
+456:                             placeholder={t('addBatchModal.profilePlaceholder')}
+457:                             items={profileItems}
+458:                             selectedId={profileId}
+459:                             onSelect={handleProfileSelect}
+460:                             renderLabel={(item) => (item as RoastProfile).name}
+461:                             renderOption={(item) => {
+462:                                 const p = item as RoastProfile;
+463:                                 return (
+464:                                     <div>
+465:                                         <div className="text-primary font-medium">{p.name}</div>
+466:                                         <div className="text-[11px] text-muted mt-0.5">{p.target_level}</div>
+467:                                     </div>
+468:                                 );
+469:                             }}
+470:                         />
+471:                     </div>
+472:                     <div>
+473:                         {batchType === 'Single Origin' ? (
+474:                             <>
+475:                                 <label className={labelCls}>
+476:                                     <Package size={12} /> Green Coffee Lot
+477:                                 </label>
+478:                                 <SearchableSelect
+479:                                     placeholder={t('addBatchModal.lotPlaceholder')}
+480:                                     items={beanItems}
+481:                                     selectedId={beanId}
+482:                                     onSelect={setBeanId}
+483:                                     renderLabel={(item) => (item as Bean).name}
+484:                                     renderOption={(item) => {
+485:                                         const b = item as Bean;
+486:                                         const kg = ((stockSummaries[b.id]?.effectiveGrams ?? 0) / 1000).toFixed(1);
+487:                                         return (
+488:                                             <div>
+489:                                                 <div className="text-primary font-medium">{b.name}</div>
+490:                                                 <div className="text-[11px] text-muted mt-0.5">
+491:                                                     {t('addBatchModal.stock', { kg })}
+492:                                                     {b.origin && ` · ${b.origin}`}
+493:                                                 </div>
+494:                                             </div>
+495:                                         );
+496:                                     }}
+497:                                 />
+498:                                 {isShortage && (
+499:                                     <p className="text-xs text-red-500 mt-1">
+500:                                         {t('addBatchModal.shortage', {
+501:                                             effective: stockSummary!.effectiveGrams,
+502:                                             needed: plannedGrams,
+503:                                         })}
+504:                                     </p>
+505:                                 )}
+506:                             </>
+507:                         ) : (
+508:                             <>
+509:                                 <label className={labelCls}>
+510:                                     <Package size={12} /> {t('addBatchModal.blend')}
+511:                                 </label>
+512:                                 <SearchableSelect
+513:                                     placeholder={t('addBatchModal.blendPlaceholder')}
+514:                                     items={blends}
+515:                                     selectedId={blendId ?? ''}
+516:                                     onSelect={(id) => setBlendId(id || null)}
+517:                                     renderLabel={(item) => (item as BlendWithComponents).name}
+518:                                     renderOption={(item) => {
+519:                                         const b = item as BlendWithComponents;
+520:                                         const compCount = b.blend_components?.length ?? 0;
+521:                                         return (
+522:                                             <div>
+523:                                                 <div className="text-primary font-medium">{b.name}</div>
+524:                                                 <div className="text-[11px] text-muted mt-0.5">
+525:                                                     {b.description ??
+526:                                                         t('addBatchModal.blendComposition', { count: compCount })}
+527:                                                 </div>
+528:                                             </div>
+529:                                         );
+530:                                     }}
+531:                                 />
+532:                                 {blendShortages.length > 0 && blendShortages.some((s) => s.isShort) && (
+533:                                     <div className="mt-2 space-y-1">
+534:                                         {blendShortages
+535:                                             .filter((s) => s.isShort)
+536:                                             .map((s) => (
+537:                                                 <p
+538:                                                     key={s.beanName}
+539:                                                     className="text-xs text-red-500 flex items-start gap-1"
+540:                                                 >
+541:                                                     <AlertTriangle
+542:                                                         size={11}
+543:                                                         strokeWidth={2}
+544:                                                         className="shrink-0 mt-0.5"
+545:                                                     />
+546:                                                     <span>
+547:                                                         {t('addBatchModal.blendShortage', {
+548:                                                             name: s.beanName,
+549:                                                             effective: s.effectiveGrams,
+550:                                                             needed: s.neededGrams,
+551:                                                         })}
+552:                                                     </span>
+553:                                                 </p>
+554:                                             ))}
+555:                                     </div>
+556:                                 )}
+557:                             </>
+558:                         )}
+559:                     </div>
+560:                 </div>
+561: 
+562:                 {/* 수량 — 목표 + Batch Size + Yield */}
+563:                 <div className="grid grid-cols-3 gap-4">
+564:                     <CounterInput
+565:                         label={t('addBatchModal.targetRoasted')}
+566:                         placeholder="0"
+567:                         value={targetRoasted}
+568:                         onChange={setTargetRoasted}
+569:                         step={0.1}
+570:                     />
+571:                     <CounterInput
+572:                         label={t('addBatchModal.batchSize')}
+573:                         value={batchSize}
+574:                         onChange={setBatchSize}
+575:                         step={1}
+576:                     />
+577:                     <CounterInput label={t('addBatchModal.yield')} value={yieldPct} onChange={setYieldPct} step={1} />
+578:                 </div>
+579: 
+580:                 {/* 자동 계산 summary */}
+581:                 {targetNum > 0 && (
+582:                     <div className="rounded-2xl bg-surface/50 dark:bg-surface-elevated border border-border dark:border-[#585d61] p-4">
+583:                         <div className="flex items-stretch gap-0 divide-x divide-border-subtle">
+584:                             <div className="flex-1 flex flex-col items-center py-1 px-4">
+585:                                 <span className="text-[26px] font-bold text-primary tabular-nums leading-none">
+586:                                     {batchCount}
+587:                                 </span>
+588:                                 <span className="text-[11px] text-muted mt-1.5">{t('addBatchModal.batches')}</span>
+589:                             </div>
+590:                             <div className="flex-1 flex flex-col items-center py-1 px-4">
+591:                                 <span className="text-[26px] font-bold text-primary tabular-nums leading-none">
+592:                                     {greenNeeded}
+593:                                 </span>
+594:                                 <span className="text-[11px] text-muted mt-1.5">{t('addBatchModal.greenNeeded')}</span>
+595:                             </div>
+596:                             <div className="flex-1 flex flex-col items-center py-1 px-4">
+597:                                 <span className="text-[26px] font-bold text-primary tabular-nums leading-none">
+598:                                     {yieldNum}%
+599:                                 </span>
+600:                                 <span className="text-[11px] text-muted mt-1.5">{t('addBatchModal.yield')}</span>
+601:                             </div>
+602:                         </div>
+603:                     </div>
+604:                 )}
+605: 
+606:                 {/* Green Lot 재고 확인 */}
+607:                 {selectedBean && (
+608:                     <div
+609:                         className={`rounded-2xl border p-4 transition-colors ${
+610:                             !stockSufficient
+611:                                 ? 'border-amber-200 bg-amber-50'
+612:                                 : 'border-border dark:border-[#585d61] bg-surface/40 dark:bg-[#1a1e23]'
+613:                         }`}
+614:                     >
+615:                         <div className="flex items-start justify-between gap-3">
+616:                             <div>
+617:                                 <div className="text-[13px] font-semibold text-primary">{selectedBean.name}</div>
+618:                                 <div className="text-[12px] text-secondary mt-0.5">
+619:                                     {t('addBatchModal.currentStock')}{' '}
+620:                                     <span className="font-medium text-primary">{effectiveStockKg.toFixed(1)} kg</span>
+621:                                     {greenNeeded > 0 && (
+622:                                         <span className="text-muted ml-2">
+623:                                             {t('addBatchModal.needed')} {greenNeeded} kg
+624:                                         </span>
+625:                                     )}
+626:                                 </div>
+627:                             </div>
+628:                             {!stockSufficient && (
+629:                                 <div className="flex items-center gap-1.5 text-amber-600 text-[12px] font-semibold shrink-0">
+630:                                     <AlertTriangle size={13} strokeWidth={2} />
+631:                                     {t('addBatchModal.insufficientStock')}
+632:                                 </div>
+633:                             )}
+634:                         </div>
+635:                         {greenNeeded > 0 && (
+636:                             <div className="mt-3 h-1.5 rounded-full bg-black/6 dark:bg-white/8 overflow-hidden">
+637:                                 <div
+638:                                     className={`h-full rounded-full transition-all duration-300 ${
+639:                                         !stockSufficient ? 'bg-amber-400' : 'bg-surface-warm-solid'
+640:                                     }`}
+641:                                     style={{ width: `${stockPct}%` }}
+642:                                 />
+643:                             </div>
+644:                         )}
+645:                     </div>
+646:                 )}
+647: 
+648:                 {isRruleVisible && (
+649:                     <div>
+650:                         <label className={labelCls}>
+651:                             <Repeat size={12} /> {t('addBatchModal.recurrence')}
+652:                         </label>
+653:                         <div className="flex flex-wrap gap-2">
+654:                             <button
+655:                                 type="button"
+656:                                 onClick={() => setRecurringInterval(null)}
+657:                                 className={cn(
+658:                                     'px-3 py-2 rounded-xl text-[13px] font-medium transition-all border',
+659:                                     recurringInterval === null
+660:                                         ? 'bg-primary text-white dark:bg-transparent dark:text-secondary dark:border-[#585d61] border-primary shadow-sm dark:shadow-none'
+661:                                         : 'bg-surface dark:bg-surface-elevated text-secondary border-border dark:border-[#585d61] hover:border-black/15',
+662:                                 )}
+663:                             >
+664:                                 {t('addBatchModal.none')}
+665:                             </button>
+666:                             {RECURRENCE_OPTIONS.map(({ value }) => (
+667:                                 <button
+668:                                     key={value}
+669:                                     type="button"
+670:                                     onClick={() => setRecurringInterval(value)}
+671:                                     className={cn(
+672:                                         'px-3 py-2 rounded-xl text-[13px] font-medium transition-all border',
+673:                                         recurringInterval === value
+674:                                             ? 'bg-primary text-white dark:bg-transparent dark:text-secondary dark:border-[#585d61] border-primary shadow-sm dark:shadow-none'
+675:                                             : 'bg-surface dark:bg-surface-elevated text-secondary border-border dark:border-[#585d61] hover:border-black/15',
+676:                                     )}
+677:                                 >
+678:                                     {t('schedule.recurrence.' + value)}
+679:                                 </button>
+680:                             ))}
+681:                         </div>
+682:                     </div>
+683:                 )}
+684: 
+685:                 {/* Notes */}
+686:                 <div>
+687:                     <label className={labelCls}>{t('addBatchModal.notes')}</label>
+688:                     <textarea
+689:                         className={`${inputCls} resize-none`}
+690:                         rows={3}
+691:                         placeholder={t('addBatchModal.notesPlaceholder')}
+692:                         value={notes}
+693:                         onChange={(e) => setNotes(e.target.value)}
+694:                     />
+695:                 </div>
+696:             </div>
+697: 
+698:             {/* Footer */}
+699:             <div className="shrink-0 border-t border-black/4 dark:border-[#585d61] bg-white/60 dark:bg-[#1a1e23] px-8 py-4 flex items-center justify-between gap-3">
+700:                 {dateChanged && newDateKey && (
+701:                     <p className="text-[12px] text-amber-600 font-medium">
+702:                         {t('addBatchModal.dateChanged', {
+703:                             date: format(new Date(newDateKey + 'T00:00:00'), 'M월 d일', { locale: getDateFnsLocale() }),
+704:                         })}
+705:                     </p>
+706:                 )}
+707:                 <div className="flex items-center gap-3 ml-auto">
+708:                     <button
+709:                         type="button"
+710:                         onClick={onClose}
+711:                         className="px-5 py-2.5 rounded-xl border border-border dark:border-[#585d61] bg-surface dark:bg-surface-elevated text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
+712:                     >
+713:                         {t('addBatchModal.cancel')}
+714:                     </button>
+715:                     <button
+716:                         type="button"
+717:                         onClick={handleSubmit}
+718:                         disabled={!canSubmit}
+719:                         className="px-5 py-2.5 rounded-xl border border-transparent dark:border-white bg-primary dark:bg-black text-white dark:text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+720:                     >
+721:                         {saving
+722:                             ? t('addBatchModal.saving')
+723:                             : isEdit
+724:                               ? t('addBatchModal.save')
+725:                               : t('addBatchModal.addBatch')}
+726:                     </button>
+727:                 </div>
+728:             </div>
+729:         </ModalShell>
+730:     );
+731: };
 </file>
 
 <file path="src/widgets/add-bean-modal/ui/AddBeanModal.tsx">
@@ -28927,740 +29665,6 @@ This section contains the contents of the repository's files.
 374:         </PageLayout>
 375:     );
 376: };
-</file>
-
-<file path="src/widgets/add-batch-modal/ui/AddBatchModal.tsx">
-  1: import { useBeans } from '@entities/bean/queries';
-  2: import { beanStockEventApi, useBeanStockSummaries, useBeanStockSummary } from '@entities/bean-stock-event';
-  3: import { type BlendWithComponents, useBlends } from '@entities/blend';
-  4: import { type Machine, useMachines } from '@entities/machine';
-  5: import { dayPlanApi, planBatchApi, planKeys } from '@entities/plan';
-  6: import type { RoastProfileWithSource } from '@entities/roast-profile';
-  7: import { useRoastProfiles } from '@entities/roast-profile/queries';
-  8: import { getDateFnsLocale } from '@shared/i18n';
-  9: import { cn } from '@shared/lib/cn';
- 10: import type { RecurrenceInterval } from '@shared/lib/rrule';
- 11: import { useAuthStore } from '@shared/store/auth';
- 12: import type { Bean, PlanBatchWithProgress, RoastProfile } from '@shared/types/database.types';
- 13: import { CounterInput } from '@shared/ui/CounterInput';
- 14: import { Calendar } from '@shared/ui/calendar/Calendar';
- 15: import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
- 16: import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
- 17: import { useQueries, useQueryClient } from '@tanstack/react-query';
- 18: import { format } from 'date-fns';
- 19: import { AlertTriangle, CalendarIcon, Cpu, Package, Repeat, X } from 'lucide-react';
- 20: import { useEffect, useMemo, useState } from 'react';
- 21: import { useTranslation } from 'react-i18next';
- 22: import { SearchableSelect } from './SearchableSelect';
- 23: 
- 24: /**
- 25:  * Parse an RRULE string back to a RecurrenceInterval label.
- 26:  * Used to pre-populate the recurrence selection when editing an existing batch.
- 27:  */
- 28: function parseRruleToInterval(rrule: string | null): RecurrenceInterval | null {
- 29:     if (!rrule) return null;
- 30:     if (rrule.includes('FREQ=DAILY')) return 'daily';
- 31:     if (rrule.includes('FREQ=WEEKLY') && rrule.includes('INTERVAL=2')) return 'biweekly';
- 32:     if (rrule.includes('FREQ=WEEKLY')) return 'weekly';
- 33:     if (rrule.includes('FREQ=MONTHLY')) return 'monthly';
- 34:     return null;
- 35: }
- 36: 
- 37: // ── Types ─────────────────────────────────────────────────────────────────────
- 38: 
- 39: type BatchType = 'Single Origin' | 'Pre-roast Blend' | 'Post-roast Blend';
- 40: 
- 41: const RECURRENCE_OPTIONS: { value: RecurrenceInterval }[] = [
- 42:     { value: 'daily' },
- 43:     { value: 'weekly' },
- 44:     { value: 'biweekly' },
- 45:     { value: 'monthly' },
- 46: ];
- 47: 
- 48: export interface NewBatchData {
- 49:     date: Date;
- 50:     machineId: string;
- 51:     machineName: string;
- 52:     batchType: BatchType;
- 53:     profileId: string | null;
- 54:     profileName: string;
- 55:     beanId: string | null;
- 56:     blendId: string | null;
- 57:     beanName: string;
- 58:     targetRoasted: number;
- 59:     batchSize: number;
- 60:     yieldPct: number;
- 61:     batchCount: number;
- 62:     greenNeeded: number;
- 63:     greenLot: string;
- 64:     notes: string;
- 65:     recurringInterval?: RecurrenceInterval | null;
- 66: }
- 67: 
- 68: /** Edit scope for recurring batch operations */
- 69: export type EditScope = 'single' | 'from_this' | 'all';
- 70: 
- 71: interface AddBatchModalProps {
- 72:     open: boolean;
- 73:     onClose: () => void;
- 74:     onAdd?: (data: NewBatchData) => void;
- 75:     editingBatch?: PlanBatchWithProgress | null;
- 76:     editScope?: EditScope | null;
- 77:     currentDateKey?: string;
- 78:     onSaved?: () => void;
- 79: }
- 80: 
- 81: // ── Style helpers ─────────────────────────────────────────────────────────────
- 82: 
- 83: const inputCls =
- 84:     'w-full px-3.5 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20 dark:focus:border-[#585d61]';
- 85: const labelCls = 'flex items-center gap-1.5 text-[11px] font-semibold text-muted mb-1.5 tracking-[0.04em] uppercase';
- 86: const tabCls = (active: boolean) =>
- 87:     `flex-1 py-2 rounded-xl border-none text-[13px] cursor-pointer transition-all duration-200 ${
- 88:         active
- 89:             ? 'bg-white dark:bg-surface-elevated font-semibold text-primary dark:text-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]'
- 90:             : 'bg-transparent font-medium text-muted dark:text-white hover:text-secondary dark:hover:text-white/70'
- 91:     }`;
- 92: 
- 93: const DEFAULT_YIELD = 82;
- 94: const DEFAULT_BATCH_SIZE = 25;
- 95: 
- 96: // ── Helpers ───────────────────────────────────────────────────────────────────
- 97: 
- 98: const todayDate = () => new Date();
- 99: 
-100: // ── Main component ────────────────────────────────────────────────────────────
-101: 
-102: export const AddBatchModal = ({
-103:     open,
-104:     onClose,
-105:     onAdd,
-106:     editingBatch,
-107:     editScope,
-108:     currentDateKey,
-109:     onSaved,
-110: }: AddBatchModalProps) => {
-111:     const userId = useAuthStore((s) => s.user?.id ?? '');
-112:     const qc = useQueryClient();
-113:     const { t } = useTranslation();
-114: 
-115:     const { data: beans = [] } = useBeans(userId);
-116:     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
-117:     const { machines } = useMachines();
-118:     const { data: profiles = [] } = useRoastProfiles(userId);
-119:     const { data: blends = [] } = useBlends(userId);
-120: 
-121:     const isEdit = !!editingBatch;
-122:     const isDateDisabled = editScope === 'all';
-123:     const isRruleVisible = !isEdit || editScope === 'from_this' || editScope === 'all';
-124: 
-125:     const [saving, setSaving] = useState(false);
-126:     const [date, setDate] = useState<Date | undefined>(
-127:         editingBatch && currentDateKey ? new Date(currentDateKey + 'T00:00:00') : todayDate(),
-128:     );
-129:     const [calendarOpen, setCalendarOpen] = useState(false);
-130:     const [recurringInterval, setRecurringInterval] = useState<RecurrenceInterval | null>(null);
-131: 
-132:     useEffect(() => {
-133:         if (!open) return;
-134:         // Reset form fields when modal opens
-135:         // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset on open
-136:         setRecurringInterval(editingBatch?.rrule ? parseRruleToInterval(editingBatch.rrule) : null);
-137:     }, [open, editingBatch?.rrule]);
-138:     const [machineId, setMachineId] = useState(() => editingBatch?.machine_id ?? machines[0]?.id ?? '');
-139:     const [batchType, setBatchType] = useState<BatchType>(
-140:         () => (editingBatch?.batch_type as BatchType) || 'Single Origin',
-141:     );
-142:     const [profileId, setProfileId] = useState(() => editingBatch?.roast_profile_id ?? '');
-143:     const [beanId, setBeanId] = useState(() => editingBatch?.bean_id ?? '');
-144:     const [blendId, setBlendId] = useState<string | null>(() => editingBatch?.blend_id ?? null);
-145:     const [targetRoasted, setTargetRoasted] = useState(() =>
-146:         editingBatch ? String(editingBatch.target_roasted_kg) : '',
-147:     );
-148:     const [batchSize, setBatchSize] = useState(() =>
-149:         editingBatch ? String(editingBatch.batch_size_kg) : String(DEFAULT_BATCH_SIZE),
-150:     );
-151:     const [yieldPct, setYieldPct] = useState(() =>
-152:         editingBatch ? String(Math.round((editingBatch.yield_pct ?? 0.82) * 100)) : String(DEFAULT_YIELD),
-153:     );
-154:     const [notes, setNotes] = useState(() => editingBatch?.notes ?? '');
-155: 
-156:     useEffect(() => {
-157:         if (!open) return;
-158:         const fn = (e: KeyboardEvent) => {
-159:             if (e.key === 'Escape') onClose();
-160:         };
-161:         window.addEventListener('keydown', fn);
-162:         return () => window.removeEventListener('keydown', fn);
-163:     }, [open, onClose]);
-164: 
-165:     // Derived calculations
-166:     const targetNum = parseFloat(targetRoasted) || 0;
-167:     const batchSizeNum = parseFloat(batchSize) || DEFAULT_BATCH_SIZE;
-168:     const yieldNum = parseFloat(yieldPct) || DEFAULT_YIELD;
-169:     const batchCount = targetNum > 0 ? Math.ceil(targetNum / batchSizeNum) : 0;
-170:     const greenNeeded = targetNum > 0 && yieldNum > 0 ? Math.round((targetNum / (yieldNum / 100)) * 10) / 10 : 0;
-171: 
-172:     const selectedBean = beans.find((b) => b.id === beanId) as Bean | undefined;
-173:     const selectedProfile = profiles.find((p) => p.id === profileId) as RoastProfile | undefined;
-174:     const selectedMachine = machines.find((m) => m.id === machineId);
-175:     const selectedBlend = blends.find((b) => b.id === blendId);
-176: 
-177:     const selectedBeanId = batchType === 'Single Origin' ? beanId : null;
-178:     const { data: stockSummary } = useBeanStockSummary(selectedBeanId ?? '');
-179:     const effectiveStockKg = (stockSummary?.effectiveGrams ?? 0) / 1000;
-180:     const stockSufficient = greenNeeded === 0 || effectiveStockKg >= greenNeeded;
-181:     const stockPct = greenNeeded > 0 ? Math.min(100, (effectiveStockKg / greenNeeded) * 100) : 100;
-182: 
-183:     const plannedGrams = batchSizeNum * batchCount * 1000;
-184:     const isShortage = !!stockSummary && plannedGrams > 0 && stockSummary.effectiveGrams < plannedGrams;
-185: 
-186:     // ── Blend component stock checks ────────────────────────────────────────
-187:     const isBlendType = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
-188:     const blendComponents = useMemo(() => {
-189:         if (!isBlendType || !selectedBlend) return [];
-190:         return (selectedBlend as BlendWithComponents).blend_components ?? [];
-191:     }, [isBlendType, selectedBlend]);
-192: 
-193:     const blendStockQueries = useQueries({
-194:         queries: blendComponents.map((comp) => ({
-195:             queryKey: ['bean-stock-summary', comp.bean_id],
-196:             queryFn: () => beanStockEventApi.getStockSummary(comp.bean_id),
-197:             enabled: !!comp.bean_id,
-198:         })),
-199:     });
-200: 
-201:     const blendShortages = useMemo(() => {
-202:         if (blendComponents.length === 0 || plannedGrams === 0) return [];
-203:         return blendComponents.map((comp, i) => {
-204:             const neededGrams = Math.round((Number(comp.ratio_pct) / 100) * plannedGrams);
-205:             const summary = blendStockQueries[i]?.data;
-206:             return {
-207:                 beanName: (comp as { beans?: { name: string } }).beans?.name ?? t('addBatchModal.unknown'),
-208:                 ratioPct: comp.ratio_pct,
-209:                 neededGrams,
-210:                 effectiveGrams: summary?.effectiveGrams ?? 0,
-211:                 isShort: summary ? summary.effectiveGrams < neededGrams : false,
-212:             };
-213:         });
-214:     }, [blendComponents, plannedGrams, blendStockQueries]);
-215: 
-216:     // 프로파일 선택 시 default_bean_id / default_blend_id 자동 pre-fill
-217:     const handleProfileSelect = (id: string) => {
-218:         setProfileId(id);
-219:         if (!id) return;
-220:         const selected = profiles.find((p) => p.id === id) as RoastProfileWithSource | undefined;
-221:         if (selected?.default_bean_id) {
-222:             setBatchType('Single Origin');
-223:             setBeanId(selected.default_bean_id);
-224:         } else if (selected?.default_blend_id) {
-225:             setBatchType('Pre-roast Blend');
-226:             setBlendId(selected.default_blend_id);
-227:         }
-228:     };
-229: 
-230:     const newDateKey = date ? format(date, 'yyyy-MM-dd') : '';
-231:     const dateChanged = isEdit && currentDateKey && newDateKey !== currentDateKey;
-232: 
-233:     const canSubmit = date !== undefined && !!machineId && targetNum > 0 && batchSizeNum > 0 && !saving;
-234: 
-235:     const handleSubmit = async () => {
-236:         if (!canSubmit || !date) return;
-237: 
-238:         if (isEdit && editingBatch) {
-239:             setSaving(true);
-240:             try {
-241:                 let targetPlanId = editingBatch.plan_id;
-242: 
-243:                 // If date changed, get-or-create the target day plan
-244:                 if (dateChanged && newDateKey) {
-245:                     const newPlan = await dayPlanApi.getOrCreate(userId, newDateKey);
-246:                     targetPlanId = newPlan.id;
-247:                     await planBatchApi.move(editingBatch.id, targetPlanId);
-248:                 }
-249: 
-250:                 const isBlendType = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
-251:                 await planBatchApi.updateSingle(editingBatch.id, {
-252:                     id: editingBatch.id,
-253:                     plan_id: editingBatch.plan_id,
-254:                     machine_id: machineId || null,
-255:                     batch_type: batchType,
-256:                     roast_profile_id: profileId || null,
-257:                     bean_id: isBlendType ? null : beanId || null,
-258:                     blend_id: isBlendType ? blendId || null : null,
-259:                     bean_name: isBlendType
-260:                         ? (selectedBlend?.name ?? editingBatch.bean_name)
-261:                         : (selectedBean?.name ?? editingBatch.bean_name),
-262:                     target_roasted_kg: targetNum,
-263:                     batch_size_kg: batchSizeNum,
-264:                     yield_pct: yieldNum / 100,
-265:                     green_lot: selectedBean
-266:                         ? `${selectedBean.name} (${effectiveStockKg.toFixed(0)}kg)`
-267:                         : editingBatch.green_lot,
-268:                     notes,
-269:                 });
-270: 
-271:                 qc.invalidateQueries({ queryKey: planKeys.batches(editingBatch.plan_id) });
-272:                 if (currentDateKey) {
-273:                     qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, currentDateKey) });
-274:                 }
-275:                 if (dateChanged) {
-276:                     qc.invalidateQueries({ queryKey: planKeys.batches(targetPlanId) });
-277:                     qc.invalidateQueries({ queryKey: ['day_plan_range', userId] });
-278:                     if (newDateKey) {
-279:                         qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, newDateKey) });
-280:                     }
-281:                 } else {
-282:                     qc.invalidateQueries({ queryKey: ['day_batches'] });
-283:                 }
-284: 
-285:                 onSaved?.();
-286:                 onClose();
-287:             } catch (err) {
-288:                 console.error('[AddBatchModal] save failed:', err);
-289:                 alert(t('addBatchModal.saveFailed') + ` ${err instanceof Error ? err.message : String(err)}`);
-290:             } finally {
-291:                 setSaving(false);
-292:             }
-293:         } else {
-294:             const isBlendTypeAdd = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
-295:             onAdd?.({
-296:                 date,
-297:                 machineId,
-298:                 machineName: selectedMachine?.name ?? selectedMachine?.displayName ?? machineId,
-299:                 batchType,
-300:                 profileId: profileId || null,
-301:                 profileName: selectedProfile?.name ?? '',
-302:                 beanId: isBlendTypeAdd ? null : beanId || null,
-303:                 blendId: isBlendTypeAdd ? blendId || null : null,
-304:                 beanName: isBlendTypeAdd ? (selectedBlend?.name ?? '') : (selectedBean?.name ?? ''),
-305:                 targetRoasted: targetNum,
-306:                 batchSize: batchSizeNum,
-307:                 yieldPct: yieldNum,
-308:                 batchCount,
-309:                 greenNeeded,
-310:                 greenLot: selectedBean ? `${selectedBean.name} (${effectiveStockKg.toFixed(0)}kg)` : '',
-311:                 notes,
-312:                 recurringInterval: recurringInterval ?? undefined,
-313:             });
-314:             onClose();
-315:         }
-316:     };
-317: 
-318:     if (!open) return null;
-319: 
-320:     // Bean items for searchable select
-321:     const beanItems = beans.map((b) => ({ ...b }));
-322:     const profileItems = profiles.map((p) => ({ ...p }));
-323: 
-324:     return (
-325:         <ModalShell
-326:             onClose={onClose}
-327:             labelledBy="add-batch-modal-title"
-328:             contentClassName="max-w-[600px] w-full max-h-[min(840px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.97)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.22)] border border-white dark:border-[#585d61] overflow-hidden"
-329:         >
-330:             {/* Header */}
-331:             <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm border-b border-black/4 dark:border-[#585d61] px-8 pt-6 pb-5 flex items-center justify-between">
-332:                 <div>
-333:                     <h2
-334:                         id="add-batch-modal-title"
-335:                         className="font-(--font-display) text-[22px] text-primary tracking-[-0.02em] m-0"
-336:                     >
-337:                         {isEdit ? t('addBatchModal.editBatch') : t('addBatchModal.addBatch')}
-338:                     </h2>
-339:                     {isEdit && editingBatch && (
-340:                         <p className="text-[12px] text-muted mt-0.5 m-0">{editingBatch.bean_name}</p>
-341:                     )}
-342:                 </div>
-343:                 <button
-344:                     type="button"
-345:                     onClick={onClose}
-346:                     className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all hover:text-primary"
-347:                 >
-348:                     <X size={17} strokeWidth={2.5} />
-349:                 </button>
-350:             </div>
-351: 
-352:             {/* Scrollable body */}
-353:             <div className="flex-1 overflow-y-auto p-8 space-y-6">
-354:                 {/* Row 1 — 날짜 + 머신 */}
-355:                 <div className="grid grid-cols-2 gap-4">
-356:                     <div>
-357:                         <label className={labelCls}>
-358:                             <CalendarIcon size={12} /> {t('addBatchModal.date')}
-359:                         </label>
-360:                         <Popover
-361:                             open={calendarOpen}
-362:                             onOpenChange={(open) => {
-363:                                 if (!isDateDisabled) setCalendarOpen(open);
-364:                             }}
-365:                         >
-366:                             <PopoverTrigger asChild>
-367:                                 <button
-368:                                     type="button"
-369:                                     disabled={isDateDisabled}
-370:                                     className={cn(
-371:                                         inputCls,
-372:                                         'flex items-center gap-2 text-left',
-373:                                         !isDateDisabled && 'cursor-pointer',
-374:                                         isDateDisabled && 'opacity-60 cursor-not-allowed',
-375:                                         !date && 'text-muted',
-376:                                     )}
-377:                                 >
-378:                                     <CalendarIcon size={13} className="text-muted shrink-0" />
-379:                                     <span>
-380:                                         {date
-381:                                             ? format(date, 'M월 d일 (eee)', { locale: getDateFnsLocale() })
-382:                                             : t('addBatchModal.date')}
-383:                                     </span>
-384:                                     {dateChanged && (
-385:                                         <span className="ml-auto text-[10px] text-amber-600 font-semibold shrink-0">
-386:                                             이동
-387:                                         </span>
-388:                                     )}
-389:                                 </button>
-390:                             </PopoverTrigger>
-391:                             <PopoverContent className="w-auto p-0">
-392:                                 <Calendar
-393:                                     mode="single"
-394:                                     selected={date}
-395:                                     onSelect={(d) => {
-396:                                         setDate(d);
-397:                                         setCalendarOpen(false);
-398:                                     }}
-399:                                     locale={getDateFnsLocale()}
-400:                                 />
-401:                             </PopoverContent>
-402:                         </Popover>
-403:                     </div>
-404:                     <div>
-405:                         <label className={labelCls}>
-406:                             <Cpu size={12} /> {t('addBatchModal.machine')}
-407:                         </label>
-408:                         <SearchableSelect
-409:                             placeholder={t('addBatchModal.machine')}
-410:                             items={machines}
-411:                             selectedId={machineId}
-412:                             onSelect={setMachineId}
-413:                             renderLabel={(item) => {
-414:                                 const m = item as Machine;
-415:                                 return m.name || m.displayName;
-416:                             }}
-417:                             renderOption={(item) => {
-418:                                 const m = item as Machine;
-419:                                 return (
-420:                                     <div>
-421:                                         <div className="text-primary font-medium">{m.name || m.displayName}</div>
-422:                                         <div className="text-[11px] text-muted mt-0.5">{m.brand}</div>
-423:                                     </div>
-424:                                 );
-425:                             }}
-426:                         />
-427:                     </div>
-428:                 </div>
-429: 
-430:                 {/* Batch type tabs */}
-431:                 <div>
-432:                     <label className={labelCls}>{t('addBatchModal.type')}</label>
-433:                     <div className="flex bg-surface p-1 rounded-2xl shadow-(--shadow-inset)">
-434:                         {(['Single Origin', 'Pre-roast Blend', 'Post-roast Blend'] as BatchType[]).map((bt) => (
-435:                             <button
-436:                                 key={bt}
-437:                                 type="button"
-438:                                 onClick={() => setBatchType(bt)}
-439:                                 className={tabCls(batchType === bt)}
-440:                             >
-441:                                 {bt === 'Single Origin'
-442:                                     ? t('addBatchModal.batchType.singleOrigin')
-443:                                     : bt === 'Pre-roast Blend'
-444:                                       ? t('addBatchModal.batchType.preRoastBlend')
-445:                                       : t('addBatchModal.batchType.postRoastBlend')}
-446:                             </button>
-447:                         ))}
-448:                     </div>
-449:                 </div>
-450: 
-451:                 {/* Profile + Bean/Blend */}
-452:                 <div className="grid grid-cols-2 gap-4">
-453:                     <div>
-454:                         <label className={labelCls}>{t('addBatchModal.roastProfile')}</label>
-455:                         <SearchableSelect
-456:                             placeholder={t('addBatchModal.profilePlaceholder')}
-457:                             items={profileItems}
-458:                             selectedId={profileId}
-459:                             onSelect={handleProfileSelect}
-460:                             renderLabel={(item) => (item as RoastProfile).name}
-461:                             renderOption={(item) => {
-462:                                 const p = item as RoastProfile;
-463:                                 return (
-464:                                     <div>
-465:                                         <div className="text-primary font-medium">{p.name}</div>
-466:                                         <div className="text-[11px] text-muted mt-0.5">{p.target_level}</div>
-467:                                     </div>
-468:                                 );
-469:                             }}
-470:                         />
-471:                     </div>
-472:                     <div>
-473:                         {batchType === 'Single Origin' ? (
-474:                             <>
-475:                                 <label className={labelCls}>
-476:                                     <Package size={12} /> Green Coffee Lot
-477:                                 </label>
-478:                                 <SearchableSelect
-479:                                     placeholder={t('addBatchModal.lotPlaceholder')}
-480:                                     items={beanItems}
-481:                                     selectedId={beanId}
-482:                                     onSelect={setBeanId}
-483:                                     renderLabel={(item) => (item as Bean).name}
-484:                                     renderOption={(item) => {
-485:                                         const b = item as Bean;
-486:                                         const kg = ((stockSummaries[b.id]?.effectiveGrams ?? 0) / 1000).toFixed(1);
-487:                                         return (
-488:                                             <div>
-489:                                                 <div className="text-primary font-medium">{b.name}</div>
-490:                                                 <div className="text-[11px] text-muted mt-0.5">
-491:                                                     {t('addBatchModal.stock', { kg })}
-492:                                                     {b.origin && ` · ${b.origin}`}
-493:                                                 </div>
-494:                                             </div>
-495:                                         );
-496:                                     }}
-497:                                 />
-498:                                 {isShortage && (
-499:                                     <p className="text-xs text-red-500 mt-1">
-500:                                         {t('addBatchModal.shortage', {
-501:                                             effective: stockSummary!.effectiveGrams,
-502:                                             needed: plannedGrams,
-503:                                         })}
-504:                                     </p>
-505:                                 )}
-506:                             </>
-507:                         ) : (
-508:                             <>
-509:                                 <label className={labelCls}>
-510:                                     <Package size={12} /> {t('addBatchModal.blend')}
-511:                                 </label>
-512:                                 <SearchableSelect
-513:                                     placeholder={t('addBatchModal.blendPlaceholder')}
-514:                                     items={blends}
-515:                                     selectedId={blendId ?? ''}
-516:                                     onSelect={(id) => setBlendId(id || null)}
-517:                                     renderLabel={(item) => (item as BlendWithComponents).name}
-518:                                     renderOption={(item) => {
-519:                                         const b = item as BlendWithComponents;
-520:                                         const compCount = b.blend_components?.length ?? 0;
-521:                                         return (
-522:                                             <div>
-523:                                                 <div className="text-primary font-medium">{b.name}</div>
-524:                                                 <div className="text-[11px] text-muted mt-0.5">
-525:                                                     {b.description ??
-526:                                                         t('addBatchModal.blendComposition', { count: compCount })}
-527:                                                 </div>
-528:                                             </div>
-529:                                         );
-530:                                     }}
-531:                                 />
-532:                                 {blendShortages.length > 0 && blendShortages.some((s) => s.isShort) && (
-533:                                     <div className="mt-2 space-y-1">
-534:                                         {blendShortages
-535:                                             .filter((s) => s.isShort)
-536:                                             .map((s) => (
-537:                                                 <p
-538:                                                     key={s.beanName}
-539:                                                     className="text-xs text-red-500 flex items-start gap-1"
-540:                                                 >
-541:                                                     <AlertTriangle
-542:                                                         size={11}
-543:                                                         strokeWidth={2}
-544:                                                         className="shrink-0 mt-0.5"
-545:                                                     />
-546:                                                     <span>
-547:                                                         {t('addBatchModal.blendShortage', {
-548:                                                             name: s.beanName,
-549:                                                             effective: s.effectiveGrams,
-550:                                                             needed: s.neededGrams,
-551:                                                         })}
-552:                                                     </span>
-553:                                                 </p>
-554:                                             ))}
-555:                                     </div>
-556:                                 )}
-557:                             </>
-558:                         )}
-559:                     </div>
-560:                 </div>
-561: 
-562:                 {/* 수량 — 목표 + Batch Size + Yield */}
-563:                 <div className="grid grid-cols-3 gap-4">
-564:                     <CounterInput
-565:                         label={t('addBatchModal.targetRoasted')}
-566:                         placeholder="0"
-567:                         value={targetRoasted}
-568:                         onChange={setTargetRoasted}
-569:                         step={0.1}
-570:                     />
-571:                     <CounterInput
-572:                         label={t('addBatchModal.batchSize')}
-573:                         value={batchSize}
-574:                         onChange={setBatchSize}
-575:                         step={1}
-576:                     />
-577:                     <CounterInput label={t('addBatchModal.yield')} value={yieldPct} onChange={setYieldPct} step={1} />
-578:                 </div>
-579: 
-580:                 {/* 자동 계산 summary */}
-581:                 {targetNum > 0 && (
-582:                     <div className="rounded-2xl bg-surface/50 dark:bg-surface-elevated border border-border dark:border-[#585d61] p-4">
-583:                         <div className="flex items-stretch gap-0 divide-x divide-border-subtle">
-584:                             <div className="flex-1 flex flex-col items-center py-1 px-4">
-585:                                 <span className="text-[26px] font-bold text-primary tabular-nums leading-none">
-586:                                     {batchCount}
-587:                                 </span>
-588:                                 <span className="text-[11px] text-muted mt-1.5">{t('addBatchModal.batches')}</span>
-589:                             </div>
-590:                             <div className="flex-1 flex flex-col items-center py-1 px-4">
-591:                                 <span className="text-[26px] font-bold text-primary tabular-nums leading-none">
-592:                                     {greenNeeded}
-593:                                 </span>
-594:                                 <span className="text-[11px] text-muted mt-1.5">{t('addBatchModal.greenNeeded')}</span>
-595:                             </div>
-596:                             <div className="flex-1 flex flex-col items-center py-1 px-4">
-597:                                 <span className="text-[26px] font-bold text-primary tabular-nums leading-none">
-598:                                     {yieldNum}%
-599:                                 </span>
-600:                                 <span className="text-[11px] text-muted mt-1.5">{t('addBatchModal.yield')}</span>
-601:                             </div>
-602:                         </div>
-603:                     </div>
-604:                 )}
-605: 
-606:                 {/* Green Lot 재고 확인 */}
-607:                 {selectedBean && (
-608:                     <div
-609:                         className={`rounded-2xl border p-4 transition-colors ${
-610:                             !stockSufficient
-611:                                 ? 'border-amber-200 bg-amber-50'
-612:                                 : 'border-border dark:border-[#585d61] bg-surface/40 dark:bg-[#1a1e23]'
-613:                         }`}
-614:                     >
-615:                         <div className="flex items-start justify-between gap-3">
-616:                             <div>
-617:                                 <div className="text-[13px] font-semibold text-primary">{selectedBean.name}</div>
-618:                                 <div className="text-[12px] text-secondary mt-0.5">
-619:                                     {t('addBatchModal.currentStock')}{' '}
-620:                                     <span className="font-medium text-primary">{effectiveStockKg.toFixed(1)} kg</span>
-621:                                     {greenNeeded > 0 && (
-622:                                         <span className="text-muted ml-2">
-623:                                             {t('addBatchModal.needed')} {greenNeeded} kg
-624:                                         </span>
-625:                                     )}
-626:                                 </div>
-627:                             </div>
-628:                             {!stockSufficient && (
-629:                                 <div className="flex items-center gap-1.5 text-amber-600 text-[12px] font-semibold shrink-0">
-630:                                     <AlertTriangle size={13} strokeWidth={2} />
-631:                                     {t('addBatchModal.insufficientStock')}
-632:                                 </div>
-633:                             )}
-634:                         </div>
-635:                         {greenNeeded > 0 && (
-636:                             <div className="mt-3 h-1.5 rounded-full bg-black/6 dark:bg-white/8 overflow-hidden">
-637:                                 <div
-638:                                     className={`h-full rounded-full transition-all duration-300 ${
-639:                                         !stockSufficient ? 'bg-amber-400' : 'bg-surface-warm-solid'
-640:                                     }`}
-641:                                     style={{ width: `${stockPct}%` }}
-642:                                 />
-643:                             </div>
-644:                         )}
-645:                     </div>
-646:                 )}
-647: 
-648:                 {isRruleVisible && (
-649:                     <div>
-650:                         <label className={labelCls}>
-651:                             <Repeat size={12} /> {t('addBatchModal.recurrence')}
-652:                         </label>
-653:                         <div className="flex flex-wrap gap-2">
-654:                             <button
-655:                                 type="button"
-656:                                 onClick={() => setRecurringInterval(null)}
-657:                                 className={cn(
-658:                                     'px-3 py-2 rounded-xl text-[13px] font-medium transition-all border',
-659:                                     recurringInterval === null
-660:                                         ? 'bg-primary text-white dark:bg-transparent dark:text-secondary dark:border-[#585d61] border-primary shadow-sm dark:shadow-none'
-661:                                         : 'bg-surface dark:bg-surface-elevated text-secondary border-border dark:border-[#585d61] hover:border-black/15',
-662:                                 )}
-663:                             >
-664:                                 {t('addBatchModal.none')}
-665:                             </button>
-666:                             {RECURRENCE_OPTIONS.map(({ value }) => (
-667:                                 <button
-668:                                     key={value}
-669:                                     type="button"
-670:                                     onClick={() => setRecurringInterval(value)}
-671:                                     className={cn(
-672:                                         'px-3 py-2 rounded-xl text-[13px] font-medium transition-all border',
-673:                                         recurringInterval === value
-674:                                             ? 'bg-primary text-white dark:bg-transparent dark:text-secondary dark:border-[#585d61] border-primary shadow-sm dark:shadow-none'
-675:                                             : 'bg-surface dark:bg-surface-elevated text-secondary border-border dark:border-[#585d61] hover:border-black/15',
-676:                                     )}
-677:                                 >
-678:                                     {t('schedule.recurrence.' + value)}
-679:                                 </button>
-680:                             ))}
-681:                         </div>
-682:                     </div>
-683:                 )}
-684: 
-685:                 {/* Notes */}
-686:                 <div>
-687:                     <label className={labelCls}>{t('addBatchModal.notes')}</label>
-688:                     <textarea
-689:                         className={`${inputCls} resize-none`}
-690:                         rows={3}
-691:                         placeholder={t('addBatchModal.notesPlaceholder')}
-692:                         value={notes}
-693:                         onChange={(e) => setNotes(e.target.value)}
-694:                     />
-695:                 </div>
-696:             </div>
-697: 
-698:             {/* Footer */}
-699:             <div className="shrink-0 border-t border-black/4 dark:border-[#585d61] bg-white/60 dark:bg-[#1a1e23] px-8 py-4 flex items-center justify-between gap-3">
-700:                 {dateChanged && newDateKey && (
-701:                     <p className="text-[12px] text-amber-600 font-medium">
-702:                         {t('addBatchModal.dateChanged', {
-703:                             date: format(new Date(newDateKey + 'T00:00:00'), 'M월 d일', { locale: getDateFnsLocale() }),
-704:                         })}
-705:                     </p>
-706:                 )}
-707:                 <div className="flex items-center gap-3 ml-auto">
-708:                     <button
-709:                         type="button"
-710:                         onClick={onClose}
-711:                         className="px-5 py-2.5 rounded-xl border border-border dark:border-[#585d61] bg-surface dark:bg-surface-elevated text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
-712:                     >
-713:                         {t('addBatchModal.cancel')}
-714:                     </button>
-715:                     <button
-716:                         type="button"
-717:                         onClick={handleSubmit}
-718:                         disabled={!canSubmit}
-719:                         className="px-5 py-2.5 rounded-xl border border-transparent dark:border-white bg-primary dark:bg-black text-white dark:text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-720:                     >
-721:                         {saving
-722:                             ? t('addBatchModal.saving')
-723:                             : isEdit
-724:                               ? t('addBatchModal.save')
-725:                               : t('addBatchModal.addBatch')}
-726:                     </button>
-727:                 </div>
-728:             </div>
-729:         </ModalShell>
-730:     );
-731: };
 </file>
 
 <file path="src/App.tsx">
