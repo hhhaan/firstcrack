@@ -474,13 +474,6 @@ This section contains the contents of the repository's files.
 7: }
 </file>
 
-<file path=".husky/pre-commit">
-1: #!/usr/bin/env sh
-2: . "$(dirname "$0")/_/husky.sh"
-3: 
-4: npx lint-staged
-</file>
-
 <file path="public/logo.svg">
 1: <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 2: <rect width="32" height="32" rx="16" fill="url(#pattern0_351_5)"/>
@@ -4704,6 +4697,16 @@ This section contains the contents of the repository's files.
 
 <file path=".gstack/no-test-bootstrap">
 1: 
+</file>
+
+<file path=".husky/pre-commit">
+1: #!/usr/bin/env sh
+2: . "$(dirname "$0")/_/husky.sh"
+3: 
+4: # Auto-fix import sorting, formatting, and safe lint fixes
+5: npx biome check --write src
+6: 
+7: npx lint-staged
 </file>
 
 <file path=".reasonix/skills/deep-review/SKILL.md">
@@ -17518,23 +17521,6 @@ This section contains the contents of the repository's files.
 918: **Depends on:** 없음
 </file>
 
-<file path=".husky/pre-push">
- 1: #!/usr/bin/env sh
- 2: . "$(dirname "$0")/_/husky.sh"
- 3: 
- 4: # Regenerate repomix output for downstream AI tools
- 5: repomix --quiet
- 6: 
- 7: # Auto-fix import sorting, formatting, and safe lint fixes
- 8: npx biome check --write src
- 9: 
-10: npx tsc --noEmit --pretty
-11: npx react-doctor --diff
-12: 
-13: # Sidecar Python tests
-14: (cd src-tauri/sidecar && .venv/bin/python -m pytest tests/ -q)
-</file>
-
 <file path="scripts/append-db-aliases.mjs">
  1: import { appendFileSync } from 'fs';
  2: 
@@ -21085,222 +21071,21 @@ This section contains the contents of the repository's files.
 8:   optipng-bin: true
 </file>
 
-<file path=".github/workflows/release.yml">
-  1: name: Release
-  2: 
-  3: on:
-  4:   push:
-  5:     tags:
-  6:       - 'v*'
-  7:   workflow_dispatch:
-  8:     inputs:
-  9:       version:
- 10:         description: 'Version to release (e.g. 1.0.2). Required when not triggered by a tag.'
- 11:         required: false
- 12: 
- 13: jobs:
- 14:   setup:
- 15:     runs-on: ubuntu-latest
- 16:     outputs:
- 17:       version: ${{ steps.version.outputs.version }}
- 18:     steps:
- 19:       - name: Resolve version
- 20:         id: version
- 21:         run: |
- 22:           if [ -n "${{ inputs.version }}" ]; then
- 23:             VERSION="${{ inputs.version }}"
- 24:           elif [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
- 25:             VERSION="${GITHUB_REF_NAME#v}"
- 26:           else
- 27:             echo "::error::Cannot determine version. Push a semver tag (v*) or supply the 'version' input."
- 28:             exit 1
- 29:           fi
- 30:           echo "version=$VERSION" >> $GITHUB_OUTPUT
- 31:           echo "Resolved version: $VERSION"
- 32: 
- 33:   build:
- 34:     needs: setup
- 35:     runs-on: ${{ matrix.runner }}
- 36:     strategy:
- 37:       fail-fast: false
- 38:       matrix:
- 39:         include:
- 40:           - runner: macos-latest
- 41:             target: aarch64-apple-darwin
- 42:           - runner: macos-15-intel
- 43:             target: x86_64-apple-darwin
- 44:           - runner: windows-latest
- 45:             target: x86_64-pc-windows-msvc
- 46: 
- 47:     defaults:
- 48:       run:
- 49:         shell: bash
- 50: 
- 51:     steps:
- 52:       - uses: actions/checkout@v4
- 53: 
- 54:       - name: Validate required secrets
- 55:         env:
- 56:           TAURI_KEY:     ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
- 57:           TAURI_KEY_PW:  ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
- 58:           SUPABASE_URL:  ${{ secrets.VITE_SUPABASE_URL }}
- 59:           SUPABASE_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
- 60:           R2_ID:         ${{ secrets.VITE_R2_ACCOUNT_ID }}
- 61:           R2_ACCESS:     ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
- 62:           R2_SECRET:     ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
- 63:           R2_BUCKET:     ${{ secrets.VITE_R2_BUCKET_NAME }}
- 64:           APPLE_CERT:    ${{ secrets.APPLE_CERTIFICATE }}
- 65:           APPLE_CERT_PW: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
- 66:           APPLE_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
- 67:           APPLE_ID:      ${{ secrets.APPLE_ID }}
- 68:           APPLE_PW:      ${{ secrets.APPLE_PASSWORD }}
- 69:           APPLE_TEAM:    ${{ secrets.APPLE_TEAM_ID }}
- 70:         run: |
- 71:           missing=false
- 72:           check() {
- 73:             if [ -z "${!1}" ]; then
- 74:               echo "  MISSING: $2"
- 75:               missing=true
- 76:             fi
- 77:           }
- 78: 
- 79:           echo "Checking shared secrets..."
- 80:           check TAURI_KEY        "TAURI_SIGNING_PRIVATE_KEY"
- 81:           check TAURI_KEY_PW     "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
- 82:           check SUPABASE_URL     "VITE_SUPABASE_URL"
- 83:           check SUPABASE_ANON    "VITE_SUPABASE_ANON_KEY"
- 84:           check R2_ID            "VITE_R2_ACCOUNT_ID"
- 85:           check R2_ACCESS        "VITE_R2_ACCESS_KEY_ID"
- 86:           check R2_SECRET        "VITE_R2_SECRET_ACCESS_KEY"
- 87:           check R2_BUCKET        "VITE_R2_BUCKET_NAME"
- 88: 
- 89:           if [ "$RUNNER_OS" = "macOS" ]; then
- 90:             echo "Checking macOS signing secrets..."
- 91:             check APPLE_CERT      "APPLE_CERTIFICATE"
- 92:             check APPLE_CERT_PW   "APPLE_CERTIFICATE_PASSWORD"
- 93:             check APPLE_IDENTITY  "APPLE_SIGNING_IDENTITY"
- 94:             check APPLE_ID        "APPLE_ID"
- 95:             check APPLE_PW        "APPLE_PASSWORD"
- 96:             check APPLE_TEAM      "APPLE_TEAM_ID"
- 97:           fi
- 98: 
- 99:           if [ "$missing" = "true" ]; then
-100:             echo "::error::One or more required secrets are missing – aborting before build."
-101:             exit 1
-102:           fi
-103:           echo "All required secrets present."
-104: 
-105:       - uses: pnpm/action-setup@v4
-106: 
-107:       - uses: actions/setup-node@v4
-108:         with:
-109:           node-version: 22
-110:           cache: pnpm
-111: 
-112:       - name: Install Rust
-113:         uses: dtolnay/rust-toolchain@stable
-114:         with:
-115:           targets: ${{ matrix.target }}
-116: 
-117:       - name: Rust cache
-118:         uses: swatinem/rust-cache@v2
-119:         with:
-120:           workspaces: src-tauri
-121:           shared-key: rust-${{ matrix.target }}
-122:           save-if: ${{ github.ref == 'refs/heads/main' }}
-123: 
-124:       - name: Install frontend deps
-125:         run: pnpm install
-126: 
-127:       - name: Cache sidecar binary
-128:         id: sidecar-cache
-129:         uses: actions/cache@v4
-130:         with:
-131:           path: src-tauri/binaries
-132:           key: sidecar-${{ matrix.target }}-${{ hashFiles('src-tauri/sidecar/requirements.txt', 'src-tauri/sidecar/**/*.py', 'src-tauri/sidecar/sidecar.spec') }}
-133: 
-134:       - name: Set up Python
-135:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
-136:         uses: actions/setup-python@v5
-137:         with:
-138:           python-version: '3.13'
-139:           cache: pip
-140:           cache-dependency-path: src-tauri/sidecar/requirements.txt
-141: 
-142:       - name: Install sidecar dependencies
-143:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
-144:         run: pip install pyinstaller -r src-tauri/sidecar/requirements.txt
-145: 
-146:       - name: Build sidecar binary
-147:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
-148:         run: npm run build:sidecar
-149: 
-150:       - name: Build Tauri app
-151:         uses: tauri-apps/tauri-action@v2
-152:         env:
-153:           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-154:           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-155:           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-156:           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-157:           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-158:           VITE_R2_ACCOUNT_ID: ${{ secrets.VITE_R2_ACCOUNT_ID }}
-159:           VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-160:           VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-161:           VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
-162:           PUBLIC_SITE_URL: https://your-domain.com
-163:           PUBLIC_TAURI_REDIRECT: firstcrack://auth/callback
-164:           CARGO_INCREMENTAL: "0"
-165:           RUSTFLAGS: "-C debuginfo=0"
-166:           CARGO_NET_RETRY: "3"
-167:           CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-168:           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-169:           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-170:           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-171:           APPLE_ID: ${{ secrets.APPLE_ID }}
-172:           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-173:           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-174:         with:
-175:           args: --target ${{ matrix.target }}
-176: 
-177:       - name: Upload macOS artifacts
-178:         if: runner.os == 'macOS'
-179:         uses: actions/upload-artifact@v4
-180:         with:
-181:           name: macos-${{ matrix.target }}
-182:           path: |
-183:             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
-184:             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
-185:             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
-186:           retention-days: 7
-187: 
-188:       - name: Upload Windows artifacts
-189:         if: runner.os == 'Windows'
-190:         uses: actions/upload-artifact@v4
-191:         with:
-192:           name: windows-${{ matrix.target }}
-193:           path: |
-194:             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
-195:             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.sig
-196:           retention-days: 7
-197: 
-198:       - name: Notify build failure
-199:         if: failure()
-200:         env:
-201:           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-202:         run: |
-203:           if [ -n "$SLACK_WEBHOOK" ]; then
-204:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
-205:               --data "{\"text\":\":x: *Release build FAILED* — \`${GITHUB_REF_NAME}\` | \`${{ matrix.target }}\` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
-206:           else
-207:             echo "SLACK_WEBHOOK_URL not set — skipping notification"
-208:           fi
-209: 
-210:   publish-r2:
-211:     needs: [setup, build]
-212:     uses: ./.github/workflows/_publish-r2-reusable.yml
-213:     with:
-214:       version: ${{ needs.setup.outputs.version }}
-215:     secrets: inherit
+<file path=".husky/pre-push">
+ 1: #!/usr/bin/env sh
+ 2: . "$(dirname "$0")/_/husky.sh"
+ 3: 
+ 4: # Regenerate repomix output for downstream AI tools
+ 5: repomix --quiet
+ 6: 
+ 7: # Check lint — auto-fix already done in pre-commit
+ 8: npx biome check src
+ 9: 
+10: npx tsc --noEmit --pretty
+11: npx react-doctor --diff
+12: 
+13: # Sidecar Python tests
+14: (cd src-tauri/sidecar && .venv/bin/python -m pytest tests/ -q)
 </file>
 
 <file path="src/features/active-roast/index.ts">
@@ -22704,205 +22489,427 @@ This section contains the contents of the repository's files.
  13:         type: string
  14:         default: ''
  15: 
- 16: jobs:
- 17:   publish-r2:
- 18:     runs-on: ubuntu-latest
+ 16: permissions:
+ 17:   contents: read
+ 18:   actions: read
  19: 
- 20:     steps:
- 21:       - name: Download artifacts
- 22:         uses: actions/download-artifact@v4
- 23:         with:
- 24:           path: artifacts
- 25:           # For workflow_call callers: github.run_id is the parent run — artifacts are found correctly.
- 26:           # For direct dispatch: always pass run_id explicitly.
- 27:           run-id: ${{ inputs.run_id || github.run_id }}
- 28:           github-token: ${{ secrets.GITHUB_TOKEN }}
- 29: 
- 30:       - name: Validate artifact signatures
- 31:         run: |
- 32:           set -e
- 33:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 34:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 35:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
- 36: 
- 37:           verify_sig() {
- 38:             local file="$1" label="$2"
- 39:             if [ ! -f "$file" ]; then
- 40:               echo "::error::$label .sig file not found: $file"
- 41:               exit 1
- 42:             fi
- 43:             if [ ! -s "$file" ]; then
- 44:               echo "::error::$label .sig file is empty: $file"
+ 20: jobs:
+ 21:   publish-r2:
+ 22:     runs-on: ubuntu-latest
+ 23: 
+ 24:     steps:
+ 25:       - name: Download artifacts
+ 26:         uses: actions/download-artifact@v4
+ 27:         with:
+ 28:           path: artifacts
+ 29:           # For workflow_call callers: github.run_id is the parent run — artifacts are found correctly.
+ 30:           # For direct dispatch: always pass run_id explicitly.
+ 31:           run-id: ${{ inputs.run_id || github.run_id }}
+ 32:           github-token: ${{ secrets.GITHUB_TOKEN }}
+ 33: 
+ 34:       - name: Validate artifact signatures
+ 35:         run: |
+ 36:           set -e
+ 37:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 38:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 39:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
+ 40: 
+ 41:           verify_sig() {
+ 42:             local file="$1" label="$2"
+ 43:             if [ ! -f "$file" ]; then
+ 44:               echo "::error::$label .sig file not found: $file"
  45:               exit 1
  46:             fi
- 47:             echo "  OK: $label ($(wc -c < "$file") bytes)"
- 48:           }
- 49: 
- 50:           verify_sig "$AARCH64_SIG" "macOS aarch64"
- 51:           verify_sig "$X64_SIG"     "macOS x86_64"
- 52:           verify_sig "$WIN_SIG"     "Windows x86_64"
- 53:           echo "All .sig files valid."
- 54: 
- 55:       - name: Backup current latest.json
- 56:         env:
- 57:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
- 58:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
- 59:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
- 60:           R2_BUCKET: first-crack
- 61:           VERSION: ${{ inputs.version }}
- 62:         run: |
- 63:           TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
- 64:           BACKUP_KEY="releases/latest.json.${VERSION}.${TIMESTAMP}.bak"
- 65:           aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
- 66:             "s3://${R2_BUCKET}/${BACKUP_KEY}" \
- 67:             --endpoint-url "$R2_ENDPOINT" --region auto \
- 68:             --content-type "application/json" && \
- 69:             echo "BACKUP_KEY=${BACKUP_KEY}" >> $GITHUB_ENV || \
- 70:             echo "No existing latest.json to backup (first release?)"
- 71: 
- 72:       - name: Upload binaries & latest.json to R2
- 73:         env:
- 74:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
- 75:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
- 76:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
- 77:           VERSION: ${{ inputs.version }}
- 78:           R2_BUCKET: first-crack
- 79:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
- 80:         run: |
- 81:           set -e
- 82:           S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
- 83: 
- 84:           AARCH64_TAR=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
- 85:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 86:           X64_TAR=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
- 87:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 88:           WIN_MSI=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi" ! -name "*.sig" | head -1)
- 89:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
- 90:           AARCH64_DMG=$(find artifacts/macos-aarch64-apple-darwin -name "*.dmg" | head -1)
- 91:           X64_DMG=$(find artifacts/macos-x86_64-apple-darwin -name "*.dmg" | head -1)
- 92: 
- 93:           [ -z "$AARCH64_TAR" ] && echo "ERROR: macOS arm64 .app.tar.gz not found" && exit 1
- 94:           [ -z "$X64_TAR" ]     && echo "ERROR: macOS x64 .app.tar.gz not found"   && exit 1
- 95:           [ -z "$WIN_MSI" ]     && echo "ERROR: Windows MSI not found"              && exit 1
+ 47:             if [ ! -s "$file" ]; then
+ 48:               echo "::error::$label .sig file is empty: $file"
+ 49:               exit 1
+ 50:             fi
+ 51:             echo "  OK: $label ($(wc -c < "$file") bytes)"
+ 52:           }
+ 53: 
+ 54:           verify_sig "$AARCH64_SIG" "macOS aarch64"
+ 55:           verify_sig "$X64_SIG"     "macOS x86_64"
+ 56:           verify_sig "$WIN_SIG"     "Windows x86_64"
+ 57:           echo "All .sig files valid."
+ 58: 
+ 59:       - name: Backup current latest.json
+ 60:         env:
+ 61:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+ 62:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+ 63:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+ 64:           R2_BUCKET: first-crack
+ 65:           VERSION: ${{ inputs.version }}
+ 66:         run: |
+ 67:           TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+ 68:           BACKUP_KEY="releases/latest.json.${VERSION}.${TIMESTAMP}.bak"
+ 69:           aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
+ 70:             "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+ 71:             --endpoint-url "$R2_ENDPOINT" --region auto \
+ 72:             --content-type "application/json" && \
+ 73:             echo "BACKUP_KEY=${BACKUP_KEY}" >> $GITHUB_ENV || \
+ 74:             echo "No existing latest.json to backup (first release?)"
+ 75: 
+ 76:       - name: Upload binaries & latest.json to R2
+ 77:         env:
+ 78:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+ 79:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+ 80:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+ 81:           VERSION: ${{ inputs.version }}
+ 82:           R2_BUCKET: first-crack
+ 83:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+ 84:         run: |
+ 85:           set -e
+ 86:           S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
+ 87: 
+ 88:           AARCH64_TAR=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+ 89:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 90:           X64_TAR=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+ 91:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 92:           WIN_MSI=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi" ! -name "*.sig" | head -1)
+ 93:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
+ 94:           AARCH64_DMG=$(find artifacts/macos-aarch64-apple-darwin -name "*.dmg" | head -1)
+ 95:           X64_DMG=$(find artifacts/macos-x86_64-apple-darwin -name "*.dmg" | head -1)
  96: 
- 97:           AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
- 98:           X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
- 99:           WIN_MSI_R2=$(basename "$WIN_MSI")
+ 97:           [ -z "$AARCH64_TAR" ] && echo "ERROR: macOS arm64 .app.tar.gz not found" && exit 1
+ 98:           [ -z "$X64_TAR" ]     && echo "ERROR: macOS x64 .app.tar.gz not found"   && exit 1
+ 99:           [ -z "$WIN_MSI" ]     && echo "ERROR: Windows MSI not found"              && exit 1
 100: 
-101:           # Phase 1: fire all binary uploads in parallel
-102:           pids=""
-103:           $S3 "$AARCH64_TAR" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2" & pids="$pids $!"
-104:           [ -n "$AARCH64_SIG" ] && { $S3 "$AARCH64_SIG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2.sig" & pids="$pids $!"; }
-105:           $S3 "$X64_TAR"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2" & pids="$pids $!"
-106:           [ -n "$X64_SIG" ]     && { $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig" & pids="$pids $!"; }
-107:           $S3 "$WIN_MSI"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2" & pids="$pids $!"
-108:           [ -n "$WIN_SIG" ]     && { $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig" & pids="$pids $!"; }
-109:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")" & pids="$pids $!"; }
-110:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")" & pids="$pids $!"; }
-111: 
-112:           # Build latest.json while uploads run
-113:           jq --null-input \
-114:             --arg version   "$VERSION" \
-115:             --arg pub_date  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-116:             --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
-117:             --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
-118:             --arg x64_sig   "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
-119:             --arg x64_url   "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
-120:             --arg win_sig   "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
-121:             --arg win_url   "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
-122:             '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
-123:             > latest.json
-124: 
-125:           # Wait for all Phase 1 binary uploads
-126:           fail=0
-127:           for pid in $pids; do wait $pid || fail=1; done
-128:           [ $fail -eq 1 ] && echo "ERROR: one or more binary uploads failed" && exit 1
-129: 
-130:           # Phase 2: latest.json + landing page aliases (parallel)
-131:           pids=""
-132:           $S3 latest.json "s3://$R2_BUCKET/releases/latest.json" \
-133:             --cache-control "no-cache, no-store, must-revalidate" \
-134:             --content-type "application/json" & pids="$pids $!"
-135:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" & pids="$pids $!"; }
-136:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" & pids="$pids $!"; }
-137:           $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
-138: 
-139:           fail=0
-140:           for pid in $pids; do wait $pid || fail=1; done
-141:           [ $fail -eq 1 ] && echo "ERROR: one or more latest/landing uploads failed" && exit 1
+101:           AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
+102:           X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
+103:           WIN_MSI_R2=$(basename "$WIN_MSI")
+104: 
+105:           # Phase 1: fire all binary uploads in parallel
+106:           pids=""
+107:           $S3 "$AARCH64_TAR" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2" & pids="$pids $!"
+108:           [ -n "$AARCH64_SIG" ] && { $S3 "$AARCH64_SIG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2.sig" & pids="$pids $!"; }
+109:           $S3 "$X64_TAR"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2" & pids="$pids $!"
+110:           [ -n "$X64_SIG" ]     && { $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig" & pids="$pids $!"; }
+111:           $S3 "$WIN_MSI"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2" & pids="$pids $!"
+112:           [ -n "$WIN_SIG" ]     && { $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig" & pids="$pids $!"; }
+113:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")" & pids="$pids $!"; }
+114:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")" & pids="$pids $!"; }
+115: 
+116:           # Build latest.json while uploads run
+117:           jq --null-input \
+118:             --arg version   "$VERSION" \
+119:             --arg pub_date  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+120:             --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
+121:             --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
+122:             --arg x64_sig   "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
+123:             --arg x64_url   "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
+124:             --arg win_sig   "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
+125:             --arg win_url   "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
+126:             '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
+127:             > latest.json
+128: 
+129:           # Wait for all Phase 1 binary uploads
+130:           fail=0
+131:           for pid in $pids; do wait $pid || fail=1; done
+132:           [ $fail -eq 1 ] && echo "ERROR: one or more binary uploads failed" && exit 1
+133: 
+134:           # Phase 2: latest.json + landing page aliases (parallel)
+135:           pids=""
+136:           $S3 latest.json "s3://$R2_BUCKET/releases/latest.json" \
+137:             --cache-control "no-cache, no-store, must-revalidate" \
+138:             --content-type "application/json" & pids="$pids $!"
+139:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" & pids="$pids $!"; }
+140:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" & pids="$pids $!"; }
+141:           $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
 142: 
-143:       - name: Purge Cloudflare cache for latest.json
-144:         env:
-145:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-146:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-147:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
-148:         run: |
-149:           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-150:             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-151:             -H "Authorization: Bearer ${CF_API_TOKEN}" \
-152:             -H "Content-Type: application/json" \
-153:             --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
-154:           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-155:           BODY=$(echo "$RESPONSE" | head -1)
-156:           echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
-157:           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-158:             echo "::error::Cloudflare cache purge failed with HTTP $HTTP_CODE"
-159:             exit 1
-160:           fi
-161: 
-162:       - name: Rollback latest.json on failure
-163:         if: failure() && env.BACKUP_KEY != ''
-164:         env:
-165:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-166:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-167:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
-168:           R2_BUCKET: first-crack
-169:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-170:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-171:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
-172:         run: |
-173:           echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
-174:           if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
-175:               "s3://${R2_BUCKET}/releases/latest.json" \
-176:               --endpoint-url "$R2_ENDPOINT" --region auto \
-177:               --cache-control "no-cache, no-store, must-revalidate" \
-178:               --content-type "application/json"; then
-179:             echo "Rollback complete. Purging CF cache..."
-180:             RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-181:               "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-182:               -H "Authorization: Bearer ${CF_API_TOKEN}" \
-183:               -H "Content-Type: application/json" \
-184:               --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
-185:             HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-186:             echo "CF purge after rollback: HTTP $HTTP_CODE"
-187:             echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
-188:           else
-189:             echo "::error::Rollback FAILED — latest.json may be in broken state"
-190:             echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
-191:           fi
-192: 
-193:       - name: Notify publish result
-194:         if: always()
-195:         env:
-196:           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-197:           VERSION: ${{ inputs.version }}
-198:         run: |
-199:           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-200:           if [ "${{ job.status }}" = "success" ]; then
-201:             TEXT=":white_check_mark: *Release published* — v${VERSION} | <${RUN_URL}|View run>"
-202:           elif [ "$ROLLBACK_STATUS" = "success" ]; then
-203:             TEXT=":x: *Release publish FAILED* — v${VERSION} | :white_check_mark: latest.json rolled back | <${RUN_URL}|View run>"
-204:           elif [ "$ROLLBACK_STATUS" = "failed" ]; then
-205:             TEXT=":rotating_light: *Release publish FAILED + Rollback FAILED* — v${VERSION} — latest.json 수동 확인 필요 | <${RUN_URL}|View run>"
+143:           fail=0
+144:           for pid in $pids; do wait $pid || fail=1; done
+145:           [ $fail -eq 1 ] && echo "ERROR: one or more latest/landing uploads failed" && exit 1
+146: 
+147:       - name: Purge Cloudflare cache for latest.json
+148:         env:
+149:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+150:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+151:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+152:         run: |
+153:           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+154:             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+155:             -H "Authorization: Bearer ${CF_API_TOKEN}" \
+156:             -H "Content-Type: application/json" \
+157:             --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+158:           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+159:           BODY=$(echo "$RESPONSE" | head -1)
+160:           echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
+161:           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+162:             echo "::error::Cloudflare cache purge failed with HTTP $HTTP_CODE"
+163:             exit 1
+164:           fi
+165: 
+166:       - name: Rollback latest.json on failure
+167:         if: failure() && env.BACKUP_KEY != ''
+168:         env:
+169:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+170:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+171:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+172:           R2_BUCKET: first-crack
+173:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+174:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+175:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+176:         run: |
+177:           echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
+178:           if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+179:               "s3://${R2_BUCKET}/releases/latest.json" \
+180:               --endpoint-url "$R2_ENDPOINT" --region auto \
+181:               --cache-control "no-cache, no-store, must-revalidate" \
+182:               --content-type "application/json"; then
+183:             echo "Rollback complete. Purging CF cache..."
+184:             RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+185:               "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+186:               -H "Authorization: Bearer ${CF_API_TOKEN}" \
+187:               -H "Content-Type: application/json" \
+188:               --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+189:             HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+190:             echo "CF purge after rollback: HTTP $HTTP_CODE"
+191:             echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
+192:           else
+193:             echo "::error::Rollback FAILED — latest.json may be in broken state"
+194:             echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
+195:           fi
+196: 
+197:       - name: Notify publish result
+198:         if: always()
+199:         env:
+200:           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+201:           VERSION: ${{ inputs.version }}
+202:         run: |
+203:           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+204:           if [ "${{ job.status }}" = "success" ]; then
+205:             TEXT=":white_check_mark: *Release published* — v${VERSION} | <${RUN_URL}|View run>"
+206:           elif [ "$ROLLBACK_STATUS" = "success" ]; then
+207:             TEXT=":x: *Release publish FAILED* — v${VERSION} | :white_check_mark: latest.json rolled back | <${RUN_URL}|View run>"
+208:           elif [ "$ROLLBACK_STATUS" = "failed" ]; then
+209:             TEXT=":rotating_light: *Release publish FAILED + Rollback FAILED* — v${VERSION} — latest.json 수동 확인 필요 | <${RUN_URL}|View run>"
+210:           else
+211:             TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
+212:           fi
+213:           if [ -n "$SLACK_WEBHOOK" ]; then
+214:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+215:               --data "{\"text\":\"$TEXT\"}"
+216:           else
+217:             echo "SLACK_WEBHOOK_URL not set — skipping notification"
+218:           fi
+</file>
+
+<file path=".github/workflows/release.yml">
+  1: name: Release
+  2: 
+  3: on:
+  4:   push:
+  5:     tags:
+  6:       - 'v*'
+  7:   workflow_dispatch:
+  8:     inputs:
+  9:       version:
+ 10:         description: 'Version to release (e.g. 1.0.2). Required when not triggered by a tag.'
+ 11:         required: false
+ 12: 
+ 13: jobs:
+ 14:   setup:
+ 15:     runs-on: ubuntu-latest
+ 16:     outputs:
+ 17:       version: ${{ steps.version.outputs.version }}
+ 18:     steps:
+ 19:       - name: Resolve version
+ 20:         id: version
+ 21:         run: |
+ 22:           if [ -n "${{ inputs.version }}" ]; then
+ 23:             VERSION="${{ inputs.version }}"
+ 24:           elif [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+ 25:             VERSION="${GITHUB_REF_NAME#v}"
+ 26:           else
+ 27:             echo "::error::Cannot determine version. Push a semver tag (v*) or supply the 'version' input."
+ 28:             exit 1
+ 29:           fi
+ 30:           echo "version=$VERSION" >> $GITHUB_OUTPUT
+ 31:           echo "Resolved version: $VERSION"
+ 32: 
+ 33:   build:
+ 34:     needs: setup
+ 35:     runs-on: ${{ matrix.runner }}
+ 36:     strategy:
+ 37:       fail-fast: false
+ 38:       matrix:
+ 39:         include:
+ 40:           - runner: macos-latest
+ 41:             target: aarch64-apple-darwin
+ 42:           - runner: macos-15-intel
+ 43:             target: x86_64-apple-darwin
+ 44:           - runner: windows-latest
+ 45:             target: x86_64-pc-windows-msvc
+ 46: 
+ 47:     defaults:
+ 48:       run:
+ 49:         shell: bash
+ 50: 
+ 51:     steps:
+ 52:       - uses: actions/checkout@v4
+ 53: 
+ 54:       - name: Validate required secrets
+ 55:         env:
+ 56:           TAURI_KEY:     ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+ 57:           TAURI_KEY_PW:  ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+ 58:           SUPABASE_URL:  ${{ secrets.VITE_SUPABASE_URL }}
+ 59:           SUPABASE_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+ 60:           R2_ID:         ${{ secrets.VITE_R2_ACCOUNT_ID }}
+ 61:           R2_ACCESS:     ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+ 62:           R2_SECRET:     ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+ 63:           R2_BUCKET:     ${{ secrets.VITE_R2_BUCKET_NAME }}
+ 64:           APPLE_CERT:    ${{ secrets.APPLE_CERTIFICATE }}
+ 65:           APPLE_CERT_PW: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+ 66:           APPLE_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+ 67:           APPLE_ID:      ${{ secrets.APPLE_ID }}
+ 68:           APPLE_PW:      ${{ secrets.APPLE_PASSWORD }}
+ 69:           APPLE_TEAM:    ${{ secrets.APPLE_TEAM_ID }}
+ 70:         run: |
+ 71:           missing=false
+ 72:           check() {
+ 73:             if [ -z "${!1}" ]; then
+ 74:               echo "  MISSING: $2"
+ 75:               missing=true
+ 76:             fi
+ 77:           }
+ 78: 
+ 79:           echo "Checking shared secrets..."
+ 80:           check TAURI_KEY        "TAURI_SIGNING_PRIVATE_KEY"
+ 81:           check TAURI_KEY_PW     "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+ 82:           check SUPABASE_URL     "VITE_SUPABASE_URL"
+ 83:           check SUPABASE_ANON    "VITE_SUPABASE_ANON_KEY"
+ 84:           check R2_ID            "VITE_R2_ACCOUNT_ID"
+ 85:           check R2_ACCESS        "VITE_R2_ACCESS_KEY_ID"
+ 86:           check R2_SECRET        "VITE_R2_SECRET_ACCESS_KEY"
+ 87:           check R2_BUCKET        "VITE_R2_BUCKET_NAME"
+ 88: 
+ 89:           if [ "$RUNNER_OS" = "macOS" ]; then
+ 90:             echo "Checking macOS signing secrets..."
+ 91:             check APPLE_CERT      "APPLE_CERTIFICATE"
+ 92:             check APPLE_CERT_PW   "APPLE_CERTIFICATE_PASSWORD"
+ 93:             check APPLE_IDENTITY  "APPLE_SIGNING_IDENTITY"
+ 94:             check APPLE_ID        "APPLE_ID"
+ 95:             check APPLE_PW        "APPLE_PASSWORD"
+ 96:             check APPLE_TEAM      "APPLE_TEAM_ID"
+ 97:           fi
+ 98: 
+ 99:           if [ "$missing" = "true" ]; then
+100:             echo "::error::One or more required secrets are missing – aborting before build."
+101:             exit 1
+102:           fi
+103:           echo "All required secrets present."
+104: 
+105:       - uses: pnpm/action-setup@v4
+106: 
+107:       - uses: actions/setup-node@v4
+108:         with:
+109:           node-version: 22
+110:           cache: pnpm
+111: 
+112:       - name: Install Rust
+113:         uses: dtolnay/rust-toolchain@stable
+114:         with:
+115:           targets: ${{ matrix.target }}
+116: 
+117:       - name: Rust cache
+118:         uses: swatinem/rust-cache@v2
+119:         with:
+120:           workspaces: src-tauri
+121:           shared-key: rust-${{ matrix.target }}
+122:           save-if: ${{ github.ref == 'refs/heads/main' }}
+123: 
+124:       - name: Install frontend deps
+125:         run: pnpm install
+126: 
+127:       - name: Cache sidecar binary
+128:         id: sidecar-cache
+129:         uses: actions/cache@v4
+130:         with:
+131:           path: src-tauri/binaries
+132:           key: sidecar-${{ matrix.target }}-${{ hashFiles('src-tauri/sidecar/requirements.txt', 'src-tauri/sidecar/**/*.py', 'src-tauri/sidecar/sidecar.spec') }}
+133: 
+134:       - name: Set up Python
+135:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
+136:         uses: actions/setup-python@v5
+137:         with:
+138:           python-version: '3.13'
+139:           cache: pip
+140:           cache-dependency-path: src-tauri/sidecar/requirements.txt
+141: 
+142:       - name: Install sidecar dependencies
+143:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
+144:         run: pip install pyinstaller -r src-tauri/sidecar/requirements.txt
+145: 
+146:       - name: Build sidecar binary
+147:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
+148:         run: npm run build:sidecar
+149: 
+150:       - name: Build Tauri app
+151:         uses: tauri-apps/tauri-action@v0
+152:         env:
+153:           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+154:           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+155:           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+156:           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+157:           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+158:           VITE_R2_ACCOUNT_ID: ${{ secrets.VITE_R2_ACCOUNT_ID }}
+159:           VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+160:           VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+161:           VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
+162:           PUBLIC_SITE_URL: https://your-domain.com
+163:           PUBLIC_TAURI_REDIRECT: firstcrack://auth/callback
+164:           CARGO_INCREMENTAL: "0"
+165:           RUSTFLAGS: "-C debuginfo=0"
+166:           CARGO_NET_RETRY: "3"
+167:           CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+168:           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+169:           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+170:           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+171:           APPLE_ID: ${{ secrets.APPLE_ID }}
+172:           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+173:           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+174:         with:
+175:           args: --target ${{ matrix.target }}
+176: 
+177:       - name: Upload macOS artifacts
+178:         if: runner.os == 'macOS'
+179:         uses: actions/upload-artifact@v4
+180:         with:
+181:           name: macos-${{ matrix.target }}
+182:           path: |
+183:             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+184:             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
+185:             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
+186:           retention-days: 7
+187: 
+188:       - name: Upload Windows artifacts
+189:         if: runner.os == 'Windows'
+190:         uses: actions/upload-artifact@v4
+191:         with:
+192:           name: windows-${{ matrix.target }}
+193:           path: |
+194:             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+195:             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.sig
+196:           retention-days: 7
+197: 
+198:       - name: Notify build failure
+199:         if: failure()
+200:         env:
+201:           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+202:         run: |
+203:           if [ -n "$SLACK_WEBHOOK" ]; then
+204:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+205:               --data "{\"text\":\":x: *Release build FAILED* — \`${GITHUB_REF_NAME}\` | \`${{ matrix.target }}\` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
 206:           else
-207:             TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
+207:             echo "SLACK_WEBHOOK_URL not set — skipping notification"
 208:           fi
-209:           if [ -n "$SLACK_WEBHOOK" ]; then
-210:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
-211:               --data "{\"text\":\"$TEXT\"}"
-212:           else
-213:             echo "SLACK_WEBHOOK_URL not set — skipping notification"
-214:           fi
+209: 
+210:   publish-r2:
+211:     needs: [setup, build]
+212:     uses: ./.github/workflows/_publish-r2-reusable.yml
+213:     with:
+214:       version: ${{ needs.setup.outputs.version }}
+215:     secrets: inherit
 </file>
 
 <file path="src/entities/bean-stock-event/api.ts">
@@ -23838,6 +23845,246 @@ This section contains the contents of the repository's files.
 119:         </>
 120:     );
 121: };
+</file>
+
+<file path="src/widgets/bean-detail/ui/BeanDetail.tsx">
+  1: import { getStatus, processColor, statusConfig } from '@entities/bean/lib';
+  2: import { useBeanStockEvents, useBeanStockSummary } from '@entities/bean-stock-event';
+  3: import type { Bean } from '@shared/types/database.types';
+  4: import { Edit3, Trash2 } from 'lucide-react';
+  5: import { useState } from 'react';
+  6: import { DeleteBeanModal } from './DeleteBeanModal';
+  7: 
+  8: interface BeanDetailProps {
+  9:     bean: Bean | null;
+ 10:     isLoading: boolean;
+ 11:     onEdit: (bean: Bean) => void;
+ 12:     onRestock: (id: string) => void;
+ 13:     onStartRoast: () => void;
+ 14:     onDelete: (id: string) => void;
+ 15: }
+ 16: 
+ 17: const Skeleton = () => (
+ 18:     <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-7">
+ 19:         <div className="mb-6">
+ 20:             <div className="w-50 h-8 rounded-lg bg-surface mb-2.5 animate-pulse" />
+ 21:             <div className="flex gap-1.5">
+ 22:                 <div className="w-15 h-5.5 rounded-full bg-surface animate-pulse" />
+ 23:                 <div className="w-20 h-5.5 rounded-full bg-surface animate-pulse" />
+ 24:             </div>
+ 25:         </div>
+ 26:         <div className="grid grid-cols-2 gap-4 mb-6">
+ 27:             {Array.from({ length: 6 }).map((_, i) => (
+ 28:                 <div key={i}>
+ 29:                     <div className="w-12.5 h-2.5 rounded bg-surface mb-1.5 animate-pulse" />
+ 30:                     <div className="w-25 h-3.5 rounded-md bg-surface animate-pulse" />
+ 31:                 </div>
+ 32:             ))}
+ 33:         </div>
+ 34:         <div className="h-1.5 rounded-full bg-surface mb-6 animate-pulse" />
+ 35:         <div className="flex gap-2.5">
+ 36:             <div className="flex-1 h-10 rounded-full bg-surface animate-pulse" />
+ 37:             <div className="flex-1 h-10 rounded-full bg-surface animate-pulse" />
+ 38:         </div>
+ 39:     </div>
+ 40: );
+ 41: 
+ 42: const Empty = ({ hasAny }: { hasAny: boolean }) => (
+ 43:     <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex items-center justify-center text-sm text-muted dark:text-white tracking-[0.14px]">
+ 44:         {hasAny ? 'Select a bean to view details' : 'Add your first bean lot to get started.'}
+ 45:     </div>
+ 46: );
+ 47: 
+ 48: export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, onDelete }: BeanDetailProps) => {
+ 49:     const [confirming, setConfirming] = useState(false);
+ 50:     const { data: summary } = useBeanStockSummary(bean?.id ?? '');
+ 51:     const { data: events = [] } = useBeanStockEvents(bean?.id ?? '');
+ 52: 
+ 53:     if (isLoading) return <Skeleton />;
+ 54:     if (!bean) return <Empty hasAny={false} />;
+ 55: 
+ 56:     const effectiveGrams = summary?.effectiveGrams ?? 0;
+ 57:     const status = getStatus(effectiveGrams, bean.low_stock_threshold_grams);
+ 58:     const cfg = statusConfig[status];
+ 59: 
+ 60:     return (
+ 61:         <>
+ 62:             <DeleteBeanModal
+ 63:                 open={confirming}
+ 64:                 beanName={bean.name}
+ 65:                 onClose={() => setConfirming(false)}
+ 66:                 onConfirm={() => {
+ 67:                     onDelete(bean.id);
+ 68:                     setConfirming(false);
+ 69:                 }}
+ 70:             />
+ 71:             <div className="bg-main-bg rounded-lg px-8 py-7 h-fit relative dark:border dark:border-[#585d61]">
+ 72:                 <div className="absolute top-6 right-6 flex gap-2 z-2">
+ 73:                     <button
+ 74:                         onClick={() => onEdit(bean)}
+ 75:                         className="w-9 h-9 rounded-[10px] border border-black/6 bg-white text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
+ 76:                     >
+ 77:                         <Edit3 size={16} />
+ 78:                     </button>
+ 79:                     <button
+ 80:                         onClick={() => setConfirming(true)}
+ 81:                         className="w-9 h-9 rounded-[10px] border border-black/6 bg-white flex items-center justify-center cursor-pointer transition-all duration-200"
+ 82:                         style={{ color: '#dc2626' }}
+ 83:                     >
+ 84:                         <Trash2 size={16} />
+ 85:                     </button>
+ 86:                 </div>
+ 87: 
+ 88:                 <div className="mb-6 pr-10">
+ 89:                     <h2 className="font-(--font-display) text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
+ 90:                         {bean.name}
+ 91:                     </h2>
+ 92:                     <div className="flex gap-1.5">
+ 93:                         {bean.process && (
+ 94:                             <span
+ 95:                                 className="text-xs font-medium px-2.25 py-0.75 rounded-full tracking-[0.14px]"
+ 96:                                 style={{
+ 97:                                     color: processColor[bean.process]?.color ?? 'var(--color-secondary)',
+ 98:                                     background: processColor[bean.process]?.bg ?? 'var(--color-surface)',
+ 99:                                 }}
+100:                             >
+101:                                 {bean.process}
+102:                             </span>
+103:                         )}
+104:                         {bean.variety && (
+105:                             <span className="text-xs font-medium text-secondary bg-surface px-2.25 py-0.75 rounded-full">
+106:                                 {bean.variety}
+107:                             </span>
+108:                         )}
+109:                     </div>
+110:                 </div>
+111: 
+112:                 <div className="grid grid-cols-2 gap-4 mb-6">
+113:                     {[
+114:                         { label: 'Origin', value: bean.origin ?? '—' },
+115:                         { label: 'Region', value: bean.region ?? '—' },
+116:                         { label: 'Farm', value: bean.farm ?? '—' },
+117:                         {
+118:                             label: 'Altitude',
+119:                             value: bean.altitude_masl ? `${bean.altitude_masl.toLocaleString()} masl` : '—',
+120:                         },
+121:                         { label: 'Received', value: bean.purchase_date ?? '—' },
+122:                         { label: 'Current Stock', value: `${(effectiveGrams / 1000).toFixed(2)}kg` },
+123:                     ].map(({ label, value }) => (
+124:                         <div key={label}>
+125:                             <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-0.75">
+126:                                 {label}
+127:                             </div>
+128:                             <div className="text-sm font-medium text-primary tracking-[0.14px]">{value}</div>
+129:                         </div>
+130:                     ))}
+131:                 </div>
+132: 
+133:                 {bean.tasting_notes && (
+134:                     <div className="bg-surface-warm-solid rounded-lg px-4 py-3.5 mb-6">
+135:                         <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
+136:                             Tasting Notes
+137:                         </div>
+138:                         <div className="flex gap-1.5 flex-wrap">
+139:                             {bean.tasting_notes.split(', ').map((note) => (
+140:                                 <span
+141:                                     key={note}
+142:                                     className="text-xs font-medium text-secondary bg-white/70 px-2.5 py-1 rounded-full tracking-[0.14px]"
+143:                                 >
+144:                                     {note}
+145:                                 </span>
+146:                             ))}
+147:                         </div>
+148:                     </div>
+149:                 )}
+150: 
+151:                 <div className="mb-6">
+152:                     <div className="flex justify-between mb-1.5">
+153:                         <span className="text-xs font-medium text-secondary tracking-[0.14px]">Stock Level</span>
+154:                         <span className="text-xs text-muted font-mono">
+155:                             {(effectiveGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
+156:                         </span>
+157:                     </div>
+158:                     <div className="h-1.5 bg-surface rounded-full overflow-hidden">
+159:                         <div
+160:                             className="h-full rounded-full transition-all duration-500"
+161:                             style={{
+162:                                 width: `${Math.min(100, (effectiveGrams / bean.capacity_grams) * 100)}%`,
+163:                                 background: cfg.color,
+164:                             }}
+165:                         />
+166:                     </div>
+167:                 </div>
+168: 
+169:                 <div className="flex gap-2.5">
+170:                     <button
+171:                         onClick={onStartRoast}
+172:                         className="flex-1 py-2.5 rounded-full border border-gray-200 dark:border-[#585d61] dark:bg-[#1a1e23] bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
+173:                     >
+174:                         Start Roast
+175:                     </button>
+176:                     <button
+177:                         onClick={() => onRestock(bean.id)}
+178:                         className="flex-1 py-2.5 rounded-full border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
+179:                     >
+180:                         Restock
+181:                     </button>
+182:                 </div>
+183: 
+184:                 <div className="mt-6 space-y-3">
+185:                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
+186:                         <div className="bg-gray-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
+187:                             <p className="text-muted dark:text-muted">현재 재고</p>
+188:                             <p className="font-semibold text-primary dark:text-primary">
+189:                                 {summary?.currentGrams ?? 0}g
+190:                             </p>
+191:                         </div>
+192:                         <div className="bg-yellow-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
+193:                             <p className="text-muted dark:text-muted">예약됨</p>
+194:                             <p className="font-semibold text-palette-yellow">{summary?.reservedGrams ?? 0}g</p>
+195:                         </div>
+196:                         <div className="bg-green-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
+197:                             <p className="text-muted dark:text-muted">가용</p>
+198:                             <p
+199:                                 className={`font-semibold ${(summary?.effectiveGrams ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-palette-green'}`}
+200:                             >
+201:                                 {summary?.effectiveGrams ?? 0}g
+202:                             </p>
+203:                         </div>
+204:                     </div>
+205: 
+206:                     <p className="text-xs font-medium text-gray-500 dark:text-white mt-4">재고 이력</p>
+207:                     {events.length === 0 && <p className="text-xs text-gray-300 dark:text-white">이력 없음</p>}
+208:                     {events.map((ev) => (
+209:                         <div key={ev.id} className="flex items-start gap-3 text-xs">
+210:                             <span
+211:                                 className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
+212:                                     ev.delta_grams > 0 ? 'bg-palette-green' : 'bg-palette-purple'
+213:                                 }`}
+214:                             />
+215:                             <div className="flex-1">
+216:                                 <span className="font-medium">
+217:                                     {ev.delta_grams > 0 ? `+${ev.delta_grams}g` : `${ev.delta_grams}g`}
+218:                                 </span>
+219:                                 <span className="text-gray-400 dark:text-white ml-1">
+220:                                     {ev.event_type === 'purchase'
+221:                                         ? '입고'
+222:                                         : ev.event_type === 'roast'
+223:                                           ? '로스팅'
+224:                                           : '조정'}
+225:                                 </span>
+226:                                 {ev.note && <span className="text-gray-400 dark:text-white ml-1">— {ev.note}</span>}
+227:                             </div>
+228:                             <span className="text-gray-300 dark:text-white">
+229:                                 {new Date(ev.created_at).toLocaleDateString('ko-KR')}
+230:                             </span>
+231:                         </div>
+232:                     ))}
+233:                 </div>
+234:             </div>
+235:         </>
+236:     );
+237: };
 </file>
 
 <file path="src/widgets/settings-modal/ui/AccountSettingsTab.tsx">
@@ -26641,244 +26888,137 @@ This section contains the contents of the repository's files.
 797: };
 </file>
 
-<file path="src/widgets/bean-detail/ui/BeanDetail.tsx">
-  1: import { getStatus, processColor, statusConfig } from '@entities/bean/lib';
-  2: import { useBeanStockEvents, useBeanStockSummary } from '@entities/bean-stock-event';
+<file path="src/widgets/add-bean-modal/ui/useAddBeanSubmit.ts">
+  1: import { useCreateBean, useUpdateBean } from '@entities/bean/queries';
+  2: import { useInsertStockEvent } from '@entities/bean-stock-event';
   3: import type { Bean } from '@shared/types/database.types';
-  4: import { Edit3, Trash2 } from 'lucide-react';
-  5: import { useState } from 'react';
-  6: import { DeleteBeanModal } from './DeleteBeanModal';
-  7: 
-  8: interface BeanDetailProps {
-  9:     bean: Bean | null;
- 10:     isLoading: boolean;
- 11:     onEdit: (bean: Bean) => void;
- 12:     onRestock: (id: string) => void;
- 13:     onStartRoast: () => void;
- 14:     onDelete: (id: string) => void;
- 15: }
- 16: 
- 17: const Skeleton = () => (
- 18:     <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-7">
- 19:         <div className="mb-6">
- 20:             <div className="w-50 h-8 rounded-lg bg-surface mb-2.5 animate-pulse" />
- 21:             <div className="flex gap-1.5">
- 22:                 <div className="w-15 h-5.5 rounded-full bg-surface animate-pulse" />
- 23:                 <div className="w-20 h-5.5 rounded-full bg-surface animate-pulse" />
- 24:             </div>
- 25:         </div>
- 26:         <div className="grid grid-cols-2 gap-4 mb-6">
- 27:             {Array.from({ length: 6 }).map((_, i) => (
- 28:                 <div key={i}>
- 29:                     <div className="w-12.5 h-2.5 rounded bg-surface mb-1.5 animate-pulse" />
- 30:                     <div className="w-25 h-3.5 rounded-md bg-surface animate-pulse" />
- 31:                 </div>
- 32:             ))}
- 33:         </div>
- 34:         <div className="h-1.5 rounded-full bg-surface mb-6 animate-pulse" />
- 35:         <div className="flex gap-2.5">
- 36:             <div className="flex-1 h-10 rounded-full bg-surface animate-pulse" />
- 37:             <div className="flex-1 h-10 rounded-full bg-surface animate-pulse" />
- 38:         </div>
- 39:     </div>
- 40: );
- 41: 
- 42: const Empty = ({ hasAny }: { hasAny: boolean }) => (
- 43:     <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex items-center justify-center text-sm text-muted dark:text-white tracking-[0.14px]">
- 44:         {hasAny ? 'Select a bean to view details' : 'Add your first bean lot to get started.'}
- 45:     </div>
- 46: );
- 47: 
- 48: export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, onDelete }: BeanDetailProps) => {
- 49:     const [confirming, setConfirming] = useState(false);
- 50:     const { data: summary } = useBeanStockSummary(bean?.id ?? '');
- 51:     const { data: events = [] } = useBeanStockEvents(bean?.id ?? '');
- 52: 
- 53:     if (isLoading) return <Skeleton />;
- 54:     if (!bean) return <Empty hasAny={false} />;
- 55: 
- 56:     const effectiveGrams = summary?.effectiveGrams ?? 0;
- 57:     const status = getStatus(effectiveGrams, bean.low_stock_threshold_grams);
- 58:     const cfg = statusConfig[status];
- 59: 
- 60:     return (
- 61:         <>
- 62:             <DeleteBeanModal
- 63:                 open={confirming}
- 64:                 beanName={bean.name}
- 65:                 onClose={() => setConfirming(false)}
- 66:                 onConfirm={() => {
- 67:                     onDelete(bean.id);
- 68:                     setConfirming(false);
- 69:                 }}
- 70:             />
- 71:             <div className="bg-main-bg rounded-lg px-8 py-7 h-fit relative dark:border dark:border-[#585d61]">
- 72:                 <div className="absolute top-6 right-6 flex gap-2 z-2">
- 73:                     <button
- 74:                         onClick={() => onEdit(bean)}
- 75:                         className="w-9 h-9 rounded-[10px] border border-black/6 bg-white text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
- 76:                     >
- 77:                         <Edit3 size={16} />
- 78:                     </button>
- 79:                     <button
- 80:                         onClick={() => setConfirming(true)}
- 81:                         className="w-9 h-9 rounded-[10px] border border-black/6 bg-white flex items-center justify-center cursor-pointer transition-all duration-200"
- 82:                         style={{ color: '#dc2626' }}
- 83:                     >
- 84:                         <Trash2 size={16} />
- 85:                     </button>
- 86:                 </div>
- 87: 
- 88:                 <div className="mb-6 pr-10">
- 89:                     <h2 className="font-(--font-display) text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
- 90:                         {bean.name}
- 91:                     </h2>
- 92:                     <div className="flex gap-1.5">
- 93:                         {bean.process && (
- 94:                             <span
- 95:                                 className="text-xs font-medium px-2.25 py-0.75 rounded-full tracking-[0.14px]"
- 96:                                 style={{
- 97:                                     color: processColor[bean.process]?.color ?? 'var(--color-secondary)',
- 98:                                     background: processColor[bean.process]?.bg ?? 'var(--color-surface)',
- 99:                                 }}
-100:                             >
-101:                                 {bean.process}
-102:                             </span>
-103:                         )}
-104:                         {bean.variety && (
-105:                             <span className="text-xs font-medium text-secondary bg-surface px-2.25 py-0.75 rounded-full">
-106:                                 {bean.variety}
-107:                             </span>
-108:                         )}
-109:                     </div>
-110:                 </div>
-111: 
-112:                 <div className="grid grid-cols-2 gap-4 mb-6">
-113:                     {[
-114:                         { label: 'Origin', value: bean.origin ?? '—' },
-115:                         { label: 'Region', value: bean.region ?? '—' },
-116:                         { label: 'Farm', value: bean.farm ?? '—' },
-117:                         {
-118:                             label: 'Altitude',
-119:                             value: bean.altitude_masl ? `${bean.altitude_masl.toLocaleString()} masl` : '—',
-120:                         },
-121:                         { label: 'Received', value: bean.purchase_date ?? '—' },
-122:                         { label: 'Current Stock', value: `${(effectiveGrams / 1000).toFixed(2)}kg` },
-123:                     ].map(({ label, value }) => (
-124:                         <div key={label}>
-125:                             <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-0.75">
-126:                                 {label}
-127:                             </div>
-128:                             <div className="text-sm font-medium text-primary tracking-[0.14px]">{value}</div>
-129:                         </div>
-130:                     ))}
-131:                 </div>
-132: 
-133:                 {bean.tasting_notes && (
-134:                     <div className="bg-surface-warm-solid rounded-lg px-4 py-3.5 mb-6">
-135:                         <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
-136:                             Tasting Notes
-137:                         </div>
-138:                         <div className="flex gap-1.5 flex-wrap">
-139:                             {bean.tasting_notes.split(', ').map((note) => (
-140:                                 <span
-141:                                     key={note}
-142:                                     className="text-xs font-medium text-secondary bg-white/70 px-2.5 py-1 rounded-full tracking-[0.14px]"
-143:                                 >
-144:                                     {note}
-145:                                 </span>
-146:                             ))}
-147:                         </div>
-148:                     </div>
-149:                 )}
-150: 
-151:                 <div className="mb-6">
-152:                     <div className="flex justify-between mb-1.5">
-153:                         <span className="text-xs font-medium text-secondary tracking-[0.14px]">Stock Level</span>
-154:                         <span className="text-xs text-muted font-mono">
-155:                             {(effectiveGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
-156:                         </span>
-157:                     </div>
-158:                     <div className="h-1.5 bg-surface rounded-full overflow-hidden">
-159:                         <div
-160:                             className="h-full rounded-full transition-all duration-500"
-161:                             style={{
-162:                                 width: `${Math.min(100, (effectiveGrams / bean.capacity_grams) * 100)}%`,
-163:                                 background: cfg.color,
-164:                             }}
-165:                         />
-166:                     </div>
-167:                 </div>
-168: 
-169:                 <div className="flex gap-2.5">
-170:                     <button
-171:                         onClick={onStartRoast}
-172:                         className="flex-1 py-2.5 rounded-full border border-gray-200 dark:border-[#585d61] dark:bg-[#1a1e23] bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
-173:                     >
-174:                         Start Roast
-175:                     </button>
-176:                     <button
-177:                         onClick={() => onRestock(bean.id)}
-178:                         className="flex-1 py-2.5 rounded-full border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
-179:                     >
-180:                         Restock
-181:                     </button>
-182:                 </div>
-183: 
-184:                 <div className="mt-6 space-y-3">
-185:                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
-186:                         <div className="bg-gray-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
-187:                             <p className="text-muted dark:text-muted">현재 재고</p>
-188:                             <p className="font-semibold text-primary dark:text-primary">
-189:                                 {summary?.currentGrams ?? 0}g
-190:                             </p>
-191:                         </div>
-192:                         <div className="bg-yellow-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
-193:                             <p className="text-muted dark:text-muted">예약됨</p>
-194:                             <p className="font-semibold text-palette-yellow">{summary?.reservedGrams ?? 0}g</p>
-195:                         </div>
-196:                         <div className="bg-green-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
-197:                             <p className="text-muted dark:text-muted">가용</p>
-198:                             <p
-199:                                 className={`font-semibold ${(summary?.effectiveGrams ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-palette-green'}`}
-200:                             >
-201:                                 {summary?.effectiveGrams ?? 0}g
-202:                             </p>
-203:                         </div>
-204:                     </div>
-205: 
-206:                     <p className="text-xs font-medium text-gray-500 dark:text-white mt-4">재고 이력</p>
-207:                     {events.length === 0 && <p className="text-xs text-gray-300 dark:text-white">이력 없음</p>}
-208:                     {events.map((ev) => (
-209:                         <div key={ev.id} className="flex items-start gap-3 text-xs">
-210:                             <span
-211:                                 className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
-212:                                     ev.delta_grams > 0 ? 'bg-palette-green' : 'bg-palette-purple'
-213:                                 }`}
-214:                             />
-215:                             <div className="flex-1">
-216:                                 <span className="font-medium">
-217:                                     {ev.delta_grams > 0 ? `+${ev.delta_grams}g` : `${ev.delta_grams}g`}
-218:                                 </span>
-219:                                 <span className="text-gray-400 dark:text-white ml-1">
-220:                                     {ev.event_type === 'purchase'
-221:                                         ? '입고'
-222:                                         : ev.event_type === 'roast'
-223:                                           ? '로스팅'
-224:                                           : '조정'}
-225:                                 </span>
-226:                                 {ev.note && <span className="text-gray-400 dark:text-white ml-1">— {ev.note}</span>}
-227:                             </div>
-228:                             <span className="text-gray-300 dark:text-white">
-229:                                 {new Date(ev.created_at).toLocaleDateString('ko-KR')}
-230:                             </span>
-231:                         </div>
-232:                     ))}
-233:                 </div>
-234:             </div>
-235:         </>
-236:     );
-237: };
+  4: 
+  5: export interface FormData {
+  6:     name: string;
+  7:     origin: string;
+  8:     region: string;
+  9:     farm: string;
+ 10:     process: string;
+ 11:     variety: string;
+ 12:     altitude: string;
+ 13:     stock: string;
+ 14:     capacity: string;
+ 15:     costPerKg: string;
+ 16:     tastingNotes: string;
+ 17: }
+ 18: 
+ 19: interface UseAddBeanSubmitParams {
+ 20:     userId: string;
+ 21:     tab: 'new' | 'restock' | 'edit' | 'adjust';
+ 22:     selectedBeanId: string | null;
+ 23:     restockAmount: string;
+ 24:     adjustType: 'adjustment' | 'write_off';
+ 25:     adjustSign: '+' | '-';
+ 26:     adjustAmount: string;
+ 27:     adjustNote: string;
+ 28:     existingBeans: Bean[];
+ 29:     initialData: Bean | null;
+ 30:     onSuccess?: (bean: Bean | null) => void;
+ 31:     onClose: () => void;
+ 32: }
+ 33: 
+ 34: export const useAddBeanSubmit = ({
+ 35:     userId,
+ 36:     tab,
+ 37:     selectedBeanId,
+ 38:     restockAmount,
+ 39:     adjustType,
+ 40:     adjustSign,
+ 41:     adjustAmount,
+ 42:     adjustNote,
+ 43:     existingBeans,
+ 44:     initialData,
+ 45:     onSuccess,
+ 46:     onClose,
+ 47: }: UseAddBeanSubmitParams) => {
+ 48:     const createBean = useCreateBean(userId);
+ 49:     const updateBean = useUpdateBean(userId);
+ 50:     const insertStockEvent = useInsertStockEvent();
+ 51: 
+ 52:     const isSubmitting = createBean.isPending || updateBean.isPending || insertStockEvent.isPending;
+ 53: 
+ 54:     const handleSubmit = async (formData: FormData) => {
+ 55:         if (isSubmitting) return;
+ 56:         try {
+ 57:             if (tab === 'new') {
+ 58:                 const stockGrams = Math.round(parseFloat(formData.stock) * 1000) || 0;
+ 59:                 const newBean = await createBean.mutateAsync({
+ 60:                     user_id: userId,
+ 61:                     name: formData.name,
+ 62:                     origin: formData.origin || null,
+ 63:                     region: formData.region || null,
+ 64:                     farm: formData.farm || null,
+ 65:                     process: formData.process || null,
+ 66:                     variety: formData.variety || null,
+ 67:                     altitude_masl: formData.altitude ? parseInt(formData.altitude, 10) : null,
+ 68:                     capacity_grams: Math.round(parseFloat(formData.capacity) * 1000) || 5000,
+ 69:                     cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg, 10) : null,
+ 70:                     tasting_notes: formData.tastingNotes || null,
+ 71:                     purchase_date: new Date().toISOString().split('T')[0],
+ 72:                 });
+ 73:                 if (stockGrams > 0) {
+ 74:                     await insertStockEvent.mutateAsync({
+ 75:                         user_id: userId,
+ 76:                         bean_id: newBean.id,
+ 77:                         delta_grams: stockGrams,
+ 78:                         event_type: 'purchase',
+ 79:                     });
+ 80:                 }
+ 81:                 onSuccess?.(newBean);
+ 82:             } else if (tab === 'edit' && initialData) {
+ 83:                 const updated = await updateBean.mutateAsync({
+ 84:                     id: initialData.id,
+ 85:                     name: formData.name,
+ 86:                     origin: formData.origin || null,
+ 87:                     region: formData.region || null,
+ 88:                     farm: formData.farm || null,
+ 89:                     process: formData.process || null,
+ 90:                     variety: formData.variety || null,
+ 91:                     altitude_masl: formData.altitude ? parseInt(formData.altitude, 10) : null,
+ 92:                     capacity_grams: Math.round(parseFloat(formData.capacity) * 1000) || 5000,
+ 93:                     cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg, 10) : null,
+ 94:                     tasting_notes: formData.tastingNotes || null,
+ 95:                 });
+ 96:                 onSuccess?.(updated);
+ 97:             } else if (tab === 'restock' && selectedBeanId && restockAmount) {
+ 98:                 const amount = Math.round(parseFloat(restockAmount) * 1000);
+ 99:                 if (!Number.isFinite(amount) || amount <= 0) return;
+100:                 const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
+101:                 await insertStockEvent.mutateAsync({
+102:                     user_id: userId,
+103:                     bean_id: selectedBeanId,
+104:                     delta_grams: amount,
+105:                     event_type: 'purchase',
+106:                 });
+107:                 onSuccess?.(currentBean ?? null);
+108:             } else if (tab === 'adjust' && selectedBeanId && adjustAmount) {
+109:                 const rawGrams = Math.round(parseFloat(adjustAmount) * 1000);
+110:                 if (!Number.isFinite(rawGrams) || rawGrams <= 0) return;
+111:                 const delta =
+112:                     adjustType === 'write_off' ? -Math.abs(rawGrams) : adjustSign === '+' ? rawGrams : -rawGrams;
+113:                 const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
+114:                 await insertStockEvent.mutateAsync({
+115:                     user_id: userId,
+116:                     bean_id: selectedBeanId,
+117:                     delta_grams: delta,
+118:                     event_type: adjustType,
+119:                     note: adjustNote || null,
+120:                 });
+121:                 onSuccess?.(currentBean ?? null);
+122:             }
+123:             onClose();
+124:         } catch (err) {
+125:             console.error('AddBeanModal submit error:', err);
+126:         }
+127:     };
+128: 
+129:     return { handleSubmit, isSubmitting };
+130: };
 </file>
 
 <file path="src/shared/i18n/locales/en.json">
@@ -29523,139 +29663,6 @@ This section contains the contents of the repository's files.
 731: };
 </file>
 
-<file path="src/widgets/add-bean-modal/ui/useAddBeanSubmit.ts">
-  1: import { useCreateBean, useUpdateBean } from '@entities/bean/queries';
-  2: import { useInsertStockEvent } from '@entities/bean-stock-event';
-  3: import type { Bean } from '@shared/types/database.types';
-  4: 
-  5: export interface FormData {
-  6:     name: string;
-  7:     origin: string;
-  8:     region: string;
-  9:     farm: string;
- 10:     process: string;
- 11:     variety: string;
- 12:     altitude: string;
- 13:     stock: string;
- 14:     capacity: string;
- 15:     costPerKg: string;
- 16:     tastingNotes: string;
- 17: }
- 18: 
- 19: interface UseAddBeanSubmitParams {
- 20:     userId: string;
- 21:     tab: 'new' | 'restock' | 'edit' | 'adjust';
- 22:     selectedBeanId: string | null;
- 23:     restockAmount: string;
- 24:     adjustType: 'adjustment' | 'write_off';
- 25:     adjustSign: '+' | '-';
- 26:     adjustAmount: string;
- 27:     adjustNote: string;
- 28:     existingBeans: Bean[];
- 29:     initialData: Bean | null;
- 30:     onSuccess?: (bean: Bean | null) => void;
- 31:     onClose: () => void;
- 32: }
- 33: 
- 34: export const useAddBeanSubmit = ({
- 35:     userId,
- 36:     tab,
- 37:     selectedBeanId,
- 38:     restockAmount,
- 39:     adjustType,
- 40:     adjustSign,
- 41:     adjustAmount,
- 42:     adjustNote,
- 43:     existingBeans,
- 44:     initialData,
- 45:     onSuccess,
- 46:     onClose,
- 47: }: UseAddBeanSubmitParams) => {
- 48:     const createBean = useCreateBean(userId);
- 49:     const updateBean = useUpdateBean(userId);
- 50:     const insertStockEvent = useInsertStockEvent();
- 51: 
- 52:     const isSubmitting = createBean.isPending || updateBean.isPending || insertStockEvent.isPending;
- 53: 
- 54:     const handleSubmit = async (formData: FormData) => {
- 55:         if (isSubmitting) return;
- 56:         try {
- 57:             if (tab === 'new') {
- 58:                 const stockGrams = Math.round(parseFloat(formData.stock) * 1000) || 0;
- 59:                 const newBean = await createBean.mutateAsync({
- 60:                     user_id: userId,
- 61:                     name: formData.name,
- 62:                     origin: formData.origin || null,
- 63:                     region: formData.region || null,
- 64:                     farm: formData.farm || null,
- 65:                     process: formData.process || null,
- 66:                     variety: formData.variety || null,
- 67:                     altitude_masl: formData.altitude ? parseInt(formData.altitude, 10) : null,
- 68:                     capacity_grams: Math.round(parseFloat(formData.capacity) * 1000) || 5000,
- 69:                     cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg, 10) : null,
- 70:                     tasting_notes: formData.tastingNotes || null,
- 71:                     purchase_date: new Date().toISOString().split('T')[0],
- 72:                 });
- 73:                 if (stockGrams > 0) {
- 74:                     await insertStockEvent.mutateAsync({
- 75:                         user_id: userId,
- 76:                         bean_id: newBean.id,
- 77:                         delta_grams: stockGrams,
- 78:                         event_type: 'purchase',
- 79:                     });
- 80:                 }
- 81:                 onSuccess?.(newBean);
- 82:             } else if (tab === 'edit' && initialData) {
- 83:                 const updated = await updateBean.mutateAsync({
- 84:                     id: initialData.id,
- 85:                     name: formData.name,
- 86:                     origin: formData.origin || null,
- 87:                     region: formData.region || null,
- 88:                     farm: formData.farm || null,
- 89:                     process: formData.process || null,
- 90:                     variety: formData.variety || null,
- 91:                     altitude_masl: formData.altitude ? parseInt(formData.altitude, 10) : null,
- 92:                     capacity_grams: Math.round(parseFloat(formData.capacity) * 1000) || 5000,
- 93:                     cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg, 10) : null,
- 94:                     tasting_notes: formData.tastingNotes || null,
- 95:                 });
- 96:                 onSuccess?.(updated);
- 97:             } else if (tab === 'restock' && selectedBeanId && restockAmount) {
- 98:                 const amount = Math.round(parseFloat(restockAmount) * 1000);
- 99:                 if (!Number.isFinite(amount) || amount <= 0) return;
-100:                 const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
-101:                 await insertStockEvent.mutateAsync({
-102:                     user_id: userId,
-103:                     bean_id: selectedBeanId,
-104:                     delta_grams: amount,
-105:                     event_type: 'purchase',
-106:                 });
-107:                 onSuccess?.(currentBean ?? null);
-108:             } else if (tab === 'adjust' && selectedBeanId && adjustAmount) {
-109:                 const rawGrams = Math.round(parseFloat(adjustAmount) * 1000);
-110:                 if (!Number.isFinite(rawGrams) || rawGrams <= 0) return;
-111:                 const delta =
-112:                     adjustType === 'write_off' ? -Math.abs(rawGrams) : adjustSign === '+' ? rawGrams : -rawGrams;
-113:                 const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
-114:                 await insertStockEvent.mutateAsync({
-115:                     user_id: userId,
-116:                     bean_id: selectedBeanId,
-117:                     delta_grams: delta,
-118:                     event_type: adjustType,
-119:                     note: adjustNote || null,
-120:                 });
-121:                 onSuccess?.(currentBean ?? null);
-122:             }
-123:             onClose();
-124:         } catch (err) {
-125:             console.error('AddBeanModal submit error:', err);
-126:         }
-127:     };
-128: 
-129:     return { handleSubmit, isSubmitting };
-130: };
-</file>
-
 <file path="src/App.tsx">
   1: import * as Sentry from '@sentry/react';
   2: import { supabase } from '@shared/lib/supabase';
@@ -30927,517 +30934,6 @@ This section contains the contents of the repository's files.
 273:         }
 274:     });
 275: }
-</file>
-
-<file path="src/shared/i18n/locales/ko.json">
-  1: {
-  2:     "common": {
-  3:         "cancel": "취소",
-  4:         "close": "닫기",
-  5:         "connected": "연결됨",
-  6:         "connecting": "연결 중...",
-  7:         "disconnected": "연결 안 됨",
-  8:         "live": "실시간",
-  9:         "offline": "오프라인"
- 10:     },
- 11:     "sidebar": {
- 12:         "roasteryDashboard": "로스터리 대시보드",
- 13:         "expand": "사이드바 열기",
- 14:         "collapse": "사이드바 닫기",
- 15:         "workspaceSelector": "워크스페이스 선택",
- 16:         "workspace": "워크스페이스",
- 17:         "settings": "설정",
- 18:         "workspacePreferences": "워크스페이스 환경설정",
- 19:         "nav": {
- 20:             "dashboard": "대시보드",
- 21:             "roast": "진행 중인 로스팅",
- 22:             "history": "로스팅 기록",
- 23:             "beans": "생두 재고",
- 24:             "profiles": "프로파일",
- 25:             "machines": "머신",
- 26:             "schedule": "로스팅 일정"
- 27:         }
- 28:     },
- 29:     "settings": {
- 30:         "title": "워크스페이스 설정",
- 31:         "close": "설정 닫기",
- 32:         "whyTitle": "설정에 있는 이유",
- 33:         "whyDescription": "이 항목들은 앱 전체 경험에 영향을 줍니다. 운영 데이터는 설정 화면을 가볍게 유지하기 위해 사이드바의 주요 화면에 둡니다.",
- 34:         "tabs": {
- 35:             "general": {
- 36:                 "label": "일반",
- 37:                 "title": "워크스페이스 환경설정",
- 38:                 "description": "로스터리 워크스페이스 전반에 적용되는 기본값을 관리합니다.",
- 39:                 "interfaceTitle": "인터페이스",
- 40:                 "interfaceDescription": "앱 전체에 적용되는 가벼운 환경설정입니다.",
- 41:                 "theme": "화면 모드",
- 42:                 "themeDescription": "앱 화면 스타일을 선택합니다. 시스템은 OS 설정을 따릅니다.",
- 43:                 "themeLight": "라이트",
- 44:                 "themeLightDescription": "밝고 깔끔한 화면",
- 45:                 "themeDark": "다크",
- 46:                 "themeDarkDescription": "눈이 편한 어두운 화면",
- 47:                 "themeSystem": "시스템",
- 48:                 "themeSystemDescription": "OS 설정 따르기",
- 49:                 "language": "언어",
- 50:                 "languageDescription": "앱 표시 언어를 선택합니다.",
- 51:                 "defaultLandingView": "기본 시작 화면",
- 52:                 "temperatureUnit": "온도 단위",
- 53:                 "weightUnit": "무게 단위",
- 54:                 "displayTitle": "표시 기본값",
- 55:                 "displayDescription": "대시보드와 내비게이션 동작을 세션 간 일관되게 유지합니다.",
- 56:                 "expandedSidebar": "기본으로 사이드바 열린 상태 유지",
- 57:                 "liveMetricsPanel": "실시간 지표 패널 표시",
- 58:                 "compactDataCards": "촘촘한 데이터 카드 사용"
- 59:             },
- 60:             "notifications": {
- 61:                 "label": "알림",
- 62:                 "title": "알림과 리마인더",
- 63:                 "description": "작업 화면을 방해하지 않으면서 필요한 메시지를 받습니다.",
- 64:                 "operationalTitle": "운영 알림",
- 65:                 "operationalDescription": "로스팅과 장비 모니터링 중 유용한 알림입니다.",
- 66:                 "milestoneAlerts": "로스팅 마일스톤 알림",
- 67:                 "disconnectWarning": "머신 연결 해제 경고",
- 68:                 "maintenanceReminder": "정비 리마인더",
- 69:                 "deliveryTitle": "알림 방식",
- 70:                 "deliveryDescription": "작업 중 알림을 표시하는 방식입니다.",
- 71:                 "bannerNotifications": "배너 알림",
- 72:                 "soundAlerts": "사운드 알림",
- 73:                 "highPriorityOnly": "높은 우선순위 알림만"
- 74:             },
- 75:             "session": {
- 76:                 "label": "세션",
- 77:                 "title": "로스팅 세션 동작",
- 78:                 "description": "각 로스팅 세션의 시작부터 종료까지 적용되는 작업 기본값입니다.",
- 79:                 "startTitle": "세션 시작",
- 80:                 "startDescription": "오퍼레이터가 빠르게 시작하도록 돕는 자동화입니다.",
- 81:                 "autoStartTimer": "로스팅 타이머 자동 시작",
- 82:                 "openActiveRoast": "진행 중 로스팅 화면 즉시 열기",
- 83:                 "confirmBeforeStart": "세션 시작 전 확인",
- 84:                 "endTitle": "세션 종료",
- 85:                 "endDescription": "요약과 최종 검토를 일관되게 유지합니다.",
- 86:                 "showSummary": "종료 후 로스팅 요약 표시",
- 87:                 "confirmDiscard": "세션 폐기 전 확인",
- 88:                 "keepNotesVisible": "로스팅 노트 계속 표시"
- 89:             },
- 90:             "system": {
- 91:                 "label": "시스템",
- 92:                 "title": "시스템과 데이터",
- 93:                 "description": "전역 앱 작업, 로컬 데이터 상태, 내보내기 관련 제어를 모읍니다.",
- 94:                 "dataTitle": "데이터 제어",
- 95:                 "dataDescription": "원두, 머신, 프로파일 화면에 직접 속하지 않는 워크스페이스 작업입니다.",
- 96:                 "exportWorkspace": "현재 워크스페이스 데이터 내보내기",
- 97:                 "backupSnapshot": "로컬 백업 스냅샷 생성",
- 98:                 "preserveLogs": "활동 로그 보존",
- 99:                 "environmentTitle": "환경",
-100:                 "environmentDescription": "앱 자체의 상태와 안전 관련 환경설정입니다.",
-101:                 "healthBadge": "연결 상태 배지 표시",
-102:                 "checkServices": "로컬 장치 서비스 확인",
-103:                 "confirmResets": "초기화 전 확인 요구"
-104:             }
-105:         }
-106:     },
-107:     "language": {
-108:         "ko": "한국어",
-109:         "en": "English",
-110:         "ja": "日本語",
-111:         "zh-CN": "简体中文"
-112:     },
-113:     "machines": {
-114:         "title": "머신 목록",
-115:         "registered": "{{count}}대 등록됨",
-116:         "connectedSuffix": "{{name}} 연결됨",
-117:         "noActiveConnection": "활성 연결 없음",
-118:         "addMachine": "머신 추가",
-119:         "empty": "아직 등록된 머신이 없습니다",
-120:         "addFirst": "첫 머신 추가",
-121:         "searchPlaceholder": "머신 검색...",
-122:         "removeMachine": "머신 제거",
-123:         "temperature": {
-124:             "bean": "원두 온도",
-125:             "environment": "환경 온도",
-126:             "ror": "RoR",
-127:             "rateOfRise": "상승률"
-128:         },
-129:         "notConnectedHint": "연결되어 있지 않습니다. 연결 버튼을 눌러 시작하세요.",
-130:         "connection": "연결",
-131:         "disconnect": "연결 해제",
-132:         "connect": "연결",
-133:         "startRoasting": "로스팅 시작",
-134:         "selectMachine": "머신을 선택하세요"
-135:     },
-136:     "addMachine": {
-137:         "onboarding": "머신 온보딩",
-138:         "title": "새 머신 추가",
-139:         "roasterModel": "로스터 모델",
-140:         "loadingRoasters": "로스터 불러오는 중...",
-141:         "selectPort": "포트 선택...",
-142:         "defaultPort": "기본값",
-143:         "selectRoaster": "로스터 선택...",
-144:         "connectionSettings": "연결 설정",
-145:         "fieldRequired": "{{field}}은(는) 필수입니다",
-146:         "failedToAdd": "머신 추가에 실패했습니다",
-147:         "connectionFailed": "연결에 실패했습니다",
-148:         "testConnection": "연결 테스트",
-149:         "testingConnection": "연결 테스트 중...",
-150:         "connectedWithBt": "연결됨 - BT {{bt}}°C",
-151:         "addOnly": "추가만 하기",
-152:         "addAndConnect": "추가 후 연결",
-153:         "adding": "추가 중...",
-154:         "phidgetDriverNotice": "해당 기기는 Phidget22 시스템 드라이버가 별도로 필요합니다.",
-155:         "phidgetDriverLink": "드라이버 설치 안내 보기"
-156:     },
-157:     "dashboard": {
-158:         "greeting": {
-159:             "morning": "Good morning",
-160:             "afternoon": "Good afternoon",
-161:             "evening": "Good evening"
-162:         },
-163:         "viewActiveRoast": "진행 중 로스팅 보기",
-164:         "kpi": {
-165:             "batchesThisMonth": "이번 달 배치",
-166:             "beansRoasted": "로스팅된 생두량",
-167:             "avgRoastTime": "평균 로스팅 시간",
-168:             "successRate": "성공률"
-169:         },
-170:         "recentSessions": "최근 세션",
-171:         "viewAll": "전체 보기",
-172:         "table": {
-173:             "date": "날짜",
-174:             "bean": "원두",
-175:             "profile": "프로파일",
-176:             "weight": "중량",
-177:             "dropTemp": "투하 온도",
-178:             "duration": "시간",
-179:             "level": "로스팅도"
-180:         },
-181:         "loading": "로딩 중...",
-182:         "noSessions": "아직 세션이 없습니다",
-183:         "monthlyBatches": "월별 배치",
-184:         "thisMonth": "이번 달",
-185:         "batches": "회",
-186:         "kgRoasted": "kg 로스팅",
-187:         "beanOrigins": "산지 수",
-188:         "upcomingBatches": "예정된 배치",
-189:         "noUpcoming": "예정된 배치가 없습니다",
-190:         "inventoryAlerts": "재고 알림",
-191:         "allStockOk": "모든 재고가 정상입니다",
-192:         "outOfStock": "품절",
-193:         "lowStock": "재고 부족",
-194:         "kgRemaining": "{{kg}}kg 남음",
-195:         "today": "오늘",
-196:         "batchCount": "{{count}}회"
-197:     },
-198:     "schedule": {
-199:         "dateFormat": "yyyy년 M월 d일 (eee)",
-200:         "monthFormat": "yyyy년 M월",
-201:         "viewToggle": {
-202:             "day": "일",
-203:             "week": "주",
-204:             "month": "월"
-205:         },
-206:         "today": "오늘",
-207:         "addBatch": "새 배치 추가",
-208:         "loading": "불러오는 중...",
-209:         "emptyState": {
-210:             "title": "오늘의 배치가 없습니다.\n새 배치를 추가하여 일정을 시작하세요.",
-211:             "action": "새 배치 추가"
-212:         },
-213:         "weekDay": {
-214:             "batchCount": "{{count}}개 배치"
-215:         },
-216:         "monthDay": {
-217:             "headers": ["월", "화", "수", "목", "금", "토", "일"]
-218:         },
-219:         "overflowMore": "+{{count}}개 더",
-220:         "status": {
-221:             "pending": "대기",
-222:             "inProgress": "진행중",
-223:             "inProgressWith": "진행중 {{progress}}",
-224:             "done": "완료",
-225:             "skipped": "건너뜀"
-226:         },
-227:         "start": "시작",
-228:         "detail": {
-229:             "target": "목표 {{kg}} kg",
-230:             "batch": "Batch {{kg}} kg",
-231:             "count": "{{count}}회"
-232:         },
-233:         "recurrence": {
-234:             "daily": "매일",
-235:             "weekly": "매주",
-236:             "biweekly": "격주",
-237:             "monthly": "매월",
-238:             "repeat": "반복",
-239:             "none": "없음"
-240:         },
-241:         "deleteConfirm": {
-242:             "single": "이 배치만 삭제하시겠습니까?",
-243:             "fromThis": "{{date}} 이후 모든 반복 배치를 삭제하시겠습니까?",
-244:             "all": "전체 반복 일정을 삭제하시겠습니까? 과거 기록은 유지됩니다.",
-245:             "batch": "\"{{name}}\" 배치를 삭제하시겠습니까?"
-246:         },
-247:         "error": {
-248:             "createRecurring": "반복 배치 추가 실패:",
-249:             "createBatch": "배치 추가 실패:"
-250:         },
-251:         "recurringEditScope": {
-252:             "title": "반복 일정 변경",
-253:             "recurringBatch": "{{recurrence}} 반복 중인 배치입니다.",
-254:             "single": {
-255:                 "title": "이 배치만",
-256:                 "description": "선택한 날짜의 배치만 수정됩니다. 나머지 일정은 유지됩니다."
-257:             },
-258:             "fromThis": {
-259:                 "title": "이 배치부터 이후 전체",
-260:                 "description": "선택한 날짜부터 이후의 모든 반복 일정이 변경됩니다."
-261:             },
-262:             "all": {
-263:                 "title": "전체 반복 일정",
-264:                 "description": "모든 반복 일정이 변경됩니다. 과거 기록은 유지됩니다."
-265:             },
-266:             "deleteSingle": "이 배치 삭제",
-267:             "deleteFromThis": "이후 전체 삭제",
-268:             "deleteAll": "전체 반복 삭제"
-269:         },
-270:         "recurringDeleteScope": {
-271:             "title": "반복 일정 삭제",
-272:             "recurringBatch": "{{recurrence}} 반복 중인 배치입니다.",
-273:             "single": {
-274:                 "title": "이 배치만 삭제",
-275:                 "description": "선택한 날짜의 배치만 삭제됩니다. 나머지 일정은 유지됩니다."
-276:             },
-277:             "fromThis": {
-278:                 "title": "이 배치부터 이후 전체 삭제",
-279:                 "description": "선택한 날짜부터 이후의 모든 반복 일정이 삭제됩니다."
-280:             },
-281:             "all": {
-282:                 "title": "전체 반복 일정 삭제",
-283:                 "description": "모든 반복 일정이 삭제됩니다. 과거 기록은 유지됩니다."
-284:             }
-285:         }
-286:     },
-287:     "addBatchModal": {
-288:         "batchType": {
-289:             "singleOrigin": "Single Origin",
-290:             "preRoastBlend": "Pre-roast Blend",
-291:             "postRoastBlend": "Post-roast Blend"
-292:         },
-293:         "type": "배치 타입",
-294:         "date": "날짜",
-295:         "machine": "머신",
-296:         "roastProfile": "로스트 프로파일",
-297:         "profilePlaceholder": "프로파일 선택...",
-298:         "greenCoffeeLot": "Green Coffee Lot",
-299:         "lotPlaceholder": "Lot 선택...",
-300:         "stock": "재고 {{kg}} kg",
-301:         "shortage": "재고 부족 — 가용 {{effective}}g / 필요 {{needed}}g",
-302:         "blend": "블렌드",
-303:         "blendPlaceholder": "블렌드 선택...",
-304:         "blendComposition": "{{count}}개 생두 구성",
-305:         "blendShortage": "{{name}}: 가용 {{effective}}g / 필요 {{needed}}g",
-306:         "targetRoasted": "목표 Roasted (kg)",
-307:         "batchSize": "Batch Size (kg)",
-308:         "yield": "Yield (%)",
-309:         "batches": "배치",
-310:         "greenNeeded": "Green 필요 (kg)",
-311:         "currentStock": "현재 재고:",
-312:         "needed": "/ 필요:",
-313:         "insufficientStock": "재고 부족",
-314:         "recurrence": "반복",
-315:         "none": "없음",
-316:         "notes": "메모 (Notes)",
-317:         "notesPlaceholder": "특이사항, 고객사용 등...",
-318:         "dateChanged": "{{date}}로 이동됩니다",
-319:         "cancel": "취소",
-320:         "saving": "저장 중...",
-321:         "save": "저장",
-322:         "addBatch": "배치 추가",
-323:         "editBatch": "배치 편집",
-324:         "saveFailed": "저장 실패:",
-325:         "unknown": "알 수 없음"
-326:     },
-327:     "months": ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
-328:     "history": {
-329:         "title": "Roast History",
-330:         "subtitle": "{{count}}회 기록됨",
-331:         "subtitleLoading": "불러오는 중...",
-332:         "loading": "불러오는 중...",
-333:         "error": "세션을 불러오지 못했습니다. 다시 시도해주세요.",
-334:         "noSessionsFound": "검색 결과가 없습니다",
-335:         "filteredFrom": " (전체 {{count}}개에서 필터링)",
-336:         "pagination": "{{start}}–{{end}} / 총 {{total}}",
-337:         "noNotes": "기록된 노트가 없습니다.",
-338:         "searchPlaceholder": "원두, 프로파일 또는 산지 검색...",
-339:         "allLevels": "로스팅 레벨",
-340:         "allOrigins": "산지",
-341:         "datePresets": {
-342:             "all": "기간",
-343:             "this-month": "이번 달",
-344:             "last-month": "지난 달",
-345:             "3-months": "최근 3개월",
-346:             "6-months": "최근 6개월",
-347:             "this-year": "올해",
-348:             "custom": "직접 설정",
-349:             "period": "기간"
-350:         },
-351:         "customRange": {
-352:             "start": "시작",
-353:             "end": "종료",
-354:             "year": "년도",
-355:             "month": "월",
-356:             "apply": "적용"
-357:         },
-358:         "expanded": {
-359:             "origin": "산지",
-360:             "dropTemp": "투하 온도",
-361:             "duration": "시간",
-362:             "notes": "노트"
-363:         },
-364:         "monthlyReport": "월간 보고서",
-365:         "exportCsv": "Export CSV",
-366:         "exportConfirm": "저장 위치: {{path}}\n{{count}}개 세션을 CSV로 내보내시겠습니까?",
-367:         "exportNoSessions": "내보낼 세션이 없습니다.",
-368:         "exportTitle": "First Crack",
-369:         "exportOkLabel": "내보내기",
-370:         "exportCancelLabel": "취소"
-371:     },
-372:     "beans": {
-373:         "title": "생두 재고",
-374:         "addBeanLot": "생두 로트 추가",
-375:         "addBean": "생두 추가",
-376:         "loading": "로딩 중…",
-377:         "tab": {
-378:             "single": "싱글 오리진",
-379:             "blend": "블렌드"
-380:         },
-381:         "empty": "등록된 생두가 없습니다",
-382:         "addFirst": "첫 생두를 추가해 시작하세요",
-383:         "blend": {
-384:             "empty": "등록된 블렌드가 없습니다",
-385:             "addBlendFirst": "첫 블렌드 레시피를 추가해 시작하세요",
-386:             "addBlend": "블렌드 추가",
-387:             "componentBeans": "구성 생두",
-388:             "selectBlend": "블렌드를 선택해 상세 정보를 확인하세요",
-389:             "summary_one": "생두 {{count}}종 · 총 {{total}}%",
-390:             "summary_other": "생두 {{count}}종 · 총 {{total}}%"
-391:         }
-392:     },
-393:     "activeRoast": {
-394:         "header": {
-395:             "noBeanSelected": "생두 미선택",
-396:             "target": "목표:",
-397:             "noTarget": "목표 없음",
-398:             "disconnected": "연결 안 됨",
-399:             "machineConnected": "머신 연결됨 · 로스팅 준비 완료",
-400:             "liveRoastInProgress": "실시간 — 로스팅 진행 중",
-401:             "mockRoastInProgress": "모의 — 로스팅 진행 중",
-402:             "roastComplete": "로스팅 완료",
-403:             "settings": "로스팅 설정",
-404:             "openSettings": "로스팅 설정 열기"
-405:         },
-406:         "readings": {
-407:             "beanTemp": "생두 온도",
-408:             "envTemp": "환경 온도",
-409:             "rateOfRise": "상승률",
-410:             "phase": "단계"
-411:         },
-412:         "controls": {
-413:             "heater": "히터",
-414:             "fan": "팬",
-415:             "drum": "드럼"
-416:         },
-417:         "sidebar": {
-418:             "time": "시간",
-419:             "bt": "BT",
-420:             "et": "ET",
-421:             "ror": "RoR",
-422:             "deltaBt": "ΔBT (30초)",
-423:             "deltaEt": "ΔET (30초)",
-424:             "dtr": "DTR"
-425:         },
-426:         "phase": {
-427:             "idle": "대기",
-428:             "preheating": "예열 중",
-429:             "ready": "준비 완료",
-430:             "drying": "건조",
-431:             "maillard": "마일라드",
-432:             "development": "발달"
-433:         },
-434:         "actions": {
-435:             "charge": "투입",
-436:             "yellow": "옐로잉",
-437:             "fcStart": "FC 시작",
-438:             "fcEnd": "FC 종료",
-439:             "markDrop": "배출 표시",
-440:             "end": "종료",
-441:             "endRoast": "로스팅 종료",
-442:             "roastReady": "로스팅 준비",
-443:             "roastComplete": "로스팅 완료",
-444:             "now": "지금",
-445:             "inProgress": "{{phase}} 진행 중",
-446:             "addNotePlaceholder": "메모 추가... (Enter로 저장)"
-447:         },
-448:         "shortcuts": {
-449:             "yellow": "⌘1",
-450:             "fcStart": "⌘2",
-451:             "fcEnd": "⌘3",
-452:             "markDrop": "⌘D"
-453:         },
-454:         "log": {
-455:             "title": "로스팅 로그",
-456:             "deleteNote": "메모 삭제"
-457:         },
-458:         "chart": {
-459:             "ariaLabel": "온도 곡선 차트. 휠 또는 +/- 로 확대/축소, 드래그 또는 좌우 화살표로 이동, 0으로 확대 초기화."
-460:         },
-461:         "dialogs": {
-462:             "machineRequiredTitle": "머신 연결 필요",
-463:             "machineRequiredMsg": "머신이 연결되어 있지 않습니다.",
-464:             "roastInProgressTitle": "로스팅 진행 중",
-465:             "roastInProgressMsg": "로스팅이 진행 중입니다. 정말 종료하시겠습니까?",
-466:             "saveFailedTitle": "저장 실패",
-467:             "saveFailedMsg": "로스팅 세션 저장에 실패했습니다.\n\n{{error}}",
-468:             "cancel": "취소",
-469:             "end": "종료"
-470:         },
-471:         "endRoastModal": {
-472:             "title": "로스팅 종료",
-473:             "description": "타이머가 {{time}}에서 멈추고 로스팅이 종료됩니다.",
-474:             "cancel": "취소",
-475:             "confirm": "로스팅 종료"
-476:         },
-477:         "summary": {
-478:             "title": "로스팅 완료",
-479:             "batchWeight": "배치 중량",
-480:             "finalBt": "최종 BT",
-481:             "totalTime": "총 시간",
-482:             "development": "발달",
-483:             "humidity": "습도",
-484:             "temperature": "온도",
-485:             "roastLevel": "로스팅도",
-486:             "levels": {
-487:                 "light": "라이트",
-488:                 "mediumLight": "미디엄 라이트",
-489:                 "medium": "미디엄",
-490:                 "mediumDark": "미디엄 다크",
-491:                 "dark": "다크"
-492:             },
-493:             "notes": "메모",
-494:             "notesPlaceholder": "향미 노트, 관찰 사항, 다음에 적용할 조정 사항...",
-495:             "log": "로그",
-496:             "discard": "저장 안 함",
-497:             "save": "저장",
-498:             "weightUnit": "g"
-499:         },
-500:         "planBatch": {
-501:             "allDone": "{{done}}/{{total}} 배치 완료",
-502:             "sessionsComplete": "세션 {{done}}/{{total}} 완료. 다음 세션을 시작할까요?",
-503:             "nextSession": "다음 세션",
-504:             "backToSchedule": "일정으로 돌아가기",
-505:             "doneForToday": "오늘 일정 완료"
-506:         }
-507:     }
-508: }
 </file>
 
 <file path="src/views/dashboard/Dashboard.tsx">
@@ -32751,6 +32247,517 @@ This section contains the contents of the repository's files.
 452:         if abs(denom) < 1e-9:
 453:             return 0.0
 454:         return (n * sxy - sx * sy) / denom
+</file>
+
+<file path="src/shared/i18n/locales/ko.json">
+  1: {
+  2:     "common": {
+  3:         "cancel": "취소",
+  4:         "close": "닫기",
+  5:         "connected": "연결됨",
+  6:         "connecting": "연결 중...",
+  7:         "disconnected": "연결 안 됨",
+  8:         "live": "실시간",
+  9:         "offline": "오프라인"
+ 10:     },
+ 11:     "sidebar": {
+ 12:         "roasteryDashboard": "로스터리 대시보드",
+ 13:         "expand": "사이드바 열기",
+ 14:         "collapse": "사이드바 닫기",
+ 15:         "workspaceSelector": "워크스페이스 선택",
+ 16:         "workspace": "워크스페이스",
+ 17:         "settings": "설정",
+ 18:         "workspacePreferences": "워크스페이스 환경설정",
+ 19:         "nav": {
+ 20:             "dashboard": "대시보드",
+ 21:             "roast": "진행 중인 로스팅",
+ 22:             "history": "로스팅 기록",
+ 23:             "beans": "생두 재고",
+ 24:             "profiles": "프로파일",
+ 25:             "machines": "머신",
+ 26:             "schedule": "로스팅 일정"
+ 27:         }
+ 28:     },
+ 29:     "settings": {
+ 30:         "title": "워크스페이스 설정",
+ 31:         "close": "설정 닫기",
+ 32:         "whyTitle": "설정에 있는 이유",
+ 33:         "whyDescription": "이 항목들은 앱 전체 경험에 영향을 줍니다. 운영 데이터는 설정 화면을 가볍게 유지하기 위해 사이드바의 주요 화면에 둡니다.",
+ 34:         "tabs": {
+ 35:             "general": {
+ 36:                 "label": "일반",
+ 37:                 "title": "워크스페이스 환경설정",
+ 38:                 "description": "로스터리 워크스페이스 전반에 적용되는 기본값을 관리합니다.",
+ 39:                 "interfaceTitle": "인터페이스",
+ 40:                 "interfaceDescription": "앱 전체에 적용되는 가벼운 환경설정입니다.",
+ 41:                 "theme": "화면 모드",
+ 42:                 "themeDescription": "앱 화면 스타일을 선택합니다. 시스템은 OS 설정을 따릅니다.",
+ 43:                 "themeLight": "라이트",
+ 44:                 "themeLightDescription": "밝고 깔끔한 화면",
+ 45:                 "themeDark": "다크",
+ 46:                 "themeDarkDescription": "눈이 편한 어두운 화면",
+ 47:                 "themeSystem": "시스템",
+ 48:                 "themeSystemDescription": "OS 설정 따르기",
+ 49:                 "language": "언어",
+ 50:                 "languageDescription": "앱 표시 언어를 선택합니다.",
+ 51:                 "defaultLandingView": "기본 시작 화면",
+ 52:                 "temperatureUnit": "온도 단위",
+ 53:                 "weightUnit": "무게 단위",
+ 54:                 "displayTitle": "표시 기본값",
+ 55:                 "displayDescription": "대시보드와 내비게이션 동작을 세션 간 일관되게 유지합니다.",
+ 56:                 "expandedSidebar": "기본으로 사이드바 열린 상태 유지",
+ 57:                 "liveMetricsPanel": "실시간 지표 패널 표시",
+ 58:                 "compactDataCards": "촘촘한 데이터 카드 사용"
+ 59:             },
+ 60:             "notifications": {
+ 61:                 "label": "알림",
+ 62:                 "title": "알림과 리마인더",
+ 63:                 "description": "작업 화면을 방해하지 않으면서 필요한 메시지를 받습니다.",
+ 64:                 "operationalTitle": "운영 알림",
+ 65:                 "operationalDescription": "로스팅과 장비 모니터링 중 유용한 알림입니다.",
+ 66:                 "milestoneAlerts": "로스팅 마일스톤 알림",
+ 67:                 "disconnectWarning": "머신 연결 해제 경고",
+ 68:                 "maintenanceReminder": "정비 리마인더",
+ 69:                 "deliveryTitle": "알림 방식",
+ 70:                 "deliveryDescription": "작업 중 알림을 표시하는 방식입니다.",
+ 71:                 "bannerNotifications": "배너 알림",
+ 72:                 "soundAlerts": "사운드 알림",
+ 73:                 "highPriorityOnly": "높은 우선순위 알림만"
+ 74:             },
+ 75:             "session": {
+ 76:                 "label": "세션",
+ 77:                 "title": "로스팅 세션 동작",
+ 78:                 "description": "각 로스팅 세션의 시작부터 종료까지 적용되는 작업 기본값입니다.",
+ 79:                 "startTitle": "세션 시작",
+ 80:                 "startDescription": "오퍼레이터가 빠르게 시작하도록 돕는 자동화입니다.",
+ 81:                 "autoStartTimer": "로스팅 타이머 자동 시작",
+ 82:                 "openActiveRoast": "진행 중 로스팅 화면 즉시 열기",
+ 83:                 "confirmBeforeStart": "세션 시작 전 확인",
+ 84:                 "endTitle": "세션 종료",
+ 85:                 "endDescription": "요약과 최종 검토를 일관되게 유지합니다.",
+ 86:                 "showSummary": "종료 후 로스팅 요약 표시",
+ 87:                 "confirmDiscard": "세션 폐기 전 확인",
+ 88:                 "keepNotesVisible": "로스팅 노트 계속 표시"
+ 89:             },
+ 90:             "system": {
+ 91:                 "label": "시스템",
+ 92:                 "title": "시스템과 데이터",
+ 93:                 "description": "전역 앱 작업, 로컬 데이터 상태, 내보내기 관련 제어를 모읍니다.",
+ 94:                 "dataTitle": "데이터 제어",
+ 95:                 "dataDescription": "원두, 머신, 프로파일 화면에 직접 속하지 않는 워크스페이스 작업입니다.",
+ 96:                 "exportWorkspace": "현재 워크스페이스 데이터 내보내기",
+ 97:                 "backupSnapshot": "로컬 백업 스냅샷 생성",
+ 98:                 "preserveLogs": "활동 로그 보존",
+ 99:                 "environmentTitle": "환경",
+100:                 "environmentDescription": "앱 자체의 상태와 안전 관련 환경설정입니다.",
+101:                 "healthBadge": "연결 상태 배지 표시",
+102:                 "checkServices": "로컬 장치 서비스 확인",
+103:                 "confirmResets": "초기화 전 확인 요구"
+104:             }
+105:         }
+106:     },
+107:     "language": {
+108:         "ko": "한국어",
+109:         "en": "English",
+110:         "ja": "日本語",
+111:         "zh-CN": "简体中文"
+112:     },
+113:     "machines": {
+114:         "title": "머신 목록",
+115:         "registered": "{{count}}대 등록됨",
+116:         "connectedSuffix": "{{name}} 연결됨",
+117:         "noActiveConnection": "활성 연결 없음",
+118:         "addMachine": "머신 추가",
+119:         "empty": "아직 등록된 머신이 없습니다",
+120:         "addFirst": "첫 머신 추가",
+121:         "searchPlaceholder": "머신 검색...",
+122:         "removeMachine": "머신 제거",
+123:         "temperature": {
+124:             "bean": "원두 온도",
+125:             "environment": "환경 온도",
+126:             "ror": "RoR",
+127:             "rateOfRise": "상승률"
+128:         },
+129:         "notConnectedHint": "연결되어 있지 않습니다. 연결 버튼을 눌러 시작하세요.",
+130:         "connection": "연결",
+131:         "disconnect": "연결 해제",
+132:         "connect": "연결",
+133:         "startRoasting": "로스팅 시작",
+134:         "selectMachine": "머신을 선택하세요"
+135:     },
+136:     "addMachine": {
+137:         "onboarding": "머신 온보딩",
+138:         "title": "새 머신 추가",
+139:         "roasterModel": "로스터 모델",
+140:         "loadingRoasters": "로스터 불러오는 중...",
+141:         "selectPort": "포트 선택...",
+142:         "defaultPort": "기본값",
+143:         "selectRoaster": "로스터 선택...",
+144:         "connectionSettings": "연결 설정",
+145:         "fieldRequired": "{{field}}은(는) 필수입니다",
+146:         "failedToAdd": "머신 추가에 실패했습니다",
+147:         "connectionFailed": "연결에 실패했습니다",
+148:         "testConnection": "연결 테스트",
+149:         "testingConnection": "연결 테스트 중...",
+150:         "connectedWithBt": "연결됨 - BT {{bt}}°C",
+151:         "addOnly": "추가만 하기",
+152:         "addAndConnect": "추가 후 연결",
+153:         "adding": "추가 중...",
+154:         "phidgetDriverNotice": "해당 기기는 Phidget22 시스템 드라이버가 별도로 필요합니다.",
+155:         "phidgetDriverLink": "드라이버 설치 안내 보기"
+156:     },
+157:     "dashboard": {
+158:         "greeting": {
+159:             "morning": "Good morning",
+160:             "afternoon": "Good afternoon",
+161:             "evening": "Good evening"
+162:         },
+163:         "viewActiveRoast": "진행 중 로스팅 보기",
+164:         "kpi": {
+165:             "batchesThisMonth": "이번 달 배치",
+166:             "beansRoasted": "로스팅된 생두량",
+167:             "avgRoastTime": "평균 로스팅 시간",
+168:             "successRate": "성공률"
+169:         },
+170:         "recentSessions": "최근 세션",
+171:         "viewAll": "전체 보기",
+172:         "table": {
+173:             "date": "날짜",
+174:             "bean": "원두",
+175:             "profile": "프로파일",
+176:             "weight": "중량",
+177:             "dropTemp": "투하 온도",
+178:             "duration": "시간",
+179:             "level": "로스팅도"
+180:         },
+181:         "loading": "로딩 중...",
+182:         "noSessions": "아직 세션이 없습니다",
+183:         "monthlyBatches": "월별 배치",
+184:         "thisMonth": "이번 달",
+185:         "batches": "회",
+186:         "kgRoasted": "kg 로스팅",
+187:         "beanOrigins": "산지 수",
+188:         "upcomingBatches": "예정된 배치",
+189:         "noUpcoming": "예정된 배치가 없습니다",
+190:         "inventoryAlerts": "재고 알림",
+191:         "allStockOk": "모든 재고가 정상입니다",
+192:         "outOfStock": "품절",
+193:         "lowStock": "재고 부족",
+194:         "kgRemaining": "{{kg}}kg 남음",
+195:         "today": "오늘",
+196:         "batchCount": "{{count}}회"
+197:     },
+198:     "schedule": {
+199:         "dateFormat": "yyyy년 M월 d일 (eee)",
+200:         "monthFormat": "yyyy년 M월",
+201:         "viewToggle": {
+202:             "day": "일",
+203:             "week": "주",
+204:             "month": "월"
+205:         },
+206:         "today": "오늘",
+207:         "addBatch": "새 배치 추가",
+208:         "loading": "불러오는 중...",
+209:         "emptyState": {
+210:             "title": "오늘의 배치가 없습니다.\n새 배치를 추가하여 일정을 시작하세요.",
+211:             "action": "새 배치 추가"
+212:         },
+213:         "weekDay": {
+214:             "batchCount": "{{count}}개 배치"
+215:         },
+216:         "monthDay": {
+217:             "headers": ["월", "화", "수", "목", "금", "토", "일"]
+218:         },
+219:         "overflowMore": "+{{count}}개 더",
+220:         "status": {
+221:             "pending": "대기",
+222:             "inProgress": "진행중",
+223:             "inProgressWith": "진행중 {{progress}}",
+224:             "done": "완료",
+225:             "skipped": "건너뜀"
+226:         },
+227:         "start": "시작",
+228:         "detail": {
+229:             "target": "목표 {{kg}} kg",
+230:             "batch": "Batch {{kg}} kg",
+231:             "count": "{{count}}회"
+232:         },
+233:         "recurrence": {
+234:             "daily": "매일",
+235:             "weekly": "매주",
+236:             "biweekly": "격주",
+237:             "monthly": "매월",
+238:             "repeat": "반복",
+239:             "none": "없음"
+240:         },
+241:         "deleteConfirm": {
+242:             "single": "이 배치만 삭제하시겠습니까?",
+243:             "fromThis": "{{date}} 이후 모든 반복 배치를 삭제하시겠습니까?",
+244:             "all": "전체 반복 일정을 삭제하시겠습니까? 과거 기록은 유지됩니다.",
+245:             "batch": "\"{{name}}\" 배치를 삭제하시겠습니까?"
+246:         },
+247:         "error": {
+248:             "createRecurring": "반복 배치 추가 실패:",
+249:             "createBatch": "배치 추가 실패:"
+250:         },
+251:         "recurringEditScope": {
+252:             "title": "반복 일정 변경",
+253:             "recurringBatch": "{{recurrence}} 반복 중인 배치입니다.",
+254:             "single": {
+255:                 "title": "이 배치만",
+256:                 "description": "선택한 날짜의 배치만 수정됩니다. 나머지 일정은 유지됩니다."
+257:             },
+258:             "fromThis": {
+259:                 "title": "이 배치부터 이후 전체",
+260:                 "description": "선택한 날짜부터 이후의 모든 반복 일정이 변경됩니다."
+261:             },
+262:             "all": {
+263:                 "title": "전체 반복 일정",
+264:                 "description": "모든 반복 일정이 변경됩니다. 과거 기록은 유지됩니다."
+265:             },
+266:             "deleteSingle": "이 배치 삭제",
+267:             "deleteFromThis": "이후 전체 삭제",
+268:             "deleteAll": "전체 반복 삭제"
+269:         },
+270:         "recurringDeleteScope": {
+271:             "title": "반복 일정 삭제",
+272:             "recurringBatch": "{{recurrence}} 반복 중인 배치입니다.",
+273:             "single": {
+274:                 "title": "이 배치만 삭제",
+275:                 "description": "선택한 날짜의 배치만 삭제됩니다. 나머지 일정은 유지됩니다."
+276:             },
+277:             "fromThis": {
+278:                 "title": "이 배치부터 이후 전체 삭제",
+279:                 "description": "선택한 날짜부터 이후의 모든 반복 일정이 삭제됩니다."
+280:             },
+281:             "all": {
+282:                 "title": "전체 반복 일정 삭제",
+283:                 "description": "모든 반복 일정이 삭제됩니다. 과거 기록은 유지됩니다."
+284:             }
+285:         }
+286:     },
+287:     "addBatchModal": {
+288:         "batchType": {
+289:             "singleOrigin": "Single Origin",
+290:             "preRoastBlend": "Pre-roast Blend",
+291:             "postRoastBlend": "Post-roast Blend"
+292:         },
+293:         "type": "배치 타입",
+294:         "date": "날짜",
+295:         "machine": "머신",
+296:         "roastProfile": "로스트 프로파일",
+297:         "profilePlaceholder": "프로파일 선택...",
+298:         "greenCoffeeLot": "Green Coffee Lot",
+299:         "lotPlaceholder": "Lot 선택...",
+300:         "stock": "재고 {{kg}} kg",
+301:         "shortage": "재고 부족 — 가용 {{effective}}g / 필요 {{needed}}g",
+302:         "blend": "블렌드",
+303:         "blendPlaceholder": "블렌드 선택...",
+304:         "blendComposition": "{{count}}개 생두 구성",
+305:         "blendShortage": "{{name}}: 가용 {{effective}}g / 필요 {{needed}}g",
+306:         "targetRoasted": "목표 Roasted (kg)",
+307:         "batchSize": "Batch Size (kg)",
+308:         "yield": "Yield (%)",
+309:         "batches": "배치",
+310:         "greenNeeded": "Green 필요 (kg)",
+311:         "currentStock": "현재 재고:",
+312:         "needed": "/ 필요:",
+313:         "insufficientStock": "재고 부족",
+314:         "recurrence": "반복",
+315:         "none": "없음",
+316:         "notes": "메모 (Notes)",
+317:         "notesPlaceholder": "특이사항, 고객사용 등...",
+318:         "dateChanged": "{{date}}로 이동됩니다",
+319:         "cancel": "취소",
+320:         "saving": "저장 중...",
+321:         "save": "저장",
+322:         "addBatch": "배치 추가",
+323:         "editBatch": "배치 편집",
+324:         "saveFailed": "저장 실패:",
+325:         "unknown": "알 수 없음"
+326:     },
+327:     "months": ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
+328:     "history": {
+329:         "title": "Roast History",
+330:         "subtitle": "{{count}}회 기록됨",
+331:         "subtitleLoading": "불러오는 중...",
+332:         "loading": "불러오는 중...",
+333:         "error": "세션을 불러오지 못했습니다. 다시 시도해주세요.",
+334:         "noSessionsFound": "검색 결과가 없습니다",
+335:         "filteredFrom": " (전체 {{count}}개에서 필터링)",
+336:         "pagination": "{{start}}–{{end}} / 총 {{total}}",
+337:         "noNotes": "기록된 노트가 없습니다.",
+338:         "searchPlaceholder": "원두, 프로파일 또는 산지 검색...",
+339:         "allLevels": "로스팅 레벨",
+340:         "allOrigins": "산지",
+341:         "datePresets": {
+342:             "all": "기간",
+343:             "this-month": "이번 달",
+344:             "last-month": "지난 달",
+345:             "3-months": "최근 3개월",
+346:             "6-months": "최근 6개월",
+347:             "this-year": "올해",
+348:             "custom": "직접 설정",
+349:             "period": "기간"
+350:         },
+351:         "customRange": {
+352:             "start": "시작",
+353:             "end": "종료",
+354:             "year": "년도",
+355:             "month": "월",
+356:             "apply": "적용"
+357:         },
+358:         "expanded": {
+359:             "origin": "산지",
+360:             "dropTemp": "투하 온도",
+361:             "duration": "시간",
+362:             "notes": "노트"
+363:         },
+364:         "monthlyReport": "월간 보고서",
+365:         "exportCsv": "Export CSV",
+366:         "exportConfirm": "저장 위치: {{path}}\n{{count}}개 세션을 CSV로 내보내시겠습니까?",
+367:         "exportNoSessions": "내보낼 세션이 없습니다.",
+368:         "exportTitle": "First Crack",
+369:         "exportOkLabel": "내보내기",
+370:         "exportCancelLabel": "취소"
+371:     },
+372:     "beans": {
+373:         "title": "생두 재고",
+374:         "addBeanLot": "생두 로트 추가",
+375:         "addBean": "생두 추가",
+376:         "loading": "로딩 중…",
+377:         "tab": {
+378:             "single": "싱글 오리진",
+379:             "blend": "블렌드"
+380:         },
+381:         "empty": "등록된 생두가 없습니다",
+382:         "addFirst": "첫 생두를 추가해 시작하세요",
+383:         "blend": {
+384:             "empty": "등록된 블렌드가 없습니다",
+385:             "addBlendFirst": "첫 블렌드 레시피를 추가해 시작하세요",
+386:             "addBlend": "블렌드 추가",
+387:             "componentBeans": "구성 생두",
+388:             "selectBlend": "블렌드를 선택해 상세 정보를 확인하세요",
+389:             "summary_one": "생두 {{count}}종 · 총 {{total}}%",
+390:             "summary_other": "생두 {{count}}종 · 총 {{total}}%"
+391:         }
+392:     },
+393:     "activeRoast": {
+394:         "header": {
+395:             "noBeanSelected": "생두 미선택",
+396:             "target": "목표:",
+397:             "noTarget": "목표 없음",
+398:             "disconnected": "연결 안 됨",
+399:             "machineConnected": "머신 연결됨 · 로스팅 준비 완료",
+400:             "liveRoastInProgress": "실시간 — 로스팅 진행 중",
+401:             "mockRoastInProgress": "모의 — 로스팅 진행 중",
+402:             "roastComplete": "로스팅 완료",
+403:             "settings": "로스팅 설정",
+404:             "openSettings": "로스팅 설정 열기"
+405:         },
+406:         "readings": {
+407:             "beanTemp": "생두 온도",
+408:             "envTemp": "환경 온도",
+409:             "rateOfRise": "상승률",
+410:             "phase": "단계"
+411:         },
+412:         "controls": {
+413:             "heater": "히터",
+414:             "fan": "팬",
+415:             "drum": "드럼"
+416:         },
+417:         "sidebar": {
+418:             "time": "시간",
+419:             "bt": "BT",
+420:             "et": "ET",
+421:             "ror": "RoR",
+422:             "deltaBt": "ΔBT (30초)",
+423:             "deltaEt": "ΔET (30초)",
+424:             "dtr": "DTR"
+425:         },
+426:         "phase": {
+427:             "idle": "대기",
+428:             "preheating": "예열 중",
+429:             "ready": "준비 완료",
+430:             "drying": "건조",
+431:             "maillard": "마일라드",
+432:             "development": "발달"
+433:         },
+434:         "actions": {
+435:             "charge": "투입",
+436:             "yellow": "옐로잉",
+437:             "fcStart": "FC 시작",
+438:             "fcEnd": "FC 종료",
+439:             "markDrop": "배출 표시",
+440:             "end": "종료",
+441:             "endRoast": "로스팅 종료",
+442:             "roastReady": "로스팅 준비",
+443:             "roastComplete": "로스팅 완료",
+444:             "now": "지금",
+445:             "inProgress": "{{phase}} 진행 중",
+446:             "addNotePlaceholder": "메모 추가... (Enter로 저장)"
+447:         },
+448:         "shortcuts": {
+449:             "yellow": "⌘1",
+450:             "fcStart": "⌘2",
+451:             "fcEnd": "⌘3",
+452:             "markDrop": "⌘D"
+453:         },
+454:         "log": {
+455:             "title": "로스팅 로그",
+456:             "deleteNote": "메모 삭제"
+457:         },
+458:         "chart": {
+459:             "ariaLabel": "온도 곡선 차트. 휠 또는 +/- 로 확대/축소, 드래그 또는 좌우 화살표로 이동, 0으로 확대 초기화."
+460:         },
+461:         "dialogs": {
+462:             "machineRequiredTitle": "머신 연결 필요",
+463:             "machineRequiredMsg": "머신이 연결되어 있지 않습니다.",
+464:             "roastInProgressTitle": "로스팅 진행 중",
+465:             "roastInProgressMsg": "로스팅이 진행 중입니다. 정말 종료하시겠습니까?",
+466:             "saveFailedTitle": "저장 실패",
+467:             "saveFailedMsg": "로스팅 세션 저장에 실패했습니다.\n\n{{error}}",
+468:             "cancel": "취소",
+469:             "end": "종료"
+470:         },
+471:         "endRoastModal": {
+472:             "title": "로스팅 종료",
+473:             "description": "타이머가 {{time}}에서 멈추고 로스팅이 종료됩니다.",
+474:             "cancel": "취소",
+475:             "confirm": "로스팅 종료"
+476:         },
+477:         "summary": {
+478:             "title": "로스팅 완료",
+479:             "batchWeight": "배치 중량",
+480:             "finalBt": "최종 BT",
+481:             "totalTime": "총 시간",
+482:             "development": "발달",
+483:             "humidity": "습도",
+484:             "temperature": "온도",
+485:             "roastLevel": "로스팅도",
+486:             "levels": {
+487:                 "light": "라이트",
+488:                 "mediumLight": "미디엄 라이트",
+489:                 "medium": "미디엄",
+490:                 "mediumDark": "미디엄 다크",
+491:                 "dark": "다크"
+492:             },
+493:             "notes": "메모",
+494:             "notesPlaceholder": "향미 노트, 관찰 사항, 다음에 적용할 조정 사항...",
+495:             "log": "로그",
+496:             "discard": "저장 안 함",
+497:             "save": "저장",
+498:             "weightUnit": "g"
+499:         },
+500:         "planBatch": {
+501:             "allDone": "{{done}}/{{total}} 배치 완료",
+502:             "sessionsComplete": "세션 {{done}}/{{total}} 완료. 다음 세션을 시작할까요?",
+503:             "nextSession": "다음 세션",
+504:             "backToSchedule": "일정으로 돌아가기",
+505:             "doneForToday": "오늘 일정 완료"
+506:         }
+507:     }
+508: }
 </file>
 
 <file path="src/widgets/active-roast/ui/RoastTempChart.tsx">
