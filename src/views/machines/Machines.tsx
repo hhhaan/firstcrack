@@ -1,5 +1,5 @@
-import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
-import { useMachines, VIRTUAL_ID } from '@entities/machine';
+import type { Machine, SidecarStatus, TemperatureReading } from '@entities/machine';
+import { isSameSidecarStatus, useMachines, VIRTUAL_ID } from '@entities/machine';
 import * as Sentry from '@sentry/react';
 import { sidecar } from '@shared/lib/sidecar';
 import type { View } from '@shared/types/view';
@@ -7,10 +7,11 @@ import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
-import { Activity, AlertCircle, Cpu, Flame, Plus, Search, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { useMachinesPageState } from '@widgets/add-machine-modal/model/useMachinesPageState';
+import { AddMachineModal } from '@widgets/add-machine-modal/ui/AddMachineModal';
+import { Activity, AlertCircle, Cpu, Flame, Pencil, Plus, Search, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AddMachineModal } from '../../widgets/add-machine-modal/ui/AddMachineModal';
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -22,44 +23,56 @@ export const Machines = ({
     onNavigate?: (view: View) => void;
 }) => {
     const { t } = useTranslation();
-    const { machines, addMachine, removeMachine } = useMachines();
+    const { machines, removeMachine } = useMachines();
     const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     const [sidecarStatus, setSidecarStatus] = useState<SidecarStatus | null>(null);
     const [temps, setTemps] = useState<TemperatureReading | null>(null);
     const [connecting, setConnecting] = useState(false);
 
+    const {
+        modalOpen,
+        editingMachine,
+        openAddModal,
+        openEditModal,
+        closeModal,
+        handleAdd,
+        handleEdit,
+        isThisMachineConnected,
+    } = useMachinesPageState({ sidecarStatus, setSidecarStatus, setTemps });
+
     // 마운트 시 & 모달 닫힐 때 status fetch — "Add & Connect" 흐름에서 연결 상태 즉시 반영
     useEffect(() => {
         if (!isActive) return;
-        if (!isAddModalOpen) {
+        if (!modalOpen) {
             sidecar
                 .getStatus()
                 .then(setSidecarStatus)
                 .catch(() => null);
         }
-    }, [isActive, isAddModalOpen]);
+    }, [isActive, modalOpen]);
 
     useEffect(() => {
-        if (!isActive || !sidecarStatus?.connected) {
-            setTemps(null);
+        if (!isActive || !sidecarStatus?.connected || modalOpen) {
+            if (!sidecarStatus?.connected) setTemps(null);
             return;
         }
 
         const poll = async () => {
-            const [t, s] = await Promise.all([
+            const [nextTemps, nextStatus] = await Promise.all([
                 sidecar.getTemperatures().catch(() => null),
                 sidecar.getStatus().catch(() => null),
             ]);
-            if (t) setTemps(t);
-            if (s) setSidecarStatus((prev) => (JSON.stringify(prev) === JSON.stringify(s) ? prev : s));
+            if (nextTemps) setTemps(nextTemps);
+            if (nextStatus) {
+                setSidecarStatus((prev) => (isSameSidecarStatus(prev, nextStatus) ? prev : nextStatus));
+            }
         };
         poll();
         const id = setInterval(poll, POLL_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [isActive, sidecarStatus?.connected]);
+    }, [isActive, sidecarStatus?.connected, modalOpen]);
 
     // 연결 상태가 바뀔 때만 자동 select — 사용자가 수동으로 다른 카드를 클릭할 수 있음
     useEffect(() => {
@@ -76,21 +89,6 @@ export const Machines = ({
     );
 
     const selected = machines.find((m) => m.id === selectedId) ?? null;
-    const isThisMachineConnected = (m: Machine) => sidecarStatus?.connected && sidecarStatus.roaster === m.roasterKey;
-
-    const handleAdd = (roasterKey: string, def: RoasterDef, params: Record<string, unknown>) => {
-        addMachine({
-            name: def.display_name,
-            roasterKey,
-            displayName: def.display_name,
-            brand: def.brand,
-            models: def.models,
-            protocol: def.protocol,
-            connectionParams: params,
-            capabilities: def.capabilities,
-            pid: def.pid,
-        });
-    };
 
     const handleConnect = async (machine: Machine) => {
         setConnecting(true);
@@ -153,7 +151,14 @@ export const Machines = ({
 
     return (
         <PageLayout>
-            <AddMachineModal open={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdd={handleAdd} />
+            <AddMachineModal
+                key={editingMachine?.id ?? 'new'}
+                open={modalOpen}
+                onClose={closeModal}
+                onAdd={handleAdd}
+                editing={editingMachine}
+                onEdit={handleEdit}
+            />
 
             <PageHeader
                 title="Machines"
@@ -163,7 +168,7 @@ export const Machines = ({
                         : ` · ${t('machines.noActiveConnection')}`
                 }`}
                 actions={
-                    <PillButton onClick={() => setIsAddModalOpen(true)}>
+                    <PillButton onClick={openAddModal}>
                         <Plus size={15} strokeWidth={2.5} />
                         {t('machines.addMachine')}
                     </PillButton>
@@ -175,7 +180,7 @@ export const Machines = ({
                     <Cpu size={32} strokeWidth={1.2} color="var(--color-muted)" className="mb-4 mx-auto" />
                     <p className="text-[15px] text-muted mb-5">{t('machines.empty')}</p>
                     <button
-                        onClick={() => setIsAddModalOpen(true)}
+                        onClick={openAddModal}
                         className="px-5 py-2.5 rounded-[10px] border-none bg-primary dark:bg-[#171717] text-white text-[13px] font-medium cursor-pointer"
                     >
                         {t('machines.addFirst')}
@@ -254,13 +259,22 @@ export const Machines = ({
                                     </div>
                                     <div className="flex gap-2">
                                         {selected.id !== VIRTUAL_ID && (
-                                            <button
-                                                onClick={() => removeMachine(selected.id)}
-                                                className="w-9 h-9 rounded-[10px] border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer"
-                                                title={t('machines.removeMachine')}
-                                            >
-                                                <Trash2 size={15} strokeWidth={2} />
-                                            </button>
+                                            <>
+                                                <button
+                                                    onClick={() => openEditModal(selected)}
+                                                    className="w-9 h-9 rounded-[10px] border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer"
+                                                    title={t('machines.editMachine')}
+                                                >
+                                                    <Pencil size={15} strokeWidth={2} />
+                                                </button>
+                                                <button
+                                                    onClick={() => removeMachine(selected.id)}
+                                                    className="w-9 h-9 rounded-[10px] border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer"
+                                                    title={t('machines.removeMachine')}
+                                                >
+                                                    <Trash2 size={15} strokeWidth={2} />
+                                                </button>
+                                            </>
                                         )}
                                     </div>
                                 </div>

@@ -1,17 +1,29 @@
-import type { RoasterDef, SerialPort } from '@entities/machine';
-import { ROASTER_REGISTRY } from '@entities/machine/roasterRegistry';
+import type { Machine, RoasterDef, SerialPort } from '@entities/machine';
+import {
+    buildTypedConnectionParams,
+    groupRoastersByBrand,
+    initRoasterFormParams,
+    isRoasterFieldVisible,
+    ROASTER_REGISTRY,
+    validateRoasterFormFields,
+} from '@entities/machine';
 import { cn } from '@shared/lib/cn';
+import { sidecar } from '@shared/lib/sidecar';
+import { useFormEscape } from '@shared/lib/useFormEscape';
+import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { ChevronDown, Cpu, Info, Loader, Radio, ShieldCheck, Wifi, WifiOff, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { sidecar } from '../../../shared/lib/sidecar';
-import { ModalShell } from '../../../shared/ui/modal-shell/ModalShell';
+
+type CommitAction = 'add' | 'addAndConnect' | 'save' | 'saveAndConnect';
 
 interface AddMachineModalProps {
     open: boolean;
     onClose: () => void;
     onAdd: (roasterKey: string, def: RoasterDef, params: Record<string, unknown>) => void;
+    editing?: Machine | null;
+    onEdit?: (id: string, params: Record<string, unknown>, keepConnection?: boolean) => Promise<void>;
 }
 
 const inputCls =
@@ -22,6 +34,10 @@ const badgeCls =
     'text-[11px] font-semibold text-secondary bg-white/80 dark:bg-surface-elevated px-2.5 py-0.5 rounded-full shadow-(--shadow-inset)';
 const secondaryBtnCls =
     'px-4 py-2.5 rounded-xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[13px] font-medium cursor-pointer shadow-(--shadow-inset) transition-colors';
+const primaryConnectBtnCls =
+    'flex items-center gap-1.5 px-5 py-2.5 rounded-xl border-none bg-green-600 dark:bg-green-700 text-white text-[13px] font-semibold shadow-[0_2px_8px_rgba(22,163,74,0.35)] transition-opacity';
+
+const ROASTERS_BY_BRAND = groupRoastersByBrand(ROASTER_REGISTRY);
 
 const ComportSelect = ({
     value,
@@ -61,7 +77,9 @@ const ComportSelect = ({
     );
 };
 
-export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) => {
+export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMachineModalProps) => {
+    const isEdit = !!editing;
+    const editingId = editing?.id;
     const { t } = useTranslation();
     const [selectedKey, setSelectedKey] = useState('');
     const [params, setParams] = useState<Record<string, string>>({});
@@ -75,10 +93,22 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
 
     const [serialPorts, setSerialPorts] = useState<SerialPort[]>([]);
 
+    const selectedDef = selectedKey ? ROASTER_REGISTRY[selectedKey] : null;
+
+    const handleClose = useCallback(async () => {
+        if (testConnectedRef.current) {
+            await sidecar.disconnect().catch(() => null);
+            testConnectedRef.current = false;
+        }
+        onClose();
+    }, [onClose]);
+
+    useFormEscape(open, () => {
+        void handleClose();
+    });
+
     useEffect(() => {
         if (!open) return;
-        setSelectedKey('');
-        setParams({});
         setError('');
         setTestState('idle');
         setTestMessage('');
@@ -89,80 +119,57 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
             .then((ports) => setSerialPorts(ports as SerialPort[]));
     }, [open]);
 
-    const handleClose = async () => {
-        if (testConnectedRef.current) {
-            await sidecar.disconnect().catch(() => null);
-            testConnectedRef.current = false;
-        }
-        onClose();
-    };
-
     useEffect(() => {
         if (!open) return;
-        const handler = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') handleClose();
-        };
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+        if (editingId && editing) {
+            setSelectedKey(editing.roasterKey);
+            const def = ROASTER_REGISTRY[editing.roasterKey];
+            if (def) setParams(initRoasterFormParams(def, editing.connectionParams));
+            return;
+        }
+        setSelectedKey('');
+        setParams({});
+    }, [open, editingId, editing]);
 
     useEffect(() => {
-        if (!selectedKey || !ROASTER_REGISTRY[selectedKey]) return;
+        if (!open || editingId || !selectedKey) return;
         const def = ROASTER_REGISTRY[selectedKey];
-        const initial: Record<string, string> = {};
-        for (const field of def.form_fields) {
-            const defaultVal = def.default_params[field.key];
-            initial[field.key] = defaultVal != null ? String(defaultVal) : '';
+        if (def) setParams(initRoasterFormParams(def));
+    }, [open, editingId, selectedKey]);
+
+    const commit = async (action: CommitAction) => {
+        if (!selectedDef || !selectedKey) return;
+        const missing = validateRoasterFormFields(selectedDef, params);
+        if (missing) {
+            setError(t('addMachine.fieldRequired', { field: missing }));
+            return;
         }
-        setParams(initial);
-    }, [selectedKey]);
 
-    if (!open) return null;
+        const keepTest = action === 'addAndConnect' || action === 'saveAndConnect';
+        const typed = buildTypedConnectionParams(selectedDef, params);
+        const isSave = action === 'save' || action === 'saveAndConnect';
 
-    const brands: Record<string, { key: string; def: RoasterDef }[]> = {};
-    for (const [key, def] of Object.entries(ROASTER_REGISTRY)) {
-        if (def.brand === 'Internal') continue;
-        if (!brands[def.brand]) brands[def.brand] = [];
-        brands[def.brand].push({ key, def });
-    }
+        if (isSave && (!editing || !onEdit)) return;
 
-    const selectedDef = selectedKey ? ROASTER_REGISTRY[selectedKey] : null;
-
-    const TCP_ONLY = new Set(['host', 'port']);
-    const RTU_ONLY = new Set(['comport', 'baudrate', 'bytesize', 'parity', 'stopbits']);
-
-    const isFieldVisible = (fieldKey: string): boolean => {
-        const mode = params.mode?.toLowerCase() ?? '';
-        if (!mode) return true;
-        const isTCP = mode === 'tcp' || mode === 'udp';
-        const isRTU = mode === 'rtu' || mode === 'serial';
-        if (TCP_ONLY.has(fieldKey) && isRTU) return false;
-        if (RTU_ONLY.has(fieldKey) && isTCP) return false;
-        return true;
-    };
-
-    const buildTypedParams = (): Record<string, unknown> => {
-        if (!selectedDef) return {};
-        const result: Record<string, unknown> = {};
-        for (const field of selectedDef.form_fields) {
-            if (!isFieldVisible(field.key)) continue;
-            const raw = params[field.key];
-            if (raw === '' || raw == null) continue;
-            result[field.key] = field.type === 'number' ? Number(raw) : raw;
-        }
-        return result;
-    };
-
-    const validateFields = (): boolean => {
-        if (!selectedKey || !selectedDef) return false;
-        for (const field of selectedDef.form_fields) {
-            if (!isFieldVisible(field.key)) continue;
-            if (field.required && !params[field.key]?.trim()) {
-                setError(t('addMachine.fieldRequired', { field: field.label }));
-                return false;
+        setSaving(true);
+        setError('');
+        try {
+            if (!keepTest && testConnectedRef.current) {
+                await sidecar.disconnect().catch(() => null);
+                testConnectedRef.current = false;
             }
+            if (isSave) {
+                await onEdit!(editing!.id, typed, keepTest);
+            } else {
+                onAdd(selectedKey, selectedDef, typed);
+                if (action === 'addAndConnect') testConnectedRef.current = false;
+            }
+            if (!keepTest) onClose();
+        } catch {
+            setError(t(isEdit ? 'addMachine.failedToSave' : 'addMachine.failedToAdd'));
+        } finally {
+            setSaving(false);
         }
-        return true;
     };
 
     const handleTestConnection = async () => {
@@ -177,7 +184,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
         setTestMessage('');
         setError('');
 
-        const typedParams = buildTypedParams();
+        const typedParams = buildTypedConnectionParams(selectedDef, params);
 
         try {
             const status = await sidecar.connect(selectedKey, typedParams);
@@ -198,51 +205,29 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
         }
     };
 
-    const handleAddAndConnect = () => {
-        if (!validateFields() || !selectedDef) return;
-        setSaving(true);
-        try {
-            onAdd(selectedKey, selectedDef, buildTypedParams());
-            testConnectedRef.current = false;
-            onClose();
-        } catch {
-            setError(t('addMachine.failedToAdd'));
-        } finally {
-            setSaving(false);
-        }
-    };
+    const successActions = useMemo(
+        () =>
+            isEdit
+                ? {
+                      secondary: { action: 'save' as const, label: t('addMachine.saveOnly') },
+                      primary: {
+                          action: 'saveAndConnect' as const,
+                          label: t('addMachine.saveAndConnect'),
+                          loading: t('addMachine.saving'),
+                      },
+                  }
+                : {
+                      secondary: { action: 'add' as const, label: t('addMachine.addOnly') },
+                      primary: {
+                          action: 'addAndConnect' as const,
+                          label: t('addMachine.addAndConnect'),
+                          loading: t('addMachine.adding'),
+                      },
+                  },
+        [isEdit, t],
+    );
 
-    const handleAddOnly = async () => {
-        if (!validateFields() || !selectedDef) return;
-        setSaving(true);
-        setError('');
-        try {
-            if (testConnectedRef.current) {
-                await sidecar.disconnect().catch(() => null);
-                testConnectedRef.current = false;
-            }
-            onAdd(selectedKey, selectedDef, buildTypedParams());
-            onClose();
-        } catch {
-            setError(t('addMachine.failedToAdd'));
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const handleSubmit = async () => {
-        if (!validateFields() || !selectedDef) return;
-        setSaving(true);
-        setError('');
-        try {
-            onAdd(selectedKey, selectedDef, buildTypedParams());
-            onClose();
-        } catch {
-            setError(t('addMachine.failedToAdd'));
-        } finally {
-            setSaving(false);
-        }
-    };
+    if (!open) return null;
 
     return (
         <ModalShell
@@ -259,19 +244,19 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                     <div>
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/80 dark:bg-surface-elevated text-secondary text-[11px] font-semibold tracking-[0.1px] mb-2.5 shadow-(--shadow-inset)">
                             <ShieldCheck size={13} strokeWidth={1.9} />
-                            {t('addMachine.onboarding')}
+                            {isEdit ? t('addMachine.connectionSettings') : t('addMachine.onboarding')}
                         </div>
                         <h2
                             id="add-machine-modal-title"
                             className="font-(--font-display) text-[26px] font-normal tracking-[-0.04em] text-primary m-0"
                         >
-                            {t('addMachine.title')}
+                            {isEdit ? t('addMachine.editTitle') : t('addMachine.title')}
                         </h2>
                     </div>
                 </div>
                 <button
                     type="button"
-                    onClick={handleClose}
+                    onClick={() => void handleClose()}
                     aria-label={t('common.close')}
                     className="w-[34px] h-[34px] rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer shrink-0 shadow-(--shadow-inset) transition-colors hover:text-primary"
                 >
@@ -285,12 +270,13 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                     <label className={labelCls}>{t('addMachine.roasterModel')}</label>
                     <div className="relative">
                         <select
-                            className={selectCls}
+                            className={cn(selectCls, isEdit && 'opacity-70 cursor-default')}
                             value={selectedKey}
                             onChange={(e) => setSelectedKey(e.target.value)}
+                            disabled={isEdit}
                         >
                             <option value="">{t('addMachine.selectRoaster')}</option>
-                            {Object.entries(brands)
+                            {Object.entries(ROASTERS_BY_BRAND)
                                 .sort(([a], [b]) => a.localeCompare(b))
                                 .map(([brand, items]) => (
                                     <optgroup key={brand} label={brand}>
@@ -355,7 +341,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                             </span>
                         </div>
                         {selectedDef.form_fields
-                            .filter((f) => isFieldVisible(f.key))
+                            .filter((f) => isRoasterFieldVisible(f.key, params.mode))
                             .map((field) => (
                                 <div key={field.key} className={field.key === 'mode' ? 'col-span-2' : ''}>
                                     <label className={labelCls}>
@@ -451,7 +437,7 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                     </button>
 
                     <div className="flex gap-2.5 items-center">
-                        <button type="button" onClick={handleClose} className={secondaryBtnCls}>
+                        <button type="button" onClick={() => void handleClose()} className={secondaryBtnCls}>
                             {t('common.cancel')}
                         </button>
 
@@ -459,29 +445,29 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                             <>
                                 <button
                                     type="button"
-                                    onClick={handleAddOnly}
+                                    onClick={() => void commit(successActions.secondary.action)}
                                     disabled={saving}
                                     className={cn(secondaryBtnCls, saving && 'opacity-70 cursor-default')}
                                 >
-                                    {t('addMachine.addOnly')}
+                                    {successActions.secondary.label}
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={handleAddAndConnect}
+                                    onClick={() => void commit(successActions.primary.action)}
                                     disabled={saving}
                                     className={cn(
-                                        'flex items-center gap-1.5 px-5 py-2.5 rounded-xl border-none bg-green-600 dark:bg-green-700 text-white text-[13px] font-semibold shadow-[0_2px_8px_rgba(22,163,74,0.35)] transition-opacity',
+                                        primaryConnectBtnCls,
                                         saving ? 'opacity-70 cursor-default' : 'cursor-pointer',
                                     )}
                                 >
                                     <Wifi size={14} strokeWidth={2.5} />
-                                    {saving ? t('addMachine.adding') : t('addMachine.addAndConnect')}
+                                    {saving ? successActions.primary.loading : successActions.primary.label}
                                 </button>
                             </>
                         ) : (
                             <button
                                 type="button"
-                                onClick={handleSubmit}
+                                onClick={() => void commit(isEdit ? 'save' : 'add')}
                                 disabled={!selectedKey || saving}
                                 className={cn(
                                     'px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-opacity',
@@ -491,7 +477,13 @@ export const AddMachineModal = ({ open, onClose, onAdd }: AddMachineModalProps) 
                                     saving && 'opacity-70',
                                 )}
                             >
-                                {saving ? t('addMachine.adding') : t('machines.addMachine')}
+                                {saving
+                                    ? isEdit
+                                        ? t('addMachine.saving')
+                                        : t('addMachine.adding')
+                                    : isEdit
+                                      ? t('addMachine.save')
+                                      : t('machines.addMachine')}
                             </button>
                         )}
                     </div>
