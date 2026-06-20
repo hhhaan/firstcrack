@@ -143,19 +143,18 @@ export const ActiveRoast = ({
         }
     }, [isActive]);
 
-    // planBatchHandoff 객체가 바뀔 때마다 bean/profile 적용 (같은 beanId여도 재발동)
+    // planBatchHandoff가 설정되고 로스트 화면이 활성화될 때 bean/profile 적용
     useEffect(() => {
-        if (!planBatchHandoff) return;
+        if (!isActive || !planBatchHandoff) return;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         if (planBatchHandoff.beanId) setSelectedBeanId(planBatchHandoff.beanId);
-        // beanId가 없어도 beanName은 폴백으로 저장 (미등록 원두 대응)
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setHandoffBeanName(planBatchHandoff.beanName || null);
         if (planBatchHandoff.profileId) {
             userSelectedTargetRef.current = true;
             setTargetProfileId(planBatchHandoff.profileId);
         }
-    }, [planBatchHandoff]);
+    }, [isActive, planBatchHandoff]);
 
     // ── 공유 ref (여러 훅·핸들러에서 참조) ───────────────────────
     /** Charge 순간의 Date.now() (ms). 0이면 로스팅 미시작 */

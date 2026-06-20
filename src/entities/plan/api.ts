@@ -365,11 +365,14 @@ export const planBatchApi = {
     },
 
     reorder: async (planId: string, orderedIds: string[]): Promise<void> => {
-        const updates = orderedIds.map((id, index) =>
-            supabase.from('roast_plan_batches').update({ order_index: index }).eq('id', id),
+        const updates = await Promise.all(
+            orderedIds.map((id, index) =>
+                supabase.from('roast_plan_batches').update({ order_index: index }).eq('id', id),
+            ),
         );
-        await Promise.all(updates);
-        // Invalidation handled by caller
+        for (const { error } of updates) {
+            if (error) throw error;
+        }
         void planId;
     },
 
@@ -554,7 +557,7 @@ export const planBatchApi = {
             }
         }
 
-        return result;
+        return result.sort((a, b) => a.order_index - b.order_index || a.bean_name.localeCompare(b.bean_name));
     },
 
     /**

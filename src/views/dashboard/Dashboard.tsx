@@ -1,5 +1,5 @@
 import { useRoastingStore } from '@features/active-roast';
-import { i18n } from '@shared/i18n';
+import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { useAuthStore } from '@shared/store/auth';
 import type { View } from '@shared/types/view';
 import { KpiCard } from '@shared/ui/KpiCard';
@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { format } from 'date-fns';
+import { enUS } from 'date-fns/locale';
+import type { MonthlyBatch } from './useDashboard';
 import { useDashboard } from './useDashboard';
 import { useWeather } from './useWeather';
 
@@ -26,7 +29,7 @@ interface DashboardProps {
 }
 
 interface BarCanvasProps {
-    data: { month: string; batches: number }[];
+    data: MonthlyBatch[];
 }
 
 const BarCanvas = ({ data }: BarCanvasProps) => {
@@ -34,6 +37,7 @@ const BarCanvas = ({ data }: BarCanvasProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const dfLocale = i18n.language === 'ko' ? enUS : getDateFnsLocale();
 
     const draw = (canvas: HTMLCanvasElement) => {
         const dpr = window.devicePixelRatio || 1;
@@ -100,7 +104,7 @@ const BarCanvas = ({ data }: BarCanvasProps) => {
             ctx.fill();
 
             ctx.fillStyle = colorMuted;
-            ctx.fillText(d.month.trim(), centerX, H - 6);
+            ctx.fillText(format(d.date, 'MMM', { locale: dfLocale }), centerX, H - 6);
         });
     };
 
@@ -113,8 +117,7 @@ const BarCanvas = ({ data }: BarCanvasProps) => {
         });
         obs.observe(canvas.parentElement!);
         return () => obs.disconnect();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data]);
+    }, [data, dfLocale]);
 
     const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
@@ -135,7 +138,7 @@ const BarCanvas = ({ data }: BarCanvasProps) => {
             return;
         }
 
-        tt.textContent = `${data[idx].month}: ${data[idx].batches} ${t('dashboard.batches')}`;
+        tt.textContent = `${format(data[idx].date, 'MMM', { locale: dfLocale })}: ${data[idx].batches} ${t('dashboard.batches')}`;
         tt.style.display = 'block';
         tt.style.left = `${e.clientX - rect.left + 10}px`;
         tt.style.top = `${e.clientY - rect.top - 30}px`;
@@ -484,6 +487,11 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                             ? t('dashboard.today')
                                             : item.date}{' '}
                                         · {item.status}
+                                        {item.stockShort && (
+                                            <span className="ml-1.5 text-amber-600 font-medium">
+                                                · {t('dashboard.upcomingStockShort')}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -525,6 +533,13 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                             {t('dashboard.kgRemaining', {
                                                 kg: (item.effectiveGrams / 1000).toFixed(2),
                                             })}
+                                            {item.effectiveGrams < 0 && (
+                                                <span className="block text-amber-600 mt-0.5">
+                                                    {t('dashboard.scheduleReservedShortfall', {
+                                                        kg: (Math.abs(item.effectiveGrams) / 1000).toFixed(2),
+                                                    })}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     <span

@@ -1,10 +1,13 @@
 import { beanStockEventApi } from '@entities/bean-stock-event';
+import { planBatchApi } from '@entities/plan';
+import { isBatchStockShort } from '@shared/lib/batch-stock';
 import { supabase } from '@shared/lib/supabase';
 import type { Bean, RoastSessionWithRelations } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
+import { addDays, format } from 'date-fns';
 
 export interface MonthlyBatch {
-    month: string;
+    date: Date;
     batches: number;
 }
 
@@ -15,6 +18,8 @@ export interface UpcomingBatch {
     target_roasted_kg: number;
     status: string;
     date: string;
+    isRecurring: boolean;
+    stockShort: boolean;
 }
 
 export interface InventoryAlert {
@@ -39,9 +44,6 @@ export interface DashboardData {
     loading: boolean;
     error: string | null;
 }
-
-const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'loading' | 'error'>> => {
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
@@ -49,7 +51,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
 
-    const [completedRes, upcomingPlansRes, alertsRes, stockSummaries, monthlyRes] = await Promise.all([
+    const [completedRes, alertsRes, stockSummaries, monthlyRes] = await Promise.all([
         supabase
             .from('roast_sessions')
             .select('*, beans(name, origin), roast_profiles!profile_id(name, target_level)')
@@ -57,14 +59,6 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
             .eq('status', 'completed')
             .gte('roasted_at', lastMonthStart)
             .order('roasted_at', { ascending: false }),
-
-        supabase
-            .from('roast_day_plans')
-            .select('id, date')
-            .eq('user_id', userId)
-            .gte('date', today)
-            .order('date')
-            .limit(14),
 
         // 전체 가져와서 클라이언트에서 필터 (PostgREST는 컬럼 간 비교 미지원)
         supabase.from('beans').select('*').eq('user_id', userId),
@@ -82,35 +76,38 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     ]);
 
     if (completedRes.error) throw completedRes.error;
-    if (upcomingPlansRes.error) throw upcomingPlansRes.error;
     if (alertsRes.error) throw alertsRes.error;
     if (monthlyRes.error) throw monthlyRes.error;
 
-    let upcomingBatches: UpcomingBatch[] = [];
-    if (upcomingPlansRes.data && upcomingPlansRes.data.length > 0) {
-        const planIds = upcomingPlansRes.data.map((p) => p.id);
-        const planDateMap = new Map(upcomingPlansRes.data.map((p) => [p.id, p.date]));
-        const { data: batchData } = await supabase
-            .from('roast_plan_batches')
-            .select('id, plan_id, bean_name, batch_count, target_roasted_kg, status, order_index')
-            .in('plan_id', planIds)
-            .in('status', ['pending', 'in-progress'])
-            .order('order_index')
-            .limit(5);
-        upcomingBatches = (batchData ?? [])
-            .map((b) => ({
+    const horizonEnd = format(addDays(now, 14), 'yyyy-MM-dd');
+    const rangeBatches = await planBatchApi.listForDateRange(userId, today, horizonEnd);
+    const upcomingBatches: UpcomingBatch[] = rangeBatches
+        .filter((b) => {
+            if (b.status === 'done' || b.status === 'skipped') return false;
+            if (b.completed_sessions >= b.batch_count) return false;
+            return true;
+        })
+        .sort(
+            (a, b) =>
+                (a.scheduled_date ?? today).localeCompare(b.scheduled_date ?? today) ||
+                a.order_index - b.order_index,
+        )
+        .slice(0, 5)
+        .map((b) => {
+            const beanId = b.bean_id ?? '';
+            const effectiveGrams = beanId ? (stockSummaries?.[beanId]?.effectiveGrams ?? 0) : 0;
+            const recurring = !!b.recurrence_rule_id;
+            return {
                 id: b.id,
                 bean_name: b.bean_name,
                 batch_count: b.batch_count,
                 target_roasted_kg: b.target_roasted_kg,
                 status: b.status,
-                date: planDateMap.get(b.plan_id) ?? today,
-                order_index: b.order_index,
-            }))
-            .sort((a, b) => a.date.localeCompare(b.date) || a.order_index - b.order_index)
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            .map(({ order_index: _, ...rest }) => rest);
-    }
+                date: b.scheduled_date ?? today,
+                isRecurring: recurring,
+                stockShort: recurring && isBatchStockShort(b, effectiveGrams),
+            };
+        });
 
     const completed = completedRes.data as RoastSessionWithRelations[];
     const thisMonth = completed.filter((s) => s.roasted_at! >= thisMonthStart);
@@ -134,8 +131,8 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     }
     const monthlyBatches: MonthlyBatch[] = Array.from(monthlyMap.entries()).map(([key, batches]) => {
         const [year, month] = key.split('-').map(Number);
-        return { month: MONTH_LABELS[month], batches, year, _month: month };
-    }) as MonthlyBatch[];
+        return { date: new Date(year, month, 1), batches };
+    });
 
     const allBeans = (alertsRes.data ?? []) as Bean[];
     const inventoryAlerts: InventoryAlert[] = allBeans

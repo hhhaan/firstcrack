@@ -190,6 +190,8 @@
         "outOfStock": "Out of Stock",
         "lowStock": "Low Stock",
         "kgRemaining": "{{kg}}kg remaining",
+        "scheduleReservedShortfall": "{{kg}}kg short after scheduled reservations",
+        "upcomingStockShort": "Possible stock shortage",
         "today": "Today",
         "batchCount": "{{count}}x"
     },
@@ -361,6 +363,8 @@
             "skipped": "Skipped"
         },
         "start": "Start",
+        "reorderDisabledRecurring": "Recurring batches cannot be reordered",
+        "stockShortRecurring": "Green stock may be insufficient for reservations (need {{needed}}kg / available {{available}}kg)",
         "detail": {
             "target": "Target {{kg}} kg",
             "batch": "Batch {{kg}} kg",
@@ -447,6 +451,7 @@
         "currentStock": "Current stock:",
         "needed": "/ needed:",
         "insufficientStock": "Insufficient stock",
+        "recurringStockShort": "Estimated green needed for the next 4 weeks: {{needed}}kg — available {{available}}kg (may be insufficient)",
         "recurrence": "Repeat",
         "none": "None",
         "notes": "Notes",

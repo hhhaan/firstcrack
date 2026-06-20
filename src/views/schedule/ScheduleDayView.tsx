@@ -57,6 +57,8 @@ export const ScheduleDayView = ({
                                 batch={batch}
                                 index={index}
                                 total={hooks.batches.length}
+                                stockShort={hooks.isRecurringStockShort(batch)}
+                                stockShortDetail={hooks.recurringStockShortDetail(batch)}
                                 onMove={(dir) => hooks.handleMove(index, dir)}
                                 onDelete={() => hooks.handleBatchDelete(batch)}
                                 onStart={() => hooks.handleStart(batch)}
@@ -101,7 +103,7 @@ export const ScheduleDayView = ({
 
             <AddBatchModal
                 key={String(hooks.isAddModalOpen) + (hooks.editingBatch?.id ?? '') + (hooks.editScope ?? '')}
-                open={hooks.isAddModalOpen || (hooks.editingBatch !== null && hooks.editScope !== null)}
+                open={hooks.isAddModalOpen || hooks.editingBatch !== null}
                 onClose={() => {
                     hooks.setIsAddModalOpen(false);
                     hooks.setEditingBatch(null);

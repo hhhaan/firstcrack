@@ -13,14 +13,16 @@ import {
     useUpdateFromThis,
     useUpdateSingleBatch,
 } from '@entities/plan';
+import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { buildRRule } from '@shared/lib/rrule';
+import { batchGreenNeededGrams, isBatchStockShort } from '@shared/lib/batch-stock';
 import type { PlanBatchHandoff, PlanBatchInsert, PlanBatchWithProgress } from '@shared/types/database.types';
 import type { NewBatchData } from '@widgets/add-batch-modal';
 import type { EditScope } from '@widgets/recurring-edit-scope-modal';
 import { format } from 'date-fns';
 import { useCallback, useState } from 'react';
-import { toDateKey } from '../lib';
+import { toDateKey, isVirtualPlanBatch } from '../lib';
 
 export const useScheduleDayView = ({
     userId,
@@ -43,12 +45,13 @@ export const useScheduleDayView = ({
     const planId = dayPlan?.id ?? '';
 
     const { data: batches = [], isLoading: isBatchesLoading } = useDayBatches(userId, dateKey);
+    const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
     const isLoading = isDayPlanLoading || isBatchesLoading;
 
-    const createBatch = useCreatePlanBatch(planId);
-    const reorderBatches = useReorderPlanBatches(planId);
+    const createBatch = useCreatePlanBatch(planId, userId, dateKey);
+    const reorderBatches = useReorderPlanBatches({ userId, date: dateKey, planId });
     const createRecurringBatches = useCreateRecurringBatches(userId, planId);
-    const deleteSingleBatch = useDeleteSingleBatch();
+    const deleteSingleBatch = useDeleteSingleBatch({ userId, date: dateKey });
     const deleteFromThis = useDeleteFromThis();
     const deleteAllBatches = useDeleteAllBatches();
     const updateSingleBatch = useUpdateSingleBatch();
@@ -268,6 +271,9 @@ export const useScheduleDayView = ({
 
     const handleMove = useCallback(
         (index: number, dir: 'up' | 'down') => {
+            const batch = batches[index];
+            if (batch?.recurrence_rule_id) return;
+
             const next = [...batches];
             const swapWith = dir === 'up' ? index - 1 : index + 1;
             [next[index], next[swapWith]] = [next[swapWith], next[index]];
@@ -280,29 +286,39 @@ export const useScheduleDayView = ({
         async (batch: PlanBatchWithProgress) => {
             let targetId = batch.id;
             let targetPlanId = batch.plan_id;
+            let handoffBeanId = batch.bean_id;
+            let handoffBlendId = batch.blend_id ?? null;
+            let handoffProfileId = batch.roast_profile_id;
 
-            if (!batch.plan_id && batch.recurrence_rule_id && batch.scheduled_date) {
+            const materializePatch = {
+                bean_name: batch.bean_name,
+                batch_size_kg: Number(batch.batch_size_kg),
+                target_roasted_kg: Number(batch.target_roasted_kg),
+                machine_id: batch.machine_id,
+                bean_id: batch.bean_id,
+                blend_id: batch.blend_id ?? null,
+                roast_profile_id: batch.roast_profile_id,
+                notes: batch.notes,
+                green_lot: batch.green_lot,
+                batch_type: batch.batch_type,
+                yield_pct: batch.yield_pct,
+                status: 'in-progress' as const,
+            };
+
+            if (isVirtualPlanBatch(batch) && batch.recurrence_rule_id && batch.scheduled_date) {
                 try {
                     const realBatch = await planBatchApi.materialize(
                         userId,
                         batch.recurrence_rule_id,
                         batch.scheduled_date,
                         batch.original_date ?? batch.scheduled_date,
-                        {
-                            bean_name: batch.bean_name,
-                            batch_size_kg: Number(batch.batch_size_kg),
-                            target_roasted_kg: Number(batch.target_roasted_kg),
-                            machine_id: batch.machine_id,
-                            bean_id: batch.bean_id,
-                            roast_profile_id: batch.roast_profile_id,
-                            notes: batch.notes,
-                            green_lot: batch.green_lot,
-                            batch_type: batch.batch_type,
-                            status: 'in-progress',
-                        },
+                        materializePatch,
                     );
                     targetId = realBatch.id;
                     targetPlanId = realBatch.plan_id;
+                    handoffBeanId = realBatch.bean_id ?? batch.bean_id;
+                    handoffBlendId = realBatch.blend_id ?? batch.blend_id ?? null;
+                    handoffProfileId = realBatch.roast_profile_id ?? batch.roast_profile_id;
                 } catch (err) {
                     console.error('[Schedule] materialize failed:', err);
                     return;
@@ -314,6 +330,20 @@ export const useScheduleDayView = ({
                         id: batch.id,
                         plan_id: batch.plan_id,
                         status: 'in-progress',
+                        ...(batch.recurrence_rule_id
+                            ? {
+                                  bean_id: batch.bean_id,
+                                  blend_id: batch.blend_id ?? null,
+                                  bean_name: batch.bean_name,
+                                  roast_profile_id: batch.roast_profile_id,
+                                  batch_size_kg: batch.batch_size_kg,
+                                  target_roasted_kg: batch.target_roasted_kg,
+                                  yield_pct: batch.yield_pct,
+                                  notes: batch.notes,
+                                  green_lot: batch.green_lot,
+                                  batch_type: batch.batch_type,
+                              }
+                            : {}),
                     },
                     ...(batch.recurrence_rule_id && batch.original_date
                         ? {
@@ -329,16 +359,34 @@ export const useScheduleDayView = ({
             onStartBatch({
                 planBatchId: targetId,
                 planId: targetPlanId,
-                beanId: batch.bean_id,
-                blendId: (batch as PlanBatchWithProgress & { blend_id?: string | null }).blend_id ?? null,
+                beanId: handoffBeanId,
+                blendId: handoffBlendId,
                 beanName: batch.bean_name,
                 batchSizeKg: Number(batch.batch_size_kg),
-                profileId: batch.roast_profile_id,
+                profileId: handoffProfileId,
                 batchCount: batch.batch_count,
                 completedSessions: batch.completed_sessions,
             });
         },
         [updateSingleBatch, onStartBatch, userId],
+    );
+
+    const isRecurringStockShort = useCallback(
+        (batch: PlanBatchWithProgress) => {
+            if (!batch.recurrence_rule_id || !batch.bean_id) return false;
+            return isBatchStockShort(batch, stockSummaries[batch.bean_id]?.effectiveGrams);
+        },
+        [stockSummaries],
+    );
+
+    const recurringStockShortDetail = useCallback(
+        (batch: PlanBatchWithProgress) => {
+            if (!batch.bean_id) return null;
+            const neededKg = (batchGreenNeededGrams(batch) / 1000).toFixed(1);
+            const availableKg = ((stockSummaries[batch.bean_id]?.effectiveGrams ?? 0) / 1000).toFixed(1);
+            return { neededKg, availableKg };
+        },
+        [stockSummaries],
     );
 
     return {
@@ -363,5 +411,7 @@ export const useScheduleDayView = ({
         handleBatchDelete,
         handleEditScopeConfirm,
         handleDeleteScopeConfirm,
+        isRecurringStockShort,
+        recurringStockShortDetail,
     };
 };

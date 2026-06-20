@@ -20,7 +20,10 @@ export const batchStatus = (b: PlanBatchWithProgress): BatchStatus => {
     return 'pending';
 };
 
-/** Map RRule string to human-readable label */
+/** Virtual recurring instance — computed at render time, not a DB row (id is `ruleId:originalDate`). */
+export const isVirtualPlanBatch = (batch: PlanBatchWithProgress): boolean =>
+    Boolean(batch.recurrence_rule_id && batch.id.includes(':'));
+
 export const getRecurrenceLabel = (rrule: string | null): string => {
     if (!rrule) return '';
     if (rrule.includes('FREQ=DAILY')) return 'daily';

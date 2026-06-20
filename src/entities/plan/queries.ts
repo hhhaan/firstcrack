@@ -26,6 +26,43 @@ const invalidateScheduledBatchQueries = (qc: QueryClient) => {
     qc.invalidateQueries({ queryKey: ['month_summary'] });
 };
 
+const patchDayBatchesCache = (
+    qc: QueryClient,
+    userId: string,
+    date: string,
+    updater: (prev: PlanBatchWithProgress[]) => PlanBatchWithProgress[],
+) => {
+    const key = planKeys.dayBatches(userId, date);
+    const previous = qc.getQueryData<PlanBatchWithProgress[]>(key);
+    if (previous) {
+        qc.setQueryData(key, updater(previous));
+    }
+    return previous;
+};
+
+const patchPlanBatchesCache = (
+    qc: QueryClient,
+    planId: string,
+    updater: (prev: PlanBatchWithProgress[]) => PlanBatchWithProgress[],
+) => {
+    const key = planKeys.batches(planId);
+    const previous = qc.getQueryData<PlanBatchWithProgress[]>(key);
+    if (previous) {
+        qc.setQueryData(key, updater(previous));
+    }
+    return previous;
+};
+
+const reorderByIds = (batches: PlanBatchWithProgress[], orderedIds: string[]): PlanBatchWithProgress[] => {
+    const byId = new Map(batches.map((b) => [b.id, b]));
+    return orderedIds
+        .map((id, index) => {
+            const b = byId.get(id);
+            return b ? { ...b, order_index: index } : null;
+        })
+        .filter((b): b is PlanBatchWithProgress => b !== null);
+};
+
 // ── Recurrence Rules ──────────────────────────────────────────────────────────
 
 export const useRecurrenceRules = (userId: string) =>
@@ -81,14 +118,17 @@ export const useRangeBatches = (userId: string, start: string, end: string) =>
         enabled: !!userId && !!start && !!end,
     });
 
-export const useCreatePlanBatch = (planId: string) => {
+export const useCreatePlanBatch = (planId: string, userId: string, date: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (batch: PlanBatchInsert) => planBatchApi.create(batch),
         onMutate: async (batch) => {
             await qc.cancelQueries({ queryKey: planKeys.batches(planId) });
-            const previousBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.batches(planId));
+            await qc.cancelQueries({ queryKey: planKeys.dayBatches(userId, date) });
+            const previousPlanBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.batches(planId));
+            const previousDayBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.dayBatches(userId, date));
             const now = new Date().toISOString();
+            const orderIndex = batch.order_index ?? previousDayBatches?.length ?? previousPlanBatches?.length ?? 0;
             const optimistic: PlanBatchWithProgress = {
                 id: `__optimistic__${Date.now()}`,
                 plan_id: batch.plan_id,
@@ -100,13 +140,13 @@ export const useCreatePlanBatch = (planId: string) => {
                 target_roasted_kg: batch.target_roasted_kg,
                 batch_count: Math.ceil(batch.target_roasted_kg / batch.batch_size_kg),
                 yield_pct: batch.yield_pct ?? 1,
-                order_index: batch.order_index ?? previousBatches?.length ?? 0,
+                order_index: orderIndex,
                 machine_id: batch.machine_id ?? null,
                 roast_profile_id: batch.roast_profile_id ?? null,
                 rrule: batch.rrule ?? null,
                 recurrence_group_id: batch.recurrence_group_id ?? null,
                 recurrence_rule_id: batch.recurrence_rule_id ?? null,
-                scheduled_date: null,
+                scheduled_date: date,
                 original_date: null,
                 exception_type: null,
                 notes: batch.notes ?? '',
@@ -116,12 +156,16 @@ export const useCreatePlanBatch = (planId: string) => {
                 updated_at: now,
                 completed_sessions: 0,
             };
-            qc.setQueryData(planKeys.batches(planId), [...(previousBatches ?? []), optimistic]);
-            return { previousBatches };
+            patchPlanBatchesCache(qc, planId, (prev) => [...prev, optimistic]);
+            patchDayBatchesCache(qc, userId, date, (prev) => [...prev, optimistic]);
+            return { previousPlanBatches, previousDayBatches };
         },
         onError: (_err, _batch, context) => {
-            if (context?.previousBatches) {
-                qc.setQueryData(planKeys.batches(planId), context.previousBatches);
+            if (context?.previousPlanBatches) {
+                qc.setQueryData(planKeys.batches(planId), context.previousPlanBatches);
+            }
+            if (context?.previousDayBatches) {
+                qc.setQueryData(planKeys.dayBatches(userId, date), context.previousDayBatches);
             }
         },
         onSettled: () => {
@@ -184,51 +228,68 @@ export const useCreateRecurringBatches = (userId: string, currentPlanId?: string
             const rruleStr = buildRRule(interval);
             return planBatchApi.createRecurring(baseBatch, rruleStr, dtstart, userId);
         },
-        onMutate: async ({ baseBatch, interval }) => {
+        onMutate: async ({ baseBatch, interval, dtstart }) => {
             const rruleStr = buildRRule(interval);
+            const dtstartDate = format(dtstart, 'yyyy-MM-dd');
+            const optimisticId = `__optimistic__${Date.now()}`;
 
-            // Optimistically add a batch to the current plan's cache
             let previousCurrentPlan: PlanBatchWithProgress[] | undefined;
+            let previousDayBatches: PlanBatchWithProgress[] | undefined;
+
             if (currentPlanId) {
                 await qc.cancelQueries({ queryKey: planKeys.batches(currentPlanId) });
                 previousCurrentPlan = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.batches(currentPlanId));
-
-                const optimistic: PlanBatchWithProgress = {
-                    id: `__optimistic__${Date.now()}`,
-                    plan_id: currentPlanId,
-                    bean_name: baseBatch.bean_name,
-                    bean_id: baseBatch.bean_id ?? null,
-                    blend_id: baseBatch.blend_id ?? null,
-                    batch_type: baseBatch.batch_type ?? '',
-                    batch_size_kg: baseBatch.batch_size_kg,
-                    target_roasted_kg: baseBatch.target_roasted_kg,
-                    batch_count: Math.ceil(baseBatch.target_roasted_kg / baseBatch.batch_size_kg),
-                    yield_pct: baseBatch.yield_pct ?? 1,
-                    order_index: baseBatch.order_index ?? previousCurrentPlan?.length ?? 0,
-                    machine_id: baseBatch.machine_id ?? null,
-                    roast_profile_id: baseBatch.roast_profile_id ?? null,
-                    rrule: rruleStr,
-                    recurrence_group_id: null,
-                    recurrence_rule_id: null,
-                    scheduled_date: null,
-                    original_date: null,
-                    exception_type: null,
-                    notes: baseBatch.notes ?? '',
-                    green_lot: baseBatch.green_lot ?? '',
-                    status: 'pending',
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                    completed_sessions: 0,
-                };
-
-                qc.setQueryData(planKeys.batches(currentPlanId), [...(previousCurrentPlan ?? []), optimistic]);
             }
 
-            return { previousCurrentPlan };
+            await qc.cancelQueries({ queryKey: planKeys.dayBatches(userId, dtstartDate) });
+            previousDayBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.dayBatches(userId, dtstartDate));
+
+            const batchSize = Number(baseBatch.batch_size_kg) || 0;
+            const targetKg = Number(baseBatch.target_roasted_kg) || 0;
+            const batchCount = batchSize > 0 && targetKg > 0 ? Math.ceil(targetKg / batchSize) : 1;
+            const orderIndex = baseBatch.order_index ?? previousDayBatches?.length ?? previousCurrentPlan?.length ?? 0;
+
+            const optimistic: PlanBatchWithProgress = {
+                id: `${optimisticId}:${dtstartDate}`,
+                plan_id: currentPlanId ?? '',
+                bean_name: baseBatch.bean_name,
+                bean_id: baseBatch.bean_id ?? null,
+                blend_id: baseBatch.blend_id ?? null,
+                batch_type: baseBatch.batch_type ?? '',
+                batch_size_kg: baseBatch.batch_size_kg,
+                target_roasted_kg: baseBatch.target_roasted_kg,
+                batch_count: batchCount,
+                yield_pct: baseBatch.yield_pct ?? 1,
+                order_index: orderIndex,
+                machine_id: baseBatch.machine_id ?? null,
+                roast_profile_id: baseBatch.roast_profile_id ?? null,
+                rrule: rruleStr,
+                recurrence_group_id: null,
+                recurrence_rule_id: optimisticId,
+                scheduled_date: dtstartDate,
+                original_date: dtstartDate,
+                exception_type: null,
+                notes: baseBatch.notes ?? '',
+                green_lot: baseBatch.green_lot ?? '',
+                status: 'pending',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                completed_sessions: 0,
+            };
+
+            if (currentPlanId) {
+                patchPlanBatchesCache(qc, currentPlanId, (prev) => [...prev, optimistic]);
+            }
+            patchDayBatchesCache(qc, userId, dtstartDate, (prev) => [...prev, optimistic]);
+
+            return { previousCurrentPlan, previousDayBatches, dtstartDate };
         },
         onError: (_err, _vars, context) => {
             if (context?.previousCurrentPlan && currentPlanId) {
                 qc.setQueryData(planKeys.batches(currentPlanId), context.previousCurrentPlan);
+            }
+            if (context?.previousDayBatches && context.dtstartDate) {
+                qc.setQueryData(planKeys.dayBatches(userId, context.dtstartDate), context.previousDayBatches);
             }
         },
         onSettled: () => {
@@ -242,7 +303,7 @@ export const useCreateRecurringBatches = (userId: string, currentPlanId?: string
 };
 
 /** Scope-based mutations for recurring batch editing */
-export const useDeleteSingleBatch = () => {
+export const useDeleteSingleBatch = (scheduleContext?: { userId: string; date: string }) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({
@@ -252,6 +313,21 @@ export const useDeleteSingleBatch = () => {
             id: string;
             meta?: { recurrenceRuleId?: string; originalDate?: string; planId?: string };
         }) => planBatchApi.deleteSingle(id, meta),
+        onMutate: async ({ id }) => {
+            if (!scheduleContext) return {};
+
+            const { userId, date } = scheduleContext;
+            await qc.cancelQueries({ queryKey: planKeys.dayBatches(userId, date) });
+            const previousDayBatches = patchDayBatchesCache(qc, userId, date, (prev) =>
+                prev.filter((b) => b.id !== id),
+            );
+            return { previousDayBatches };
+        },
+        onError: (_err, _vars, context) => {
+            if (scheduleContext && context?.previousDayBatches) {
+                qc.setQueryData(planKeys.dayBatches(scheduleContext.userId, scheduleContext.date), context.previousDayBatches);
+            }
+        },
         onSettled: () => {
             qc.invalidateQueries({ queryKey: ['plan_batches'] });
             qc.invalidateQueries({ queryKey: ['day_plan_range'] });
@@ -343,32 +419,45 @@ export const useUpdateAllBatches = () => {
     });
 };
 
-export const useReorderPlanBatches = (planId: string) => {
+export const useReorderPlanBatches = ({
+    userId,
+    date,
+    planId,
+}: {
+    userId: string;
+    date: string;
+    planId: string;
+}) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (orderedIds: string[]) => planBatchApi.reorder(planId, orderedIds),
         onMutate: async (orderedIds) => {
             await qc.cancelQueries({ queryKey: planKeys.batches(planId) });
-            const previousBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.batches(planId));
-            if (previousBatches) {
-                const byId = new Map(previousBatches.map((b) => [b.id, b]));
-                const optimistic = orderedIds
-                    .map((id, index) => {
-                        const b = byId.get(id);
-                        return b ? { ...b, order_index: index } : null;
-                    })
-                    .filter((b): b is PlanBatchWithProgress => b !== null);
-                qc.setQueryData(planKeys.batches(planId), optimistic);
+            await qc.cancelQueries({ queryKey: planKeys.dayBatches(userId, date) });
+
+            const previousPlanBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.batches(planId));
+            const previousDayBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.dayBatches(userId, date));
+
+            if (previousPlanBatches) {
+                qc.setQueryData(planKeys.batches(planId), reorderByIds(previousPlanBatches, orderedIds));
             }
-            return { previousBatches };
+            if (previousDayBatches) {
+                qc.setQueryData(planKeys.dayBatches(userId, date), reorderByIds(previousDayBatches, orderedIds));
+            }
+
+            return { previousPlanBatches, previousDayBatches };
         },
         onError: (_err, _orderedIds, context) => {
-            if (context?.previousBatches) {
-                qc.setQueryData(planKeys.batches(planId), context.previousBatches);
+            if (context?.previousPlanBatches) {
+                qc.setQueryData(planKeys.batches(planId), context.previousPlanBatches);
+            }
+            if (context?.previousDayBatches) {
+                qc.setQueryData(planKeys.dayBatches(userId, date), context.previousDayBatches);
             }
         },
         onSettled: () => {
             qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
+            invalidateScheduledBatchQueries(qc);
         },
     });
 };

@@ -6,6 +6,7 @@ import { dayPlanApi, planBatchApi, planKeys } from '@entities/plan';
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { useRoastProfiles } from '@entities/roast-profile/queries';
 import { getDateFnsLocale } from '@shared/i18n';
+import { isRecurringHorizonStockShort, recurringHorizonGreenNeededGrams } from '@shared/lib/batch-stock';
 import { cn } from '@shared/lib/cn';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { useAuthStore } from '@shared/store/auth';
@@ -211,7 +212,21 @@ export const AddBatchModal = ({
                 isShort: summary ? summary.effectiveGrams < neededGrams : false,
             };
         });
-    }, [blendComponents, plannedGrams, blendStockQueries]);
+    }, [blendComponents, plannedGrams, blendStockQueries, t]);
+
+    const recurringHorizonShort = useMemo(() => {
+        if (!recurringInterval || batchType !== 'Single Origin' || !beanId || !date) return null;
+        const neededGrams = recurringHorizonGreenNeededGrams(recurringInterval, date, batchSizeNum, batchCount);
+        if (neededGrams <= 0) return null;
+        const effectiveGrams = stockSummary?.effectiveGrams ?? 0;
+        if (!isRecurringHorizonStockShort(effectiveGrams, recurringInterval, date, batchSizeNum, batchCount)) {
+            return null;
+        }
+        return {
+            neededKg: (neededGrams / 1000).toFixed(1),
+            availableKg: (effectiveGrams / 1000).toFixed(1),
+        };
+    }, [recurringInterval, batchType, beanId, date, batchSizeNum, batchCount, stockSummary?.effectiveGrams]);
 
     // 프로파일 선택 시 default_bean_id / default_blend_id 자동 pre-fill
     const handleProfileSelect = (id: string) => {
@@ -679,6 +694,21 @@ export const AddBatchModal = ({
                                 </button>
                             ))}
                         </div>
+                        {recurringHorizonShort && (
+                            <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800/50 px-3.5 py-2.5">
+                                <AlertTriangle
+                                    size={14}
+                                    strokeWidth={2}
+                                    className="text-amber-600 shrink-0 mt-0.5"
+                                />
+                                <p className="text-[12px] text-amber-700 dark:text-amber-400 font-medium leading-relaxed">
+                                    {t('addBatchModal.recurringStockShort', {
+                                        needed: recurringHorizonShort.neededKg,
+                                        available: recurringHorizonShort.availableKg,
+                                    })}
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
 

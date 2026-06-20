@@ -190,6 +190,8 @@
         "outOfStock": "缺货",
         "lowStock": "库存不足",
         "kgRemaining": "剩余{{kg}}kg",
+        "scheduleReservedShortfall": "含计划预留后短缺{{kg}}kg",
+        "upcomingStockShort": "可能库存不足",
         "today": "今天",
         "batchCount": "{{count}}次"
     },
@@ -359,6 +361,8 @@
             "skipped": "已跳过"
         },
         "start": "开始",
+        "reorderDisabledRecurring": "重复日程批次无法调整顺序",
+        "stockShortRecurring": "按预约库存计算生豆可能不足（需{{needed}}kg / 可用{{available}}kg）",
         "detail": {
             "target": "目标 {{kg}} kg",
             "batch": "Batch {{kg}} kg",
@@ -445,6 +449,7 @@
         "currentStock": "当前库存:",
         "needed": "/ 需要:",
         "insufficientStock": "库存不足",
+        "recurringStockShort": "未来4周预计生豆需求 {{needed}}kg — 可用 {{available}}kg（可能不足）",
         "recurrence": "重复",
         "none": "无",
         "notes": "备注",

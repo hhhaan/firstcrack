@@ -1,5 +1,5 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
-import { ChevronDown, ChevronUp, Package, Pencil, Play, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, Package, Pencil, Play, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { batchProgress, batchStatus, getRecurrenceLabel } from './lib';
 
@@ -18,6 +18,8 @@ export const BatchCard = ({
     onDelete,
     onStart,
     onEdit,
+    stockShort = false,
+    stockShortDetail,
 }: {
     batch: PlanBatchWithProgress;
     index: number;
@@ -26,31 +28,18 @@ export const BatchCard = ({
     onDelete: () => void;
     onStart: () => void;
     onEdit: () => void;
+    stockShort?: boolean;
+    stockShortDetail?: { neededKg: string; availableKg: string } | null;
 }) => {
     const { t } = useTranslation();
     const status = batchStatus(batch);
     const canStart = status === 'pending' || status === 'in-progress';
     const isRecurring = !!batch.recurrence_rule_id;
+    const canReorder = !isRecurring;
+    const reorderTitle = isRecurring ? t('schedule.reorderDisabledRecurring') : undefined;
 
     return (
-        <div className="flex gap-2">
-            <div className="flex flex-col gap-1 pt-1 shrink-0">
-                <button
-                    onClick={() => onMove('up')}
-                    disabled={index === 0}
-                    className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface dark:bg-surface-elevated text-muted cursor-pointer hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                    <ChevronUp size={13} strokeWidth={2} />
-                </button>
-                <button
-                    onClick={() => onMove('down')}
-                    disabled={index === total - 1}
-                    className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface dark:bg-surface-elevated text-muted cursor-pointer hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                    <ChevronDown size={13} strokeWidth={2} />
-                </button>
-            </div>
-            <div className="flex-1 rounded-xl p-4 bg-main-bg dark:bg-[#262b31] transition-colors duration-150">
+        <div className="rounded-xl p-4 bg-main-bg dark:bg-[#262b31] transition-colors duration-150">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <Package size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 mt-[1px]" />
@@ -111,8 +100,38 @@ export const BatchCard = ({
                         )}
                     </div>
                     {batch.notes && <div className="text-[12px] text-muted">{batch.notes}</div>}
+                    {isRecurring && stockShort && stockShortDetail && (
+                        <div className="flex items-start gap-1.5 text-[11px] text-amber-600 font-medium pt-1">
+                            <AlertTriangle size={12} strokeWidth={2} className="shrink-0 mt-0.5" />
+                            <span>
+                                {t('schedule.stockShortRecurring', {
+                                    needed: stockShortDetail.neededKg,
+                                    available: stockShortDetail.availableKg,
+                                })}
+                            </span>
+                        </div>
+                    )}
                 </div>
-            </div>
+                <div className="mt-3 pl-[22px] flex items-center gap-1">
+                    <button
+                        type="button"
+                        onClick={() => onMove('up')}
+                        disabled={!canReorder || index === 0}
+                        title={reorderTitle}
+                        className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface dark:bg-surface-elevated text-muted cursor-pointer hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        <ChevronUp size={13} strokeWidth={2} />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onMove('down')}
+                        disabled={!canReorder || index === total - 1}
+                        title={reorderTitle}
+                        className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface dark:bg-surface-elevated text-muted cursor-pointer hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        <ChevronDown size={13} strokeWidth={2} />
+                    </button>
+                </div>
         </div>
     );
 };
