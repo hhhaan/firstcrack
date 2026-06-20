@@ -1,6 +1,6 @@
 import { beanStockEventApi } from '@entities/bean-stock-event';
 import { planBatchApi } from '@entities/plan';
-import { isBatchStockShort } from '@shared/lib/batch-stock';
+import { isBatchStockShort, STOCK_RESERVATION_HORIZON_DAYS } from '@shared/lib/batch-stock';
 import { supabase } from '@shared/lib/supabase';
 import type { Bean, RoastSessionWithRelations } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
@@ -28,6 +28,7 @@ export interface InventoryAlert {
     effectiveGrams: number;
     capacityGrams: number;
     lowStockThresholdGrams: number;
+    reason: 'out' | 'schedule' | 'low';
 }
 
 export interface DashboardData {
@@ -44,6 +45,7 @@ export interface DashboardData {
     loading: boolean;
     error: string | null;
 }
+
 const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'loading' | 'error'>> => {
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
@@ -79,9 +81,27 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     if (alertsRes.error) throw alertsRes.error;
     if (monthlyRes.error) throw monthlyRes.error;
 
-    const horizonEnd = format(addDays(now, 14), 'yyyy-MM-dd');
-    const rangeBatches = await planBatchApi.listForDateRange(userId, today, horizonEnd);
-    const upcomingBatches: UpcomingBatch[] = rangeBatches
+    const horizonEnd14 = format(addDays(now, 14), 'yyyy-MM-dd');
+    const horizonEnd28 = format(addDays(now, STOCK_RESERVATION_HORIZON_DAYS), 'yyyy-MM-dd');
+
+    const [rangeBatches14, rangeBatches28] = await Promise.all([
+        planBatchApi.listForDateRange(userId, today, horizonEnd14),
+        planBatchApi.listForDateRange(userId, today, horizonEnd28),
+    ]);
+
+    const isBatchPending = (b: { status: string; completed_sessions: number; batch_count: number }) =>
+        b.status !== 'done' && b.status !== 'skipped' && b.completed_sessions < b.batch_count;
+
+    const scheduleShortBeanIds = new Set<string>();
+    for (const b of rangeBatches28) {
+        if (!b.bean_id || !isBatchPending(b)) continue;
+        const effectiveGrams = stockSummaries?.[b.bean_id]?.effectiveGrams ?? 0;
+        if (isBatchStockShort(b, effectiveGrams)) {
+            scheduleShortBeanIds.add(b.bean_id);
+        }
+    }
+
+    const upcomingBatches: UpcomingBatch[] = rangeBatches14
         .filter((b) => {
             if (b.status === 'done' || b.status === 'skipped') return false;
             if (b.completed_sessions >= b.batch_count) return false;
@@ -89,8 +109,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         })
         .sort(
             (a, b) =>
-                (a.scheduled_date ?? today).localeCompare(b.scheduled_date ?? today) ||
-                a.order_index - b.order_index,
+                (a.scheduled_date ?? today).localeCompare(b.scheduled_date ?? today) || a.order_index - b.order_index,
         )
         .slice(0, 5)
         .map((b) => {
@@ -129,24 +148,38 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
             monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + 1);
         }
     }
-    const monthlyBatches: MonthlyBatch[] = Array.from(monthlyMap.entries()).map(([key, batches]) => {
+    const monthlyBatches: MonthlyBatch[] = Array.from(monthlyMap, ([key, batches]) => {
         const [year, month] = key.split('-').map(Number);
         return { date: new Date(year, month, 1), batches };
     });
 
     const allBeans = (alertsRes.data ?? []) as Bean[];
     const inventoryAlerts: InventoryAlert[] = allBeans
-        .filter((b) => {
+        .map((b) => {
             const effectiveGrams = stockSummaries?.[b.id]?.effectiveGrams ?? 0;
-            return effectiveGrams <= b.low_stock_threshold_grams;
+            let reason: InventoryAlert['reason'] | null = null;
+            if (effectiveGrams <= 0) {
+                reason = 'out';
+            } else if (scheduleShortBeanIds.has(b.id)) {
+                reason = 'schedule';
+            } else if (effectiveGrams <= b.low_stock_threshold_grams) {
+                reason = 'low';
+            }
+            if (!reason) return null;
+            return {
+                id: b.id,
+                name: b.name,
+                effectiveGrams,
+                capacityGrams: b.capacity_grams,
+                lowStockThresholdGrams: b.low_stock_threshold_grams,
+                reason,
+            };
         })
-        .map((b) => ({
-            id: b.id,
-            name: b.name,
-            effectiveGrams: stockSummaries?.[b.id]?.effectiveGrams ?? 0,
-            capacityGrams: b.capacity_grams,
-            lowStockThresholdGrams: b.low_stock_threshold_grams,
-        }));
+        .filter((item): item is InventoryAlert => item !== null)
+        .sort((a, b) => {
+            const rank = { out: 0, schedule: 1, low: 2 };
+            return rank[a.reason] - rank[b.reason] || a.effectiveGrams - b.effectiveGrams;
+        });
 
     return {
         batchesThisMonth: thisMonth.length,

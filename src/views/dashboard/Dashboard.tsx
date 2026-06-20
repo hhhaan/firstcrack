@@ -39,6 +39,10 @@ const BarCanvas = ({ data }: BarCanvasProps) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const dfLocale = i18n.language === 'ko' ? enUS : getDateFnsLocale();
 
+    const hideTooltip = () => {
+        if (tooltipRef.current) tooltipRef.current.style.display = 'none';
+    };
+
     const draw = (canvas: HTMLCanvasElement) => {
         const dpr = window.devicePixelRatio || 1;
         const W = canvas.offsetWidth;
@@ -150,9 +154,7 @@ const BarCanvas = ({ data }: BarCanvasProps) => {
                 ref={canvasRef}
                 className="block w-full h-full"
                 onMouseMove={handleMouseMove}
-                onMouseLeave={() => {
-                    if (tooltipRef.current) tooltipRef.current.style.display = 'none';
-                }}
+                onMouseLeave={hideTooltip}
             />
             <div
                 ref={tooltipRef}
@@ -181,6 +183,18 @@ const levelBg: Record<string, string> = {
     Dark: 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
 };
 
+const alertColor: Record<string, string> = {
+    out: '#8080F0',
+    schedule: '#F59E0B',
+    low: '#FFFF54',
+};
+
+const alertBg: Record<string, string> = {
+    out: 'rgba(128,128,240,0.12)',
+    schedule: 'rgba(245,158,11,0.12)',
+    low: 'rgba(255,255,84,0.2)',
+};
+
 const formatDuration = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = Math.round(seconds % 60);
@@ -189,8 +203,7 @@ const formatDuration = (seconds: number) => {
 
 const formatDate = (iso: string) => {
     const d = new Date(iso);
-    const lang = i18n.language === 'zh-CN' ? 'zh-CN' : i18n.language;
-    return d.toLocaleDateString(lang, { month: 'short', day: 'numeric' });
+    return d.toLocaleDateString(localeForDate(), { month: 'short', day: 'numeric' });
 };
 
 const pctChange = (current: number, previous: number) => {
@@ -202,6 +215,22 @@ const pctChange = (current: number, previous: number) => {
 const durationDiff = (current: number, previous: number) => {
     const diff = Math.round(current - previous);
     return `${diff >= 0 ? '+' : '-'}${formatDuration(Math.abs(diff))}`;
+};
+
+const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'morning';
+    if (h < 18) return 'afternoon';
+    return 'evening';
+};
+
+const localeForDate = () => {
+    switch (i18n.language) {
+        case 'ko': return 'en-US';
+        case 'zh-CN': return 'zh-CN';
+        case 'ja': return 'ja-JP';
+        default: return 'en-US';
+    }
 };
 
 export const Dashboard = ({ onNavigate }: DashboardProps) => {
@@ -244,25 +273,12 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             <div className="mb-8 flex items-end justify-between">
                 <div>
                     <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
-                        {t(
-                            `dashboard.greeting.${(() => {
-                                const h = new Date().getHours();
-                                if (h < 12) return 'morning';
-                                if (h < 18) return 'afternoon';
-                                return 'evening';
-                            })()}`,
-                        )}
+                        {t(`dashboard.greeting.${getGreeting()}`)}
                         {/* , Han */}
                     </h1>
                     <p className="text-[15px] text-secondary tracking-[0.15px] font-normal flex items-center gap-2.5">
                         {new Date().toLocaleDateString(
-                            i18n.language === 'ko'
-                                ? 'en-US'
-                                : i18n.language === 'zh-CN'
-                                  ? 'zh-CN'
-                                  : i18n.language === 'ja'
-                                    ? 'ja-JP'
-                                    : 'en-US',
+                            localeForDate(),
                             { weekday: 'long', month: 'long', day: 'numeric' },
                         )}
                         {weather.data && (
@@ -510,10 +526,13 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         <p className="text-[13px] text-muted py-2">{t('dashboard.allStockOk')}</p>
                     ) : (
                         db.inventoryAlerts.map((item, i) => {
-                            const isOut = item.effectiveGrams <= 0;
-                            const color = isOut ? '#8080F0' : '#FFFF54';
-                            const bg = isOut ? 'rgba(128,128,240,0.12)' : 'rgba(255,255,84,0.2)';
-                            const status = isOut ? t('dashboard.outOfStock') : t('dashboard.lowStock');
+                            const color = alertColor[item.reason] ?? '#FFFF54';
+                            const bg = alertBg[item.reason] ?? 'rgba(255,255,84,0.2)';
+                            const status = item.reason === 'out'
+                                ? t('dashboard.outOfStock')
+                                : item.reason === 'schedule'
+                                  ? t('dashboard.scheduleStockAlert')
+                                  : t('dashboard.lowStock');
                             return (
                                 <div
                                     key={item.id}
@@ -538,6 +557,11 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                                     {t('dashboard.scheduleReservedShortfall', {
                                                         kg: (Math.abs(item.effectiveGrams) / 1000).toFixed(2),
                                                     })}
+                                                </span>
+                                            )}
+                                            {isSchedule && item.effectiveGrams >= 0 && (
+                                                <span className="block text-amber-600 mt-0.5">
+                                                    {t('dashboard.upcomingStockShort')}
                                                 </span>
                                             )}
                                         </div>
