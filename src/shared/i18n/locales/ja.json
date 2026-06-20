@@ -101,6 +101,16 @@
                 "healthBadge": "接続状態バッジを表示",
                 "checkServices": "ローカルデバイスサービスを確認",
                 "confirmResets": "リセット前の確認を必須にする"
+            },
+            "roast": {
+                "label": "焙煎",
+                "title": "焙煎設定",
+                "description": "アクティブな焙煎セッション中の更新レート、RoR計算、データ表示をカスタマイズします。"
+            },
+            "account": {
+                "label": "アカウント",
+                "title": "アカウント",
+                "description": "プロフィール、ワークスペース名、アカウント設定を管理します。"
             }
         }
     },
@@ -192,6 +202,7 @@
         "kgRemaining": "残り{{kg}}kg",
         "scheduleReservedShortfall": "予定予約込みで{{kg}}kg不足",
         "upcomingStockShort": "在庫不足の可能性",
+        "scheduleStockAlert": "予定予約不足",
         "today": "今日",
         "batchCount": "{{count}}回"
     },

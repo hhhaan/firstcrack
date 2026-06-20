@@ -101,6 +101,16 @@
                 "healthBadge": "연결 상태 배지 표시",
                 "checkServices": "로컬 장치 서비스 확인",
                 "confirmResets": "초기화 전 확인 요구"
+            },
+            "roast": {
+                "label": "로스팅",
+                "title": "로스팅 설정",
+                "description": "활성 로스트 세션 중 업데이트 속도, RoR 계산 및 데이터 표시 방식을 설정합니다."
+            },
+            "account": {
+                "label": "계정",
+                "title": "계정",
+                "description": "프로필, 워크스페이스 이름, 계정 설정을 관리합니다."
             }
         }
     },
@@ -194,6 +204,7 @@
         "kgRemaining": "{{kg}}kg 남음",
         "scheduleReservedShortfall": "일정 예약 포함 시 {{kg}}kg 부족",
         "upcomingStockShort": "재고 부족 예상",
+        "scheduleStockAlert": "일정 예약 부족",
         "today": "오늘",
         "batchCount": "{{count}}회"
     },

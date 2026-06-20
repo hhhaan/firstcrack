@@ -101,6 +101,16 @@
                 "healthBadge": "Show connection health badge",
                 "checkServices": "Check local device services",
                 "confirmResets": "Require confirmation for resets"
+            },
+            "roast": {
+                "label": "Roast",
+                "title": "Roast Settings",
+                "description": "Customize update rate, RoR calculation, and data visibility during an active roasting session."
+            },
+            "account": {
+                "label": "Account",
+                "title": "Account",
+                "description": "Manage your profile, workspace name, and account settings."
             }
         }
     },
@@ -192,6 +202,7 @@
         "kgRemaining": "{{kg}}kg remaining",
         "scheduleReservedShortfall": "{{kg}}kg short after scheduled reservations",
         "upcomingStockShort": "Possible stock shortage",
+        "scheduleStockAlert": "Schedule reservation short",
         "today": "Today",
         "batchCount": "{{count}}x"
     },

@@ -57,7 +57,7 @@ export const beanStockEventApi = {
             .from('roast_plan_batches')
             .select('id, batch_size_kg, batch_count, recurrence_rule_id, original_date')
             .eq('bean_id', beanId)
-            .in('status', ['pending', 'scheduled'])
+            .in('status', ['pending', 'in-progress'])
             .or(`scheduled_date.is.null,scheduled_date.lte.${horizonStr}`);
         if (batchErr) throw batchErr;
 
@@ -171,7 +171,7 @@ export const beanStockEventApi = {
                 .from('roast_plan_batches')
                 .select('id, bean_id, batch_size_kg, batch_count, recurrence_rule_id, original_date')
                 .in('bean_id', beanIds)
-                .in('status', ['pending', 'scheduled'])
+                .in('status', ['pending', 'in-progress'])
                 .or(`scheduled_date.is.null,scheduled_date.lte.${horizonStr}`),
             supabase
                 .from('recurrence_rules')

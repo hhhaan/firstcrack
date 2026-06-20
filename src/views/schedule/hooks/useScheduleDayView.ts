@@ -1,3 +1,4 @@
+import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import {
     dayPlanApi,
     planBatchApi,
@@ -13,16 +14,15 @@ import {
     useUpdateFromThis,
     useUpdateSingleBatch,
 } from '@entities/plan';
-import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { getDateFnsLocale, i18n } from '@shared/i18n';
-import { buildRRule } from '@shared/lib/rrule';
 import { batchGreenNeededGrams, isBatchStockShort } from '@shared/lib/batch-stock';
+import { buildRRule } from '@shared/lib/rrule';
 import type { PlanBatchHandoff, PlanBatchInsert, PlanBatchWithProgress } from '@shared/types/database.types';
 import type { NewBatchData } from '@widgets/add-batch-modal';
 import type { EditScope } from '@widgets/recurring-edit-scope-modal';
 import { format } from 'date-fns';
 import { useCallback, useState } from 'react';
-import { toDateKey, isVirtualPlanBatch } from '../lib';
+import { isVirtualPlanBatch, toDateKey } from '../lib';
 
 export const useScheduleDayView = ({
     userId,

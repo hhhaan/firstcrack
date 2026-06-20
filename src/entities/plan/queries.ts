@@ -325,7 +325,10 @@ export const useDeleteSingleBatch = (scheduleContext?: { userId: string; date: s
         },
         onError: (_err, _vars, context) => {
             if (scheduleContext && context?.previousDayBatches) {
-                qc.setQueryData(planKeys.dayBatches(scheduleContext.userId, scheduleContext.date), context.previousDayBatches);
+                qc.setQueryData(
+                    planKeys.dayBatches(scheduleContext.userId, scheduleContext.date),
+                    context.previousDayBatches,
+                );
             }
         },
         onSettled: () => {
@@ -419,15 +422,7 @@ export const useUpdateAllBatches = () => {
     });
 };
 
-export const useReorderPlanBatches = ({
-    userId,
-    date,
-    planId,
-}: {
-    userId: string;
-    date: string;
-    planId: string;
-}) => {
+export const useReorderPlanBatches = ({ userId, date, planId }: { userId: string; date: string; planId: string }) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (orderedIds: string[]) => planBatchApi.reorder(planId, orderedIds),

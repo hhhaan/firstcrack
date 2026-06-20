@@ -696,11 +696,7 @@ export const AddBatchModal = ({
                         </div>
                         {recurringHorizonShort && (
                             <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800/50 px-3.5 py-2.5">
-                                <AlertTriangle
-                                    size={14}
-                                    strokeWidth={2}
-                                    className="text-amber-600 shrink-0 mt-0.5"
-                                />
+                                <AlertTriangle size={14} strokeWidth={2} className="text-amber-600 shrink-0 mt-0.5" />
                                 <p className="text-[12px] text-amber-700 dark:text-amber-400 font-medium leading-relaxed">
                                     {t('addBatchModal.recurringStockShort', {
                                         needed: recurringHorizonShort.neededKg,

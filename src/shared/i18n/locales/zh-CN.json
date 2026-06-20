@@ -101,6 +101,16 @@
                 "healthBadge": "显示连接健康徽章",
                 "checkServices": "检查本地设备服务",
                 "confirmResets": "重置前要求确认"
+            },
+            "roast": {
+                "label": "烘焙",
+                "title": "烘焙设置",
+                "description": "自定义活跃烘焙会话期间的更新速率、RoR 计算和数据可见性。"
+            },
+            "account": {
+                "label": "账户",
+                "title": "账户",
+                "description": "管理您的个人资料、工作区名称和账户设置。"
             }
         }
     },
@@ -192,6 +202,7 @@
         "kgRemaining": "剩余{{kg}}kg",
         "scheduleReservedShortfall": "含计划预留后短缺{{kg}}kg",
         "upcomingStockShort": "可能库存不足",
+        "scheduleStockAlert": "日程预留不足",
         "today": "今天",
         "batchCount": "{{count}}次"
     },
