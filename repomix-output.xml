@@ -6926,6 +6926,76 @@ This section contains the contents of the repository's files.
 109: };
 </file>
 
+<file path="src/features/active-roast/model/useRoastLog.ts">
+ 1: import type { LogEntry } from '@shared/types/roast';
+ 2: import { useCallback, useState } from 'react';
+ 3: import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
+ 4: import { formatTemp } from '../lib/temperature';
+ 5: import { parseTimeSec } from '../lib/time';
+ 6: import type { TemperatureUnit } from './settings';
+ 7: 
+ 8: export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, timeStr: string) => {
+ 9:     const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+10:     const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
+11: 
+12:     const flashButton = useCallback((label: string) => {
+13:         setPressedButtons((prev) => new Set(prev).add(label));
+14:         setTimeout(() => {
+15:             setPressedButtons((prev) => {
+16:                 const n = new Set(prev);
+17:                 n.delete(label);
+18:                 return n;
+19:             });
+20:         }, 600);
+21:     }, []);
+22: 
+23:     const markEvent = useCallback(
+24:         (event: string, note: string, buttonLabel?: string) => {
+25:             const isRemoval = TOGGLEABLE_LOG_EVENTS.has(event) && logEntries.some((e) => e.event === event);
+26: 
+27:             setLogEntries((prev) => {
+28:                 if (TOGGLEABLE_LOG_EVENTS.has(event) && prev.some((e) => e.event === event)) {
+29:                     return prev.filter((e) => e.event !== event);
+30:                 }
+31: 
+32:                 const newEntry: LogEntry = {
+33:                     id: crypto.randomUUID(),
+34:                     time: timeStr,
+35:                     event,
+36:                     temp: rawBT !== null ? formatTemp(rawBT, unit) : '',
+37:                     note,
+38:                 };
+39: 
+40:                 return [...prev, newEntry].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
+41:             });
+42: 
+43:             if (!isRemoval && buttonLabel) {
+44:                 flashButton(buttonLabel);
+45:             }
+46:         },
+47:         [logEntries, timeStr, rawBT, unit, flashButton],
+48:     );
+49: 
+50:     const handleDrop = useCallback(() => {
+51:         markEvent('Drop', 'Coffee dropped', 'Drop');
+52:     }, [markEvent]);
+53: 
+54:     const removeLogEntry = useCallback((id: string) => {
+55:         setLogEntries((prev) => prev.filter((entry) => entry.id !== id));
+56:     }, []);
+57: 
+58:     return {
+59:         logEntries,
+60:         pressedButtons,
+61:         markEvent,
+62:         flashButton,
+63:         handleDrop,
+64:         setLogEntries, // reset할 때 필요
+65:         removeLogEntry,
+66:     };
+67: };
+</file>
+
 <file path="src/features/export-csv/index.ts">
 1: export type { CsvRow } from './lib/csv-export';
 2: export { sessionsToCsv } from './lib/csv-export';
@@ -7345,6 +7415,35 @@ This section contains the contents of the repository's files.
 17: 
 18:     completeBatch: () => set({ planBatchHandoff: null }),
 19: }));
+</file>
+
+<file path="src/shared/types/roast.ts">
+ 1: export interface RoastPoint {
+ 2:     time: number;
+ 3:     label: string;
+ 4:     bt: number;
+ 5:     et: number;
+ 6:     ror: number;
+ 7: }
+ 8: 
+ 9: export interface LogEntry {
+10:     id?: string;
+11:     time: string;
+12:     event: string;
+13:     temp: string;
+14:     note: string;
+15:     current?: boolean;
+16:     chartLabel?: string;
+17:     color?: string;
+18: }
+19: 
+20: export interface ChartDataPoint {
+21:     label: string;
+22:     btActual: number | null;
+23:     etActual: number | null;
+24:     rorActual: number | null;
+25:     btTarget: number | null;
+26: }
 </file>
 
 <file path="src/shared/ui/modal-shell/ModalShell.tsx">
@@ -12447,76 +12546,6 @@ This section contains the contents of the repository's files.
 63: };
 </file>
 
-<file path="src/features/active-roast/model/useRoastLog.ts">
- 1: import type { LogEntry } from '@shared/types/roast';
- 2: import { useCallback, useState } from 'react';
- 3: import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
- 4: import { formatTemp } from '../lib/temperature';
- 5: import { parseTimeSec } from '../lib/time';
- 6: import type { TemperatureUnit } from './settings';
- 7: 
- 8: export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, timeStr: string) => {
- 9:     const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
-10:     const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
-11: 
-12:     const flashButton = useCallback((label: string) => {
-13:         setPressedButtons((prev) => new Set(prev).add(label));
-14:         setTimeout(() => {
-15:             setPressedButtons((prev) => {
-16:                 const n = new Set(prev);
-17:                 n.delete(label);
-18:                 return n;
-19:             });
-20:         }, 600);
-21:     }, []);
-22: 
-23:     const markEvent = useCallback(
-24:         (event: string, note: string, buttonLabel?: string) => {
-25:             const isRemoval = TOGGLEABLE_LOG_EVENTS.has(event) && logEntries.some((e) => e.event === event);
-26: 
-27:             setLogEntries((prev) => {
-28:                 if (TOGGLEABLE_LOG_EVENTS.has(event) && prev.some((e) => e.event === event)) {
-29:                     return prev.filter((e) => e.event !== event);
-30:                 }
-31: 
-32:                 const newEntry: LogEntry = {
-33:                     id: crypto.randomUUID(),
-34:                     time: timeStr,
-35:                     event,
-36:                     temp: rawBT !== null ? formatTemp(rawBT, unit) : '',
-37:                     note,
-38:                 };
-39: 
-40:                 return [...prev, newEntry].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
-41:             });
-42: 
-43:             if (!isRemoval && buttonLabel) {
-44:                 flashButton(buttonLabel);
-45:             }
-46:         },
-47:         [logEntries, timeStr, rawBT, unit, flashButton],
-48:     );
-49: 
-50:     const handleDrop = useCallback(() => {
-51:         markEvent('Drop', 'Coffee dropped', 'Drop');
-52:     }, [markEvent]);
-53: 
-54:     const removeLogEntry = useCallback((id: string) => {
-55:         setLogEntries((prev) => prev.filter((entry) => entry.id !== id));
-56:     }, []);
-57: 
-58:     return {
-59:         logEntries,
-60:         pressedButtons,
-61:         markEvent,
-62:         flashButton,
-63:         handleDrop,
-64:         setLogEntries, // reset할 때 필요
-65:         removeLogEntry,
-66:     };
-67: };
-</file>
-
 <file path="src/features/updater/lib/useUpdateChecker.ts">
   1: import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
   2: import { relaunch } from '@tauri-apps/plugin-process';
@@ -13115,35 +13144,6 @@ This section contains the contents of the repository's files.
 71:         }
 72:     },
 73: }));
-</file>
-
-<file path="src/shared/types/roast.ts">
- 1: export interface RoastPoint {
- 2:     time: number;
- 3:     label: string;
- 4:     bt: number;
- 5:     et: number;
- 6:     ror: number;
- 7: }
- 8: 
- 9: export interface LogEntry {
-10:     id?: string;
-11:     time: string;
-12:     event: string;
-13:     temp: string;
-14:     note: string;
-15:     current?: boolean;
-16:     chartLabel?: string;
-17:     color?: string;
-18: }
-19: 
-20: export interface ChartDataPoint {
-21:     label: string;
-22:     btActual: number | null;
-23:     etActual: number | null;
-24:     rorActual: number | null;
-25:     btTarget: number | null;
-26: }
 </file>
 
 <file path="src/shared/ui/calendar/Calendar.tsx">
@@ -19362,6 +19362,143 @@ This section contains the contents of the repository's files.
 67: };
 </file>
 
+<file path="src/widgets/active-roast/roast-log/RoastLog.tsx">
+  1: import { STATUS_COLORS } from '@features/active-roast/lib/colors';
+  2: import type { LogEntry } from '@shared/types/roast';
+  3: import { X } from 'lucide-react';
+  4: 
+  5: export const RoastLog = ({
+  6:     entries,
+  7:     eventMarkerColor,
+  8:     variant,
+  9:     onRemoveEntry,
+ 10: }: {
+ 11:     entries: LogEntry[];
+ 12:     eventMarkerColor: Record<string, string>;
+ 13:     variant: 'sidebar' | 'main';
+ 14:     onRemoveEntry?: (id: string) => void;
+ 15: }) => {
+ 16:     const isSidebar = variant === 'sidebar';
+ 17: 
+ 18:     return (
+ 19:         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+ 20:             {isSidebar && (
+ 21:                 <h3
+ 22:                     style={{
+ 23:                         fontSize: 12,
+ 24:                         color: 'var(--color-muted)',
+ 25:                         fontWeight: 600,
+ 26:                         textTransform: 'uppercase',
+ 27:                         marginBottom: 10,
+ 28:                     }}
+ 29:                 >
+ 30:                     Roast Log
+ 31:                 </h3>
+ 32:             )}
+ 33:             {entries.map((entry, i, arr) => {
+ 34:                 const canRemove = entry.event === 'Note' && !!entry.id && !entry.current && !!onRemoveEntry;
+ 35: 
+ 36:                 return (
+ 37:                     <div
+ 38:                         key={entry.id ?? `${entry.time}-${entry.event}-${i}`}
+ 39:                         style={{
+ 40:                             display: 'flex',
+ 41:                             gap: isSidebar ? 10 : 12,
+ 42:                             padding: isSidebar ? '8px 0' : '10px 0',
+ 43:                             borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : 'none',
+ 44:                         }}
+ 45:                     >
+ 46:                         <div
+ 47:                             style={{
+ 48:                                 fontFamily: 'var(--font-mono)',
+ 49:                                 fontSize: isSidebar ? 11 : 12,
+ 50:                                 color: 'var(--color-muted)',
+ 51:                                 width: isSidebar ? 32 : 36,
+ 52:                                 flexShrink: 0,
+ 53:                                 paddingTop: isSidebar ? 2 : 1,
+ 54:                             }}
+ 55:                         >
+ 56:                             {entry.time}
+ 57:                         </div>
+ 58:                         <div
+ 59:                             style={{
+ 60:                                 width: 6,
+ 61:                                 display: 'flex',
+ 62:                                 flexDirection: 'column',
+ 63:                                 alignItems: 'center',
+ 64:                                 paddingTop: 4,
+ 65:                                 flexShrink: 0,
+ 66:                             }}
+ 67:                         >
+ 68:                             <div
+ 69:                                 style={{
+ 70:                                     width: isSidebar ? 6 : 7,
+ 71:                                     height: isSidebar ? 6 : 7,
+ 72:                                     borderRadius: '50%',
+ 73:                                     background: entry.current
+ 74:                                         ? STATUS_COLORS.active
+ 75:                                         : (eventMarkerColor[entry.event] ?? 'var(--color-border)'),
+ 76:                                     boxShadow: entry.current
+ 77:                                         ? isSidebar
+ 78:                                             ? `0 0 0 2px ${STATUS_COLORS.activeGlow}`
+ 79:                                             : `0 0 0 3px ${STATUS_COLORS.activeGlow}`
+ 80:                                         : 'none',
+ 81:                                     flexShrink: isSidebar ? 0 : undefined,
+ 82:                                 }}
+ 83:                             />
+ 84:                         </div>
+ 85:                         <div style={{ flex: 1 }}>
+ 86:                             <div style={{ display: 'flex', alignItems: 'center', gap: isSidebar ? 6 : 8 }}>
+ 87:                                 <span
+ 88:                                     style={{
+ 89:                                         fontSize: isSidebar ? 12 : 13,
+ 90:                                         fontWeight: 500,
+ 91:                                         color: 'var(--color-primary)',
+ 92:                                         letterSpacing: isSidebar ? 'normal' : '0.14px',
+ 93:                                     }}
+ 94:                                 >
+ 95:                                     {entry.event}
+ 96:                                 </span>
+ 97:                                 <span
+ 98:                                     style={{
+ 99:                                         fontFamily: 'var(--font-mono)',
+100:                                         fontSize: isSidebar ? 11 : 12,
+101:                                         color: 'var(--color-muted)',
+102:                                     }}
+103:                                 >
+104:                                     {entry.temp}
+105:                                 </span>
+106:                             </div>
+107:                             {entry.note && (
+108:                                 <div
+109:                                     style={{
+110:                                         fontSize: isSidebar ? 11 : 12,
+111:                                         color: 'var(--color-muted)',
+112:                                         letterSpacing: isSidebar ? 'normal' : '0.14px',
+113:                                     }}
+114:                                 >
+115:                                     {entry.note}
+116:                                 </div>
+117:                             )}
+118:                         </div>
+119:                         {canRemove && (
+120:                             <button
+121:                                 type="button"
+122:                                 onClick={() => onRemoveEntry(entry.id!)}
+123:                                 aria-label="Delete note"
+124:                                 className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
+125:                             >
+126:                                 <X size={12} />
+127:                             </button>
+128:                         )}
+129:                     </div>
+130:                 );
+131:             })}
+132:         </div>
+133:     );
+134: };
+</file>
+
 <file path="src/widgets/bean-list/ui/BeanList.tsx">
   1: import { Search } from 'lucide-react';
   2: import { getStatus, statusConfig } from '../../../entities/bean/lib';
@@ -21990,143 +22127,6 @@ This section contains the contents of the repository's files.
 61:         </div>
 62:     );
 63: };
-</file>
-
-<file path="src/widgets/active-roast/roast-log/RoastLog.tsx">
-  1: import { STATUS_COLORS } from '@features/active-roast/lib/colors';
-  2: import type { LogEntry } from '@shared/types/roast';
-  3: import { X } from 'lucide-react';
-  4: 
-  5: export const RoastLog = ({
-  6:     entries,
-  7:     eventMarkerColor,
-  8:     variant,
-  9:     onRemoveEntry,
- 10: }: {
- 11:     entries: LogEntry[];
- 12:     eventMarkerColor: Record<string, string>;
- 13:     variant: 'sidebar' | 'main';
- 14:     onRemoveEntry?: (id: string) => void;
- 15: }) => {
- 16:     const isSidebar = variant === 'sidebar';
- 17: 
- 18:     return (
- 19:         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
- 20:             {isSidebar && (
- 21:                 <h3
- 22:                     style={{
- 23:                         fontSize: 12,
- 24:                         color: 'var(--color-muted)',
- 25:                         fontWeight: 600,
- 26:                         textTransform: 'uppercase',
- 27:                         marginBottom: 10,
- 28:                     }}
- 29:                 >
- 30:                     Roast Log
- 31:                 </h3>
- 32:             )}
- 33:             {entries.map((entry, i, arr) => {
- 34:                 const canRemove = entry.event === 'Note' && !!entry.id && !entry.current && !!onRemoveEntry;
- 35: 
- 36:                 return (
- 37:                     <div
- 38:                         key={entry.id ?? `${entry.time}-${entry.event}-${i}`}
- 39:                         style={{
- 40:                             display: 'flex',
- 41:                             gap: isSidebar ? 10 : 12,
- 42:                             padding: isSidebar ? '8px 0' : '10px 0',
- 43:                             borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : 'none',
- 44:                         }}
- 45:                     >
- 46:                         <div
- 47:                             style={{
- 48:                                 fontFamily: 'var(--font-mono)',
- 49:                                 fontSize: isSidebar ? 11 : 12,
- 50:                                 color: 'var(--color-muted)',
- 51:                                 width: isSidebar ? 32 : 36,
- 52:                                 flexShrink: 0,
- 53:                                 paddingTop: isSidebar ? 2 : 1,
- 54:                             }}
- 55:                         >
- 56:                             {entry.time}
- 57:                         </div>
- 58:                         <div
- 59:                             style={{
- 60:                                 width: 6,
- 61:                                 display: 'flex',
- 62:                                 flexDirection: 'column',
- 63:                                 alignItems: 'center',
- 64:                                 paddingTop: 4,
- 65:                                 flexShrink: 0,
- 66:                             }}
- 67:                         >
- 68:                             <div
- 69:                                 style={{
- 70:                                     width: isSidebar ? 6 : 7,
- 71:                                     height: isSidebar ? 6 : 7,
- 72:                                     borderRadius: '50%',
- 73:                                     background: entry.current
- 74:                                         ? STATUS_COLORS.active
- 75:                                         : (eventMarkerColor[entry.event] ?? 'var(--color-border)'),
- 76:                                     boxShadow: entry.current
- 77:                                         ? isSidebar
- 78:                                             ? `0 0 0 2px ${STATUS_COLORS.activeGlow}`
- 79:                                             : `0 0 0 3px ${STATUS_COLORS.activeGlow}`
- 80:                                         : 'none',
- 81:                                     flexShrink: isSidebar ? 0 : undefined,
- 82:                                 }}
- 83:                             />
- 84:                         </div>
- 85:                         <div style={{ flex: 1 }}>
- 86:                             <div style={{ display: 'flex', alignItems: 'center', gap: isSidebar ? 6 : 8 }}>
- 87:                                 <span
- 88:                                     style={{
- 89:                                         fontSize: isSidebar ? 12 : 13,
- 90:                                         fontWeight: 500,
- 91:                                         color: 'var(--color-primary)',
- 92:                                         letterSpacing: isSidebar ? 'normal' : '0.14px',
- 93:                                     }}
- 94:                                 >
- 95:                                     {entry.event}
- 96:                                 </span>
- 97:                                 <span
- 98:                                     style={{
- 99:                                         fontFamily: 'var(--font-mono)',
-100:                                         fontSize: isSidebar ? 11 : 12,
-101:                                         color: 'var(--color-muted)',
-102:                                     }}
-103:                                 >
-104:                                     {entry.temp}
-105:                                 </span>
-106:                             </div>
-107:                             {entry.note && (
-108:                                 <div
-109:                                     style={{
-110:                                         fontSize: isSidebar ? 11 : 12,
-111:                                         color: 'var(--color-muted)',
-112:                                         letterSpacing: isSidebar ? 'normal' : '0.14px',
-113:                                     }}
-114:                                 >
-115:                                     {entry.note}
-116:                                 </div>
-117:                             )}
-118:                         </div>
-119:                         {canRemove && (
-120:                             <button
-121:                                 type="button"
-122:                                 onClick={() => onRemoveEntry(entry.id!)}
-123:                                 aria-label="Delete note"
-124:                                 className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
-125:                             >
-126:                                 <X size={12} />
-127:                             </button>
-128:                         )}
-129:                     </div>
-130:                 );
-131:             })}
-132:         </div>
-133:     );
-134: };
 </file>
 
 <file path="src/widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal.tsx">
@@ -24972,233 +24972,6 @@ This section contains the contents of the repository's files.
 298:         return self._client is not None and self._client.connected
 </file>
 
-<file path=".github/workflows/_publish-r2-reusable.yml">
-  1: name: _Publish to R2 (reusable)
-  2: 
-  3: on:
-  4:   workflow_call:
-  5:     inputs:
-  6:       version:
-  7:         description: 'Version string (e.g. 1.0.2)'
-  8:         required: true
-  9:         type: string
- 10:       run_id:
- 11:         description: 'Artifact run ID to download from (empty = current run — only safe for workflow_call callers where github.run_id == parent run ID)'
- 12:         required: false
- 13:         type: string
- 14:         default: ''
- 15: 
- 16: permissions:
- 17:   contents: read
- 18:   actions: read
- 19: 
- 20: jobs:
- 21:   publish-r2:
- 22:     runs-on: ubuntu-latest
- 23: 
- 24:     steps:
- 25:       - name: Download artifacts
- 26:         uses: actions/download-artifact@v4
- 27:         with:
- 28:           path: artifacts
- 29:           # For workflow_call callers: github.run_id is the parent run — artifacts are found correctly.
- 30:           # For direct dispatch: always pass run_id explicitly.
- 31:           run-id: ${{ inputs.run_id || github.run_id }}
- 32:           github-token: ${{ secrets.GITHUB_TOKEN }}
- 33: 
- 34:       - name: Validate artifact signatures
- 35:         run: |
- 36:           set -e
- 37:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 38:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 39:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
- 40: 
- 41:           verify_sig() {
- 42:             local file="$1" label="$2"
- 43:             if [ ! -f "$file" ]; then
- 44:               echo "::error::$label .sig file not found: $file"
- 45:               exit 1
- 46:             fi
- 47:             if [ ! -s "$file" ]; then
- 48:               echo "::error::$label .sig file is empty: $file"
- 49:               exit 1
- 50:             fi
- 51:             echo "  OK: $label ($(wc -c < "$file") bytes)"
- 52:           }
- 53: 
- 54:           verify_sig "$AARCH64_SIG" "macOS aarch64"
- 55:           verify_sig "$X64_SIG"     "macOS x86_64"
- 56:           verify_sig "$WIN_SIG"     "Windows x86_64"
- 57:           echo "All .sig files valid."
- 58: 
- 59:       - name: Backup current latest.json
- 60:         env:
- 61:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
- 62:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
- 63:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
- 64:           R2_BUCKET: first-crack
- 65:           VERSION: ${{ inputs.version }}
- 66:         run: |
- 67:           TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
- 68:           BACKUP_KEY="releases/latest.json.${VERSION}.${TIMESTAMP}.bak"
- 69:           aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
- 70:             "s3://${R2_BUCKET}/${BACKUP_KEY}" \
- 71:             --endpoint-url "$R2_ENDPOINT" --region auto \
- 72:             --content-type "application/json" && \
- 73:             echo "BACKUP_KEY=${BACKUP_KEY}" >> $GITHUB_ENV || \
- 74:             echo "No existing latest.json to backup (first release?)"
- 75: 
- 76:       - name: Upload binaries & latest.json to R2
- 77:         env:
- 78:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
- 79:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
- 80:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
- 81:           VERSION: ${{ inputs.version }}
- 82:           R2_BUCKET: first-crack
- 83:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
- 84:         run: |
- 85:           set -e
- 86:           S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
- 87: 
- 88:           AARCH64_TAR=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
- 89:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 90:           X64_TAR=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
- 91:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 92:           WIN_MSI=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi" ! -name "*.sig" | head -1)
- 93:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
- 94:           AARCH64_DMG=$(find artifacts/macos-aarch64-apple-darwin -name "*.dmg" | head -1)
- 95:           X64_DMG=$(find artifacts/macos-x86_64-apple-darwin -name "*.dmg" | head -1)
- 96: 
- 97:           [ -z "$AARCH64_TAR" ] && echo "ERROR: macOS arm64 .app.tar.gz not found" && exit 1
- 98:           [ -z "$X64_TAR" ]     && echo "ERROR: macOS x64 .app.tar.gz not found"   && exit 1
- 99:           [ -z "$WIN_MSI" ]     && echo "ERROR: Windows MSI not found"              && exit 1
-100: 
-101:           AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
-102:           X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
-103:           WIN_MSI_R2=$(basename "$WIN_MSI")
-104: 
-105:           # Phase 1: fire all binary uploads in parallel
-106:           pids=""
-107:           $S3 "$AARCH64_TAR" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2" & pids="$pids $!"
-108:           [ -n "$AARCH64_SIG" ] && { $S3 "$AARCH64_SIG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2.sig" & pids="$pids $!"; }
-109:           $S3 "$X64_TAR"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2" & pids="$pids $!"
-110:           [ -n "$X64_SIG" ]     && { $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig" & pids="$pids $!"; }
-111:           $S3 "$WIN_MSI"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2" & pids="$pids $!"
-112:           [ -n "$WIN_SIG" ]     && { $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig" & pids="$pids $!"; }
-113:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")" & pids="$pids $!"; }
-114:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")" & pids="$pids $!"; }
-115: 
-116:           # Build latest.json while uploads run
-117:           jq --null-input \
-118:             --arg version   "$VERSION" \
-119:             --arg pub_date  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-120:             --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
-121:             --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
-122:             --arg x64_sig   "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
-123:             --arg x64_url   "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
-124:             --arg win_sig   "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
-125:             --arg win_url   "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
-126:             '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
-127:             > latest.json
-128: 
-129:           # Wait for all Phase 1 binary uploads
-130:           fail=0
-131:           for pid in $pids; do wait $pid || fail=1; done
-132:           if [ "$fail" -ne 0 ]; then
-133:             echo "ERROR: one or more binary uploads failed"
-134:             exit 1
-135:           fi
-136: 
-137:           # Phase 2: latest.json + landing page aliases (parallel)
-138:           pids=""
-139:           $S3 latest.json "s3://$R2_BUCKET/releases/latest.json" \
-140:             --cache-control "no-cache, no-store, must-revalidate" \
-141:             --content-type "application/json" & pids="$pids $!"
-142:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" & pids="$pids $!"; }
-143:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" & pids="$pids $!"; }
-144:           $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
-145: 
-146:           fail=0
-147:           for pid in $pids; do wait $pid || fail=1; done
-148:           if [ "$fail" -ne 0 ]; then
-149:             echo "ERROR: one or more latest/landing uploads failed"
-150:             exit 1
-151:           fi
-152: 
-153:       - name: Purge Cloudflare cache for latest.json
-154:         env:
-155:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-156:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-157:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
-158:         run: |
-159:           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-160:             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-161:             -H "Authorization: Bearer ${CF_API_TOKEN}" \
-162:             -H "Content-Type: application/json" \
-163:             --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
-164:           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-165:           BODY=$(echo "$RESPONSE" | head -1)
-166:           echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
-167:           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-168:             echo "::error::Cloudflare cache purge failed with HTTP $HTTP_CODE"
-169:             exit 1
-170:           fi
-171: 
-172:       - name: Rollback latest.json on failure
-173:         if: failure() && env.BACKUP_KEY != ''
-174:         env:
-175:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-176:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-177:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
-178:           R2_BUCKET: first-crack
-179:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-180:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-181:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
-182:         run: |
-183:           echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
-184:           if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
-185:               "s3://${R2_BUCKET}/releases/latest.json" \
-186:               --endpoint-url "$R2_ENDPOINT" --region auto \
-187:               --cache-control "no-cache, no-store, must-revalidate" \
-188:               --content-type "application/json"; then
-189:             echo "Rollback complete. Purging CF cache..."
-190:             RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-191:               "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-192:               -H "Authorization: Bearer ${CF_API_TOKEN}" \
-193:               -H "Content-Type: application/json" \
-194:               --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
-195:             HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-196:             echo "CF purge after rollback: HTTP $HTTP_CODE"
-197:             echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
-198:           else
-199:             echo "::error::Rollback FAILED — latest.json may be in broken state"
-200:             echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
-201:           fi
-202: 
-203:       - name: Notify publish result
-204:         if: always()
-205:         env:
-206:           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-207:           VERSION: ${{ inputs.version }}
-208:         run: |
-209:           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-210:           if [ "${{ job.status }}" = "success" ]; then
-211:             TEXT=":white_check_mark: *Release published* — v${VERSION} | <${RUN_URL}|View run>"
-212:           elif [ "$ROLLBACK_STATUS" = "success" ]; then
-213:             TEXT=":x: *Release publish FAILED* — v${VERSION} | :white_check_mark: latest.json rolled back | <${RUN_URL}|View run>"
-214:           elif [ "$ROLLBACK_STATUS" = "failed" ]; then
-215:             TEXT=":rotating_light: *Release publish FAILED + Rollback FAILED* — v${VERSION} — latest.json 수동 확인 필요 | <${RUN_URL}|View run>"
-216:           else
-217:             TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
-218:           fi
-219:           if [ -n "$SLACK_WEBHOOK" ]; then
-220:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
-221:               --data "{\"text\":\"$TEXT\"}"
-222:           else
-223:             echo "SLACK_WEBHOOK_URL not set — skipping notification"
-224:           fi
-</file>
-
 <file path="src/views/profiles/NewProfileModal.tsx">
   1: import { useBeans } from '@entities/bean/queries';
   2: import { useBlends } from '@entities/blend';
@@ -27765,6 +27538,527 @@ This section contains the contents of the repository's files.
 130: };
 </file>
 
+<file path="src/App.tsx">
+  1: import * as Sentry from '@sentry/react';
+  2: import { supabase } from '@shared/lib/supabase';
+  3: import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
+  4: import { useCallback, useEffect, useRef, useState } from 'react';
+  5: import { useRoastSessionStore } from './shared/store/roastSession';
+  6: import type { PlanBatchHandoff } from './shared/types/database.types';
+  7: import './App.css';
+  8: import { Spinner } from '@shared/ui/Spinner';
+  9: import { useSidecarDeadListener } from './features/sidecar';
+ 10: import { useUpdateChecker } from './features/updater';
+ 11: import { useAuthStore } from './shared/store/auth';
+ 12: import { useThemeStore } from './shared/store/theme';
+ 13: import type { View } from './shared/types/view';
+ 14: import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
+ 15: import { ActiveRoast } from './views/active-roast';
+ 16: import { Beans } from './views/bean';
+ 17: import { Dashboard } from './views/dashboard';
+ 18: import { History } from './views/history';
+ 19: import { Login } from './views/login';
+ 20: import { Machines } from './views/machines';
+ 21: import { Profiles } from './views/profiles';
+ 22: import { Schedule } from './views/schedule';
+ 23: import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
+ 24: import { Sidebar } from './widgets/sidebar/ui/Sidebar';
+ 25: import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
+ 26: 
+ 27: export const App = () => {
+ 28:     const user = useAuthStore((s) => s.user);
+ 29:     const loading = useAuthStore((s) => s.loading);
+ 30:     const init = useAuthStore((s) => s.init);
+ 31:     const theme = useThemeStore((s) => s.theme);
+ 32:     const initTheme = useThemeStore((s) => s.initTheme);
+ 33: 
+ 34:     useEffect(() => init(), [init]);
+ 35:     useEffect(() => initTheme(), [initTheme]);
+ 36: 
+ 37:     // Auto-updater: silent background download → system notification
+ 38:     const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
+ 39:     const { isDead: isSidecarDead } = useSidecarDeadListener();
+ 40: 
+ 41:     useEffect(() => {
+ 42:         checkAndDownload();
+ 43:         const id = setInterval(checkAndDownload, 4 * 60 * 60 * 1000);
+ 44:         return () => clearInterval(id);
+ 45:     }, [checkAndDownload]);
+ 46: 
+ 47:     // dev mode: Google OAuth 콜백 처리 (PKCE: ?code= / implicit: #access_token=)
+ 48:     useEffect(() => {
+ 49:         if (!import.meta.env.DEV) return;
+ 50: 
+ 51:         const search = new URLSearchParams(window.location.search);
+ 52:         const hash = new URLSearchParams(window.location.hash.slice(1));
+ 53: 
+ 54:         const code = search.get('code');
+ 55:         const accessToken = hash.get('access_token');
+ 56:         const refreshToken = hash.get('refresh_token');
+ 57: 
+ 58:         if (code) {
+ 59:             window.history.replaceState({}, '', '/');
+ 60:             supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+ 61:                 if (error) console.error('[auth] dev exchangeCode failed:', error);
+ 62:             });
+ 63:         } else if (accessToken && refreshToken) {
+ 64:             window.history.replaceState({}, '', '/');
+ 65:             supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+ 66:                 if (error) console.error('[auth] dev setSession failed:', error);
+ 67:             });
+ 68:         }
+ 69:     }, []);
+ 70: 
+ 71:     const handledRef = useRef(false);
+ 72:     useEffect(() => {
+ 73:         const handleCallback = async (url: string) => {
+ 74:             console.log('[deep-link] received:', url);
+ 75:             if (!url.includes('auth/callback') || handledRef.current) return;
+ 76:             handledRef.current = true;
+ 77: 
+ 78:             const parsed = new URL(url);
+ 79:             const code = parsed.searchParams.get('code');
+ 80: 
+ 81:             if (code) {
+ 82:                 console.log('[deep-link] exchanging PKCE code...');
+ 83:                 const { error } = await supabase.auth.exchangeCodeForSession(code);
+ 84:                 if (error) console.error('[deep-link] exchangeCodeForSession failed:', error);
+ 85:                 else console.log('[deep-link] session exchanged successfully');
+ 86:                 return;
+ 87:             }
+ 88: 
+ 89:             // implicit flow 폴백: #access_token=...&refresh_token=...
+ 90:             const hash = new URLSearchParams(parsed.hash.slice(1));
+ 91:             const accessToken = hash.get('access_token');
+ 92:             const refreshToken = hash.get('refresh_token');
+ 93:             if (accessToken && refreshToken) {
+ 94:                 console.log('[deep-link] setting session from hash tokens...');
+ 95:                 const { error } = await supabase.auth.setSession({
+ 96:                     access_token: accessToken,
+ 97:                     refresh_token: refreshToken,
+ 98:                 });
+ 99:                 if (error) console.error('[deep-link] setSession failed:', error);
+100:                 else console.log('[deep-link] session set successfully');
+101:             }
+102:         };
+103: 
+104:         getCurrent().then((urls) => {
+105:             console.log('[deep-link] getCurrent:', urls);
+106:             if (urls?.length) handleCallback(urls[0]);
+107:         });
+108: 
+109:         let unlisten: (() => void) | undefined;
+110:         onOpenUrl((urls) => {
+111:             console.log('[deep-link] onOpenUrl:', urls);
+112:             if (urls.length) handleCallback(urls[0]);
+113:         }).then((fn) => {
+114:             unlisten = fn;
+115:         });
+116: 
+117:         return () => unlisten?.();
+118:     }, []);
+119:     const [view, setView] = useState<View>('dashboard');
+120:     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+121:     const [settingsOpen, setSettingsOpen] = useState(false);
+122:     const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>('general');
+123:     const startBatch = useRoastSessionStore((s) => s.startBatch);
+124:     const completeBatch = useRoastSessionStore((s) => s.completeBatch);
+125: 
+126:     const openSettings = (tab: SettingsTabId = 'general') => {
+127:         setSettingsInitialTab(tab);
+128:         setSettingsOpen(true);
+129:     };
+130: 
+131:     const handleStartBatch = useCallback(
+132:         (handoff: PlanBatchHandoff) => {
+133:             startBatch(handoff);
+134:             setView('roast');
+135:         },
+136:         [startBatch],
+137:     );
+138: 
+139:     const handlePlanBatchComplete = useCallback(() => {
+140:         completeBatch();
+141:         setView('schedule');
+142:     }, [completeBatch]);
+143: 
+144:     if (loading)
+145:         return (
+146:             <div
+147:                 style={{
+148:                     display: 'flex',
+149:                     height: '100vh',
+150:                     alignItems: 'center',
+151:                     justifyContent: 'center',
+152:                     background: 'var(--color-surface)',
+153:                 }}
+154:             >
+155:                 <Spinner size={24} />
+156:             </div>
+157:         );
+158:     if (!user) return <Login />;
+159: 
+160:     const sentryFallback = ({ error, resetError }: { error: unknown; resetError: () => void }) => (
+161:         <div className="flex flex-col items-center justify-center h-screen gap-4 p-8 text-center bg-[var(--color-surface)]">
+162:             <p className="text-sm text-red-400">
+163:                 {error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'}
+164:             </p>
+165:             <button
+166:                 onClick={resetError}
+167:                 className="px-4 py-2 text-sm rounded-md bg-stone-700 hover:bg-stone-600 text-stone-100 transition-colors"
+168:             >
+169:                 다시 시도
+170:             </button>
+171:         </div>
+172:     );
+173: 
+174:     return (
+175:         <Sentry.ErrorBoundary fallback={sentryFallback}>
+176:             <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+177:                 {theme === null && <ThemeSelectModal />}
+178:                 <Sidebar
+179:                     activeView={view}
+180:                     onNavigate={setView}
+181:                     collapsed={sidebarCollapsed}
+182:                     onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
+183:                     onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
+184:                 />
+185:                 <div
+186:                     style={{
+187:                         flex: 1,
+188:                         minHeight: 0,
+189:                         display: 'flex',
+190:                         flexDirection: 'column',
+191:                         overflow: view === 'roast' ? 'hidden' : 'auto',
+192:                         background: 'var(--color-surface)',
+193:                     }}
+194:                 >
+195:                     {view === 'dashboard' && (
+196:                         <ViewErrorBoundary>
+197:                             <Dashboard onNavigate={setView} />
+198:                         </ViewErrorBoundary>
+199:                     )}
+200:                     {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
+201:             TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
+202:                     <div
+203:                         style={{
+204:                             display: view === 'roast' ? 'flex' : 'none',
+205:                             flexDirection: 'column',
+206:                             flex: view === 'roast' ? 1 : undefined,
+207:                             height: view === 'roast' ? undefined : '100%',
+208:                             minHeight: 0,
+209:                             overflow: 'hidden',
+210:                         }}
+211:                     >
+212:                         <ViewErrorBoundary>
+213:                             <ActiveRoast
+214:                                 isActive={view === 'roast'}
+215:                                 onOpenRoastSettings={() => openSettings('roast')}
+216:                                 onPlanBatchComplete={handlePlanBatchComplete}
+217:                             />
+218:                         </ViewErrorBoundary>
+219:                     </div>
+220:                     {view === 'history' && (
+221:                         <ViewErrorBoundary>
+222:                             <History />
+223:                         </ViewErrorBoundary>
+224:                     )}
+225:                     {view === 'beans' && (
+226:                         <ViewErrorBoundary>
+227:                             <Beans onNavigate={setView} />
+228:                         </ViewErrorBoundary>
+229:                     )}
+230:                     {view === 'profiles' && (
+231:                         <ViewErrorBoundary>
+232:                             <Profiles onNavigate={setView} />
+233:                         </ViewErrorBoundary>
+234:                     )}
+235:                     <div style={{ display: view === 'machines' ? 'block' : 'none' }}>
+236:                         <ViewErrorBoundary>
+237:                             <Machines isActive={view === 'machines'} onNavigate={setView} />
+238:                         </ViewErrorBoundary>
+239:                     </div>
+240:                     {view === 'schedule' && (
+241:                         <ViewErrorBoundary>
+242:                             <Schedule onStartBatch={handleStartBatch} />
+243:                         </ViewErrorBoundary>
+244:                     )}
+245:                 </div>
+246:                 <SettingsModal
+247:                     open={settingsOpen}
+248:                     initialTab={settingsInitialTab}
+249:                     onClose={() => setSettingsOpen(false)}
+250:                 />
+251: 
+252:                 {isSidecarDead && (
+253:                     <div className="fixed bottom-6 left-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-lg bg-red-900/90 border border-red-700 text-red-100 text-sm shadow-lg">
+254:                         <span>하드웨어 연결 서비스가 응답하지 않습니다.</span>
+255:                         <span className="text-red-300">앱을 재시작해 주세요.</span>
+256:                     </div>
+257:                 )}
+258: 
+259:                 {state.status === 'ready' && (
+260:                     <button
+261:                         onClick={applyAndRelaunch}
+262:                         style={{
+263:                             position: 'fixed',
+264:                             bottom: 24,
+265:                             right: 24,
+266:                             zIndex: 9999,
+267:                             padding: '10px 20px',
+268:                             borderRadius: 9999,
+269:                             border: 'none',
+270:                             background: 'var(--color-accent, #2563eb)',
+271:                             color: '#fff',
+272:                             fontSize: 14,
+273:                             fontWeight: 500,
+274:                             cursor: 'pointer',
+275:                             boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+276:                         }}
+277:                     >
+278:                         새 업데이트 (v{state.version}) 재시작
+279:                     </button>
+280:                 )}
+281:             </div>
+282:         </Sentry.ErrorBoundary>
+283:     );
+284: };
+</file>
+
+<file path=".github/workflows/_publish-r2-reusable.yml">
+  1: name: _Publish to R2 (reusable)
+  2: 
+  3: on:
+  4:   workflow_call:
+  5:     inputs:
+  6:       version:
+  7:         description: 'Version string (e.g. 1.0.2)'
+  8:         required: true
+  9:         type: string
+ 10:       run_id:
+ 11:         description: 'Artifact run ID to download from (empty = current run — only safe for workflow_call callers where github.run_id == parent run ID)'
+ 12:         required: false
+ 13:         type: string
+ 14:         default: ''
+ 15: 
+ 16: permissions:
+ 17:   contents: read
+ 18:   actions: read
+ 19: 
+ 20: jobs:
+ 21:   publish-r2:
+ 22:     runs-on: ubuntu-latest
+ 23: 
+ 24:     steps:
+ 25:       - name: Download artifacts
+ 26:         uses: actions/download-artifact@v4
+ 27:         with:
+ 28:           path: artifacts
+ 29:           # For workflow_call callers: github.run_id is the parent run — artifacts are found correctly.
+ 30:           # For direct dispatch: always pass run_id explicitly.
+ 31:           run-id: ${{ inputs.run_id || github.run_id }}
+ 32:           github-token: ${{ secrets.GITHUB_TOKEN }}
+ 33: 
+ 34:       - name: Validate artifact signatures
+ 35:         run: |
+ 36:           set -e
+ 37:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 38:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 39:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
+ 40: 
+ 41:           verify_sig() {
+ 42:             local file="$1" label="$2"
+ 43:             if [ ! -f "$file" ]; then
+ 44:               echo "::error::$label .sig file not found: $file"
+ 45:               exit 1
+ 46:             fi
+ 47:             if [ ! -s "$file" ]; then
+ 48:               echo "::error::$label .sig file is empty: $file"
+ 49:               exit 1
+ 50:             fi
+ 51:             echo "  OK: $label ($(wc -c < "$file") bytes)"
+ 52:           }
+ 53: 
+ 54:           verify_sig "$AARCH64_SIG" "macOS aarch64"
+ 55:           verify_sig "$X64_SIG"     "macOS x86_64"
+ 56:           verify_sig "$WIN_SIG"     "Windows x86_64"
+ 57:           echo "All .sig files valid."
+ 58: 
+ 59:       - name: Backup current latest.json
+ 60:         env:
+ 61:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+ 62:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+ 63:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+ 64:           R2_BUCKET: first-crack
+ 65:           VERSION: ${{ inputs.version }}
+ 66:         run: |
+ 67:           TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+ 68:           BACKUP_KEY="releases/latest.json.${VERSION}.${TIMESTAMP}.bak"
+ 69:           aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
+ 70:             "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+ 71:             --endpoint-url "$R2_ENDPOINT" --region auto \
+ 72:             --content-type "application/json" && \
+ 73:             echo "BACKUP_KEY=${BACKUP_KEY}" >> $GITHUB_ENV || \
+ 74:             echo "No existing latest.json to backup (first release?)"
+ 75: 
+ 76:       - name: Upload binaries & latest.json to R2
+ 77:         id: upload-r2
+ 78:         env:
+ 79:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+ 80:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+ 81:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+ 82:           VERSION: ${{ inputs.version }}
+ 83:           R2_BUCKET: first-crack
+ 84:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+ 85:         run: |
+ 86:           set -e
+ 87:           S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
+ 88: 
+ 89:           AARCH64_TAR=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+ 90:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 91:           X64_TAR=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+ 92:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 93:           WIN_MSI=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi" ! -name "*.sig" | head -1)
+ 94:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
+ 95:           AARCH64_DMG=$(find artifacts/macos-aarch64-apple-darwin -name "*.dmg" | head -1)
+ 96:           X64_DMG=$(find artifacts/macos-x86_64-apple-darwin -name "*.dmg" | head -1)
+ 97: 
+ 98:           [ -z "$AARCH64_TAR" ] && echo "ERROR: macOS arm64 .app.tar.gz not found" && exit 1
+ 99:           [ -z "$X64_TAR" ]     && echo "ERROR: macOS x64 .app.tar.gz not found"   && exit 1
+100:           [ -z "$WIN_MSI" ]     && echo "ERROR: Windows MSI not found"              && exit 1
+101: 
+102:           AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
+103:           X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
+104:           WIN_MSI_R2=$(basename "$WIN_MSI")
+105: 
+106:           # Phase 1: fire all binary uploads in parallel
+107:           pids=""
+108:           $S3 "$AARCH64_TAR" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2" & pids="$pids $!"
+109:           [ -n "$AARCH64_SIG" ] && { $S3 "$AARCH64_SIG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2.sig" & pids="$pids $!"; }
+110:           $S3 "$X64_TAR"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2" & pids="$pids $!"
+111:           [ -n "$X64_SIG" ]     && { $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig" & pids="$pids $!"; }
+112:           $S3 "$WIN_MSI"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2" & pids="$pids $!"
+113:           [ -n "$WIN_SIG" ]     && { $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig" & pids="$pids $!"; }
+114:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")" & pids="$pids $!"; }
+115:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")" & pids="$pids $!"; }
+116: 
+117:           # Build latest.json while uploads run
+118:           jq --null-input \
+119:             --arg version   "$VERSION" \
+120:             --arg pub_date  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+121:             --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
+122:             --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
+123:             --arg x64_sig   "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
+124:             --arg x64_url   "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
+125:             --arg win_sig   "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
+126:             --arg win_url   "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
+127:             '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
+128:             > latest.json
+129: 
+130:           # Wait for all Phase 1 binary uploads
+131:           fail=0
+132:           for pid in $pids; do wait $pid || fail=1; done
+133:           if [ "$fail" -ne 0 ]; then
+134:             echo "ERROR: one or more binary uploads failed"
+135:             exit 1
+136:           fi
+137: 
+138:           # Phase 2: latest.json + landing page aliases (parallel)
+139:           pids=""
+140:           $S3 latest.json "s3://$R2_BUCKET/releases/latest.json" \
+141:             --cache-control "no-cache, no-store, must-revalidate" \
+142:             --content-type "application/json" & pids="$pids $!"
+143:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" & pids="$pids $!"; }
+144:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" & pids="$pids $!"; }
+145:           $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
+146: 
+147:           fail=0
+148:           for pid in $pids; do wait $pid || fail=1; done
+149:           if [ "$fail" -ne 0 ]; then
+150:             echo "ERROR: one or more latest/landing uploads failed"
+151:             exit 1
+152:           fi
+153: 
+154:       - name: Purge Cloudflare cache for latest.json
+155:         env:
+156:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+157:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+158:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+159:         run: |
+160:           if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ZONE_ID" ]; then
+161:             echo "CLOUDFLARE_API_TOKEN or CLOUDFLARE_ZONE_ID not set — skipping (not required for r2.dev direct URL)"
+162:             exit 0
+163:           fi
+164:           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+165:             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+166:             -H "Authorization: Bearer ${CF_API_TOKEN}" \
+167:             -H "Content-Type: application/json" \
+168:             --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+169:           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+170:           BODY=$(echo "$RESPONSE" | head -1)
+171:           echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
+172:           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+173:             echo "::warning::Cloudflare cache purge failed with HTTP $HTTP_CODE — continuing (r2.dev uses no-cache headers)"
+174:             exit 0
+175:           fi
+176: 
+177:       - name: Rollback latest.json on failure
+178:         if: failure() && steps.upload-r2.outcome == 'failure' && env.BACKUP_KEY != ''
+179:         env:
+180:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+181:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+182:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+183:           R2_BUCKET: first-crack
+184:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+185:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+186:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+187:         run: |
+188:           echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
+189:           if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+190:               "s3://${R2_BUCKET}/releases/latest.json" \
+191:               --endpoint-url "$R2_ENDPOINT" --region auto \
+192:               --cache-control "no-cache, no-store, must-revalidate" \
+193:               --content-type "application/json"; then
+194:             echo "Rollback complete."
+195:             if [ -n "$CF_API_TOKEN" ] && [ -n "$CF_ZONE_ID" ]; then
+196:               RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+197:                 "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+198:                 -H "Authorization: Bearer ${CF_API_TOKEN}" \
+199:                 -H "Content-Type: application/json" \
+200:                 --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+201:               HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+202:               echo "CF purge after rollback: HTTP $HTTP_CODE"
+203:             fi
+204:             echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
+205:           else
+206:             echo "::error::Rollback FAILED — latest.json may be in broken state"
+207:             echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
+208:           fi
+209: 
+210:       - name: Notify publish result
+211:         if: always()
+212:         env:
+213:           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+214:           VERSION: ${{ inputs.version }}
+215:         run: |
+216:           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+217:           if [ "${{ job.status }}" = "success" ]; then
+218:             TEXT=":white_check_mark: *Release published* — v${VERSION} | <${RUN_URL}|View run>"
+219:           elif [ "$ROLLBACK_STATUS" = "success" ]; then
+220:             TEXT=":x: *Release publish FAILED* — v${VERSION} | :white_check_mark: latest.json rolled back | <${RUN_URL}|View run>"
+221:           elif [ "$ROLLBACK_STATUS" = "failed" ]; then
+222:             TEXT=":rotating_light: *Release publish FAILED + Rollback FAILED* — v${VERSION} — latest.json 수동 확인 필요 | <${RUN_URL}|View run>"
+223:           else
+224:             TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
+225:           fi
+226:           if [ -n "$SLACK_WEBHOOK" ]; then
+227:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+228:               --data "{\"text\":\"$TEXT\"}"
+229:           else
+230:             echo "SLACK_WEBHOOK_URL not set — skipping notification"
+231:           fi
+</file>
+
 <file path="src/shared/i18n/locales/en.json">
   1: {
   2:     "common": {
@@ -29671,293 +29965,6 @@ This section contains the contents of the repository's files.
 374:         </PageLayout>
 375:     );
 376: };
-</file>
-
-<file path="src/App.tsx">
-  1: import * as Sentry from '@sentry/react';
-  2: import { supabase } from '@shared/lib/supabase';
-  3: import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
-  4: import { useCallback, useEffect, useRef, useState } from 'react';
-  5: import { useRoastSessionStore } from './shared/store/roastSession';
-  6: import type { PlanBatchHandoff } from './shared/types/database.types';
-  7: import './App.css';
-  8: import { Spinner } from '@shared/ui/Spinner';
-  9: import { useSidecarDeadListener } from './features/sidecar';
- 10: import { useUpdateChecker } from './features/updater';
- 11: import { useAuthStore } from './shared/store/auth';
- 12: import { useThemeStore } from './shared/store/theme';
- 13: import type { View } from './shared/types/view';
- 14: import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
- 15: import { ActiveRoast } from './views/active-roast';
- 16: import { Beans } from './views/bean';
- 17: import { Dashboard } from './views/dashboard';
- 18: import { History } from './views/history';
- 19: import { Login } from './views/login';
- 20: import { Machines } from './views/machines';
- 21: import { Profiles } from './views/profiles';
- 22: import { Schedule } from './views/schedule';
- 23: import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
- 24: import { Sidebar } from './widgets/sidebar/ui/Sidebar';
- 25: import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
- 26: 
- 27: export const App = () => {
- 28:     const user = useAuthStore((s) => s.user);
- 29:     const loading = useAuthStore((s) => s.loading);
- 30:     const init = useAuthStore((s) => s.init);
- 31:     const theme = useThemeStore((s) => s.theme);
- 32:     const initTheme = useThemeStore((s) => s.initTheme);
- 33: 
- 34:     useEffect(() => init(), [init]);
- 35:     useEffect(() => initTheme(), [initTheme]);
- 36: 
- 37:     // Auto-updater: silent background download → system notification
- 38:     const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
- 39:     const { isDead: isSidecarDead } = useSidecarDeadListener();
- 40: 
- 41:     useEffect(() => {
- 42:         checkAndDownload();
- 43:         const id = setInterval(checkAndDownload, 4 * 60 * 60 * 1000);
- 44:         return () => clearInterval(id);
- 45:     }, [checkAndDownload]);
- 46: 
- 47:     // dev mode: Google OAuth 콜백 처리 (PKCE: ?code= / implicit: #access_token=)
- 48:     useEffect(() => {
- 49:         if (!import.meta.env.DEV) return;
- 50: 
- 51:         const search = new URLSearchParams(window.location.search);
- 52:         const hash = new URLSearchParams(window.location.hash.slice(1));
- 53: 
- 54:         const code = search.get('code');
- 55:         const accessToken = hash.get('access_token');
- 56:         const refreshToken = hash.get('refresh_token');
- 57: 
- 58:         if (code) {
- 59:             window.history.replaceState({}, '', '/');
- 60:             supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
- 61:                 if (error) console.error('[auth] dev exchangeCode failed:', error);
- 62:             });
- 63:         } else if (accessToken && refreshToken) {
- 64:             window.history.replaceState({}, '', '/');
- 65:             supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
- 66:                 if (error) console.error('[auth] dev setSession failed:', error);
- 67:             });
- 68:         }
- 69:     }, []);
- 70: 
- 71:     const handledRef = useRef(false);
- 72:     useEffect(() => {
- 73:         const handleCallback = async (url: string) => {
- 74:             console.log('[deep-link] received:', url);
- 75:             if (!url.includes('auth/callback') || handledRef.current) return;
- 76:             handledRef.current = true;
- 77: 
- 78:             const parsed = new URL(url);
- 79:             const code = parsed.searchParams.get('code');
- 80: 
- 81:             if (code) {
- 82:                 console.log('[deep-link] exchanging PKCE code...');
- 83:                 const { error } = await supabase.auth.exchangeCodeForSession(code);
- 84:                 if (error) console.error('[deep-link] exchangeCodeForSession failed:', error);
- 85:                 else console.log('[deep-link] session exchanged successfully');
- 86:                 return;
- 87:             }
- 88: 
- 89:             // implicit flow 폴백: #access_token=...&refresh_token=...
- 90:             const hash = new URLSearchParams(parsed.hash.slice(1));
- 91:             const accessToken = hash.get('access_token');
- 92:             const refreshToken = hash.get('refresh_token');
- 93:             if (accessToken && refreshToken) {
- 94:                 console.log('[deep-link] setting session from hash tokens...');
- 95:                 const { error } = await supabase.auth.setSession({
- 96:                     access_token: accessToken,
- 97:                     refresh_token: refreshToken,
- 98:                 });
- 99:                 if (error) console.error('[deep-link] setSession failed:', error);
-100:                 else console.log('[deep-link] session set successfully');
-101:             }
-102:         };
-103: 
-104:         getCurrent().then((urls) => {
-105:             console.log('[deep-link] getCurrent:', urls);
-106:             if (urls?.length) handleCallback(urls[0]);
-107:         });
-108: 
-109:         let unlisten: (() => void) | undefined;
-110:         onOpenUrl((urls) => {
-111:             console.log('[deep-link] onOpenUrl:', urls);
-112:             if (urls.length) handleCallback(urls[0]);
-113:         }).then((fn) => {
-114:             unlisten = fn;
-115:         });
-116: 
-117:         return () => unlisten?.();
-118:     }, []);
-119:     const [view, setView] = useState<View>('dashboard');
-120:     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-121:     const [settingsOpen, setSettingsOpen] = useState(false);
-122:     const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>('general');
-123:     const startBatch = useRoastSessionStore((s) => s.startBatch);
-124:     const completeBatch = useRoastSessionStore((s) => s.completeBatch);
-125: 
-126:     const openSettings = (tab: SettingsTabId = 'general') => {
-127:         setSettingsInitialTab(tab);
-128:         setSettingsOpen(true);
-129:     };
-130: 
-131:     const handleStartBatch = useCallback(
-132:         (handoff: PlanBatchHandoff) => {
-133:             startBatch(handoff);
-134:             setView('roast');
-135:         },
-136:         [startBatch],
-137:     );
-138: 
-139:     const handlePlanBatchComplete = useCallback(() => {
-140:         completeBatch();
-141:         setView('schedule');
-142:     }, [completeBatch]);
-143: 
-144:     if (loading)
-145:         return (
-146:             <div
-147:                 style={{
-148:                     display: 'flex',
-149:                     height: '100vh',
-150:                     alignItems: 'center',
-151:                     justifyContent: 'center',
-152:                     background: 'var(--color-surface)',
-153:                 }}
-154:             >
-155:                 <Spinner size={24} />
-156:             </div>
-157:         );
-158:     if (!user) return <Login />;
-159: 
-160:     const sentryFallback = ({ error, resetError }: { error: unknown; resetError: () => void }) => (
-161:         <div className="flex flex-col items-center justify-center h-screen gap-4 p-8 text-center bg-[var(--color-surface)]">
-162:             <p className="text-sm text-red-400">
-163:                 {error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'}
-164:             </p>
-165:             <button
-166:                 onClick={resetError}
-167:                 className="px-4 py-2 text-sm rounded-md bg-stone-700 hover:bg-stone-600 text-stone-100 transition-colors"
-168:             >
-169:                 다시 시도
-170:             </button>
-171:         </div>
-172:     );
-173: 
-174:     return (
-175:         <Sentry.ErrorBoundary fallback={sentryFallback}>
-176:             <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-177:                 {theme === null && <ThemeSelectModal />}
-178:                 <Sidebar
-179:                     activeView={view}
-180:                     onNavigate={setView}
-181:                     collapsed={sidebarCollapsed}
-182:                     onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
-183:                     onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
-184:                 />
-185:                 <div
-186:                     style={{
-187:                         flex: 1,
-188:                         minHeight: 0,
-189:                         display: 'flex',
-190:                         flexDirection: 'column',
-191:                         overflow: view === 'roast' ? 'hidden' : 'auto',
-192:                         background: 'var(--color-surface)',
-193:                     }}
-194:                 >
-195:                     {view === 'dashboard' && (
-196:                         <ViewErrorBoundary>
-197:                             <Dashboard onNavigate={setView} />
-198:                         </ViewErrorBoundary>
-199:                     )}
-200:                     {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
-201:             TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
-202:                     <div
-203:                         style={{
-204:                             display: view === 'roast' ? 'flex' : 'none',
-205:                             flexDirection: 'column',
-206:                             flex: view === 'roast' ? 1 : undefined,
-207:                             height: view === 'roast' ? undefined : '100%',
-208:                             minHeight: 0,
-209:                             overflow: 'hidden',
-210:                         }}
-211:                     >
-212:                         <ViewErrorBoundary>
-213:                             <ActiveRoast
-214:                                 isActive={view === 'roast'}
-215:                                 onOpenRoastSettings={() => openSettings('roast')}
-216:                                 onPlanBatchComplete={handlePlanBatchComplete}
-217:                             />
-218:                         </ViewErrorBoundary>
-219:                     </div>
-220:                     {view === 'history' && (
-221:                         <ViewErrorBoundary>
-222:                             <History />
-223:                         </ViewErrorBoundary>
-224:                     )}
-225:                     {view === 'beans' && (
-226:                         <ViewErrorBoundary>
-227:                             <Beans onNavigate={setView} />
-228:                         </ViewErrorBoundary>
-229:                     )}
-230:                     {view === 'profiles' && (
-231:                         <ViewErrorBoundary>
-232:                             <Profiles onNavigate={setView} />
-233:                         </ViewErrorBoundary>
-234:                     )}
-235:                     <div style={{ display: view === 'machines' ? 'block' : 'none' }}>
-236:                         <ViewErrorBoundary>
-237:                             <Machines isActive={view === 'machines'} onNavigate={setView} />
-238:                         </ViewErrorBoundary>
-239:                     </div>
-240:                     {view === 'schedule' && (
-241:                         <ViewErrorBoundary>
-242:                             <Schedule onStartBatch={handleStartBatch} />
-243:                         </ViewErrorBoundary>
-244:                     )}
-245:                 </div>
-246:                 <SettingsModal
-247:                     open={settingsOpen}
-248:                     initialTab={settingsInitialTab}
-249:                     onClose={() => setSettingsOpen(false)}
-250:                 />
-251: 
-252:                 {isSidecarDead && (
-253:                     <div className="fixed bottom-6 left-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-lg bg-red-900/90 border border-red-700 text-red-100 text-sm shadow-lg">
-254:                         <span>하드웨어 연결 서비스가 응답하지 않습니다.</span>
-255:                         <span className="text-red-300">앱을 재시작해 주세요.</span>
-256:                     </div>
-257:                 )}
-258: 
-259:                 {state.status === 'ready' && (
-260:                     <button
-261:                         onClick={applyAndRelaunch}
-262:                         style={{
-263:                             position: 'fixed',
-264:                             bottom: 24,
-265:                             right: 24,
-266:                             zIndex: 9999,
-267:                             padding: '10px 20px',
-268:                             borderRadius: 9999,
-269:                             border: 'none',
-270:                             background: 'var(--color-accent, #2563eb)',
-271:                             color: '#fff',
-272:                             fontSize: 14,
-273:                             fontWeight: 500,
-274:                             cursor: 'pointer',
-275:                             boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-276:                         }}
-277:                     >
-278:                         새 업데이트 (v{state.version}) 재시작
-279:                     </button>
-280:                 )}
-281:             </div>
-282:         </Sentry.ErrorBoundary>
-283:     );
-284: };
 </file>
 
 <file path="package.json">

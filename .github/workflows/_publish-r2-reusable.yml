@@ -74,6 +74,7 @@ jobs:
             echo "No existing latest.json to backup (first release?)"
 
       - name: Upload binaries & latest.json to R2
+        id: upload-r2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
@@ -156,6 +157,10 @@ jobs:
           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
         run: |
+          if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ZONE_ID" ]; then
+            echo "CLOUDFLARE_API_TOKEN or CLOUDFLARE_ZONE_ID not set — skipping (not required for r2.dev direct URL)"
+            exit 0
+          fi
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
             -H "Authorization: Bearer ${CF_API_TOKEN}" \
@@ -165,12 +170,12 @@ jobs:
           BODY=$(echo "$RESPONSE" | head -1)
           echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-            echo "::error::Cloudflare cache purge failed with HTTP $HTTP_CODE"
-            exit 1
+            echo "::warning::Cloudflare cache purge failed with HTTP $HTTP_CODE — continuing (r2.dev uses no-cache headers)"
+            exit 0
           fi
 
       - name: Rollback latest.json on failure
-        if: failure() && env.BACKUP_KEY != ''
+        if: failure() && steps.upload-r2.outcome == 'failure' && env.BACKUP_KEY != ''
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
@@ -186,14 +191,16 @@ jobs:
               --endpoint-url "$R2_ENDPOINT" --region auto \
               --cache-control "no-cache, no-store, must-revalidate" \
               --content-type "application/json"; then
-            echo "Rollback complete. Purging CF cache..."
-            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-              -H "Authorization: Bearer ${CF_API_TOKEN}" \
-              -H "Content-Type: application/json" \
-              --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
-            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-            echo "CF purge after rollback: HTTP $HTTP_CODE"
+            echo "Rollback complete."
+            if [ -n "$CF_API_TOKEN" ] && [ -n "$CF_ZONE_ID" ]; then
+              RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+                -H "Authorization: Bearer ${CF_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+              HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+              echo "CF purge after rollback: HTTP $HTTP_CODE"
+            fi
             echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
           else
             echo "::error::Rollback FAILED — latest.json may be in broken state"
