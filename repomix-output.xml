@@ -1475,6 +1475,36 @@ This section contains the contents of the repository's files.
 1: export { AddBlendModal } from './ui/AddBlendModal';
 </file>
 
+<file path="src-tauri/capabilities/default.json">
+ 1: {
+ 2:   "$schema": "../gen/schemas/desktop-schema.json",
+ 3:   "identifier": "default",
+ 4:   "description": "Default capabilities",
+ 5:   "platforms": ["linux", "macOS", "windows"],
+ 6:   "windows": ["main"],
+ 7:   "permissions": [
+ 8:     "core:default",
+ 9:     "deep-link:default",
+10:     "opener:default",
+11:     "store:default",
+12:     "shell:allow-spawn",
+13:     "shell:allow-kill",
+14:     "dialog:allow-message",
+15:     "dialog:allow-ask",
+16:     "dialog:allow-confirm",
+17:     "dialog:allow-save",
+18:     "updater:default",
+19:     "process:allow-restart",
+20:     "fs:allow-applocaldata-read-recursive",
+21:     "fs:allow-applocaldata-write-recursive",
+22:     "fs:allow-read-text-file",
+23:     "fs:allow-write-text-file",
+24:     "fs:allow-remove",
+25:     "notification:default"
+26:   ]
+27: }
+</file>
+
 <file path="src-tauri/sidecar/adapters/__init__.py">
  1: from adapters.base import Reading
  2: from adapters.virtual import VirtualMachineAdapter
@@ -3391,58 +3421,6 @@ This section contains the contents of the repository's files.
  9:     </dict>
 10: </dict>
 11: </plist>
-</file>
-
-<file path="src-tauri/tauri.conf.json">
- 1: {
- 2:     "$schema": "https://schema.tauri.app/config/2",
- 3:     "productName": "First Crack",
- 4:     "version": "1.0.5",
- 5:     "identifier": "com.hanseungheon.roastery-agent",
- 6:     "build": {
- 7:         "beforeDevCommand": "npm run dev",
- 8:         "devUrl": "http://localhost:1420",
- 9:         "beforeBuildCommand": "npm run build",
-10:         "frontendDist": "../dist"
-11:     },
-12:     "app": {
-13:         "windows": [
-14:             {
-15:                 "label": "main",
-16:                 "title": "First Crack",
-17:                 "width": 1400,
-18:                 "height": 900,
-19:                 "center": true,
-20:                 "resizable": true
-21:             }
-22:         ],
-23:         "security": {
-24:             "csp": null
-25:         }
-26:     },
-27:     "plugins": {
-28:         "deep-link": {
-29:             "desktop": {
-30:                 "schemes": ["firstcrack"]
-31:             }
-32:         },
-33:         "updater": {
-34:             "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlBODIzMjY0MjMyNzJCQjQKUldTMEt5Y2paREtDbW1WZU1XSWpvYTF3Q0ZVRW9BWGFlZ0ZYWE5IWFc5RG0xWkNid3ZyS1ZPdSsK",
-35:             "endpoints": ["https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev/releases/latest.json"]
-36:         }
-37:     },
-38:     "bundle": {
-39:         "active": true,
-40:         "targets": ["app", "dmg", "msi"],
-41:         "createUpdaterArtifacts": true,
-42:         "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
-43:         "externalBin": ["binaries/sidecar"],
-44:         "macOS": {
-45:             "infoPlist": "Info.plist",
-46:             "entitlements": "entitlements.plist"
-47:         }
-48:     }
-49: }
 </file>
 
 <file path="supabase/migrations/20260423154130_placeholder.sql">
@@ -8544,6 +8522,119 @@ This section contains the contents of the repository's files.
 1: export { useSidecarDeadListener } from './model/useSidecarDeadListener';
 </file>
 
+<file path="src/features/updater/lib/useUpdateChecker.ts">
+  1: import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
+  2: import { relaunch } from '@tauri-apps/plugin-process';
+  3: import type { DownloadEvent } from '@tauri-apps/plugin-updater';
+  4: import { check } from '@tauri-apps/plugin-updater';
+  5: import { useCallback, useRef, useState } from 'react';
+  6: 
+  7: export type UpdateStatus = 'idle' | 'checking' | 'downloading' | 'ready' | 'error';
+  8: 
+  9: export interface UpdateState {
+ 10:     status: UpdateStatus;
+ 11:     /** 새 버전 식별자 (e.g. "1.0.5") */
+ 12:     version: string | null;
+ 13:     /** 다운로드 진행률 0–100 */
+ 14:     progress: number;
+ 15:     /** 에러 메시지 */
+ 16:     error: string | null;
+ 17: }
+ 18: 
+ 19: export interface UseUpdateCheckerReturn {
+ 20:     state: UpdateState;
+ 21:     /** 조용히 체크 → 다운로드 시작. DEV 모드면 아무 일도 안 함. */
+ 22:     checkAndDownload: () => Promise<void>;
+ 23:     /** 앱 재시작 (업데이트 적용) */
+ 24:     applyAndRelaunch: () => Promise<void>;
+ 25: }
+ 26: 
+ 27: const INITIAL_STATE: UpdateState = {
+ 28:     status: 'idle',
+ 29:     version: null,
+ 30:     progress: 0,
+ 31:     error: null,
+ 32: };
+ 33: 
+ 34: /** 시스템 알림 권한 확보 (앱 생애 첫 한 번만 묻고 이후 재사용) */
+ 35: let permissionReady: Promise<boolean> | null = null;
+ 36: const ensurePermission = async (): Promise<boolean> => {
+ 37:     if (permissionReady) return permissionReady;
+ 38:     permissionReady = (async () => {
+ 39:         if (await isPermissionGranted()) return true;
+ 40:         const result = await requestPermission();
+ 41:         return result === 'granted';
+ 42:     })();
+ 43:     return permissionReady;
+ 44: };
+ 45: 
+ 46: export const useUpdateChecker = (): UseUpdateCheckerReturn => {
+ 47:     const [state, setState] = useState<UpdateState>(INITIAL_STATE);
+ 48:     const downloadedRef = useRef(0);
+ 49:     const totalRef = useRef<number | undefined>(undefined);
+ 50: 
+ 51:     const checkAndDownload = useCallback(async () => {
+ 52:         if (import.meta.env.DEV) return;
+ 53: 
+ 54:         setState((prev) => ({ ...prev, status: 'checking', error: null }));
+ 55: 
+ 56:         try {
+ 57:             const update = await check();
+ 58:             if (!update) {
+ 59:                 setState(INITIAL_STATE);
+ 60:                 return;
+ 61:             }
+ 62: 
+ 63:             // 새 버전 발견 — 백그라운드 다운로드 시작
+ 64:             downloadedRef.current = 0;
+ 65:             totalRef.current = undefined;
+ 66:             setState({ status: 'downloading', version: update.version, progress: 0, error: null });
+ 67: 
+ 68:             await update.downloadAndInstall((event: DownloadEvent) => {
+ 69:                 if (event.event === 'Started') {
+ 70:                     totalRef.current = event.data.contentLength;
+ 71:                 } else if (event.event === 'Progress') {
+ 72:                     downloadedRef.current += event.data.chunkLength;
+ 73:                     const total = totalRef.current;
+ 74:                     const pct =
+ 75:                         total && total > 0
+ 76:                             ? Math.round((downloadedRef.current / total) * 100)
+ 77:                             : Math.min(downloadedRef.current / 1024 / 50, 95);
+ 78:                     setState((prev) => ({ ...prev, progress: Math.min(pct, 99) }));
+ 79:                 }
+ 80:             });
+ 81: 
+ 82:             setState((prev) => ({ ...prev, status: 'ready', progress: 100 }));
+ 83: 
+ 84:             // 시스템 알림 발송 (권한 확인 후)
+ 85:             ensurePermission().then((granted) => {
+ 86:                 if (granted) {
+ 87:                     sendNotification({
+ 88:                         title: 'First Crack 업데이트 준비 완료',
+ 89:                         body: `v${update.version} — 앱을 재시작하면 적용됩니다.`,
+ 90:                     });
+ 91:                 }
+ 92:             });
+ 93:         } catch (error) {
+ 94:             const msg = error instanceof Error ? error.message : '업데이트 확인 중 오류가 발생했습니다.';
+ 95:             console.error('[updater]', msg, error);
+ 96:             setState({ status: 'error', version: null, progress: 0, error: msg });
+ 97:         }
+ 98:     }, []);
+ 99: 
+100:     const applyAndRelaunch = useCallback(async () => {
+101:         await relaunch();
+102:     }, []);
+103: 
+104:     return { state, checkAndDownload, applyAndRelaunch };
+105: };
+</file>
+
+<file path="src/features/updater/index.ts">
+1: export type { UpdateState, UpdateStatus, UseUpdateCheckerReturn } from './lib/useUpdateChecker';
+2: export { useUpdateChecker } from './lib/useUpdateChecker';
+</file>
+
 <file path="src/shared/data/roast-mock-data.ts">
  1: import type { RoastPoint } from '../types/roast';
  2: 
@@ -11148,36 +11239,6 @@ This section contains the contents of the repository's files.
 16: }
 </file>
 
-<file path="src-tauri/capabilities/default.json">
- 1: {
- 2:   "$schema": "../gen/schemas/desktop-schema.json",
- 3:   "identifier": "default",
- 4:   "description": "Default capabilities",
- 5:   "platforms": ["linux", "macOS", "windows"],
- 6:   "windows": ["main"],
- 7:   "permissions": [
- 8:     "core:default",
- 9:     "deep-link:default",
-10:     "opener:default",
-11:     "store:default",
-12:     "shell:allow-spawn",
-13:     "shell:allow-kill",
-14:     "dialog:allow-message",
-15:     "dialog:allow-ask",
-16:     "dialog:allow-confirm",
-17:     "dialog:allow-save",
-18:     "updater:default",
-19:     "process:allow-restart",
-20:     "fs:allow-applocaldata-read-recursive",
-21:     "fs:allow-applocaldata-write-recursive",
-22:     "fs:allow-read-text-file",
-23:     "fs:allow-write-text-file",
-24:     "fs:allow-remove",
-25:     "notification:default"
-26:   ]
-27: }
-</file>
-
 <file path="src-tauri/sidecar/adapters/probat_ws.py">
   1: import asyncio
   2: import json
@@ -11744,6 +11805,58 @@ This section contains the contents of the repository's files.
 40: lto = true
 41: codegen-units = 1
 42: strip = true
+</file>
+
+<file path="src-tauri/tauri.conf.json">
+ 1: {
+ 2:     "$schema": "https://schema.tauri.app/config/2",
+ 3:     "productName": "First Crack",
+ 4:     "version": "1.0.5",
+ 5:     "identifier": "com.hanseungheon.roastery-agent",
+ 6:     "build": {
+ 7:         "beforeDevCommand": "npm run dev",
+ 8:         "devUrl": "http://localhost:1420",
+ 9:         "beforeBuildCommand": "npm run build",
+10:         "frontendDist": "../dist"
+11:     },
+12:     "app": {
+13:         "windows": [
+14:             {
+15:                 "label": "main",
+16:                 "title": "First Crack",
+17:                 "width": 1400,
+18:                 "height": 900,
+19:                 "center": true,
+20:                 "resizable": true
+21:             }
+22:         ],
+23:         "security": {
+24:             "csp": null
+25:         }
+26:     },
+27:     "plugins": {
+28:         "deep-link": {
+29:             "desktop": {
+30:                 "schemes": ["firstcrack"]
+31:             }
+32:         },
+33:         "updater": {
+34:             "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlBODIzMjY0MjMyNzJCQjQKUldTMEt5Y2paREtDbW1WZU1XSWpvYTF3Q0ZVRW9BWGFlZ0ZYWE5IWFc5RG0xWkNid3ZyS1ZPdSsK",
+35:             "endpoints": ["https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev/releases/latest.json"]
+36:         }
+37:     },
+38:     "bundle": {
+39:         "active": true,
+40:         "targets": ["app", "dmg", "msi"],
+41:         "createUpdaterArtifacts": true,
+42:         "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+43:         "externalBin": ["binaries/sidecar"],
+44:         "macOS": {
+45:             "infoPlist": "Info.plist",
+46:             "entitlements": "entitlements.plist"
+47:         }
+48:     }
+49: }
 </file>
 
 <file path="supabase/migrations/20260619000000_stock_events_idempotency.sql">
@@ -13908,119 +14021,6 @@ This section contains the contents of the repository's files.
 61:         [user, qc],
 62:     );
 63: };
-</file>
-
-<file path="src/features/updater/lib/useUpdateChecker.ts">
-  1: import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
-  2: import { relaunch } from '@tauri-apps/plugin-process';
-  3: import type { DownloadEvent } from '@tauri-apps/plugin-updater';
-  4: import { check } from '@tauri-apps/plugin-updater';
-  5: import { useCallback, useRef, useState } from 'react';
-  6: 
-  7: export type UpdateStatus = 'idle' | 'checking' | 'downloading' | 'ready' | 'error';
-  8: 
-  9: export interface UpdateState {
- 10:     status: UpdateStatus;
- 11:     /** 새 버전 식별자 (e.g. "1.0.5") */
- 12:     version: string | null;
- 13:     /** 다운로드 진행률 0–100 */
- 14:     progress: number;
- 15:     /** 에러 메시지 */
- 16:     error: string | null;
- 17: }
- 18: 
- 19: export interface UseUpdateCheckerReturn {
- 20:     state: UpdateState;
- 21:     /** 조용히 체크 → 다운로드 시작. DEV 모드면 아무 일도 안 함. */
- 22:     checkAndDownload: () => Promise<void>;
- 23:     /** 앱 재시작 (업데이트 적용) */
- 24:     applyAndRelaunch: () => Promise<void>;
- 25: }
- 26: 
- 27: const INITIAL_STATE: UpdateState = {
- 28:     status: 'idle',
- 29:     version: null,
- 30:     progress: 0,
- 31:     error: null,
- 32: };
- 33: 
- 34: /** 시스템 알림 권한 확보 (앱 생애 첫 한 번만 묻고 이후 재사용) */
- 35: let permissionReady: Promise<boolean> | null = null;
- 36: const ensurePermission = async (): Promise<boolean> => {
- 37:     if (permissionReady) return permissionReady;
- 38:     permissionReady = (async () => {
- 39:         if (await isPermissionGranted()) return true;
- 40:         const result = await requestPermission();
- 41:         return result === 'granted';
- 42:     })();
- 43:     return permissionReady;
- 44: };
- 45: 
- 46: export const useUpdateChecker = (): UseUpdateCheckerReturn => {
- 47:     const [state, setState] = useState<UpdateState>(INITIAL_STATE);
- 48:     const downloadedRef = useRef(0);
- 49:     const totalRef = useRef<number | undefined>(undefined);
- 50: 
- 51:     const checkAndDownload = useCallback(async () => {
- 52:         if (import.meta.env.DEV) return;
- 53: 
- 54:         setState((prev) => ({ ...prev, status: 'checking', error: null }));
- 55: 
- 56:         try {
- 57:             const update = await check();
- 58:             if (!update) {
- 59:                 setState(INITIAL_STATE);
- 60:                 return;
- 61:             }
- 62: 
- 63:             // 새 버전 발견 — 백그라운드 다운로드 시작
- 64:             downloadedRef.current = 0;
- 65:             totalRef.current = undefined;
- 66:             setState({ status: 'downloading', version: update.version, progress: 0, error: null });
- 67: 
- 68:             await update.downloadAndInstall((event: DownloadEvent) => {
- 69:                 if (event.event === 'Started') {
- 70:                     totalRef.current = event.data.contentLength;
- 71:                 } else if (event.event === 'Progress') {
- 72:                     downloadedRef.current += event.data.chunkLength;
- 73:                     const total = totalRef.current;
- 74:                     const pct =
- 75:                         total && total > 0
- 76:                             ? Math.round((downloadedRef.current / total) * 100)
- 77:                             : Math.min(downloadedRef.current / 1024 / 50, 95);
- 78:                     setState((prev) => ({ ...prev, progress: Math.min(pct, 99) }));
- 79:                 }
- 80:             });
- 81: 
- 82:             setState((prev) => ({ ...prev, status: 'ready', progress: 100 }));
- 83: 
- 84:             // 시스템 알림 발송 (권한 확인 후)
- 85:             ensurePermission().then((granted) => {
- 86:                 if (granted) {
- 87:                     sendNotification({
- 88:                         title: 'First Crack 업데이트 준비 완료',
- 89:                         body: `v${update.version} — 앱을 재시작하면 적용됩니다.`,
- 90:                     });
- 91:                 }
- 92:             });
- 93:         } catch (error) {
- 94:             const msg = error instanceof Error ? error.message : '업데이트 확인 중 오류가 발생했습니다.';
- 95:             console.error('[updater]', msg, error);
- 96:             setState({ status: 'error', version: null, progress: 0, error: msg });
- 97:         }
- 98:     }, []);
- 99: 
-100:     const applyAndRelaunch = useCallback(async () => {
-101:         await relaunch();
-102:     }, []);
-103: 
-104:     return { state, checkAndDownload, applyAndRelaunch };
-105: };
-</file>
-
-<file path="src/features/updater/index.ts">
-1: export type { UpdateState, UpdateStatus, UseUpdateCheckerReturn } from './lib/useUpdateChecker';
-2: export { useUpdateChecker } from './lib/useUpdateChecker';
 </file>
 
 <file path="src/shared/i18n/index.ts">
@@ -23142,241 +23142,6 @@ This section contains the contents of the repository's files.
 75: }
 </file>
 
-<file path=".github/workflows/release.yml">
-  1: name: Release
-  2: 
-  3: on:
-  4:   push:
-  5:     tags:
-  6:       - 'v*'
-  7:   workflow_dispatch:
-  8:     inputs:
-  9:       version:
- 10:         description: 'Version to release (e.g. 1.0.2). Required when not triggered by a tag.'
- 11:         required: false
- 12: 
- 13: jobs:
- 14:   setup:
- 15:     runs-on: ubuntu-latest
- 16:     outputs:
- 17:       version: ${{ steps.version.outputs.version }}
- 18:     steps:
- 19:       - name: Resolve version
- 20:         id: version
- 21:         run: |
- 22:           if [ -n "${{ inputs.version }}" ]; then
- 23:             VERSION="${{ inputs.version }}"
- 24:           elif [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
- 25:             VERSION="${GITHUB_REF_NAME#v}"
- 26:           else
- 27:             echo "::error::Cannot determine version. Push a semver tag (v*) or supply the 'version' input."
- 28:             exit 1
- 29:           fi
- 30:           echo "version=$VERSION" >> $GITHUB_OUTPUT
- 31:           echo "Resolved version: $VERSION"
- 32: 
- 33:   build:
- 34:     needs: setup
- 35:     runs-on: ${{ matrix.runner }}
- 36:     strategy:
- 37:       fail-fast: false
- 38:       matrix:
- 39:         include:
- 40:           - runner: macos-latest
- 41:             target: aarch64-apple-darwin
- 42:           - runner: macos-15-intel
- 43:             target: x86_64-apple-darwin
- 44:           - runner: windows-latest
- 45:             target: x86_64-pc-windows-msvc
- 46: 
- 47:     defaults:
- 48:       run:
- 49:         shell: bash
- 50: 
- 51:     steps:
- 52:       - uses: actions/checkout@v4
- 53: 
- 54:       - name: Validate required secrets
- 55:         env:
- 56:           TAURI_KEY:     ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
- 57:           TAURI_KEY_PW:  ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
- 58:           SUPABASE_URL:  ${{ secrets.VITE_SUPABASE_URL }}
- 59:           SUPABASE_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
- 60:           R2_ID:         ${{ secrets.VITE_R2_ACCOUNT_ID }}
- 61:           R2_ACCESS:     ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
- 62:           R2_SECRET:     ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
- 63:           R2_BUCKET:     ${{ secrets.VITE_R2_BUCKET_NAME }}
- 64:           APPLE_CERT:    ${{ secrets.APPLE_CERTIFICATE }}
- 65:           APPLE_CERT_PW: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
- 66:           APPLE_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
- 67:           APPLE_ID:      ${{ secrets.APPLE_ID }}
- 68:           APPLE_PW:      ${{ secrets.APPLE_PASSWORD }}
- 69:           APPLE_TEAM:    ${{ secrets.APPLE_TEAM_ID }}
- 70:         run: |
- 71:           missing=false
- 72:           check() {
- 73:             if [ -z "${!1}" ]; then
- 74:               echo "  MISSING: $2"
- 75:               missing=true
- 76:             fi
- 77:           }
- 78: 
- 79:           echo "Checking shared secrets..."
- 80:           check TAURI_KEY        "TAURI_SIGNING_PRIVATE_KEY"
- 81:           check TAURI_KEY_PW     "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
- 82:           check SUPABASE_URL     "VITE_SUPABASE_URL"
- 83:           check SUPABASE_ANON    "VITE_SUPABASE_ANON_KEY"
- 84:           check R2_ID            "VITE_R2_ACCOUNT_ID"
- 85:           check R2_ACCESS        "VITE_R2_ACCESS_KEY_ID"
- 86:           check R2_SECRET        "VITE_R2_SECRET_ACCESS_KEY"
- 87:           check R2_BUCKET        "VITE_R2_BUCKET_NAME"
- 88: 
- 89:           if [ "$RUNNER_OS" = "macOS" ]; then
- 90:             echo "Checking macOS signing secrets..."
- 91:             check APPLE_CERT      "APPLE_CERTIFICATE"
- 92:             check APPLE_CERT_PW   "APPLE_CERTIFICATE_PASSWORD"
- 93:             check APPLE_IDENTITY  "APPLE_SIGNING_IDENTITY"
- 94:             check APPLE_ID        "APPLE_ID"
- 95:             check APPLE_PW        "APPLE_PASSWORD"
- 96:             check APPLE_TEAM      "APPLE_TEAM_ID"
- 97:           fi
- 98: 
- 99:           if [ "$missing" = "true" ]; then
-100:             echo "::error::One or more required secrets are missing – aborting before build."
-101:             exit 1
-102:           fi
-103:           echo "All required secrets present."
-104: 
-105:       - uses: pnpm/action-setup@v4
-106: 
-107:       - uses: actions/setup-node@v4
-108:         with:
-109:           node-version: 22
-110:           cache: pnpm
-111: 
-112:       - name: Install Rust
-113:         uses: dtolnay/rust-toolchain@stable
-114:         with:
-115:           targets: ${{ matrix.target }}
-116: 
-117:       - name: Rust cache
-118:         uses: swatinem/rust-cache@v2
-119:         with:
-120:           workspaces: src-tauri
-121:           shared-key: rust-${{ matrix.target }}
-122:           save-if: ${{ github.ref == 'refs/heads/main' }}
-123: 
-124:       - name: Install frontend deps
-125:         run: pnpm install
-126: 
-127:       - name: Cache sidecar binary
-128:         id: sidecar-cache
-129:         uses: actions/cache@v4
-130:         with:
-131:           path: src-tauri/binaries
-132:           key: sidecar-${{ matrix.target }}-${{ hashFiles('src-tauri/sidecar/requirements.txt', 'src-tauri/sidecar/**/*.py', 'src-tauri/sidecar/sidecar.spec') }}
-133: 
-134:       - name: Set up Python
-135:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
-136:         uses: actions/setup-python@v5
-137:         with:
-138:           python-version: '3.13'
-139:           cache: pip
-140:           cache-dependency-path: src-tauri/sidecar/requirements.txt
-141: 
-142:       - name: Install sidecar dependencies
-143:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
-144:         run: pip install pyinstaller -r src-tauri/sidecar/requirements.txt
-145: 
-146:       - name: Build sidecar binary
-147:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
-148:         run: npm run build:sidecar
-149: 
-150:       - name: Build Tauri app
-151:         uses: tauri-apps/tauri-action@v0
-152:         env:
-153:           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-154:           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-155:           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-156:           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-157:           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-158:           VITE_R2_ACCOUNT_ID: ${{ secrets.VITE_R2_ACCOUNT_ID }}
-159:           VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-160:           VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-161:           VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
-162:           PUBLIC_SITE_URL: https://your-domain.com
-163:           PUBLIC_TAURI_REDIRECT: firstcrack://auth/callback
-164:           CARGO_INCREMENTAL: "0"
-165:           RUSTFLAGS: "-C debuginfo=0"
-166:           CARGO_NET_RETRY: "3"
-167:           CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-168:           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-169:           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-170:           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-171:           APPLE_ID: ${{ secrets.APPLE_ID }}
-172:           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-173:           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-174:         with:
-175:           args: --target ${{ matrix.target }}
-176: 
-177:       - name: Upload macOS artifacts
-178:         if: runner.os == 'macOS'
-179:         uses: actions/upload-artifact@v4
-180:         with:
-181:           name: macos-${{ matrix.target }}
-182:           path: |
-183:             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
-184:             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
-185:             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
-186:           retention-days: 7
-187: 
-188:       - name: Upload Windows artifacts
-189:         if: runner.os == 'Windows'
-190:         uses: actions/upload-artifact@v4
-191:         with:
-192:           name: windows-${{ matrix.target }}
-193:           path: |
-194:             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
-195:             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.sig
-196:           retention-days: 7
-197: 
-198:       - name: Notify build failure
-199:         if: failure()
-200:         env:
-201:           SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
-202:         run: |
-203:           if [ -n "$SLACK_WEBHOOK" ]; then
-204:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
-205:               --data "{\"text\":\":x: *Release build FAILED* — \`${GITHUB_REF_NAME}\` | \`${{ matrix.target }}\` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
-206:           else
-207:             echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
-208:           fi
-209: 
-210:   notify-build:
-211:     needs: [setup, build]
-212:     if: success()
-213:     runs-on: ubuntu-latest
-214:     steps:
-215:       - name: Notify build success
-216:         env:
-217:           SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
-218:           VERSION: ${{ needs.setup.outputs.version }}
-219:         run: |
-220:           if [ -n "$SLACK_WEBHOOK" ]; then
-221:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
-222:               --data "{\"text\":\":white_check_mark: *Release build succeeded* — v${VERSION} (macOS arm64/x64 + Windows) | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
-223:           else
-224:             echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
-225:           fi
-226: 
-227:   publish-r2:
-228:     needs: [setup, build, notify-build]
-229:     uses: ./.github/workflows/_publish-r2-reusable.yml
-230:     with:
-231:       version: ${{ needs.setup.outputs.version }}
-232:     secrets: inherit
-</file>
-
 <file path="src/entities/bean-stock-event/api.ts">
   1: import { expandRRuleInRange, formatDateLocal } from '@shared/lib/rrule';
   2: import { supabase } from '@shared/lib/supabase';
@@ -26396,6 +26161,535 @@ This section contains the contents of the repository's files.
 235: };
 </file>
 
+<file path="src/App.tsx">
+  1: import * as Sentry from '@sentry/react';
+  2: import { supabase } from '@shared/lib/supabase';
+  3: import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
+  4: import { useCallback, useEffect, useRef, useState } from 'react';
+  5: import { useRoastSessionStore } from './shared/store/roastSession';
+  6: import type { PlanBatchHandoff } from './shared/types/database.types';
+  7: import './App.css';
+  8: import { Spinner } from '@shared/ui/Spinner';
+  9: import { useSidecarDeadListener } from './features/sidecar';
+ 10: import { useUpdateChecker } from './features/updater';
+ 11: import { useAuthStore } from './shared/store/auth';
+ 12: import { useThemeStore } from './shared/store/theme';
+ 13: import type { View } from './shared/types/view';
+ 14: import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
+ 15: import { ActiveRoast } from './views/active-roast';
+ 16: import { Beans } from './views/bean';
+ 17: import { Dashboard } from './views/dashboard';
+ 18: import { History } from './views/history';
+ 19: import { Login } from './views/login';
+ 20: import { Machines } from './views/machines';
+ 21: import { Profiles } from './views/profiles';
+ 22: import { Schedule } from './views/schedule';
+ 23: import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
+ 24: import { Sidebar } from './widgets/sidebar/ui/Sidebar';
+ 25: import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
+ 26: 
+ 27: export const App = () => {
+ 28:     const user = useAuthStore((s) => s.user);
+ 29:     const loading = useAuthStore((s) => s.loading);
+ 30:     const init = useAuthStore((s) => s.init);
+ 31:     const theme = useThemeStore((s) => s.theme);
+ 32:     const initTheme = useThemeStore((s) => s.initTheme);
+ 33: 
+ 34:     useEffect(() => init(), [init]);
+ 35:     useEffect(() => initTheme(), [initTheme]);
+ 36: 
+ 37:     // Auto-updater: silent background download → system notification
+ 38:     const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
+ 39:     const { isDead: isSidecarDead } = useSidecarDeadListener();
+ 40: 
+ 41:     useEffect(() => {
+ 42:         checkAndDownload();
+ 43:         const id = setInterval(checkAndDownload, 4 * 60 * 60 * 1000);
+ 44:         return () => clearInterval(id);
+ 45:     }, [checkAndDownload]);
+ 46: 
+ 47:     // dev mode: Google OAuth 콜백 처리 (PKCE: ?code= / implicit: #access_token=)
+ 48:     useEffect(() => {
+ 49:         if (!import.meta.env.DEV) return;
+ 50: 
+ 51:         const search = new URLSearchParams(window.location.search);
+ 52:         const hash = new URLSearchParams(window.location.hash.slice(1));
+ 53: 
+ 54:         const code = search.get('code');
+ 55:         const accessToken = hash.get('access_token');
+ 56:         const refreshToken = hash.get('refresh_token');
+ 57: 
+ 58:         if (code) {
+ 59:             window.history.replaceState({}, '', '/');
+ 60:             supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+ 61:                 if (error) console.error('[auth] dev exchangeCode failed:', error);
+ 62:             });
+ 63:         } else if (accessToken && refreshToken) {
+ 64:             window.history.replaceState({}, '', '/');
+ 65:             supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
+ 66:                 if (error) console.error('[auth] dev setSession failed:', error);
+ 67:             });
+ 68:         }
+ 69:     }, []);
+ 70: 
+ 71:     const handledRef = useRef(false);
+ 72:     useEffect(() => {
+ 73:         const handleCallback = async (url: string) => {
+ 74:             console.log('[deep-link] received:', url);
+ 75:             if (!url.includes('auth/callback') || handledRef.current) return;
+ 76:             handledRef.current = true;
+ 77: 
+ 78:             const parsed = new URL(url);
+ 79:             const code = parsed.searchParams.get('code');
+ 80: 
+ 81:             if (code) {
+ 82:                 console.log('[deep-link] exchanging PKCE code...');
+ 83:                 const { error } = await supabase.auth.exchangeCodeForSession(code);
+ 84:                 if (error) console.error('[deep-link] exchangeCodeForSession failed:', error);
+ 85:                 else console.log('[deep-link] session exchanged successfully');
+ 86:                 return;
+ 87:             }
+ 88: 
+ 89:             // implicit flow 폴백: #access_token=...&refresh_token=...
+ 90:             const hash = new URLSearchParams(parsed.hash.slice(1));
+ 91:             const accessToken = hash.get('access_token');
+ 92:             const refreshToken = hash.get('refresh_token');
+ 93:             if (accessToken && refreshToken) {
+ 94:                 console.log('[deep-link] setting session from hash tokens...');
+ 95:                 const { error } = await supabase.auth.setSession({
+ 96:                     access_token: accessToken,
+ 97:                     refresh_token: refreshToken,
+ 98:                 });
+ 99:                 if (error) console.error('[deep-link] setSession failed:', error);
+100:                 else console.log('[deep-link] session set successfully');
+101:             }
+102:         };
+103: 
+104:         getCurrent().then((urls) => {
+105:             console.log('[deep-link] getCurrent:', urls);
+106:             if (urls?.length) handleCallback(urls[0]);
+107:         });
+108: 
+109:         let unlisten: (() => void) | undefined;
+110:         onOpenUrl((urls) => {
+111:             console.log('[deep-link] onOpenUrl:', urls);
+112:             if (urls.length) handleCallback(urls[0]);
+113:         }).then((fn) => {
+114:             unlisten = fn;
+115:         });
+116: 
+117:         return () => unlisten?.();
+118:     }, []);
+119:     const [view, setView] = useState<View>('dashboard');
+120:     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+121:     const [settingsOpen, setSettingsOpen] = useState(false);
+122:     const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>('general');
+123:     const startBatch = useRoastSessionStore((s) => s.startBatch);
+124:     const completeBatch = useRoastSessionStore((s) => s.completeBatch);
+125: 
+126:     const openSettings = (tab: SettingsTabId = 'general') => {
+127:         setSettingsInitialTab(tab);
+128:         setSettingsOpen(true);
+129:     };
+130: 
+131:     const handleStartBatch = useCallback(
+132:         (handoff: PlanBatchHandoff) => {
+133:             startBatch(handoff);
+134:             setView('roast');
+135:         },
+136:         [startBatch],
+137:     );
+138: 
+139:     const handlePlanBatchComplete = useCallback(() => {
+140:         completeBatch();
+141:         setView('schedule');
+142:     }, [completeBatch]);
+143: 
+144:     if (loading)
+145:         return (
+146:             <div
+147:                 style={{
+148:                     display: 'flex',
+149:                     height: '100vh',
+150:                     alignItems: 'center',
+151:                     justifyContent: 'center',
+152:                     background: 'var(--color-surface)',
+153:                 }}
+154:             >
+155:                 <Spinner size={24} />
+156:             </div>
+157:         );
+158:     if (!user) return <Login />;
+159: 
+160:     const sentryFallback = ({ error, resetError }: { error: unknown; resetError: () => void }) => (
+161:         <div className="flex flex-col items-center justify-center h-screen gap-4 p-8 text-center bg-[var(--color-surface)]">
+162:             <p className="text-sm text-red-400">
+163:                 {error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'}
+164:             </p>
+165:             <button
+166:                 onClick={resetError}
+167:                 className="px-4 py-2 text-sm rounded-md bg-stone-700 hover:bg-stone-600 text-stone-100 transition-colors"
+168:             >
+169:                 다시 시도
+170:             </button>
+171:         </div>
+172:     );
+173: 
+174:     return (
+175:         <Sentry.ErrorBoundary fallback={sentryFallback}>
+176:             <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+177:                 {theme === null && <ThemeSelectModal />}
+178:                 <Sidebar
+179:                     activeView={view}
+180:                     onNavigate={setView}
+181:                     collapsed={sidebarCollapsed}
+182:                     onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
+183:                     onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
+184:                 />
+185:                 <div
+186:                     style={{
+187:                         flex: 1,
+188:                         minHeight: 0,
+189:                         display: 'flex',
+190:                         flexDirection: 'column',
+191:                         overflow: view === 'roast' ? 'hidden' : 'auto',
+192:                         background: 'var(--color-surface)',
+193:                     }}
+194:                 >
+195:                     {view === 'dashboard' && (
+196:                         <ViewErrorBoundary>
+197:                             <Dashboard onNavigate={setView} />
+198:                         </ViewErrorBoundary>
+199:                     )}
+200:                     {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
+201:             TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
+202:                     <div
+203:                         style={{
+204:                             display: view === 'roast' ? 'flex' : 'none',
+205:                             flexDirection: 'column',
+206:                             flex: view === 'roast' ? 1 : undefined,
+207:                             height: view === 'roast' ? undefined : '100%',
+208:                             minHeight: 0,
+209:                             overflow: 'hidden',
+210:                         }}
+211:                     >
+212:                         <ViewErrorBoundary>
+213:                             <ActiveRoast
+214:                                 isActive={view === 'roast'}
+215:                                 onOpenRoastSettings={() => openSettings('roast')}
+216:                                 onPlanBatchComplete={handlePlanBatchComplete}
+217:                             />
+218:                         </ViewErrorBoundary>
+219:                     </div>
+220:                     {view === 'history' && (
+221:                         <ViewErrorBoundary>
+222:                             <History />
+223:                         </ViewErrorBoundary>
+224:                     )}
+225:                     {view === 'beans' && (
+226:                         <ViewErrorBoundary>
+227:                             <Beans onNavigate={setView} />
+228:                         </ViewErrorBoundary>
+229:                     )}
+230:                     {view === 'profiles' && (
+231:                         <ViewErrorBoundary>
+232:                             <Profiles onNavigate={setView} />
+233:                         </ViewErrorBoundary>
+234:                     )}
+235:                     <div style={{ display: view === 'machines' ? 'block' : 'none' }}>
+236:                         <ViewErrorBoundary>
+237:                             <Machines isActive={view === 'machines'} onNavigate={setView} />
+238:                         </ViewErrorBoundary>
+239:                     </div>
+240:                     {view === 'schedule' && (
+241:                         <ViewErrorBoundary>
+242:                             <Schedule onStartBatch={handleStartBatch} />
+243:                         </ViewErrorBoundary>
+244:                     )}
+245:                 </div>
+246:                 <SettingsModal
+247:                     open={settingsOpen}
+248:                     initialTab={settingsInitialTab}
+249:                     onClose={() => setSettingsOpen(false)}
+250:                 />
+251: 
+252:                 {isSidecarDead && (
+253:                     <div className="fixed bottom-6 left-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-lg bg-red-900/90 border border-red-700 text-red-100 text-sm shadow-lg">
+254:                         <span>하드웨어 연결 서비스가 응답하지 않습니다.</span>
+255:                         <span className="text-red-300">앱을 재시작해 주세요.</span>
+256:                     </div>
+257:                 )}
+258: 
+259:                 {state.status === 'ready' && (
+260:                     <button
+261:                         onClick={applyAndRelaunch}
+262:                         style={{
+263:                             position: 'fixed',
+264:                             bottom: 24,
+265:                             right: 24,
+266:                             zIndex: 9999,
+267:                             padding: '10px 20px',
+268:                             borderRadius: 9999,
+269:                             border: 'none',
+270:                             background: 'var(--color-accent, #2563eb)',
+271:                             color: '#fff',
+272:                             fontSize: 14,
+273:                             fontWeight: 500,
+274:                             cursor: 'pointer',
+275:                             boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+276:                         }}
+277:                     >
+278:                         새 업데이트 (v{state.version}) 재시작
+279:                     </button>
+280:                 )}
+281:             </div>
+282:         </Sentry.ErrorBoundary>
+283:     );
+284: };
+</file>
+
+<file path=".github/workflows/release.yml">
+  1: name: Release
+  2: 
+  3: on:
+  4:   push:
+  5:     tags:
+  6:       - 'v*'
+  7:   workflow_dispatch:
+  8:     inputs:
+  9:       version:
+ 10:         description: 'Version to release (e.g. 1.0.2). Required when not triggered by a tag.'
+ 11:         required: false
+ 12: 
+ 13: permissions:
+ 14:   contents: read
+ 15:   actions: write
+ 16: 
+ 17: jobs:
+ 18:   setup:
+ 19:     runs-on: ubuntu-latest
+ 20:     outputs:
+ 21:       version: ${{ steps.version.outputs.version }}
+ 22:     steps:
+ 23:       - name: Resolve version
+ 24:         id: version
+ 25:         run: |
+ 26:           if [ -n "${{ inputs.version }}" ]; then
+ 27:             VERSION="${{ inputs.version }}"
+ 28:           elif [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+ 29:             VERSION="${GITHUB_REF_NAME#v}"
+ 30:           else
+ 31:             echo "::error::Cannot determine version. Push a semver tag (v*) or supply the 'version' input."
+ 32:             exit 1
+ 33:           fi
+ 34:           echo "version=$VERSION" >> $GITHUB_OUTPUT
+ 35:           echo "Resolved version: $VERSION"
+ 36: 
+ 37:   build:
+ 38:     needs: setup
+ 39:     runs-on: ${{ matrix.runner }}
+ 40:     strategy:
+ 41:       fail-fast: false
+ 42:       matrix:
+ 43:         include:
+ 44:           - runner: macos-latest
+ 45:             target: aarch64-apple-darwin
+ 46:           - runner: macos-15-intel
+ 47:             target: x86_64-apple-darwin
+ 48:           - runner: windows-latest
+ 49:             target: x86_64-pc-windows-msvc
+ 50: 
+ 51:     defaults:
+ 52:       run:
+ 53:         shell: bash
+ 54: 
+ 55:     steps:
+ 56:       - uses: actions/checkout@v4
+ 57: 
+ 58:       - name: Validate required secrets
+ 59:         env:
+ 60:           TAURI_KEY:     ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+ 61:           TAURI_KEY_PW:  ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+ 62:           SUPABASE_URL:  ${{ secrets.VITE_SUPABASE_URL }}
+ 63:           SUPABASE_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+ 64:           R2_ID:         ${{ secrets.VITE_R2_ACCOUNT_ID }}
+ 65:           R2_ACCESS:     ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+ 66:           R2_SECRET:     ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+ 67:           R2_BUCKET:     ${{ secrets.VITE_R2_BUCKET_NAME }}
+ 68:           APPLE_CERT:    ${{ secrets.APPLE_CERTIFICATE }}
+ 69:           APPLE_CERT_PW: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+ 70:           APPLE_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+ 71:           APPLE_ID:      ${{ secrets.APPLE_ID }}
+ 72:           APPLE_PW:      ${{ secrets.APPLE_PASSWORD }}
+ 73:           APPLE_TEAM:    ${{ secrets.APPLE_TEAM_ID }}
+ 74:         run: |
+ 75:           missing=false
+ 76:           check() {
+ 77:             if [ -z "${!1}" ]; then
+ 78:               echo "  MISSING: $2"
+ 79:               missing=true
+ 80:             fi
+ 81:           }
+ 82: 
+ 83:           echo "Checking shared secrets..."
+ 84:           check TAURI_KEY        "TAURI_SIGNING_PRIVATE_KEY"
+ 85:           check TAURI_KEY_PW     "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+ 86:           check SUPABASE_URL     "VITE_SUPABASE_URL"
+ 87:           check SUPABASE_ANON    "VITE_SUPABASE_ANON_KEY"
+ 88:           check R2_ID            "VITE_R2_ACCOUNT_ID"
+ 89:           check R2_ACCESS        "VITE_R2_ACCESS_KEY_ID"
+ 90:           check R2_SECRET        "VITE_R2_SECRET_ACCESS_KEY"
+ 91:           check R2_BUCKET        "VITE_R2_BUCKET_NAME"
+ 92: 
+ 93:           if [ "$RUNNER_OS" = "macOS" ]; then
+ 94:             echo "Checking macOS signing secrets..."
+ 95:             check APPLE_CERT      "APPLE_CERTIFICATE"
+ 96:             check APPLE_CERT_PW   "APPLE_CERTIFICATE_PASSWORD"
+ 97:             check APPLE_IDENTITY  "APPLE_SIGNING_IDENTITY"
+ 98:             check APPLE_ID        "APPLE_ID"
+ 99:             check APPLE_PW        "APPLE_PASSWORD"
+100:             check APPLE_TEAM      "APPLE_TEAM_ID"
+101:           fi
+102: 
+103:           if [ "$missing" = "true" ]; then
+104:             echo "::error::One or more required secrets are missing – aborting before build."
+105:             exit 1
+106:           fi
+107:           echo "All required secrets present."
+108: 
+109:       - uses: pnpm/action-setup@v4
+110: 
+111:       - uses: actions/setup-node@v4
+112:         with:
+113:           node-version: 22
+114:           cache: pnpm
+115: 
+116:       - name: Install Rust
+117:         uses: dtolnay/rust-toolchain@stable
+118:         with:
+119:           targets: ${{ matrix.target }}
+120: 
+121:       - name: Rust cache
+122:         uses: swatinem/rust-cache@v2
+123:         with:
+124:           workspaces: src-tauri
+125:           shared-key: rust-${{ matrix.target }}
+126:           save-if: ${{ github.ref == 'refs/heads/main' }}
+127: 
+128:       - name: Install frontend deps
+129:         run: pnpm install
+130: 
+131:       - name: Cache sidecar binary
+132:         id: sidecar-cache
+133:         uses: actions/cache@v4
+134:         with:
+135:           path: src-tauri/binaries
+136:           key: sidecar-${{ matrix.target }}-${{ hashFiles('src-tauri/sidecar/requirements.txt', 'src-tauri/sidecar/**/*.py', 'src-tauri/sidecar/sidecar.spec') }}
+137: 
+138:       - name: Set up Python
+139:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
+140:         uses: actions/setup-python@v5
+141:         with:
+142:           python-version: '3.13'
+143:           cache: pip
+144:           cache-dependency-path: src-tauri/sidecar/requirements.txt
+145: 
+146:       - name: Install sidecar dependencies
+147:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
+148:         run: pip install pyinstaller -r src-tauri/sidecar/requirements.txt
+149: 
+150:       - name: Build sidecar binary
+151:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
+152:         run: npm run build:sidecar
+153: 
+154:       - name: Build Tauri app
+155:         uses: tauri-apps/tauri-action@v0
+156:         env:
+157:           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+158:           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+159:           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+160:           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+161:           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+162:           VITE_R2_ACCOUNT_ID: ${{ secrets.VITE_R2_ACCOUNT_ID }}
+163:           VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+164:           VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+165:           VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
+166:           PUBLIC_SITE_URL: https://your-domain.com
+167:           PUBLIC_TAURI_REDIRECT: firstcrack://auth/callback
+168:           CARGO_INCREMENTAL: "0"
+169:           RUSTFLAGS: "-C debuginfo=0"
+170:           CARGO_NET_RETRY: "3"
+171:           CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+172:           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+173:           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+174:           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+175:           APPLE_ID: ${{ secrets.APPLE_ID }}
+176:           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+177:           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+178:         with:
+179:           args: --target ${{ matrix.target }}
+180: 
+181:       - name: Upload macOS artifacts
+182:         if: runner.os == 'macOS'
+183:         uses: actions/upload-artifact@v4
+184:         with:
+185:           name: macos-${{ matrix.target }}
+186:           path: |
+187:             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+188:             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
+189:             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
+190:           retention-days: 7
+191: 
+192:       - name: Upload Windows artifacts
+193:         if: runner.os == 'Windows'
+194:         uses: actions/upload-artifact@v4
+195:         with:
+196:           name: windows-${{ matrix.target }}
+197:           path: |
+198:             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+199:             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.sig
+200:           retention-days: 7
+201: 
+202:       - name: Notify build failure
+203:         if: failure()
+204:         env:
+205:           SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
+206:         run: |
+207:           if [ -n "$SLACK_WEBHOOK" ]; then
+208:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+209:               --data "{\"text\":\":x: *Release build FAILED* — \`${GITHUB_REF_NAME}\` | \`${{ matrix.target }}\` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
+210:           else
+211:             echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
+212:           fi
+213: 
+214:   notify-build:
+215:     needs: [setup, build]
+216:     if: success()
+217:     runs-on: ubuntu-latest
+218:     steps:
+219:       - name: Notify build success
+220:         env:
+221:           SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
+222:           VERSION: ${{ needs.setup.outputs.version }}
+223:         run: |
+224:           if [ -n "$SLACK_WEBHOOK" ]; then
+225:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+226:               --data "{\"text\":\":white_check_mark: *Release build succeeded* — v${VERSION} (macOS arm64/x64 + Windows) | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
+227:           else
+228:             echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
+229:           fi
+230: 
+231:   publish-r2:
+232:     needs: [setup, build]
+233:     permissions:
+234:       contents: read
+235:       actions: read
+236:     uses: ./.github/workflows/_publish-r2-reusable.yml
+237:     with:
+238:       version: ${{ needs.setup.outputs.version }}
+239:     secrets: inherit
+</file>
+
 <file path="src/widgets/active-roast/roast-header/RoastHeader.tsx">
   1: import { useBeans } from '@entities/bean/queries';
   2: import { useUpdateProfile } from '@entities/profile';
@@ -27549,291 +27843,108 @@ This section contains the contents of the repository's files.
 130: };
 </file>
 
-<file path="src/App.tsx">
-  1: import * as Sentry from '@sentry/react';
-  2: import { supabase } from '@shared/lib/supabase';
-  3: import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
-  4: import { useCallback, useEffect, useRef, useState } from 'react';
-  5: import { useRoastSessionStore } from './shared/store/roastSession';
-  6: import type { PlanBatchHandoff } from './shared/types/database.types';
-  7: import './App.css';
-  8: import { Spinner } from '@shared/ui/Spinner';
-  9: import { useSidecarDeadListener } from './features/sidecar';
- 10: import { useUpdateChecker } from './features/updater';
- 11: import { useAuthStore } from './shared/store/auth';
- 12: import { useThemeStore } from './shared/store/theme';
- 13: import type { View } from './shared/types/view';
- 14: import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
- 15: import { ActiveRoast } from './views/active-roast';
- 16: import { Beans } from './views/bean';
- 17: import { Dashboard } from './views/dashboard';
- 18: import { History } from './views/history';
- 19: import { Login } from './views/login';
- 20: import { Machines } from './views/machines';
- 21: import { Profiles } from './views/profiles';
- 22: import { Schedule } from './views/schedule';
- 23: import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
- 24: import { Sidebar } from './widgets/sidebar/ui/Sidebar';
- 25: import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
- 26: 
- 27: export const App = () => {
- 28:     const user = useAuthStore((s) => s.user);
- 29:     const loading = useAuthStore((s) => s.loading);
- 30:     const init = useAuthStore((s) => s.init);
- 31:     const theme = useThemeStore((s) => s.theme);
- 32:     const initTheme = useThemeStore((s) => s.initTheme);
- 33: 
- 34:     useEffect(() => init(), [init]);
- 35:     useEffect(() => initTheme(), [initTheme]);
- 36: 
- 37:     // Auto-updater: silent background download → system notification
- 38:     const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
- 39:     const { isDead: isSidecarDead } = useSidecarDeadListener();
- 40: 
- 41:     useEffect(() => {
- 42:         checkAndDownload();
- 43:         const id = setInterval(checkAndDownload, 4 * 60 * 60 * 1000);
- 44:         return () => clearInterval(id);
- 45:     }, [checkAndDownload]);
- 46: 
- 47:     // dev mode: Google OAuth 콜백 처리 (PKCE: ?code= / implicit: #access_token=)
- 48:     useEffect(() => {
- 49:         if (!import.meta.env.DEV) return;
- 50: 
- 51:         const search = new URLSearchParams(window.location.search);
- 52:         const hash = new URLSearchParams(window.location.hash.slice(1));
- 53: 
- 54:         const code = search.get('code');
- 55:         const accessToken = hash.get('access_token');
- 56:         const refreshToken = hash.get('refresh_token');
- 57: 
- 58:         if (code) {
- 59:             window.history.replaceState({}, '', '/');
- 60:             supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
- 61:                 if (error) console.error('[auth] dev exchangeCode failed:', error);
- 62:             });
- 63:         } else if (accessToken && refreshToken) {
- 64:             window.history.replaceState({}, '', '/');
- 65:             supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
- 66:                 if (error) console.error('[auth] dev setSession failed:', error);
- 67:             });
- 68:         }
- 69:     }, []);
- 70: 
- 71:     const handledRef = useRef(false);
- 72:     useEffect(() => {
- 73:         const handleCallback = async (url: string) => {
- 74:             console.log('[deep-link] received:', url);
- 75:             if (!url.includes('auth/callback') || handledRef.current) return;
- 76:             handledRef.current = true;
- 77: 
- 78:             const parsed = new URL(url);
- 79:             const code = parsed.searchParams.get('code');
- 80: 
- 81:             if (code) {
- 82:                 console.log('[deep-link] exchanging PKCE code...');
- 83:                 const { error } = await supabase.auth.exchangeCodeForSession(code);
- 84:                 if (error) console.error('[deep-link] exchangeCodeForSession failed:', error);
- 85:                 else console.log('[deep-link] session exchanged successfully');
- 86:                 return;
- 87:             }
- 88: 
- 89:             // implicit flow 폴백: #access_token=...&refresh_token=...
- 90:             const hash = new URLSearchParams(parsed.hash.slice(1));
- 91:             const accessToken = hash.get('access_token');
- 92:             const refreshToken = hash.get('refresh_token');
- 93:             if (accessToken && refreshToken) {
- 94:                 console.log('[deep-link] setting session from hash tokens...');
- 95:                 const { error } = await supabase.auth.setSession({
- 96:                     access_token: accessToken,
- 97:                     refresh_token: refreshToken,
- 98:                 });
- 99:                 if (error) console.error('[deep-link] setSession failed:', error);
-100:                 else console.log('[deep-link] session set successfully');
-101:             }
-102:         };
-103: 
-104:         getCurrent().then((urls) => {
-105:             console.log('[deep-link] getCurrent:', urls);
-106:             if (urls?.length) handleCallback(urls[0]);
-107:         });
-108: 
-109:         let unlisten: (() => void) | undefined;
-110:         onOpenUrl((urls) => {
-111:             console.log('[deep-link] onOpenUrl:', urls);
-112:             if (urls.length) handleCallback(urls[0]);
-113:         }).then((fn) => {
-114:             unlisten = fn;
-115:         });
-116: 
-117:         return () => unlisten?.();
-118:     }, []);
-119:     const [view, setView] = useState<View>('dashboard');
-120:     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-121:     const [settingsOpen, setSettingsOpen] = useState(false);
-122:     const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>('general');
-123:     const startBatch = useRoastSessionStore((s) => s.startBatch);
-124:     const completeBatch = useRoastSessionStore((s) => s.completeBatch);
-125: 
-126:     const openSettings = (tab: SettingsTabId = 'general') => {
-127:         setSettingsInitialTab(tab);
-128:         setSettingsOpen(true);
-129:     };
-130: 
-131:     const handleStartBatch = useCallback(
-132:         (handoff: PlanBatchHandoff) => {
-133:             startBatch(handoff);
-134:             setView('roast');
-135:         },
-136:         [startBatch],
-137:     );
-138: 
-139:     const handlePlanBatchComplete = useCallback(() => {
-140:         completeBatch();
-141:         setView('schedule');
-142:     }, [completeBatch]);
-143: 
-144:     if (loading)
-145:         return (
-146:             <div
-147:                 style={{
-148:                     display: 'flex',
-149:                     height: '100vh',
-150:                     alignItems: 'center',
-151:                     justifyContent: 'center',
-152:                     background: 'var(--color-surface)',
-153:                 }}
-154:             >
-155:                 <Spinner size={24} />
-156:             </div>
-157:         );
-158:     if (!user) return <Login />;
-159: 
-160:     const sentryFallback = ({ error, resetError }: { error: unknown; resetError: () => void }) => (
-161:         <div className="flex flex-col items-center justify-center h-screen gap-4 p-8 text-center bg-[var(--color-surface)]">
-162:             <p className="text-sm text-red-400">
-163:                 {error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'}
-164:             </p>
-165:             <button
-166:                 onClick={resetError}
-167:                 className="px-4 py-2 text-sm rounded-md bg-stone-700 hover:bg-stone-600 text-stone-100 transition-colors"
-168:             >
-169:                 다시 시도
-170:             </button>
-171:         </div>
-172:     );
-173: 
-174:     return (
-175:         <Sentry.ErrorBoundary fallback={sentryFallback}>
-176:             <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-177:                 {theme === null && <ThemeSelectModal />}
-178:                 <Sidebar
-179:                     activeView={view}
-180:                     onNavigate={setView}
-181:                     collapsed={sidebarCollapsed}
-182:                     onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
-183:                     onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
-184:                 />
-185:                 <div
-186:                     style={{
-187:                         flex: 1,
-188:                         minHeight: 0,
-189:                         display: 'flex',
-190:                         flexDirection: 'column',
-191:                         overflow: view === 'roast' ? 'hidden' : 'auto',
-192:                         background: 'var(--color-surface)',
-193:                     }}
-194:                 >
-195:                     {view === 'dashboard' && (
-196:                         <ViewErrorBoundary>
-197:                             <Dashboard onNavigate={setView} />
-198:                         </ViewErrorBoundary>
-199:                     )}
-200:                     {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
-201:             TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
-202:                     <div
-203:                         style={{
-204:                             display: view === 'roast' ? 'flex' : 'none',
-205:                             flexDirection: 'column',
-206:                             flex: view === 'roast' ? 1 : undefined,
-207:                             height: view === 'roast' ? undefined : '100%',
-208:                             minHeight: 0,
-209:                             overflow: 'hidden',
-210:                         }}
-211:                     >
-212:                         <ViewErrorBoundary>
-213:                             <ActiveRoast
-214:                                 isActive={view === 'roast'}
-215:                                 onOpenRoastSettings={() => openSettings('roast')}
-216:                                 onPlanBatchComplete={handlePlanBatchComplete}
-217:                             />
-218:                         </ViewErrorBoundary>
-219:                     </div>
-220:                     {view === 'history' && (
-221:                         <ViewErrorBoundary>
-222:                             <History />
-223:                         </ViewErrorBoundary>
-224:                     )}
-225:                     {view === 'beans' && (
-226:                         <ViewErrorBoundary>
-227:                             <Beans onNavigate={setView} />
-228:                         </ViewErrorBoundary>
-229:                     )}
-230:                     {view === 'profiles' && (
-231:                         <ViewErrorBoundary>
-232:                             <Profiles onNavigate={setView} />
-233:                         </ViewErrorBoundary>
-234:                     )}
-235:                     <div style={{ display: view === 'machines' ? 'block' : 'none' }}>
-236:                         <ViewErrorBoundary>
-237:                             <Machines isActive={view === 'machines'} onNavigate={setView} />
-238:                         </ViewErrorBoundary>
-239:                     </div>
-240:                     {view === 'schedule' && (
-241:                         <ViewErrorBoundary>
-242:                             <Schedule onStartBatch={handleStartBatch} />
-243:                         </ViewErrorBoundary>
-244:                     )}
-245:                 </div>
-246:                 <SettingsModal
-247:                     open={settingsOpen}
-248:                     initialTab={settingsInitialTab}
-249:                     onClose={() => setSettingsOpen(false)}
-250:                 />
-251: 
-252:                 {isSidecarDead && (
-253:                     <div className="fixed bottom-6 left-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-lg bg-red-900/90 border border-red-700 text-red-100 text-sm shadow-lg">
-254:                         <span>하드웨어 연결 서비스가 응답하지 않습니다.</span>
-255:                         <span className="text-red-300">앱을 재시작해 주세요.</span>
-256:                     </div>
-257:                 )}
-258: 
-259:                 {state.status === 'ready' && (
-260:                     <button
-261:                         onClick={applyAndRelaunch}
-262:                         style={{
-263:                             position: 'fixed',
-264:                             bottom: 24,
-265:                             right: 24,
-266:                             zIndex: 9999,
-267:                             padding: '10px 20px',
-268:                             borderRadius: 9999,
-269:                             border: 'none',
-270:                             background: 'var(--color-accent, #2563eb)',
-271:                             color: '#fff',
-272:                             fontSize: 14,
-273:                             fontWeight: 500,
-274:                             cursor: 'pointer',
-275:                             boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-276:                         }}
-277:                     >
-278:                         새 업데이트 (v{state.version}) 재시작
-279:                     </button>
-280:                 )}
-281:             </div>
-282:         </Sentry.ErrorBoundary>
-283:     );
-284: };
+<file path="package.json">
+  1: {
+  2:     "name": "roastery-agent",
+  3:     "private": true,
+  4:     "version": "0.1.0",
+  5:     "type": "module",
+  6:     "scripts": {
+  7:         "predev": "lsof -ti:9999 | xargs kill -9 2>/dev/null || true",
+  8:         "dev": "concurrently --names \"vite,sidecar\" --prefix-colors \"cyan,yellow\" \"vite\" \"src-tauri/sidecar/.venv/bin/python src-tauri/sidecar/main.py\"",
+  9:         "build": "tsc && vite build",
+ 10:         "preview": "vite preview",
+ 11:         "tauri": "tauri",
+ 12:         "types:gen": "supabase gen types typescript --linked 2>/dev/null > src/shared/types/database.types.ts && node scripts/append-db-aliases.mjs",
+ 13:         "build:sidecar": "bash scripts/build-sidecar.sh",
+ 14:         "build:debug": "npm run build:sidecar && tauri build --debug && open 'src-tauri/target/debug/bundle/macos/First Crack.app'",
+ 15:         "lint": "eslint src",
+ 16:         "lint:fix": "eslint src --fix",
+ 17:         "check": "biome check src",
+ 18:         "check:fix": "biome check --write src",
+ 19:         "format": "biome format src",
+ 20:         "format:fix": "biome format --write src",
+ 21:         "scan:secrets": "secretlint \"**/*\"",
+ 22:         "prepare": "husky",
+ 23:         "doctor": "react-doctor",
+ 24:         "doctor:fast": "react-doctor --diff",
+ 25:         "doctor:fix": "react-doctor --fix",
+ 26:         "doctor:strict": "react-doctor --fail-on-warnings",
+ 27:         "doctor:report": "react-doctor --format json > react-doctor-report.json"
+ 28:     },
+ 29:     "dependencies": {
+ 30:         "@aws-sdk/client-s3": "^3.1050.0",
+ 31:         "@carbon/icons-react": "^11.82.0",
+ 32:         "@hookform/resolvers": "^5.0.1",
+ 33:         "@radix-ui/react-popover": "^1.1.15",
+ 34:         "@radix-ui/react-select": "^2.2.6",
+ 35:         "@sentry/react": "^10.53.1",
+ 36:         "@supabase/supabase-js": "^2.105.4",
+ 37:         "@tanstack/react-query": "^5.100.9",
+ 38:         "@tauri-apps/api": "^2",
+ 39:         "@tauri-apps/plugin-deep-link": "^2.4.9",
+ 40:         "@tauri-apps/plugin-dialog": "^2.7.1",
+ 41:         "@tauri-apps/plugin-fs": "^2.5.1",
+ 42:         "@tauri-apps/plugin-notification": "^2.3.3",
+ 43:         "@tauri-apps/plugin-opener": "^2",
+ 44:         "@tauri-apps/plugin-os": "^2.3.2",
+ 45:         "@tauri-apps/plugin-process": "^2.3.1",
+ 46:         "@tauri-apps/plugin-store": "^2.4.3",
+ 47:         "@tauri-apps/plugin-updater": "^2.10.1",
+ 48:         "axios": "^1.16.0",
+ 49:         "class-variance-authority": "^0.7.1",
+ 50:         "clsx": "^2.1.1",
+ 51:         "date-fns": "^4.1.0",
+ 52:         "echarts": "^6.0.0",
+ 53:         "echarts-for-react": "^3.0.6",
+ 54:         "i18next": "^26.0.10",
+ 55:         "lucide-react": "^1.8.0",
+ 56:         "react": "^19.1.0",
+ 57:         "react-day-picker": "^10.0.1",
+ 58:         "react-dom": "^19.1.0",
+ 59:         "react-hook-form": "^7.55.0",
+ 60:         "react-hotkeys-hook": "^5.3.2",
+ 61:         "react-i18next": "^17.0.7",
+ 62:         "react-to-print": "^3.3.0",
+ 63:         "rrule": "^2.8.1",
+ 64:         "tailwind-merge": "^3.6.0",
+ 65:         "tailwind-variants": "^3.2.2",
+ 66:         "uplot": "^1.6.32",
+ 67:         "zod": "^3.24.3",
+ 68:         "zustand": "^5.0.13"
+ 69:     },
+ 70:     "devDependencies": {
+ 71:         "@biomejs/biome": "2.5.0",
+ 72:         "@eslint/js": "^10.0.1",
+ 73:         "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
+ 74:         "@tailwindcss/vite": "^4.2.4",
+ 75:         "@tauri-apps/cli": "^2",
+ 76:         "@types/react": "^19.1.8",
+ 77:         "@types/react-dom": "^19.1.6",
+ 78:         "@vitejs/plugin-react": "^4.6.0",
+ 79:         "concurrently": "^9.2.1",
+ 80:         "eslint": "^10.4.0",
+ 81:         "eslint-plugin-react-hooks": "^7.1.1",
+ 82:         "eslint-plugin-react-refresh": "^0.5.2",
+ 83:         "globals": "^17.6.0",
+ 84:         "husky": "^9.1.7",
+ 85:         "imagemin-lint-staged": "^0.5.1",
+ 86:         "lint-staged": "^17.0.5",
+ 87:         "react-doctor": "^0.2.8",
+ 88:         "secretlint": "^13.0.2",
+ 89:         "tailwindcss": "^4.2.4",
+ 90:         "typescript": "~5.8.3",
+ 91:         "typescript-eslint": "^8.59.4",
+ 92:         "vite": "^7.0.4"
+ 93:     },
+ 94:     "lint-staged": {
+ 95:         "src/**/*.{ts,tsx}": "biome format --write --no-errors-on-unmatched",
+ 96:         "**/*.{js,jsx,mjs,cjs,json,css,md}": "biome format --write --no-errors-on-unmatched",
+ 97:         "*.{png,jpeg,jpg,gif,svg}": "imagemin-lint-staged",
+ 98:         "**/*.{ts,tsx,js,jsx,mjs,cjs,json,yml,yaml,toml,md,py,sh,html,css,env,env.*}": "secretlint"
+ 99:     },
+100:     "packageManager": "pnpm@11.3.0+sha512.2c403d6594527287672b1f7056343a1f7c3634036a67ffabfcc2b3d7595d843768f8787148d1b57cf7956c90606bbd192857c363af19e96d2d0ec9ec5741d215"
+101: }
 </file>
 
 <file path="src/shared/i18n/locales/en.json">
@@ -30048,342 +30159,282 @@ This section contains the contents of the repository's files.
 301:     web.run_app(create_app(), host="127.0.0.1", port=9999, print=None)
 </file>
 
-<file path="package.json">
-  1: {
-  2:     "name": "roastery-agent",
-  3:     "private": true,
-  4:     "version": "0.1.0",
-  5:     "type": "module",
-  6:     "scripts": {
-  7:         "predev": "lsof -ti:9999 | xargs kill -9 2>/dev/null || true",
-  8:         "dev": "concurrently --names \"vite,sidecar\" --prefix-colors \"cyan,yellow\" \"vite\" \"src-tauri/sidecar/.venv/bin/python src-tauri/sidecar/main.py\"",
-  9:         "build": "tsc && vite build",
- 10:         "preview": "vite preview",
- 11:         "tauri": "tauri",
- 12:         "types:gen": "supabase gen types typescript --linked 2>/dev/null > src/shared/types/database.types.ts && node scripts/append-db-aliases.mjs",
- 13:         "build:sidecar": "bash scripts/build-sidecar.sh",
- 14:         "build:debug": "npm run build:sidecar && tauri build --debug && open 'src-tauri/target/debug/bundle/macos/First Crack.app'",
- 15:         "lint": "eslint src",
- 16:         "lint:fix": "eslint src --fix",
- 17:         "check": "biome check src",
- 18:         "check:fix": "biome check --write src",
- 19:         "format": "biome format src",
- 20:         "format:fix": "biome format --write src",
- 21:         "scan:secrets": "secretlint \"**/*\"",
- 22:         "prepare": "husky",
- 23:         "doctor": "react-doctor",
- 24:         "doctor:fast": "react-doctor --diff",
- 25:         "doctor:fix": "react-doctor --fix",
- 26:         "doctor:strict": "react-doctor --fail-on-warnings",
- 27:         "doctor:report": "react-doctor --format json > react-doctor-report.json"
- 28:     },
- 29:     "dependencies": {
- 30:         "@aws-sdk/client-s3": "^3.1050.0",
- 31:         "@carbon/icons-react": "^11.82.0",
- 32:         "@hookform/resolvers": "^5.0.1",
- 33:         "@radix-ui/react-popover": "^1.1.15",
- 34:         "@radix-ui/react-select": "^2.2.6",
- 35:         "@sentry/react": "^10.53.1",
- 36:         "@supabase/supabase-js": "^2.105.4",
- 37:         "@tanstack/react-query": "^5.100.9",
- 38:         "@tauri-apps/api": "^2",
- 39:         "@tauri-apps/plugin-deep-link": "^2.4.9",
- 40:         "@tauri-apps/plugin-dialog": "^2.7.1",
- 41:         "@tauri-apps/plugin-fs": "^2.5.1",
- 42:         "@tauri-apps/plugin-notification": "^2.3.3",
- 43:         "@tauri-apps/plugin-opener": "^2",
- 44:         "@tauri-apps/plugin-os": "^2.3.2",
- 45:         "@tauri-apps/plugin-process": "^2.3.1",
- 46:         "@tauri-apps/plugin-store": "^2.4.3",
- 47:         "@tauri-apps/plugin-updater": "^2.10.1",
- 48:         "axios": "^1.16.0",
- 49:         "class-variance-authority": "^0.7.1",
- 50:         "clsx": "^2.1.1",
- 51:         "date-fns": "^4.1.0",
- 52:         "echarts": "^6.0.0",
- 53:         "echarts-for-react": "^3.0.6",
- 54:         "i18next": "^26.0.10",
- 55:         "lucide-react": "^1.8.0",
- 56:         "react": "^19.1.0",
- 57:         "react-day-picker": "^10.0.1",
- 58:         "react-dom": "^19.1.0",
- 59:         "react-hook-form": "^7.55.0",
- 60:         "react-hotkeys-hook": "^5.3.2",
- 61:         "react-i18next": "^17.0.7",
- 62:         "react-to-print": "^3.3.0",
- 63:         "rrule": "^2.8.1",
- 64:         "tailwind-merge": "^3.6.0",
- 65:         "tailwind-variants": "^3.2.2",
- 66:         "uplot": "^1.6.32",
- 67:         "zod": "^3.24.3",
- 68:         "zustand": "^5.0.13"
- 69:     },
- 70:     "devDependencies": {
- 71:         "@biomejs/biome": "2.5.0",
- 72:         "@eslint/js": "^10.0.1",
- 73:         "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
- 74:         "@tailwindcss/vite": "^4.2.4",
- 75:         "@tauri-apps/cli": "^2",
- 76:         "@types/react": "^19.1.8",
- 77:         "@types/react-dom": "^19.1.6",
- 78:         "@vitejs/plugin-react": "^4.6.0",
- 79:         "concurrently": "^9.2.1",
- 80:         "eslint": "^10.4.0",
- 81:         "eslint-plugin-react-hooks": "^7.1.1",
- 82:         "eslint-plugin-react-refresh": "^0.5.2",
- 83:         "globals": "^17.6.0",
- 84:         "husky": "^9.1.7",
- 85:         "imagemin-lint-staged": "^0.5.1",
- 86:         "lint-staged": "^17.0.5",
- 87:         "react-doctor": "^0.2.8",
- 88:         "secretlint": "^13.0.2",
- 89:         "tailwindcss": "^4.2.4",
- 90:         "typescript": "~5.8.3",
- 91:         "typescript-eslint": "^8.59.4",
- 92:         "vite": "^7.0.4"
- 93:     },
- 94:     "lint-staged": {
- 95:         "src/**/*.{ts,tsx}": "biome format --write --no-errors-on-unmatched",
- 96:         "**/*.{js,jsx,mjs,cjs,json,css,md}": "biome format --write --no-errors-on-unmatched",
- 97:         "*.{png,jpeg,jpg,gif,svg}": "imagemin-lint-staged",
- 98:         "**/*.{ts,tsx,js,jsx,mjs,cjs,json,yml,yaml,toml,md,py,sh,html,css,env,env.*}": "secretlint"
- 99:     },
-100:     "packageManager": "pnpm@11.3.0+sha512.2c403d6594527287672b1f7056343a1f7c3634036a67ffabfcc2b3d7595d843768f8787148d1b57cf7956c90606bbd192857c363af19e96d2d0ec9ec5741d215"
-101: }
-</file>
-
-<file path=".github/workflows/_publish-r2-reusable.yml">
-  1: name: _Publish to R2 (reusable)
-  2: 
-  3: on:
-  4:   workflow_call:
-  5:     inputs:
-  6:       version:
-  7:         description: 'Version string (e.g. 1.0.2)'
-  8:         required: true
-  9:         type: string
- 10:       run_id:
- 11:         description: 'Artifact run ID to download from (empty = current run — only safe for workflow_call callers where github.run_id == parent run ID)'
- 12:         required: false
- 13:         type: string
- 14:         default: ''
- 15: 
- 16: permissions:
- 17:   contents: read
- 18:   actions: read
- 19: 
- 20: jobs:
- 21:   publish-r2:
- 22:     runs-on: ubuntu-latest
- 23: 
- 24:     steps:
- 25:       - name: Download artifacts
- 26:         uses: actions/download-artifact@v4
- 27:         with:
- 28:           path: artifacts
- 29:           # For workflow_call callers: github.run_id is the parent run — artifacts are found correctly.
- 30:           # For direct dispatch: always pass run_id explicitly.
- 31:           run-id: ${{ inputs.run_id || github.run_id }}
- 32:           github-token: ${{ secrets.GITHUB_TOKEN }}
- 33: 
- 34:       - name: Validate artifact signatures
- 35:         run: |
- 36:           set -e
- 37:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 38:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 39:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
- 40: 
- 41:           verify_sig() {
- 42:             local file="$1" label="$2"
- 43:             if [ ! -f "$file" ]; then
- 44:               echo "::error::$label .sig file not found: $file"
- 45:               exit 1
- 46:             fi
- 47:             if [ ! -s "$file" ]; then
- 48:               echo "::error::$label .sig file is empty: $file"
- 49:               exit 1
- 50:             fi
- 51:             echo "  OK: $label ($(wc -c < "$file") bytes)"
- 52:           }
- 53: 
- 54:           verify_sig "$AARCH64_SIG" "macOS aarch64"
- 55:           verify_sig "$X64_SIG"     "macOS x86_64"
- 56:           verify_sig "$WIN_SIG"     "Windows x86_64"
- 57:           echo "All .sig files valid."
- 58: 
- 59:       - name: Backup current latest.json
- 60:         env:
- 61:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
- 62:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
- 63:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
- 64:           R2_BUCKET: first-crack
- 65:           VERSION: ${{ inputs.version }}
- 66:         run: |
- 67:           TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
- 68:           BACKUP_KEY="releases/latest.json.${VERSION}.${TIMESTAMP}.bak"
- 69:           aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
- 70:             "s3://${R2_BUCKET}/${BACKUP_KEY}" \
- 71:             --endpoint-url "$R2_ENDPOINT" --region auto \
- 72:             --content-type "application/json" && \
- 73:             echo "BACKUP_KEY=${BACKUP_KEY}" >> $GITHUB_ENV || \
- 74:             echo "No existing latest.json to backup (first release?)"
- 75: 
- 76:       - name: Upload binaries & latest.json to R2
- 77:         id: upload-r2
- 78:         env:
- 79:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
- 80:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
- 81:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
- 82:           VERSION: ${{ inputs.version }}
- 83:           R2_BUCKET: first-crack
- 84:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
- 85:         run: |
- 86:           set -e
- 87:           S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
- 88: 
- 89:           AARCH64_TAR=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
- 90:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 91:           X64_TAR=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
- 92:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
- 93:           WIN_MSI=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi" ! -name "*.sig" | head -1)
- 94:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
- 95:           AARCH64_DMG=$(find artifacts/macos-aarch64-apple-darwin -name "*.dmg" | head -1)
- 96:           X64_DMG=$(find artifacts/macos-x86_64-apple-darwin -name "*.dmg" | head -1)
- 97: 
- 98:           [ -z "$AARCH64_TAR" ] && echo "ERROR: macOS arm64 .app.tar.gz not found" && exit 1
- 99:           [ -z "$X64_TAR" ]     && echo "ERROR: macOS x64 .app.tar.gz not found"   && exit 1
-100:           [ -z "$WIN_MSI" ]     && echo "ERROR: Windows MSI not found"              && exit 1
-101: 
-102:           AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
-103:           X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
-104:           WIN_MSI_R2=$(basename "$WIN_MSI")
-105: 
-106:           # Phase 1: fire all binary uploads in parallel
-107:           pids=""
-108:           $S3 "$AARCH64_TAR" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2" & pids="$pids $!"
-109:           [ -n "$AARCH64_SIG" ] && { $S3 "$AARCH64_SIG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2.sig" & pids="$pids $!"; }
-110:           $S3 "$X64_TAR"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2" & pids="$pids $!"
-111:           [ -n "$X64_SIG" ]     && { $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig" & pids="$pids $!"; }
-112:           $S3 "$WIN_MSI"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2" & pids="$pids $!"
-113:           [ -n "$WIN_SIG" ]     && { $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig" & pids="$pids $!"; }
-114:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")" & pids="$pids $!"; }
-115:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")" & pids="$pids $!"; }
-116: 
-117:           # Build latest.json while uploads run
-118:           jq --null-input \
-119:             --arg version   "$VERSION" \
-120:             --arg pub_date  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-121:             --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
-122:             --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
-123:             --arg x64_sig   "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
-124:             --arg x64_url   "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
-125:             --arg win_sig   "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
-126:             --arg win_url   "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
-127:             '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
-128:             > latest.json
-129: 
-130:           # Wait for all Phase 1 binary uploads
-131:           fail=0
-132:           for pid in $pids; do wait $pid || fail=1; done
-133:           if [ "$fail" -ne 0 ]; then
-134:             echo "ERROR: one or more binary uploads failed"
-135:             exit 1
-136:           fi
-137: 
-138:           # Phase 2: latest.json + landing page aliases (parallel)
-139:           pids=""
-140:           $S3 latest.json "s3://$R2_BUCKET/releases/latest.json" \
-141:             --cache-control "no-cache, no-store, must-revalidate" \
-142:             --content-type "application/json" & pids="$pids $!"
-143:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" & pids="$pids $!"; }
-144:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" & pids="$pids $!"; }
-145:           $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
-146: 
-147:           fail=0
-148:           for pid in $pids; do wait $pid || fail=1; done
-149:           if [ "$fail" -ne 0 ]; then
-150:             echo "ERROR: one or more latest/landing uploads failed"
-151:             exit 1
-152:           fi
-153: 
-154:       - name: Purge Cloudflare cache for latest.json
-155:         env:
-156:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-157:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-158:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
-159:         run: |
-160:           if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ZONE_ID" ]; then
-161:             echo "CLOUDFLARE_API_TOKEN or CLOUDFLARE_ZONE_ID not set — skipping (not required for r2.dev direct URL)"
-162:             exit 0
-163:           fi
-164:           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-165:             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-166:             -H "Authorization: Bearer ${CF_API_TOKEN}" \
-167:             -H "Content-Type: application/json" \
-168:             --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
-169:           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-170:           BODY=$(echo "$RESPONSE" | head -1)
-171:           echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
-172:           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-173:             echo "::warning::Cloudflare cache purge failed with HTTP $HTTP_CODE — continuing (r2.dev uses no-cache headers)"
-174:             exit 0
-175:           fi
-176: 
-177:       - name: Rollback latest.json on failure
-178:         if: failure() && steps.upload-r2.outcome == 'failure' && env.BACKUP_KEY != ''
-179:         env:
-180:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-181:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-182:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
-183:           R2_BUCKET: first-crack
-184:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-185:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-186:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
-187:         run: |
-188:           echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
-189:           if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
-190:               "s3://${R2_BUCKET}/releases/latest.json" \
-191:               --endpoint-url "$R2_ENDPOINT" --region auto \
-192:               --cache-control "no-cache, no-store, must-revalidate" \
-193:               --content-type "application/json"; then
-194:             echo "Rollback complete."
-195:             if [ -n "$CF_API_TOKEN" ] && [ -n "$CF_ZONE_ID" ]; then
-196:               RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-197:                 "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-198:                 -H "Authorization: Bearer ${CF_API_TOKEN}" \
-199:                 -H "Content-Type: application/json" \
-200:                 --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
-201:               HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-202:               echo "CF purge after rollback: HTTP $HTTP_CODE"
-203:             fi
-204:             echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
-205:           else
-206:             echo "::error::Rollback FAILED — latest.json may be in broken state"
-207:             echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
-208:           fi
-209: 
-210:       - name: Notify publish result
-211:         if: always()
-212:         env:
-213:           SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
-214:           VERSION: ${{ inputs.version }}
-215:         run: |
-216:           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-217:           if [ "${{ job.status }}" = "success" ]; then
-218:             TEXT=":white_check_mark: *Release published* — v${VERSION} | <${RUN_URL}|View run>"
-219:           elif [ "$ROLLBACK_STATUS" = "success" ]; then
-220:             TEXT=":x: *Release publish FAILED* — v${VERSION} | :white_check_mark: latest.json rolled back | <${RUN_URL}|View run>"
-221:           elif [ "$ROLLBACK_STATUS" = "failed" ]; then
-222:             TEXT=":rotating_light: *Release publish FAILED + Rollback FAILED* — v${VERSION} — latest.json 수동 확인 필요 | <${RUN_URL}|View run>"
-223:           else
-224:             TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
-225:           fi
-226:           if [ -n "$SLACK_WEBHOOK" ]; then
-227:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
-228:               --data "{\"text\":\"$TEXT\"}"
-229:           else
-230:             echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
-231:           fi
+<file path="src-tauri/src/lib.rs">
+  1: use std::sync::Mutex;
+  2: use std::time::Instant;
+  3: use tauri::{Emitter, Manager, RunEvent};
+  4: use tauri_plugin_shell::ShellExt;
+  5: use tauri_plugin_shell::process::{CommandChild, CommandEvent};
+  6: 
+  7: struct SidecarChild(Mutex<Option<CommandChild>>);
+  8: 
+  9: /// 사이드카 자동 재시작 백오프 (초). 길이 = 최대 시도 횟수.
+ 10: const RESTART_BACKOFFS_SECS: [u64; 3] = [2, 5, 10];
+ 11: 
+ 12: #[tauri::command]
+ 13: fn save_pdf(path: String, data: Vec<u8>) -> Result<(), String> {
+ 14:     std::fs::write(&path, data).map_err(|e| e.to_string())
+ 15: }
+ 16: 
+ 17: #[tauri::command]
+ 18: fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
+ 19:     window.print().map_err(|e| e.to_string())
+ 20: }
+ 21: 
+ 22: 
+ 23: /// 포트 9999를 점유한 프로세스가 우리 사이드카 바이너리인지 확인 후 kill.
+ 24: /// 정상 twin이 없다고 single-instance 플러그인이 이미 보장한 상태에서만 호출된다.
+ 25: fn kill_zombie_sidecar() {
+ 26:     #[cfg(not(target_os = "windows"))]
+ 27:     {
+ 28:         // lsof -t: PID만 출력, -i tcp:9999: 해당 포트 리스너/연결만 필터
+ 29:         let pid_output = std::process::Command::new("sh")
+ 30:             .args(["-c", "lsof -ti tcp:9999 2>/dev/null"])
+ 31:             .output();
+ 32: 
+ 33:         if let Ok(out) = pid_output {
+ 34:             let pids = String::from_utf8_lossy(&out.stdout);
+ 35:             for pid_str in pids.split_whitespace() {
+ 36:                 // ps -o comm=: 실행 파일 basename만 출력 (경로 없음).
+ 37:                 // Tauri externalBin 규약상 바이너리는 "sidecar-<target-triple>" 형태이므로
+ 38:                 // contains("sidecar")가 확실히 매칭된다.
+ 39:                 let name_check = std::process::Command::new("sh")
+ 40:                     .args(["-c", &format!("ps -p {pid_str} -o comm= 2>/dev/null")])
+ 41:                     .output();
+ 42:                 if let Ok(n) = name_check {
+ 43:                     let name = String::from_utf8_lossy(&n.stdout).to_lowercase();
+ 44:                     // release에서는 "sidecar"만 매칭 — 사용자의 무관한 python 서버 오살 방지 (W3)
+ 45:                     // debug에서는 "python"도 추가해 venv dev 서버 정리 허용
+ 46:                     let should_kill = name.contains("sidecar")
+ 47:                         || (cfg!(debug_assertions) && name.contains("python"));
+ 48:                     if should_kill {
+ 49:                         let _ = std::process::Command::new("kill")
+ 50:                             .args(["-9", pid_str])
+ 51:                             .output();
+ 52:                         eprintln!("[sidecar-guard] 좀비 사이드카 kill: PID {pid_str}");
+ 53:                     }
+ 54:                 }
+ 55:             }
+ 56:         }
+ 57:     }
+ 58:     #[cfg(target_os = "windows")]
+ 59:     {
+ 60:         use std::os::windows::process::CommandExt;
+ 61: 
+ 62:         const CREATE_NO_WINDOW: u32 = 0x08000000;
+ 63: 
+ 64:         // netstat -ano 출력을 받아 Rust에서 직접 ":9999" 필터링.
+ 65:         // (콜론이 포트 경계 역할을 함: "127.0.0.1:19999"에서 ':' 다음 문자는 '1'이라 불일치)
+ 66:         let netstat = std::process::Command::new("netstat")
+ 67:             .args(["-ano"])
+ 68:             .creation_flags(CREATE_NO_WINDOW)
+ 69:             .output();
+ 70:         if let Ok(out) = netstat {
+ 71:             let text = String::from_utf8_lossy(&out.stdout);
+ 72:             let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+ 73:             for line in text.lines() {
+ 74:                 // ":9999"를 포함하지 않는 라인은 스킵 (findstr :9999 대체)
+ 75:                 if !line.contains(":9999") {
+ 76:                     continue;
+ 77:                 }
+ 78:                 // netstat 출력의 마지막 컬럼이 PID
+ 79:                 let pid = match line.split_whitespace().last() {
+ 80:                     Some(p) => p.to_string(),
+ 81:                     None => continue,
+ 82:                 };
+ 83:                 // 숫자가 아닌 토큰(헤더 행 등) 제외
+ 84:                 if pid.is_empty() || !pid.chars().all(|c| c.is_ascii_digit()) {
+ 85:                     continue;
+ 86:                 }
+ 87:                 if !seen.insert(pid.clone()) {
+ 88:                     continue;
+ 89:                 }
+ 90:                 // tasklist: 프로세스 이름 검증 후 우리 사이드카일 때만 kill (직접 호출)
+ 91:                 let tasklist = std::process::Command::new("tasklist")
+ 92:                     .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
+ 93:                     .creation_flags(CREATE_NO_WINDOW)
+ 94:                     .output();
+ 95:                 if let Ok(t) = tasklist {
+ 96:                     let name = String::from_utf8_lossy(&t.stdout).to_lowercase();
+ 97:                     // /T: 부트로더→자식 전체 트리 킬 (W2). release는 "sidecar"만 (W3).
+ 98:                     let should_kill = name.contains("sidecar")
+ 99:                         || (cfg!(debug_assertions) && name.contains("python"));
+100:                     if should_kill {
+101:                         let _ = std::process::Command::new("taskkill")
+102:                             .args(["/F", "/T", "/PID", &pid])
+103:                             .creation_flags(CREATE_NO_WINDOW)
+104:                             .output();
+105:                         eprintln!("[sidecar-guard] Windows 좀비 사이드카 kill: PID {pid}");
+106:                     }
+107:                 }
+108:             }
+109:         }
+110:     }
+111: }
+112: 
+113: 
+114: #[cfg_attr(mobile, tauri::mobile_entry_point)]
+115: pub fn run() {
+116:     let client = sentry::Client::from((
+117:         "https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944",
+118:         sentry::ClientOptions {
+119:             release: sentry::release_name!(),
+120:             environment: Some(std::borrow::Cow::Borrowed("production")),
+121:             traces_sample_rate: 0.1,
+122:             ..Default::default()
+123:         },
+124:     ));
+125:     sentry::Hub::main().bind_client(Some(std::sync::Arc::new(client.clone())));
+126: 
+127:     let app = tauri::Builder::default()
+128:         .plugin(tauri_plugin_sentry::init(&client))
+129:         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+130:             // 두 번째 실행 시 기존 창을 앞으로 가져옴
+131:             if let Some(w) = app.get_webview_window("main") {
+132:                 let _ = w.set_focus();
+133:             }
+134:         }))
+135:         .plugin(tauri_plugin_shell::init())
+136:         .plugin(tauri_plugin_opener::init())
+137:         .plugin(tauri_plugin_process::init())
+138:         .plugin(tauri_plugin_dialog::init())
+139:         .plugin(tauri_plugin_os::init())
+140:         .plugin(tauri_plugin_store::Builder::default().build())
+141:         .plugin(tauri_plugin_deep_link::init())
+142:         .plugin(tauri_plugin_fs::init())
+143:         .plugin(tauri_plugin_notification::init())
+144:         .plugin(tauri_plugin_updater::Builder::default().build())
+145:         // CommandChild has no Drop impl — storing via manage() keeps it alive for the app lifetime.
+146:         .manage(SidecarChild(Mutex::new(None)))
+147:         .setup(|app| {
+148:             // DEBUG: `tauri dev` 시 beforeDevCommand가 띄운 venv Python 사이드카를
+149:             // 존중한다. 포트 9999가 이미 응답하면 스폰을 건너뜀 (X1).
+150:             #[cfg(debug_assertions)]
+151:             {
+152:                 if std::net::TcpStream::connect_timeout(
+153:                     &"127.0.0.1:9999".parse().unwrap(),
+154:                     std::time::Duration::from_millis(300),
+155:                 ).is_ok() {
+156:                     eprintln!("[sidecar-guard] debug: 포트 9999 감지 — 외부 dev 사이드카 존중, 스폰 건너뜀");
+157:                     return Ok(());
+158:                 }
+159:             }
+160: 
+161:             // Single-instance 플러그인이 twin 없음을 보장한 이후이므로,
+162:             // 포트를 점유한 프로세스는 이전 크래시의 좀비다.
+163:             // healthy 여부와 무관하게 항상 정리 (비응답 좀비도 포트를 점유할 수 있음).
+164:             kill_zombie_sidecar();
+165:             std::thread::sleep(std::time::Duration::from_millis(200));
+166: 
+167:             let sidecar_command = app.shell().sidecar("sidecar")?;
+168:             let parent_pid = std::process::id().to_string();
+169:             let (rx, child) = sidecar_command.env("SIDECAR_PARENT_PID", &parent_pid).spawn()?;
+170:             *app.state::<SidecarChild>().0.lock().unwrap() = Some(child);
+171: 
+172:             // stdout/stderr 드레인 + Terminated 감지 시 백오프 재시작.
+173:             // 30초 미만 생존은 "빠른 사망"으로 간주해 attempts 증가 (C2).
+174:             let app_handle = app.handle().clone();
+175:             tauri::async_runtime::spawn(async move {
+176:                 let mut current_rx = rx;
+177:                 let mut attempts: usize = 0;
+178:                 let mut spawned_at = Instant::now();
+179: 
+180:                 loop {
+181:                     while let Some(event) = current_rx.recv().await {
+182:                         match event {
+183:                             CommandEvent::Stdout(line) => {
+184:                                 print!("[sidecar] {}", String::from_utf8_lossy(&line));
+185:                             }
+186:                             CommandEvent::Stderr(line) => {
+187:                                 eprint!("[sidecar] {}", String::from_utf8_lossy(&line));
+188:                             }
+189:                             CommandEvent::Terminated(payload) => {
+190:                                 eprintln!("[sidecar] terminated: code={:?}", payload.code);
+191:                                 break;
+192:                             }
+193:                             _ => {}
+194:                         }
+195:                     }
+196: 
+197:                     // 30초 미만 생존 = 빠른 사망 → 실패로 카운트. 충분히 살았으면 리셋.
+198:                     if spawned_at.elapsed() < std::time::Duration::from_secs(30) {
+199:                         attempts += 1;
+200:                     } else {
+201:                         attempts = 0;
+202:                     }
+203: 
+204:                     if attempts >= RESTART_BACKOFFS_SECS.len() {
+205:                         eprintln!(
+206:                             "[sidecar-restart] {}회 재시작 모두 실패 — 사이드카 복구 포기",
+207:                             RESTART_BACKOFFS_SECS.len()
+208:                         );
+209:                         let _ = app_handle.emit("sidecar-dead", ());
+210:                         break;
+211:                     }
+212: 
+213:                     let delay = RESTART_BACKOFFS_SECS[attempts.saturating_sub(1).min(RESTART_BACKOFFS_SECS.len() - 1)];
+214:                     eprintln!(
+215:                         "[sidecar-restart] {}초 후 재시작 ({}/{})",
+216:                         delay,
+217:                         attempts,
+218:                         RESTART_BACKOFFS_SECS.len()
+219:                     );
+220:                     tokio::time::sleep(std::time::Duration::from_secs(delay)).await;
+221: 
+222:                     // 재시작 직전 좀비 가드 — 비응답 좀비도 무조건 정리
+223:                     kill_zombie_sidecar();
+224:                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+225: 
+226:                     let parent_pid = std::process::id().to_string();
+227:                     let respawn = app_handle
+228:                         .shell()
+229:                         .sidecar("sidecar")
+230:                         .and_then(|cmd| cmd.env("SIDECAR_PARENT_PID", &parent_pid).spawn().map_err(Into::into));
+231: 
+232:                     match respawn {
+233:                         Ok((new_rx, new_child)) => {
+234:                             *app_handle.state::<SidecarChild>().0.lock().unwrap() = Some(new_child);
+235:                             current_rx = new_rx;
+236:                             spawned_at = Instant::now();
+237:                             eprintln!("[sidecar-restart] 재시작 성공");
+238:                         }
+239:                         Err(e) => {
+240:                             eprintln!("[sidecar-restart] spawn 실패: {e}");
+241:                         }
+242:                     }
+243:                 }
+244:             });
+245: 
+246:             Ok(())
+247:         })
+248:         .invoke_handler(tauri::generate_handler![save_pdf, print_window])
+249:         .build(tauri::generate_context!())
+250:         .expect("error while running tauri application");
+251: 
+252:     app.run(|app, event| {
+253:         if let RunEvent::Exit = event {
+254:             // 1. graceful shutdown: /shutdown 엔드포인트로 sidecar 자체 종료 유도 (C1)
+255:             {
+256:                 use std::io::Write;
+257:                 use std::time::Duration;
+258:                 if let Ok(mut stream) = std::net::TcpStream::connect_timeout(
+259:                     &"127.0.0.1:9999".parse().unwrap(),
+260:                     Duration::from_millis(200),
+261:                 ) {
+262:                     let _ = stream.write_all(
+263:                         b"POST /shutdown HTTP/1.0\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+264:                     );
+265:                     // sidecar가 /shutdown 후 os._exit(0) — 0.3초면 충분
+266:                     std::thread::sleep(Duration::from_millis(300));
+267:                 }
+268:             }
+269:             // 2. fallback: 부트로더 kill (워치독으로 자식은 이미 죽어 있어야 함)
+270:             if let Some(child) = app.state::<SidecarChild>().0.lock().unwrap().take() {
+271:                 let _ = child.kill();
+272:             }
+273:         }
+274:     });
+275: }
 </file>
 
 <file path="src/views/profiles/Profiles.tsx">
@@ -31452,282 +31503,238 @@ This section contains the contents of the repository's files.
 454:         return (n * sxy - sx * sy) / denom
 </file>
 
-<file path="src-tauri/src/lib.rs">
-  1: use std::sync::Mutex;
-  2: use std::time::Instant;
-  3: use tauri::{Emitter, Manager, RunEvent};
-  4: use tauri_plugin_shell::ShellExt;
-  5: use tauri_plugin_shell::process::{CommandChild, CommandEvent};
-  6: 
-  7: struct SidecarChild(Mutex<Option<CommandChild>>);
-  8: 
-  9: /// 사이드카 자동 재시작 백오프 (초). 길이 = 최대 시도 횟수.
- 10: const RESTART_BACKOFFS_SECS: [u64; 3] = [2, 5, 10];
- 11: 
- 12: #[tauri::command]
- 13: fn save_pdf(path: String, data: Vec<u8>) -> Result<(), String> {
- 14:     std::fs::write(&path, data).map_err(|e| e.to_string())
- 15: }
- 16: 
- 17: #[tauri::command]
- 18: fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
- 19:     window.print().map_err(|e| e.to_string())
- 20: }
- 21: 
- 22: 
- 23: /// 포트 9999를 점유한 프로세스가 우리 사이드카 바이너리인지 확인 후 kill.
- 24: /// 정상 twin이 없다고 single-instance 플러그인이 이미 보장한 상태에서만 호출된다.
- 25: fn kill_zombie_sidecar() {
- 26:     #[cfg(not(target_os = "windows"))]
- 27:     {
- 28:         // lsof -t: PID만 출력, -i tcp:9999: 해당 포트 리스너/연결만 필터
- 29:         let pid_output = std::process::Command::new("sh")
- 30:             .args(["-c", "lsof -ti tcp:9999 2>/dev/null"])
- 31:             .output();
- 32: 
- 33:         if let Ok(out) = pid_output {
- 34:             let pids = String::from_utf8_lossy(&out.stdout);
- 35:             for pid_str in pids.split_whitespace() {
- 36:                 // ps -o comm=: 실행 파일 basename만 출력 (경로 없음).
- 37:                 // Tauri externalBin 규약상 바이너리는 "sidecar-<target-triple>" 형태이므로
- 38:                 // contains("sidecar")가 확실히 매칭된다.
- 39:                 let name_check = std::process::Command::new("sh")
- 40:                     .args(["-c", &format!("ps -p {pid_str} -o comm= 2>/dev/null")])
- 41:                     .output();
- 42:                 if let Ok(n) = name_check {
- 43:                     let name = String::from_utf8_lossy(&n.stdout).to_lowercase();
- 44:                     // release에서는 "sidecar"만 매칭 — 사용자의 무관한 python 서버 오살 방지 (W3)
- 45:                     // debug에서는 "python"도 추가해 venv dev 서버 정리 허용
- 46:                     let should_kill = name.contains("sidecar")
- 47:                         || (cfg!(debug_assertions) && name.contains("python"));
- 48:                     if should_kill {
- 49:                         let _ = std::process::Command::new("kill")
- 50:                             .args(["-9", pid_str])
- 51:                             .output();
- 52:                         eprintln!("[sidecar-guard] 좀비 사이드카 kill: PID {pid_str}");
- 53:                     }
- 54:                 }
- 55:             }
- 56:         }
- 57:     }
- 58:     #[cfg(target_os = "windows")]
- 59:     {
- 60:         use std::os::windows::process::CommandExt;
- 61: 
- 62:         const CREATE_NO_WINDOW: u32 = 0x08000000;
- 63: 
- 64:         // netstat -ano 출력을 받아 Rust에서 직접 ":9999" 필터링.
- 65:         // (콜론이 포트 경계 역할을 함: "127.0.0.1:19999"에서 ':' 다음 문자는 '1'이라 불일치)
- 66:         let netstat = std::process::Command::new("netstat")
- 67:             .args(["-ano"])
- 68:             .creation_flags(CREATE_NO_WINDOW)
- 69:             .output();
- 70:         if let Ok(out) = netstat {
- 71:             let text = String::from_utf8_lossy(&out.stdout);
- 72:             let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
- 73:             for line in text.lines() {
- 74:                 // ":9999"를 포함하지 않는 라인은 스킵 (findstr :9999 대체)
- 75:                 if !line.contains(":9999") {
- 76:                     continue;
- 77:                 }
- 78:                 // netstat 출력의 마지막 컬럼이 PID
- 79:                 let pid = match line.split_whitespace().last() {
- 80:                     Some(p) => p.to_string(),
- 81:                     None => continue,
- 82:                 };
- 83:                 // 숫자가 아닌 토큰(헤더 행 등) 제외
- 84:                 if pid.is_empty() || !pid.chars().all(|c| c.is_ascii_digit()) {
- 85:                     continue;
- 86:                 }
- 87:                 if !seen.insert(pid.clone()) {
- 88:                     continue;
- 89:                 }
- 90:                 // tasklist: 프로세스 이름 검증 후 우리 사이드카일 때만 kill (직접 호출)
- 91:                 let tasklist = std::process::Command::new("tasklist")
- 92:                     .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
- 93:                     .creation_flags(CREATE_NO_WINDOW)
- 94:                     .output();
- 95:                 if let Ok(t) = tasklist {
- 96:                     let name = String::from_utf8_lossy(&t.stdout).to_lowercase();
- 97:                     // /T: 부트로더→자식 전체 트리 킬 (W2). release는 "sidecar"만 (W3).
- 98:                     let should_kill = name.contains("sidecar")
- 99:                         || (cfg!(debug_assertions) && name.contains("python"));
-100:                     if should_kill {
-101:                         let _ = std::process::Command::new("taskkill")
-102:                             .args(["/F", "/T", "/PID", &pid])
-103:                             .creation_flags(CREATE_NO_WINDOW)
-104:                             .output();
-105:                         eprintln!("[sidecar-guard] Windows 좀비 사이드카 kill: PID {pid}");
-106:                     }
-107:                 }
-108:             }
-109:         }
-110:     }
-111: }
-112: 
-113: 
-114: #[cfg_attr(mobile, tauri::mobile_entry_point)]
-115: pub fn run() {
-116:     let client = sentry::Client::from((
-117:         "https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944",
-118:         sentry::ClientOptions {
-119:             release: sentry::release_name!(),
-120:             environment: Some(std::borrow::Cow::Borrowed("production")),
-121:             traces_sample_rate: 0.1,
-122:             ..Default::default()
-123:         },
-124:     ));
-125:     sentry::Hub::main().bind_client(Some(std::sync::Arc::new(client.clone())));
-126: 
-127:     let app = tauri::Builder::default()
-128:         .plugin(tauri_plugin_sentry::init(&client))
-129:         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-130:             // 두 번째 실행 시 기존 창을 앞으로 가져옴
-131:             if let Some(w) = app.get_webview_window("main") {
-132:                 let _ = w.set_focus();
-133:             }
-134:         }))
-135:         .plugin(tauri_plugin_shell::init())
-136:         .plugin(tauri_plugin_opener::init())
-137:         .plugin(tauri_plugin_process::init())
-138:         .plugin(tauri_plugin_dialog::init())
-139:         .plugin(tauri_plugin_os::init())
-140:         .plugin(tauri_plugin_store::Builder::default().build())
-141:         .plugin(tauri_plugin_deep_link::init())
-142:         .plugin(tauri_plugin_fs::init())
-143:         .plugin(tauri_plugin_notification::init())
-144:         .plugin(tauri_plugin_updater::Builder::default().build())
-145:         // CommandChild has no Drop impl — storing via manage() keeps it alive for the app lifetime.
-146:         .manage(SidecarChild(Mutex::new(None)))
-147:         .setup(|app| {
-148:             // DEBUG: `tauri dev` 시 beforeDevCommand가 띄운 venv Python 사이드카를
-149:             // 존중한다. 포트 9999가 이미 응답하면 스폰을 건너뜀 (X1).
-150:             #[cfg(debug_assertions)]
-151:             {
-152:                 if std::net::TcpStream::connect_timeout(
-153:                     &"127.0.0.1:9999".parse().unwrap(),
-154:                     std::time::Duration::from_millis(300),
-155:                 ).is_ok() {
-156:                     eprintln!("[sidecar-guard] debug: 포트 9999 감지 — 외부 dev 사이드카 존중, 스폰 건너뜀");
-157:                     return Ok(());
-158:                 }
-159:             }
-160: 
-161:             // Single-instance 플러그인이 twin 없음을 보장한 이후이므로,
-162:             // 포트를 점유한 프로세스는 이전 크래시의 좀비다.
-163:             // healthy 여부와 무관하게 항상 정리 (비응답 좀비도 포트를 점유할 수 있음).
-164:             kill_zombie_sidecar();
-165:             std::thread::sleep(std::time::Duration::from_millis(200));
-166: 
-167:             let sidecar_command = app.shell().sidecar("sidecar")?;
-168:             let parent_pid = std::process::id().to_string();
-169:             let (rx, child) = sidecar_command.env("SIDECAR_PARENT_PID", &parent_pid).spawn()?;
-170:             *app.state::<SidecarChild>().0.lock().unwrap() = Some(child);
-171: 
-172:             // stdout/stderr 드레인 + Terminated 감지 시 백오프 재시작.
-173:             // 30초 미만 생존은 "빠른 사망"으로 간주해 attempts 증가 (C2).
-174:             let app_handle = app.handle().clone();
-175:             tauri::async_runtime::spawn(async move {
-176:                 let mut current_rx = rx;
-177:                 let mut attempts: usize = 0;
-178:                 let mut spawned_at = Instant::now();
-179: 
-180:                 loop {
-181:                     while let Some(event) = current_rx.recv().await {
-182:                         match event {
-183:                             CommandEvent::Stdout(line) => {
-184:                                 print!("[sidecar] {}", String::from_utf8_lossy(&line));
-185:                             }
-186:                             CommandEvent::Stderr(line) => {
-187:                                 eprint!("[sidecar] {}", String::from_utf8_lossy(&line));
-188:                             }
-189:                             CommandEvent::Terminated(payload) => {
-190:                                 eprintln!("[sidecar] terminated: code={:?}", payload.code);
-191:                                 break;
-192:                             }
-193:                             _ => {}
-194:                         }
-195:                     }
-196: 
-197:                     // 30초 미만 생존 = 빠른 사망 → 실패로 카운트. 충분히 살았으면 리셋.
-198:                     if spawned_at.elapsed() < std::time::Duration::from_secs(30) {
-199:                         attempts += 1;
-200:                     } else {
-201:                         attempts = 0;
-202:                     }
-203: 
-204:                     if attempts >= RESTART_BACKOFFS_SECS.len() {
-205:                         eprintln!(
-206:                             "[sidecar-restart] {}회 재시작 모두 실패 — 사이드카 복구 포기",
-207:                             RESTART_BACKOFFS_SECS.len()
-208:                         );
-209:                         let _ = app_handle.emit("sidecar-dead", ());
-210:                         break;
-211:                     }
-212: 
-213:                     let delay = RESTART_BACKOFFS_SECS[attempts.saturating_sub(1).min(RESTART_BACKOFFS_SECS.len() - 1)];
-214:                     eprintln!(
-215:                         "[sidecar-restart] {}초 후 재시작 ({}/{})",
-216:                         delay,
-217:                         attempts,
-218:                         RESTART_BACKOFFS_SECS.len()
-219:                     );
-220:                     tokio::time::sleep(std::time::Duration::from_secs(delay)).await;
-221: 
-222:                     // 재시작 직전 좀비 가드 — 비응답 좀비도 무조건 정리
-223:                     kill_zombie_sidecar();
-224:                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-225: 
-226:                     let parent_pid = std::process::id().to_string();
-227:                     let respawn = app_handle
-228:                         .shell()
-229:                         .sidecar("sidecar")
-230:                         .and_then(|cmd| cmd.env("SIDECAR_PARENT_PID", &parent_pid).spawn().map_err(Into::into));
-231: 
-232:                     match respawn {
-233:                         Ok((new_rx, new_child)) => {
-234:                             *app_handle.state::<SidecarChild>().0.lock().unwrap() = Some(new_child);
-235:                             current_rx = new_rx;
-236:                             spawned_at = Instant::now();
-237:                             eprintln!("[sidecar-restart] 재시작 성공");
-238:                         }
-239:                         Err(e) => {
-240:                             eprintln!("[sidecar-restart] spawn 실패: {e}");
-241:                         }
-242:                     }
-243:                 }
-244:             });
-245: 
-246:             Ok(())
-247:         })
-248:         .invoke_handler(tauri::generate_handler![save_pdf, print_window])
-249:         .build(tauri::generate_context!())
-250:         .expect("error while running tauri application");
-251: 
-252:     app.run(|app, event| {
-253:         if let RunEvent::Exit = event {
-254:             // 1. graceful shutdown: /shutdown 엔드포인트로 sidecar 자체 종료 유도 (C1)
-255:             {
-256:                 use std::io::Write;
-257:                 use std::time::Duration;
-258:                 if let Ok(mut stream) = std::net::TcpStream::connect_timeout(
-259:                     &"127.0.0.1:9999".parse().unwrap(),
-260:                     Duration::from_millis(200),
-261:                 ) {
-262:                     let _ = stream.write_all(
-263:                         b"POST /shutdown HTTP/1.0\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-264:                     );
-265:                     // sidecar가 /shutdown 후 os._exit(0) — 0.3초면 충분
-266:                     std::thread::sleep(Duration::from_millis(300));
-267:                 }
-268:             }
-269:             // 2. fallback: 부트로더 kill (워치독으로 자식은 이미 죽어 있어야 함)
-270:             if let Some(child) = app.state::<SidecarChild>().0.lock().unwrap().take() {
-271:                 let _ = child.kill();
-272:             }
-273:         }
-274:     });
-275: }
+<file path=".github/workflows/_publish-r2-reusable.yml">
+  1: name: _Publish to R2 (reusable)
+  2: 
+  3: on:
+  4:   workflow_call:
+  5:     inputs:
+  6:       version:
+  7:         description: 'Version string (e.g. 1.0.2)'
+  8:         required: true
+  9:         type: string
+ 10:       run_id:
+ 11:         description: 'Artifact run ID to download from (empty = current run — only safe for workflow_call callers where github.run_id == parent run ID)'
+ 12:         required: false
+ 13:         type: string
+ 14:         default: ''
+ 15: 
+ 16: permissions:
+ 17:   contents: read
+ 18:   actions: read
+ 19: 
+ 20: jobs:
+ 21:   publish-r2:
+ 22:     runs-on: ubuntu-latest
+ 23: 
+ 24:     steps:
+ 25:       - name: Download artifacts
+ 26:         uses: actions/download-artifact@v4
+ 27:         with:
+ 28:           path: artifacts
+ 29:           # For workflow_call callers: github.run_id is the parent run — artifacts are found correctly.
+ 30:           # For direct dispatch: always pass run_id explicitly.
+ 31:           run-id: ${{ inputs.run_id || github.run_id }}
+ 32:           github-token: ${{ secrets.GITHUB_TOKEN }}
+ 33: 
+ 34:       - name: Validate artifact signatures
+ 35:         run: |
+ 36:           set -e
+ 37:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 38:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 39:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
+ 40: 
+ 41:           verify_sig() {
+ 42:             local file="$1" label="$2"
+ 43:             if [ ! -f "$file" ]; then
+ 44:               echo "::error::$label .sig file not found: $file"
+ 45:               exit 1
+ 46:             fi
+ 47:             if [ ! -s "$file" ]; then
+ 48:               echo "::error::$label .sig file is empty: $file"
+ 49:               exit 1
+ 50:             fi
+ 51:             echo "  OK: $label ($(wc -c < "$file") bytes)"
+ 52:           }
+ 53: 
+ 54:           verify_sig "$AARCH64_SIG" "macOS aarch64"
+ 55:           verify_sig "$X64_SIG"     "macOS x86_64"
+ 56:           verify_sig "$WIN_SIG"     "Windows x86_64"
+ 57:           echo "All .sig files valid."
+ 58: 
+ 59:       - name: Backup current latest.json
+ 60:         env:
+ 61:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+ 62:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+ 63:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+ 64:           R2_BUCKET: first-crack
+ 65:           VERSION: ${{ inputs.version }}
+ 66:         run: |
+ 67:           TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+ 68:           BACKUP_KEY="releases/latest.json.${VERSION}.${TIMESTAMP}.bak"
+ 69:           aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
+ 70:             "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+ 71:             --endpoint-url "$R2_ENDPOINT" --region auto \
+ 72:             --content-type "application/json" && \
+ 73:             echo "BACKUP_KEY=${BACKUP_KEY}" >> $GITHUB_ENV || \
+ 74:             echo "No existing latest.json to backup (first release?)"
+ 75: 
+ 76:       - name: Upload binaries & latest.json to R2
+ 77:         id: upload-r2
+ 78:         env:
+ 79:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+ 80:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+ 81:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+ 82:           VERSION: ${{ inputs.version }}
+ 83:           R2_BUCKET: first-crack
+ 84:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+ 85:         run: |
+ 86:           set -e
+ 87:           S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
+ 88: 
+ 89:           AARCH64_TAR=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+ 90:           AARCH64_SIG=$(find artifacts/macos-aarch64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 91:           X64_TAR=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+ 92:           X64_SIG=$(find artifacts/macos-x86_64-apple-darwin -name "*.app.tar.gz.sig" | head -1)
+ 93:           WIN_MSI=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi" ! -name "*.sig" | head -1)
+ 94:           WIN_SIG=$(find artifacts/windows-x86_64-pc-windows-msvc -name "*.msi.sig" | head -1)
+ 95:           AARCH64_DMG=$(find artifacts/macos-aarch64-apple-darwin -name "*.dmg" | head -1)
+ 96:           X64_DMG=$(find artifacts/macos-x86_64-apple-darwin -name "*.dmg" | head -1)
+ 97: 
+ 98:           [ -z "$AARCH64_TAR" ] && echo "ERROR: macOS arm64 .app.tar.gz not found" && exit 1
+ 99:           [ -z "$X64_TAR" ]     && echo "ERROR: macOS x64 .app.tar.gz not found"   && exit 1
+100:           [ -z "$WIN_MSI" ]     && echo "ERROR: Windows MSI not found"              && exit 1
+101: 
+102:           AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
+103:           X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
+104:           WIN_MSI_R2=$(basename "$WIN_MSI")
+105: 
+106:           # Phase 1: fire all binary uploads in parallel
+107:           pids=""
+108:           $S3 "$AARCH64_TAR" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2" & pids="$pids $!"
+109:           [ -n "$AARCH64_SIG" ] && { $S3 "$AARCH64_SIG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_TAR_R2.sig" & pids="$pids $!"; }
+110:           $S3 "$X64_TAR"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2" & pids="$pids $!"
+111:           [ -n "$X64_SIG" ]     && { $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig" & pids="$pids $!"; }
+112:           $S3 "$WIN_MSI"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2" & pids="$pids $!"
+113:           [ -n "$WIN_SIG" ]     && { $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig" & pids="$pids $!"; }
+114:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")" & pids="$pids $!"; }
+115:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")" & pids="$pids $!"; }
+116: 
+117:           # Build latest.json while uploads run
+118:           jq --null-input \
+119:             --arg version   "$VERSION" \
+120:             --arg pub_date  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+121:             --arg aarch64_sig "$([ -n "$AARCH64_SIG" ] && cat "$AARCH64_SIG" || echo "")" \
+122:             --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
+123:             --arg x64_sig   "$([ -n "$X64_SIG" ] && cat "$X64_SIG" || echo "")" \
+124:             --arg x64_url   "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
+125:             --arg win_sig   "$([ -n "$WIN_SIG" ] && cat "$WIN_SIG" || echo "")" \
+126:             --arg win_url   "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
+127:             '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
+128:             > latest.json
+129: 
+130:           # Wait for all Phase 1 binary uploads
+131:           fail=0
+132:           for pid in $pids; do wait $pid || fail=1; done
+133:           if [ "$fail" -ne 0 ]; then
+134:             echo "ERROR: one or more binary uploads failed"
+135:             exit 1
+136:           fi
+137: 
+138:           # Phase 2: latest.json + landing page aliases (parallel)
+139:           pids=""
+140:           $S3 latest.json "s3://$R2_BUCKET/releases/latest.json" \
+141:             --cache-control "no-cache, no-store, must-revalidate" \
+142:             --content-type "application/json" & pids="$pids $!"
+143:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" & pids="$pids $!"; }
+144:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" & pids="$pids $!"; }
+145:           $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
+146: 
+147:           fail=0
+148:           for pid in $pids; do wait $pid || fail=1; done
+149:           if [ "$fail" -ne 0 ]; then
+150:             echo "ERROR: one or more latest/landing uploads failed"
+151:             exit 1
+152:           fi
+153: 
+154:       - name: Purge Cloudflare cache for latest.json
+155:         env:
+156:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+157:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+158:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+159:         run: |
+160:           if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ZONE_ID" ]; then
+161:             echo "CLOUDFLARE_API_TOKEN or CLOUDFLARE_ZONE_ID not set — skipping (not required for r2.dev direct URL)"
+162:             exit 0
+163:           fi
+164:           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+165:             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+166:             -H "Authorization: Bearer ${CF_API_TOKEN}" \
+167:             -H "Content-Type: application/json" \
+168:             --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+169:           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+170:           BODY=$(echo "$RESPONSE" | head -1)
+171:           echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
+172:           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+173:             echo "::warning::Cloudflare cache purge failed with HTTP $HTTP_CODE — continuing (r2.dev uses no-cache headers)"
+174:             exit 0
+175:           fi
+176: 
+177:       - name: Rollback latest.json on failure
+178:         if: failure() && steps.upload-r2.outcome == 'failure' && env.BACKUP_KEY != ''
+179:         env:
+180:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+181:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+182:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+183:           R2_BUCKET: first-crack
+184:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+185:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+186:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+187:         run: |
+188:           echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
+189:           if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+190:               "s3://${R2_BUCKET}/releases/latest.json" \
+191:               --endpoint-url "$R2_ENDPOINT" --region auto \
+192:               --cache-control "no-cache, no-store, must-revalidate" \
+193:               --content-type "application/json"; then
+194:             echo "Rollback complete."
+195:             if [ -n "$CF_API_TOKEN" ] && [ -n "$CF_ZONE_ID" ]; then
+196:               RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+197:                 "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+198:                 -H "Authorization: Bearer ${CF_API_TOKEN}" \
+199:                 -H "Content-Type: application/json" \
+200:                 --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+201:               HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+202:               echo "CF purge after rollback: HTTP $HTTP_CODE"
+203:             fi
+204:             echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
+205:           else
+206:             echo "::error::Rollback FAILED — latest.json may be in broken state"
+207:             echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
+208:           fi
+209: 
+210:       - name: Notify publish result
+211:         if: always()
+212:         env:
+213:           SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
+214:           VERSION: ${{ inputs.version }}
+215:         run: |
+216:           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+217:           if [ "${{ job.status }}" = "success" ]; then
+218:             TEXT=":white_check_mark: *Release published* — v${VERSION} | <${RUN_URL}|View run>"
+219:           elif [ "$ROLLBACK_STATUS" = "success" ]; then
+220:             TEXT=":x: *Release publish FAILED* — v${VERSION} | :white_check_mark: latest.json rolled back | <${RUN_URL}|View run>"
+221:           elif [ "$ROLLBACK_STATUS" = "failed" ]; then
+222:             TEXT=":rotating_light: *Release publish FAILED + Rollback FAILED* — v${VERSION} — latest.json 수동 확인 필요 | <${RUN_URL}|View run>"
+223:           else
+224:             TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
+225:           fi
+226:           if [ -n "$SLACK_WEBHOOK" ]; then
+227:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+228:               --data "{\"text\":\"$TEXT\"}"
+229:           else
+230:             echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
+231:           fi
 </file>
 
 <file path="src/views/dashboard/Dashboard.tsx">

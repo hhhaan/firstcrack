@@ -10,6 +10,10 @@ on:
         description: 'Version to release (e.g. 1.0.2). Required when not triggered by a tag.'
         required: false
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   setup:
     runs-on: ubuntu-latest
@@ -225,7 +229,10 @@ jobs:
           fi
 
   publish-r2:
-    needs: [setup, build, notify-build]
+    needs: [setup, build]
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/_publish-r2-reusable.yml
     with:
       version: ${{ needs.setup.outputs.version }}
