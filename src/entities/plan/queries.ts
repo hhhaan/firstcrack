@@ -234,7 +234,6 @@ export const useCreateRecurringBatches = (userId: string, currentPlanId?: string
             const optimisticId = `__optimistic__${Date.now()}`;
 
             let previousCurrentPlan: PlanBatchWithProgress[] | undefined;
-            let previousDayBatches: PlanBatchWithProgress[] | undefined;
 
             if (currentPlanId) {
                 await qc.cancelQueries({ queryKey: planKeys.batches(currentPlanId) });
@@ -242,7 +241,9 @@ export const useCreateRecurringBatches = (userId: string, currentPlanId?: string
             }
 
             await qc.cancelQueries({ queryKey: planKeys.dayBatches(userId, dtstartDate) });
-            previousDayBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.dayBatches(userId, dtstartDate));
+            const previousDayBatches = qc.getQueryData<PlanBatchWithProgress[]>(
+                planKeys.dayBatches(userId, dtstartDate),
+            );
 
             const batchSize = Number(baseBatch.batch_size_kg) || 0;
             const targetKg = Number(baseBatch.target_roasted_kg) || 0;

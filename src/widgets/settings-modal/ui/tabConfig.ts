@@ -1,6 +1,6 @@
-import { Bell, Database, Flame, LayoutDashboard, PlayCircle, User, type LucideIcon } from 'lucide-react';
+import { Bell, Flame, LayoutDashboard, type LucideIcon, PlayCircle, User } from 'lucide-react';
 
-export type SettingsTabId = 'general' | 'notifications' | 'session' | 'system' | 'roast' | 'account';
+export type SettingsTabId = 'general' | 'notifications' | 'session' | 'roast' | 'account';
 
 export interface TabConfig {
     id: SettingsTabId;
@@ -100,33 +100,29 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
                 },
             ],
         },
-        {
-            id: 'system',
-            label: tk('system', 'label'),
-            icon: Database,
-            title: tk('system', 'title'),
-            description: tk('system', 'description'),
-            cards: [
-                {
-                    title: tk('system', 'dataTitle'),
-                    description: tk('system', 'dataDescription'),
-                    items: [
-                        tk('system', 'exportWorkspace'),
-                        tk('system', 'backupSnapshot'),
-                        tk('system', 'preserveLogs'),
-                    ],
-                },
-                {
-                    title: tk('system', 'environmentTitle'),
-                    description: tk('system', 'environmentDescription'),
-                    items: [
-                        tk('system', 'healthBadge'),
-                        tk('system', 'checkServices'),
-                        tk('system', 'confirmResets'),
-                    ],
-                },
-            ],
-        },
+        // {
+        //     id: 'system',
+        //     label: tk('system', 'label'),
+        //     icon: Database,
+        //     title: tk('system', 'title'),
+        //     description: tk('system', 'description'),
+        //     cards: [
+        //         {
+        //             title: tk('system', 'dataTitle'),
+        //             description: tk('system', 'dataDescription'),
+        //             items: [
+        //                 tk('system', 'exportWorkspace'),
+        //                 tk('system', 'backupSnapshot'),
+        //                 tk('system', 'preserveLogs'),
+        //             ],
+        //         },
+        //         {
+        //             title: tk('system', 'environmentTitle'),
+        //             description: tk('system', 'environmentDescription'),
+        //             items: [tk('system', 'healthBadge'), tk('system', 'checkServices'), tk('system', 'confirmResets')],
+        //         },
+        //     ],
+        // },
         {
             id: 'roast',
             label: tk('roast', 'label'),
