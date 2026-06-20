@@ -16,19 +16,6 @@ export const useChartData = ({
     targetCurvePoints: TsvPoint[];
     preChargeDisplaySec: number;
 }) => {
-    const targetSamples = useMemo(
-        () =>
-            targetCurvePoints.map((p) => ({
-                time: p.t,
-                btActual: null as number | null,
-                etActual: null as number | null,
-                rorActual: null as number | null,
-                etRorActual: null as number | null,
-                btTarget: p.bt,
-            })),
-        [targetCurvePoints],
-    );
-
     const chartData = useMemo(() => {
         const hasTarget = targetCurvePoints.length > 0;
         const sentinel = (t: number) => ({
@@ -49,16 +36,11 @@ export const useChartData = ({
             btTarget: hasTarget ? interpolateProfileBT(targetCurvePoints, p.time) : null,
         }));
 
+        // 타깃 프로파일 knot(30s 간격)을 btActual:null로 합치면 live 폴링 시각과
+        // 겹치지 않아 ECharts 선이 30초마다 끊긴다. btTarget은 live 시각에서 보간한다.
         const seen = new Set<number>();
         const deduped: ReturnType<typeof sentinel>[] = [];
         for (const p of live) {
-            const key = Math.round(p.time * 100);
-            if (!seen.has(key)) {
-                seen.add(key);
-                deduped.push(p);
-            }
-        }
-        for (const p of targetSamples) {
             const key = Math.round(p.time * 100);
             if (!seen.has(key)) {
                 seen.add(key);
@@ -74,7 +56,7 @@ export const useChartData = ({
         const needsStart = deduped.length === 0 || deduped[0].time > xMin + 0.5;
         const needsEnd = deduped.length === 0 || deduped[deduped.length - 1].time < chartTotalSecs - 1;
         return [...(needsStart ? [sentinel(xMin)] : []), ...deduped, ...(needsEnd ? [sentinel(chartTotalSecs)] : [])];
-    }, [livePoints, targetCurvePoints, targetSamples, preChargeDisplaySec]);
+    }, [livePoints, targetCurvePoints, preChargeDisplaySec]);
 
     return { chartData };
 };
