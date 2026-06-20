@@ -130,6 +130,7 @@
         "addFirst": "Add your first machine",
         "searchPlaceholder": "Search machines...",
         "removeMachine": "Remove machine",
+        "editMachine": "Edit connection settings",
         "temperature": {
             "bean": "Bean Temp",
             "environment": "Env Temp",
@@ -146,6 +147,7 @@
     "addMachine": {
         "onboarding": "Machine onboarding",
         "title": "Add a new machine",
+        "editTitle": "Edit Machine Connection",
         "roasterModel": "Roaster Model",
         "loadingRoasters": "Loading roasters...",
         "selectPort": "Select a port...",
@@ -160,7 +162,12 @@
         "connectedWithBt": "Connected - BT {{bt}}°C",
         "addOnly": "Add only",
         "addAndConnect": "Add & Connect",
-        "adding": "Adding..."
+        "adding": "Adding...",
+        "save": "Save",
+        "saving": "Saving...",
+        "saveOnly": "Save only",
+        "saveAndConnect": "Save & Connect",
+        "failedToSave": "Failed to save"
     },
     "dashboard": {
         "greeting": {
@@ -226,7 +233,26 @@
             "edit": "Edit",
             "delete": "Delete",
             "summary_one": "{{count}} bean · {{total}}% total",
-            "summary_other": "{{count}} beans · {{total}}% total"
+            "summary_other": "{{count}} beans · {{total}}% total",
+            "roastableCapacity": "Roastable Capacity",
+            "roastableKg": "Up to {{kg}}kg",
+            "limitingBean": "Limiting bean: {{name}} ({{grams}}g available)",
+            "noStock": "Insufficient stock to roast",
+            "modal": {
+                "titleCreate": "Add Blend",
+                "titleEdit": "Edit Blend",
+                "nameLabel": "Blend Name",
+                "namePlaceholder": "Blend name",
+                "descriptionLabel": "Description (optional)",
+                "descriptionPlaceholder": "Description (optional)",
+                "componentsLabel": "Component Beans",
+                "totalRatio": "Total {{total}}%",
+                "selectBean": "Select bean",
+                "addComponent": "+ Add bean",
+                "cancel": "Cancel",
+                "save": "Save",
+                "add": "Add"
+            }
         }
     },
     "activeRoast": {

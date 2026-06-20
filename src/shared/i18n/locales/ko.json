@@ -130,6 +130,7 @@
         "addFirst": "첫 머신 추가",
         "searchPlaceholder": "머신 검색...",
         "removeMachine": "머신 제거",
+        "editMachine": "연결 설정 수정",
         "temperature": {
             "bean": "원두 온도",
             "environment": "환경 온도",
@@ -146,6 +147,7 @@
     "addMachine": {
         "onboarding": "머신 온보딩",
         "title": "새 머신 추가",
+        "editTitle": "머신 연결 설정 수정",
         "roasterModel": "로스터 모델",
         "loadingRoasters": "로스터 불러오는 중...",
         "selectPort": "포트 선택...",
@@ -161,6 +163,11 @@
         "addOnly": "추가만 하기",
         "addAndConnect": "추가 후 연결",
         "adding": "추가 중...",
+        "save": "저장",
+        "saving": "저장 중...",
+        "saveOnly": "저장만 하기",
+        "saveAndConnect": "저장 후 연결",
+        "failedToSave": "저장에 실패했습니다",
         "phidgetDriverNotice": "해당 기기는 Phidget22 시스템 드라이버가 별도로 필요합니다.",
         "phidgetDriverLink": "드라이버 설치 안내 보기"
     },
@@ -403,7 +410,28 @@
             "componentBeans": "구성 생두",
             "selectBlend": "블렌드를 선택해 상세 정보를 확인하세요",
             "summary_one": "생두 {{count}}종 · 총 {{total}}%",
-            "summary_other": "생두 {{count}}종 · 총 {{total}}%"
+            "summary_other": "생두 {{count}}종 · 총 {{total}}%",
+            "roastableCapacity": "로스팅 가능량",
+            "roastableKg": "최대 {{kg}}kg",
+            "limitingBean": "제한 원두: {{name}} (가용 {{grams}}g)",
+            "noStock": "재고 부족으로 로스팅 불가",
+            "edit": "수정",
+            "delete": "삭제",
+            "modal": {
+                "titleCreate": "블렌드 추가",
+                "titleEdit": "블렌드 수정",
+                "nameLabel": "블렌드 이름",
+                "namePlaceholder": "블렌드 이름",
+                "descriptionLabel": "설명 (선택)",
+                "descriptionPlaceholder": "설명 (선택)",
+                "componentsLabel": "구성 생두",
+                "totalRatio": "합계 {{total}}%",
+                "selectBean": "생두 선택",
+                "addComponent": "+ 생두 추가",
+                "cancel": "취소",
+                "save": "저장",
+                "add": "추가"
+            }
         }
     },
     "activeRoast": {

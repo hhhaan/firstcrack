@@ -130,6 +130,7 @@
         "addFirst": "最初のマシンを追加",
         "searchPlaceholder": "マシンを検索...",
         "removeMachine": "マシンを削除",
+        "editMachine": "接続設定を編集",
         "temperature": {
             "bean": "豆温度",
             "environment": "環境温度",
@@ -146,6 +147,7 @@
     "addMachine": {
         "onboarding": "マシンオンボーディング",
         "title": "新しいマシンを追加",
+        "editTitle": "マシン接続設定を編集",
         "roasterModel": "ロースターモデル",
         "loadingRoasters": "ロースターを読み込み中...",
         "selectPort": "ポートを選択...",
@@ -160,7 +162,12 @@
         "connectedWithBt": "接続済み - BT {{bt}}°C",
         "addOnly": "追加のみ",
         "addAndConnect": "追加して接続",
-        "adding": "追加中..."
+        "adding": "追加中...",
+        "save": "保存",
+        "saving": "保存中...",
+        "saveOnly": "保存のみ",
+        "saveAndConnect": "保存して接続",
+        "failedToSave": "保存に失敗しました"
     },
     "dashboard": {
         "greeting": {
@@ -224,7 +231,28 @@
             "componentBeans": "構成生豆",
             "selectBlend": "ブレンドを選択すると詳細が表示されます",
             "summary_one": "{{count}}種の生豆 · {{total}}%構成",
-            "summary_other": "{{count}}種の生豆 · {{total}}%構成"
+            "summary_other": "{{count}}種の生豆 · {{total}}%構成",
+            "roastableCapacity": "焙煎可能量",
+            "roastableKg": "最大 {{kg}}kg",
+            "limitingBean": "制限生豆: {{name}} (利用可能 {{grams}}g)",
+            "noStock": "在庫不足のため焙煎不可",
+            "edit": "編集",
+            "delete": "削除",
+            "modal": {
+                "titleCreate": "ブレンド追加",
+                "titleEdit": "ブレンド編集",
+                "nameLabel": "ブレンド名",
+                "namePlaceholder": "ブレンド名",
+                "descriptionLabel": "説明 (任意)",
+                "descriptionPlaceholder": "説明 (任意)",
+                "componentsLabel": "構成生豆",
+                "totalRatio": "合計 {{total}}%",
+                "selectBean": "生豆を選択",
+                "addComponent": "+ 生豆を追加",
+                "cancel": "キャンセル",
+                "save": "保存",
+                "add": "追加"
+            }
         }
     },
     "activeRoast": {

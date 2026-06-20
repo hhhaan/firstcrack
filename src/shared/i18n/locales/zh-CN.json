@@ -130,6 +130,7 @@
         "addFirst": "添加第一台设备",
         "searchPlaceholder": "搜索设备...",
         "removeMachine": "移除设备",
+        "editMachine": "编辑连接设置",
         "temperature": {
             "bean": "豆温",
             "environment": "环境温度",
@@ -146,6 +147,7 @@
     "addMachine": {
         "onboarding": "设备引导",
         "title": "添加新设备",
+        "editTitle": "编辑设备连接",
         "roasterModel": "烘焙机型号",
         "loadingRoasters": "正在加载烘焙机...",
         "selectPort": "选择端口...",
@@ -160,7 +162,12 @@
         "connectedWithBt": "已连接 - BT {{bt}}°C",
         "addOnly": "仅添加",
         "addAndConnect": "添加并连接",
-        "adding": "正在添加..."
+        "adding": "正在添加...",
+        "save": "保存",
+        "saving": "正在保存...",
+        "saveOnly": "仅保存",
+        "saveAndConnect": "保存并连接",
+        "failedToSave": "保存失败"
     },
     "dashboard": {
         "greeting": {
@@ -224,7 +231,28 @@
             "componentBeans": "构成生豆",
             "selectBlend": "选择拼配以查看详情",
             "summary_one": "{{count}}支生豆 · {{total}}%组成",
-            "summary_other": "{{count}}支生豆 · {{total}}%组成"
+            "summary_other": "{{count}}支生豆 · {{total}}%组成",
+            "roastableCapacity": "可烘焙量",
+            "roastableKg": "最多 {{kg}}kg",
+            "limitingBean": "限制生豆: {{name}} (可用 {{grams}}g)",
+            "noStock": "库存不足，无法烘焙",
+            "edit": "编辑",
+            "delete": "删除",
+            "modal": {
+                "titleCreate": "添加拼配",
+                "titleEdit": "编辑拼配",
+                "nameLabel": "拼配名称",
+                "namePlaceholder": "拼配名称",
+                "descriptionLabel": "说明 (可选)",
+                "descriptionPlaceholder": "说明 (可选)",
+                "componentsLabel": "构成生豆",
+                "totalRatio": "合计 {{total}}%",
+                "selectBean": "选择生豆",
+                "addComponent": "+ 添加生豆",
+                "cancel": "取消",
+                "save": "保存",
+                "add": "添加"
+            }
         }
     },
     "activeRoast": {
