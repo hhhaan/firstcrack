@@ -5,6 +5,8 @@ import type { View } from '@shared/types/view';
 import { KpiCard } from '@shared/ui/KpiCard';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
+import { format } from 'date-fns';
+import { enUS } from 'date-fns/locale';
 import {
     ArrowRight,
     Calendar,
@@ -18,8 +20,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { format } from 'date-fns';
-import { enUS } from 'date-fns/locale';
 import type { MonthlyBatch } from './useDashboard';
 import { useDashboard } from './useDashboard';
 import { useWeather } from './useWeather';
@@ -421,13 +421,13 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                 </div>
                                 <div className="text-xs text-muted tracking-[0.14px]">{t('dashboard.batches')}</div>
                             </div>
-                            <div className="flex-1 text-center max-w-[160px]">
+                            <div className="flex-1 text-center border-r border-divider max-w-[160px]">
                                 <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
                                     {db.loading ? '—' : db.kgRoastedThisMonth.toFixed(1)}
                                 </div>
                                 <div className="text-xs text-muted tracking-[0.14px]">{t('dashboard.kgRoasted')}</div>
                             </div>
-                            <div className="flex-1 text-center max-w-[160px]">
+                            <div className="flex-1 text-center border-r border-divider max-w-[160px]">
                                 <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
                                     {db.loading
                                         ? '—'
