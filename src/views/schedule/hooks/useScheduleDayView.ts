@@ -14,6 +14,7 @@ import {
     useUpdateFromThis,
     useUpdateSingleBatch,
 } from '@entities/plan';
+import { useDeductRoastStock } from '@features/active-roast';
 import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { batchGreenNeededGrams, isBatchStockShort } from '@shared/lib/batch-stock';
 import { buildRRule } from '@shared/lib/rrule';
@@ -40,6 +41,10 @@ export const useScheduleDayView = ({
     const [scopeBatch, setScopeBatch] = useState<PlanBatchWithProgress | null>(null);
     const [isEditScopeModalOpen, setIsEditScopeModalOpen] = useState(false);
     const [isDeleteScopeModalOpen, setIsDeleteScopeModalOpen] = useState(false);
+    const [completingBatch, setCompletingBatch] = useState<PlanBatchWithProgress | null>(null);
+    const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+
+    const deductRoastStock = useDeductRoastStock();
 
     const { data: dayPlan, isLoading: isDayPlanLoading } = useDayPlan(userId, dateKey);
     const planId = dayPlan?.id ?? '';
@@ -371,6 +376,102 @@ export const useScheduleDayView = ({
         [updateSingleBatch, onStartBatch, userId],
     );
 
+    const handleCompleteClick = useCallback((batch: PlanBatchWithProgress) => {
+        setCompletingBatch(batch);
+        setIsCompleteModalOpen(true);
+    }, []);
+
+    const handleCompleteClose = useCallback(() => {
+        setIsCompleteModalOpen(false);
+        setCompletingBatch(null);
+    }, []);
+
+    const handleCompleteConfirm = useCallback(
+        async (deductStock: boolean) => {
+            const batch = completingBatch;
+            if (!batch) return;
+
+            let targetId = batch.id;
+
+            const materializePatch = {
+                bean_name: batch.bean_name,
+                batch_size_kg: Number(batch.batch_size_kg),
+                target_roasted_kg: Number(batch.target_roasted_kg),
+                machine_id: batch.machine_id,
+                bean_id: batch.bean_id,
+                blend_id: batch.blend_id ?? null,
+                roast_profile_id: batch.roast_profile_id,
+                notes: batch.notes,
+                green_lot: batch.green_lot,
+                batch_type: batch.batch_type,
+                yield_pct: batch.yield_pct,
+                status: 'done' as const,
+            };
+
+            try {
+                if (isVirtualPlanBatch(batch) && batch.recurrence_rule_id && batch.scheduled_date) {
+                    const realBatch = await planBatchApi.materialize(
+                        userId,
+                        batch.recurrence_rule_id,
+                        batch.scheduled_date,
+                        batch.original_date ?? batch.scheduled_date,
+                        materializePatch,
+                    );
+                    targetId = realBatch.id;
+                } else {
+                    await updateSingleBatch.mutateAsync({
+                        id: batch.id,
+                        patch: {
+                            id: batch.id,
+                            plan_id: batch.plan_id,
+                            status: 'done',
+                            ...(batch.recurrence_rule_id
+                                ? {
+                                      bean_id: batch.bean_id,
+                                      blend_id: batch.blend_id ?? null,
+                                      bean_name: batch.bean_name,
+                                      roast_profile_id: batch.roast_profile_id,
+                                      batch_size_kg: batch.batch_size_kg,
+                                      target_roasted_kg: batch.target_roasted_kg,
+                                      yield_pct: batch.yield_pct,
+                                      notes: batch.notes,
+                                      green_lot: batch.green_lot,
+                                      batch_type: batch.batch_type,
+                                  }
+                                : {}),
+                        },
+                        ...(batch.recurrence_rule_id && batch.original_date
+                            ? {
+                                  meta: {
+                                      recurrenceRuleId: batch.recurrence_rule_id,
+                                      originalDate: batch.original_date,
+                                  },
+                              }
+                            : {}),
+                    });
+                }
+
+                if (deductStock) {
+                    const deductionGrams = batchGreenNeededGrams(batch);
+                    if (deductionGrams > 0 && (batch.bean_id || batch.blend_id)) {
+                        await deductRoastStock({
+                            deductionGrams,
+                            singleBeanId: batch.bean_id ?? null,
+                            blendId: batch.blend_id ?? null,
+                            referenceId: targetId,
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('[Schedule] complete failed:', err);
+                alert(i18n.t('schedule.error.completeBatch') + ` ${err instanceof Error ? err.message : String(err)}`);
+            } finally {
+                handleCompleteClose();
+            }
+        },
+        [completingBatch, userId, updateSingleBatch, deductRoastStock, handleCompleteClose],
+    );
+
     const isRecurringStockShort = useCallback(
         (batch: PlanBatchWithProgress) => {
             if (!batch.recurrence_rule_id || !batch.bean_id) return false;
@@ -407,6 +508,11 @@ export const useScheduleDayView = ({
         handleAddBatch,
         handleMove,
         handleStart,
+        handleCompleteClick,
+        handleCompleteConfirm,
+        handleCompleteClose,
+        completingBatch,
+        isCompleteModalOpen,
         handleEdit,
         handleBatchDelete,
         handleEditScopeConfirm,

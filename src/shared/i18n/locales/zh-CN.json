@@ -400,6 +400,17 @@
             "skipped": "已跳过"
         },
         "start": "开始",
+        "complete": "完成",
+        "completeBatch": {
+            "title": "完成批次",
+            "description": "将「{{name}}」标记为已完成。",
+            "remainingSessions": "剩余次数：{{count}}次",
+            "deductionAmount": "预计扣减：{{kg}} kg",
+            "deductStock": "是否扣减生豆库存？",
+            "deductStockDisabled": "未关联豆子，无法扣减库存。",
+            "cancel": "取消",
+            "confirm": "确认完成"
+        },
         "reorderDisabledRecurring": "重复日程批次无法调整顺序",
         "stockShortRecurring": "按预约库存计算生豆可能不足（需{{needed}}kg / 可用{{available}}kg）",
         "detail": {
@@ -423,7 +434,8 @@
         },
         "error": {
             "createRecurring": "添加重复批次失败：",
-            "createBatch": "添加批次失败："
+            "createBatch": "添加批次失败：",
+            "completeBatch": "完成批次失败："
         },
         "recurringEditScope": {
             "title": "更改重复计划",

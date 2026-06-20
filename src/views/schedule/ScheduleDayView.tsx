@@ -1,5 +1,6 @@
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { AddBatchModal } from '@widgets/add-batch-modal';
+import { CompleteBatchModal } from '@widgets/complete-batch-modal';
 import { RecurringDeleteScopeModal, RecurringEditScopeModal } from '@widgets/recurring-edit-scope-modal';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -62,6 +63,7 @@ export const ScheduleDayView = ({
                                 onMove={(dir) => hooks.handleMove(index, dir)}
                                 onDelete={() => hooks.handleBatchDelete(batch)}
                                 onStart={() => hooks.handleStart(batch)}
+                                onComplete={() => hooks.handleCompleteClick(batch)}
                                 onEdit={() => hooks.handleEdit(batch)}
                             />
                         ))}
@@ -100,6 +102,13 @@ export const ScheduleDayView = ({
                     />
                 </>
             )}
+
+            <CompleteBatchModal
+                open={hooks.isCompleteModalOpen}
+                batch={hooks.completingBatch}
+                onClose={hooks.handleCompleteClose}
+                onConfirm={hooks.handleCompleteConfirm}
+            />
 
             <AddBatchModal
                 key={String(hooks.isAddModalOpen) + (hooks.editingBatch?.id ?? '') + (hooks.editScope ?? '')}

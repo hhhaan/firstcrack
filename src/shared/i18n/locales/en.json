@@ -400,6 +400,17 @@
             "skipped": "Skipped"
         },
         "start": "Start",
+        "complete": "Complete",
+        "completeBatch": {
+            "title": "Complete Batch",
+            "description": "Mark \"{{name}}\" as completed.",
+            "remainingSessions": "Remaining sessions: {{count}}",
+            "deductionAmount": "Deduction amount: {{kg}} kg",
+            "deductStock": "Deduct green coffee stock?",
+            "deductStockDisabled": "No bean linked — stock cannot be deducted.",
+            "cancel": "Cancel",
+            "confirm": "Mark Complete"
+        },
         "reorderDisabledRecurring": "Recurring batches cannot be reordered",
         "stockShortRecurring": "Green stock may be insufficient for reservations (need {{needed}}kg / available {{available}}kg)",
         "detail": {
@@ -423,7 +434,8 @@
         },
         "error": {
             "createRecurring": "Failed to add recurring batch:",
-            "createBatch": "Failed to add batch:"
+            "createBatch": "Failed to add batch:",
+            "completeBatch": "Failed to complete batch:"
         },
         "recurringEditScope": {
             "title": "Change Recurring Schedule",

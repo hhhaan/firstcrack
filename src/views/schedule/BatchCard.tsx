@@ -1,5 +1,5 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
-import { AlertTriangle, ChevronDown, ChevronUp, Package, Pencil, Play, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Package, Pencil, Play, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { batchProgress, batchStatus, getRecurrenceLabel } from './lib';
 
@@ -17,6 +17,7 @@ export const BatchCard = ({
     onMove,
     onDelete,
     onStart,
+    onComplete,
     onEdit,
     stockShort = false,
     stockShortDetail,
@@ -27,6 +28,7 @@ export const BatchCard = ({
     onMove: (dir: 'up' | 'down') => void;
     onDelete: () => void;
     onStart: () => void;
+    onComplete: () => void;
     onEdit: () => void;
     stockShort?: boolean;
     stockShortDetail?: { neededKg: string; availableKg: string } | null;
@@ -34,6 +36,7 @@ export const BatchCard = ({
     const { t } = useTranslation();
     const status = batchStatus(batch);
     const canStart = status === 'pending' || status === 'in-progress';
+    const canComplete = status === 'pending' || status === 'in-progress';
     const isRecurring = !!batch.recurrence_rule_id;
     const canReorder = !isRecurring;
     const reorderTitle = isRecurring ? t('schedule.reorderDisabledRecurring') : undefined;
@@ -63,6 +66,15 @@ export const BatchCard = ({
                         >
                             <Play size={11} strokeWidth={2.5} />
                             {t('schedule.start')}
+                        </button>
+                    )}
+                    {canComplete && (
+                        <button
+                            onClick={onComplete}
+                            className="flex items-center gap-1 text-[12px] font-medium text-secondary bg-surface dark:bg-surface-elevated px-2.5 py-1 rounded-full border border-border-subtle cursor-pointer hover:text-primary transition-colors"
+                        >
+                            <Check size={11} strokeWidth={2.5} />
+                            {t('schedule.complete')}
                         </button>
                     )}
                     <button

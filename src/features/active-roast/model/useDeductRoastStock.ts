@@ -9,7 +9,8 @@ export interface DeductRoastStockParams {
     deductionGrams: number;
     singleBeanId: string | null;
     blendId: string | null;
-    sessionId: string;
+    /** roast_session.id or plan_batch.id for idempotent stock events */
+    referenceId: string;
 }
 
 export const useDeductRoastStock = () => {
@@ -17,7 +18,7 @@ export const useDeductRoastStock = () => {
     const user = useAuthStore((s) => s.user);
 
     return useCallback(
-        async ({ deductionGrams, singleBeanId, blendId, sessionId }: DeductRoastStockParams) => {
+        async ({ deductionGrams, singleBeanId, blendId, referenceId }: DeductRoastStockParams) => {
             if (!user || deductionGrams <= 0) return;
 
             const events: Parameters<typeof beanStockEventApi.insertMany>[0] = [];
@@ -28,7 +29,7 @@ export const useDeductRoastStock = () => {
                     bean_id: singleBeanId,
                     delta_grams: -deductionGrams,
                     event_type: 'roast',
-                    reference_id: sessionId,
+                    reference_id: referenceId,
                 });
             }
 
@@ -42,7 +43,7 @@ export const useDeductRoastStock = () => {
                         bean_id: d.beanId,
                         delta_grams: -d.grams,
                         event_type: 'roast',
-                        reference_id: sessionId,
+                        reference_id: referenceId,
                         note: `${blend.name} 블렌드 차감`,
                     });
                 }
