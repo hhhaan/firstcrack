@@ -71,6 +71,9 @@ interface Props {
     onEventMarkerDrag?: (event: string, newTimeSec: number) => void;
     showET?: boolean;
     showTargetCurve?: boolean;
+    /** 타깃 프로파일 전용 x/bt — live xs와 분리 (전체 프로파일 곡선 + area 배경) */
+    targetXs?: number[];
+    targetBt?: (number | null)[];
     showRoR?: boolean;
     showRoRET?: boolean;
     rorEtActual?: (number | null)[];
@@ -110,6 +113,8 @@ export const RoastTempChart: React.FC<Props> = ({
     onEventMarkerDrag,
     showET = true,
     showTargetCurve = true,
+    targetXs,
+    targetBt,
     showRoR = true,
     showRoRET = false,
     rorEtActual = [],
@@ -186,11 +191,6 @@ export const RoastTempChart: React.FC<Props> = ({
             return html;
         };
 
-        // 🔥 TypeError 해결: ECharts가 undefined 값을 처리 못해서
-        // 명시적으로 [x값, y값] 튜플로 변환하면 getRawIndex 에러 방지
-        // arr[i]가 undefined면 null로 변환하여 ECharts 렌더링 안정화
-        const makeSeriesData = (arr: (number | null)[]) => xs.map((x, i) => [x, arr[i] ?? null]);
-
         // 커피 로스팅 차트에 최적화된 스무딩 설정
         // - BT(Bean Temp): 0.42 → 자연스러운 곡선, 노이즈 최소화
         // - ET(Environment Temp): 0.38 → BT보다 약간 덜 휘게 (안정적 표현)
@@ -262,6 +262,9 @@ export const RoastTempChart: React.FC<Props> = ({
         const leftMargin = CHART_GRID_LEFT;
         const topMargin = CHART_GRID_TOP;
 
+        const profileXs = targetXs && targetXs.length > 0 ? targetXs : xs;
+        const profileBt = targetBt && targetBt.length > 0 ? targetBt : btTarget;
+
         const tempSeries = [
             showTargetCurve && {
                 name: 'BT Target',
@@ -269,7 +272,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 z: 1,
-                data: makeSeriesData(btTarget),
+                data: profileXs.map((x, i) => [x, profileBt[i] ?? null]),
                 lineStyle: { color: colors.btTarget, width: 1.5, type: 'dashed', opacity: 0.55 },
                 areaStyle: { color: colors.btTarget, opacity: 0.06 },
                 showSymbol: false,
@@ -827,6 +830,8 @@ export const RoastTempChart: React.FC<Props> = ({
     }, [
         xs,
         btTarget,
+        targetXs,
+        targetBt,
         btActual,
         etActual,
         rorActual,

@@ -95,7 +95,8 @@ export const ActiveRoast = ({
 
     // ── 배치 핸드오프 ─────────────────────────────────────────────
     const planBatchHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
-    const sessionsAfter = planBatchHandoff ? planBatchHandoff.completedSessions + 1 : 0;
+    const incrementCompletedSession = useRoastSessionStore((s) => s.incrementCompletedSession);
+    const sessionsAfter = planBatchHandoff?.completedSessions ?? 0;
     const batchDone = planBatchHandoff ? sessionsAfter >= planBatchHandoff.batchCount : false;
 
     // ── UI 상태 ───────────────────────────────────────────────────
@@ -187,7 +188,7 @@ export const ActiveRoast = ({
         charged && livePoints.length > 0 && livePoints[0].time < 0 ? Math.ceil(Math.abs(livePoints[0].time)) : 0;
     const effectivePreChargeDisplaySec = charged ? Math.min(roastSettings.preChargeDisplaySec, actualPreSec) : 0;
 
-    const { chartData } = useChartData({
+    const { chartData, targetSeries } = useChartData({
         livePoints,
         targetCurvePoints,
         preChargeDisplaySec: effectivePreChargeDisplaySec,
@@ -227,31 +228,37 @@ export const ActiveRoast = ({
         [chartData, effectiveZoomRange],
     );
 
-    const { visibleXs, visibleBtTarget, visibleBtActual, visibleEtActual, visibleRorActual, visibleRorEtActual } =
-        useMemo(() => {
-            const xs: number[] = [];
-            const btTarget: (number | null)[] = [];
-            const btActual: (number | null)[] = [];
-            const etActual: (number | null)[] = [];
-            const rorActual: (number | null)[] = [];
-            const rorEtActual: (number | null)[] = [];
-            for (const p of visibleChartData) {
-                xs.push(p.time);
-                btTarget.push(p.btTarget != null ? toDisplayTemp(p.btTarget, unit) : null);
-                btActual.push(p.btActual != null ? toDisplayTemp(p.btActual, unit) : null);
-                etActual.push(p.etActual != null ? toDisplayTemp(p.etActual, unit) : null);
-                rorActual.push(p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null);
-                rorEtActual.push(p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null);
-            }
-            return {
-                visibleXs: xs,
-                visibleBtTarget: btTarget,
-                visibleBtActual: btActual,
-                visibleEtActual: etActual,
-                visibleRorActual: rorActual,
-                visibleRorEtActual: rorEtActual,
-            };
-        }, [visibleChartData, unit]);
+    const { visibleXs, visibleBtActual, visibleEtActual, visibleRorActual, visibleRorEtActual } = useMemo(() => {
+        const xs: number[] = [];
+        const btActual: (number | null)[] = [];
+        const etActual: (number | null)[] = [];
+        const rorActual: (number | null)[] = [];
+        const rorEtActual: (number | null)[] = [];
+        for (const p of visibleChartData) {
+            xs.push(p.time);
+            btActual.push(p.btActual != null ? toDisplayTemp(p.btActual, unit) : null);
+            etActual.push(p.etActual != null ? toDisplayTemp(p.etActual, unit) : null);
+            rorActual.push(p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null);
+            rorEtActual.push(p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null);
+        }
+        return {
+            visibleXs: xs,
+            visibleBtActual: btActual,
+            visibleEtActual: etActual,
+            visibleRorActual: rorActual,
+            visibleRorEtActual: rorEtActual,
+        };
+    }, [visibleChartData, unit]);
+
+    const { visibleTargetXs, visibleTargetBt } = useMemo(() => {
+        const points = effectiveZoomRange
+            ? targetSeries.filter((p) => p.time >= effectiveZoomRange.start && p.time <= effectiveZoomRange.end)
+            : targetSeries;
+        return {
+            visibleTargetXs: points.map((p) => p.time),
+            visibleTargetBt: points.map((p) => toDisplayTemp(p.bt, unit)),
+        };
+    }, [targetSeries, effectiveZoomRange, unit]);
 
     const { visibleControlXs, visibleDrumTemp, visibleHeatPower, visibleFanSpeed } = useMemo(() => {
         const points = effectiveZoomRange
@@ -746,7 +753,9 @@ export const ActiveRoast = ({
 
                         <RoastTempChart
                             xs={visibleXs}
-                            btTarget={visibleBtTarget}
+                            btTarget={[]}
+                            targetXs={visibleTargetXs}
+                            targetBt={visibleTargetBt}
                             btActual={visibleBtActual}
                             etActual={visibleEtActual}
                             rorActual={visibleRorActual}
@@ -1064,10 +1073,16 @@ export const ActiveRoast = ({
                             deductionGrams,
                             singleBeanId: selectedBeanId ?? null,
                             blendId: planBatchHandoff?.blendId ?? null,
-                            sessionId: savedSession.id,
+                            referenceId: savedSession.id,
                         });
 
-                        if (batchDone && planBatchHandoff) {
+                        const newCompletedCount = (planBatchHandoff?.completedSessions ?? 0) + 1;
+                        const isNowBatchDone =
+                            planBatchHandoff != null && newCompletedCount >= planBatchHandoff.batchCount;
+
+                        incrementCompletedSession();
+
+                        if (isNowBatchDone && planBatchHandoff) {
                             await updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' });
                         }
                         setShowSummaryModal(false);

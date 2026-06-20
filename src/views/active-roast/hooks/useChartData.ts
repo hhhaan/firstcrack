@@ -58,5 +58,15 @@ export const useChartData = ({
         return [...(needsStart ? [sentinel(xMin)] : []), ...deduped, ...(needsEnd ? [sentinel(chartTotalSecs)] : [])];
     }, [livePoints, targetCurvePoints, preChargeDisplaySec]);
 
-    return { chartData };
+    /** 타깃 프로파일 전체 곡선 — BT Actual과 분리해 렌더링 (null actual 구멍 방지) */
+    const targetSeries = useMemo(
+        () =>
+            targetCurvePoints.map((p) => ({
+                time: p.t,
+                bt: p.bt,
+            })),
+        [targetCurvePoints],
+    );
+
+    return { chartData, targetSeries };
 };
