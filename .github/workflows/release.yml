@@ -198,17 +198,34 @@ jobs:
       - name: Notify build failure
         if: failure()
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
         run: |
           if [ -n "$SLACK_WEBHOOK" ]; then
             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
               --data "{\"text\":\":x: *Release build FAILED* — \`${GITHUB_REF_NAME}\` | \`${{ matrix.target }}\` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
           else
-            echo "SLACK_WEBHOOK_URL not set — skipping notification"
+            echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
+          fi
+
+  notify-build:
+    needs: [setup, build]
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify build success
+        env:
+          SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
+          VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+              --data "{\"text\":\":white_check_mark: *Release build succeeded* — v${VERSION} (macOS arm64/x64 + Windows) | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
+          else
+            echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
           fi
 
   publish-r2:
-    needs: [setup, build]
+    needs: [setup, build, notify-build]
     uses: ./.github/workflows/_publish-r2-reusable.yml
     with:
       version: ${{ needs.setup.outputs.version }}

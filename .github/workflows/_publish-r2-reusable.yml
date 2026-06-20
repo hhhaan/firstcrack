@@ -210,7 +210,7 @@ jobs:
       - name: Notify publish result
         if: always()
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
           VERSION: ${{ inputs.version }}
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
@@ -227,5 +227,5 @@ jobs:
             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
               --data "{\"text\":\"$TEXT\"}"
           else
-            echo "SLACK_WEBHOOK_URL not set — skipping notification"
+            echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
           fi
