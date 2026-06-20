@@ -129,7 +129,10 @@ jobs:
           # Wait for all Phase 1 binary uploads
           fail=0
           for pid in $pids; do wait $pid || fail=1; done
-          [ $fail -eq 1 ] && echo "ERROR: one or more binary uploads failed" && exit 1
+          if [ "$fail" -ne 0 ]; then
+            echo "ERROR: one or more binary uploads failed"
+            exit 1
+          fi
 
           # Phase 2: latest.json + landing page aliases (parallel)
           pids=""
@@ -142,7 +145,10 @@ jobs:
 
           fail=0
           for pid in $pids; do wait $pid || fail=1; done
-          [ $fail -eq 1 ] && echo "ERROR: one or more latest/landing uploads failed" && exit 1
+          if [ "$fail" -ne 0 ]; then
+            echo "ERROR: one or more latest/landing uploads failed"
+            exit 1
+          fi
 
       - name: Purge Cloudflare cache for latest.json
         env:

@@ -924,6 +924,106 @@ This section contains the contents of the repository's files.
 5: };
 </file>
 
+<file path="src/features/export-csv/lib/csv-export.ts">
+ 1: import type { RoastSessionWithRelations } from '@shared/types/database.types';
+ 2: 
+ 3: /** Escape a CSV field — wrap in quotes if it contains comma, quote, or newline. */
+ 4: const escapeField = (val: string): string => {
+ 5:     if (val.includes(',') || val.includes('"') || val.includes('\n') || val.includes('\r')) {
+ 6:         return `"${val.replace(/"/g, '""')}"`;
+ 7:     }
+ 8:     return val;
+ 9: };
+10: 
+11: /** Format duration in mm:ss for CSV (empty string for null, not em-dash). */
+12: const formatDuration = (seconds: number | null): string => {
+13:     if (seconds == null) return '';
+14:     const m = Math.floor(seconds / 60);
+15:     const s = seconds % 60;
+16:     return `${m}:${String(s).padStart(2, '0')}`;
+17: };
+18: 
+19: export interface CsvRow {
+20:     date: string;
+21:     bean: string;
+22:     origin: string;
+23:     profile: string;
+24:     weightGrams: number;
+25:     inputKg: number;
+26:     outputKg: number;
+27:     lossRate: number;
+28:     roastLevel: string;
+29:     dropTemp: string;
+30:     duration: string;
+31:     notes: string;
+32: }
+33: 
+34: const HEADERS: (keyof CsvRow)[] = [
+35:     'date',
+36:     'bean',
+37:     'origin',
+38:     'profile',
+39:     'weightGrams',
+40:     'inputKg',
+41:     'outputKg',
+42:     'lossRate',
+43:     'roastLevel',
+44:     'dropTemp',
+45:     'duration',
+46:     'notes',
+47: ];
+48: 
+49: const HEADER_LABELS: Record<keyof CsvRow, string> = {
+50:     date: 'Date',
+51:     bean: 'Bean',
+52:     origin: 'Origin',
+53:     profile: 'Profile',
+54:     weightGrams: 'Weight (g)',
+55:     inputKg: 'Input (kg)',
+56:     outputKg: 'Output (kg)',
+57:     lossRate: 'Loss Rate (%)',
+58:     roastLevel: 'Roast Level',
+59:     dropTemp: 'Drop Temp (°C)',
+60:     duration: 'Duration',
+61:     notes: 'Notes',
+62: };
+63: 
+64: const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
+65:     const outputKg = (s.weight_grams ?? 0) / 1000;
+66:     const inputKg = outputKg / 0.82;
+67:     const lossRate = inputKg > 0 ? ((inputKg - outputKg) / inputKg) * 100 : 0;
+68: 
+69:     return {
+70:         date: s.roasted_at ? s.roasted_at.slice(0, 10) : '',
+71:         bean: s.beans?.name ?? '',
+72:         origin: s.beans?.origin ?? '',
+73:         profile: s.roast_profiles?.name ?? '',
+74:         weightGrams: s.weight_grams ?? 0,
+75:         inputKg: Math.round(inputKg * 1000) / 1000,
+76:         outputKg: Math.round(outputKg * 1000) / 1000,
+77:         lossRate: Math.round(lossRate * 10) / 10,
+78:         roastLevel: s.roast_level ?? '',
+79:         dropTemp: s.drop_temp_celsius != null ? `${s.drop_temp_celsius}°C` : '',
+80:         duration: formatDuration(s.duration_seconds),
+81:         notes: s.notes ?? '',
+82:     };
+83: };
+84: 
+85: /** Convert an array of RoastSessionWithRelations to a CSV string with BOM. */
+86: export const sessionsToCsv = (sessions: RoastSessionWithRelations[]): string => {
+87:     const header = HEADERS.map((h) => HEADER_LABELS[h]).join(',') + '\n';
+88: 
+89:     const rows = sessions
+90:         .map((s) => {
+91:             const row = toCsvRow(s);
+92:             return HEADERS.map((h) => escapeField(String(row[h]))).join(',');
+93:         })
+94:         .join('\n');
+95: 
+96:     return `\uFEFF${header}${rows}\n`;
+97: };
+</file>
+
 <file path="src/shared/data/index.ts">
 1: export * from './roast-mock-data';
 </file>
@@ -934,6 +1034,31 @@ This section contains the contents of the repository's files.
 3:     const tagName = target.tagName.toLowerCase();
 4:     return target.isContentEditable || tagName === 'input' || tagName === 'textarea' || tagName === 'select';
 5: }
+</file>
+
+<file path="src/shared/lib/download.ts">
+ 1: /** Trigger a browser download of a Blob. Works in both Tauri and web. */
+ 2: export const downloadBlob = (filename: string, blob: Blob): void => {
+ 3:     const url = URL.createObjectURL(blob);
+ 4: 
+ 5:     const a = document.createElement('a');
+ 6:     a.href = url;
+ 7:     a.download = filename;
+ 8:     a.style.display = 'none';
+ 9:     document.body.appendChild(a);
+10:     a.click();
+11: 
+12:     setTimeout(() => {
+13:         document.body.removeChild(a);
+14:         URL.revokeObjectURL(url);
+15:     }, 100);
+16: };
+17: 
+18: /** Trigger a browser download of a CSV string. */
+19: export const downloadCsv = (filename: string, csv: string): void => {
+20:     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+21:     downloadBlob(filename, blob);
+22: };
 </file>
 
 <file path="src/shared/lib/locationStore.ts">
@@ -6801,104 +6926,9 @@ This section contains the contents of the repository's files.
 109: };
 </file>
 
-<file path="src/features/export-csv/lib/csv-export.ts">
- 1: import type { RoastSessionWithRelations } from '@shared/types/database.types';
- 2: 
- 3: /** Escape a CSV field — wrap in quotes if it contains comma, quote, or newline. */
- 4: const escapeField = (val: string): string => {
- 5:     if (val.includes(',') || val.includes('"') || val.includes('\n') || val.includes('\r')) {
- 6:         return `"${val.replace(/"/g, '""')}"`;
- 7:     }
- 8:     return val;
- 9: };
-10: 
-11: /** Format duration in mm:ss for CSV (empty string for null, not em-dash). */
-12: const formatDuration = (seconds: number | null): string => {
-13:     if (seconds == null) return '';
-14:     const m = Math.floor(seconds / 60);
-15:     const s = seconds % 60;
-16:     return `${m}:${String(s).padStart(2, '0')}`;
-17: };
-18: 
-19: export interface CsvRow {
-20:     date: string;
-21:     bean: string;
-22:     origin: string;
-23:     profile: string;
-24:     weightGrams: number;
-25:     inputKg: number;
-26:     outputKg: number;
-27:     lossRate: number;
-28:     roastLevel: string;
-29:     dropTemp: string;
-30:     duration: string;
-31:     notes: string;
-32: }
-33: 
-34: const HEADERS: (keyof CsvRow)[] = [
-35:     'date',
-36:     'bean',
-37:     'origin',
-38:     'profile',
-39:     'weightGrams',
-40:     'inputKg',
-41:     'outputKg',
-42:     'lossRate',
-43:     'roastLevel',
-44:     'dropTemp',
-45:     'duration',
-46:     'notes',
-47: ];
-48: 
-49: const HEADER_LABELS: Record<keyof CsvRow, string> = {
-50:     date: 'Date',
-51:     bean: 'Bean',
-52:     origin: 'Origin',
-53:     profile: 'Profile',
-54:     weightGrams: 'Weight (g)',
-55:     inputKg: 'Input (kg)',
-56:     outputKg: 'Output (kg)',
-57:     lossRate: 'Loss Rate (%)',
-58:     roastLevel: 'Roast Level',
-59:     dropTemp: 'Drop Temp (°C)',
-60:     duration: 'Duration',
-61:     notes: 'Notes',
-62: };
-63: 
-64: const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
-65:     const outputKg = (s.weight_grams ?? 0) / 1000;
-66:     const inputKg = outputKg / 0.82;
-67:     const lossRate = inputKg > 0 ? ((inputKg - outputKg) / inputKg) * 100 : 0;
-68: 
-69:     return {
-70:         date: s.roasted_at ? s.roasted_at.slice(0, 10) : '',
-71:         bean: s.beans?.name ?? '',
-72:         origin: s.beans?.origin ?? '',
-73:         profile: s.roast_profiles?.name ?? '',
-74:         weightGrams: s.weight_grams ?? 0,
-75:         inputKg: Math.round(inputKg * 1000) / 1000,
-76:         outputKg: Math.round(outputKg * 1000) / 1000,
-77:         lossRate: Math.round(lossRate * 10) / 10,
-78:         roastLevel: s.roast_level ?? '',
-79:         dropTemp: s.drop_temp_celsius != null ? `${s.drop_temp_celsius}°C` : '',
-80:         duration: formatDuration(s.duration_seconds),
-81:         notes: s.notes ?? '',
-82:     };
-83: };
-84: 
-85: /** Convert an array of RoastSessionWithRelations to a CSV string with BOM. */
-86: export const sessionsToCsv = (sessions: RoastSessionWithRelations[]): string => {
-87:     const header = HEADERS.map((h) => HEADER_LABELS[h]).join(',') + '\n';
-88: 
-89:     const rows = sessions
-90:         .map((s) => {
-91:             const row = toCsvRow(s);
-92:             return HEADERS.map((h) => escapeField(String(row[h]))).join(',');
-93:         })
-94:         .join('\n');
-95: 
-96:     return `\uFEFF${header}${rows}\n`;
-97: };
+<file path="src/features/export-csv/index.ts">
+1: export type { CsvRow } from './lib/csv-export';
+2: export { sessionsToCsv } from './lib/csv-export';
 </file>
 
 <file path="src/features/sidecar/model/useSidecarDeadListener.ts">
@@ -7097,31 +7127,6 @@ This section contains the contents of the repository's files.
 2: import { twMerge } from 'tailwind-merge';
 3: 
 4: export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
-</file>
-
-<file path="src/shared/lib/download.ts">
- 1: /** Trigger a browser download of a Blob. Works in both Tauri and web. */
- 2: export const downloadBlob = (filename: string, blob: Blob): void => {
- 3:     const url = URL.createObjectURL(blob);
- 4: 
- 5:     const a = document.createElement('a');
- 6:     a.href = url;
- 7:     a.download = filename;
- 8:     a.style.display = 'none';
- 9:     document.body.appendChild(a);
-10:     a.click();
-11: 
-12:     setTimeout(() => {
-13:         document.body.removeChild(a);
-14:         URL.revokeObjectURL(url);
-15:     }, 100);
-16: };
-17: 
-18: /** Trigger a browser download of a CSV string. */
-19: export const downloadCsv = (filename: string, csv: string): void => {
-20:     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-21:     downloadBlob(filename, blob);
-22: };
 </file>
 
 <file path="src/shared/lib/format.ts">
@@ -11058,32 +11063,6 @@ This section contains the contents of the repository's files.
 66:         working-directory: src-tauri/sidecar
 </file>
 
-<file path=".github/workflows/publish-r2.yml">
- 1: name: Publish to R2
- 2: 
- 3: on:
- 4:   workflow_dispatch:
- 5:     inputs:
- 6:       run_id:
- 7:         description: 'Build run ID to download artifacts from'
- 8:         required: true
- 9:       version:
-10:         description: 'Version string (e.g. 1.0.2)'
-11:         required: true
-12: 
-13: permissions:
-14:   contents: read
-15:   actions: read
-16: 
-17: jobs:
-18:   publish-r2:
-19:     uses: ./.github/workflows/_publish-r2-reusable.yml
-20:     with:
-21:       version: ${{ inputs.version }}
-22:       run_id: ${{ inputs.run_id }}
-23:     secrets: inherit
-</file>
-
 <file path="src/entities/bean/queries.ts">
  1: import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
  2: import type { Bean } from '../../shared/types/database.types';
@@ -12536,11 +12515,6 @@ This section contains the contents of the repository's files.
 65:         removeLogEntry,
 66:     };
 67: };
-</file>
-
-<file path="src/features/export-csv/index.ts">
-1: export type { CsvRow } from './lib/csv-export';
-2: export { sessionsToCsv } from './lib/csv-export';
 </file>
 
 <file path="src/features/updater/lib/useUpdateChecker.ts">
@@ -17523,6 +17497,32 @@ This section contains the contents of the repository's files.
 916: **추천:** Phase 1 JSONB → 블렌드 사용 비중 확인 후 정규화 검토.
 917: 
 918: **Depends on:** 없음
+</file>
+
+<file path=".github/workflows/publish-r2.yml">
+ 1: name: Publish to R2
+ 2: 
+ 3: on:
+ 4:   workflow_dispatch:
+ 5:     inputs:
+ 6:       run_id:
+ 7:         description: 'Build run ID to download artifacts from'
+ 8:         required: true
+ 9:       version:
+10:         description: 'Version string (e.g. 1.0.2)'
+11:         required: true
+12: 
+13: permissions:
+14:   contents: read
+15:   actions: read
+16: 
+17: jobs:
+18:   publish-r2:
+19:     uses: ./.github/workflows/_publish-r2-reusable.yml
+20:     with:
+21:       version: ${{ inputs.version }}
+22:       run_id: ${{ inputs.run_id }}
+23:     secrets: inherit
 </file>
 
 <file path="scripts/append-db-aliases.mjs">
@@ -25104,93 +25104,99 @@ This section contains the contents of the repository's files.
 129:           # Wait for all Phase 1 binary uploads
 130:           fail=0
 131:           for pid in $pids; do wait $pid || fail=1; done
-132:           [ $fail -eq 1 ] && echo "ERROR: one or more binary uploads failed" && exit 1
-133: 
-134:           # Phase 2: latest.json + landing page aliases (parallel)
-135:           pids=""
-136:           $S3 latest.json "s3://$R2_BUCKET/releases/latest.json" \
-137:             --cache-control "no-cache, no-store, must-revalidate" \
-138:             --content-type "application/json" & pids="$pids $!"
-139:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" & pids="$pids $!"; }
-140:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" & pids="$pids $!"; }
-141:           $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
-142: 
-143:           fail=0
-144:           for pid in $pids; do wait $pid || fail=1; done
-145:           [ $fail -eq 1 ] && echo "ERROR: one or more latest/landing uploads failed" && exit 1
-146: 
-147:       - name: Purge Cloudflare cache for latest.json
-148:         env:
-149:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-150:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-151:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
-152:         run: |
-153:           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-154:             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-155:             -H "Authorization: Bearer ${CF_API_TOKEN}" \
-156:             -H "Content-Type: application/json" \
-157:             --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
-158:           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-159:           BODY=$(echo "$RESPONSE" | head -1)
-160:           echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
-161:           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-162:             echo "::error::Cloudflare cache purge failed with HTTP $HTTP_CODE"
-163:             exit 1
-164:           fi
-165: 
-166:       - name: Rollback latest.json on failure
-167:         if: failure() && env.BACKUP_KEY != ''
-168:         env:
-169:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-170:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-171:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
-172:           R2_BUCKET: first-crack
-173:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-174:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-175:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
-176:         run: |
-177:           echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
-178:           if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
-179:               "s3://${R2_BUCKET}/releases/latest.json" \
-180:               --endpoint-url "$R2_ENDPOINT" --region auto \
-181:               --cache-control "no-cache, no-store, must-revalidate" \
-182:               --content-type "application/json"; then
-183:             echo "Rollback complete. Purging CF cache..."
-184:             RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-185:               "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
-186:               -H "Authorization: Bearer ${CF_API_TOKEN}" \
-187:               -H "Content-Type: application/json" \
-188:               --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
-189:             HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-190:             echo "CF purge after rollback: HTTP $HTTP_CODE"
-191:             echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
-192:           else
-193:             echo "::error::Rollback FAILED — latest.json may be in broken state"
-194:             echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
-195:           fi
-196: 
-197:       - name: Notify publish result
-198:         if: always()
-199:         env:
-200:           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-201:           VERSION: ${{ inputs.version }}
-202:         run: |
-203:           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-204:           if [ "${{ job.status }}" = "success" ]; then
-205:             TEXT=":white_check_mark: *Release published* — v${VERSION} | <${RUN_URL}|View run>"
-206:           elif [ "$ROLLBACK_STATUS" = "success" ]; then
-207:             TEXT=":x: *Release publish FAILED* — v${VERSION} | :white_check_mark: latest.json rolled back | <${RUN_URL}|View run>"
-208:           elif [ "$ROLLBACK_STATUS" = "failed" ]; then
-209:             TEXT=":rotating_light: *Release publish FAILED + Rollback FAILED* — v${VERSION} — latest.json 수동 확인 필요 | <${RUN_URL}|View run>"
-210:           else
-211:             TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
-212:           fi
-213:           if [ -n "$SLACK_WEBHOOK" ]; then
-214:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
-215:               --data "{\"text\":\"$TEXT\"}"
+132:           if [ "$fail" -ne 0 ]; then
+133:             echo "ERROR: one or more binary uploads failed"
+134:             exit 1
+135:           fi
+136: 
+137:           # Phase 2: latest.json + landing page aliases (parallel)
+138:           pids=""
+139:           $S3 latest.json "s3://$R2_BUCKET/releases/latest.json" \
+140:             --cache-control "no-cache, no-store, must-revalidate" \
+141:             --content-type "application/json" & pids="$pids $!"
+142:           [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/latest/First-Crack-arm64.dmg" & pids="$pids $!"; }
+143:           [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/latest/First-Crack-x64.dmg" & pids="$pids $!"; }
+144:           $S3 "$WIN_MSI" "s3://$R2_BUCKET/releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
+145: 
+146:           fail=0
+147:           for pid in $pids; do wait $pid || fail=1; done
+148:           if [ "$fail" -ne 0 ]; then
+149:             echo "ERROR: one or more latest/landing uploads failed"
+150:             exit 1
+151:           fi
+152: 
+153:       - name: Purge Cloudflare cache for latest.json
+154:         env:
+155:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+156:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+157:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+158:         run: |
+159:           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+160:             "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+161:             -H "Authorization: Bearer ${CF_API_TOKEN}" \
+162:             -H "Content-Type: application/json" \
+163:             --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+164:           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+165:           BODY=$(echo "$RESPONSE" | head -1)
+166:           echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
+167:           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+168:             echo "::error::Cloudflare cache purge failed with HTTP $HTTP_CODE"
+169:             exit 1
+170:           fi
+171: 
+172:       - name: Rollback latest.json on failure
+173:         if: failure() && env.BACKUP_KEY != ''
+174:         env:
+175:           AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+176:           AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+177:           R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+178:           R2_BUCKET: first-crack
+179:           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+180:           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+181:           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+182:         run: |
+183:           echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
+184:           if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+185:               "s3://${R2_BUCKET}/releases/latest.json" \
+186:               --endpoint-url "$R2_ENDPOINT" --region auto \
+187:               --cache-control "no-cache, no-store, must-revalidate" \
+188:               --content-type "application/json"; then
+189:             echo "Rollback complete. Purging CF cache..."
+190:             RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+191:               "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+192:               -H "Authorization: Bearer ${CF_API_TOKEN}" \
+193:               -H "Content-Type: application/json" \
+194:               --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}")
+195:             HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+196:             echo "CF purge after rollback: HTTP $HTTP_CODE"
+197:             echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
+198:           else
+199:             echo "::error::Rollback FAILED — latest.json may be in broken state"
+200:             echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
+201:           fi
+202: 
+203:       - name: Notify publish result
+204:         if: always()
+205:         env:
+206:           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+207:           VERSION: ${{ inputs.version }}
+208:         run: |
+209:           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+210:           if [ "${{ job.status }}" = "success" ]; then
+211:             TEXT=":white_check_mark: *Release published* — v${VERSION} | <${RUN_URL}|View run>"
+212:           elif [ "$ROLLBACK_STATUS" = "success" ]; then
+213:             TEXT=":x: *Release publish FAILED* — v${VERSION} | :white_check_mark: latest.json rolled back | <${RUN_URL}|View run>"
+214:           elif [ "$ROLLBACK_STATUS" = "failed" ]; then
+215:             TEXT=":rotating_light: *Release publish FAILED + Rollback FAILED* — v${VERSION} — latest.json 수동 확인 필요 | <${RUN_URL}|View run>"
 216:           else
-217:             echo "SLACK_WEBHOOK_URL not set — skipping notification"
+217:             TEXT=":x: *Release publish FAILED* — v${VERSION} | <${RUN_URL}|View run>"
 218:           fi
+219:           if [ -n "$SLACK_WEBHOOK" ]; then
+220:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+221:               --data "{\"text\":\"$TEXT\"}"
+222:           else
+223:             echo "SLACK_WEBHOOK_URL not set — skipping notification"
+224:           fi
 </file>
 
 <file path="src/views/profiles/NewProfileModal.tsx">
@@ -32764,985 +32770,6 @@ This section contains the contents of the repository's files.
 508: }
 </file>
 
-<file path="src/widgets/active-roast/ui/RoastTempChart.tsx">
-  1: import type { PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
-  2: import {
-  3:     AXIS_LABEL_FONT,
-  4:     CHART_COLORS,
-  5:     CHART_GRID_LEFT,
-  6:     CHART_GRID_RIGHT,
-  7:     CHART_GRID_RIGHT_WITH_ROR,
-  8:     CHART_GRID_TOP,
-  9:     CONTROL_COLORS,
- 10:     CONTROL_GRID_BOTTOM,
- 11:     CONTROL_GRID_BOTTOM_GAP,
- 12:     CONTROL_GRID_TOP,
- 13:     CONTROL_GRID_TOP_WITH_PHASE,
- 14:     getResolvedChartColors,
- 15:     PHASE_BAR_BOTTOM,
- 16:     PHASE_BAR_DURATION_COLOR,
- 17:     PHASE_BAR_FONT_FAMILY,
- 18:     PHASE_BAR_FONT_SIZE,
- 19:     PHASE_BAR_FONT_SIZE_NARROW,
- 20:     PHASE_BAR_FONT_WEIGHT,
- 21:     PHASE_BAR_HEIGHT,
- 22:     PHASE_BAR_NAME_COLOR,
- 23:     PHASE_BAR_NARROW_THRESHOLD,
- 24:     PHASE_BAR_STROKE,
- 25:     PHASE_BAR_STROKE_WIDTH,
- 26:     PHASE_BAR_TEXT_INSET,
- 27:     PHASE_BAR_WIDE_THRESHOLD,
- 28:     PHASE_GRID_TOP,
- 29:     ROR_Y_MAX,
- 30:     ROR_Y_MIN,
- 31:     SINGLE_GRID_BOTTOM,
- 32:     TEMP_GRID_HEIGHT,
- 33:     TEMP_GRID_HEIGHT_WITH_PHASE,
- 34:     TEMP_Y_INTERVAL,
- 35:     TEMP_Y_MAX_C,
- 36:     TEMP_Y_MAX_F,
- 37:     TEMP_Y_MIN_C,
- 38:     TEMP_Y_MIN_F,
- 39:     Y_AXIS_NAME_GAP,
- 40: } from '@features/active-roast/lib/chart-config';
- 41: import { useThemeStore } from '@shared/store/theme';
- 42: import type { EChartsOption } from 'echarts';
- 43: import * as echarts from 'echarts';
- 44: import type React from 'react';
- 45: import { useEffect, useMemo, useRef } from 'react';
- 46: export interface RoastEventMarker {
- 47:     timeSec: number;
- 48:     event: string;
- 49:     color: string;
- 50: }
- 51: 
- 52: interface ControlData {
- 53:     xs: number[];
- 54:     drumTemp: (number | null)[];
- 55:     heatPower: (number | null)[];
- 56:     fanSpeed: (number | null)[];
- 57: }
- 58: 
- 59: interface Props {
- 60:     xs: number[];
- 61:     btTarget: (number | null)[];
- 62:     btActual: (number | null)[];
- 63:     etActual: (number | null)[];
- 64:     rorActual: (number | null)[];
- 65:     currentTimeSec: number;
- 66:     eventMarkers: RoastEventMarker[];
- 67:     turningPoints?: TurningPoint[];
- 68:     temperatureUnit?: TemperatureUnit;
- 69:     height: number;
- 70:     onCursorIdx?: (idx: number | null) => void;
- 71:     onEventMarkerDrag?: (event: string, newTimeSec: number) => void;
- 72:     showET?: boolean;
- 73:     showTargetCurve?: boolean;
- 74:     showRoR?: boolean;
- 75:     showRoRET?: boolean;
- 76:     rorEtActual?: (number | null)[];
- 77:     controlData?: ControlData;
- 78:     phaseSegments?: PhaseSegment[];
- 79: }
- 80: 
- 81: const fmtSec = (v: number) => {
- 82:     const sign = v < 0 ? '-' : '';
- 83:     const abs = Math.abs(v);
- 84:     const m = Math.floor(abs / 60);
- 85:     const s = Math.round(abs % 60);
- 86:     return `${sign}${m}:${String(s).padStart(2, '0')}`;
- 87: };
- 88: 
- 89: /** Approximate perceived brightness of a hex color (0–255). */
- 90: const luminance = (hex: string): number => {
- 91:     const c = hex.replace('#', '');
- 92:     if (c.length < 6) return 255;
- 93:     const r = parseInt(c.substring(0, 2), 16);
- 94:     const g = parseInt(c.substring(2, 4), 16);
- 95:     const b = parseInt(c.substring(4, 6), 16);
- 96:     return (r * 299 + g * 587 + b * 114) / 1000;
- 97: };
- 98: 
- 99: export const RoastTempChart: React.FC<Props> = ({
-100:     xs,
-101:     btTarget,
-102:     btActual,
-103:     etActual,
-104:     rorActual,
-105:     eventMarkers,
-106:     turningPoints = [],
-107:     temperatureUnit = 'C',
-108:     height,
-109:     onCursorIdx,
-110:     onEventMarkerDrag,
-111:     showET = true,
-112:     showTargetCurve = true,
-113:     showRoR = true,
-114:     showRoRET = false,
-115:     rorEtActual = [],
-116:     controlData,
-117:     phaseSegments = [],
-118: }) => {
-119:     const chartRef = useRef<HTMLDivElement>(null);
-120:     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
-121:     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
-122: 
-123:     // ── 마커 드래그 상태 ─────────────────────────────────────────
-124:     const dragStateRef = useRef<{
-125:         active: boolean;
-126:         eventName: string;
-127:         startX: number;
-128:         startTimeSec: number;
-129:     } | null>(null);
-130:     const PIXEL_THRESHOLD = 10;
-131: 
-132:     // ECharts 초기화
-133:     useEffect((): (() => void) | undefined => {
-134:         const container = chartRef.current;
-135:         if (!container) return undefined;
-136: 
-137:         const chart = echarts.init(container, undefined, {
-138:             renderer: 'canvas',
-139:             useDirtyRect: true,
-140:         });
-141:         chartInstanceRef.current = chart;
-142: 
-143:         const resizeObserver = new ResizeObserver(() => chart.resize());
-144:         resizeObserver.observe(container);
-145: 
-146:         return () => {
-147:             resizeObserver.disconnect();
-148:             if (chartInstanceRef.current) {
-149:                 chartInstanceRef.current.dispose();
-150:                 chartInstanceRef.current = null;
-151:             }
-152:         };
-153:     }, []);
-154: 
-155:     const option = useMemo((): EChartsOption => {
-156:         const colors = getResolvedChartColors();
-157:         const axisLabelStyle = { ...AXIS_LABEL_FONT, color: colors.axisLabel };
-158:         const axisNameStyle = { color: colors.axisLabel };
-159:         const rightYAxisLabel = { ...axisLabelStyle, margin: 4 };
-160: 
-161:         const unitLabel = temperatureUnit === 'C' ? '℃' : '℉';
-162:         const rorUnit = temperatureUnit === 'C' ? '℃/min' : '℉/min';
-163: 
-164:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-165:         const formatAxisTooltip = (params: any) => {
-166:             const timeSec = params[0]?.axisValue ?? 0;
-167:             let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
-168:             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-169:             params.forEach((p: any) => {
-170:                 const y = p.value?.[1];
-171:                 if (p.seriesName === 'BT Target' && y != null)
-172:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget}"></div>Target BT: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
-173:                 if (p.seriesName === 'BT Actual' && y != null)
-174:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
-175:                 if (p.seriesName === 'ET Actual' && showET && y != null)
-176:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual}"></div>Env Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
-177:                 if (p.seriesName === 'RoR' && showRoR && y != null)
-178:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual}"></div>RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
-179:                 if (controlData && p.seriesName === 'Drum' && y != null)
-180:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlDrum}"></div>Drum: <span>${y} RPM</span></div>`;
-181:                 if (controlData && p.seriesName === 'Heat' && y != null)
-182:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlHeat}"></div>Heat: <span>${y}%</span></div>`;
-183:                 if (controlData && p.seriesName === 'Fan' && y != null)
-184:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlFan}"></div>Fan: <span>${y}%</span></div>`;
-185:             });
-186:             return html;
-187:         };
-188: 
-189:         // 🔥 TypeError 해결: ECharts가 undefined 값을 처리 못해서
-190:         // 명시적으로 [x값, y값] 튜플로 변환하면 getRawIndex 에러 방지
-191:         // arr[i]가 undefined면 null로 변환하여 ECharts 렌더링 안정화
-192:         const makeSeriesData = (arr: (number | null)[]) => xs.map((x, i) => [x, arr[i] ?? null]);
-193: 
-194:         // 커피 로스팅 차트에 최적화된 스무딩 설정
-195:         // - BT(Bean Temp): 0.42 → 자연스러운 곡선, 노이즈 최소화
-196:         // - ET(Environment Temp): 0.38 → BT보다 약간 덜 휘게 (안정적 표현)
-197:         // - RoR(Rate of Rise): 0.28 → 센서 노이즈 많아서 더 부드럽게
-198:         // - smoothMonotone 'x' → 시간축 방향으로만 스무딩 (역행 방지)
-199:         // - sampling 'lttb' → Largest-Triangle-Three-Buckets 알고리즘 (성능 + 품질)
-200:         const getSmoothConfig = (strength: number = 0.4) => ({
-201:             smooth: strength,
-202:             smoothMonotone: 'x' as const,
-203:             sampling: 'lttb' as const,
-204:         });
-205: 
-206:         const tpMarkLines = turningPoints.map((tp) => ({
-207:             xAxis: tp.timeSec,
-208:             lineStyle: {
-209:                 color: colors.tp,
-210:                 width: 1.5,
-211:                 type: 'solid' as const,
-212:                 opacity: 1,
-213:             },
-214:             label: {
-215:                 show: true,
-216:                 position: 'start',
-217:                 formatter: 'TP',
-218:                 color: colors.tp,
-219:                 fontSize: 12,
-220:                 fontWeight: 700,
-221:             },
-222:         }));
-223: 
-224:         const eventMarkLines = eventMarkers.map((m) => ({
-225:             xAxis: m.timeSec,
-226:             lineStyle: {
-227:                 color: m.color,
-228:                 width: 1.5,
-229:                 type: 'solid' as const,
-230:                 opacity: 0.8,
-231:             },
-232:             label: {
-233:                 show: false,
-234:             },
-235:         }));
-236: 
-237:         const markPointData = eventMarkers.map((m) => {
-238:             const isLight = luminance(m.color) > 160;
-239:             return {
-240:                 name: m.event,
-241:                 value: [m.timeSec, null],
-242:                 xAxis: m.timeSec,
-243:                 symbol: 'circle',
-244:                 symbolSize: 10,
-245:                 itemStyle: { color: m.color, borderColor: CHART_COLORS.markerLabelColor, borderWidth: 2 },
-246:                 label: {
-247:                     show: true,
-248:                     position: 'top',
-249:                     formatter: m.event,
-250:                     fontSize: 10,
-251:                     color: isLight ? '#0B0B0B' : CHART_COLORS.markerLabelColor,
-252:                     backgroundColor: m.color,
-253:                     padding: [2, 4],
-254:                 },
-255:             };
-256:         });
-257: 
-258:         const xMin = xs[0] ?? 0;
-259:         const xMax = xs[xs.length - 1] ?? 1200;
-260:         const hasRightYAxis = showRoR || !!controlData;
-261:         const rightMargin = hasRightYAxis ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
-262:         const leftMargin = CHART_GRID_LEFT;
-263:         const topMargin = CHART_GRID_TOP;
-264: 
-265:         const tempSeries = [
-266:             showTargetCurve && {
-267:                 name: 'BT Target',
-268:                 type: 'line',
-269:                 xAxisIndex: 0,
-270:                 yAxisIndex: 0,
-271:                 z: 1,
-272:                 data: makeSeriesData(btTarget),
-273:                 lineStyle: { color: colors.btTarget, width: 1.5, type: 'dashed', opacity: 0.55 },
-274:                 areaStyle: { color: colors.btTarget, opacity: 0.06 },
-275:                 showSymbol: false,
-276:                 smooth: false,
-277:             },
-278:             {
-279:                 name: 'BT Actual',
-280:                 type: 'line',
-281:                 xAxisIndex: 0,
-282:                 yAxisIndex: 0,
-283:                 z: 2,
-284:                 data: xs.map((x, i) => [x, btActual[i]]),
-285:                 lineStyle: { color: colors.btActual, width: 1.8 },
-286:                 showSymbol: false,
-287:                 ...getSmoothConfig(0.7),
-288:                 markLine: {
-289:                     silent: false,
-290:                     symbol: ['none', 'circle'],
-291:                     symbolSize: [0, 8],
-292:                     data: [...eventMarkLines, ...tpMarkLines],
-293:                 },
-294:                 markPoint: { data: markPointData },
-295:             },
-296:             showET && {
-297:                 name: 'ET Actual',
-298:                 type: 'line',
-299:                 xAxisIndex: 0,
-300:                 yAxisIndex: 0,
-301:                 z: 2,
-302:                 data: xs.map((x, i) => [x, etActual[i]]),
-303:                 lineStyle: { color: colors.etActual, width: 1.5 },
-304:                 showSymbol: false,
-305:                 ...getSmoothConfig(0.65),
-306:             },
-307:             showRoR && {
-308:                 name: 'RoR',
-309:                 type: 'line',
-310:                 xAxisIndex: 0,
-311:                 yAxisIndex: 1,
-312:                 data: xs.map((x, i) => [x, rorActual[i]]),
-313:                 lineStyle: { color: colors.rorActual, width: 1.2 },
-314:                 showSymbol: false,
-315:                 ...getSmoothConfig(0.28),
-316:             },
-317:             showRoR &&
-318:                 showRoRET && {
-319:                     name: 'ET RoR',
-320:                     type: 'line',
-321:                     xAxisIndex: 0,
-322:                     yAxisIndex: 1,
-323:                     data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
-324:                     lineStyle: { color: colors.etActual, width: 1.0, type: 'dashed' },
-325:                     showSymbol: false,
-326:                     ...getSmoothConfig(0.28),
-327:                 },
-328:         ].filter(Boolean) as object[];
-329: 
-330:         // ── Phase bar (로스팅 단계 시각화) ────────────────────────────────────
-331:         // 로스팅 프로필을 "Dry", "Development", "Cooling" 등의 단계로 나누어
-332:         // 차트 하단에 색상 막대로 표시하고 각 단계의 시간과 비율을 표기.
-333:         // - phaseSegments가 있을 때만 활성화
-334:         // - 활성화 시 하단에 별도 grid(3번째)를 추가하고 시간 축 라벨을 그쪽으로 이동
-335:         const hasPhaseBar = phaseSegments.length > 0;
-336: 
-337:         const buildPhaseSeries = (xAxisIdx: number, yAxisIdx: number) => ({
-338:             type: 'custom' as const,
-339:             xAxisIndex: xAxisIdx,
-340:             yAxisIndex: yAxisIdx,
-341:             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-342:             renderItem: (params: any, api: any) => {
-343:                 // 시간축(x) 데이터를 픽셀 좌표로 변환
-344:                 const startPx = api.coord([api.value(0), 0])[0];
-345:                 const endPx = api.coord([api.value(1), 0])[0];
-346:                 const width = Math.max(0, endPx - startPx);
-347:                 const { y, height: h } = params.coordSys;
-348: 
-349:                 // 각 단계의 메타데이터
-350:                 const durSec = api.value(2) as number;
-351:                 const pct = api.value(3) as number;
-352:                 const color = api.value(4) as string;
-353:                 const name = api.value(5) as string;
-354:                 const durMin = Math.floor(durSec / 60);
-355:                 const durS = String(durSec % 60).padStart(2, '0');
-356:                 const durLabel = `${durMin}:${durS}  ${pct}%`;
-357: 
-358:                 // 단계별 배경 박스 생성
-359:                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-360:                 const children: any[] = [
-361:                     {
-362:                         type: 'rect',
-363:                         shape: { x: startPx, y, width, height: h },
-364:                         style: { fill: color, stroke: PHASE_BAR_STROKE, lineWidth: PHASE_BAR_STROKE_WIDTH },
-365:                         silent: true,
-366:                     },
-367:                 ];
-368: 
-369:                 // 너비에 따라 텍스트 배치 전략 변경
-370:                 // - width > WIDE: 단계명 좌측 + 시간 우측 (여유있음)
-371:                 // - width > NARROW: 시간을 중앙에 (공간 제한)
-372:                 // - width ≤ NARROW: 텍스트 생략 (너무 좁음)
-373:                 if (width > PHASE_BAR_WIDE_THRESHOLD) {
-374:                     children.push({
-375:                         type: 'text',
-376:                         style: {
-377:                             text: name,
-378:                             x: startPx + PHASE_BAR_TEXT_INSET,
-379:                             y: y + h / 2,
-380:                             fontSize: PHASE_BAR_FONT_SIZE,
-381:                             fontFamily: PHASE_BAR_FONT_FAMILY,
-382:                             fontWeight: PHASE_BAR_FONT_WEIGHT,
-383:                             fill: PHASE_BAR_NAME_COLOR,
-384:                             textVerticalAlign: 'middle',
-385:                         },
-386:                         silent: true,
-387:                     });
-388:                     children.push({
-389:                         type: 'text',
-390:                         style: {
-391:                             text: durLabel,
-392:                             x: endPx - PHASE_BAR_TEXT_INSET,
-393:                             y: y + h / 2,
-394:                             fontSize: PHASE_BAR_FONT_SIZE,
-395:                             fontFamily: PHASE_BAR_FONT_FAMILY,
-396:                             fill: PHASE_BAR_DURATION_COLOR,
-397:                             textAlign: 'right',
-398:                             textVerticalAlign: 'middle',
-399:                         },
-400:                         silent: true,
-401:                     });
-402:                 } else if (width > PHASE_BAR_NARROW_THRESHOLD) {
-403:                     children.push({
-404:                         type: 'text',
-405:                         style: {
-406:                             text: durLabel,
-407:                             x: (startPx + endPx) / 2,
-408:                             y: y + h / 2,
-409:                             fontSize: PHASE_BAR_FONT_SIZE_NARROW,
-410:                             fontFamily: PHASE_BAR_FONT_FAMILY,
-411:                             fill: PHASE_BAR_DURATION_COLOR,
-412:                             textAlign: 'center',
-413:                             textVerticalAlign: 'middle',
-414:                         },
-415:                         silent: true,
-416:                     });
-417:                 }
-418: 
-419:                 return { type: 'group', children };
-420:             },
-421:             // 각 단계 데이터: [startSec, endSec, durationSec, percentage, color, name]
-422:             data: phaseSegments.map((seg) => [seg.startSec, seg.endSec, seg.durationSec, seg.pct, seg.color, seg.name]),
-423:             z: 5,
-424:         });
-425: 
-426:         if (controlData) {
-427:             const { xs: cxs, drumTemp, heatPower, fanSpeed } = controlData;
-428:             // Grid 레이아웃:
-429:             // [0] 온도 차트 (BT, ET, RoR) - 상단 48%
-430:             // [1] Phase bar (Drying/Maillard/Development) - 중간 (있을 때만)
-431:             // [2] 제어 데이터 (Drum, Heat, Fan) - 하단
-432:             //
-433:             // 시간 축 라벨은:
-434:             // - Phase bar 있으면 → grid[1] 하단에 표시
-435:             // - Phase bar 없으면 → grid[2] 하단에 표시
-436:             const controlBottom = hasPhaseBar
-437:                 ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP
-438:                 : CONTROL_GRID_BOTTOM;
-439:             const grids: {
-440:                 left: number;
-441:                 right: number;
-442:                 top: string | number;
-443:                 height?: string;
-444:                 bottom?: string | number;
-445:             }[] = hasPhaseBar
-446:                 ? [
-447:                       { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT_WITH_PHASE },
-448:                       {
-449:                           left: leftMargin,
-450:                           right: rightMargin,
-451:                           top: CONTROL_GRID_TOP_WITH_PHASE,
-452:                           height: `${PHASE_BAR_HEIGHT}px`,
-453:                       },
-454:                       { left: leftMargin, right: rightMargin, top: PHASE_GRID_TOP, bottom: controlBottom },
-455:                   ]
-456:                 : [
-457:                       { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT },
-458:                       { left: leftMargin, right: rightMargin, top: CONTROL_GRID_TOP, bottom: controlBottom },
-459:                   ];
-460:             const xAxes = hasPhaseBar
-461:                 ? [
-462:                       {
-463:                           gridIndex: 0,
-464:                           type: 'value' as const,
-465:                           min: xMin,
-466:                           max: xMax,
-467:                           axisLabel: { show: false },
-468:                           axisTick: { show: false },
-469:                           axisLine: { show: false },
-470:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
-471:                           interval: 60,
-472:                           splitNumber: 15,
-473:                       },
-474:                       {
-475:                           gridIndex: 1,
-476:                           type: 'value',
-477:                           min: xMin,
-478:                           max: xMax,
-479:                           axisLabel: { show: false },
-480:                           axisTick: { show: false },
-481:                           axisLine: { show: false },
-482:                           splitLine: { show: false },
-483:                           interval: 60,
-484:                           splitNumber: 15,
-485:                       },
-486:                       {
-487:                           gridIndex: 2,
-488:                           type: 'value',
-489:                           min: xMin,
-490:                           max: xMax,
-491:                           axisLabel: { formatter: fmtSec, ...axisLabelStyle },
-492:                           axisTick: { show: false },
-493:                           interval: 60,
-494:                           splitNumber: 15,
-495:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
-496:                       },
-497:                   ]
-498:                 : [
-499:                       {
-500:                           gridIndex: 0,
-501:                           type: 'value',
-502:                           min: xMin,
-503:                           max: xMax,
-504:                           axisLabel: { show: false },
-505:                           axisTick: { show: false },
-506:                           axisLine: { show: false },
-507:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
-508:                           interval: 60,
-509:                           splitNumber: 15,
-510:                       },
-511:                       {
-512:                           gridIndex: 1,
-513:                           type: 'value',
-514:                           min: xMin,
-515:                           max: xMax,
-516:                           axisLabel: { formatter: fmtSec, ...axisLabelStyle },
-517:                           axisTick: { show: false },
-518:                           interval: 60,
-519:                           splitNumber: 15,
-520:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
-521:                       },
-522:                   ];
-523:             const yAxes = hasPhaseBar
-524:                 ? [
-525:                       {
-526:                           gridIndex: 0,
-527:                           type: 'value',
-528:                           name: `Temperature (${unitLabel})`,
-529:                           nameLocation: 'middle',
-530:                           nameGap: Y_AXIS_NAME_GAP,
-531:                           nameTextStyle: axisNameStyle,
-532:                           axisLine: { onZero: false },
-533:                           axisLabel: axisLabelStyle,
-534:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
-535:                           minorTick: { show: true, splitNumber: 2 },
-536:                           minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
-537:                           min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
-538:                           max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
-539:                           interval: TEMP_Y_INTERVAL,
-540:                       },
-541:                       {
-542:                           gridIndex: 0,
-543:                           type: 'value',
-544:                           name: `RoR (${rorUnit})`,
-545:                           nameLocation: 'middle',
-546:                           nameGap: Y_AXIS_NAME_GAP,
-547:                           nameTextStyle: axisNameStyle,
-548:                           position: 'right',
-549:                           axisLine: { onZero: false },
-550:                           axisLabel: rightYAxisLabel,
-551:                           splitLine: { show: false },
-552:                           min: ROR_Y_MIN,
-553:                           max: ROR_Y_MAX,
-554:                           interval: 20,
-555:                       },
-556:                       {
-557:                           gridIndex: 1,
-558:                           type: 'value',
-559:                           min: 0,
-560:                           max: 1,
-561:                           show: false,
-562:                       },
-563:                       {
-564:                           gridIndex: 2,
-565:                           type: 'value',
-566:                           name: 'Drum (rpm)',
-567:                           nameLocation: 'middle',
-568:                           nameGap: Y_AXIS_NAME_GAP,
-569:                           nameTextStyle: axisNameStyle,
-570:                           position: 'left',
-571:                           axisLine: { onZero: false },
-572:                           axisLabel: rightYAxisLabel,
-573:                           splitLine: { show: true, lineStyle: { color: colors.gridLine } },
-574:                           min: 0,
-575:                           max: 100,
-576:                       },
-577:                       {
-578:                           gridIndex: 2,
-579:                           type: 'value',
-580:                           name: 'Power / Speed (%)',
-581:                           nameLocation: 'middle',
-582:                           nameGap: Y_AXIS_NAME_GAP,
-583:                           nameTextStyle: axisNameStyle,
-584:                           position: 'right',
-585:                           axisLine: { onZero: false },
-586:                           axisLabel: { show: false },
-587:                           splitLine: { show: false },
-588:                           min: 0,
-589:                           max: 100,
-590:                       },
-591:                   ]
-592:                 : [
-593:                       {
-594:                           gridIndex: 0,
-595:                           type: 'value',
-596:                           name: `Temperature (${unitLabel})`,
-597:                           nameLocation: 'middle',
-598:                           nameGap: Y_AXIS_NAME_GAP,
-599:                           nameTextStyle: axisNameStyle,
-600:                           axisLine: { onZero: false },
-601:                           axisLabel: axisLabelStyle,
-602:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
-603:                           minorTick: { show: true, splitNumber: 2 },
-604:                           minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
-605:                           min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
-606:                           max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
-607:                           interval: TEMP_Y_INTERVAL,
-608:                       },
-609:                       {
-610:                           gridIndex: 0,
-611:                           type: 'value',
-612:                           name: `RoR (${rorUnit})`,
-613:                           nameLocation: 'middle',
-614:                           nameGap: Y_AXIS_NAME_GAP,
-615:                           nameTextStyle: axisNameStyle,
-616:                           position: 'right',
-617:                           axisLine: { onZero: false },
-618:                           axisLabel: rightYAxisLabel,
-619:                           splitLine: { show: false },
-620:                           min: ROR_Y_MIN,
-621:                           max: ROR_Y_MAX,
-622:                           interval: 20,
-623:                       },
-624:                       {
-625:                           gridIndex: 1,
-626:                           type: 'value',
-627:                           name: 'Drum (rpm)',
-628:                           nameLocation: 'middle',
-629:                           nameGap: Y_AXIS_NAME_GAP,
-630:                           nameTextStyle: axisNameStyle,
-631:                           position: 'left',
-632:                           axisLine: { onZero: false },
-633:                           axisLabel: rightYAxisLabel,
-634:                           splitLine: { show: true, lineStyle: { color: colors.gridLine } },
-635:                           min: 0,
-636:                           max: 100,
-637:                       },
-638:                       {
-639:                           gridIndex: 1,
-640:                           type: 'value',
-641:                           name: 'Power / Speed (%)',
-642:                           nameLocation: 'middle',
-643:                           nameGap: Y_AXIS_NAME_GAP,
-644:                           nameTextStyle: axisNameStyle,
-645:                           position: 'right',
-646:                           axisLine: { onZero: false },
-647:                           axisLabel: { show: false },
-648:                           splitLine: { show: false },
-649:                           min: 0,
-650:                           max: 100,
-651:                       },
-652:                   ];
-653:             return {
-654:                 backgroundColor: 'transparent',
-655:                 animation: false,
-656:                 axisPointer: { link: [{ xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1] }], label: { show: false } },
-657:                 grid: grids,
-658:                 xAxis: xAxes as EChartsOption['xAxis'],
-659:                 yAxis: yAxes as EChartsOption['yAxis'],
-660:                 tooltip: {
-661:                     trigger: 'axis',
-662:                     borderWidth: 1,
-663:                     borderColor: 'rgba(0,0,0,0.08)',
-664:                     extraCssText: 'box-shadow: none;',
-665:                     axisPointer: { type: 'line', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
-666:                     formatter: formatAxisTooltip,
-667:                 },
-668:                 series: [
-669:                     ...tempSeries,
-670:                     {
-671:                         name: 'Drum',
-672:                         type: 'line',
-673:                         color: colors.controlDrum,
-674:                         xAxisIndex: hasPhaseBar ? 2 : 1,
-675:                         yAxisIndex: hasPhaseBar ? 3 : 2,
-676:                         data: cxs.map((x, i) => [x, drumTemp[i]]),
-677:                         lineStyle: { color: colors.controlDrum, width: 1.5 },
-678:                         showSymbol: false,
-679:                         smooth: 0.3,
-680:                     },
-681:                     {
-682:                         name: 'Heat',
-683:                         type: 'line',
-684:                         color: colors.controlHeat,
-685:                         xAxisIndex: hasPhaseBar ? 2 : 1,
-686:                         yAxisIndex: hasPhaseBar ? 4 : 3,
-687:                         data: cxs.map((x, i) => [x, heatPower[i]]),
-688:                         lineStyle: { color: colors.controlHeat, width: 1.5 },
-689:                         showSymbol: false,
-690:                         step: 'end',
-691:                         smooth: false,
-692:                     },
-693:                     {
-694:                         name: 'Fan',
-695:                         type: 'line',
-696:                         color: colors.controlFan,
-697:                         xAxisIndex: hasPhaseBar ? 2 : 1,
-698:                         yAxisIndex: hasPhaseBar ? 4 : 3,
-699:                         data: cxs.map((x, i) => [x, fanSpeed[i]]),
-700:                         lineStyle: { color: colors.controlFan, width: 1.5 },
-701:                         showSymbol: false,
-702:                         step: 'end',
-703:                         smooth: false,
-704:                     },
-705:                     ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : []),
-706:                 ],
-707:                 dataZoom: [
-708:                     {
-709:                         type: 'inside',
-710:                         xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1],
-711:                         zoomOnMouseWheel: true,
-712:                         moveOnMouseMove: false,
-713:                         moveOnMouseWheel: true,
-714:                     },
-715:                 ],
-716:             };
-717:         }
-718: 
-719:         const singleBottom = hasPhaseBar
-720:             ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP
-721:             : SINGLE_GRID_BOTTOM;
-722:         return {
-723:             backgroundColor: 'transparent',
-724:             animation: false,
-725:             grid: [
-726:                 { left: leftMargin, right: rightMargin, top: topMargin, bottom: singleBottom },
-727:                 ...(hasPhaseBar
-728:                     ? [{ left: leftMargin, right: rightMargin, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
-729:                     : []),
-730:             ],
-731:             tooltip: {
-732:                 trigger: 'axis',
-733:                 borderWidth: 1,
-734:                 borderColor: 'rgba(0,0,0,0.08)',
-735:                 extraCssText: 'box-shadow: none;',
-736:                 axisPointer: { type: 'cross', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
-737:                 formatter: formatAxisTooltip,
-738:             },
-739:             xAxis: [
-740:                 {
-741:                     gridIndex: 0,
-742:                     type: 'value',
-743:                     name: hasPhaseBar ? undefined : 'Time (min)',
-744:                     nameLocation: 'middle',
-745:                     nameGap: 16,
-746:                     nameTextStyle: axisNameStyle,
-747:                     min: xMin,
-748:                     max: xMax,
-749:                     axisLabel: hasPhaseBar
-750:                         ? { show: false }
-751:                         : { formatter: (v: number) => fmtSec(v), ...axisLabelStyle },
-752:                     axisTick: hasPhaseBar ? { show: false } : undefined,
-753:                     interval: 60,
-754:                     splitNumber: 15,
-755:                     splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 1 } },
-756:                 },
-757:                 ...(hasPhaseBar
-758:                     ? [
-759:                           {
-760:                               gridIndex: 1,
-761:                               type: 'value' as const,
-762:                               min: xMin,
-763:                               max: xMax,
-764:                               axisLabel: { formatter: fmtSec, ...axisLabelStyle },
-765:                               axisTick: { show: false },
-766:                               axisLine: { show: false },
-767:                               splitLine: { show: false },
-768:                               interval: 60,
-769:                               splitNumber: 15,
-770:                           },
-771:                       ]
-772:                     : []),
-773:             ],
-774:             yAxis: [
-775:                 {
-776:                     gridIndex: 0,
-777:                     type: 'value',
-778:                     name: `Temperature (${unitLabel})`,
-779:                     nameLocation: 'middle',
-780:                     nameGap: Y_AXIS_NAME_GAP,
-781:                     nameTextStyle: axisNameStyle,
-782:                     axisLine: { onZero: false },
-783:                     axisLabel: axisLabelStyle,
-784:                     splitLine: { show: true, lineStyle: { color: colors.gridLine } },
-785:                     min: temperatureUnit === 'F' ? 122 : 50,
-786:                     max: temperatureUnit === 'F' ? 482 : 250,
-787:                     interval: 20,
-788:                 },
-789:                 {
-790:                     gridIndex: 0,
-791:                     type: 'value',
-792:                     name: `RoR (${rorUnit})`,
-793:                     nameLocation: 'middle',
-794:                     nameGap: Y_AXIS_NAME_GAP,
-795:                     nameTextStyle: axisNameStyle,
-796:                     position: 'right',
-797:                     axisLine: { onZero: false },
-798:                     axisLabel: rightYAxisLabel,
-799:                     splitLine: { show: false },
-800:                     min: ROR_Y_MIN,
-801:                     max: ROR_Y_MAX,
-802:                     interval: 20,
-803:                 },
-804:                 ...(hasPhaseBar
-805:                     ? [
-806:                           {
-807:                               gridIndex: 1,
-808:                               type: 'value' as const,
-809:                               min: 0,
-810:                               max: 1,
-811:                               show: false,
-812:                           },
-813:                       ]
-814:                     : []),
-815:             ],
-816:             series: [...tempSeries, ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : [])],
-817:             dataZoom: [
-818:                 {
-819:                     type: 'inside',
-820:                     xAxisIndex: 0,
-821:                     zoomOnMouseWheel: true,
-822:                     moveOnMouseMove: false,
-823:                     moveOnMouseWheel: true,
-824:                 },
-825:             ],
-826:         };
-827:     }, [
-828:         xs,
-829:         btTarget,
-830:         btActual,
-831:         etActual,
-832:         rorActual,
-833:         eventMarkers,
-834:         turningPoints,
-835:         temperatureUnit,
-836:         showET,
-837:         showTargetCurve,
-838:         showRoR,
-839:         showRoRET,
-840:         rorEtActual,
-841:         controlData,
-842:         phaseSegments,
-843:         resolvedTheme,
-844:     ]);
-845: 
-846:     // 옵션 적용 — controlData/phaseBar 유무가 바뀌면 grid/axis 구조가 달라지므로 notMerge로 완전 교체
-847:     const prevHasControlData = useRef(!!controlData);
-848:     const prevHasPhaseBar = useRef(phaseSegments.length > 0);
-849:     useEffect(() => {
-850:         const chart = chartInstanceRef.current;
-851:         if (!chart) return;
-852:         const hasPhaseBar = phaseSegments.length > 0;
-853:         const structureChanged =
-854:             prevHasControlData.current !== !!controlData || prevHasPhaseBar.current !== hasPhaseBar;
-855:         prevHasControlData.current = !!controlData;
-856:         prevHasPhaseBar.current = hasPhaseBar;
-857:         chart.setOption(option, {
-858:             notMerge: structureChanged,
-859:             lazyUpdate: !structureChanged,
-860:         });
-861:         // eslint-disable-next-line react-hooks/exhaustive-deps
-862:     }, [option]);
-863: 
-864:     // 마우스 호버
-865:     useEffect(() => {
-866:         const chart = chartInstanceRef.current;
-867:         if (!chart || !onCursorIdx) return;
-868: 
-869:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-870:         const handleMouseMove = (e: any) => {
-871:             const pixel: [number, number] = [e.offsetX, e.offsetY];
-872:             const point = chart.convertFromPixel({ xAxisIndex: 0 }, pixel);
-873:             if (point && xs.length) {
-874:                 const idx = xs.reduce(
-875:                     (prev, curr, i) => (Math.abs(curr - point[0]) < Math.abs(xs[prev] - point[0]) ? i : prev),
-876:                     0,
-877:                 );
-878:                 onCursorIdx(idx);
-879:             }
-880:         };
-881: 
-882:         chart.on('mousemove', handleMouseMove);
-883:         return () => {
-884:             chart.off('mousemove', handleMouseMove);
-885:         };
-886:     }, [xs, onCursorIdx]);
-887: 
-888:     // ── 마커 드래그 (chart.getZr()로 마크라인 핸들 감지) ──────────
-889:     useEffect(() => {
-890:         const chart = chartInstanceRef.current;
-891:         if (!chart || !onEventMarkerDrag) return;
-892: 
-893:         const zr = chart.getZr();
-894:         if (!zr) return;
-895: 
-896:         const handleZrPointerDown = (e: Record<string, unknown>) => {
-897:             if (!chart) return;
-898:             const evt = e.event as MouseEvent | undefined;
-899:             const mx = evt?.offsetX ?? (e.offsetX as number);
-900:             if (mx == null) return;
-901:             const yMid = (chart.convertToPixel({ yAxisIndex: 0 }, 150) as number) ?? 200;
-902:             for (const marker of eventMarkers) {
-903:                 const pixel = chart.convertToPixel({ xAxisIndex: 0 }, [marker.timeSec, yMid]);
-904:                 if (pixel == null) continue;
-905:                 const px = Array.isArray(pixel) ? pixel[0] : pixel;
-906:                 const dist = Math.abs(mx - px);
-907:                 if (dist <= PIXEL_THRESHOLD) {
-908:                     dragStateRef.current = {
-909:                         active: true,
-910:                         eventName: marker.event,
-911:                         startX: mx,
-912:                         startTimeSec: marker.timeSec,
-913:                     };
-914:                     break;
-915:                 }
-916:             }
-917:         };
-918: 
-919:         const handleZrPointerMove = (e: Record<string, unknown>) => {
-920:             const ds = dragStateRef.current;
-921:             if (!ds || !ds.active || !chart) return;
-922:             const evt = e.event as MouseEvent | undefined;
-923:             const mx = evt?.offsetX ?? (e.offsetX as number);
-924:             const my = evt?.offsetY ?? (e.offsetY as number);
-925:             if (mx == null) return;
-926:             const point = chart.convertFromPixel({ xAxisIndex: 0 }, [mx, my]);
-927:             if (!point) return;
-928:             const xVal = Array.isArray(point) ? point[0] : point;
-929:             const clamped = Math.max(0, Math.round(xVal));
-930:             if (clamped !== ds.startTimeSec) {
-931:                 onEventMarkerDrag(ds.eventName, clamped);
-932:                 dragStateRef.current = { ...ds, startTimeSec: clamped };
-933:             }
-934:         };
-935: 
-936:         const handleZrPointerUp = () => {
-937:             if (dragStateRef.current) {
-938:                 dragStateRef.current = null;
-939:             }
-940:         };
-941: 
-942:         zr.on('mousedown', handleZrPointerDown);
-943:         zr.on('mousemove', handleZrPointerMove);
-944:         zr.on('mouseup', handleZrPointerUp);
-945: 
-946:         return () => {
-947:             zr.off('mousedown', handleZrPointerDown);
-948:             zr.off('mousemove', handleZrPointerMove);
-949:             zr.off('mouseup', handleZrPointerUp);
-950:         };
-951:     }, [eventMarkers, onEventMarkerDrag]);
-952: 
-953:     useEffect(() => {
-954:         chartInstanceRef.current?.resize({ height });
-955:     }, [height]);
-956: 
-957:     return (
-958:         <div style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}>
-959:             <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
-960:             {controlData && (
-961:                 <div className="absolute flex items-center gap-4" style={{ bottom: -5, left: 25 }}>
-962:                     {[
-963:                         { color: CONTROL_COLORS.drum, label: 'Drum' },
-964:                         { color: CONTROL_COLORS.heat, label: 'Heat' },
-965:                         { color: CONTROL_COLORS.fan, label: 'Fan' },
-966:                     ].map(({ color, label }) => (
-967:                         <div key={label} className="flex items-center gap-1.5">
-968:                             <div style={{ width: 16, height: 2, background: color }} />
-969:                             <span className="text-[11px] text-muted tracking-[0.14px]">{label}</span>
-970:                         </div>
-971:                     ))}
-972:                 </div>
-973:             )}
-974:         </div>
-975:     );
-976: };
-</file>
-
 <file path="src/views/history/History.tsx">
    1: import { useProfile } from '@entities/profile';
    2: import { useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
@@ -34779,6 +33806,985 @@ This section contains the contents of the repository's files.
 1033:         </PageLayout>
 1034:     );
 1035: };
+</file>
+
+<file path="src/widgets/active-roast/ui/RoastTempChart.tsx">
+  1: import type { PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
+  2: import {
+  3:     AXIS_LABEL_FONT,
+  4:     CHART_COLORS,
+  5:     CHART_GRID_LEFT,
+  6:     CHART_GRID_RIGHT,
+  7:     CHART_GRID_RIGHT_WITH_ROR,
+  8:     CHART_GRID_TOP,
+  9:     CONTROL_COLORS,
+ 10:     CONTROL_GRID_BOTTOM,
+ 11:     CONTROL_GRID_BOTTOM_GAP,
+ 12:     CONTROL_GRID_TOP,
+ 13:     CONTROL_GRID_TOP_WITH_PHASE,
+ 14:     getResolvedChartColors,
+ 15:     PHASE_BAR_BOTTOM,
+ 16:     PHASE_BAR_DURATION_COLOR,
+ 17:     PHASE_BAR_FONT_FAMILY,
+ 18:     PHASE_BAR_FONT_SIZE,
+ 19:     PHASE_BAR_FONT_SIZE_NARROW,
+ 20:     PHASE_BAR_FONT_WEIGHT,
+ 21:     PHASE_BAR_HEIGHT,
+ 22:     PHASE_BAR_NAME_COLOR,
+ 23:     PHASE_BAR_NARROW_THRESHOLD,
+ 24:     PHASE_BAR_STROKE,
+ 25:     PHASE_BAR_STROKE_WIDTH,
+ 26:     PHASE_BAR_TEXT_INSET,
+ 27:     PHASE_BAR_WIDE_THRESHOLD,
+ 28:     PHASE_GRID_TOP,
+ 29:     ROR_Y_MAX,
+ 30:     ROR_Y_MIN,
+ 31:     SINGLE_GRID_BOTTOM,
+ 32:     TEMP_GRID_HEIGHT,
+ 33:     TEMP_GRID_HEIGHT_WITH_PHASE,
+ 34:     TEMP_Y_INTERVAL,
+ 35:     TEMP_Y_MAX_C,
+ 36:     TEMP_Y_MAX_F,
+ 37:     TEMP_Y_MIN_C,
+ 38:     TEMP_Y_MIN_F,
+ 39:     Y_AXIS_NAME_GAP,
+ 40: } from '@features/active-roast/lib/chart-config';
+ 41: import { useThemeStore } from '@shared/store/theme';
+ 42: import type { EChartsOption } from 'echarts';
+ 43: import * as echarts from 'echarts';
+ 44: import type React from 'react';
+ 45: import { useEffect, useMemo, useRef } from 'react';
+ 46: export interface RoastEventMarker {
+ 47:     timeSec: number;
+ 48:     event: string;
+ 49:     color: string;
+ 50: }
+ 51: 
+ 52: interface ControlData {
+ 53:     xs: number[];
+ 54:     drumTemp: (number | null)[];
+ 55:     heatPower: (number | null)[];
+ 56:     fanSpeed: (number | null)[];
+ 57: }
+ 58: 
+ 59: interface Props {
+ 60:     xs: number[];
+ 61:     btTarget: (number | null)[];
+ 62:     btActual: (number | null)[];
+ 63:     etActual: (number | null)[];
+ 64:     rorActual: (number | null)[];
+ 65:     currentTimeSec: number;
+ 66:     eventMarkers: RoastEventMarker[];
+ 67:     turningPoints?: TurningPoint[];
+ 68:     temperatureUnit?: TemperatureUnit;
+ 69:     height: number;
+ 70:     onCursorIdx?: (idx: number | null) => void;
+ 71:     onEventMarkerDrag?: (event: string, newTimeSec: number) => void;
+ 72:     showET?: boolean;
+ 73:     showTargetCurve?: boolean;
+ 74:     showRoR?: boolean;
+ 75:     showRoRET?: boolean;
+ 76:     rorEtActual?: (number | null)[];
+ 77:     controlData?: ControlData;
+ 78:     phaseSegments?: PhaseSegment[];
+ 79: }
+ 80: 
+ 81: const fmtSec = (v: number) => {
+ 82:     const sign = v < 0 ? '-' : '';
+ 83:     const abs = Math.abs(v);
+ 84:     const m = Math.floor(abs / 60);
+ 85:     const s = Math.round(abs % 60);
+ 86:     return `${sign}${m}:${String(s).padStart(2, '0')}`;
+ 87: };
+ 88: 
+ 89: /** Approximate perceived brightness of a hex color (0–255). */
+ 90: const luminance = (hex: string): number => {
+ 91:     const c = hex.replace('#', '');
+ 92:     if (c.length < 6) return 255;
+ 93:     const r = parseInt(c.substring(0, 2), 16);
+ 94:     const g = parseInt(c.substring(2, 4), 16);
+ 95:     const b = parseInt(c.substring(4, 6), 16);
+ 96:     return (r * 299 + g * 587 + b * 114) / 1000;
+ 97: };
+ 98: 
+ 99: export const RoastTempChart: React.FC<Props> = ({
+100:     xs,
+101:     btTarget,
+102:     btActual,
+103:     etActual,
+104:     rorActual,
+105:     eventMarkers,
+106:     turningPoints = [],
+107:     temperatureUnit = 'C',
+108:     height,
+109:     onCursorIdx,
+110:     onEventMarkerDrag,
+111:     showET = true,
+112:     showTargetCurve = true,
+113:     showRoR = true,
+114:     showRoRET = false,
+115:     rorEtActual = [],
+116:     controlData,
+117:     phaseSegments = [],
+118: }) => {
+119:     const chartRef = useRef<HTMLDivElement>(null);
+120:     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
+121:     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+122: 
+123:     // ── 마커 드래그 상태 ─────────────────────────────────────────
+124:     const dragStateRef = useRef<{
+125:         active: boolean;
+126:         eventName: string;
+127:         startX: number;
+128:         startTimeSec: number;
+129:     } | null>(null);
+130:     const PIXEL_THRESHOLD = 10;
+131: 
+132:     // ECharts 초기화
+133:     useEffect((): (() => void) | undefined => {
+134:         const container = chartRef.current;
+135:         if (!container) return undefined;
+136: 
+137:         const chart = echarts.init(container, undefined, {
+138:             renderer: 'canvas',
+139:             useDirtyRect: true,
+140:         });
+141:         chartInstanceRef.current = chart;
+142: 
+143:         const resizeObserver = new ResizeObserver(() => chart.resize());
+144:         resizeObserver.observe(container);
+145: 
+146:         return () => {
+147:             resizeObserver.disconnect();
+148:             if (chartInstanceRef.current) {
+149:                 chartInstanceRef.current.dispose();
+150:                 chartInstanceRef.current = null;
+151:             }
+152:         };
+153:     }, []);
+154: 
+155:     const option = useMemo((): EChartsOption => {
+156:         const colors = getResolvedChartColors();
+157:         const axisLabelStyle = { ...AXIS_LABEL_FONT, color: colors.axisLabel };
+158:         const axisNameStyle = { color: colors.axisLabel };
+159:         const rightYAxisLabel = { ...axisLabelStyle, margin: 4 };
+160: 
+161:         const unitLabel = temperatureUnit === 'C' ? '℃' : '℉';
+162:         const rorUnit = temperatureUnit === 'C' ? '℃/min' : '℉/min';
+163: 
+164:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+165:         const formatAxisTooltip = (params: any) => {
+166:             const timeSec = params[0]?.axisValue ?? 0;
+167:             let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
+168:             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+169:             params.forEach((p: any) => {
+170:                 const y = p.value?.[1];
+171:                 if (p.seriesName === 'BT Target' && y != null)
+172:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget}"></div>Target BT: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+173:                 if (p.seriesName === 'BT Actual' && y != null)
+174:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btActual}"></div>Bean Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+175:                 if (p.seriesName === 'ET Actual' && showET && y != null)
+176:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual}"></div>Env Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
+177:                 if (p.seriesName === 'RoR' && showRoR && y != null)
+178:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual}"></div>RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
+179:                 if (controlData && p.seriesName === 'Drum' && y != null)
+180:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlDrum}"></div>Drum: <span>${y} RPM</span></div>`;
+181:                 if (controlData && p.seriesName === 'Heat' && y != null)
+182:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlHeat}"></div>Heat: <span>${y}%</span></div>`;
+183:                 if (controlData && p.seriesName === 'Fan' && y != null)
+184:                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlFan}"></div>Fan: <span>${y}%</span></div>`;
+185:             });
+186:             return html;
+187:         };
+188: 
+189:         // 🔥 TypeError 해결: ECharts가 undefined 값을 처리 못해서
+190:         // 명시적으로 [x값, y값] 튜플로 변환하면 getRawIndex 에러 방지
+191:         // arr[i]가 undefined면 null로 변환하여 ECharts 렌더링 안정화
+192:         const makeSeriesData = (arr: (number | null)[]) => xs.map((x, i) => [x, arr[i] ?? null]);
+193: 
+194:         // 커피 로스팅 차트에 최적화된 스무딩 설정
+195:         // - BT(Bean Temp): 0.42 → 자연스러운 곡선, 노이즈 최소화
+196:         // - ET(Environment Temp): 0.38 → BT보다 약간 덜 휘게 (안정적 표현)
+197:         // - RoR(Rate of Rise): 0.28 → 센서 노이즈 많아서 더 부드럽게
+198:         // - smoothMonotone 'x' → 시간축 방향으로만 스무딩 (역행 방지)
+199:         // - sampling 'lttb' → Largest-Triangle-Three-Buckets 알고리즘 (성능 + 품질)
+200:         const getSmoothConfig = (strength: number = 0.4) => ({
+201:             smooth: strength,
+202:             smoothMonotone: 'x' as const,
+203:             sampling: 'lttb' as const,
+204:         });
+205: 
+206:         const tpMarkLines = turningPoints.map((tp) => ({
+207:             xAxis: tp.timeSec,
+208:             lineStyle: {
+209:                 color: colors.tp,
+210:                 width: 1.5,
+211:                 type: 'solid' as const,
+212:                 opacity: 1,
+213:             },
+214:             label: {
+215:                 show: true,
+216:                 position: 'start',
+217:                 formatter: 'TP',
+218:                 color: colors.tp,
+219:                 fontSize: 12,
+220:                 fontWeight: 700,
+221:             },
+222:         }));
+223: 
+224:         const eventMarkLines = eventMarkers.map((m) => ({
+225:             xAxis: m.timeSec,
+226:             lineStyle: {
+227:                 color: m.color,
+228:                 width: 1.5,
+229:                 type: 'solid' as const,
+230:                 opacity: 0.8,
+231:             },
+232:             label: {
+233:                 show: false,
+234:             },
+235:         }));
+236: 
+237:         const markPointData = eventMarkers.map((m) => {
+238:             const isLight = luminance(m.color) > 160;
+239:             return {
+240:                 name: m.event,
+241:                 value: [m.timeSec, null],
+242:                 xAxis: m.timeSec,
+243:                 symbol: 'circle',
+244:                 symbolSize: 10,
+245:                 itemStyle: { color: m.color, borderColor: CHART_COLORS.markerLabelColor, borderWidth: 2 },
+246:                 label: {
+247:                     show: true,
+248:                     position: 'top',
+249:                     formatter: m.event,
+250:                     fontSize: 10,
+251:                     color: isLight ? '#0B0B0B' : CHART_COLORS.markerLabelColor,
+252:                     backgroundColor: m.color,
+253:                     padding: [2, 4],
+254:                 },
+255:             };
+256:         });
+257: 
+258:         const xMin = xs[0] ?? 0;
+259:         const xMax = xs[xs.length - 1] ?? 1200;
+260:         const hasRightYAxis = showRoR || !!controlData;
+261:         const rightMargin = hasRightYAxis ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
+262:         const leftMargin = CHART_GRID_LEFT;
+263:         const topMargin = CHART_GRID_TOP;
+264: 
+265:         const tempSeries = [
+266:             showTargetCurve && {
+267:                 name: 'BT Target',
+268:                 type: 'line',
+269:                 xAxisIndex: 0,
+270:                 yAxisIndex: 0,
+271:                 z: 1,
+272:                 data: makeSeriesData(btTarget),
+273:                 lineStyle: { color: colors.btTarget, width: 1.5, type: 'dashed', opacity: 0.55 },
+274:                 areaStyle: { color: colors.btTarget, opacity: 0.06 },
+275:                 showSymbol: false,
+276:                 smooth: false,
+277:             },
+278:             {
+279:                 name: 'BT Actual',
+280:                 type: 'line',
+281:                 xAxisIndex: 0,
+282:                 yAxisIndex: 0,
+283:                 z: 2,
+284:                 data: xs.map((x, i) => [x, btActual[i]]),
+285:                 lineStyle: { color: colors.btActual, width: 1.8 },
+286:                 showSymbol: false,
+287:                 ...getSmoothConfig(0.7),
+288:                 markLine: {
+289:                     silent: false,
+290:                     symbol: ['none', 'circle'],
+291:                     symbolSize: [0, 8],
+292:                     data: [...eventMarkLines, ...tpMarkLines],
+293:                 },
+294:                 markPoint: { data: markPointData },
+295:             },
+296:             showET && {
+297:                 name: 'ET Actual',
+298:                 type: 'line',
+299:                 xAxisIndex: 0,
+300:                 yAxisIndex: 0,
+301:                 z: 2,
+302:                 data: xs.map((x, i) => [x, etActual[i]]),
+303:                 lineStyle: { color: colors.etActual, width: 1.5 },
+304:                 showSymbol: false,
+305:                 ...getSmoothConfig(0.65),
+306:             },
+307:             showRoR && {
+308:                 name: 'RoR',
+309:                 type: 'line',
+310:                 xAxisIndex: 0,
+311:                 yAxisIndex: 1,
+312:                 data: xs.map((x, i) => [x, rorActual[i]]),
+313:                 lineStyle: { color: colors.rorActual, width: 1.2 },
+314:                 showSymbol: false,
+315:                 ...getSmoothConfig(0.28),
+316:             },
+317:             showRoR &&
+318:                 showRoRET && {
+319:                     name: 'ET RoR',
+320:                     type: 'line',
+321:                     xAxisIndex: 0,
+322:                     yAxisIndex: 1,
+323:                     data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
+324:                     lineStyle: { color: colors.etActual, width: 1.0, type: 'dashed' },
+325:                     showSymbol: false,
+326:                     ...getSmoothConfig(0.28),
+327:                 },
+328:         ].filter(Boolean) as object[];
+329: 
+330:         // ── Phase bar (로스팅 단계 시각화) ────────────────────────────────────
+331:         // 로스팅 프로필을 "Dry", "Development", "Cooling" 등의 단계로 나누어
+332:         // 차트 하단에 색상 막대로 표시하고 각 단계의 시간과 비율을 표기.
+333:         // - phaseSegments가 있을 때만 활성화
+334:         // - 활성화 시 하단에 별도 grid(3번째)를 추가하고 시간 축 라벨을 그쪽으로 이동
+335:         const hasPhaseBar = phaseSegments.length > 0;
+336: 
+337:         const buildPhaseSeries = (xAxisIdx: number, yAxisIdx: number) => ({
+338:             type: 'custom' as const,
+339:             xAxisIndex: xAxisIdx,
+340:             yAxisIndex: yAxisIdx,
+341:             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+342:             renderItem: (params: any, api: any) => {
+343:                 // 시간축(x) 데이터를 픽셀 좌표로 변환
+344:                 const startPx = api.coord([api.value(0), 0])[0];
+345:                 const endPx = api.coord([api.value(1), 0])[0];
+346:                 const width = Math.max(0, endPx - startPx);
+347:                 const { y, height: h } = params.coordSys;
+348: 
+349:                 // 각 단계의 메타데이터
+350:                 const durSec = api.value(2) as number;
+351:                 const pct = api.value(3) as number;
+352:                 const color = api.value(4) as string;
+353:                 const name = api.value(5) as string;
+354:                 const durMin = Math.floor(durSec / 60);
+355:                 const durS = String(durSec % 60).padStart(2, '0');
+356:                 const durLabel = `${durMin}:${durS}  ${pct}%`;
+357: 
+358:                 // 단계별 배경 박스 생성
+359:                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+360:                 const children: any[] = [
+361:                     {
+362:                         type: 'rect',
+363:                         shape: { x: startPx, y, width, height: h },
+364:                         style: { fill: color, stroke: PHASE_BAR_STROKE, lineWidth: PHASE_BAR_STROKE_WIDTH },
+365:                         silent: true,
+366:                     },
+367:                 ];
+368: 
+369:                 // 너비에 따라 텍스트 배치 전략 변경
+370:                 // - width > WIDE: 단계명 좌측 + 시간 우측 (여유있음)
+371:                 // - width > NARROW: 시간을 중앙에 (공간 제한)
+372:                 // - width ≤ NARROW: 텍스트 생략 (너무 좁음)
+373:                 if (width > PHASE_BAR_WIDE_THRESHOLD) {
+374:                     children.push({
+375:                         type: 'text',
+376:                         style: {
+377:                             text: name,
+378:                             x: startPx + PHASE_BAR_TEXT_INSET,
+379:                             y: y + h / 2,
+380:                             fontSize: PHASE_BAR_FONT_SIZE,
+381:                             fontFamily: PHASE_BAR_FONT_FAMILY,
+382:                             fontWeight: PHASE_BAR_FONT_WEIGHT,
+383:                             fill: PHASE_BAR_NAME_COLOR,
+384:                             textVerticalAlign: 'middle',
+385:                         },
+386:                         silent: true,
+387:                     });
+388:                     children.push({
+389:                         type: 'text',
+390:                         style: {
+391:                             text: durLabel,
+392:                             x: endPx - PHASE_BAR_TEXT_INSET,
+393:                             y: y + h / 2,
+394:                             fontSize: PHASE_BAR_FONT_SIZE,
+395:                             fontFamily: PHASE_BAR_FONT_FAMILY,
+396:                             fill: PHASE_BAR_DURATION_COLOR,
+397:                             textAlign: 'right',
+398:                             textVerticalAlign: 'middle',
+399:                         },
+400:                         silent: true,
+401:                     });
+402:                 } else if (width > PHASE_BAR_NARROW_THRESHOLD) {
+403:                     children.push({
+404:                         type: 'text',
+405:                         style: {
+406:                             text: durLabel,
+407:                             x: (startPx + endPx) / 2,
+408:                             y: y + h / 2,
+409:                             fontSize: PHASE_BAR_FONT_SIZE_NARROW,
+410:                             fontFamily: PHASE_BAR_FONT_FAMILY,
+411:                             fill: PHASE_BAR_DURATION_COLOR,
+412:                             textAlign: 'center',
+413:                             textVerticalAlign: 'middle',
+414:                         },
+415:                         silent: true,
+416:                     });
+417:                 }
+418: 
+419:                 return { type: 'group', children };
+420:             },
+421:             // 각 단계 데이터: [startSec, endSec, durationSec, percentage, color, name]
+422:             data: phaseSegments.map((seg) => [seg.startSec, seg.endSec, seg.durationSec, seg.pct, seg.color, seg.name]),
+423:             z: 5,
+424:         });
+425: 
+426:         if (controlData) {
+427:             const { xs: cxs, drumTemp, heatPower, fanSpeed } = controlData;
+428:             // Grid 레이아웃:
+429:             // [0] 온도 차트 (BT, ET, RoR) - 상단 48%
+430:             // [1] Phase bar (Drying/Maillard/Development) - 중간 (있을 때만)
+431:             // [2] 제어 데이터 (Drum, Heat, Fan) - 하단
+432:             //
+433:             // 시간 축 라벨은:
+434:             // - Phase bar 있으면 → grid[1] 하단에 표시
+435:             // - Phase bar 없으면 → grid[2] 하단에 표시
+436:             const controlBottom = hasPhaseBar
+437:                 ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP
+438:                 : CONTROL_GRID_BOTTOM;
+439:             const grids: {
+440:                 left: number;
+441:                 right: number;
+442:                 top: string | number;
+443:                 height?: string;
+444:                 bottom?: string | number;
+445:             }[] = hasPhaseBar
+446:                 ? [
+447:                       { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT_WITH_PHASE },
+448:                       {
+449:                           left: leftMargin,
+450:                           right: rightMargin,
+451:                           top: CONTROL_GRID_TOP_WITH_PHASE,
+452:                           height: `${PHASE_BAR_HEIGHT}px`,
+453:                       },
+454:                       { left: leftMargin, right: rightMargin, top: PHASE_GRID_TOP, bottom: controlBottom },
+455:                   ]
+456:                 : [
+457:                       { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT },
+458:                       { left: leftMargin, right: rightMargin, top: CONTROL_GRID_TOP, bottom: controlBottom },
+459:                   ];
+460:             const xAxes = hasPhaseBar
+461:                 ? [
+462:                       {
+463:                           gridIndex: 0,
+464:                           type: 'value' as const,
+465:                           min: xMin,
+466:                           max: xMax,
+467:                           axisLabel: { show: false },
+468:                           axisTick: { show: false },
+469:                           axisLine: { show: false },
+470:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+471:                           interval: 60,
+472:                           splitNumber: 15,
+473:                       },
+474:                       {
+475:                           gridIndex: 1,
+476:                           type: 'value',
+477:                           min: xMin,
+478:                           max: xMax,
+479:                           axisLabel: { show: false },
+480:                           axisTick: { show: false },
+481:                           axisLine: { show: false },
+482:                           splitLine: { show: false },
+483:                           interval: 60,
+484:                           splitNumber: 15,
+485:                       },
+486:                       {
+487:                           gridIndex: 2,
+488:                           type: 'value',
+489:                           min: xMin,
+490:                           max: xMax,
+491:                           axisLabel: { formatter: fmtSec, ...axisLabelStyle },
+492:                           axisTick: { show: false },
+493:                           interval: 60,
+494:                           splitNumber: 15,
+495:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+496:                       },
+497:                   ]
+498:                 : [
+499:                       {
+500:                           gridIndex: 0,
+501:                           type: 'value',
+502:                           min: xMin,
+503:                           max: xMax,
+504:                           axisLabel: { show: false },
+505:                           axisTick: { show: false },
+506:                           axisLine: { show: false },
+507:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+508:                           interval: 60,
+509:                           splitNumber: 15,
+510:                       },
+511:                       {
+512:                           gridIndex: 1,
+513:                           type: 'value',
+514:                           min: xMin,
+515:                           max: xMax,
+516:                           axisLabel: { formatter: fmtSec, ...axisLabelStyle },
+517:                           axisTick: { show: false },
+518:                           interval: 60,
+519:                           splitNumber: 15,
+520:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+521:                       },
+522:                   ];
+523:             const yAxes = hasPhaseBar
+524:                 ? [
+525:                       {
+526:                           gridIndex: 0,
+527:                           type: 'value',
+528:                           name: `Temperature (${unitLabel})`,
+529:                           nameLocation: 'middle',
+530:                           nameGap: Y_AXIS_NAME_GAP,
+531:                           nameTextStyle: axisNameStyle,
+532:                           axisLine: { onZero: false },
+533:                           axisLabel: axisLabelStyle,
+534:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+535:                           minorTick: { show: true, splitNumber: 2 },
+536:                           minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
+537:                           min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
+538:                           max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
+539:                           interval: TEMP_Y_INTERVAL,
+540:                       },
+541:                       {
+542:                           gridIndex: 0,
+543:                           type: 'value',
+544:                           name: `RoR (${rorUnit})`,
+545:                           nameLocation: 'middle',
+546:                           nameGap: Y_AXIS_NAME_GAP,
+547:                           nameTextStyle: axisNameStyle,
+548:                           position: 'right',
+549:                           axisLine: { onZero: false },
+550:                           axisLabel: rightYAxisLabel,
+551:                           splitLine: { show: false },
+552:                           min: ROR_Y_MIN,
+553:                           max: ROR_Y_MAX,
+554:                           interval: 20,
+555:                       },
+556:                       {
+557:                           gridIndex: 1,
+558:                           type: 'value',
+559:                           min: 0,
+560:                           max: 1,
+561:                           show: false,
+562:                       },
+563:                       {
+564:                           gridIndex: 2,
+565:                           type: 'value',
+566:                           name: 'Drum (rpm)',
+567:                           nameLocation: 'middle',
+568:                           nameGap: Y_AXIS_NAME_GAP,
+569:                           nameTextStyle: axisNameStyle,
+570:                           position: 'left',
+571:                           axisLine: { onZero: false },
+572:                           axisLabel: rightYAxisLabel,
+573:                           splitLine: { show: true, lineStyle: { color: colors.gridLine } },
+574:                           min: 0,
+575:                           max: 100,
+576:                       },
+577:                       {
+578:                           gridIndex: 2,
+579:                           type: 'value',
+580:                           name: 'Power / Speed (%)',
+581:                           nameLocation: 'middle',
+582:                           nameGap: Y_AXIS_NAME_GAP,
+583:                           nameTextStyle: axisNameStyle,
+584:                           position: 'right',
+585:                           axisLine: { onZero: false },
+586:                           axisLabel: { show: false },
+587:                           splitLine: { show: false },
+588:                           min: 0,
+589:                           max: 100,
+590:                       },
+591:                   ]
+592:                 : [
+593:                       {
+594:                           gridIndex: 0,
+595:                           type: 'value',
+596:                           name: `Temperature (${unitLabel})`,
+597:                           nameLocation: 'middle',
+598:                           nameGap: Y_AXIS_NAME_GAP,
+599:                           nameTextStyle: axisNameStyle,
+600:                           axisLine: { onZero: false },
+601:                           axisLabel: axisLabelStyle,
+602:                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
+603:                           minorTick: { show: true, splitNumber: 2 },
+604:                           minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
+605:                           min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
+606:                           max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
+607:                           interval: TEMP_Y_INTERVAL,
+608:                       },
+609:                       {
+610:                           gridIndex: 0,
+611:                           type: 'value',
+612:                           name: `RoR (${rorUnit})`,
+613:                           nameLocation: 'middle',
+614:                           nameGap: Y_AXIS_NAME_GAP,
+615:                           nameTextStyle: axisNameStyle,
+616:                           position: 'right',
+617:                           axisLine: { onZero: false },
+618:                           axisLabel: rightYAxisLabel,
+619:                           splitLine: { show: false },
+620:                           min: ROR_Y_MIN,
+621:                           max: ROR_Y_MAX,
+622:                           interval: 20,
+623:                       },
+624:                       {
+625:                           gridIndex: 1,
+626:                           type: 'value',
+627:                           name: 'Drum (rpm)',
+628:                           nameLocation: 'middle',
+629:                           nameGap: Y_AXIS_NAME_GAP,
+630:                           nameTextStyle: axisNameStyle,
+631:                           position: 'left',
+632:                           axisLine: { onZero: false },
+633:                           axisLabel: rightYAxisLabel,
+634:                           splitLine: { show: true, lineStyle: { color: colors.gridLine } },
+635:                           min: 0,
+636:                           max: 100,
+637:                       },
+638:                       {
+639:                           gridIndex: 1,
+640:                           type: 'value',
+641:                           name: 'Power / Speed (%)',
+642:                           nameLocation: 'middle',
+643:                           nameGap: Y_AXIS_NAME_GAP,
+644:                           nameTextStyle: axisNameStyle,
+645:                           position: 'right',
+646:                           axisLine: { onZero: false },
+647:                           axisLabel: { show: false },
+648:                           splitLine: { show: false },
+649:                           min: 0,
+650:                           max: 100,
+651:                       },
+652:                   ];
+653:             return {
+654:                 backgroundColor: 'transparent',
+655:                 animation: false,
+656:                 axisPointer: { link: [{ xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1] }], label: { show: false } },
+657:                 grid: grids,
+658:                 xAxis: xAxes as EChartsOption['xAxis'],
+659:                 yAxis: yAxes as EChartsOption['yAxis'],
+660:                 tooltip: {
+661:                     trigger: 'axis',
+662:                     borderWidth: 1,
+663:                     borderColor: 'rgba(0,0,0,0.08)',
+664:                     extraCssText: 'box-shadow: none;',
+665:                     axisPointer: { type: 'line', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
+666:                     formatter: formatAxisTooltip,
+667:                 },
+668:                 series: [
+669:                     ...tempSeries,
+670:                     {
+671:                         name: 'Drum',
+672:                         type: 'line',
+673:                         color: colors.controlDrum,
+674:                         xAxisIndex: hasPhaseBar ? 2 : 1,
+675:                         yAxisIndex: hasPhaseBar ? 3 : 2,
+676:                         data: cxs.map((x, i) => [x, drumTemp[i]]),
+677:                         lineStyle: { color: colors.controlDrum, width: 1.5 },
+678:                         showSymbol: false,
+679:                         smooth: 0.3,
+680:                     },
+681:                     {
+682:                         name: 'Heat',
+683:                         type: 'line',
+684:                         color: colors.controlHeat,
+685:                         xAxisIndex: hasPhaseBar ? 2 : 1,
+686:                         yAxisIndex: hasPhaseBar ? 4 : 3,
+687:                         data: cxs.map((x, i) => [x, heatPower[i]]),
+688:                         lineStyle: { color: colors.controlHeat, width: 1.5 },
+689:                         showSymbol: false,
+690:                         step: 'end',
+691:                         smooth: false,
+692:                     },
+693:                     {
+694:                         name: 'Fan',
+695:                         type: 'line',
+696:                         color: colors.controlFan,
+697:                         xAxisIndex: hasPhaseBar ? 2 : 1,
+698:                         yAxisIndex: hasPhaseBar ? 4 : 3,
+699:                         data: cxs.map((x, i) => [x, fanSpeed[i]]),
+700:                         lineStyle: { color: colors.controlFan, width: 1.5 },
+701:                         showSymbol: false,
+702:                         step: 'end',
+703:                         smooth: false,
+704:                     },
+705:                     ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : []),
+706:                 ],
+707:                 dataZoom: [
+708:                     {
+709:                         type: 'inside',
+710:                         xAxisIndex: hasPhaseBar ? [0, 1, 2] : [0, 1],
+711:                         zoomOnMouseWheel: true,
+712:                         moveOnMouseMove: false,
+713:                         moveOnMouseWheel: true,
+714:                     },
+715:                 ],
+716:             };
+717:         }
+718: 
+719:         const singleBottom = hasPhaseBar
+720:             ? PHASE_BAR_BOTTOM + PHASE_BAR_HEIGHT + CONTROL_GRID_BOTTOM_GAP
+721:             : SINGLE_GRID_BOTTOM;
+722:         return {
+723:             backgroundColor: 'transparent',
+724:             animation: false,
+725:             grid: [
+726:                 { left: leftMargin, right: rightMargin, top: topMargin, bottom: singleBottom },
+727:                 ...(hasPhaseBar
+728:                     ? [{ left: leftMargin, right: rightMargin, bottom: PHASE_BAR_BOTTOM, height: PHASE_BAR_HEIGHT }]
+729:                     : []),
+730:             ],
+731:             tooltip: {
+732:                 trigger: 'axis',
+733:                 borderWidth: 1,
+734:                 borderColor: 'rgba(0,0,0,0.08)',
+735:                 extraCssText: 'box-shadow: none;',
+736:                 axisPointer: { type: 'cross', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
+737:                 formatter: formatAxisTooltip,
+738:             },
+739:             xAxis: [
+740:                 {
+741:                     gridIndex: 0,
+742:                     type: 'value',
+743:                     name: hasPhaseBar ? undefined : 'Time (min)',
+744:                     nameLocation: 'middle',
+745:                     nameGap: 16,
+746:                     nameTextStyle: axisNameStyle,
+747:                     min: xMin,
+748:                     max: xMax,
+749:                     axisLabel: hasPhaseBar
+750:                         ? { show: false }
+751:                         : { formatter: (v: number) => fmtSec(v), ...axisLabelStyle },
+752:                     axisTick: hasPhaseBar ? { show: false } : undefined,
+753:                     interval: 60,
+754:                     splitNumber: 15,
+755:                     splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 1 } },
+756:                 },
+757:                 ...(hasPhaseBar
+758:                     ? [
+759:                           {
+760:                               gridIndex: 1,
+761:                               type: 'value' as const,
+762:                               min: xMin,
+763:                               max: xMax,
+764:                               axisLabel: { formatter: fmtSec, ...axisLabelStyle },
+765:                               axisTick: { show: false },
+766:                               axisLine: { show: false },
+767:                               splitLine: { show: false },
+768:                               interval: 60,
+769:                               splitNumber: 15,
+770:                           },
+771:                       ]
+772:                     : []),
+773:             ],
+774:             yAxis: [
+775:                 {
+776:                     gridIndex: 0,
+777:                     type: 'value',
+778:                     name: `Temperature (${unitLabel})`,
+779:                     nameLocation: 'middle',
+780:                     nameGap: Y_AXIS_NAME_GAP,
+781:                     nameTextStyle: axisNameStyle,
+782:                     axisLine: { onZero: false },
+783:                     axisLabel: axisLabelStyle,
+784:                     splitLine: { show: true, lineStyle: { color: colors.gridLine } },
+785:                     min: temperatureUnit === 'F' ? 122 : 50,
+786:                     max: temperatureUnit === 'F' ? 482 : 250,
+787:                     interval: 20,
+788:                 },
+789:                 {
+790:                     gridIndex: 0,
+791:                     type: 'value',
+792:                     name: `RoR (${rorUnit})`,
+793:                     nameLocation: 'middle',
+794:                     nameGap: Y_AXIS_NAME_GAP,
+795:                     nameTextStyle: axisNameStyle,
+796:                     position: 'right',
+797:                     axisLine: { onZero: false },
+798:                     axisLabel: rightYAxisLabel,
+799:                     splitLine: { show: false },
+800:                     min: ROR_Y_MIN,
+801:                     max: ROR_Y_MAX,
+802:                     interval: 20,
+803:                 },
+804:                 ...(hasPhaseBar
+805:                     ? [
+806:                           {
+807:                               gridIndex: 1,
+808:                               type: 'value' as const,
+809:                               min: 0,
+810:                               max: 1,
+811:                               show: false,
+812:                           },
+813:                       ]
+814:                     : []),
+815:             ],
+816:             series: [...tempSeries, ...(hasPhaseBar ? [buildPhaseSeries(1, 2)] : [])],
+817:             dataZoom: [
+818:                 {
+819:                     type: 'inside',
+820:                     xAxisIndex: 0,
+821:                     zoomOnMouseWheel: true,
+822:                     moveOnMouseMove: false,
+823:                     moveOnMouseWheel: true,
+824:                 },
+825:             ],
+826:         };
+827:     }, [
+828:         xs,
+829:         btTarget,
+830:         btActual,
+831:         etActual,
+832:         rorActual,
+833:         eventMarkers,
+834:         turningPoints,
+835:         temperatureUnit,
+836:         showET,
+837:         showTargetCurve,
+838:         showRoR,
+839:         showRoRET,
+840:         rorEtActual,
+841:         controlData,
+842:         phaseSegments,
+843:         resolvedTheme,
+844:     ]);
+845: 
+846:     // 옵션 적용 — controlData/phaseBar 유무가 바뀌면 grid/axis 구조가 달라지므로 notMerge로 완전 교체
+847:     const prevHasControlData = useRef(!!controlData);
+848:     const prevHasPhaseBar = useRef(phaseSegments.length > 0);
+849:     useEffect(() => {
+850:         const chart = chartInstanceRef.current;
+851:         if (!chart) return;
+852:         const hasPhaseBar = phaseSegments.length > 0;
+853:         const structureChanged =
+854:             prevHasControlData.current !== !!controlData || prevHasPhaseBar.current !== hasPhaseBar;
+855:         prevHasControlData.current = !!controlData;
+856:         prevHasPhaseBar.current = hasPhaseBar;
+857:         chart.setOption(option, {
+858:             notMerge: structureChanged,
+859:             lazyUpdate: !structureChanged,
+860:         });
+861:         // eslint-disable-next-line react-hooks/exhaustive-deps
+862:     }, [option]);
+863: 
+864:     // 마우스 호버
+865:     useEffect(() => {
+866:         const chart = chartInstanceRef.current;
+867:         if (!chart || !onCursorIdx) return;
+868: 
+869:         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+870:         const handleMouseMove = (e: any) => {
+871:             const pixel: [number, number] = [e.offsetX, e.offsetY];
+872:             const point = chart.convertFromPixel({ xAxisIndex: 0 }, pixel);
+873:             if (point && xs.length) {
+874:                 const idx = xs.reduce(
+875:                     (prev, curr, i) => (Math.abs(curr - point[0]) < Math.abs(xs[prev] - point[0]) ? i : prev),
+876:                     0,
+877:                 );
+878:                 onCursorIdx(idx);
+879:             }
+880:         };
+881: 
+882:         chart.on('mousemove', handleMouseMove);
+883:         return () => {
+884:             chart.off('mousemove', handleMouseMove);
+885:         };
+886:     }, [xs, onCursorIdx]);
+887: 
+888:     // ── 마커 드래그 (chart.getZr()로 마크라인 핸들 감지) ──────────
+889:     useEffect(() => {
+890:         const chart = chartInstanceRef.current;
+891:         if (!chart || !onEventMarkerDrag) return;
+892: 
+893:         const zr = chart.getZr();
+894:         if (!zr) return;
+895: 
+896:         const handleZrPointerDown = (e: Record<string, unknown>) => {
+897:             if (!chart) return;
+898:             const evt = e.event as MouseEvent | undefined;
+899:             const mx = evt?.offsetX ?? (e.offsetX as number);
+900:             if (mx == null) return;
+901:             const yMid = (chart.convertToPixel({ yAxisIndex: 0 }, 150) as number) ?? 200;
+902:             for (const marker of eventMarkers) {
+903:                 const pixel = chart.convertToPixel({ xAxisIndex: 0 }, [marker.timeSec, yMid]);
+904:                 if (pixel == null) continue;
+905:                 const px = Array.isArray(pixel) ? pixel[0] : pixel;
+906:                 const dist = Math.abs(mx - px);
+907:                 if (dist <= PIXEL_THRESHOLD) {
+908:                     dragStateRef.current = {
+909:                         active: true,
+910:                         eventName: marker.event,
+911:                         startX: mx,
+912:                         startTimeSec: marker.timeSec,
+913:                     };
+914:                     break;
+915:                 }
+916:             }
+917:         };
+918: 
+919:         const handleZrPointerMove = (e: Record<string, unknown>) => {
+920:             const ds = dragStateRef.current;
+921:             if (!ds || !ds.active || !chart) return;
+922:             const evt = e.event as MouseEvent | undefined;
+923:             const mx = evt?.offsetX ?? (e.offsetX as number);
+924:             const my = evt?.offsetY ?? (e.offsetY as number);
+925:             if (mx == null) return;
+926:             const point = chart.convertFromPixel({ xAxisIndex: 0 }, [mx, my]);
+927:             if (!point) return;
+928:             const xVal = Array.isArray(point) ? point[0] : point;
+929:             const clamped = Math.max(0, Math.round(xVal));
+930:             if (clamped !== ds.startTimeSec) {
+931:                 onEventMarkerDrag(ds.eventName, clamped);
+932:                 dragStateRef.current = { ...ds, startTimeSec: clamped };
+933:             }
+934:         };
+935: 
+936:         const handleZrPointerUp = () => {
+937:             if (dragStateRef.current) {
+938:                 dragStateRef.current = null;
+939:             }
+940:         };
+941: 
+942:         zr.on('mousedown', handleZrPointerDown);
+943:         zr.on('mousemove', handleZrPointerMove);
+944:         zr.on('mouseup', handleZrPointerUp);
+945: 
+946:         return () => {
+947:             zr.off('mousedown', handleZrPointerDown);
+948:             zr.off('mousemove', handleZrPointerMove);
+949:             zr.off('mouseup', handleZrPointerUp);
+950:         };
+951:     }, [eventMarkers, onEventMarkerDrag]);
+952: 
+953:     useEffect(() => {
+954:         chartInstanceRef.current?.resize({ height });
+955:     }, [height]);
+956: 
+957:     return (
+958:         <div style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}>
+959:             <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
+960:             {controlData && (
+961:                 <div className="absolute flex items-center gap-4" style={{ bottom: -5, left: 25 }}>
+962:                     {[
+963:                         { color: CONTROL_COLORS.drum, label: 'Drum' },
+964:                         { color: CONTROL_COLORS.heat, label: 'Heat' },
+965:                         { color: CONTROL_COLORS.fan, label: 'Fan' },
+966:                     ].map(({ color, label }) => (
+967:                         <div key={label} className="flex items-center gap-1.5">
+968:                             <div style={{ width: 16, height: 2, background: color }} />
+969:                             <span className="text-[11px] text-muted tracking-[0.14px]">{label}</span>
+970:                         </div>
+971:                     ))}
+972:                 </div>
+973:             )}
+974:         </div>
+975:     );
+976: };
 </file>
 
 <file path="src/views/active-roast/ActiveRoast.tsx">
