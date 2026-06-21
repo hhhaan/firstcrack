@@ -84,10 +84,6 @@ jobs:
           TAURI_KEY_PW:  ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           SUPABASE_URL:  ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          R2_ID:         ${{ secrets.VITE_R2_ACCOUNT_ID }}
-          R2_ACCESS:     ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-          R2_SECRET:     ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET:     ${{ secrets.VITE_R2_BUCKET_NAME }}
           APPLE_CERT:    ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERT_PW: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -108,10 +104,6 @@ jobs:
           check TAURI_KEY_PW     "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
           check SUPABASE_URL     "VITE_SUPABASE_URL"
           check SUPABASE_ANON    "VITE_SUPABASE_ANON_KEY"
-          check R2_ID            "VITE_R2_ACCOUNT_ID"
-          check R2_ACCESS        "VITE_R2_ACCESS_KEY_ID"
-          check R2_SECRET        "VITE_R2_SECRET_ACCESS_KEY"
-          check R2_BUCKET        "VITE_R2_BUCKET_NAME"
 
           if [ "$RUNNER_OS" = "macOS" ]; then
             echo "Checking macOS signing secrets..."
@@ -182,10 +174,6 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_R2_ACCOUNT_ID: ${{ secrets.VITE_R2_ACCOUNT_ID }}
-          VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-          VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-          VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
           PUBLIC_SITE_URL: https://your-domain.com
           PUBLIC_TAURI_REDIRECT: firstcrack://auth/callback
           CARGO_INCREMENTAL: "0"
@@ -210,7 +198,7 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
-          retention-days: 7
+          retention-days: 1
 
       - name: Upload Windows artifacts
         if: runner.os == 'Windows'
@@ -220,7 +208,7 @@ jobs:
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.sig
-          retention-days: 7
+          retention-days: 1
 
       - name: Notify build failure
         if: failure()
@@ -260,3 +248,29 @@ jobs:
     with:
       version: ${{ needs.setup.outputs.version }}
     secrets: inherit
+
+  cleanup-artifacts:
+    needs: [publish-r2]
+    if: success()
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete release build artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for name in \
+            "macos-aarch64-apple-darwin" \
+            "macos-x86_64-apple-darwin" \
+            "windows-x86_64-pc-windows-msvc"
+          do
+            id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+              --jq ".artifacts[] | select(.name == \"$name\") | .id")
+            if [ -n "$id" ]; then
+              gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id"
+              echo "Deleted artifact: $name (id: $id)"
+            else
+              echo "Artifact not found (already expired?): $name"
+            fi
+          done

@@ -264,6 +264,12 @@ policy = "oneshot"
 inspector_port = 8083
 
 # Use these configurations to customize your Edge Function.
+[functions.get-upload-url]
+verify_jwt = true
+
+[functions.get-download-url]
+verify_jwt = true
+
 # [functions.MY_FUNCTION_NAME]
 # enabled = true
 # verify_jwt = true
