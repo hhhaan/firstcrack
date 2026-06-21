@@ -378,6 +378,23 @@ export const useUpdateSingleBatch = () => {
             patch: PlanBatchUpdate;
             meta?: { recurrenceRuleId?: string; originalDate?: string };
         }) => planBatchApi.updateSingle(id, patch, meta),
+        onMutate: async ({ id, patch, meta }) => {
+            if (meta?.recurrenceRuleId) return; // recurring exception → complex, skip optimistic
+            await qc.cancelQueries({ queryKey: ['plan_batches'] });
+            const previousBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.batches(patch.plan_id ?? ''));
+            if (previousBatches) {
+                qc.setQueryData(
+                    planKeys.batches(patch.plan_id ?? ''),
+                    previousBatches.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+                );
+            }
+            return { previousBatches };
+        },
+        onError: (_err, { patch }, context) => {
+            if (context?.previousBatches && patch.plan_id) {
+                qc.setQueryData(planKeys.batches(patch.plan_id), context.previousBatches);
+            }
+        },
         onSettled: (_data, _error, vars) => {
             // Invalidate the specific day plan if possible, otherwise range
             if (vars.patch.plan_id) {

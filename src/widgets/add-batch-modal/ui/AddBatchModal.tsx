@@ -252,26 +252,96 @@ export const AddBatchModal = ({
 
         if (isEdit && editingBatch) {
             setSaving(true);
-            try {
-                let targetPlanId = editingBatch.plan_id;
+            const oldPlanId = editingBatch.plan_id;
+            const isBlendTypeEdit = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
+            let targetPlanId = editingBatch.plan_id;
 
-                // If date changed, get-or-create the target day plan
+            // ── Optimistic cache update ─────────────────────────────────
+            const buildOptimisticBatch = (planId: string): PlanBatchWithProgress => ({
+                ...editingBatch,
+                plan_id: planId,
+                machine_id: machineId || null,
+                batch_type: batchType,
+                roast_profile_id: profileId || null,
+                bean_id: isBlendTypeEdit ? null : beanId || null,
+                blend_id: isBlendTypeEdit ? blendId || null : null,
+                bean_name: isBlendTypeEdit
+                    ? (selectedBlend?.name ?? editingBatch.bean_name)
+                    : (selectedBean?.name ?? editingBatch.bean_name),
+                target_roasted_kg: targetNum,
+                batch_size_kg: batchSizeNum,
+                yield_pct: yieldNum / 100,
+                green_lot: selectedBean
+                    ? `${selectedBean.name} (${effectiveStockKg.toFixed(0)}kg)`
+                    : editingBatch.green_lot,
+                notes,
+                updated_at: new Date().toISOString(),
+            });
+
+            // Save snapshot for rollback
+            const snapshot: {
+                oldPlan?: PlanBatchWithProgress[];
+                oldDay?: PlanBatchWithProgress[];
+                newPlan?: PlanBatchWithProgress[];
+                newDay?: PlanBatchWithProgress[];
+            } = {};
+
+            const oldPlanKey = planKeys.batches(oldPlanId);
+            snapshot.oldPlan = qc.getQueryData<PlanBatchWithProgress[]>(oldPlanKey);
+
+            if (currentDateKey) {
+                const oldDayKey = planKeys.dayBatches(userId, currentDateKey);
+                snapshot.oldDay = qc.getQueryData<PlanBatchWithProgress[]>(oldDayKey);
+            }
+
+            // Patch old caches (remove if date changed, else update in-place)
+            if (snapshot.oldPlan) {
+                qc.setQueryData(
+                    oldPlanKey,
+                    dateChanged
+                        ? snapshot.oldPlan.filter((b) => b.id !== editingBatch.id)
+                        : snapshot.oldPlan.map((b) => (b.id === editingBatch.id ? buildOptimisticBatch(oldPlanId) : b)),
+                );
+            }
+            if (snapshot.oldDay) {
+                qc.setQueryData(
+                    planKeys.dayBatches(userId, currentDateKey!),
+                    dateChanged
+                        ? snapshot.oldDay!.filter((b) => b.id !== editingBatch.id)
+                        : snapshot.oldDay!.map((b) => (b.id === editingBatch.id ? buildOptimisticBatch(oldPlanId) : b)),
+                );
+            }
+
+            try {
+                // If date changed, create target plan and move
                 if (dateChanged && newDateKey) {
                     const newPlan = await dayPlanApi.getOrCreate(userId, newDateKey);
                     targetPlanId = newPlan.id;
+
+                    // Save new-plan cache snapshot before optimistic add
+                    const newPlanKey = planKeys.batches(targetPlanId);
+                    snapshot.newPlan = qc.getQueryData<PlanBatchWithProgress[]>(newPlanKey);
+                    if (snapshot.newPlan) {
+                        qc.setQueryData(newPlanKey, [...snapshot.newPlan, buildOptimisticBatch(targetPlanId)]);
+                    }
+                    const newDayKey = planKeys.dayBatches(userId, newDateKey);
+                    snapshot.newDay = qc.getQueryData<PlanBatchWithProgress[]>(newDayKey);
+                    if (snapshot.newDay) {
+                        qc.setQueryData(newDayKey, [...snapshot.newDay, buildOptimisticBatch(targetPlanId)]);
+                    }
+
                     await planBatchApi.move(editingBatch.id, targetPlanId);
                 }
 
-                const isBlendType = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
                 await planBatchApi.updateSingle(editingBatch.id, {
                     id: editingBatch.id,
-                    plan_id: editingBatch.plan_id,
+                    plan_id: targetPlanId,
                     machine_id: machineId || null,
                     batch_type: batchType,
                     roast_profile_id: profileId || null,
-                    bean_id: isBlendType ? null : beanId || null,
-                    blend_id: isBlendType ? blendId || null : null,
-                    bean_name: isBlendType
+                    bean_id: isBlendTypeEdit ? null : beanId || null,
+                    blend_id: isBlendTypeEdit ? blendId || null : null,
+                    bean_name: isBlendTypeEdit
                         ? (selectedBlend?.name ?? editingBatch.bean_name)
                         : (selectedBean?.name ?? editingBatch.bean_name),
                     target_roasted_kg: targetNum,
@@ -283,7 +353,8 @@ export const AddBatchModal = ({
                     notes,
                 });
 
-                qc.invalidateQueries({ queryKey: planKeys.batches(editingBatch.plan_id) });
+                // Invalidate to ensure consistency
+                qc.invalidateQueries({ queryKey: planKeys.batches(oldPlanId) });
                 if (currentDateKey) {
                     qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, currentDateKey) });
                 }
@@ -300,6 +371,18 @@ export const AddBatchModal = ({
                 onSaved?.();
                 onClose();
             } catch (err) {
+                // Rollback optimistic updates
+                if (snapshot.oldPlan) qc.setQueryData(oldPlanKey, snapshot.oldPlan);
+                if (snapshot.oldDay && currentDateKey) {
+                    qc.setQueryData(planKeys.dayBatches(userId, currentDateKey), snapshot.oldDay);
+                }
+                if (snapshot.newPlan && targetPlanId !== oldPlanId) {
+                    qc.setQueryData(planKeys.batches(targetPlanId), snapshot.newPlan);
+                }
+                if (snapshot.newDay && newDateKey) {
+                    qc.setQueryData(planKeys.dayBatches(userId, newDateKey), snapshot.newDay);
+                }
+
                 console.error('[AddBatchModal] save failed:', err);
                 alert(t('addBatchModal.saveFailed') + ` ${err instanceof Error ? err.message : String(err)}`);
             } finally {
