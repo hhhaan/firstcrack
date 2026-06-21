@@ -41,19 +41,19 @@ export const RecurringEditScopeModal = ({
     }[] = [
         {
             scope: 'single',
-            icon: <Pencil size={16} />,
+            icon: <Pencil size={16} strokeWidth={1.5} />,
             title: t('schedule.recurringEditScope.single.title'),
             description: t('schedule.recurringEditScope.single.description'),
         },
         {
             scope: 'from_this',
-            icon: <ArrowRight size={16} />,
+            icon: <ArrowRight size={16} strokeWidth={1.5} />,
             title: t('schedule.recurringEditScope.fromThis.title'),
             description: t('schedule.recurringEditScope.fromThis.description'),
         },
         {
             scope: 'all',
-            icon: <Layers size={16} />,
+            icon: <Layers size={16} strokeWidth={1.5} />,
             title: t('schedule.recurringEditScope.all.title'),
             description: t('schedule.recurringEditScope.all.description'),
         },
@@ -67,12 +67,12 @@ export const RecurringEditScopeModal = ({
             onClose={onClose}
             labelledBy="recurring-edit-scope-title"
             overlayClassName="z-[10000]"
-            contentClassName="max-w-[420px] w-full bg-main-bg dark:bg-[#181d21] dark:[&_*]:!text-white rounded-[16px] p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px] border border-transparent dark:border-[#585d61]"
+            contentClassName="max-w-[420px] w-full bg-main-bg rounded-[16px] p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px] border border-transparent dark:border-border"
         >
             {/* Header */}
             <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-[rgba(219,234,254,0.9)] dark:bg-[#262b31] text-[#2563eb] dark:text-white flex items-center justify-center shrink-0">
-                    <Layers size={18} />
+                <div className="w-10 h-10 rounded-xl bg-palette-blue/12 dark:bg-surface-elevated text-palette-blue dark:text-primary flex items-center justify-center shrink-0">
+                    <Layers size={18} strokeWidth={1.5} />
                 </div>
                 <div>
                     <h2
@@ -84,7 +84,7 @@ export const RecurringEditScopeModal = ({
                     <p className="text-[12px] text-muted mt-0.5 leading-snug">{batchLabel}</p>
                 </div>
             </div>
-            <p className="text-[12px] text-secondary dark:text-white bg-surface dark:bg-surface-elevated rounded-xl px-3 py-2 mb-5">
+            <p className="text-[12px] text-secondary bg-surface dark:bg-surface-elevated rounded-xl px-3 py-2 mb-5">
                 {t('schedule.recurringEditScope.recurringBatch', { recurrence: recurrenceLabel })}
             </p>
 
@@ -93,7 +93,7 @@ export const RecurringEditScopeModal = ({
                 {options.map(({ scope, icon, title, description }) => (
                     <div
                         key={scope}
-                        className="flex items-start gap-3 px-3.5 py-3 rounded-xl bg-surface dark:bg-surface-elevated hover:bg-surface-raised cursor-pointer transition-colors border border-transparent dark:border-[#585d61] hover:border-border"
+                        className="flex items-start gap-3 px-3.5 py-3 rounded-xl bg-surface dark:bg-surface-elevated hover:bg-surface-raised cursor-pointer transition-colors border border-transparent dark:border-border hover:border-border"
                         onClick={() => onConfirm(scope)}
                         role="button"
                         tabIndex={0}
@@ -101,7 +101,7 @@ export const RecurringEditScopeModal = ({
                             if (e.key === 'Enter') onConfirm(scope);
                         }}
                     >
-                        <div className="w-8 h-8 rounded-lg bg-main-bg dark:bg-[#1a1e23] text-muted flex items-center justify-center shrink-0 mt-0.5">
+                        <div className="w-8 h-8 rounded-lg bg-main-bg text-muted flex items-center justify-center shrink-0 mt-0.5">
                             {icon}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -116,7 +116,7 @@ export const RecurringEditScopeModal = ({
             <div>
                 <button
                     onClick={onClose}
-                    className="w-full py-2.5 rounded-xl border border-border dark:border-[#585d61] bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
+                    className="w-full py-2.5 rounded-xl border border-border bg-surface dark:bg-surface-elevated text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
                 >
                     {t('common.cancel')}
                 </button>

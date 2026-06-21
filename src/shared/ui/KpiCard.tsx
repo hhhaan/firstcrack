@@ -12,10 +12,10 @@ export const KpiCard = ({ label, value, change, icon: Icon }: KpiCardProps) => {
     const isNeutral = change === '';
 
     return (
-        <div className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5 dark:border dark:border-[#585d61]">
+        <div className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5 dark:border dark:border-border">
             <div className="flex items-start justify-between mb-3.5">
-                <div className="w-8.5 h-8.5 rounded-lg bg-surface dark:bg-[#2a2f34] flex items-center justify-center">
-                    <Icon size={16} strokeWidth={1.5} className="text-secondary dark:text-[#a3a3a3]" />
+                <div className="w-8.5 h-8.5 rounded-lg bg-surface dark:bg-surface-elevated flex items-center justify-center">
+                    <Icon size={16} strokeWidth={1.5} className="text-secondary" />
                 </div>
                 {!isNeutral && (
                     <span

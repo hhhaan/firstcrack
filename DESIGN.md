@@ -23,15 +23,16 @@ CSS 변수는 `src/App.css`의 `@theme` 블록에 정의되어 있음.
 
 | 역할 | Light | Dark | 용도 |
 |---|---|---|---|
-| `--color-main-bg` | `#ffffff` | `#1a1a1a` | 페이지/카드 배경 |
+| `--color-main-bg` | `#ffffff` | `#181d21` | 페이지/카드 배경 |
 | `--color-roast-bg` | `#ffffff` | `#181d21` | 로스팅 화면 전용 배경 |
-| `--color-surface` | `#efeff0` | `#222222` | 버튼/인풋/서피스 배경 |
+| `--color-surface` | `#efeff0` | `#181d21` | 버튼/인풋/서피스 배경 |
+| `--color-surface-elevated` | `#efeff0` | `#262b30` | 카드·모달 내 상승 서피스 |
 | `--color-surface-warm` | `rgba(245,242,239,0.8)` | `rgba(30,28,26,0.8)` | 따뜻한 톤 서피스 (호버 등) |
-| `--color-surface-warm-solid` | `#f5f2ef` | `#1e1c1a` | 따뜻한 톤 서피스 (불투명) |
+| `--color-surface-warm-solid` | `#f5f2ef` | `#272b30` | 따뜻한 톤 서피스 (불투명) |
 | `--color-primary` | `#171717` | `#e5e5e5` | 주요 텍스트 |
 | `--color-secondary` | `#4e4e4e` | `#a3a3a3` | 보조 텍스트 |
 | `--color-muted` | `#777169` | `#8a8580` | 덜 중요한 텍스트, 플레이스홀더 |
-| `--color-border` | `#e5e5e5` | `#2e2e2e` | 테두리 |
+| `--color-border` | `#e5e5e5` | `#585d61` | 테두리 |
 | `--color-border-subtle` | `rgba(0,0,0,0.05)` | `rgba(255,255,255,0.08)` | 매우 미세한 테두리 |
 | `--color-divider` | `#efeff0` | `#6c6a6b` | 구분선 |
 
@@ -193,6 +194,31 @@ CSS 변수는 `src/App.css`의 `@theme` 블록에 정의되어 있음.
 - **정렬:** `flex items-center justify-center p-6`
 - **z-index:** `z-1000`
 - Overlay 클릭 → 닫힘, 내부 클릭 → 이벤트 전파 차단
+- **배경/보더:** `bg-main-bg`, `border border-transparent dark:border-border` — hex 하드코딩 금지
+- **텍스트:** `text-primary` / `text-secondary` / `text-muted` 시맨틱 클래스 사용. `dark:[&_*]:!text-white` 같은 전역 강제 오버라이드 금지
+
+### Icons (Lucide)
+
+모든 아이콘은 `lucide-react`, 기본 `strokeWidth={1.5}`. 색상은 `currentColor` 상속 — 부모에 시맨틱 `text-*` 클래스를 붙인다.
+
+| Variant | 박스 | 아이콘 색 | 용도 |
+|---|---|---|---|
+| **default** | `w-8.5 h-8.5 rounded-lg bg-surface dark:bg-surface-elevated` | `text-secondary` | KPI 카드, 대시보드 리스트 |
+| **compact** | `w-8 h-8 rounded-lg bg-main-bg` | `text-muted` | 모달 옵션 행 |
+| **accent** | `w-10 h-10 rounded-xl bg-palette-blue/12 dark:bg-surface-elevated` | `text-palette-blue dark:text-primary` | 모달 헤더 강조 |
+
+```tsx
+// default (KpiCard)
+<Icon size={16} strokeWidth={1.5} className="text-secondary" />
+
+// compact (RecurringEditScopeModal 옵션)
+<Pencil size={16} strokeWidth={1.5} />  // 부모: text-muted
+
+// accent (RecurringEditScopeModal 헤더)
+<Layers size={18} strokeWidth={1.5} />  // 부모: text-palette-blue dark:text-primary
+```
+
+> **원칙:** Light/Dark 색 전환은 `text-secondary`, `dark:text-[#a3a3a3]`처럼 hex를 중복 선언하지 않는다. `html.dark`에서 CSS 변수가 바뀌므로 Tailwind 시맨틱 클래스 하나면 충분하다.
 
 ### KPI Card
 
@@ -205,9 +231,38 @@ CSS 변수는 `src/App.css`의 `@theme` 블록에 정의되어 있음.
 └──────────────────────────┘
 ```
 
-- `bg-main-bg rounded-lg`
+- `bg-main-bg rounded-lg dark:border dark:border-border`
 - 내부 패딩: `px-5 pt-5 pb-4.5`
-- 아이콘: 16px, `strokeWidth={1.5}`, `--color-secondary`, 34x34 surface 박스 (`rounded-lg`)
+- 아이콘 박스: `w-8.5 h-8.5 rounded-lg bg-surface dark:bg-surface-elevated`
+- 아이콘: 16px, `strokeWidth={1.5}`, `text-secondary` (34×34 박스)
+- KPI 값: `text-[26px] font-semibold text-primary`
+- 라벨: `text-[13px] text-muted`
+
+### Scope Modal (RecurringEditScopeModal)
+
+반복 배치 편집/삭제 시 적용 범위를 선택하는 확인 모달.
+
+```
+┌────────────────────────────────┐
+│ [accent icon]  제목            │
+│                배치 라벨       │
+│ ┌ 반복 배치 안내 ────────────┐ │
+│ └────────────────────────────┘ │
+│ ┌ [icon] 옵션 제목           │ │  ← 클릭 가능 행
+│ │        옵션 설명           │ │
+│ └────────────────────────────┘ │
+│ [        취소        ]         │
+└────────────────────────────────┘
+```
+
+- 컨테이너: `max-w-[420px] bg-main-bg rounded-[16px] p-7 border border-transparent dark:border-border`
+- 헤더 아이콘: **accent** variant (`Layers` 18px)
+- 반복 안내: `text-secondary bg-surface dark:bg-surface-elevated rounded-xl`
+- 옵션 행: `bg-surface dark:bg-surface-elevated hover:bg-surface-raised border border-transparent dark:border-border`
+- 옵션 아이콘: **compact** variant (16px, `text-muted`)
+- 옵션 제목/설명: `text-primary` / `text-muted`
+- 취소 버튼: `border-border bg-surface dark:bg-surface-elevated text-secondary shadow-(--shadow-inset)`
+- 참조: `src/widgets/recurring-edit-scope-modal/ui/RecurringEditScopeModal.tsx`
 
 ### Input / CounterInput
 
@@ -269,7 +324,7 @@ label:   px-2 py-1 / text-[11px] / font-medium / uppercase / tracking-[0.5px] / 
 2. **PageHeader** 로 제목 + 액션 배치
 3. 카드는 `bg-main-bg rounded-lg`
 4. 버튼은 **pill** (`rounded-full`), 보조 버튼은 **dashed border**
-5. 모든 아이콘은 **Lucide** (`lucide-react`), `strokeWidth={1.5}` 기본
+5. 모든 아이콘은 **Lucide** (`lucide-react`), `strokeWidth={1.5}` 기본 — 색상은 시맨틱 `text-*` 토큰 사용 (hex 하드코딩 금지)
 6. 로딩 중에는 **Spinner** 컴포넌트 사용
 7. **tracking-[0.14px]** 가 body 텍스트의 기본
 
@@ -277,18 +332,23 @@ label:   px-2 py-1 / text-[11px] / font-medium / uppercase / tracking-[0.5px] / 
 
 ## Dark Mode
 
-`html.dark` 클래스 기반. CSS 변수로 전환.
+`html.dark` 클래스 기반. CSS 변수로 전환 — 컴포넌트에서는 `dark:` 접두사로 hex를 중복 선언하지 않고 시맨틱 Tailwind 클래스(`text-primary`, `bg-surface`, `border-border` 등)만 사용한다.
 
 | Light 변수 | Dark 변수 |
 |---|---|
-| `--color-main-bg: #fff` | `--color-main-bg: #1a1a1a` |
-| `--color-surface: #efeff0` | `--color-surface: #222` |
+| `--color-main-bg: #fff` | `--color-main-bg: #181d21` |
+| `--color-surface: #efeff0` | `--color-surface: #181d21` |
+| `--color-surface-elevated: #efeff0` | `--color-surface-elevated: #262b30` |
 | `--color-primary: #171717` | `--color-primary: #e5e5e5` |
+| `--color-secondary: #4e4e4e` | `--color-secondary: #a3a3a3` |
+| `--color-muted: #777169` | `--color-muted: #8a8580` |
+| `--color-border: #e5e5e5` | `--color-border: #585d61` |
+| `--color-palette-blue: #2563eb` | `--color-palette-blue: #44bffc` |
 | `--color-sensor-bt: #22a85a` | `--color-sensor-bt: #4be08c` |
 | `--color-sensor-et: #4a85c5` | `--color-sensor-et: #beacf8` |
 | `--color-sensor-ror: #e8a828` | `--color-sensor-ror: #ffff54` |
 
-> 센서 색상은 Dark 모드에서 더 밝고 선명하게 전환 — 어두운 배경에서 가독성 확보.
+> 센서·팔레트 색상은 Dark 모드에서 더 밝고 선명하게 전환 — 어두운 배경에서 가독성 확보.
 
 ---
 
@@ -297,7 +357,8 @@ label:   px-2 py-1 / text-[11px] / font-medium / uppercase / tracking-[0.5px] / 
 - **Tailwind CSS v4** (`@tailwindcss/vite`)
 - **shadcn/ui** 스타일 레이어 — `cn()` 유틸리티로 클래스 병합
 - 모든 스타일은 Tailwind utility class 사용. **인라인 `style` prop 금지** (예외: 동적 계산값)
-- `@theme` 블록에 커스텀 토큰 정의
+- **테마 인식 색상은 hex 하드코딩 금지** — `text-[#2563eb]`, `dark:border-[#585d61]` 대신 `text-palette-blue`, `border-border` 등 시맨틱 클래스 사용
+- `@theme` 블록에 커스텀 토큰 정의 (`:root` / `html.dark`에서 Light/Dark 값 오버라이드)
 - `@custom-variant dark`로 다크 모드 지원
 - `font-variant-numeric` — 전역 설정, 컴포넌트에서 재선언 금지
 
@@ -329,5 +390,6 @@ label:   px-2 py-1 / text-[11px] / font-medium / uppercase / tracking-[0.5px] / 
 - **버튼:** `src/shared/ui/PillButton.tsx`
 - **모달:** `src/shared/ui/modal-shell/ModalShell.tsx`
 - **KPI 카드:** `src/shared/ui/KpiCard.tsx`
+- **반복 배치 범위 모달:** `src/widgets/recurring-edit-scope-modal/ui/RecurringEditScopeModal.tsx`
 - **달력:** `src/shared/ui/calendar/Calendar.tsx`
 - **셀렉트:** `src/shared/ui/select/Select.tsx`

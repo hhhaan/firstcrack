@@ -78,8 +78,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                     </button>
                     <button
                         onClick={() => setConfirming(true)}
-                        className="w-9 h-9 rounded-[10px] border border-black/6 bg-white flex items-center justify-center cursor-pointer transition-all duration-200"
-                        style={{ color: '#dc2626' }}
+                        className="w-9 h-9 rounded-[10px] border border-black/6 bg-white flex items-center justify-center cursor-pointer transition-all duration-200 text-red-600"
                     >
                         <Trash2 size={16} />
                     </button>

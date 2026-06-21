@@ -92,7 +92,7 @@
                 "title": "시스템과 데이터",
                 "description": "전역 앱 작업, 로컬 데이터 상태, 내보내기 관련 제어를 모읍니다.",
                 "dataTitle": "데이터 제어",
-                "dataDescription": "원두, 머신, 프로파일 화면에 직접 속하지 않는 워크스페이스 작업입니다.",
+                "dataDescription": "생두, 머신, 프로파일 화면에 직접 속하지 않는 워크스페이스 작업입니다.",
                 "exportWorkspace": "현재 워크스페이스 데이터 내보내기",
                 "backupSnapshot": "로컬 백업 스냅샷 생성",
                 "preserveLogs": "활동 로그 보존",
@@ -132,7 +132,7 @@
         "removeMachine": "머신 제거",
         "editMachine": "연결 설정 수정",
         "temperature": {
-            "bean": "원두 온도",
+            "bean": "생두 온도",
             "environment": "환경 온도",
             "ror": "RoR",
             "rateOfRise": "상승률"
@@ -188,19 +188,19 @@
         "viewAll": "전체 보기",
         "table": {
             "date": "날짜",
-            "bean": "원두",
+            "bean": "생두",
             "profile": "프로파일",
             "weight": "중량",
-            "dropTemp": "투하 온도",
+            "dropTemp": "투입 온도",
             "duration": "시간",
-            "level": "로스팅도"
+            "level": "로스팅 레벨"
         },
         "loading": "로딩 중...",
         "noSessions": "아직 세션이 없습니다",
         "monthlyBatches": "월별 배치",
         "thisMonth": "이번 달",
         "batches": "회",
-        "kgRoasted": "kg 로스팅",
+        "kgRoasted": "로스팅 kg",
         "beanOrigins": "산지 수",
         "upcomingBatches": "예정된 배치",
         "noUpcoming": "예정된 배치가 없습니다",
@@ -252,7 +252,7 @@
             "remainingSessions": "남은 회차: {{count}}회",
             "deductionAmount": "차감 예정: {{kg}} kg",
             "deductStock": "생두 재고를 차감할까요?",
-            "deductStockDisabled": "원두가 연결되지 않아 재고를 차감할 수 없습니다.",
+            "deductStockDisabled": "생두가 연결되지 않아 재고를 차감할 수 없습니다.",
             "cancel": "취소",
             "confirm": "완료 처리"
         },
@@ -370,7 +370,7 @@
         "filteredFrom": " (전체 {{count}}개에서 필터링)",
         "pagination": "{{start}}–{{end}} / 총 {{total}}",
         "noNotes": "기록된 노트가 없습니다.",
-        "searchPlaceholder": "원두, 프로파일 또는 산지 검색...",
+        "searchPlaceholder": "생두, 프로파일 또는 산지 검색...",
         "allLevels": "로스팅 레벨",
         "allOrigins": "산지",
         "datePresets": {
@@ -392,7 +392,7 @@
         },
         "expanded": {
             "origin": "산지",
-            "dropTemp": "투하 온도",
+            "dropTemp": "투입 온도",
             "duration": "시간",
             "notes": "노트"
         },
@@ -425,13 +425,13 @@
             "summary_other": "생두 {{count}}종 · 총 {{total}}%",
             "roastableCapacity": "로스팅 가능량",
             "roastableKg": "최대 {{kg}}kg",
-            "limitingBean": "제한 원두: {{name}} (가용 {{grams}}g)",
+            "limitingBean": "제한 생두: {{name}} (가용 {{grams}}g)",
             "noStock": "재고 부족으로 로스팅 불가",
             "edit": "수정",
             "delete": "삭제",
             "modal": {
-                "titleCreate": "블렌드 추가",
-                "titleEdit": "블렌드 수정",
+                "titleCreate": "Add Blend",
+                "titleEdit": "Edit Blend",
                 "nameLabel": "블렌드 이름",
                 "namePlaceholder": "블렌드 이름",
                 "descriptionLabel": "설명 (선택)",
@@ -538,7 +538,7 @@
             "development": "발달",
             "humidity": "습도",
             "temperature": "온도",
-            "roastLevel": "로스팅도",
+            "roastLevel": "로스팅 레벨",
             "levels": {
                 "light": "라이트",
                 "mediumLight": "미디엄 라이트",

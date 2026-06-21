@@ -71,7 +71,7 @@ const ComportSelect = ({
             </select>
             <ChevronDown
                 size={13}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:!text-[#8a8580] pointer-events-none"
             />
         </div>
     );
@@ -243,7 +243,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                     </div>
                     <div>
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/80 dark:bg-surface-elevated text-secondary text-[11px] font-semibold tracking-[0.1px] mb-2.5 shadow-(--shadow-inset)">
-                            <ShieldCheck size={13} strokeWidth={1.9} />
+                            <ShieldCheck size={13} strokeWidth={1.9} className="dark:!text-[#a3a3a3]" />
                             {isEdit ? t('addMachine.connectionSettings') : t('addMachine.onboarding')}
                         </div>
                         <h2
@@ -258,7 +258,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                     type="button"
                     onClick={() => void handleClose()}
                     aria-label={t('common.close')}
-                    className="w-[34px] h-[34px] rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer shrink-0 shadow-(--shadow-inset) transition-colors hover:text-primary"
+                    className="w-[34px] h-[34px] rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted dark:!text-[#8a8580] flex items-center justify-center cursor-pointer shrink-0 shadow-(--shadow-inset) transition-colors hover:text-primary dark:hover:!text-[#e5e5e5]"
                 >
                     <X size={16} strokeWidth={2.3} />
                 </button>
@@ -290,7 +290,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                         </select>
                         <ChevronDown
                             size={14}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:!text-[#8a8580] pointer-events-none"
                         />
                     </div>
                 </div>
@@ -318,13 +318,13 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
 
                 {selectedDef?.protocol === 'phidget' && (
                     <div className="flex items-start gap-2.5 bg-[rgba(59,130,246,0.07)] dark:bg-blue-500/10 border border-[rgba(59,130,246,0.15)] dark:border-blue-500/20 rounded-xl px-3.5 py-[11px]">
-                        <Info size={14} className="text-blue-500 shrink-0 mt-px" />
+                        <Info size={14} className="text-blue-500 dark:!text-blue-400 shrink-0 mt-px" />
                         <span className="text-[12px] text-secondary leading-relaxed">
                             {t('addMachine.phidgetDriverNotice')}{' '}
                             <button
                                 type="button"
                                 onClick={() => openUrl('https://example.com/phidget-driver')}
-                                className="text-blue-500 underline cursor-pointer bg-transparent border-none p-0 text-[12px] font-body"
+                                className="text-blue-500 dark:!text-blue-400 underline cursor-pointer bg-transparent border-none p-0 text-[12px] font-body"
                             >
                                 {t('addMachine.phidgetDriverLink')}
                             </button>
@@ -335,7 +335,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                 {selectedDef && selectedDef.form_fields.length > 0 && (
                     <div className="rounded-2xl p-5 border border-black/6 dark:border-[#585d61] bg-surface/50 dark:bg-surface-elevated grid grid-cols-2 gap-4">
                         <div className="col-span-2 flex items-center gap-2 mb-1">
-                            <Radio size={14} className="text-secondary" />
+                            <Radio size={14} className="text-secondary dark:!text-[#a3a3a3]" />
                             <span className="text-[13px] font-semibold text-secondary">
                                 {t('addMachine.connectionSettings')}
                             </span>
@@ -365,7 +365,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                                             </select>
                                             <ChevronDown
                                                 size={13}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:!text-[#8a8580] pointer-events-none"
                                             />
                                         </div>
                                     ) : field.key === 'comport' && serialPorts.length > 0 ? (
@@ -408,12 +408,12 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                             testState === 'testing' && 'text-secondary',
                         )}
                     >
-                        {testState === 'testing' && <Loader size={14} className="animate-spin" />}
-                        {testState === 'success' && <Wifi size={14} />}
-                        {testState === 'failed' && <WifiOff size={14} />}
+                        {testState === 'testing' && <Loader size={14} className="animate-spin dark:!text-[#a3a3a3]" />}
+                        {testState === 'success' && <Wifi size={14} className="dark:!text-green-400" />}
+                        {testState === 'failed' && <WifiOff size={14} className="dark:!text-red-400" />}
                         <span>{testState === 'testing' ? t('addMachine.testingConnection') : testMessage}</span>
                         {testState === 'success' && (
-                            <span className="text-[11px] text-green-600 dark:text-green-400 opacity-70 ml-1">
+                            <span className="text-[11px] text-green-600 dark:!text-green-400 opacity-70 ml-1">
                                 (live)
                             </span>
                         )}

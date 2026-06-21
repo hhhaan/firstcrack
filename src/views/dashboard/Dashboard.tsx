@@ -487,11 +487,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                 className={`flex items-center gap-3 py-2.5 ${i < db.upcomingBatches.length - 1 ? 'border-b border-divider' : ''}`}
                             >
                                 <div className="w-8.5 h-8.5 rounded-lg bg-surface-warm-solid flex items-center justify-center shrink-0">
-                                    <Calendar
-                                        size={14}
-                                        strokeWidth={1.5}
-                                        className="text-secondary dark:text-[#a3a3a3]"
-                                    />
+                                    <Calendar size={14} strokeWidth={1.5} className="text-secondary" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5">
