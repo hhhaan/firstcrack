@@ -150,7 +150,9 @@ export const RoastHeader = ({
 
                 <div className="relative inline-flex items-center mb-1 min-w-0">
                     <span className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
-                        {selectedBean ? selectedBean.name : (fallbackBeanName ?? 'No Bean Selected')}
+                        {selectedBean
+                            ? joinDisplay([selectedBean.origin, selectedBean.region], ' ')
+                            : (fallbackBeanName ?? 'No Bean Selected')}
                     </span>
 
                     <select

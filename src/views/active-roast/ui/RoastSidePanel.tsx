@@ -73,7 +73,14 @@ export const RoastSidePanel = ({
         <div className="flex items-center justify-between">
             <span className="text-xs text-muted font-semibold uppercase">ΔBT (30s)</span>
             <span className="font-mono text-2xl font-medium leading-tight" style={{ color: SENSOR_COLORS.bt }}>
-                {deltaBT != null ? `${Number(deltaBT) >= 0 ? '+' : ''}${deltaBT}°` : '—'}
+                {deltaBT != null ? (
+                    <>
+                        <span className="mr-1">{Number(deltaBT) >= 0 ? '+' : '−'}</span>
+                        <span>{Math.abs(Number(deltaBT)).toFixed(1)}°</span>
+                    </>
+                ) : (
+                    '—'
+                )}
             </span>
         </div>
         {/* ET */}
@@ -90,12 +97,19 @@ export const RoastSidePanel = ({
         <div className="flex items-center justify-between">
             <span className="text-xs text-muted font-semibold uppercase">ΔET (30s)</span>
             <span className="font-mono text-2xl font-medium leading-tight" style={{ color: SENSOR_COLORS.et }}>
-                {deltaET != null ? `${Number(deltaET) >= 0 ? '+' : ''}${deltaET}°` : '—'}
+                {deltaET != null ? (
+                    <>
+                        <span className="mr-1">{Number(deltaET) >= 0 ? '+' : '−'}</span>
+                        <span>{Math.abs(Number(deltaET)).toFixed(1)}°</span>
+                    </>
+                ) : (
+                    '—'
+                )}
             </span>
         </div>
         {/* RoR */}
         <div className="text-right border-t border-border-subtle pt-3">
-            <div className="text-sm text-muted font-semibold uppercase mb-1">RoR</div>
+            <div className="text-md text-muted font-semibold uppercase mb-1">RoR</div>
             <div
                 className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                 style={{ color: SENSOR_COLORS.ror }}

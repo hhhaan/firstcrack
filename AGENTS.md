@@ -16,8 +16,7 @@ Roastery management desktop app (like Cropster): roast profile logging, roast hi
 
 # AGENT RULES
 - NO chat/greetings/summaries. Output ONLY precise code diffs (modified lines only).
-- Keep `repomix-output.xml` updated via `rtk repomix --silent` before/after code changes.
-- ALWAYS prefix all bash/shell commands with `rtk ` (e.g., `rtk ls`, `rtk git`, `rtk npm`).
+- Keep repomix-output.md updated via npx repomix --compress --remove-comments --remove-empty-lines --silent before/after code changes.- ALWAYS prefix all bash/shell commands with `rtk ` (e.g., `rtk ls`, `rtk git`, `rtk npm`).
 - [Exception] Omit `rtk ` prefix ONLY if output compression breaks error debugging.
 
 ## Tauri v2

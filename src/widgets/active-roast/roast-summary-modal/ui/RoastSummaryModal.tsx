@@ -86,7 +86,7 @@ export const RoastSummaryModal = ({
             overlayClassName="z-[10000]"
             contentClassName="max-w-[420px] w-full bg-main-bg rounded p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px]"
         >
-            <div className="w-11 h-11 rounded-md bg-[rgba(220,252,231,0.9)] text-[#16a34a] flex items-center justify-center mb-4.5">
+            <div className="w-11 h-11 rounded-md bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] flex items-center justify-center mb-4.5">
                 <svg
                     width="18"
                     height="18"
@@ -114,7 +114,7 @@ export const RoastSummaryModal = ({
                     { label: 'Development', value: summaryData.development },
                     { label: 'Final BT', value: summaryData.finalBt },
                 ].map(({ label, value }) => (
-                    <div key={label} className="bg-surface rounded px-2.5 py-2.5 ">
+                    <div key={label} className="bg-surface dark:bg-[#262B31] rounded px-2.5 py-2.5 ">
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">{label}</div>
                         <div className="font-(--font-mono) text-sm text-primary">{value}</div>
                     </div>
@@ -123,11 +123,11 @@ export const RoastSummaryModal = ({
 
             {ambientTemp != null && ambientHumidity != null && (
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                    <div className="bg-surface rounded px-2.5 py-2.5 ">
+                    <div className="bg-surface dark:bg-[#262B31] rounded px-2.5 py-2.5 ">
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">Temperature</div>
                         <div className="font-(--font-mono) text-sm text-primary">{ambientTemp}°C</div>
                     </div>
-                    <div className="bg-surface rounded px-2.5 py-2.5 ">
+                    <div className="bg-surface dark:bg-[#262B31] rounded px-2.5 py-2.5 ">
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">Humidity</div>
                         <div className="font-(--font-mono) text-sm text-primary">{ambientHumidity}%</div>
                     </div>
@@ -168,7 +168,7 @@ export const RoastSummaryModal = ({
                         step={1}
                         {...register('weightGrams', { valueAsNumber: true })}
                         placeholder="0"
-                        className="w-full px-3.5 py-2.5 rounded border-none bg-surface text-primary text-[13px] font-(--font-mono) outline-none box-border"
+                        className="w-full px-3.5 py-2.5 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
                     />
                     <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">g</span>
                 </div>
@@ -186,7 +186,7 @@ export const RoastSummaryModal = ({
                             className={`px-3 py-1.5 rounded-md text-[12px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
                                 roastLevel === value
                                     ? 'bg-primary text-white'
-                                    : 'bg-surface text-secondary hover:text-primary'
+                                    : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
                             }`}
                         >
                             {label}
@@ -201,7 +201,7 @@ export const RoastSummaryModal = ({
                     {...register('notes')}
                     placeholder="Flavor notes, observations, adjustments for next time..."
                     rows={2}
-                    className="w-full px-3.5 py-2.5 rounded border-none bg-surface text-primary text-[13px] font-(--font-body) resize-none outline-none box-border"
+                    className="w-full px-3.5 py-2.5 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) resize-none outline-none box-border"
                 />
             </div>
 
@@ -209,14 +209,14 @@ export const RoastSummaryModal = ({
                 <button
                     onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
                     disabled={isSaving}
-                    className="w-full py-3 rounded-lg border-none bg-[rgba(220,252,231,0.9)] text-[#16a34a] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full py-3 rounded-lg border-none bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                     {isSaving && <Spinner />}
                     저장
                 </button>
                 <button
                     onClick={onDiscard}
-                    className="w-full py-3 rounded-lg border-none bg-surface text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] "
+                    className="w-full py-3 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border"
                 >
                     저장 안 함
                 </button>

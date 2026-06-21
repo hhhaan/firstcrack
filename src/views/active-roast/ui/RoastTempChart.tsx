@@ -272,22 +272,21 @@ export const RoastTempChart: React.FC<Props> = ({
         const leftMargin = CHART_GRID_LEFT;
         const topMargin = CHART_GRID_TOP;
 
-        const profileXs = targetXs && targetXs.length > 0 ? targetXs : xs;
-        const profileBt = targetBt && targetBt.length > 0 ? targetBt : btTarget;
-
         const tempSeries = [
-            showTargetCurve && {
-                name: 'BT Target',
-                type: 'line',
-                xAxisIndex: 0,
-                yAxisIndex: 0,
-                z: 1,
-                data: profileXs.map((x, i) => [x, profileBt[i] ?? null]),
-                lineStyle: { color: colors.btTarget, width: 1.5, type: 'dashed', opacity: 0.55 },
-                areaStyle: { color: colors.btTarget, opacity: 0.06 },
-                showSymbol: false,
-                smooth: false,
-            },
+            showTargetCurve &&
+                targetXs?.length &&
+                targetBt?.length && {
+                    name: 'BT Target',
+                    type: 'line',
+                    xAxisIndex: 0,
+                    yAxisIndex: 0,
+                    z: 1,
+                    data: targetXs.map((x, i) => [x, targetBt[i] ?? null]),
+                    lineStyle: { color: colors.btTarget, width: 1.5, type: 'dashed', opacity: 0.55 },
+                    areaStyle: { color: colors.btTarget, opacity: 0.06 },
+                    showSymbol: false,
+                    smooth: false,
+                },
             {
                 name: 'BT Actual',
                 type: 'line',
@@ -858,17 +857,22 @@ export const RoastTempChart: React.FC<Props> = ({
         resolvedTheme,
     ]);
 
-    // 옵션 적용 — controlData/phaseBar 유무가 바뀌면 grid/axis 구조가 달라지므로 notMerge로 완전 교체
+    // 옵션 적용 — controlData/phaseBar/target 유무가 바뀌면 grid/axis/series 구조가 달라지므로 notMerge로 완전 교체
     const prevHasControlData = useRef(!!controlData);
     const prevHasPhaseBar = useRef(phaseSegments.length > 0);
+    const prevHasTargetData = useRef(!!(targetXs?.length && targetBt?.length));
     useEffect(() => {
         const chart = chartInstanceRef.current;
         if (!chart) return;
         const hasPhaseBar = phaseSegments.length > 0;
+        const hasTargetData = !!(targetXs?.length && targetBt?.length);
         const structureChanged =
-            prevHasControlData.current !== !!controlData || prevHasPhaseBar.current !== hasPhaseBar;
+            prevHasControlData.current !== !!controlData ||
+            prevHasPhaseBar.current !== hasPhaseBar ||
+            prevHasTargetData.current !== hasTargetData;
         prevHasControlData.current = !!controlData;
         prevHasPhaseBar.current = hasPhaseBar;
+        prevHasTargetData.current = hasTargetData;
         chart.setOption(option, {
             notMerge: structureChanged,
             lazyUpdate: !structureChanged,

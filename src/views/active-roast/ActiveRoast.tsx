@@ -364,7 +364,7 @@ export const ActiveRoast = ({
     );
 
     const rawRoR = liveData?.ror ?? 0;
-    const displayRoR = rawRoR < 0 ? '—' : toDisplayRoR(rawRoR, unit).toFixed(1);
+    const displayRoR = toDisplayRoR(rawRoR, unit).toFixed(1);
 
     // ── 로스트 라이프사이클 핸들러 ────────────────────────────────
 
@@ -547,7 +547,7 @@ export const ActiveRoast = ({
                             showTarget={!!targetProfileId && targetCurvePoints.length > 0}
                             targetLabel={
                                 targetProfile
-                                    ? `${targetProfile.name}${targetCurveSource === 'synthetic' ? ' (estimated)' : ''}`
+                                    ? `${targetProfile.name}${targetCurveSource === 'synthetic' ? ' (target)' : ''}`
                                     : undefined
                             }
                         />

@@ -7,7 +7,7 @@ interface SkeletonProps {
 
 export const Skeleton = ({ className = '', width, height = 16, borderRadius = '6px' }: SkeletonProps) => (
     <div
-        className={`animate-pulse bg-surface dark:bg-surface-elevated ${className}`}
+        className={`animate-pulse bg-surface dark:bg-[#32383e] ${className}`}
         style={{ width, height, borderRadius }}
     />
 );
