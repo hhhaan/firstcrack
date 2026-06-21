@@ -19,6 +19,9 @@ export default defineConfig(async () => ({
       "@widgets": fileURLToPath(new URL("./src/widgets", import.meta.url)),
     },
   },
+  test: {
+    globals: true,
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

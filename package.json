@@ -7,6 +7,7 @@
         "predev": "lsof -ti:9999 | xargs kill -9 2>/dev/null || true",
         "dev": "concurrently --names \"vite,sidecar\" --prefix-colors \"cyan,yellow\" \"vite\" \"src-tauri/sidecar/.venv/bin/python src-tauri/sidecar/main.py\"",
         "build": "tsc && vite build",
+        "test": "vitest run",
         "preview": "vite preview",
         "tauri": "tauri",
         "types:gen": "supabase gen types typescript --linked 2>/dev/null > src/shared/types/database.types.ts && node scripts/append-db-aliases.mjs",
@@ -88,7 +89,8 @@
         "tailwindcss": "^4.2.4",
         "typescript": "~5.8.3",
         "typescript-eslint": "^8.59.4",
-        "vite": "^7.0.4"
+        "vite": "^7.0.4",
+        "vitest": "^4.1.9"
     },
     "lint-staged": {
         "src/**/*.{ts,tsx}": "biome format --write --no-errors-on-unmatched",

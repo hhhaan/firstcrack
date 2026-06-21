@@ -1,652 +1,25 @@
 import { useProfile } from '@entities/profile';
 import { useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
-import { sessionsToCsv } from '@features/export-csv';
+import { useExportCsv } from '@features/export-csv';
+import { buildReportData } from '@shared/lib/buildReportData';
+import { filterSessions, paginateSessions, type SessionFilterCriteria, sortSessions } from '@shared/lib/sessionFilter';
 import { useAuthStore } from '@shared/store/auth';
-import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
-import { downloadDir } from '@tauri-apps/api/path';
-import { confirm, message } from '@tauri-apps/plugin-dialog';
 import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
-import { RoastTempChart } from '@widgets/active-roast/ui/RoastTempChart';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Download, FileText, Filter, Search, X } from 'lucide-react';
-import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { DatePreset } from '@widgets/date-range-filter';
+import { DateRangeFilter, getPresetYMRange } from '@widgets/date-range-filter';
+import type { SortKey } from '@widgets/history-table';
+import { HistoryTable } from '@widgets/history-table';
+import { Download, FileText, Search, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useHistoryChart } from './hooks/useHistoryChart';
-
-const levelColor: Record<string, string> = {
-    Light: 'var(--color-palette-yellow)',
-    'Medium-Light': 'var(--color-palette-teal)',
-    Medium: 'var(--color-palette-blue)',
-    'Medium-Dark': 'var(--color-palette-purple)',
-    Dark: 'var(--color-palette-violet)',
-};
-
-const levelBg: Record<string, string> = {
-    Light: 'color-mix(in srgb, var(--color-palette-yellow) 20%, transparent)',
-    'Medium-Light': 'color-mix(in srgb, var(--color-palette-teal) 15%, transparent)',
-    Medium: 'color-mix(in srgb, var(--color-palette-blue) 12%, transparent)',
-    'Medium-Dark': 'color-mix(in srgb, var(--color-palette-purple) 12%, transparent)',
-    Dark: 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
-    'Dark-Light': 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
-};
-
-const formatDuration = (seconds: number | null): string => {
-    if (seconds == null) return '—';
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${String(s).padStart(2, '0')}`;
-};
-
-const formatDate = (iso: string | null): string => {
-    if (!iso) return '—';
-    return iso.slice(2, 10); // YY-MM-DD
-};
-
-type SortKey = 'date' | 'bean' | 'duration' | 'drop' | 'level' | 'profile' | 'weight';
-
-type Column = {
-    key: SortKey | null;
-    label: string;
-    width: string;
-    sortable: boolean;
-    hideOnMd?: boolean;
-    render: (s: RoastSessionWithRelations) => ReactNode;
-};
-
-const columns: Column[] = [
-    { key: 'date', label: 'Date', width: '100px', sortable: true, render: (s) => formatDate(s.roasted_at) },
-    { key: 'bean', label: 'Bean', width: '200px', sortable: true, render: (s) => s.beans?.name ?? '—' },
-    {
-        key: 'profile',
-        label: 'Profile',
-        width: '150px',
-        sortable: false,
-        hideOnMd: true,
-        render: (s) => s.roast_profiles?.name ?? '—',
-    },
-    { key: 'weight', label: 'Weight', width: '90px', sortable: false, render: (s) => `${s.weight_grams}g` },
-    {
-        key: 'drop',
-        label: 'Drop',
-        width: '80px',
-        sortable: true,
-        render: (s) => (s.drop_temp_celsius != null ? `${s.drop_temp_celsius}°C` : '—'),
-    },
-    {
-        key: 'duration',
-        label: 'Duration',
-        width: '90px',
-        sortable: true,
-        render: (s) => formatDuration(s.duration_seconds),
-    },
-    {
-        key: 'level',
-        label: 'Level',
-        width: '110px',
-        sortable: true,
-        render: (s) =>
-            s.roast_level ? (
-                <span
-                    className="text-[11px] font-medium px-2 py-0.75 rounded-full whitespace-nowrap tracking-[0.14px]"
-                    style={{
-                        color: levelColor[s.roast_level] || 'var(--color-muted)',
-                        background: levelBg[s.roast_level] || 'var(--color-surface)',
-                    }}
-                >
-                    {s.roast_level}
-                </span>
-            ) : (
-                <span className="text-muted">—</span>
-            ),
-    },
-];
-
-type SortIconProps = {
-    col: SortKey;
-    sortKey: SortKey;
-    sortAsc: boolean;
-};
-
-function SortIcon({ col, sortKey, sortAsc }: SortIconProps): ReactNode {
-    if (sortKey !== col) {
-        return <ChevronDown size={11} strokeWidth={2} color="var(--color-muted)" style={{ opacity: 0.4 }} />;
-    }
-    return sortAsc ? (
-        <ChevronUp size={11} strokeWidth={2.5} color="var(--color-primary)" />
-    ) : (
-        <ChevronDown size={11} strokeWidth={2.5} color="var(--color-primary)" />
-    );
-}
-
-type ExpandedRowProps = {
-    session: RoastSessionWithRelations;
-};
-
-function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
-    const { t } = useTranslation();
-    const { xs, btActual, etActual, rorActual, isLoading, isError } = useHistoryChart(session.tsv_path ?? null);
-
-    return (
-        <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)]">
-            <td colSpan={7} className="px-4 py-4 md:px-6">
-                <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
-                    {[
-                        { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
-                        {
-                            label: t('history.expanded.dropTemp'),
-                            value: session.drop_temp_celsius != null ? `${session.drop_temp_celsius}°C` : '—',
-                        },
-                        { label: t('history.expanded.duration'), value: formatDuration(session.duration_seconds) },
-                    ].map(({ label, value }) => (
-                        <div key={label} className="mb-2">
-                            <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                                {label}
-                            </div>
-                            <div className="font-mono text-[13px] font-medium tracking-[0.14px] text-primary">
-                                {value}
-                            </div>
-                        </div>
-                    ))}
-                    <div className="mb-2 md:col-span-3 lg:col-auto">
-                        <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                            {t('history.expanded.notes')}
-                        </div>
-                        <div className="text-[13px] leading-normal tracking-[0.14px] text-secondary">
-                            {session.notes || <span className="text-muted">{t('history.noNotes')}</span>}
-                        </div>
-                    </div>
-                </div>
-
-                {session.tsv_path && (
-                    <div className="mt-4">
-                        {isLoading ? (
-                            <div className="flex h-[220px] items-center justify-center text-xs text-muted">
-                                Loading chart…
-                            </div>
-                        ) : isError ? (
-                            <div className="flex h-[220px] items-center justify-center text-xs text-muted">
-                                Chart unavailable
-                            </div>
-                        ) : (
-                            <RoastTempChart
-                                xs={xs}
-                                btActual={btActual}
-                                etActual={etActual}
-                                rorActual={rorActual}
-                                btTarget={[]}
-                                currentTimeSec={0}
-                                eventMarkers={[]}
-                                showTargetCurve={false}
-                                showRoRET={false}
-                                height={220}
-                            />
-                        )}
-                    </div>
-                )}
-            </td>
-        </tr>
-    );
-}
-const HistoryTable = ({
-    sessions,
-    total,
-    filteredTotal,
-    expandedId,
-    onRowClick,
-    sortKey,
-    sortAsc,
-    onSort,
-    page,
-    totalPages,
-    pageSize,
-    onPageChange,
-}: {
-    sessions: RoastSessionWithRelations[];
-    total: number;
-    filteredTotal: number;
-    expandedId: string | null;
-    onRowClick: (id: string) => void;
-    sortKey: SortKey;
-    sortAsc: boolean;
-    onSort: (key: SortKey) => void;
-    page: number;
-    totalPages: number;
-    pageSize: number;
-    onPageChange: (p: number) => void;
-}): ReactNode => {
-    const { t } = useTranslation();
-    const start = (page - 1) * pageSize + 1;
-    const end = Math.min(page * pageSize, filteredTotal);
-
-    const colLabel = (key: string) => {
-        const map: Record<string, string> = {
-            date: t('dashboard.table.date'),
-            bean: t('dashboard.table.bean'),
-            profile: t('dashboard.table.profile'),
-            weight: t('dashboard.table.weight'),
-            drop: t('dashboard.table.dropTemp'),
-            duration: t('dashboard.table.duration'),
-            level: t('dashboard.table.level'),
-        };
-        return map[key] || key;
-    };
-
-    const getCellTitle = (col: Column, session: RoastSessionWithRelations): string | undefined => {
-        if (col.key === 'level') {
-            return session.roast_level ?? '—';
-        }
-        const rendered = col.render(session);
-        return typeof rendered === 'string' ? rendered : undefined;
-    };
-
-    return (
-        <div className="overflow-x-auto rounded-lg bg-main-bg dark:border dark:border-[#585d61] [-webkit-overflow-scrolling:touch]">
-            <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
-                <thead>
-                    <tr className="border-b border-border-subtle dark:border-[#585d61]">
-                        {columns.map((col, colIdx) => {
-                            const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
-                            return (
-                                <th
-                                    key={col.key || `col-${colIdx}`}
-                                    onClick={() => col.sortable && col.key && onSort(col.key as SortKey)}
-                                    className={`px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[0.5px] text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'}`}
-                                    style={{ width: col.width }}
-                                >
-                                    <span className="flex items-center gap-1 whitespace-nowrap">
-                                        {colLabel(col.key || col.label)}
-                                        {col.sortable && col.key && (
-                                            <SortIcon col={col.key as SortKey} sortKey={sortKey} sortAsc={sortAsc} />
-                                        )}
-                                    </span>
-                                </th>
-                            );
-                        })}
-                    </tr>
-                </thead>
-                <tbody>
-                    {sessions.map((session) => {
-                        const isExpanded = expandedId === session.id;
-                        return (
-                            <Fragment key={session.id}>
-                                <tr
-                                    onClick={() => onRowClick(session.id)}
-                                    className={`cursor-pointer border-b border-border-subtle dark:border-[#585d61] transition ${isExpanded ? 'bg-[rgba(245,245,245,0.5)]' : 'hover:bg-[rgba(245,242,239,0.45)]'}`}
-                                >
-                                    {columns.map((col, idx) => {
-                                        const cellClass =
-                                            col.key === 'date'
-                                                ? 'font-mono text-muted'
-                                                : col.key === 'bean'
-                                                  ? 'font-medium tracking-[0.14px] text-primary'
-                                                  : 'tracking-[0.14px] text-secondary';
-                                        const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
-                                        const cellTitle = getCellTitle(col, session);
-                                        return (
-                                            <td
-                                                key={col.key || idx}
-                                                title={cellTitle}
-                                                className={`overflow-hidden px-3 py-3 text-[13px] whitespace-nowrap ${cellClass} ${responsiveClass}`}
-                                                style={{ width: col.width }}
-                                            >
-                                                {col.render(session)}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                                {isExpanded && <ExpandedRow session={session} />}
-                            </Fragment>
-                        );
-                    })}
-                </tbody>
-            </table>
-
-            <div className="flex flex-col gap-3 border-t border-border-subtle dark:border-[#585d61] px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-xs tracking-[0.14px] text-muted">
-                    {filteredTotal === 0
-                        ? t('history.noSessionsFound')
-                        : `${t('history.pagination', { start, end, total: filteredTotal })}${filteredTotal < total ? t('history.filteredFrom', { count: total }) : ''}`}
-                </span>
-
-                <div className="flex items-center gap-1">
-                    <button
-                        type="button"
-                        onClick={() => onPageChange(page - 1)}
-                        disabled={page === 1}
-                        className="flex h-6 w-6 items-center justify-center rounded text-muted transition hover:bg-surface hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                        <ChevronLeft size={13} strokeWidth={2} />
-                    </button>
-
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                        .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                        .reduce<(number | '…')[]>((acc, p, i, arr) => {
-                            if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('…');
-                            acc.push(p);
-                            return acc;
-                        }, [])
-                        .map((item, i) =>
-                            item === '…' ? (
-                                <span key={`ellipsis-${i}`} className="px-1 text-xs text-muted">
-                                    …
-                                </span>
-                            ) : (
-                                <button
-                                    key={item}
-                                    onClick={() => onPageChange(item as number)}
-                                    className={`h-6 min-w-6 rounded px-1.5 text-xs font-medium transition ${
-                                        page === item
-                                            ? 'bg-surface-warm-solid text-primary'
-                                            : 'text-muted hover:bg-surface hover:text-secondary'
-                                    }`}
-                                >
-                                    {item}
-                                </button>
-                            ),
-                        )}
-
-                    <button
-                        onClick={() => onPageChange(page + 1)}
-                        disabled={page === totalPages || totalPages === 0}
-                        className="flex h-6 w-6 items-center justify-center rounded text-muted transition hover:bg-surface hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                        <ChevronRight size={13} strokeWidth={2} />
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 
-const FilterDropdown = ({
-    label,
-    value,
-    options,
-    onSelect,
-}: {
-    label: string;
-    value: string;
-    options: string[];
-    onSelect: (v: string) => void;
-}): ReactNode => {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-    const isActive = value !== 'all';
-
-    useEffect(() => {
-        if (!open) return;
-        const handler = (e: MouseEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, [open]);
-
-    return (
-        <div ref={ref} className="relative">
-            <button
-                type="button"
-                onClick={() => setOpen((o) => !o)}
-                className={`inline-flex items-center gap-1 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
-                    isActive
-                        ? 'bg-surface-warm-solid text-primary'
-                        : 'bg-surface dark:bg-surface-elevated text-secondary hover:-translate-y-px hover:text-primary'
-                }`}
-            >
-                <Filter size={12} strokeWidth={2} className={isActive ? 'text-primary' : 'text-muted'} />
-                {isActive ? value : label}
-                <ChevronDown size={11} strokeWidth={2} className={isActive ? 'text-primary' : 'text-muted'} />
-            </button>
-
-            {open && (
-                <div className="absolute top-full left-0 z-50 mt-1 min-w-35 rounded-lg bg-main-bg dark:bg-surface-elevated py-1">
-                    <button
-                        onClick={() => {
-                            onSelect('all');
-                            setOpen(false);
-                        }}
-                        className={`w-full px-3 py-1.5 text-left text-[13px] tracking-[0.14px] transition hover:bg-surface ${value === 'all' ? 'font-medium text-primary' : 'text-secondary'}`}
-                    >
-                        {label}
-                    </button>
-                    {options.map((opt) => (
-                        <button
-                            key={opt}
-                            onClick={() => {
-                                onSelect(opt);
-                                setOpen(false);
-                            }}
-                            className={`w-full px-3 py-1.5 text-left text-[13px] tracking-[0.14px] transition hover:bg-surface ${value === opt ? 'font-medium text-primary' : 'text-secondary'}`}
-                        >
-                            {opt}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
-
-type DatePreset = 'all' | 'this-month' | 'last-month' | '3-months' | '6-months' | 'this-year' | 'custom';
-
-const DATE_PRESETS: { value: DatePreset }[] = [
-    { value: 'all' },
-    { value: 'this-month' },
-    { value: 'last-month' },
-    { value: '3-months' },
-    { value: '6-months' },
-    { value: 'this-year' },
-    { value: 'custom' },
-];
-
-const getPresetYMRange = (preset: DatePreset): { fromYM: string; toYM: string } | null => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth();
-    const fmt = (year: number, month: number) => `${year}-${String(month + 1).padStart(2, '0')}`;
-    if (preset === 'this-month') return { fromYM: fmt(y, m), toYM: fmt(y, m) };
-    if (preset === 'last-month') {
-        const d = new Date(y, m - 1, 1);
-        return { fromYM: fmt(d.getFullYear(), d.getMonth()), toYM: fmt(d.getFullYear(), d.getMonth()) };
-    }
-    if (preset === '3-months') {
-        const d = new Date(y, m - 2, 1);
-        return { fromYM: fmt(d.getFullYear(), d.getMonth()), toYM: fmt(y, m) };
-    }
-    if (preset === '6-months') {
-        const d = new Date(y, m - 5, 1);
-        return { fromYM: fmt(d.getFullYear(), d.getMonth()), toYM: fmt(y, m) };
-    }
-    if (preset === 'this-year') return { fromYM: fmt(y, 0), toYM: fmt(y, m) };
-    return null;
-};
-
-const DateRangeFilter = ({
-    preset,
-    fromYM,
-    toYM,
-    monthOptions,
-    onPresetChange,
-    onFromYM,
-    onToYM,
-}: {
-    preset: DatePreset;
-    fromYM: string;
-    toYM: string;
-    monthOptions: string[];
-    onPresetChange: (p: DatePreset) => void;
-    onFromYM: (v: string) => void;
-    onToYM: (v: string) => void;
-}): ReactNode => {
-    const { t } = useTranslation();
-    const months = t('months', { returnObjects: true }) as string[];
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-    const isActive = preset !== 'all';
-
-    const initFrom = fromYM || (monthOptions[0] ?? '');
-    const initTo = toYM || (monthOptions[monthOptions.length - 1] ?? '');
-    const [draftFrom, setDraftFrom] = useState(initFrom);
-    const [draftTo, setDraftTo] = useState(initTo);
-
-    useEffect(() => {
-        if (!open) return;
-        const handler = (e: MouseEvent) => {
-            const target = e.target as Element;
-            const inPanel = ref.current?.contains(target);
-            const inPortal = !!target?.closest('[data-radix-popper-content-wrapper]');
-            if (!inPanel && !inPortal) setOpen(false);
-        };
-        document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, [open]);
-
-    const years = useMemo(
-        () => [...new Set(monthOptions.map((ym) => ym.split('-')[0]))].sort((a, b) => Number(b) - Number(a)),
-        [monthOptions],
-    );
-
-    const fmtLabel = (ym: string) => {
-        if (!ym) return '—';
-        const [y, m] = ym.split('-');
-        const monthName = months[parseInt(m, 10) - 1] || '';
-        return `${monthName} ${y}`;
-    };
-
-    const triggerLabel = (() => {
-        if (preset === 'custom' && (fromYM || toYM)) return `${fmtLabel(fromYM)} – ${fmtLabel(toYM)}`;
-        const presetLabel = DATE_PRESETS.find((p) => p.value === preset)?.value ?? '';
-        return presetLabel ? t('history.datePresets.' + presetLabel) : t('history.datePresets.period');
-    })();
-
-    const handlePresetClick = (p: DatePreset) => {
-        if (p === 'custom') {
-            setDraftFrom(fromYM || initFrom);
-            setDraftTo(toYM || initTo);
-        }
-        onPresetChange(p);
-        if (p !== 'custom') setOpen(false);
-    };
-
-    const handleApply = () => {
-        let f = draftFrom;
-        let t = draftTo;
-        if (f && t && f > t) {
-            [f, t] = [t, f];
-        }
-        onFromYM(f);
-        onToYM(t);
-        setOpen(false);
-    };
-
-    return (
-        <div ref={ref} className="relative">
-            <button
-                onClick={() => setOpen((o) => !o)}
-                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
-                    isActive
-                        ? 'bg-surface-warm-solid text-primary'
-                        : 'bg-surface dark:bg-surface-elevated text-secondary hover:-translate-y-px hover:text-primary'
-                }`}
-            >
-                {triggerLabel}
-                {isActive ? (
-                    <X
-                        size={11}
-                        strokeWidth={2.5}
-                        className="text-muted hover:text-primary"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onPresetChange('all');
-                            setOpen(false);
-                        }}
-                    />
-                ) : (
-                    <ChevronDown size={11} strokeWidth={2} className="text-muted" />
-                )}
-            </button>
-
-            {open && (
-                <div className="absolute  border border-border-subtle dark:border-[#585d61] top-full left-0 z-50 mt-2 flex rounded-lg bg-main-bg overflow-hidden">
-                    {/* 프리셋 목록 */}
-                    <div className="flex shrink-0 flex-col gap-0.5 py-2 px-2 w-36">
-                        {DATE_PRESETS.map((p) => (
-                            <button
-                                key={p.value}
-                                onClick={() => handlePresetClick(p.value)}
-                                className={`w-full rounded-md px-2.5 py-1.5 text-left text-[13px] tracking-[0.14px] transition hover:bg-surface cursor-pointer border-none bg-transparent ${
-                                    preset === p.value ? 'font-semibold text-primary' : 'text-secondary'
-                                }`}
-                            >
-                                {t('history.datePresets.' + p.value)}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* 커스텀 범위 — draft 상태로 관리, Apply 버튼으로만 반영 */}
-                    {preset === 'custom' && (
-                        <div className="flex flex-col justify-center gap-3 border-l border-border-subtle dark:border-[#585d61] px-5 py-4 self-stretch">
-                            {(
-                                [
-                                    { label: t('history.customRange.start'), val: draftFrom, set: setDraftFrom },
-                                    { label: t('history.customRange.end'), val: draftTo, set: setDraftTo },
-                                ] as const
-                            ).map(({ label, val, set }) => {
-                                const yr = val ? val.split('-')[0] : '';
-                                const mo = val ? val.split('-')[1] : '';
-                                return (
-                                    <div key={label} className="flex items-center gap-2">
-                                        <span className="w-7 shrink-0 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                                            {label}
-                                        </span>
-                                        <Select value={yr} onValueChange={(v) => set(mo ? `${v}-${mo}` : v)}>
-                                            <SelectTrigger className="w-24 border border-border-subtle dark:border-[#585d61]">
-                                                <SelectValue placeholder={t('history.customRange.year')} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {years.map((y) => (
-                                                    <SelectItem key={y} value={y}>
-                                                        {y}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <Select value={mo} onValueChange={(v) => set(yr ? `${yr}-${v}` : v)}>
-                                            <SelectTrigger className="w-20 border border-border-subtle dark:border-[#585d61]">
-                                                <SelectValue placeholder={t('history.customRange.month')} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {months.map((name, i) => (
-                                                    <SelectItem key={i} value={String(i + 1).padStart(2, '0')}>
-                                                        {name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                );
-                            })}
-                            <div className="flex justify-end">
-                                <button
-                                    onClick={handleApply}
-                                    disabled={!draftFrom || !draftTo}
-                                    className="mt-1 ml-auto rounded-lg border border-[#111] dark:border-[#585d61] bg-[#111] px-4 py-1.5 text-[13px] font-medium text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                    {t('history.customRange.apply')}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-};
+const PAGE_SIZE = 10;
 
 export const History = () => {
     const { t } = useTranslation();
@@ -661,33 +34,41 @@ export const History = () => {
     const [fromYM, setFromYM] = useState<string>('');
     const [toYM, setToYM] = useState<string>('');
     const [page, setPage] = useState<number>(1);
-    const PAGE_SIZE = 10;
 
     const user = useAuthStore((s) => s.user);
     const { data: profile } = useProfile(user?.id ?? '');
 
-    // --- Server-side paginated query for table data ---
+    const useClientPagination = search.length > 0 || originFilter !== 'all';
+
+    const filterCriteria: SessionFilterCriteria = useMemo(
+        () => ({ search, levelFilter, fromYM, toYM, originFilter }),
+        [search, levelFilter, fromYM, toYM, originFilter],
+    );
+
     const {
         data: paginatedResult,
-        isLoading,
-        isError,
+        isLoading: isPaginatedLoading,
+        isError: isPaginatedError,
     } = useRoastSessionsPaginated({
         userId: user?.id ?? '',
         status: 'completed',
-        page: Math.min(page, Math.max(1, Math.ceil(page))),
+        page: Math.max(1, page),
         pageSize: PAGE_SIZE,
-        sortKey: sortKey === 'bean' ? 'date' : sortKey, // bean sorting happens client-side
+        sortKey: sortKey === 'bean' ? 'date' : sortKey,
         sortAsc,
         level: levelFilter === 'all' ? null : levelFilter,
         fromYM: fromYM || null,
         toYM: toYM || null,
+        enabled: !useClientPagination,
     });
 
-    const sessions = useMemo(() => paginatedResult?.data ?? [], [paginatedResult]);
-    const filteredTotal = paginatedResult?.total ?? 0;
+    const {
+        data: rawSessions = [],
+        isLoading: isRawLoading,
+        isError: isRawError,
+    } = useRoastSessions(user?.id ?? '', 'completed');
 
-    // --- Client-side query for filter metadata (origins, month range) ---
-    const { data: rawSessions = [] } = useRoastSessions(user?.id ?? '', 'completed');
+    const totalSessions = rawSessions.length;
 
     const uniqueOrigins = useMemo(
         () => [...new Set(rawSessions.map((s) => s.beans?.origin).filter(Boolean) as string[])].sort(),
@@ -707,7 +88,43 @@ export const History = () => {
         return [...set].sort();
     }, [rawSessions]);
 
-    const totalSessions = rawSessions.length;
+    const clientFiltered = useMemo(
+        () => (useClientPagination ? filterSessions(rawSessions, filterCriteria) : []),
+        [useClientPagination, rawSessions, filterCriteria],
+    );
+
+    const clientSorted = useMemo(
+        () => (useClientPagination ? sortSessions(clientFiltered, sortKey, sortAsc) : []),
+        [useClientPagination, clientFiltered, sortKey, sortAsc],
+    );
+
+    const displayTotal = useClientPagination ? clientFiltered.length : (paginatedResult?.total ?? 0);
+
+    const totalPages = Math.max(1, Math.ceil(displayTotal / PAGE_SIZE));
+    const safePage = Math.min(page, totalPages);
+
+    const displaySessions = useMemo(() => {
+        if (useClientPagination) {
+            return paginateSessions(clientSorted, safePage, PAGE_SIZE);
+        }
+        const sessions = paginatedResult?.data ?? [];
+        if (sortKey === 'bean') {
+            return sortSessions(sessions, 'bean', sortAsc);
+        }
+        return sessions;
+    }, [useClientPagination, clientSorted, safePage, paginatedResult, sortKey, sortAsc]);
+
+    const isLoading = useClientPagination ? isRawLoading : isPaginatedLoading;
+    const isError = useClientPagination ? isRawError : isPaginatedError;
+
+    const reportData = useMemo(
+        () => buildReportData(rawSessions, profile?.display_name, user?.email),
+        [rawSessions, profile, user],
+    );
+
+    const exportCsv = useExportCsv();
+
+    // ── Handlers ──
 
     const handleSort = (key: SortKey): void => {
         if (sortKey === key) {
@@ -723,17 +140,19 @@ export const History = () => {
         setExpandedId(expandedId === id ? null : id);
     };
 
+    const resetPage = useCallback(() => setPage(1), []);
+
     const handleLevelFilter = (v: string) => {
         setLevelFilter(v);
-        setPage(1);
+        resetPage();
     };
     const handleOriginFilter = (v: string) => {
         setOriginFilter(v);
-        setPage(1);
+        resetPage();
     };
     const handlePresetChange = (p: DatePreset) => {
         setDatePreset(p);
-        setPage(1);
+        resetPage();
         if (p === 'all') {
             setFromYM('');
             setToYM('');
@@ -747,125 +166,26 @@ export const History = () => {
     };
     const handleFromYM = (v: string) => {
         setFromYM(v);
-        setPage(1);
+        resetPage();
     };
     const handleToYM = (v: string) => {
         setToYM(v);
-        setPage(1);
+        resetPage();
     };
     const handleSearch = (v: string) => {
         setSearch(v);
-        setPage(1);
+        resetPage();
     };
 
-    // Client-side search + origin filter (can't be done server-side on joined table)
-    const filteredForDisplay = useMemo((): RoastSessionWithRelations[] => {
-        if (!search && originFilter === 'all') return sessions;
-        const q = search.toLowerCase();
-        return sessions.filter((s) => {
-            if (
-                q &&
-                !(
-                    (s.beans?.name ?? '').toLowerCase().includes(q) ||
-                    (s.roast_profiles?.name ?? '').toLowerCase().includes(q) ||
-                    (s.beans?.origin ?? '').toLowerCase().includes(q)
-                )
-            )
-                return false;
-            if (originFilter !== 'all' && s.beans?.origin !== originFilter) return false;
-            return true;
-        });
-    }, [sessions, search, originFilter]);
+    const handleOpenReport = useCallback(() => setShowReport(true), []);
+    const handleCloseReport = useCallback(() => setShowReport(false), []);
 
-    // Sort 'bean' column client-side since the server sorts by date as fallback
-    const displaySessions = useMemo((): RoastSessionWithRelations[] => {
-        if (sortKey !== 'bean') return filteredForDisplay;
-        const dir = sortAsc ? 1 : -1;
-        return [...filteredForDisplay].sort((a, b) => dir * (a.beans?.name ?? '').localeCompare(b.beans?.name ?? ''));
-    }, [filteredForDisplay, sortKey, sortAsc]);
+    const handleExportCsv = useCallback(() => {
+        const filtered = filterSessions(rawSessions, filterCriteria);
+        void exportCsv(filtered);
+    }, [rawSessions, filterCriteria, exportCsv]);
 
-    // Compute effective total for "X–Y of Z" display
-    // When search or origin filter is active, we need the real count from rawSessions
-    const displayTotal = useMemo(() => {
-        if (!search && originFilter === 'all') return filteredTotal;
-
-        const q = search.toLowerCase();
-        const filtered = rawSessions.filter((s) => {
-            // Level filter
-            if (levelFilter !== 'all' && s.roast_level !== levelFilter) return false;
-            // Date range filter
-            if (fromYM || toYM) {
-                if (!s.roasted_at) return false;
-                const d = new Date(s.roasted_at);
-                const sessionYM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                if (fromYM && sessionYM < fromYM) return false;
-                if (toYM && sessionYM > toYM) return false;
-            }
-            // Search filter
-            if (
-                q &&
-                !(
-                    (s.beans?.name ?? '').toLowerCase().includes(q) ||
-                    (s.roast_profiles?.name ?? '').toLowerCase().includes(q) ||
-                    (s.beans?.origin ?? '').toLowerCase().includes(q)
-                )
-            )
-                return false;
-            // Origin filter
-            if (originFilter !== 'all' && s.beans?.origin !== originFilter) return false;
-            return true;
-        });
-        return filtered.length;
-    }, [search, originFilter, filteredTotal, rawSessions, levelFilter, fromYM, toYM]);
-
-    const totalPages = Math.max(1, Math.ceil(displayTotal / PAGE_SIZE));
-    const safePage = Math.min(page, totalPages);
-
-    const reportData = useMemo(() => {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1;
-        const workerName = profile?.display_name || user?.email || '';
-
-        const monthSessions = rawSessions.filter((s) => {
-            if (!s.roasted_at) return false;
-            const d = new Date(s.roasted_at);
-            return d.getFullYear() === year && d.getMonth() + 1 === month;
-        });
-
-        const sessions = monthSessions.map((s) => {
-            const outputKg = (s.weight_grams ?? 0) / 1000;
-            const inputKg = outputKg / 0.82;
-            const lossRate = inputKg > 0 ? ((inputKg - outputKg) / inputKg) * 100 : 0;
-            return {
-                date: s.roasted_at ? s.roasted_at.slice(0, 10) : '',
-                beanLot: s.beans?.name ?? '—',
-                inputKg: Math.round(inputKg * 1000) / 1000,
-                outputKg: Math.round(outputKg * 1000) / 1000,
-                lossRate: Math.round(lossRate * 10) / 10,
-                profile: s.roast_profiles?.name ?? '—',
-                worker: workerName,
-            };
-        });
-
-        const totalInputKg = sessions.reduce((sum, s) => sum + s.inputKg, 0);
-        const totalOutputKg = sessions.reduce((sum, s) => sum + s.outputKg, 0);
-        const avgLossRate = totalInputKg > 0 ? ((totalInputKg - totalOutputKg) / totalInputKg) * 100 : 0;
-
-        return {
-            year,
-            month,
-            businessName: 'First Crack',
-            ownerName: 'Admin',
-            totalRoasts: sessions.length,
-            totalInputKg: Math.round(totalInputKg * 1000) / 1000,
-            totalOutputKg: Math.round(totalOutputKg * 1000) / 1000,
-            avgLossRate: Math.round(avgLossRate * 10) / 10,
-            sessions,
-        };
-    }, [rawSessions, profile, user]);
-
-    const renderContent = (): ReactNode => {
+    const renderContent = (): React.ReactNode => {
         if (isError) {
             return <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">{t('history.error')}</div>;
         }
@@ -891,68 +211,6 @@ export const History = () => {
             />
         );
     };
-
-    const handleOpenReport = useCallback(() => setShowReport(true), []);
-    const handleCloseReport = useCallback(() => setShowReport(false), []);
-
-    const handleExportCsv = useCallback(async () => {
-        try {
-            const q = search.toLowerCase();
-            const filtered = rawSessions.filter((s) => {
-                if (levelFilter !== 'all' && s.roast_level !== levelFilter) return false;
-                if (fromYM || toYM) {
-                    if (!s.roasted_at) return false;
-                    const d = new Date(s.roasted_at);
-                    const sessionYM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                    if (fromYM && sessionYM < fromYM) return false;
-                    if (toYM && sessionYM > toYM) return false;
-                }
-                if (
-                    q &&
-                    !(
-                        (s.beans?.name ?? '').toLowerCase().includes(q) ||
-                        (s.roast_profiles?.name ?? '').toLowerCase().includes(q) ||
-                        (s.beans?.origin ?? '').toLowerCase().includes(q)
-                    )
-                )
-                    return false;
-                if (originFilter !== 'all' && s.beans?.origin !== originFilter) return false;
-                return true;
-            });
-
-            if (filtered.length === 0) {
-                await message(t('history.exportNoSessions'), { title: t('history.exportTitle'), kind: 'info' });
-                return;
-            }
-
-            const today = new Date().toISOString().slice(0, 10);
-            const filename = `roast-history-${today}.csv`;
-            const dir = await downloadDir();
-            const path = `${dir}${filename}`;
-
-            const confirmed = await confirm(t('history.exportConfirm', { path, count: filtered.length }), {
-                title: t('history.exportTitle'),
-                kind: 'info',
-                okLabel: t('history.exportOkLabel'),
-                cancelLabel: t('history.exportCancelLabel'),
-            });
-            if (!confirmed) return;
-
-            const csv = sessionsToCsv(filtered);
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.style.display = 'none';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (err) {
-            console.error('Export CSV failed:', err);
-        }
-    }, [rawSessions, search, levelFilter, fromYM, toYM, originFilter]);
 
     return (
         <PageLayout>

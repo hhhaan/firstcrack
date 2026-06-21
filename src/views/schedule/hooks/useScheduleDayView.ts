@@ -23,7 +23,15 @@ import type { NewBatchData } from '@widgets/add-batch-modal';
 import type { EditScope } from '@widgets/recurring-edit-scope-modal';
 import { format } from 'date-fns';
 import { useCallback, useState } from 'react';
-import { isVirtualPlanBatch, toDateKey } from '../lib';
+import {
+    buildMaterializePatch,
+    buildRecurrenceMeta,
+    buildRecurrencePatch,
+    isVirtualPlanBatch,
+    toDateKey,
+} from '../lib';
+
+// ── Shared helpers ─────────────────────────────────────────────────────────────
 
 export const useScheduleDayView = ({
     userId,
@@ -62,6 +70,37 @@ export const useScheduleDayView = ({
     const updateSingleBatch = useUpdateSingleBatch();
     const updateFromThis = useUpdateFromThis();
     const updateAllBatches = useUpdateAllBatches();
+
+    const commitStatusTransition = useCallback(
+        async (batch: PlanBatchWithProgress, status: 'in-progress' | 'done') => {
+            const patch = buildMaterializePatch(batch, status);
+
+            if (isVirtualPlanBatch(batch) && batch.recurrence_rule_id && batch.scheduled_date) {
+                const realBatch = await planBatchApi.materialize(
+                    userId,
+                    batch.recurrence_rule_id,
+                    batch.scheduled_date,
+                    batch.original_date ?? batch.scheduled_date,
+                    patch,
+                );
+                return { targetId: realBatch.id, targetPlanId: realBatch.plan_id };
+            }
+
+            await updateSingleBatch.mutateAsync({
+                id: batch.id,
+                patch: {
+                    id: batch.id,
+                    plan_id: batch.plan_id,
+                    status,
+                    ...(batch.recurrence_rule_id ? buildRecurrencePatch(batch) : {}),
+                },
+                ...buildRecurrenceMeta(batch),
+            });
+
+            return { targetId: batch.id, targetPlanId: batch.plan_id };
+        },
+        [updateSingleBatch, userId],
+    );
 
     const handleScopeDelete = useCallback(
         async (scope: EditScope, batch: PlanBatchWithProgress) => {
@@ -151,73 +190,77 @@ export const useScheduleDayView = ({
         [scopeBatch, handleScopeDelete],
     );
 
-    const handleAddBatch = useCallback(
+    const handleEditScopeUpdate = useCallback(
         async (data: NewBatchData) => {
-            if (editScope && editingBatch?.recurrence_rule_id) {
-                const basePatch = {
+            if (!editScope || !editingBatch?.recurrence_rule_id) return;
+
+            const basePatch = {
+                id: editingBatch.id,
+                plan_id: '',
+                bean_name: data.beanName || editingBatch.bean_name,
+                bean_id: data.beanId,
+                blend_id: data.blendId ?? null,
+                batch_type: data.batchType,
+                roast_profile_id: data.profileId,
+                machine_id: data.machineId,
+                target_roasted_kg: data.targetRoasted,
+                batch_size_kg: data.batchSize,
+                yield_pct: data.yieldPct / 100,
+                notes: data.notes,
+                green_lot: data.greenLot,
+            };
+
+            if (editScope === 'single') {
+                let targetPlanId = editingBatch.plan_id;
+                if (!targetPlanId && editingBatch.recurrence_rule_id) {
+                    const scheduleDate = editingBatch.scheduled_date ?? dateKey;
+                    const plan = await dayPlanApi.getOrCreate(userId, scheduleDate);
+                    targetPlanId = plan.id;
+                }
+                updateSingleBatch.mutate({
                     id: editingBatch.id,
-                    plan_id: '',
-                    bean_name: data.beanName || editingBatch.bean_name,
+                    patch: { ...basePatch, plan_id: targetPlanId ?? '' },
+                    meta: {
+                        recurrenceRuleId: editingBatch.recurrence_rule_id,
+                        originalDate: editingBatch.scheduled_date ?? dateKey,
+                    },
+                });
+            } else {
+                const instanceDate = editingBatch.scheduled_date ?? dateKey;
+                const masterPatch = {
+                    machine_id: data.machineId || null,
+                    roast_profile_id: data.profileId,
                     bean_id: data.beanId,
                     blend_id: data.blendId ?? null,
-                    batch_type: data.batchType,
-                    roast_profile_id: data.profileId,
-                    machine_id: data.machineId,
-                    target_roasted_kg: data.targetRoasted,
+                    bean_name: data.beanName || editingBatch.bean_name,
+                    green_lot: data.greenLot,
                     batch_size_kg: data.batchSize,
                     yield_pct: data.yieldPct / 100,
+                    target_roasted_kg: data.targetRoasted,
                     notes: data.notes,
-                    green_lot: data.greenLot,
+                    batch_type: data.batchType,
+                    ...(data.recurringInterval ? { rrule: buildRRule(data.recurringInterval) } : {}),
                 };
 
-                if (editScope === 'single') {
-                    let targetPlanId = editingBatch.plan_id;
-                    if (!targetPlanId && editingBatch.recurrence_rule_id) {
-                        const scheduleDate = editingBatch.scheduled_date ?? dateKey;
-                        const plan = await dayPlanApi.getOrCreate(userId, scheduleDate);
-                        targetPlanId = plan.id;
-                    }
-                    updateSingleBatch.mutate({
-                        id: editingBatch.id,
-                        patch: { ...basePatch, plan_id: targetPlanId ?? '' },
-                        meta: {
-                            recurrenceRuleId: editingBatch.recurrence_rule_id,
-                            originalDate: editingBatch.scheduled_date ?? dateKey,
-                        },
+                if (editScope === 'from_this') {
+                    updateFromThis.mutate({
+                        ruleId: editingBatch.recurrence_rule_id,
+                        fromDate: instanceDate,
+                        patch: { ...masterPatch, dtstart: instanceDate, userId },
                     });
-                } else {
-                    const instanceDate = editingBatch.scheduled_date ?? dateKey;
-                    const masterPatch = {
-                        machine_id: data.machineId || null,
-                        roast_profile_id: data.profileId,
-                        bean_id: data.beanId,
-                        blend_id: data.blendId ?? null,
-                        bean_name: data.beanName || editingBatch.bean_name,
-                        green_lot: data.greenLot,
-                        batch_size_kg: data.batchSize,
-                        yield_pct: data.yieldPct / 100,
-                        target_roasted_kg: data.targetRoasted,
-                        notes: data.notes,
-                        batch_type: data.batchType,
-                        ...(data.recurringInterval ? { rrule: buildRRule(data.recurringInterval) } : {}),
-                    };
-
-                    if (editScope === 'from_this') {
-                        updateFromThis.mutate({
-                            ruleId: editingBatch.recurrence_rule_id,
-                            fromDate: instanceDate,
-                            patch: { ...masterPatch, dtstart: instanceDate, userId },
-                        });
-                    } else if (editScope === 'all') {
-                        updateAllBatches.mutate({
-                            ruleId: editingBatch.recurrence_rule_id,
-                            patch: masterPatch,
-                        });
-                    }
+                } else if (editScope === 'all') {
+                    updateAllBatches.mutate({
+                        ruleId: editingBatch.recurrence_rule_id,
+                        patch: masterPatch,
+                    });
                 }
-                return;
             }
+        },
+        [editScope, editingBatch, updateSingleBatch, updateFromThis, updateAllBatches, dateKey, userId],
+    );
 
+    const handleNewBatch = useCallback(
+        async (data: NewBatchData) => {
             const baseBatch: Omit<PlanBatchInsert, 'plan_id'> = {
                 order_index: batches.length,
                 bean_name: data.beanName || data.batchType,
@@ -259,19 +302,18 @@ export const useScheduleDayView = ({
                 });
             }
         },
-        [
-            planId,
-            batches.length,
-            createBatch,
-            createRecurringBatches,
-            editScope,
-            editingBatch,
-            updateSingleBatch,
-            updateFromThis,
-            updateAllBatches,
-            dateKey,
-            userId,
-        ],
+        [planId, batches.length, createBatch, createRecurringBatches],
+    );
+
+    const handleAddBatch = useCallback(
+        async (data: NewBatchData) => {
+            if (editScope && editingBatch?.recurrence_rule_id) {
+                await handleEditScopeUpdate(data);
+                return;
+            }
+            await handleNewBatch(data);
+        },
+        [editScope, editingBatch, handleEditScopeUpdate, handleNewBatch],
     );
 
     const handleMove = useCallback(
@@ -289,91 +331,31 @@ export const useScheduleDayView = ({
 
     const handleStart = useCallback(
         async (batch: PlanBatchWithProgress) => {
-            let targetId = batch.id;
-            let targetPlanId = batch.plan_id;
-            let handoffBeanId = batch.bean_id;
-            let handoffBlendId = batch.blend_id ?? null;
-            let handoffProfileId = batch.roast_profile_id;
+            const handoffBeanId = batch.bean_id;
+            const handoffBlendId = batch.blend_id ?? null;
+            const handoffProfileId = batch.roast_profile_id;
 
-            const materializePatch = {
-                bean_name: batch.bean_name,
-                batch_size_kg: Number(batch.batch_size_kg),
-                target_roasted_kg: Number(batch.target_roasted_kg),
-                machine_id: batch.machine_id,
-                bean_id: batch.bean_id,
-                blend_id: batch.blend_id ?? null,
-                roast_profile_id: batch.roast_profile_id,
-                notes: batch.notes,
-                green_lot: batch.green_lot,
-                batch_type: batch.batch_type,
-                yield_pct: batch.yield_pct,
-                status: 'in-progress' as const,
-            };
+            try {
+                const result = await commitStatusTransition(batch, 'in-progress');
+                const targetId = result.targetId;
+                const targetPlanId = result.targetPlanId;
 
-            if (isVirtualPlanBatch(batch) && batch.recurrence_rule_id && batch.scheduled_date) {
-                try {
-                    const realBatch = await planBatchApi.materialize(
-                        userId,
-                        batch.recurrence_rule_id,
-                        batch.scheduled_date,
-                        batch.original_date ?? batch.scheduled_date,
-                        materializePatch,
-                    );
-                    targetId = realBatch.id;
-                    targetPlanId = realBatch.plan_id;
-                    handoffBeanId = realBatch.bean_id ?? batch.bean_id;
-                    handoffBlendId = realBatch.blend_id ?? batch.blend_id ?? null;
-                    handoffProfileId = realBatch.roast_profile_id ?? batch.roast_profile_id;
-                } catch (err) {
-                    console.error('[Schedule] materialize failed:', err);
-                    return;
-                }
-            } else if (targetPlanId) {
-                updateSingleBatch.mutate({
-                    id: batch.id,
-                    patch: {
-                        id: batch.id,
-                        plan_id: batch.plan_id,
-                        status: 'in-progress',
-                        ...(batch.recurrence_rule_id
-                            ? {
-                                  bean_id: batch.bean_id,
-                                  blend_id: batch.blend_id ?? null,
-                                  bean_name: batch.bean_name,
-                                  roast_profile_id: batch.roast_profile_id,
-                                  batch_size_kg: batch.batch_size_kg,
-                                  target_roasted_kg: batch.target_roasted_kg,
-                                  yield_pct: batch.yield_pct,
-                                  notes: batch.notes,
-                                  green_lot: batch.green_lot,
-                                  batch_type: batch.batch_type,
-                              }
-                            : {}),
-                    },
-                    ...(batch.recurrence_rule_id && batch.original_date
-                        ? {
-                              meta: {
-                                  recurrenceRuleId: batch.recurrence_rule_id,
-                                  originalDate: batch.original_date,
-                              },
-                          }
-                        : {}),
+                onStartBatch({
+                    planBatchId: targetId,
+                    planId: targetPlanId,
+                    beanId: handoffBeanId,
+                    blendId: handoffBlendId,
+                    beanName: batch.bean_name,
+                    batchSizeKg: Number(batch.batch_size_kg),
+                    profileId: handoffProfileId,
+                    batchCount: batch.batch_count,
+                    completedSessions: batch.completed_sessions,
                 });
+            } catch (err) {
+                console.error('[Schedule] materialize failed:', err);
             }
-
-            onStartBatch({
-                planBatchId: targetId,
-                planId: targetPlanId,
-                beanId: handoffBeanId,
-                blendId: handoffBlendId,
-                beanName: batch.bean_name,
-                batchSizeKg: Number(batch.batch_size_kg),
-                profileId: handoffProfileId,
-                batchCount: batch.batch_count,
-                completedSessions: batch.completed_sessions,
-            });
         },
-        [updateSingleBatch, onStartBatch, userId],
+        [commitStatusTransition, onStartBatch],
     );
 
     const handleCompleteClick = useCallback((batch: PlanBatchWithProgress) => {
@@ -391,65 +373,8 @@ export const useScheduleDayView = ({
             const batch = completingBatch;
             if (!batch) return;
 
-            let targetId = batch.id;
-
-            const materializePatch = {
-                bean_name: batch.bean_name,
-                batch_size_kg: Number(batch.batch_size_kg),
-                target_roasted_kg: Number(batch.target_roasted_kg),
-                machine_id: batch.machine_id,
-                bean_id: batch.bean_id,
-                blend_id: batch.blend_id ?? null,
-                roast_profile_id: batch.roast_profile_id,
-                notes: batch.notes,
-                green_lot: batch.green_lot,
-                batch_type: batch.batch_type,
-                yield_pct: batch.yield_pct,
-                status: 'done' as const,
-            };
-
             try {
-                if (isVirtualPlanBatch(batch) && batch.recurrence_rule_id && batch.scheduled_date) {
-                    const realBatch = await planBatchApi.materialize(
-                        userId,
-                        batch.recurrence_rule_id,
-                        batch.scheduled_date,
-                        batch.original_date ?? batch.scheduled_date,
-                        materializePatch,
-                    );
-                    targetId = realBatch.id;
-                } else {
-                    await updateSingleBatch.mutateAsync({
-                        id: batch.id,
-                        patch: {
-                            id: batch.id,
-                            plan_id: batch.plan_id,
-                            status: 'done',
-                            ...(batch.recurrence_rule_id
-                                ? {
-                                      bean_id: batch.bean_id,
-                                      blend_id: batch.blend_id ?? null,
-                                      bean_name: batch.bean_name,
-                                      roast_profile_id: batch.roast_profile_id,
-                                      batch_size_kg: batch.batch_size_kg,
-                                      target_roasted_kg: batch.target_roasted_kg,
-                                      yield_pct: batch.yield_pct,
-                                      notes: batch.notes,
-                                      green_lot: batch.green_lot,
-                                      batch_type: batch.batch_type,
-                                  }
-                                : {}),
-                        },
-                        ...(batch.recurrence_rule_id && batch.original_date
-                            ? {
-                                  meta: {
-                                      recurrenceRuleId: batch.recurrence_rule_id,
-                                      originalDate: batch.original_date,
-                                  },
-                              }
-                            : {}),
-                    });
-                }
+                const { targetId } = await commitStatusTransition(batch, 'done');
 
                 if (deductStock) {
                     const deductionGrams = batchGreenNeededGrams(batch);
@@ -469,7 +394,7 @@ export const useScheduleDayView = ({
                 handleCompleteClose();
             }
         },
-        [completingBatch, userId, updateSingleBatch, deductRoastStock, handleCompleteClose],
+        [completingBatch, commitStatusTransition, deductRoastStock, handleCompleteClose],
     );
 
     const isRecurringStockShort = useCallback(

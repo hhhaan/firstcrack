@@ -549,7 +549,18 @@
             "origin": "产地",
             "dropTemp": "下豆温度",
             "duration": "时长",
-            "notes": "备注"
+            "notes": "备注",
+            "chartLoading": "正在加载图表…",
+            "chartUnavailable": "图表不可用"
+        },
+        "table": {
+            "date": "日期",
+            "bean": "生豆",
+            "profile": "曲线",
+            "weight": "重量",
+            "dropTemp": "下豆温度",
+            "duration": "时长",
+            "level": "烘焙度"
         },
         "monthlyReport": "月度报告",
         "exportCsv": "Export CSV",

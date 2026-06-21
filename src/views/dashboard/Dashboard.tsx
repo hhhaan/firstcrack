@@ -1,5 +1,6 @@
 import { useRoastingStore } from '@features/active-roast';
 import { getDateFnsLocale, i18n } from '@shared/i18n';
+import { durationDiff, formatDuration } from '@shared/lib/format';
 import { useAuthStore } from '@shared/store/auth';
 import type { View } from '@shared/types/view';
 import { KpiCard } from '@shared/ui/KpiCard';
@@ -195,12 +196,6 @@ const alertBg: Record<string, string> = {
     low: 'rgba(255,255,84,0.2)',
 };
 
-const formatDuration = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = Math.round(seconds % 60);
-    return `${m}:${String(s).padStart(2, '0')}`;
-};
-
 const formatDate = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleDateString(localeForDate(), { month: 'short', day: 'numeric' });
@@ -210,11 +205,6 @@ const pctChange = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? '+∞%' : '0%';
     const diff = ((current - previous) / previous) * 100;
     return `${diff >= 0 ? '+' : ''}${Math.round(diff)}%`;
-};
-
-const durationDiff = (current: number, previous: number) => {
-    const diff = Math.round(current - previous);
-    return `${diff >= 0 ? '+' : '-'}${formatDuration(Math.abs(diff))}`;
 };
 
 const getGreeting = () => {

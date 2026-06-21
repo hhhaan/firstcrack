@@ -57,6 +57,7 @@ export const useRoastSessionsPaginated = (params: {
     level?: string | null;
     fromYM?: string | null;
     toYM?: string | null;
+    enabled?: boolean;
 }) =>
     useQuery({
         queryKey: [
@@ -72,7 +73,7 @@ export const useRoastSessionsPaginated = (params: {
         ],
         queryFn: () => roastSessionApi.listPaginated(params),
         staleTime: Infinity,
-        enabled: !!params.userId,
+        enabled: !!params.userId && (params.enabled ?? true),
     });
 
 export const useDeleteRoastSession = (userId: string) => {

@@ -549,7 +549,18 @@
             "origin": "Origin",
             "dropTemp": "Drop Temp",
             "duration": "Duration",
-            "notes": "Notes"
+            "notes": "Notes",
+            "chartLoading": "Loading chart…",
+            "chartUnavailable": "Chart unavailable"
+        },
+        "table": {
+            "date": "Date",
+            "bean": "Bean",
+            "profile": "Profile",
+            "weight": "Weight",
+            "dropTemp": "Drop Temp",
+            "duration": "Duration",
+            "level": "Level"
         },
         "monthlyReport": "Monthly Report",
         "exportCsv": "Export CSV",

@@ -1,4 +1,5 @@
 export { roastSessionApi } from './api';
+export { useHistoryChart } from './chart-queries';
 export {
     roastSessionKeys,
     useCreateRoastSession,

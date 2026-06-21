@@ -35,8 +35,7 @@ export const BatchCard = ({
 }) => {
     const { t } = useTranslation();
     const status = batchStatus(batch);
-    const canStart = status === 'pending' || status === 'in-progress';
-    const canComplete = status === 'pending' || status === 'in-progress';
+    const isActive = status === 'pending' || status === 'in-progress';
     const isRecurring = !!batch.recurrence_rule_id;
     const canReorder = !isRecurring;
     const reorderTitle = isRecurring ? t('schedule.reorderDisabledRecurring') : undefined;
@@ -59,7 +58,7 @@ export const BatchCard = ({
                             ? t('schedule.status.inProgressWith', { progress: batchProgress(batch) })
                             : t('schedule.status.' + status)}
                     </span>
-                    {canStart && (
+                    {isActive && (
                         <button
                             onClick={onStart}
                             className="flex items-center gap-1 text-[12px] font-medium text-white bg-primary dark:bg-[#171717] px-2.5 py-1 rounded-lg border-none cursor-pointer hover:opacity-90 transition-opacity"
@@ -68,7 +67,7 @@ export const BatchCard = ({
                             {t('schedule.start')}
                         </button>
                     )}
-                    {canComplete && (
+                    {isActive && (
                         <button
                             onClick={onComplete}
                             className="flex items-center gap-1 text-[12px] font-medium text-secondary bg-surface dark:bg-surface-elevated px-2.5 py-1 rounded-full border border-border-subtle cursor-pointer hover:text-primary transition-colors"
@@ -125,24 +124,23 @@ export const BatchCard = ({
                 )}
             </div>
             <div className="mt-3 pl-[22px] flex items-center gap-1">
-                <button
-                    type="button"
-                    onClick={() => onMove('up')}
-                    disabled={!canReorder || index === 0}
-                    title={reorderTitle}
-                    className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface dark:bg-surface-elevated text-muted cursor-pointer hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                    <ChevronUp size={13} strokeWidth={2} />
-                </button>
-                <button
-                    type="button"
-                    onClick={() => onMove('down')}
-                    disabled={!canReorder || index === total - 1}
-                    title={reorderTitle}
-                    className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface dark:bg-surface-elevated text-muted cursor-pointer hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                    <ChevronDown size={13} strokeWidth={2} />
-                </button>
+                {(
+                    [
+                        { dir: 'up', Icon: ChevronUp },
+                        { dir: 'down', Icon: ChevronDown },
+                    ] as const
+                ).map(({ dir, Icon }) => (
+                    <button
+                        key={dir}
+                        type="button"
+                        onClick={() => onMove(dir)}
+                        disabled={!canReorder || (dir === 'up' ? index === 0 : index === total - 1)}
+                        title={reorderTitle}
+                        className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface dark:bg-surface-elevated text-muted cursor-pointer hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                        <Icon size={13} strokeWidth={2} />
+                    </button>
+                ))}
             </div>
         </div>
     );

@@ -394,7 +394,18 @@
             "origin": "산지",
             "dropTemp": "투입 온도",
             "duration": "시간",
-            "notes": "노트"
+            "notes": "노트",
+            "chartLoading": "차트 불러오는 중…",
+            "chartUnavailable": "차트를 불러올 수 없습니다"
+        },
+        "table": {
+            "date": "날짜",
+            "bean": "생두",
+            "profile": "프로파일",
+            "weight": "무게",
+            "dropTemp": "투입 온도",
+            "duration": "시간",
+            "level": "레벨"
         },
         "monthlyReport": "월간 보고서",
         "exportCsv": "Export CSV",

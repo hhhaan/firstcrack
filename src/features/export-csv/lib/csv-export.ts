@@ -1,3 +1,5 @@
+import { formatDuration } from '@shared/lib/format';
+import { computeRoastWeights } from '@shared/lib/roastWeight';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 
 /** Escape a CSV field — wrap in quotes if it contains comma, quote, or newline. */
@@ -6,14 +8,6 @@ const escapeField = (val: string): string => {
         return `"${val.replace(/"/g, '""')}"`;
     }
     return val;
-};
-
-/** Format duration in mm:ss for CSV (empty string for null, not em-dash). */
-const formatDuration = (seconds: number | null): string => {
-    if (seconds == null) return '';
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${String(s).padStart(2, '0')}`;
 };
 
 export interface CsvRow {
@@ -62,9 +56,7 @@ const HEADER_LABELS: Record<keyof CsvRow, string> = {
 };
 
 const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
-    const outputKg = (s.weight_grams ?? 0) / 1000;
-    const inputKg = outputKg / 0.82;
-    const lossRate = inputKg > 0 ? ((inputKg - outputKg) / inputKg) * 100 : 0;
+    const { outputKg, inputKg, lossRate } = computeRoastWeights(s.weight_grams);
 
     return {
         date: s.roasted_at ? s.roasted_at.slice(0, 10) : '',
@@ -72,12 +64,12 @@ const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
         origin: s.beans?.origin ?? '',
         profile: s.roast_profiles?.name ?? '',
         weightGrams: s.weight_grams ?? 0,
-        inputKg: Math.round(inputKg * 1000) / 1000,
-        outputKg: Math.round(outputKg * 1000) / 1000,
-        lossRate: Math.round(lossRate * 10) / 10,
+        inputKg,
+        outputKg,
+        lossRate,
         roastLevel: s.roast_level ?? '',
         dropTemp: s.drop_temp_celsius != null ? `${s.drop_temp_celsius}°C` : '',
-        duration: formatDuration(s.duration_seconds),
+        duration: s.duration_seconds != null ? formatDuration(s.duration_seconds) : '',
         notes: s.notes ?? '',
     };
 };

@@ -1,5 +1,6 @@
 export const sanitizeDecimal = (v: string) => v.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
 
+/** Format seconds → "m:ss". Returns '—' for null (display-friendly). */
 export const formatDuration = (seconds: number | null): string => {
     if (seconds == null) return '—';
     const m = Math.floor(seconds / 60);
@@ -13,9 +14,10 @@ export const formatDate = (iso: string | null): string => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
+/** Format ISO → "YY-MM-DD" (or '—' on null). */
 export const formatDateShort = (iso: string | null): string => {
     if (!iso) return '—';
-    return iso.slice(5, 10);
+    return iso.slice(2, 10);
 };
 
 export const pctChange = (current: number, previous: number): string => {
