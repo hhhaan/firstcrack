@@ -1,7 +1,7 @@
+import { getStatus, statusConfig } from '@entities/bean/lib';
+import type { StockSummary } from '@entities/bean-stock-event';
+import type { Bean } from '@shared/types/database.types';
 import { Search } from 'lucide-react';
-import { getStatus, statusConfig } from '../../../entities/bean/lib';
-import type { StockSummary } from '../../../entities/bean-stock-event';
-import type { Bean } from '../../../shared/types/database.types';
 
 interface BeanListProps {
     beans: Bean[];
@@ -14,61 +14,24 @@ interface BeanListProps {
 }
 
 const Skeleton = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className="flex flex-col gap-2">
         {Array.from({ length: 5 }).map((_, i) => (
-            <div
-                key={i}
-                style={{
-                    background: 'var(--color-main-bg)',
-                    borderRadius: 8,
-                    padding: '14px 16px',
-                    border: '1px solid var(--color-border)',
-                }}
-            >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div key={i} className="bg-main-bg rounded-lg px-4 py-3.5 border border-border">
+                <div className="flex justify-between mb-2.5">
                     <div>
-                        <div
-                            style={{
-                                width: 140,
-                                height: 13,
-                                borderRadius: 6,
-                                background: 'var(--color-surface)',
-                                marginBottom: 6,
-                            }}
-                            className="animate-pulse"
-                        />
-                        <div
-                            style={{ width: 90, height: 11, borderRadius: 6, background: 'var(--color-surface)' }}
-                            className="animate-pulse"
-                        />
+                        <div className="w-35 h-3 rounded-md bg-surface mb-1.5 animate-pulse" />
+                        <div className="w-22 h-2.75 rounded-md bg-surface animate-pulse" />
                     </div>
-                    <div
-                        style={{ width: 56, height: 20, borderRadius: 9999, background: 'var(--color-surface)' }}
-                        className="animate-pulse"
-                    />
+                    <div className="w-14 h-5 rounded-full bg-surface animate-pulse" />
                 </div>
-                <div
-                    style={{ height: 4, borderRadius: 9999, background: 'var(--color-surface)', marginBottom: 4 }}
-                    className="animate-pulse"
-                />
-                <div
-                    style={{ width: 80, height: 11, borderRadius: 6, background: 'var(--color-surface)' }}
-                    className="animate-pulse"
-                />
+                <div className="h-1 rounded-full bg-surface mb-1 animate-pulse" />
+                <div className="w-20 h-2.75 rounded-md bg-surface animate-pulse" />
             </div>
         ))}
     </div>
 );
 
-export const BeanList = ({
-    beans,
-    isLoading,
-    selectedId,
-    onSelect,
-    search,
-    onSearchChange,
-    stockSummaries,
-}: BeanListProps) => {
+export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, stockSummaries }: BeanListProps) => {
     const searchLower = search.toLowerCase();
     const filtered = beans.filter(
         (b) => b.name.toLowerCase().includes(searchLower) || (b.origin ?? '').toLowerCase().includes(searchLower),
@@ -76,123 +39,55 @@ export const BeanList = ({
 
     return (
         <div>
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    background: 'var(--color-main-bg)',
-                    borderRadius: 8,
-                    padding: '9px 12px',
-                    marginBottom: 10,
-                    border: '1px solid var(--color-border)',
-                }}
-            >
-                <Search size={14} strokeWidth={2} color="var(--color-muted)" />
+            <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-[9px] mb-2.5 border border-border">
+                <Search size={14} strokeWidth={2} className="text-muted shrink-0" />
                 <input
                     value={search}
                     onChange={(e) => onSearchChange(e.target.value)}
                     placeholder="Search beans..."
-                    style={{
-                        border: 'none',
-                        background: 'transparent',
-                        outline: 'none',
-                        fontSize: 13,
-                        color: 'var(--color-primary)',
-                        fontFamily: 'var(--font-body)',
-                        width: '100%',
-                        letterSpacing: '0.14px',
-                    }}
+                    className="border-none bg-transparent outline-none text-[13px] text-primary font-body w-full tracking-[0.14px]"
                 />
             </div>
 
             {isLoading ? (
                 <Skeleton />
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="flex flex-col gap-2">
                     {filtered.map((bean) => {
                         const summary = stockSummaries[bean.id];
                         const effectiveGrams = summary?.effectiveGrams ?? 0;
                         const status = getStatus(effectiveGrams, bean.low_stock_threshold_grams);
                         const cfg = statusConfig[status];
                         const pct = Math.min(100, (effectiveGrams / bean.capacity_grams) * 100);
-                        const isSelected = selectedId === bean.id;
 
                         return (
                             <div
                                 key={bean.id}
                                 onClick={() => onSelect(bean.id)}
-                                style={{
-                                    background: 'var(--color-main-bg)',
-                                    borderRadius: 8,
-                                    padding: '14px 16px',
-                                    cursor: 'pointer',
-                                    border: isSelected
-                                        ? '1px solid var(--color-border)'
-                                        : '1px solid var(--color-border)',
-                                    transition: 'all 0.15s',
-                                }}
+                                className="bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer border border-border transition-all duration-150"
                             >
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'flex-start',
-                                        justifyContent: 'space-between',
-                                        marginBottom: 8,
-                                    }}
-                                >
+                                <div className="flex items-start justify-between mb-2">
                                     <div>
-                                        <div
-                                            style={{
-                                                fontSize: 13,
-                                                fontWeight: 500,
-                                                color: 'var(--color-primary)',
-                                                letterSpacing: '0.14px',
-                                                marginBottom: 2,
-                                            }}
-                                        >
+                                        <div className="text-[13px] font-medium text-primary tracking-[0.14px] mb-0.5">
                                             {bean.name}
                                         </div>
-                                        <div
-                                            style={{
-                                                fontSize: 12,
-                                                color: 'var(--color-muted)',
-                                                letterSpacing: '0.14px',
-                                            }}
-                                        >
+                                        <div className="text-xs text-muted tracking-[0.14px]">
                                             {bean.origin ?? '—'} · {bean.process ?? '—'}
                                         </div>
                                     </div>
                                     <span
-                                        style={{
-                                            fontSize: 11,
-                                            fontWeight: 500,
-                                            color: cfg.color,
-                                            background: cfg.bg,
-                                            padding: '2px 7px',
-                                            borderRadius: 9999,
-                                            flexShrink: 0,
-                                            marginLeft: 8,
-                                        }}
+                                        className="text-[11px] font-medium px-[7px] py-0.5 rounded-full shrink-0 ml-2"
+                                        style={{ color: cfg.color, background: cfg.bg }}
                                     >
                                         {cfg.label}
                                     </span>
                                 </div>
 
-                                <div
-                                    style={{
-                                        height: 4,
-                                        background: 'var(--color-surface)',
-                                        borderRadius: 9999,
-                                        overflow: 'hidden',
-                                        marginBottom: 4,
-                                    }}
-                                >
+                                <div className="h-1 bg-surface rounded-full overflow-hidden mb-1">
                                     <div
+                                        className="h-full rounded-full"
                                         style={{
-                                            height: '100%',
                                             width: `${pct}%`,
-                                            borderRadius: 9999,
                                             background:
                                                 status === 'Out'
                                                     ? '#dc2626'
@@ -203,30 +98,15 @@ export const BeanList = ({
                                         }}
                                     />
                                 </div>
-                                <div
-                                    style={{
-                                        fontSize: 12,
-                                        color: 'var(--color-muted)',
-                                        fontFamily: 'var(--font-mono)',
-                                    }}
-                                >
-                                    {(effectiveGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}
-                                    kg
+                                <div className="text-xs text-muted font-mono">
+                                    {(effectiveGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
                                 </div>
                             </div>
                         );
                     })}
 
                     {filtered.length === 0 && (
-                        <div
-                            style={{
-                                padding: '40px 20px',
-                                textAlign: 'center',
-                                color: 'var(--color-muted)',
-                                fontSize: 14,
-                                letterSpacing: '0.14px',
-                            }}
-                        >
+                        <div className="px-5 py-10 text-center text-muted text-sm tracking-[0.14px]">
                             {beans.length === 0 ? 'No beans yet. Add your first lot!' : 'No results found.'}
                         </div>
                     )}

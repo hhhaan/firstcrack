@@ -1,4 +1,3 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { useUpdatePlanBatch } from '@entities/plan';
 import { useProfile } from '@entities/profile';
 import { useCreateRoastSession } from '@entities/roast';
@@ -24,13 +23,13 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useDeductRoastStock } from '@features/active-roast/model/useDeductRoastStock';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
+import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { sidecar } from '@shared/lib/sidecar';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { LogEntry } from '@shared/types/roast';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
-import { BaseDirectory, readTextFile, remove } from '@tauri-apps/plugin-fs';
 import { useWeather } from '@views/dashboard/useWeather';
 import {
     EventButtons,
@@ -397,6 +396,7 @@ export const ActiveRoast = ({
 
     // ── 사용자 인증 + 로스팅 저장 ─────────────────────────────────
     const { mutateAsync: saveRoastSession, isPending: isSaving } = useCreateRoastSession(user?.id ?? '');
+    const uploadRoastProfileTsv = useUploadRoastProfile();
     const { mutateAsync: updatePlanBatch } = useUpdatePlanBatch(planBatchHandoff?.planId ?? '');
     const deductRoastStock = useDeductRoastStock();
     useEffect(() => {
@@ -1015,35 +1015,8 @@ export const ActiveRoast = ({
 
                     try {
                         let tsvPath: string | null = null;
-                        if (sessionId && '__TAURI_INTERNALS__' in window) {
-                            try {
-                                const tsvContent = await readTextFile(`session_${sessionId}.tsv`, {
-                                    baseDir: BaseDirectory.AppLocalData,
-                                });
-                                const r2Key = `profiles/${user.id}/${sessionId}.tsv`;
-                                const r2 = new S3Client({
-                                    region: 'auto',
-                                    endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-                                    credentials: {
-                                        accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
-                                        secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
-                                    },
-                                });
-                                await r2.send(
-                                    new PutObjectCommand({
-                                        Bucket: import.meta.env.VITE_R2_BUCKET_NAME,
-                                        Key: r2Key,
-                                        Body: tsvContent,
-                                        ContentType: 'text/tab-separated-values',
-                                    }),
-                                );
-                                tsvPath = r2Key;
-                                remove(`session_${sessionId}.tsv`, {
-                                    baseDir: BaseDirectory.AppLocalData,
-                                }).catch(() => {});
-                            } catch {
-                                // 파일이 없거나 업로드 실패 시 tsv_path 없이 저장 진행
-                            }
+                        if (sessionId) {
+                            tsvPath = await uploadRoastProfileTsv(sessionId);
                         }
 
                         const savedSession = await saveRoastSession({

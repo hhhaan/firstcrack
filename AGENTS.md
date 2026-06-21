@@ -1,5 +1,19 @@
 # AGENTS.md
 
+## Project
+Roastery management desktop app (like Cropster): roast profile logging, roast history tracking, green bean inventory management.
+
+## External Services
+- Supabase: BaaS — auth, DB (roast records, inventory), Edge Functions (R2 presigned URL issuer)
+- R2: storage — roast profiles via presigned URL (upload/download issued by Supabase Edge Function; credentials never in client)
+- Slack webhook: CI/CD notifications only (build/release success/failure)
+
+## Security — Secrets
+- NO `VITE_*` prefix for any credential (access key, secret key, service role key) → bundled into client JS, extractable by anyone
+- R2/S3 uploads from frontend: NO direct credentials → presigned URL only, issued by Supabase Edge Function
+- presigned URL: short expiry (≤5min), scoped to single key, validate user owns the resource before issuing
+- if a `VITE_*` secret is ever found in code: rotate the credential immediately, don't just remove the line
+
 # AGENT RULES
 - NO chat/greetings/summaries. Output ONLY precise code diffs (modified lines only).
 - Keep `repomix-output.xml` updated via `rtk repomix --silent` before/after code changes.
@@ -17,6 +31,7 @@
 
 ## UI
 - views/: History,ActiveRoast | widgets/: modals,sidebar | shared/ui/: primitives
+
 
 ## Design
 - shadow: multi-layer opacity<0.1, rgba(78,50,23,0.04)
@@ -42,6 +57,19 @@ ReactQuery+axios | NO useEffect fetch
 ## FSD
 Unidirectional: shared → entities → features → widgets → views → app
 
+## SRP — all files (.ts/.tsx/.rs/.py)
+check: count reasons-to-change → 1=OK, >1=split
+size: >300L = re-check trigger, NOT the rule (50L file can still violate)
+
+violations→split:
+- fetch+transform+render in 1 fn → 3 fns
+- hook w/ 2+ unrelated concerns (session+sensor) → 2 hooks
+- file importing 2+ unrelated domains (entities/roast+entities/auth) → split/move to shared
+- #[tauri::command] w/ inline multi-step orchestration → extract to domain fn, command=thin wrapper
+- component: fetch+form state+render all inline → container/presentational split or extract hook
+
+split naming: name=reason-to-change, NO utils.ts/helpers.ts
+
 ### Layers
 | Layer     | Purpose                                              | Key files                              |
 |-----------|------------------------------------------------------|----------------------------------------|
@@ -58,9 +86,13 @@ Unidirectional: shared → entities → features → widgets → views → app
 - features → features direct import: FORBIDDEN (compose in widgets/views)
 - One slice = one responsibility; split if it grows
 
-## Rules
-- export: named only (NO default)
-- NO test/lint
 
+## Cross-Platform
+- CI: macOS arm64 only | x86_64+Windows: release-time only → don't trust CI for OS bugs
+- paths: pathlib.Path (py) / Tauri app.path() (rust) | NO hardcode `/`, `~/Library/...`, string-concat
+- env: NO assume HOME exists (unset on Windows) → Path.home() / platform-safe API
+- shortcuts: Tauri `mod+` notation only | NO hardcode Cmd+/Ctrl+
+- UI: NO custom titlebar/tray/window chrome → native OS UI only
+- sidecar/native deps: no Windows sidecar binary built yet → serial/socket/driver code NOT Unix-path-assuming
 
-
+- before tag: PR touched sidecar or path logic → manual full-matrix build first

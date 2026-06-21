@@ -1,4 +1,4 @@
-import { Bell, Flame, LayoutDashboard, type LucideIcon, PlayCircle, User } from 'lucide-react';
+import { Bell, Flame, LayoutDashboard, type LucideIcon, User } from 'lucide-react';
 
 export type SettingsTabId = 'general' | 'notifications' | 'session' | 'roast' | 'account';
 
@@ -73,33 +73,33 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
                 },
             ],
         },
-        {
-            id: 'session',
-            label: tk('session', 'label'),
-            icon: PlayCircle,
-            title: tk('session', 'title'),
-            description: tk('session', 'description'),
-            cards: [
-                {
-                    title: tk('session', 'startTitle'),
-                    description: tk('session', 'startDescription'),
-                    items: [
-                        tk('session', 'autoStartTimer'),
-                        tk('session', 'openActiveRoast'),
-                        tk('session', 'confirmBeforeStart'),
-                    ],
-                },
-                {
-                    title: tk('session', 'endTitle'),
-                    description: tk('session', 'endDescription'),
-                    items: [
-                        tk('session', 'showSummary'),
-                        tk('session', 'confirmDiscard'),
-                        tk('session', 'keepNotesVisible'),
-                    ],
-                },
-            ],
-        },
+        // {
+        //     id: 'session',
+        //     label: tk('session', 'label'),
+        //     icon: PlayCircle,
+        //     title: tk('session', 'title'),
+        //     description: tk('session', 'description'),
+        //     cards: [
+        //         {
+        //             title: tk('session', 'startTitle'),
+        //             description: tk('session', 'startDescription'),
+        //             items: [
+        //                 tk('session', 'autoStartTimer'),
+        //                 tk('session', 'openActiveRoast'),
+        //                 tk('session', 'confirmBeforeStart'),
+        //             ],
+        //         },
+        //         {
+        //             title: tk('session', 'endTitle'),
+        //             description: tk('session', 'endDescription'),
+        //             items: [
+        //                 tk('session', 'showSummary'),
+        //                 tk('session', 'confirmDiscard'),
+        //                 tk('session', 'keepNotesVisible'),
+        //             ],
+        //         },
+        //     ],
+        // },
         // {
         //     id: 'system',
         //     label: tk('system', 'label'),

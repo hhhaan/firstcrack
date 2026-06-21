@@ -42,6 +42,59 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
 
     const selected = beans.find((b) => b.id === selectedId) ?? beans[0] ?? null;
 
+    const emptyState = (
+        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
+            <div className="text-[13px] text-muted text-center leading-relaxed">
+                등록된 원두가 없습니다.
+                <br />첫 번째 원두를 추가해 보세요.
+            </div>
+            <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
+            >
+                <Plus size={14} strokeWidth={2} />
+                생두 추가
+            </button>
+        </div>
+    );
+
+    const leftPanel = (
+        <div className="flex flex-col gap-2">
+            <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] dark:border-[#585d61] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 transition-colors tracking-[0.14px]"
+            >
+                <Plus size={14} strokeWidth={2} />
+                Add Bean
+            </button>
+            <BeanList
+                beans={beans}
+                isLoading={isLoading}
+                selectedId={selected?.id ?? null}
+                onSelect={setSelectedId}
+                search={search}
+                onSearchChange={setSearch}
+                stockSummaries={stockSummaries}
+            />
+        </div>
+    );
+
+    const detailPanel = (
+        <BeanDetail
+            bean={selected}
+            isLoading={isLoading}
+            onEdit={(bean) => openModal('edit', bean.id, bean)}
+            onRestock={(id) => openModal('restock', id)}
+            onStartRoast={() => {
+                if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
+                onNavigate?.('roast');
+            }}
+            onDelete={(id) => {
+                deleteBean(id, { onSuccess: () => setSelectedId(null) });
+            }}
+        />
+    );
+
     return (
         <PageLayout>
             <AddBeanModal
@@ -82,64 +135,12 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 </button>
             </div>
 
-            {tab === 'single' && (
-                <>
-                    {!isLoading && beans.length === 0 ? (
-                        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
-                            {/* <Coffee size={40} strokeWidth={1.5} className="text-muted" /> */}
-                            <div className="text-[13px] text-muted text-center leading-relaxed">
-                                등록된 원두가 없습니다.
-                                <br />첫 번째 원두를 추가해 보세요.
-                            </div>
-                            <button
-                                onClick={() => setIsAddModalOpen(true)}
-                                className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
-                            >
-                                <Plus size={14} strokeWidth={2} />
-                                생두 추가
-                            </button>
-                        </div>
-                    ) : (
-                        <MasterDetailLayout
-                            left={
-                                <div className="flex flex-col gap-2">
-                                    <button
-                                        onClick={() => setIsAddModalOpen(true)}
-                                        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] dark:border-[#585d61] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 transition-colors tracking-[0.14px]"
-                                    >
-                                        <Plus size={14} strokeWidth={2} />
-                                        Add Bean
-                                    </button>
-                                    <BeanList
-                                        beans={beans}
-                                        isLoading={isLoading}
-                                        selectedId={selected?.id ?? null}
-                                        onSelect={setSelectedId}
-                                        search={search}
-                                        onSearchChange={setSearch}
-                                        stockSummaries={stockSummaries}
-                                    />
-                                </div>
-                            }
-                            detail={
-                                <BeanDetail
-                                    bean={selected}
-                                    isLoading={isLoading}
-                                    onEdit={(bean) => openModal('edit', bean.id, bean)}
-                                    onRestock={(id) => openModal('restock', id)}
-                                    onStartRoast={() => {
-                                        if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
-                                        onNavigate?.('roast');
-                                    }}
-                                    onDelete={(id) => {
-                                        deleteBean(id, { onSuccess: () => setSelectedId(null) });
-                                    }}
-                                />
-                            }
-                        />
-                    )}
-                </>
-            )}
+            {tab === 'single' &&
+                (!isLoading && beans.length === 0 ? (
+                    emptyState
+                ) : (
+                    <MasterDetailLayout left={leftPanel} detail={detailPanel} />
+                ))}
 
             {tab === 'blend' && <BlendList />}
         </PageLayout>

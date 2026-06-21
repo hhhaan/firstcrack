@@ -58,10 +58,10 @@ jobs:
 
       - name: Backup current latest.json
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-          R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
-          R2_BUCKET: first-crack
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_PUBLISH_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_PUBLISH_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://${{ secrets.R2_PUBLISH_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_PUBLISH_BUCKET_NAME }}
           VERSION: ${{ inputs.version }}
         run: |
           TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -76,11 +76,11 @@ jobs:
       - name: Upload binaries & latest.json to R2
         id: upload-r2
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-          R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_PUBLISH_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_PUBLISH_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://${{ secrets.R2_PUBLISH_ACCOUNT_ID }}.r2.cloudflarestorage.com
           VERSION: ${{ inputs.version }}
-          R2_BUCKET: first-crack
+          R2_BUCKET: ${{ secrets.R2_PUBLISH_BUCKET_NAME }}
           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
         run: |
           set -e
@@ -177,10 +177,10 @@ jobs:
       - name: Rollback latest.json on failure
         if: failure() && steps.upload-r2.outcome == 'failure' && env.BACKUP_KEY != ''
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-          R2_ENDPOINT: https://da47c859f47b9284b03ecca3c349ab87.r2.cloudflarestorage.com
-          R2_BUCKET: first-crack
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_PUBLISH_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_PUBLISH_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://${{ secrets.R2_PUBLISH_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_PUBLISH_BUCKET_NAME }}
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev

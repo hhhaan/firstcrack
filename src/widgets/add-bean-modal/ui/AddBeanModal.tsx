@@ -6,6 +6,7 @@ import {
     REGIONS_BY_ORIGIN,
     VARIETIES_BY_ORIGIN,
 } from '@entities/bean/lib/coffee-origins';
+import type { StockSummary } from '@entities/bean-stock-event';
 import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormEscape } from '@shared/lib/useFormEscape';
@@ -72,6 +73,74 @@ const ChipGroup = ({
         </>
     );
 };
+
+// ──────────────────────────────────────────────────────────────
+
+const BeanSelector = ({
+    label,
+    visibleBeans,
+    selectedBeanId,
+    showAllBeans,
+    hiddenBeanCount,
+    stockSummaries,
+    onSelect,
+    onShowAll,
+}: {
+    label: string;
+    visibleBeans: Bean[];
+    selectedBeanId: string | null;
+    showAllBeans: boolean;
+    hiddenBeanCount: number;
+    stockSummaries: Record<string, StockSummary>;
+    onSelect: (id: string) => void;
+    onShowAll: () => void;
+}) => (
+    <div>
+        <label className={labelCls}>
+            <Search size={14} /> {label}
+        </label>
+        <div className="grid gap-2.5 p-1">
+            {visibleBeans.map((bean) => {
+                const isSelected = selectedBeanId === bean.id;
+                return (
+                    <div
+                        key={bean.id}
+                        onClick={() => onSelect(bean.id)}
+                        className={`px-4.5 py-3.5 rounded-2xl border border-black/6 dark:border-[#585d61] flex items-center justify-between cursor-pointer transition-all duration-200 ${
+                            isSelected
+                                ? 'bg-primary dark:bg-black dark:border-white text-white shadow-[0_8px_20px_rgba(0,0,0,0.12)]'
+                                : 'bg-white/70 dark:bg-surface-elevated text-primary shadow-(--shadow-ring)'
+                        }`}
+                    >
+                        <div>
+                            <div className="text-sm font-semibold">{bean.name}</div>
+                            <div className="text-xs opacity-70">
+                                {bean.origin ?? '—'} · {bean.process ?? '—'}
+                            </div>
+                        </div>
+                        {isSelected ? (
+                            <Check size={18} strokeWidth={2.5} />
+                        ) : (
+                            <div className="text-[13px] font-mono opacity-60">
+                                {((stockSummaries[bean.id]?.effectiveGrams ?? 0) / 1000).toFixed(2)}
+                                kg
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+            {!showAllBeans && hiddenBeanCount > 0 && (
+                <button
+                    type="button"
+                    onClick={onShowAll}
+                    className="py-2.5 rounded-2xl border border-black/6 dark:border-[#585d61] bg-white/50 dark:bg-surface-elevated text-sm font-medium text-muted cursor-pointer hover:bg-white/80 dark:hover:bg-[#262b31] transition-all duration-200"
+                >
+                    +{hiddenBeanCount} more
+                </button>
+            )}
+        </div>
+    </div>
+);
 
 // ──────────────────────────────────────────────────────────────
 
@@ -293,51 +362,16 @@ export const AddBeanModal = ({
                 {tab === 'adjust' ? (
                     <div className="flex flex-col gap-6">
                         {/* Bean selector */}
-                        <div>
-                            <label className={labelCls}>
-                                <Search size={14} /> Select Bean
-                            </label>
-                            <div className="grid gap-2.5 p-1">
-                                {visibleBeans.map((bean) => {
-                                    const isSelected = selectedBeanId === bean.id;
-                                    return (
-                                        <div
-                                            key={bean.id}
-                                            onClick={() => setSelectedBeanId(bean.id)}
-                                            className={`px-4.5 py-3.5 rounded-2xl border border-black/6 dark:border-[#585d61] flex items-center justify-between cursor-pointer transition-all duration-200 ${
-                                                isSelected
-                                                    ? 'bg-primary dark:bg-black dark:border-white text-white shadow-[0_8px_20px_rgba(0,0,0,0.12)]'
-                                                    : 'bg-white/70 dark:bg-surface-elevated text-primary shadow-(--shadow-ring)'
-                                            }`}
-                                        >
-                                            <div>
-                                                <div className="text-sm font-semibold">{bean.name}</div>
-                                                <div className="text-xs opacity-70">
-                                                    {bean.origin ?? '—'} · {bean.process ?? '—'}
-                                                </div>
-                                            </div>
-                                            {isSelected ? (
-                                                <Check size={18} strokeWidth={2.5} />
-                                            ) : (
-                                                <div className="text-[13px] font-mono opacity-60">
-                                                    {((stockSummaries[bean.id]?.effectiveGrams ?? 0) / 1000).toFixed(2)}
-                                                    kg
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                                {!showAllBeans && hiddenBeanCount > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAllBeans(true)}
-                                        className="py-2.5 rounded-2xl border border-black/6 dark:border-[#585d61] bg-white/50 dark:bg-surface-elevated text-sm font-medium text-muted cursor-pointer hover:bg-white/80 dark:hover:bg-[#262b31] transition-all duration-200"
-                                    >
-                                        +{hiddenBeanCount} more
-                                    </button>
-                                )}
-                            </div>
-                        </div>
+                        <BeanSelector
+                            label="Select Bean"
+                            visibleBeans={visibleBeans}
+                            selectedBeanId={selectedBeanId}
+                            showAllBeans={showAllBeans}
+                            hiddenBeanCount={hiddenBeanCount}
+                            stockSummaries={stockSummaries}
+                            onSelect={setSelectedBeanId}
+                            onShowAll={() => setShowAllBeans(true)}
+                        />
 
                         {/* Operation type + amount */}
                         <div
@@ -657,51 +691,16 @@ export const AddBeanModal = ({
                 ) : (
                     <div className="flex flex-col gap-6">
                         {/* Bean selector */}
-                        <div>
-                            <label className={labelCls}>
-                                <Search size={14} /> Select Bean to Restock
-                            </label>
-                            <div className="grid gap-2.5 p-1">
-                                {visibleBeans.map((bean) => {
-                                    const isSelected = selectedBeanId === bean.id;
-                                    return (
-                                        <div
-                                            key={bean.id}
-                                            onClick={() => setSelectedBeanId(bean.id)}
-                                            className={`px-4.5 py-3.5 rounded-2xl border border-black/6 dark:border-[#585d61] flex items-center justify-between cursor-pointer transition-all duration-200 ${
-                                                isSelected
-                                                    ? 'bg-primary dark:bg-black dark:border-white text-white shadow-[0_8px_20px_rgba(0,0,0,0.12)]'
-                                                    : 'bg-white/70 dark:bg-surface-elevated text-primary shadow-(--shadow-ring)'
-                                            }`}
-                                        >
-                                            <div>
-                                                <div className="text-sm font-semibold">{bean.name}</div>
-                                                <div className="text-xs opacity-70">
-                                                    {bean.origin ?? '—'} · {bean.process ?? '—'}
-                                                </div>
-                                            </div>
-                                            {isSelected ? (
-                                                <Check size={18} strokeWidth={2.5} />
-                                            ) : (
-                                                <div className="text-[13px] font-mono opacity-60">
-                                                    {((stockSummaries[bean.id]?.effectiveGrams ?? 0) / 1000).toFixed(2)}
-                                                    kg
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                                {!showAllBeans && hiddenBeanCount > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAllBeans(true)}
-                                        className="py-2.5 rounded-2xl border border-black/6 dark:border-[#585d61] bg-white/50 dark:bg-surface-elevated text-sm font-medium text-muted cursor-pointer hover:bg-white/80 dark:hover:bg-[#262b31] transition-all duration-200"
-                                    >
-                                        +{hiddenBeanCount} more
-                                    </button>
-                                )}
-                            </div>
-                        </div>
+                        <BeanSelector
+                            label="Select Bean to Restock"
+                            visibleBeans={visibleBeans}
+                            selectedBeanId={selectedBeanId}
+                            showAllBeans={showAllBeans}
+                            hiddenBeanCount={hiddenBeanCount}
+                            stockSummaries={stockSummaries}
+                            onSelect={setSelectedBeanId}
+                            onShowAll={() => setShowAllBeans(true)}
+                        />
 
                         {/* Restock amount */}
                         <div

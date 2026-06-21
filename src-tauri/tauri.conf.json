@@ -2,7 +2,7 @@
     "$schema": "https://schema.tauri.app/config/2",
     "productName": "First Crack",
     "version": "1.0.6",
-    "identifier": "com.hanseungheon.roastery-agent",
+    "identifier": "com.han.firstcrack",
     "build": {
         "beforeDevCommand": "npm run dev",
         "devUrl": "http://localhost:1420",
@@ -17,11 +17,13 @@
                 "width": 1400,
                 "height": 900,
                 "center": true,
-                "resizable": true
+                "resizable": true,
+                "minWidth": 1400,
+                "minHeight": 900
             }
         ],
         "security": {
-            "csp": null
+            "csp": "default-src 'self'; img-src 'self' data: https: blob:; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:9999 https://*.supabase.co https://*.r2.cloudflarestorage.com https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev https://api.open-meteo.com https://*.ingest.us.sentry.io https://*.ingest.sentry.io"
         }
     },
     "plugins": {
@@ -44,6 +46,11 @@
         "macOS": {
             "infoPlist": "Info.plist",
             "entitlements": "entitlements.plist"
+        },
+        "windows": {
+            "webviewInstallMode": {
+                "type": "embedBootstrapper"
+            }
         }
     }
 }
