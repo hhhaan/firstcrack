@@ -1,1 +1,12 @@
 export { ActiveRoast } from './ActiveRoast';
+export type { ChartSeriesData, ControlSeriesData, TargetSeriesData } from './lib/chart-series';
+export { extractVisibleControl, extractVisibleSeries, extractVisibleTarget } from './lib/chart-series';
+export type { DeltaResult, DevTimeResult, RoastLogDisplayEntry } from './lib/display-derivatives';
+export { buildEventMarkers, buildRoastLogDisplayEntries, calcDelta, calcDevTime } from './lib/display-derivatives';
+export { formatElapsed } from './lib/format';
+export { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
+export { useChartKeyboard } from './model/useChartKeyboard';
+export { ChartLegend } from './ui/ChartLegend';
+export { RoastSidePanel } from './ui/RoastSidePanel';
+export type { RoastEventMarker } from './ui/RoastTempChart';
+export { RoastTempChart } from './ui/RoastTempChart';

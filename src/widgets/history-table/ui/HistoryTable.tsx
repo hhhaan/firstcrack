@@ -1,7 +1,7 @@
 import { useHistoryChart } from '@entities/roast';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
-import { RoastTempChart } from '@widgets/active-roast/ui/RoastTempChart';
+import { RoastTempChart } from '@views/active-roast/ui/RoastTempChart';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';

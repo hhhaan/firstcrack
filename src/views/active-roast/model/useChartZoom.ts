@@ -1,6 +1,6 @@
 import { CHART_GRID_LEFT, CHART_GRID_RIGHT } from '@features/active-roast/lib/chart-config';
 import type { RefObject } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 /** 줌 시 보장하는 최소 표시 구간 (초) */
 export const MIN_VISIBLE_SECS = 60;
@@ -12,8 +12,9 @@ export interface ChartZoom {
     setZoomRange: React.Dispatch<React.SetStateAction<{ start: number; end: number } | null>>;
     /** zoomRange를 [0, MAX_TIME] 범위로 클램핑한 값. null이면 전체 범위 표시 */
     effectiveZoomRange: { start: number; end: number } | null;
-    hoveredChartIndex: number | null;
-    setHoveredChartIndex: React.Dispatch<React.SetStateAction<number | null>>;
+    /** 키보드 줌 중심 — 호버마다 리렌더하지 않도록 ref로 유지 */
+    hoveredChartIndexRef: RefObject<number | null>;
+    setHoveredChartIndex: (index: number | null) => void;
     isChartDragging: boolean;
     mainChartHeight: number;
     chartAreaRef: RefObject<HTMLDivElement | null>;
@@ -43,7 +44,10 @@ export const useChartZoom = (
     rightGridPad: number = CHART_GRID_RIGHT,
 ): ChartZoom => {
     const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);
-    const [hoveredChartIndex, setHoveredChartIndex] = useState<number | null>(null);
+    const hoveredChartIndexRef = useRef<number | null>(null);
+    const setHoveredChartIndex = useCallback((index: number | null) => {
+        hoveredChartIndexRef.current = index;
+    }, []);
     const [isChartDragging, setIsChartDragging] = useState(false);
     const [mainChartHeight, setMainChartHeight] = useState(350);
 
@@ -66,7 +70,9 @@ export const useChartZoom = (
         const el = chartAreaRef.current;
         if (!el) return;
         const updateHeight = () => {
-            setMainChartHeight(Math.max(180, el.offsetHeight));
+            if (el.offsetHeight <= 0) return;
+            const nextHeight = Math.max(180, el.offsetHeight);
+            setMainChartHeight((prev) => (prev === nextHeight ? prev : nextHeight));
         };
         updateHeight();
         const obs = new ResizeObserver(updateHeight);
@@ -146,7 +152,7 @@ export const useChartZoom = (
         zoomRange,
         setZoomRange,
         effectiveZoomRange,
-        hoveredChartIndex,
+        hoveredChartIndexRef,
         setHoveredChartIndex,
         isChartDragging,
         mainChartHeight,

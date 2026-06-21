@@ -6,7 +6,6 @@ import {
     computePhaseSegments,
     formatTemp,
     toDisplayRoR,
-    toDisplayTemp,
     useRoastActions,
     useRoastKeyboardShortcuts,
     useRoastSettings,
@@ -15,10 +14,7 @@ import {
     CHART_GRID_RIGHT,
     CHART_GRID_RIGHT_WITH_ROR,
     EVENT_MARKER_COLORS,
-    getResolvedEventColor,
 } from '@features/active-roast/lib/chart-config';
-import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
-import { parseTimeSec } from '@features/active-roast/lib/time';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useDeductRoastStock } from '@features/active-roast/model/useDeductRoastStock';
@@ -27,31 +23,28 @@ import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { sidecar } from '@shared/lib/sidecar';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
-import type { LogEntry } from '@shared/types/roast';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { useWeather } from '@views/dashboard/api/useWeather';
-import {
-    EventButtons,
-    LiveReadings,
-    MachineControls,
-    PlanBatchContinueModal,
-    RoastHeader,
-    RoastLog,
-} from '@widgets/active-roast';
+import { LiveReadings, MachineControls, PlanBatchContinueModal, RoastHeader } from '@widgets/active-roast';
 import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
 import {
     type RoastSummaryData,
     RoastSummaryModal,
 } from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
-import { ChartLegend } from '@widgets/active-roast/ui/ChartLegend';
-import { type RoastEventMarker, RoastTempChart } from '@widgets/active-roast/ui/RoastTempChart';
-import { Play, Square } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
-import { CHART_TOTAL_SECS, useChartData } from './hooks/useChartData';
-import { MIN_VISIBLE_SECS, useChartZoom } from './hooks/useChartZoom';
-import { useSidecarPolling } from './hooks/useSidecarPolling';
+import { extractVisibleControl, extractVisibleSeries, extractVisibleTarget } from './lib/chart-series';
+import { buildEventMarkers, buildRoastLogDisplayEntries, calcDelta, calcDevTime } from './lib/display-derivatives';
+import { formatElapsed } from './lib/format';
+import { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
+import { CHART_TOTAL_SECS, useChartData } from './lib/useChartData';
+import { useChartKeyboard } from './model/useChartKeyboard';
+import { useChartZoom } from './model/useChartZoom';
+import { useSidecarPolling } from './model/useSidecarPolling';
+import { ChartLegend } from './ui/ChartLegend';
+import { RoastSidePanel } from './ui/RoastSidePanel';
+import { RoastTempChart } from './ui/RoastTempChart';
 
 export const ActiveRoast = ({
     isActive,
@@ -202,7 +195,7 @@ export const ActiveRoast = ({
     const {
         setZoomRange,
         effectiveZoomRange,
-        hoveredChartIndex,
+        hoveredChartIndexRef,
         setHoveredChartIndex,
         isChartDragging,
         mainChartHeight,
@@ -227,89 +220,45 @@ export const ActiveRoast = ({
         [chartData, effectiveZoomRange],
     );
 
-    const { visibleXs, visibleBtActual, visibleEtActual, visibleRorActual, visibleRorEtActual } = useMemo(() => {
-        const xs: number[] = [];
-        const btActual: (number | null)[] = [];
-        const etActual: (number | null)[] = [];
-        const rorActual: (number | null)[] = [];
-        const rorEtActual: (number | null)[] = [];
-        for (const p of visibleChartData) {
-            xs.push(p.time);
-            btActual.push(p.btActual != null ? toDisplayTemp(p.btActual, unit) : null);
-            etActual.push(p.etActual != null ? toDisplayTemp(p.etActual, unit) : null);
-            rorActual.push(p.rorActual != null ? toDisplayRoR(p.rorActual, unit) : null);
-            rorEtActual.push(p.etRorActual != null ? toDisplayRoR(p.etRorActual, unit) : null);
-        }
-        return {
-            visibleXs: xs,
-            visibleBtActual: btActual,
-            visibleEtActual: etActual,
-            visibleRorActual: rorActual,
-            visibleRorEtActual: rorEtActual,
-        };
-    }, [visibleChartData, unit]);
+    const { visibleXs, visibleBtActual, visibleEtActual, visibleRorActual, visibleRorEtActual } = useMemo(
+        () => extractVisibleSeries(visibleChartData, unit),
+        [visibleChartData, unit],
+    );
 
     const { visibleTargetXs, visibleTargetBt } = useMemo(() => {
         const points = effectiveZoomRange
             ? targetSeries.filter((p) => p.time >= effectiveZoomRange.start && p.time <= effectiveZoomRange.end)
             : targetSeries;
-        return {
-            visibleTargetXs: points.map((p) => p.time),
-            visibleTargetBt: points.map((p) => toDisplayTemp(p.bt, unit)),
-        };
+        return extractVisibleTarget(points, unit);
     }, [targetSeries, effectiveZoomRange, unit]);
 
     const { visibleControlXs, visibleDrumTemp, visibleHeatPower, visibleFanSpeed } = useMemo(() => {
         const points = effectiveZoomRange
             ? livePoints.filter((p) => p.time >= effectiveZoomRange.start && p.time <= effectiveZoomRange.end)
             : livePoints;
-        return {
-            visibleControlXs: points.map((p) => p.time),
-            visibleDrumTemp: points.map((p) => p.drum),
-            visibleHeatPower: points.map((p) => p.heater),
-            visibleFanSpeed: points.map((p) => p.fan),
-        };
+        return extractVisibleControl(points);
     }, [livePoints, effectiveZoomRange]);
 
-    // ── 키보드 줌·패닝 (visibleChartData 참조로 인해 훅으로 분리 불가) ──
-    const zoomChart = (zoomFactor: number) => {
-        if (MAX_TIME <= 0) return;
-        const currentStart = effectiveZoomRange?.start ?? MIN_TIME;
-        const currentEnd = effectiveZoomRange?.end ?? MAX_TIME;
-        const currentDuration = currentEnd - currentStart;
-        const nextDuration = Math.max(MIN_VISIBLE_SECS, Math.min(MAX_TIME - MIN_TIME, currentDuration * zoomFactor));
-        if (nextDuration >= MAX_TIME - MIN_TIME) {
-            setZoomRange(null);
-            return;
-        }
-        const focusTime =
-            hoveredChartIndex != null
-                ? (visibleChartData[hoveredChartIndex]?.time ?? (currentStart + currentEnd) / 2)
-                : (currentStart + currentEnd) / 2;
-        const ratio = currentDuration > 0 ? (focusTime - currentStart) / currentDuration : 0.5;
-        let nextStart = focusTime - ratio * nextDuration;
-        let nextEnd = nextStart + nextDuration;
-        if (nextStart < MIN_TIME) {
-            nextStart = MIN_TIME;
-            nextEnd = MIN_TIME + nextDuration;
-        }
-        if (nextEnd > MAX_TIME) {
-            nextEnd = MAX_TIME;
-            nextStart = MAX_TIME - nextDuration;
-        }
-        setZoomRange({ start: nextStart, end: nextEnd });
-    };
+    // ── 차트 키보드 줌·패닝 ──────────────────────────────────────
+    useChartKeyboard({
+        isActive,
+        isFullscreen,
+        showEndRoastModal,
+        showSummaryModal,
+        minTime: MIN_TIME,
+        maxTime: MAX_TIME,
+        zoomRange: effectiveZoomRange,
+        setZoomRange,
+        visibleChartData,
+        hoveredChartIndexRef,
+    });
 
-    const panChart = (direction: -1 | 1) => {
-        if (!effectiveZoomRange) return;
-        const duration = effectiveZoomRange.end - effectiveZoomRange.start;
-        const step = Math.max(1, duration * 0.2);
-        const nextStart = Math.max(
-            MIN_TIME,
-            Math.min(MAX_TIME - duration, effectiveZoomRange.start + step * direction),
-        );
-        setZoomRange({ start: nextStart, end: nextStart + duration });
-    };
+    const handleChartCursorIdx = useCallback(
+        (idx: number | null) => {
+            setHoveredChartIndex(idx);
+        },
+        [setHoveredChartIndex],
+    );
 
     // 머신 disconnect 시 진행 중인 로스트를 초기화한다.
     useEffect(() => {
@@ -362,9 +311,7 @@ export const ActiveRoast = ({
     // ── 실시간 파생값 ─────────────────────────────────────────────
     const rawBT = liveData?.bt ?? null;
     const rawET = liveData?.et ?? null;
-    const elapsedMin = Math.floor(elapsed / 60);
-    const elapsedSec = elapsed % 60;
-    const timeStr = `${elapsedMin}:${String(elapsedSec).padStart(2, '0')}`;
+    const timeStr = formatElapsed(elapsed);
 
     // ── 도메인 훅 ─────────────────────────────────────────────────
     const { logEntries, pressedButtons, markEvent, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(
@@ -405,46 +352,11 @@ export const ActiveRoast = ({
 
     // ── 로스팅 단계 표시 ──────────────────────────────────────────
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
-    const yellowEntry = logEntries.find((e) => e.event === 'Yellow');
 
-    /** 이벤트 로그 기반으로 현재 로스팅 단계 이름을 결정한다 */
-    const roastPhaseName = (() => {
-        if (!charged) {
-            switch (phase) {
-                case 'standby':
-                    return 'READY';
-                case 'preheating':
-                    return 'PREHEATING';
-                case 'idle':
-                    return 'IDLE';
-                default:
-                    return phase;
-            }
-        }
-        if (fcStartEntry && elapsed >= parseTimeSec(fcStartEntry.time)) return 'Development';
-        if (yellowEntry && elapsed >= parseTimeSec(yellowEntry.time)) return 'Maillard';
-        return 'Drying';
-    })();
+    const roastPhaseName = getRoastPhaseName(charged, phase, elapsed, logEntries);
+    const roastPhaseColor = getRoastPhaseColor(charged, roastPhaseName);
 
-    const roastPhaseColor = !charged
-        ? PHASE_COLORS.ready
-        : roastPhaseName === 'Development'
-          ? PHASE_COLORS.development
-          : roastPhaseName === 'Maillard'
-            ? PHASE_COLORS.maillard
-            : PHASE_COLORS.drying;
-
-    const eventMarkers = useMemo(
-        (): RoastEventMarker[] =>
-            logEntries
-                .filter((e) => EVENT_MARKER_COLORS[e.event] && e.event !== 'TP' && e.event !== 'Note')
-                .map((e) => {
-                    const [min, sec] = e.time.split(':').map(Number);
-                    const timeSec = Math.max(0, min * 60 + sec);
-                    return { timeSec, event: e.event, color: getResolvedEventColor(e.event) };
-                }),
-        [logEntries],
-    );
+    const eventMarkers = useMemo(() => buildEventMarkers(logEntries), [logEntries]);
 
     const phaseSegments = useMemo(
         () => (roastSettings.showPhaseBar ? computePhaseSegments(logEntries, elapsed, charged) : []),
@@ -495,6 +407,16 @@ export const ActiveRoast = ({
         setHoveredChartIndex(null);
     };
 
+    // ── 표시용 파생값 ─────────────────────────────────────────────
+    const { devTimeStr, dtrPct } = useMemo(() => calcDevTime(fcStartEntry, elapsed), [fcStartEntry, elapsed]);
+
+    const { deltaBT, deltaET } = useMemo(() => calcDelta(livePoints, unit), [livePoints, unit]);
+
+    const roastLogDisplayEntries = useMemo(
+        () => buildRoastLogDisplayEntries(logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit),
+        [logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit],
+    );
+
     const confirmEndRoast = () => {
         const completedLogEntries = [
             ...logEntries,
@@ -518,15 +440,19 @@ export const ActiveRoast = ({
     };
 
     const handleEventMarkerDrag = (event: string, newTimeSec: number) => {
-        const newMin = Math.floor(newTimeSec / 60);
-        const newSec = Math.floor(newTimeSec % 60);
-        const newTimeStr = `${newMin}:${String(newSec).padStart(2, '0')}`;
+        const newTimeStr = formatElapsed(newTimeSec);
         setLogEntries((prev) => prev.map((entry) => (entry.event === event ? { ...entry, time: newTimeStr } : entry)));
     };
 
     const handleMarkDrop = useCallback(() => {
         handleDrop();
     }, [handleDrop]);
+
+    const handleNoteSubmit = useCallback(() => {
+        if (!noteInput.trim()) return;
+        markEvent('Note', noteInput.trim());
+        setNoteInput('');
+    }, [noteInput, markEvent]);
 
     useRoastKeyboardShortcuts({
         isActive,
@@ -542,59 +468,6 @@ export const ActiveRoast = ({
         onMarkDrop: handleMarkDrop,
     });
 
-    // ── 차트 키보드 단축키 (react-hotkeys-hook) ──
-    const chartKeysEnabled = isActive && !showEndRoastModal && !showSummaryModal && !isFullscreen;
-
-    useHotkeys(
-        '+, =',
-        (e) => {
-            e.preventDefault();
-            zoomChart(0.8);
-        },
-        { enabled: chartKeysEnabled },
-        [chartKeysEnabled, MAX_TIME, zoomChart],
-    );
-
-    useHotkeys(
-        '-, _',
-        (e) => {
-            e.preventDefault();
-            zoomChart(1.25);
-        },
-        { enabled: chartKeysEnabled },
-        [chartKeysEnabled, MAX_TIME, zoomChart],
-    );
-
-    useHotkeys(
-        '0',
-        (e) => {
-            e.preventDefault();
-            setZoomRange(null);
-        },
-        { enabled: chartKeysEnabled },
-        [chartKeysEnabled, setZoomRange],
-    );
-
-    useHotkeys(
-        'left',
-        (e) => {
-            e.preventDefault();
-            panChart(-1);
-        },
-        { enabled: chartKeysEnabled },
-        [chartKeysEnabled, panChart],
-    );
-
-    useHotkeys(
-        'right',
-        (e) => {
-            e.preventDefault();
-            panChart(1);
-        },
-        { enabled: chartKeysEnabled },
-        [chartKeysEnabled, panChart],
-    );
-
     // EndRoast 모달 Escape 닫기 (useRoastKeyboardShortcuts의 escape와 enabled 조건이 상호 배타적)
     useHotkeys(
         'escape',
@@ -605,58 +478,6 @@ export const ActiveRoast = ({
         { enabled: showEndRoastModal },
         [showEndRoastModal, setShowEndRoastModal],
     );
-
-    // ── 표시용 파생값 ─────────────────────────────────────────────
-
-    const { devTimeStr, dtrPct } = useMemo(() => {
-        if (!fcStartEntry || elapsed === 0) return { devTimeStr: '—', dtrPct: null };
-        const devSec = elapsed - parseTimeSec(fcStartEntry.time);
-        if (devSec <= 0) return { devTimeStr: '—', dtrPct: null };
-        const pct = Math.round((devSec / elapsed) * 100);
-        return {
-            devTimeStr: `${Math.floor(devSec / 60)}:${String(devSec % 60).padStart(2, '0')} (${pct}%)`,
-            dtrPct: pct,
-        };
-    }, [fcStartEntry, elapsed]);
-
-    /** ΔBT, ΔET — 30초 전 대비 현재 온도 변화량 (pre-charge 포인트 제외) */
-    const { deltaBT, deltaET } = useMemo(() => {
-        const postChargePoints = livePoints.filter((p) => p.time >= 0);
-        if (postChargePoints.length < 2) return { deltaBT: null, deltaET: null };
-        const current = postChargePoints[postChargePoints.length - 1];
-        const targetTime = current.time - 30;
-        const past = postChargePoints.reduce((prev, curr) =>
-            Math.abs(curr.time - targetTime) < Math.abs(prev.time - targetTime) ? curr : prev,
-        );
-        if (past === current) return { deltaBT: null, deltaET: null };
-        const dbt = toDisplayTemp(current.bt, unit) - toDisplayTemp(past.bt, unit);
-        const det =
-            current.et != null && past.et != null
-                ? toDisplayTemp(current.et, unit) - toDisplayTemp(past.et, unit)
-                : null;
-        return {
-            deltaBT: dbt.toFixed(1),
-            deltaET: det != null ? det.toFixed(1) : null,
-        };
-    }, [livePoints, unit]);
-
-    const roastLogDisplayEntries = useMemo((): LogEntry[] => {
-        const sorted = [...logEntries].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
-        return [
-            ...sorted,
-            ...(!roastEnded && charged
-                ? [
-                      {
-                          time: timeStr,
-                          event: 'Now',
-                          temp: formatTemp(rawBT, unit),
-                          note: `${roastPhaseName} in progress`,
-                          current: true,
-                      },
-                  ]
-                : []),
-        ];
-    }, [logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit]);
 
     const handleTargetProfileChange = useCallback((id: string | null) => {
         userSelectedTargetRef.current = true;
@@ -731,26 +552,6 @@ export const ActiveRoast = ({
                             }
                         />
 
-                        {/* TODO: 필요 시 주석 해제 — 이벤트 기반 단계 표시 pill */}
-                        {/* <div className="flex gap-2 mb-3">
-                            {[
-                                { labl: 'Drying', active: roastPhaseName === 'Drying' && charged },
-                                { label: 'Maillard', active: roastPhaseName === 'Maillard' },
-                                { label: 'Development', active: roastPhaseName === 'Development' },
-                            ].map(({ label, active }) => (
-                                <div
-                                    key={label}
-                                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium tracking-[0.3px] transition-all duration-300 ${
-                                        active
-                                            ? 'bg-primary text-white'
-                                            : 'bg-surface text-muted'
-                                    }`}
-                                >
-                                    {label}
-                                </div>
-                            ))}
-                        </div> */}
-
                         <RoastTempChart
                             xs={visibleXs}
                             btTarget={[]}
@@ -763,9 +564,7 @@ export const ActiveRoast = ({
                             eventMarkers={eventMarkers}
                             turningPoints={turningPoints}
                             height={mainChartHeight}
-                            onCursorIdx={(idx) => {
-                                if (idx != null) setHoveredChartIndex((effectiveZoomRange?.start ?? 0) + idx);
-                            }}
+                            onCursorIdx={handleChartCursorIdx}
                             onEventMarkerDrag={handleEventMarkerDrag}
                             showET={roastSettings.showET}
                             showTargetCurve={
@@ -789,199 +588,32 @@ export const ActiveRoast = ({
                         />
                     </div>
 
-                    {/* 사이드 패널 — 수치 + 조작 + 로그 (패널 전체 스크롤) */}
-                    <div className="w-56 flex flex-col gap-3 px-4 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch">
-                        <div className="grid grid-cols-1 gap-3">
-                            {/* BT */}
-                            <div className="text-right">
-                                <div className="text-sm text-muted font-semibold uppercase mb-1">BT</div>
-                                <div
-                                    className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                                    style={{ color: SENSOR_COLORS.bt }}
-                                >
-                                    {formatTemp(rawBT, unit)}
-                                </div>
-                            </div>
-                            {/* ΔBT */}
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-muted font-semibold uppercase">ΔBT (30s)</span>
-                                <span
-                                    className="font-mono text-2xl font-medium leading-tight"
-                                    style={{ color: SENSOR_COLORS.bt }}
-                                >
-                                    {deltaBT != null ? `${Number(deltaBT) >= 0 ? '+' : ''}${deltaBT}°` : '—'}
-                                </span>
-                            </div>
-                            {/* ET */}
-                            <div className="text-right border-t border-border-subtle pt-3">
-                                <div className="text-sm text-muted font-semibold uppercase mb-1">ET</div>
-                                <div
-                                    className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                                    style={{ color: SENSOR_COLORS.et }}
-                                >
-                                    {formatTemp(rawET, unit)}
-                                </div>
-                            </div>
-                            {/* ΔET */}
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-muted font-semibold uppercase">ΔET (30s)</span>
-                                <span
-                                    className="font-mono text-2xl font-medium leading-tight"
-                                    style={{ color: SENSOR_COLORS.et }}
-                                >
-                                    {deltaET != null ? `${Number(deltaET) >= 0 ? '+' : ''}${deltaET}°` : '—'}
-                                </span>
-                            </div>
-                            {/* RoR */}
-                            <div className="text-right border-t border-border-subtle pt-3">
-                                <div className="text-sm text-muted font-semibold uppercase mb-1">RoR</div>
-                                <div
-                                    className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                                    style={{ color: SENSOR_COLORS.ror }}
-                                >
-                                    {displayRoR}
-                                </div>
-                            </div>
-                            {/* Time */}
-                            <div className="text-right border-t border-border-subtle pt-3">
-                                <div className="text-sm text-muted font-semibold uppercase mb-1">Time</div>
-                                <div
-                                    className="font-mono text-4xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                                    style={{ color: 'var(--color-primary)' }}
-                                >
-                                    {timeStr}
-                                </div>
-                            </div>
-                            {/* DTR */}
-                            <div className="flex items-center justify-between border-t border-border-subtle pt-3">
-                                <span className="text-xs text-muted font-semibold uppercase">DTR</span>
-                                <span
-                                    className="font-mono text-2xl font-medium leading-tight"
-                                    style={{ color: PHASE_COLORS.development }}
-                                >
-                                    {dtrPct != null ? `${dtrPct}%` : '—'}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="border-t border-border-subtle" />
-
-                        {/* Control Panel */}
-                        <div className="flex flex-col gap-1.5">
-                            <div className="flex flex-col gap-1.5">
-                                {phase === 'preheating' && (
-                                    <button
-                                        onClick={handleEnterStandby}
-                                        className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
-                                        style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
-                                    >
-                                        <Play size={12} />
-                                        Roast Ready
-                                    </button>
-                                )}
-                                {phase === 'standby' && (
-                                    <button
-                                        onClick={handleManualCharge}
-                                        className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
-                                        style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
-                                    >
-                                        <Play size={12} />
-                                        Charge
-                                    </button>
-                                )}
-                                <button
-                                    onClick={handleEndRoastClick}
-                                    disabled={roastEnded || !charged}
-                                    aria-label="End roast"
-                                    className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
-                                        roastEnded || !charged
-                                            ? 'bg-surface dark:bg-surface-elevated text-muted cursor-default'
-                                            : 'cursor-pointer'
-                                    }`}
-                                    style={
-                                        roastEnded || !charged
-                                            ? undefined
-                                            : { background: PHASE_COLORS.dangerBg, color: PHASE_COLORS.danger }
-                                    }
-                                >
-                                    <Square size={12} />
-                                    End Roast
-                                </button>
-                            </div>
-                            <EventButtons
-                                variant="sidebar"
-                                logEntries={logEntries}
-                                pressedButtons={pressedButtons}
-                                buttons={[
-                                    {
-                                        label: 'Yellow',
-                                        event: 'Yellow',
-                                        shortcut: '⌘1',
-                                        pressKey: 'Mark Yellow',
-                                        onClick: () => markEvent('Yellow', 'Color change visible', 'Mark Yellow'),
-                                    },
-                                    {
-                                        label: 'FC Start',
-                                        event: 'FC Start',
-                                        shortcut: '⌘2',
-                                        pressKey: 'Mark FC Start',
-                                        onClick: () => markEvent('FC Start', 'First crack started', 'Mark FC Start'),
-                                    },
-                                    {
-                                        label: 'FC End',
-                                        event: 'FC End',
-                                        shortcut: '⌘3',
-                                        pressKey: 'Mark FC End',
-                                        onClick: () => markEvent('FC End', 'First crack ended', 'Mark FC End'),
-                                    },
-                                    {
-                                        label: 'Mark Drop',
-                                        event: 'Drop',
-                                        shortcut: '⌘D',
-                                        pressKey: 'Mark Drop',
-                                        onClick: handleDrop,
-                                    },
-                                ]}
-                            />
-                        </div>
-
-                        {/* Add Note */}
-                        <div className="flex flex-col gap-1.5">
-                            <textarea
-                                value={noteInput}
-                                onChange={(e) => setNoteInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey && noteInput.trim()) {
-                                        e.preventDefault();
-                                        markEvent('Note', noteInput.trim());
-                                        setNoteInput('');
-                                    }
-                                }}
-                                placeholder="Add note... (Enter to save)"
-                                className="h-16 text-xs px-2 py-1.5 rounded bg-surface dark:bg-surface-elevated text-primary placeholder:text-muted focus:outline-none focus:border-border resize-none"
-                            />
-                            <button
-                                onClick={() => {
-                                    if (!noteInput.trim()) return;
-                                    markEvent('Note', noteInput.trim());
-                                    setNoteInput('');
-                                }}
-                                disabled={!noteInput.trim()}
-                                className="px-2.5 py-1.5 rounded-md border-none text-xs font-semibold bg-surface dark:bg-surface-elevated text-muted hover:text-primary disabled:opacity-40 cursor-pointer"
-                            >
-                                +
-                            </button>
-                        </div>
-
-                        <div className="border-t border-border-subtle" />
-
-                        <RoastLog
-                            variant="sidebar"
-                            entries={roastLogDisplayEntries}
-                            eventMarkerColor={EVENT_MARKER_COLORS}
-                            onRemoveEntry={removeLogEntry}
-                        />
-                    </div>
+                    {/* 사이드 패널 — 수치 + 조작 + 로그 */}
+                    <RoastSidePanel
+                        rawBT={rawBT}
+                        rawET={rawET}
+                        displayRoR={displayRoR}
+                        timeStr={timeStr}
+                        unit={unit}
+                        phase={phase}
+                        charged={charged}
+                        raostEnded={roastEnded}
+                        deltaBT={deltaBT}
+                        deltaET={deltaET}
+                        dtrPct={dtrPct}
+                        logEntries={logEntries}
+                        pressedButtons={pressedButtons}
+                        roastLogDisplayEntries={roastLogDisplayEntries}
+                        noteInput={noteInput}
+                        onNoteChange={setNoteInput}
+                        onNoteSubmit={handleNoteSubmit}
+                        onMarkEvent={markEvent}
+                        onHandleDrop={handleDrop}
+                        onRemoveLogEntry={removeLogEntry}
+                        onEnterStandby={handleEnterStandby}
+                        onManualCharge={handleManualCharge}
+                        onEndRoast={handleEndRoastClick}
+                    />
                 </div>
             </div>
 

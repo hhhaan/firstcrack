@@ -1,7 +1,7 @@
 import { interpolateProfileBT } from '@shared/data/roast-profiles';
 import type { TsvPoint } from '@shared/lib/tsv';
 import { useMemo } from 'react';
-import type { LiveRoastPoint } from './useSidecarPolling';
+import type { LiveRoastPoint } from '../model/useSidecarPolling';
 
 /** 차트 전체 x축 범위(초). uPlot에 항상 이 길이를 보장한다. */
 export const CHART_TOTAL_SECS = 780;
