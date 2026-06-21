@@ -1,7 +1,6 @@
 import { useBeans } from '@entities/bean/queries';
 import { useUpdateProfile } from '@entities/profile';
 import { useRoastProfiles } from '@entities/roast-profile';
-import { PHASE_COLORS, STATUS_COLORS } from '@features/active-roast/lib/colors';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
 import { ChevronDown, Settings2 } from 'lucide-react';
@@ -80,7 +79,6 @@ export const RoastHeader = ({
     onOpenRoastSettings?: () => void;
 }) => {
     // ─── Store state ─────────────────────────────────────────────────────────
-    const roastEnded = useRoastingStore((s) => s.phase === 'ended');
     const charged = useRoastingStore((s) => s.charged);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const sidecarError = useRoastingStore((s) => s.sidecarError);
@@ -114,15 +112,6 @@ export const RoastHeader = ({
         // 원두 기본값은 기기별 취향이라 localStorage에만 저장 (프로파일과 달리 DB 동기화 불필요)
         if (id) localStorage.setItem('fc_default_bean_id', id);
         else localStorage.removeItem('fc_default_bean_id');
-    };
-
-    const isDisconnected = roastEnded || !sidecarConnected;
-    const canPulse = sidecarConnected && charged && !roastEnded;
-    const statusColor = isDisconnected ? '#6b7280' : PHASE_COLORS.ready;
-    const dotStyle = {
-        background: isDisconnected ? '#6b7280' : STATUS_COLORS.active,
-        boxShadow: canPulse ? `0 0 0 3px ${STATUS_COLORS.activeGlow}` : 'none',
-        animation: canPulse ? 'pulse 2s infinite' : 'none',
     };
 
     // const statusText = (() => {
