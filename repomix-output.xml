@@ -4220,6 +4220,257 @@ This section contains the contents of the repository's files.
 7: }
 </file>
 
+<file path="DESIGN_REF_DATAROBOT.md">
+  1: # DESIGN.md: DataRobot
+  2: 
+  3: ## Source
+  4: - URL: https://www.datarobot.com/
+  5: - Capture date: 2026-06-05
+  6: - Evidence: `branding+images` scrape (17KB JSON), `screenshot` format (PNG), page markdown
+  7: 
+  8: ## Reference Screenshot
+  9: ![Full-page screenshot of DataRobot](./.firecrawl/datarobot-screenshot-real.png)
+ 10: 
+ 11: Use this screenshot as the visual source of truth for layout, hierarchy, density, and feel. Tokens below describe the same page in machine-readable form.
+ 12: 
+ 13: ---
+ 14: 
+ 15: ## Design Summary
+ 16: 
+ 17: DataRobot uses a high-contrast, editorial enterprise aesthetic. The palette leads with near-black (`#0B0B0B`) and clean white, punctuated by a vivid **mint green** CTA accent (`#81FBA5`) and bold **bright yellow** section backgrounds. Typography is dominated by **STK Miso** — an ultra-wide, heavy display face at massive sizes — paired with **DM Sans** for readable body copy. The overall feel is bold, direct, and confident: large typographic statements, minimal decoration, strong section-level color blocking (white → yellow → black). No gradients; no shadows; sharp edges on secondary buttons.
+ 18: 
+ 19: ---
+ 20: 
+ 21: ## Design Tokens
+ 22: 
+ 23: ### Colors
+ 24: 
+ 25: | Role | Hex | Notes |
+ 26: |---|---|---|
+ 27: | Primary CTA / Accent | `#81FBA5` | Mint green — primary button fill |
+ 28: | Background (default) | `#FFFFFF` | White, main page background |
+ 29: | Background (near-white) | `#F9FAFB` | Off-white on some sections (inferred) |
+ 30: | Background (yellow) | `#F5FF00` | Bright yellow section — confirmed in screenshot |
+ 31: | Background (dark) | `#0B0B0B` | Near-black — feature tiles, dark sections |
+ 32: | Text primary | `#0B0B0B` | Headlines and body on light backgrounds |
+ 33: | Text on dark | `#FFFFFF` | White text on dark/black sections |
+ 34: | Text link | `#A6B0FF` | Muted periwinkle — link color |
+ 35: | Secondary / Purple | `#5C41FF` | Violet accent, brand secondary |
+ 36: | Secondary button text | `#231F20` | Very dark on white secondary button |
+ 37: | Theme / chrome | `#FFFFFF` | Browser `theme-color` |
+ 38: 
+ 39: ### Typography
+ 40: 
+ 41: | Element | Family | Weight | Size | Notes |
+ 42: |---|---|---|---|---|
+ 43: | Hero H1 | STK Miso | Black/900 | ~78px | Ultra-wide display, tight leading |
+ 44: | H2 / Section headline | STK Miso | Bold/700 | ~36px | Used in yellow and dark sections |
+ 45: | Body / UI | DM Sans | Regular/400–500 | 16–18px | Clean neutral sans-serif |
+ 46: | Nav links | DM Sans | Medium/500 | 15px | |
+ 47: | Fallback (heading) | `"STK Miso", "DM Sans", sans-serif` | | |
+ 48: | Fallback (body) | `"DM Sans", "Roboto", "Noto Sans JP", sans-serif` | | Includes JP for i18n |
+ 49: 
+ 50: > **STK Miso is a custom/licensed typeface.** Open-source alternatives: **Bebas Neue** or **Barlow Condensed Black** approximate the weight and width.
+ 51: 
+ 52: ### Spacing and Layout
+ 53: 
+ 54: | Token | Value | Notes |
+ 55: |---|---|---|
+ 56: | Base unit | 4px | All spacing in 4px increments |
+ 57: | Container max-width | ~1200–1440px | Inferred from screenshot |
+ 58: | Section vertical padding | ~80–120px | Generous vertical rhythm |
+ 59: | Hero top padding | ~80px | Below nav |
+ 60: | Border radius (primary button) | `6px` | Slightly rounded |
+ 61: | Border radius (secondary button) | `0px` | Square/sharp — no radius |
+ 62: | Grid gap (3-col) | ~24–32px | Feature tile row |
+ 63: 
+ 64: ---
+ 65: 
+ 66: ## Components
+ 67: 
+ 68: ### Navigation
+ 69: - White background, full-width
+ 70: - **Left**: Stacked grid logomark + "DataRobot" wordmark in `#0B0B0B`
+ 71: - **Center**: Text links — Why DataRobot, Solutions, Platform, Tech Partners, Resources, About
+ 72: - **Right**: Globe (language selector), "Log In" ghost, "Try DataRobot" secondary, **"Request a Demo"** primary (mint `#81FBA5`)
+ 73: - Language: US / JP
+ 74: 
+ 75: ### Buttons
+ 76: 
+ 77: **Primary (Mint)**
+ 78: ```css
+ 79: background: #81FBA5;
+ 80: color: #0B0B0B;
+ 81: border-radius: 6px;
+ 82: border: none;
+ 83: padding: 12px 24px;
+ 84: font-family: "DM Sans";
+ 85: font-weight: 500;
+ 86: ```
+ 87: 
+ 88: **Secondary (Outlined, Sharp)**
+ 89: ```css
+ 90: background: #FFFFFF;
+ 91: color: #231F20;
+ 92: border-radius: 0px;       /* no radius — sharp corners */
+ 93: border: 1.5px solid #231F20;
+ 94: padding: 12px 24px;
+ 95: font-family: "DM Sans";
+ 96: font-weight: 500;
+ 97: ```
+ 98: 
+ 99: **CTA Pattern**: Primary (filled mint) + Secondary (outlined square) side by side.
+100: 
+101: ### Hero Section
+102: - White background
+103: - H1 in STK Miso: ~78px, two-line typographic statement, tight leading
+104: - Subhead in DM Sans: 18–20px, muted, 2 lines
+105: - CTA pair below (mint + outlined)
+106: - Below hero: full-width **decorative bar pattern** — vertical colored stripes in purple, teal, mint, black (`pattern-1row-c2.svg`)
+107: 
+108: ### Yellow Value Prop Section
+109: - Background: bright yellow `#F5FF00`
+110: - H2 headline in black, large, multi-line: "Meet the only agent workforce platform built for outcomes — not endless pilots."
+111: - Below: 3-column tile grid
+112:   - Each tile: `#0B0B0B` background, white text, bullet prefix, single declarative line
+113:   - "Replace 50+ AI tools." / "Launch your first agent in days, not quarters." / "Run anywhere. On-prem. Hybrid. Cross-cloud."
+114: 
+115: ### Product Feature Section
+116: - Build / Operate / Govern tab structure
+117: - Product UI screenshot at right, description at left
+118: - Images: `homepage-build.jpg`, `homepage-operate.jpg`, `homepage-govern.jpg`
+119: 
+120: ### Validation / Proof Section
+121: - 3 cards with screenshots: `homepage-validation-1/2/3.webp`
+122: - YouTube video embeds
+123: - Analyst/partner logo strip: Forbes, Fortune, SAP, NVIDIA, Gartner, IDC (flat SVG logos)
+124: 
+125: ### Footer
+126: - Dark background `#0B0B0B`, white text
+127: 
+128: ---
+129: 
+130: ## Page Patterns
+131: 
+132: Section order (top → bottom):
+133: 
+134: 1. **Nav** — white, sticky
+135: 2. **Hero** — white, left-aligned text, mint + outlined CTAs, decorative stripe pattern
+136: 3. **Value prop** — yellow bg, bold H2 + 3 dark tiles
+137: 4. **Product features** — tabbed (Build / Operate / Govern) with product screenshots
+138: 5. **Validation** — proof images + YouTube
+139: 6. **Social proof** — analyst/partner logo strip
+140: 7. **Footer** — dark (`#0B0B0B`)
+141: 
+142: ---
+143: 
+144: ## Content Style
+145: 
+146: - **Headlines**: Bold, direct statements addressing the user's current state. ("You've staffed up. You've bought the GPUs.")
+147: - **Subtext**: Problem-first framing → solution handoff
+148: - **CTAs**: "Try it" (low friction) / "Request a demo" (sales-led)
+149: - **Tone**: Modern, high-energy enterprise. Never fluffy. Confident.
+150: - **Density**: Low — large type, short lines, heavy whitespace
+151: - **Audience**: Enterprise buyers, AI practitioners, IT leaders
+152: 
+153: ---
+154: 
+155: ## Agent Build Instructions
+156: 
+157: To create a new site in DataRobot's visual style:
+158: 
+159: 1. **Fonts**: Import `DM Sans` (Google Fonts). Use `Bebas Neue` or `Barlow Condensed Black` as open-source STK Miso substitute.
+160: 
+161: 2. **CSS variables**:
+162: ```css
+163: :root {
+164:   --color-mint:   #81FBA5;
+165:   --color-yellow: #F5FF00;
+166:   --color-black:  #0B0B0B;
+167:   --color-white:  #FFFFFF;
+168:   --color-purple: #5C41FF;
+169:   --color-link:   #A6B0FF;
+170: }
+171: ```
+172: 
+173: 3. **Layout**: Full-width sections. `max-width: 1280px; margin: 0 auto; padding: 0 48px`. Section padding `py-20 md:py-32`.
+174: 
+175: 4. **Hero**: Left-aligned text, ~55% width, display heading 5–6rem, 2-line subtext, then CTA pair.
+176: 
+177: 5. **Buttons**:
+178:    - Primary: mint fill + `border-radius: 6px` + dark text
+179:    - Secondary: white + `border: 1.5px solid #231F20` + **`border-radius: 0`** (sharp)
+180: 
+181: 6. **Section backgrounds**: Alternate `#FFFFFF` → `#F5FF00` → `#0B0B0B`. No gradients.
+182: 
+183: 7. **Pattern element**: Full-width horizontal band of vertical stripes in varying widths + brand colors between hero and next section.
+184: 
+185: 8. **Typography scale**:
+186:    - H1: display font, 72–96px, weight 900
+187:    - H2: display font, 36–48px, weight 700
+188:    - Body: DM Sans, 16–18px, weight 400
+189: 
+190: 9. **Dark tile grid**: 3-column equal-width tiles on `#0B0B0B`, white text, left-aligned bullet prefix (`—`), no border, no radius.
+191: 
+192: ---
+193: 
+194: ## Asset References
+195: 
+196: | Asset | URL |
+197: |---|---|
+198: | Logo (SVG, inline) | `branding.images.logo` in `.firecrawl/datarobot-branding.json` |
+199: | Favicon | `https://www.datarobot.com/wp-content/uploads/2024/11/datarobot-favicon-512px-300x300.png` |
+200: | OG Image | `https://www.datarobot.com/wp-content/uploads/2024/11/refresh-2024-featured-image.jpg` |
+201: | Decorative pattern | `https://www.datarobot.com/wp-content/themes/datarobot6/assets/images/static/pattern-1row-c2.svg` |
+202: | Feature: Build | `https://www.datarobot.com/wp-content/uploads/2025/07/homepage-build.jpg` |
+203: | Feature: Operate | `https://www.datarobot.com/wp-content/uploads/2025/07/homepage-operate.jpg` |
+204: | Feature: Govern | `https://www.datarobot.com/wp-content/uploads/2025/07/homepage-govern.jpg` |
+205: 
+206: > These are third-party assets. Do not redistribute. Reference only for design analysis.
+207: 
+208: ---
+209: 
+210: ## Rerun Inputs
+211: ```yaml
+212: workflow: firecrawl-website-design-clone
+213: source_url: https://www.datarobot.com/
+214: target_stack: any
+215: output: DESIGN.md
+216: ```
+</file>
+
+<file path="eslint.config.js">
+ 1: import globals from 'globals';
+ 2: import reactHooks from 'eslint-plugin-react-hooks';
+ 3: import reactRefresh from 'eslint-plugin-react-refresh';
+ 4: import tseslint from 'typescript-eslint';
+ 5: 
+ 6: export default tseslint.config(
+ 7:     { ignores: ['dist', 'src-tauri'] },
+ 8:     {
+ 9:         extends: [...tseslint.configs.recommended],
+10:         files: ['**/*.{ts,tsx}'],
+11:         languageOptions: {
+12:             ecmaVersion: 2020,
+13:             globals: globals.browser,
+14:         },
+15:         plugins: {
+16:             'react-hooks': reactHooks,
+17:             'react-refresh': reactRefresh,
+18:         },
+19:         rules: {
+20:             ...reactHooks.configs.recommended.rules,
+21:             'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+22: 
+23:             // Biome이 대체하는 규칙 — ESLint에서는 off
+24:             'react-hooks/exhaustive-deps': 'off',
+25:             '@typescript-eslint/no-explicit-any': 'off',
+26:             '@typescript-eslint/no-unused-vars': 'off',
+27:         },
+28:     },
+29: );
+</file>
+
 <file path="index.html">
  1: <!doctype html>
  2: <html lang="en">
@@ -5605,6 +5856,75 @@ This section contains the contents of the repository's files.
 42:     },
 43:   },
 44: }));
+</file>
+
+<file path=".github/workflows/ci.yml">
+ 1: name: CI
+ 2: 
+ 3: on:
+ 4:   push:
+ 5:     branches: [main]
+ 6:   pull_request:
+ 7:     branches: [main]
+ 8: 
+ 9: concurrency:
+10:   group: ci-${{ github.ref }}
+11:   cancel-in-progress: true
+12: 
+13: jobs:
+14:   typecheck:
+15:     runs-on: ubuntu-latest
+16:     steps:
+17:       - uses: actions/checkout@v4
+18: 
+19:       - uses: pnpm/action-setup@v4
+20: 
+21:       - uses: actions/setup-node@v4
+22:         with:
+23:           node-version: 22
+24:           cache: pnpm
+25: 
+26:       - name: Install dependencies
+27:         run: pnpm install
+28: 
+29:       - name: Type check
+30:         run: pnpm tsc --noEmit
+31: 
+32:   lint:
+33:     runs-on: ubuntu-latest
+34:     steps:
+35:       - uses: actions/checkout@v4
+36: 
+37:       - uses: pnpm/action-setup@v4
+38: 
+39:       - uses: actions/setup-node@v4
+40:         with:
+41:           node-version: 22
+42:           cache: pnpm
+43: 
+44:       - name: Install dependencies
+45:         run: pnpm install
+46: 
+47:       - name: Biome check
+48:         run: pnpm check
+49: 
+50:   sidecar:
+51:     runs-on: ubuntu-latest
+52:     steps:
+53:       - uses: actions/checkout@v4
+54: 
+55:       - uses: actions/setup-python@v5
+56:         with:
+57:           python-version: '3.13'
+58:           cache: pip
+59:           cache-dependency-path: src-tauri/sidecar/requirements-dev.txt
+60: 
+61:       - name: Install sidecar test dependencies
+62:         run: pip install -r src-tauri/sidecar/requirements-dev.txt
+63: 
+64:       - name: Run sidecar tests
+65:         run: python -m pytest tests/ -q --tb=short
+66:         working-directory: src-tauri/sidecar
 </file>
 
 <file path=".husky/pre-commit">
@@ -12878,1200 +13198,30 @@ This section contains the contents of the repository's files.
 222: > Full skill: invoke `andrej-karpathy-skills:karpathy-guidelines`
 </file>
 
-<file path="DESIGN_REF_DATAROBOT.md">
-  1: # DESIGN.md: DataRobot
-  2: 
-  3: ## Source
-  4: - URL: https://www.datarobot.com/
-  5: - Capture date: 2026-06-05
-  6: - Evidence: `branding+images` scrape (17KB JSON), `screenshot` format (PNG), page markdown
-  7: 
-  8: ## Reference Screenshot
-  9: ![Full-page screenshot of DataRobot](./.firecrawl/datarobot-screenshot-real.png)
- 10: 
- 11: Use this screenshot as the visual source of truth for layout, hierarchy, density, and feel. Tokens below describe the same page in machine-readable form.
- 12: 
- 13: ---
- 14: 
- 15: ## Design Summary
- 16: 
- 17: DataRobot uses a high-contrast, editorial enterprise aesthetic. The palette leads with near-black (`#0B0B0B`) and clean white, punctuated by a vivid **mint green** CTA accent (`#81FBA5`) and bold **bright yellow** section backgrounds. Typography is dominated by **STK Miso** — an ultra-wide, heavy display face at massive sizes — paired with **DM Sans** for readable body copy. The overall feel is bold, direct, and confident: large typographic statements, minimal decoration, strong section-level color blocking (white → yellow → black). No gradients; no shadows; sharp edges on secondary buttons.
- 18: 
- 19: ---
- 20: 
- 21: ## Design Tokens
- 22: 
- 23: ### Colors
- 24: 
- 25: | Role | Hex | Notes |
- 26: |---|---|---|
- 27: | Primary CTA / Accent | `#81FBA5` | Mint green — primary button fill |
- 28: | Background (default) | `#FFFFFF` | White, main page background |
- 29: | Background (near-white) | `#F9FAFB` | Off-white on some sections (inferred) |
- 30: | Background (yellow) | `#F5FF00` | Bright yellow section — confirmed in screenshot |
- 31: | Background (dark) | `#0B0B0B` | Near-black — feature tiles, dark sections |
- 32: | Text primary | `#0B0B0B` | Headlines and body on light backgrounds |
- 33: | Text on dark | `#FFFFFF` | White text on dark/black sections |
- 34: | Text link | `#A6B0FF` | Muted periwinkle — link color |
- 35: | Secondary / Purple | `#5C41FF` | Violet accent, brand secondary |
- 36: | Secondary button text | `#231F20` | Very dark on white secondary button |
- 37: | Theme / chrome | `#FFFFFF` | Browser `theme-color` |
- 38: 
- 39: ### Typography
- 40: 
- 41: | Element | Family | Weight | Size | Notes |
- 42: |---|---|---|---|---|
- 43: | Hero H1 | STK Miso | Black/900 | ~78px | Ultra-wide display, tight leading |
- 44: | H2 / Section headline | STK Miso | Bold/700 | ~36px | Used in yellow and dark sections |
- 45: | Body / UI | DM Sans | Regular/400–500 | 16–18px | Clean neutral sans-serif |
- 46: | Nav links | DM Sans | Medium/500 | 15px | |
- 47: | Fallback (heading) | `"STK Miso", "DM Sans", sans-serif` | | |
- 48: | Fallback (body) | `"DM Sans", "Roboto", "Noto Sans JP", sans-serif` | | Includes JP for i18n |
- 49: 
- 50: > **STK Miso is a custom/licensed typeface.** Open-source alternatives: **Bebas Neue** or **Barlow Condensed Black** approximate the weight and width.
- 51: 
- 52: ### Spacing and Layout
- 53: 
- 54: | Token | Value | Notes |
- 55: |---|---|---|
- 56: | Base unit | 4px | All spacing in 4px increments |
- 57: | Container max-width | ~1200–1440px | Inferred from screenshot |
- 58: | Section vertical padding | ~80–120px | Generous vertical rhythm |
- 59: | Hero top padding | ~80px | Below nav |
- 60: | Border radius (primary button) | `6px` | Slightly rounded |
- 61: | Border radius (secondary button) | `0px` | Square/sharp — no radius |
- 62: | Grid gap (3-col) | ~24–32px | Feature tile row |
- 63: 
- 64: ---
- 65: 
- 66: ## Components
- 67: 
- 68: ### Navigation
- 69: - White background, full-width
- 70: - **Left**: Stacked grid logomark + "DataRobot" wordmark in `#0B0B0B`
- 71: - **Center**: Text links — Why DataRobot, Solutions, Platform, Tech Partners, Resources, About
- 72: - **Right**: Globe (language selector), "Log In" ghost, "Try DataRobot" secondary, **"Request a Demo"** primary (mint `#81FBA5`)
- 73: - Language: US / JP
- 74: 
- 75: ### Buttons
- 76: 
- 77: **Primary (Mint)**
- 78: ```css
- 79: background: #81FBA5;
- 80: color: #0B0B0B;
- 81: border-radius: 6px;
- 82: border: none;
- 83: padding: 12px 24px;
- 84: font-family: "DM Sans";
- 85: font-weight: 500;
- 86: ```
- 87: 
- 88: **Secondary (Outlined, Sharp)**
- 89: ```css
- 90: background: #FFFFFF;
- 91: color: #231F20;
- 92: border-radius: 0px;       /* no radius — sharp corners */
- 93: border: 1.5px solid #231F20;
- 94: padding: 12px 24px;
- 95: font-family: "DM Sans";
- 96: font-weight: 500;
- 97: ```
- 98: 
- 99: **CTA Pattern**: Primary (filled mint) + Secondary (outlined square) side by side.
-100: 
-101: ### Hero Section
-102: - White background
-103: - H1 in STK Miso: ~78px, two-line typographic statement, tight leading
-104: - Subhead in DM Sans: 18–20px, muted, 2 lines
-105: - CTA pair below (mint + outlined)
-106: - Below hero: full-width **decorative bar pattern** — vertical colored stripes in purple, teal, mint, black (`pattern-1row-c2.svg`)
-107: 
-108: ### Yellow Value Prop Section
-109: - Background: bright yellow `#F5FF00`
-110: - H2 headline in black, large, multi-line: "Meet the only agent workforce platform built for outcomes — not endless pilots."
-111: - Below: 3-column tile grid
-112:   - Each tile: `#0B0B0B` background, white text, bullet prefix, single declarative line
-113:   - "Replace 50+ AI tools." / "Launch your first agent in days, not quarters." / "Run anywhere. On-prem. Hybrid. Cross-cloud."
-114: 
-115: ### Product Feature Section
-116: - Build / Operate / Govern tab structure
-117: - Product UI screenshot at right, description at left
-118: - Images: `homepage-build.jpg`, `homepage-operate.jpg`, `homepage-govern.jpg`
-119: 
-120: ### Validation / Proof Section
-121: - 3 cards with screenshots: `homepage-validation-1/2/3.webp`
-122: - YouTube video embeds
-123: - Analyst/partner logo strip: Forbes, Fortune, SAP, NVIDIA, Gartner, IDC (flat SVG logos)
-124: 
-125: ### Footer
-126: - Dark background `#0B0B0B`, white text
-127: 
-128: ---
-129: 
-130: ## Page Patterns
-131: 
-132: Section order (top → bottom):
-133: 
-134: 1. **Nav** — white, sticky
-135: 2. **Hero** — white, left-aligned text, mint + outlined CTAs, decorative stripe pattern
-136: 3. **Value prop** — yellow bg, bold H2 + 3 dark tiles
-137: 4. **Product features** — tabbed (Build / Operate / Govern) with product screenshots
-138: 5. **Validation** — proof images + YouTube
-139: 6. **Social proof** — analyst/partner logo strip
-140: 7. **Footer** — dark (`#0B0B0B`)
-141: 
-142: ---
-143: 
-144: ## Content Style
-145: 
-146: - **Headlines**: Bold, direct statements addressing the user's current state. ("You've staffed up. You've bought the GPUs.")
-147: - **Subtext**: Problem-first framing → solution handoff
-148: - **CTAs**: "Try it" (low friction) / "Request a demo" (sales-led)
-149: - **Tone**: Modern, high-energy enterprise. Never fluffy. Confident.
-150: - **Density**: Low — large type, short lines, heavy whitespace
-151: - **Audience**: Enterprise buyers, AI practitioners, IT leaders
-152: 
-153: ---
-154: 
-155: ## Agent Build Instructions
-156: 
-157: To create a new site in DataRobot's visual style:
-158: 
-159: 1. **Fonts**: Import `DM Sans` (Google Fonts). Use `Bebas Neue` or `Barlow Condensed Black` as open-source STK Miso substitute.
-160: 
-161: 2. **CSS variables**:
-162: ```css
-163: :root {
-164:   --color-mint:   #81FBA5;
-165:   --color-yellow: #F5FF00;
-166:   --color-black:  #0B0B0B;
-167:   --color-white:  #FFFFFF;
-168:   --color-purple: #5C41FF;
-169:   --color-link:   #A6B0FF;
-170: }
-171: ```
-172: 
-173: 3. **Layout**: Full-width sections. `max-width: 1280px; margin: 0 auto; padding: 0 48px`. Section padding `py-20 md:py-32`.
-174: 
-175: 4. **Hero**: Left-aligned text, ~55% width, display heading 5–6rem, 2-line subtext, then CTA pair.
-176: 
-177: 5. **Buttons**:
-178:    - Primary: mint fill + `border-radius: 6px` + dark text
-179:    - Secondary: white + `border: 1.5px solid #231F20` + **`border-radius: 0`** (sharp)
-180: 
-181: 6. **Section backgrounds**: Alternate `#FFFFFF` → `#F5FF00` → `#0B0B0B`. No gradients.
-182: 
-183: 7. **Pattern element**: Full-width horizontal band of vertical stripes in varying widths + brand colors between hero and next section.
-184: 
-185: 8. **Typography scale**:
-186:    - H1: display font, 72–96px, weight 900
-187:    - H2: display font, 36–48px, weight 700
-188:    - Body: DM Sans, 16–18px, weight 400
-189: 
-190: 9. **Dark tile grid**: 3-column equal-width tiles on `#0B0B0B`, white text, left-aligned bullet prefix (`—`), no border, no radius.
-191: 
-192: ---
-193: 
-194: ## Asset References
-195: 
-196: | Asset | URL |
-197: |---|---|
-198: | Logo (SVG, inline) | `branding.images.logo` in `.firecrawl/datarobot-branding.json` |
-199: | Favicon | `https://www.datarobot.com/wp-content/uploads/2024/11/datarobot-favicon-512px-300x300.png` |
-200: | OG Image | `https://www.datarobot.com/wp-content/uploads/2024/11/refresh-2024-featured-image.jpg` |
-201: | Decorative pattern | `https://www.datarobot.com/wp-content/themes/datarobot6/assets/images/static/pattern-1row-c2.svg` |
-202: | Feature: Build | `https://www.datarobot.com/wp-content/uploads/2025/07/homepage-build.jpg` |
-203: | Feature: Operate | `https://www.datarobot.com/wp-content/uploads/2025/07/homepage-operate.jpg` |
-204: | Feature: Govern | `https://www.datarobot.com/wp-content/uploads/2025/07/homepage-govern.jpg` |
-205: 
-206: > These are third-party assets. Do not redistribute. Reference only for design analysis.
-207: 
-208: ---
-209: 
-210: ## Rerun Inputs
-211: ```yaml
-212: workflow: firecrawl-website-design-clone
-213: source_url: https://www.datarobot.com/
-214: target_stack: any
-215: output: DESIGN.md
-216: ```
-</file>
-
-<file path="eslint.config.js">
- 1: import globals from 'globals';
- 2: import reactHooks from 'eslint-plugin-react-hooks';
- 3: import reactRefresh from 'eslint-plugin-react-refresh';
- 4: import tseslint from 'typescript-eslint';
- 5: 
- 6: export default tseslint.config(
- 7:     { ignores: ['dist', 'src-tauri'] },
- 8:     {
- 9:         extends: [...tseslint.configs.recommended],
-10:         files: ['**/*.{ts,tsx}'],
-11:         languageOptions: {
-12:             ecmaVersion: 2020,
-13:             globals: globals.browser,
-14:         },
-15:         plugins: {
-16:             'react-hooks': reactHooks,
-17:             'react-refresh': reactRefresh,
-18:         },
-19:         rules: {
-20:             ...reactHooks.configs.recommended.rules,
-21:             'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-22: 
-23:             // Biome이 대체하는 규칙 — ESLint에서는 off
-24:             'react-hooks/exhaustive-deps': 'off',
-25:             '@typescript-eslint/no-explicit-any': 'off',
-26:             '@typescript-eslint/no-unused-vars': 'off',
-27:         },
-28:     },
-29: );
-</file>
-
-<file path="TODOS.md">
-  1: # TODOS
-  2: 
-  3: Generated by /plan-eng-review on 2026-05-01. Items ordered by priority.
-  4: 
-  5: ---
-  6: 
-  7: ## OPEN QUESTION — 결정 대기
-  8: 
-  9: ### [Q3] Bean/Blend — 팀 공유 RLS 마이그레이션 (미결)
- 10: 
- 11: 현재 `blends`, `blend_components`, `bean_stock_events` RLS는 `user_id` 기반.
- 12: 
- 13: **문제:** 팀이 배치 계획을 공유하게 되면 블렌드/재고도 팀 단위로 공유되어야 함. 현재 RLS 정책은 단일 사용자만 허용.
- 14: 
- 15: **필요한 마이그레이션 (팀 기능 설계 시):**
- 16: 1. `blends`, `bean_stock_events`에 `team_id uuid REFERENCES teams(id)` 컬럼 추가
- 17: 2. RLS 정책을 `user_id = auth.uid() OR team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())`로 수정
- 18: 3. 기존 데이터의 `team_id` 백필
- 19: 
- 20: → **팀 공유 기능 설계 착수 시 이 마이그레이션을 첫 번째 단계로 처리.**
- 21: 
- 22: ---
- 23: 
- 24: ### [Q4] 프론트엔드 단위 테스트 (vitest) 미구현
- 25: 
- 26: 현재 프론트엔드 테스트 프레임워크 없음. 특히 비즈니스 로직이 집중된 순수 함수들이 테스트 없이 구현됨.
- 27: 
- 28: **우선 대상:**
- 29: - `getReservedStock` 예약 집계 계산 (grams 단위 변환, blend 비율 가중치)
- 30: - `effectiveGrams` 부족 경고 로직
- 31: - `blendApi.create` 비원자 생성의 오류 경로
- 32: 
- 33: **Setup:**
- 34: ```bash
- 35: npm install -D vitest @testing-library/react @testing-library/user-event
- 36: ```
- 37: `vite.config.ts`에 `test: { environment: 'jsdom' }` 추가.
- 38: 
- 39: → **Bean/Blend 기능 완료 후 추가. 순수 함수 먼저, React 컴포넌트 테스트는 선택.**
- 40: 
- 41: ---
- 42: 
- 43: ### [Q1] React Query staleTime 전략
- 44: 
- 45: 현재 `main.tsx`에 `staleTime: Infinity, refetchOnWindowFocus: false` 전역 설정 중.
- 46: 
- 47: **문제:** `staleTime: Infinity`는 cross-page 뮤테이션에서 명시적 `invalidateQueries` 필수.
- 48: 예: 로스팅 완료 저장 → `roast_sessions`(히스토리) + `beans.stock_grams` 캐시 둘 다 무효화 안 하면 stale 데이터 표시.
- 49: 
- 50: **A안:** Infinity 유지 + 뮤테이션마다 관련 쿼리 invalidation 명시적으로 관리
- 51: **B안:** staleTime 제거(기본값 0) + 탭 전환마다 refetch 감수
- 52: 
- 53: → **로스팅 완료 저장 뮤테이션 구현 시 재검토 필요.**
- 54: 
- 55: ---
- 56: 
- 57: ### [Q2] Pro 플랜 enforcement 전략
- 58: 
- 59: 현재 `useAuthStore`에서 `profiles.plan`을 로드해 클라이언트 전역(`selectIsPro`)으로 관리 중.
- 60: 
- 61: **클라이언트만으로 충분한 기능:**
- 62: 
- 63: - Update Rate 250ms 제한 (T26) — 폴링 주기는 프론트에서만 결정
- 64: - UI 잠금 아이콘, Pro 배지 표시
- 65: 
- 66: **서버 RLS가 필요한 기능 (구현 시 추가 필요):**
- 67: 
- 68: - 로스트 기록 개수 제한
- 69: - 팀 공유 데이터 접근
- 70: 
- 71: → **데이터 접근 제한이 필요한 Pro 기능 추가 시, Supabase RLS에 plan 조건 추가 필요.**
- 72: 
- 73: ---
- 74: 
- 75: ## DESIGN DECISION — 구현 전 결정 필요
- 76: 
- 77: ### [D1] 로스팅 프로파일 데이터 모델 및 Export 전략
- 78: 
- 79: **목표:** 로스트 종료 후 프로파일을 저장하고, 나중에 불러오거나 외부 툴로 내보낼 수 있게 한다.
- 80: 
- 81: ---
- 82: 
- 83: #### 결정 포인트 1 — 내부 저장 방식
- 84: 
- 85: **옵션 A: Tauri `tauri-plugin-fs` + JSON 파일**
- 86: 
- 87: - 앱 데이터 디렉토리에 `roasts/<uuid>.json` 저장
- 88: - 장점: 단순, 사람이 읽을 수 있음, git으로 백업 가능, 마이그레이션 쉬움
- 89: - 단점: 수백 개 쌓이면 목록 조회가 파일 시스템 traverse
- 90: 
- 91: **옵션 B: Tauri `tauri-plugin-sql` (SQLite)**
- 92: 
- 93: - `roasts` 테이블 + `roast_points` 테이블 (시계열)
- 94: - 장점: 필터/정렬/집계 쿼리, 비교/오버레이 뷰 확장 용이
- 95: - 단점: 스키마 마이그레이션 관리 필요, 초기 셋업 복잡
- 96: 
- 97: **추천:** 초기에는 **옵션 A (JSON 파일)**. 로스트 기록이 수백 개를 넘거나 비교/오버레이 기능이 생기면 SQLite로 마이그레이션.
- 98: 
- 99: ---
-100: 
-101: #### 결정 포인트 2 — 내부 JSON 스키마
-102: 
-103: ```jsonc
-104: {
-105:     "version": 1, // 스키마 버전 (마이그레이션용)
-106:     "id": "uuid-v4",
-107:     "roastedAt": "2026-05-04T14:32:00Z", // ISO 8601
-108:     "machine": {
-109:         "brand": "Giesen",
-110:         "displayName": "Giesen W6A PRO",
-111:         "roasterKey": "giesen_w6a_pro",
-112:     },
-113:     "bean": {
-114:         "name": "Ethiopia Yirgacheffe", // 사용자 입력
-115:         "origin": "Ethiopia",
-116:         "variety": "Heirloom",
-117:         "process": "Washed",
-118:         "greenWeightG": 500,
-119:         "roastedWeightG": 430, // 로스트 후 입력 (배출 후 계량)
-120:     },
-121:     "profile": {
-122:         "totalTimeSec": 742,
-123:         "chargeTemp": 195.2,
-124:         "dropTemp": 208.7,
-125:         "developmentTimeSec": 87, // FC Start → Drop
-126:         "developmentRatio": 0.117, // DTR = development / total
-127:     },
-128:     "events": [
-129:         { "timeSec": 0, "event": "Charge", "bt": 195.2, "note": "" },
-130:         { "timeSec": 312, "event": "Yellow", "bt": 150.1, "note": "" },
-131:         { "timeSec": 655, "event": "FC Start", "bt": 198.3, "note": "" },
-132:         { "timeSec": 742, "event": "Drop", "bt": 208.7, "note": "" },
-133:     ],
-134:     "timeseries": [
-135:         { "t": 0.0, "bt": 195.2, "et": 220.1, "ror": 0.0, "ror_et": 0.0 },
-136:         { "t": 0.5, "bt": 155.3, "et": 218.4, "ror": -12.4, "ror_et": -5.1 },
-137:         // ... 0.5s 해상도
-138:     ],
-139:     "notes": "2차 크랙 직전 에어 올림",
-140: }
-141: ```
-142: 
-143: **timeseries 용량 계산:** 13분 로스트 × 2포인트/s × ~50 bytes/point ≈ **78KB/로스트**. 수천 개도 수백 MB 이하 → JSON 파일로 충분.
-144: 
-145: ---
-146: 
-147: #### 결정 포인트 3 — Export 포맷
-148: 
-149: | 포맷                      | 용도                          | 구현 난이도 |
-150: | ------------------------- | ----------------------------- | ----------- |
-151: | **자체 JSON** (위 스키마) | 앱 내 재가져오기, 백업        | 즉시 가능   |
-152: | **CSV** (timeseries만)    | Excel 분석, 단순 공유         | 낮음        |
-153: | **Artisan .alog**         | Artisan과 호환, 커뮤니티 공유 | 중간        |
-154: 
-155: **Artisan .alog 포맷 요점:**
-156: 
-157: - 내부적으로 JSON, 확장자만 `.alog`
-158: - 필수 키: `timex` (초 배열), `temp1` (ET), `temp2` (BT), `title`, `beans`, `datetime`, `roastepoch`
-159: - 이벤트: `Eflags`, `Etypes`, `Evalues`, `Enames` 배열로 표현
-160: - 우리 `timeseries` + `events`만 있으면 변환 가능 (단방향 변환기 ~100줄)
-161: 
-162: **추천 순서:** 자체 JSON → CSV → Artisan .alog (커뮤니티 피드백 후)
-163: 
-164: ---
-165: 
-166: #### 결정 포인트 4 — 저장 트리거 시점
-167: 
-168: - **현재:** `RoastSummaryModal` 닫으면 데이터 소멸
-169: - **필요:** Summary Modal의 "Save" 버튼 → Tauri `invoke('save_roast', { profile })` 호출
-170: - 원두 메타데이터 입력은 **Charge 직전** (bean name, green weight) + **Summary Modal** (roasted weight, 최종 노트)로 분리
-171: 
-172: ---
-173: 
-174: #### 구현 순서 (제안)
-175: 
-176: 1. **원두 입력 UI** — Charge 버튼 클릭 시 BeforeChargeModal (bean name, green weight 입력)
-177: 2. **내부 JSON 저장** — Tauri `save_roast` command + `tauri-plugin-fs`
-178: 3. **히스토리 뷰** — 저장된 로스트 목록 + 프로파일 차트 재생
-179: 4. **Export** — CSV 먼저, Artisan .alog는 사용자 요청 기반으로
-180: 5. **오버레이** — 과거 프로파일을 현재 로스트 차트에 target으로 표시
-181: 
-182: **Depends on:** T1 (테스트), 하드웨어 연결 검증 후 실제 timeseries 품질 확인
-183: 
-184: ---
-185: 
-186: ## CRITICAL — 프로덕션 배포 전 필수
-187: 
-188: ### [T36] Apple 코드 사이닝 & 노타리제이션 시크릿 설정
-189: 
-190: **What:** GitHub 레포 Settings → Secrets and variables → Actions에 아래 6개 시크릿 추가.
-191: 
-192: | 시크릿 이름 | 내용 |
-193: |------------|------|
-194: | `APPLE_CERTIFICATE` | .p12 인증서를 base64로 인코딩한 값 (`base64 -i cert.p12 \| pbcopy`) |
-195: | `APPLE_CERTIFICATE_PASSWORD` | .p12 인증서 비밀번호 |
-196: | `APPLE_SIGNING_IDENTITY` | `Developer ID Application: 이름 (TEAMID)` 형식 |
-197: | `APPLE_ID` | Apple Developer 계정 이메일 |
-198: | `APPLE_PASSWORD` | 앱 전용 비밀번호 (appleid.apple.com → App-Specific Passwords) |
-199: | `APPLE_TEAM_ID` | Apple Developer Team ID (10자리, developer.apple.com에서 확인) |
-200: 
-201: **Why:** 시크릿 없이 배포 시 macOS Gatekeeper가 앱 실행 차단. 일반 사용자가 우회 불가.
-202: **Status:** 워크플로우 코드는 준비 완료. 시크릿 값만 입력하면 즉시 적용.
-203: **Depends on:** Apple Developer Program 가입 완료 ✅
-204: 
-205: ---
-206: 
-207: ### [T1] manager + HTTP API pytest 테스트
-208: 
-209: **What:** pytest로 manager.py, HTTP 엔드포인트, RoR 계산 단위 테스트 작성.
-210: **Why:** 실제 하드웨어 없이 MODBUS 레지스터 주소 오류, RoR 계산 버그, connect/disconnect 사이클 검증 가능. 현재 커버리지 0%.
-211: **Pros:** 하드웨어 테스트 전에 로직 버그 사전 차단. mock 어댑터로 빠른 피드백.
-212: **Cons:** 초기 setup 시간 (~20분 CC).
-213: **Context:** src-tauri/sidecar/manager.py의 RoR 계산(\_compute_ror), connect() 예외 처리, read_temperatures() 에러 경로가 주요 타겟. pytest + httpx 사용.
-214: **Depends on:** 없음
-215: 
-216: ---
-217: 
-218: ## HIGH — 배포 후 1스프린트 내
-219: 
-220: ### [T2] Tailwind CSS 마이그레이션 (스타일 정합성)
-221: 
-222: **What:** Machines.tsx, AddMachineModal.tsx, ActiveRoast.tsx의 inline `style={{}}` 및 History.css를 Tailwind 클래스로 교체.
-223: **Why:** CLAUDE.md 정책 위반. 코드베이스가 두 패턴으로 분열됨. 신규 개발 시 어느 패턴을 따를지 혼란.
-224: **Pros:** 스타일 시스템 통합, CLAUDE.md 준수.
-225: **Cons:** 큰 작업 (human: ~4시간), 동작에는 무관, 하드웨어 테스트와 병행 어려움.
-226: **Context:** ActiveRoast.tsx가 가장 크고 복잡. Machines.tsx, AddMachineModal.tsx는 상대적으로 작음.
-227: **Depends on:** 없음
-228: 
-229: ### [T3] Shadow 제거 및 Border 스타일 전환 — Views/Widgets ✅ 완료, 모달 [T3.1] 잔여
-230: 
-231: **완료:** Views (Dashboard, Machines, Profiles, History, Bean Inventory, Active Roast, Schedule) 및 Widgets (BeanList, BeanDetail, RoastSummaryModal, EndRoastModal, LiveReadings, RoastHeader) shadow 제거 및 `border border-[#E5E5E5]` 통일.
-232: 
-233: **미완료:** ⏳ [T3.1] 모든 모달 스타일 전환 필요
-234: 
-235: ### [T3.1] 모달 스타일 전환 — Shadow 제거 및 Border 통일
-236: 
-237: **What:** 모든 모달 컴포넌트의 shadow 제거 및 border 스타일 전환.
-238: **대상 파일:**
-239: - `src/widgets/add-bean-modal/ui/AddBeanModal.tsx`
-240: - `src/widgets/add-machine-modal/ui/AddMachineModal.tsx`
-241: - `src/views/profiles/NewProfileModal.tsx`
-242: - `src/widgets/add-batch-modal/ui/AddBatchModal.tsx` (Schedule)
-243: - `src/widgets/add-batch-modal/ui/EditBatchModal.tsx` (Schedule)
-244: - `src/widgets/settings-modal/ui/RoastSettingsTab.tsx`
-245: - 그 외 모달 컴포넌트들
-246: 
-247: **Style 규칙:**
-248: - ModalShell의 shadow 속성 제거 또는 border 기반으로 변경
-249: - 모달 내부 input/textarea: `shadow-(--shadow-inset)` → 제거
-250: - 모달 버튼: `shadow-(--shadow-card)`, `shadow-(--shadow-inset)` → 제거
-251: - Border 필요시 `border border-[#E5E5E5]` 적용
-252: 
-253: **Why:** [T3]의 일관성 확장. 모달도 동일한 subtle border 스타일 적용.
-254: **Pros:** 전체 앱의 일관된 비주얼 언어.
-255: **Cons:** 모달 개수 많음 (~10+).
-256: **Depends on:** [T3] 완료 후
-257: 
-258: ### [T4] /control 시맨틱 개선 — no-op 시 명확한 응답
-259: 
-260: **What:** 어댑터 control()이 no-op일 때 ok:true 대신 ok:false 또는 skipped:true 반환.
-261: **Why:** capabilities에 heater/fan을 광고하면서 실제로는 아무 동작 없음. 나중에 control write를 구현할 때 클라이언트가 이미 "성공"으로 믿고 있으면 디버깅 어려움.
-262: **Pros:** API 신뢰성 향상.
-263: **Cons:** 프론트엔드 사이드 처리 변경 필요.
-264: **Context:** control write 구현 시 함께 처리. adapters/base.py에 control() 기본 구현 추가하고 각 어댑터가 override하는 패턴.
-265: **Depends on:** control write 구현 결정
-266: 
-267: ### [T5] Machine identity 개선 — roasterKey 중복 문제
-268: 
-269: **What:** Machines.tsx의 isThisMachineConnected()가 roasterKey뿐 아니라 실제 연결된 머신을 구분하도록 개선.
-270: **Why:** 같은 브랜드/모델 2대 (IP 다름)를 등록하면 둘 다 "connected" 표시. 현장에서 2대 이상 운영 시 혼란.
-271: **Pros:** 올바른 연결 상태 표시.
-272: **Cons:** sidecar API 변경 필요 (GET /status에 machine_id 또는 connection hash 추가).
-273: **Context:** 가장 간단한 방법: POST /connect 시 machine_id(localStorage ID)를 body에 포함, GET /status에서 반환. Machines.tsx에서 m.id === sidecarStatus.machine_id로 비교.
-274: **Depends on:** 없음
-275: 
-276: ### [T30] 온보딩 가이드 구현 (driver.js 또는 React Joyride 활용)
-277: 
-278: **What:** `driver.js` 또는 `React Joyride`를 사용하여 앱의 주요 기능(머신 연결, 로스팅 시작, 프로파일 관리 등)에 대한 인터랙티브 튜토리얼 구현.
-279: **Why:** 처음 사용자가 머신을 연결하고 로스팅을 시작하는 전체 워크플로우를 쉽게 이해하도록 돕기 위함. 특히 하드웨어 설정이 복잡할 수 있으므로 단계별 안내가 필수적임.
-280: **How:**
-281: 
-282: 1. 라이브러리 선정 (가벼운 `driver.js` 또는 React 친화적인 `React Joyride`)
-283: 2. 주요 뷰(Dashboard, Machines, ActiveRoast)별 Step 정의
-284: 3. '처음 방문 시' 또는 '도움말 버튼 클릭 시' 가이드 트리거 로직 추가
-285: 4. 단계별 설명 및 하이라이트 영역 지정
-286:    **Depends on:** 없음
-287: 
-288: ### [T31] Active Roast에서 원두(Bean) 선택 기능 구현
-289: 
-290: **What:** 로스팅 시작 전 또는 도중에 해당 배치의 원두(Bean)를 선택할 수 있는 UI 구현 (Profiles 선택과 유사한 방식).
-291: **Why:** 로스팅 기록 저장 시 원두 정보(이름, 원산지, 재고 등)를 자동으로 연동하여 이력 관리를 자동화하기 위함. 현재는 프로파일만 선택 가능.
-292: **How:**
-293: 
-294: 1. `ActiveRoast` 헤더(`RoastHeader`)에 원두 선택 드롭다운 또는 셀렉터 추가.
-295: 2. `Beans` 인벤토리 데이터(Supabase 또는 Local)에서 현재 재고가 있는 원두 목록 로드.
-296: 3. 원두 선택 시 해당 배치의 메타데이터로 설정하고, 로스팅 종료 후 저장 시 `roast_sessions` 테이블의 `bean_id`와 연동.
-297: 4. 원두 선택에 따른 투입량(Green Weight) 입력 UI 병행 검토 (D1 관련).
-298:    **Depends on:** D1 (로스트 저장 구조)
-299: 
-300: ---
-301: 
-302: ## LOW — 하드웨어 테스트 후
-303: 
-304: ### [T28] ja / zh-CN 언어별 폰트 적용
-305: 
-306: **What:** 현재 한국어(`ko`)만 Pretendard 로컬 폰트 적용. 일본어/중국어 폰트 추가.
-307: **Why:** `App.css`에 `html[lang='ja']`, `html[lang='zh-CN']` 규칙이 주석처리로 준비됨. 적합한 폰트 결정 후 활성화 필요.
-308: **Options:**
-309: 
-310: - `ja` → Noto Sans JP, M PLUS 1p (woff2 로컬 or Google Fonts)
-311: - `zh-CN` → Noto Sans SC (woff2 로컬 or Google Fonts)
-312:   **How:** `public/fonts/`에 woff2 파일 추가 → `App.css`의 주석 해제 및 `@font-face` 등록.
-313:   **Note:** CJK 폰트는 파일 크기가 크므로(수 MB) variable subset woff2 사용 권장.
-314:   **Depends on:** 없음
-315: 
-316: ---
-317: 
-318: ### [T6] KaleidoAdapter sleep(1.0) race condition 개선
-319: 
-320: **What:** connect()에서 asyncio.sleep(1.0) 고정 대기를 KaleidoPort on_connect 콜백 기반으로 교체.
-321: **Why:** 1초 대기 후 WebSocket 미연결이어도 connected=True 설정. 다음 read() 호출 시에야 에러 발생.
-322: **Context:** extern/kaleido.py의 KaleidoPort 콜백 구조 확인 필요. on_connected 이벤트가 노출되면 asyncio.Event 기반으로 교체.
-323: **Depends on:** Kaleido 하드웨어 테스트
-324: 
-325: 
-326: ### [T9] ET-BT Gap 차트 표시
-327: 
-328: **What:** RoR 차트 아래(또는 별도 서브차트)에 `ET - BT` 값을 실시간으로 표시.
-329: **Why:** ET-BT Gap은 원두로의 열전달 마진을 나타내는 핵심 지표. 값이 줄어들수록 개발 단계 종료에 가까워짐. ET가 BT보다 낮아지는 크로싱 포인트는 로스팅 전환점.
-330: **Pros:** 로스터가 화력/에어플로우 조절 타이밍을 더 정확히 판단 가능. 재현 가능한 로스팅 프로파일 설계에 필수.
-331: **Context:** 계산식 `ET - BT`. 정상 범위 약 100~150°C. 양수=정상 가열 중, 음수=발열 반응 진행 중(2차 크랙 근처). Artisan에서도 비공식적으로 "Temperature Gap"으로 불림. 프론트엔드에서 계산 가능(별도 sidecar API 불필요).
-332: **Depends on:** 없음
-333: 
-334: ### [T11] 시리얼 포트 OS별 처리 — comport 필드 개선
-335: 
-336: **What:** `GET /serial-ports` 엔드포인트 추가 후, AddMachineModal의 `comport` 텍스트 입력을 실제 포트 목록 드롭다운으로 교체.
-337: **Why:** 현재 `comport` placeholder가 `/dev/ttyUSB0` (Linux 형식) 하드코딩. Windows 사용자는 `COM3`, Mac 사용자는 `/dev/cu.usbserial-XXXX` 형식인데 힌트 없이 직접 타이핑해야 함. Loring 항목은 `default_params.comport = "COM5"`로 불일치.
-338: **How:**
-339: 
-340: 1. `GET /serial-ports` 엔드포인트는 `main.py`에 이미 구현됨 (`serial.tools.list_ports.comports()` 사용, Bluetooth 가상 포트 필터 포함)
-341: 2. `roaster_registry.py`의 `comport` 필드 type을 `"select"` 또는 `"combo"`로 변경, options는 런타임에 채움
-342: 3. `AddMachineModal.tsx`: `comport` 필드 선택 시 `/serial-ports` 호출 → 드롭다운 옵션 채우기 (자유 입력 fallback 유지)
-343: 4. placeholder는 Windows면 `COM3`, Mac이면 `/dev/cu.usbserial-XXXX`, Linux면 `/dev/ttyUSB0` (sidecar에서 `platform.system()` 분기)
-344:    **Context:** `async_comm.py`의 transport 레이어는 이미 OS 분기 됨 (`os.name == 'nt'` 폴링, `clear_HUPCL` Unix 전용). 누락된 것은 UX 레이어만.
-345:    **Depends on:** 없음
-346: 
-347: ---
-348: 
-349: ### [T12] 뷰 간 네비게이션 플로우 완성
-350: 
-351: **What:** 여러 뷰에서 다른 뷰로 이동하는 CTA들이 연결되어 있지 않음. 구체적으로:
-352: 
-353: 1. **Machines → Roast**: 연결 성공(`handleConnect` 완료) 후 "Start Roasting" 토스트/버튼이 없음. `Machines`에 `onNavigate` prop 추가 후, connect 성공 시 `onNavigate('roast')` 유도 UI 제공.
-354: 2. **Dashboard → Beans (Inventory Alerts)**: Inventory Alerts 카드의 각 항목 클릭 시 Beans 뷰로 이동하지 않음. 항목에 `onClick={() => onNavigate('beans')}` 추가.
-355: 3. **Dashboard → Roast (Upcoming Batches)**: Upcoming Batches 항목에 "Start" 버튼이 없음. 각 항목에 roast 뷰로 이동하는 액션 추가.
-356: 
-357: **참고:** Profiles → Roast ("Start with this Profile") 는 2026-05-04 완료.
-358: 
-359: **Why:** 사용자가 자연스러운 워크플로우(머신 연결 → 로스팅 시작, 원두 재고 확인 → 로스팅)를 따를 수 없어 매번 사이드바를 통해 직접 탭 전환 필요.
-360: **Depends on:** 없음
-361: 
-362: ---
-363: 
-364: ### [T26] Roast Settings — 빠른 Update Rate Pro 제한
-365: 
-366: **What:** Update Rate의 `250ms`, `500ms` 옵션은 Pro 사용자만 사용할 수 있게 제한한다. Free 사용자는 `1s`만 선택 가능.
-367: **Why:** 고주파 폴링은 더 높은 데이터 해상도와 실시간성이 필요한 고급 기능이므로 Pro 플랜 기능으로 분리.
-368: **How:**
-369: 
-370: 1. 사용자 플랜 상태(`free` / `pro`)를 settings 또는 auth store에서 읽는다.
-371: 2. Free 사용자가 `250ms` 또는 `500ms`를 선택하려고 하면 Pro 업그레이드 안내를 표시하고 설정값은 변경하지 않는다.
-372: 3. 기존 저장값이 `250ms` 또는 `500ms`인데 사용자가 Free로 내려간 경우 앱 로드 시 `1s`로 보정한다.
-373: 4. UI에는 잠금 아이콘과 짧은 Pro 배지를 표시한다.
-374:    **Depends on:** 사용자 플랜/구독 상태 모델 결정
-375: 
-376: ---
-377: 
-378: ### [T15] 앱 재시작 시 마지막 머신 자동 재연결
-379: 
-380: **What:** sidecar 시작 시 마지막으로 연결했던 머신에 자동으로 재연결 시도.
-381: **Why:** 현재 앱을 껐다 켜면 매번 Machines 뷰 → 머신 선택 → Connect를 반복해야 함. 실제 로스터리 환경에서는 항상 같은 머신을 사용하므로 마찰이 큼.
-382: **How:**
-383: 
-384: 1. sidecar: `POST /connect` 성공 시 `last_connection.json` (또는 `~/.config/firstcrack/`) 저장 → roaster_key + params
-385: 2. sidecar `on_startup`: `last_connection.json` 읽어서 자동 connect 시도 (실패 시 무시)
-386: 3. 개발용 VirtualMachine 자동연결(`main.py:on_startup`) 제거
-387: 4. 프론트엔드: 앱 시작 시 `GET /status`에서 connected=true면 Machines 뷰에 "자동 연결됨" 배지 표시
-388:    **Context:** main.py on_startup에 현재 개발용 VirtualMachine 자동연결 코드 있음 — 프로덕션 전 제거 필요. 저장 경로는 Tauri의 appConfigDir 또는 sidecar 실행 경로 기준 상대 경로 사용.
-389:    **Depends on:** T8 (CORS), 실제 하드웨어 테스트 후 안정성 확인
-390: 
-391: ---
-392: 
-393: ### [T16] 시리얼 포트 Refresh 버튼
-394: 
-395: **What:** AddMachineModal의 comport 드롭다운 옆에 ↺ Refresh 버튼 추가.
-396: **Why:** 현재 포트 목록은 모달 열릴 때 한 번만 fetch. USB 케이블을 모달 열린 상태에서 꽂으면 새 포트가 안 보임. 버튼 클릭으로 즉시 재스캔.
-397: **How:** ComportSelect에 `onRefresh` prop 추가 → 클릭 시 `sidecar.getSerialPorts()` 재호출.
-398: **Depends on:** 없음
-399: 
-400: ---
-401: 
-402: ### [T17] 네트워크 기기 자동 탐색 (Network Device Discovery)
-403: 
-404: **What:** AddMachineModal에 "Scan Network" 기능 추가 — 로컬 서브넷에서 로스터 머신 응답을 감지해 IP를 자동 입력.
-405: **Why:** 현재 S7(Giesen/Probat), MODBUS TCP, Probat WebSocket 머신은 IP를 직접 타이핑해야 함. 처음 세팅하는 사용자가 PLC IP를 모르는 경우 많음.
-406: **How:**
-407: 
-408: 1. sidecar `GET /scan-network?protocol=s7` → 로컬 서브넷(/24) 에서 해당 포트(102/502/80) 응답 호스트 열거
-409: 2. scan은 asyncio로 병렬 실행 (timeout 0.5s per host, ~254 hosts → 약 2~3초)
-410: 3. AddMachineModal: 프로토콜이 네트워크 타입일 때 "Scan" 버튼 표시 → 결과를 host 드롭다운으로 제공
-411:    **Context:** 포트별 스캔 대상: S7=102, MODBUS TCP=502, Probat/Kaleido WS=80. 실제 연결 시도는 안 하고 TCP connect만 확인. 프라이버시 우려 없음 (로컬 네트워크만).
-412:    **Depends on:** 없음
-413: 
-414: ---
-415: 
-416: ### [T18] 프로토콜별 Mock Adapter 구현
-417: 
-418: **What:** 각 프로토콜 어댑터의 Mock 버전 생성 (`adapters/modbus_sim.py`, `kaleido_sim.py`, `probat_ws_sim.py`, `s7_sim.py`, `phidget_sim.py`). 실제 라이브러리(snap7, pymodbus, Phidget22 등) 없이 realistic한 온도 데이터 반환. `roaster_registry.py`에 sim 항목 추가.
-419: **Why:** 실제 통신 기기 없이 프로토콜별 파라미터 파싱, 데이터 변환 로직, 연결 흐름 테스트 가능.
-420: **Depends on:** 없음
-421: 
-422: ---
-423: 
-424: ### [T19] Local Fake Server 구현 (modbus / kaleido / probat_ws)
-425: 
-426: **What:** 로컬에 fake 서버를 띄워 실 어댑터가 연결하도록 구성. pymodbus MockServer (MODBUS TCP), asyncio WebSocket 서버 (Kaleido WS, Probat WS). s7/phidget은 T18(Mock Adapter) 방식 유지.
-427: **Why:** 실 어댑터 코드 전체 경로 테스트 — 연결/재연결/오류 핸들링 흐름까지 검증 가능.
-428: **Depends on:** T18
-429: 
-430: ---
-431: 
-432: ### [T21] 연동 가이드 버튼
-433: 
-434: **What:** Machines 뷰에 "연동 가이드 보러가기" 버튼 추가 — 외부 문서 사이트 또는 앱 내 뷰로 연결.
-435: **Why:** 처음 세팅하는 사용자가 머신별 IP/시리얼 포트 설정 방법을 모르는 경우 많음. 연결 실패 시 가이드 진입점이 없음.
-436: **Decision needed:** 링크 대상 결정 (외부 docs 사이트 URL / 앱 내 Help 뷰 / 로컬 MD 파일 열기).
-437: **How (링크 결정 후):**
-438: 
-439: 1. Machines 헤더 또는 빈 상태 화면에 버튼 배치
-440: 2. 외부 URL이면 `@tauri-apps/plugin-opener`의 `openUrl()` 사용 (이미 설치됨)
-441: 3. 앱 내 뷰면 `onNavigate('help')` 패턴
-442:    **Depends on:** 링크 URL/대상 결정
-443: 
-444: ---
-445: 
-446: ### [T22] 커핑(Cupping) 기록 기능
-447: 
-448: **What:** 로스팅 완료 후 커핑 결과를 기록하고 로스트 프로파일에 연결. SCA 커핑 폼 기준.
-449: 
-450: **필드 구조:**
-451: 
-452: ```jsonc
-453: {
-454:     "cuppingId": "uuid-v4",
-455:     "roastId": "연결된 로스트 ID (D1 스키마)",
-456:     "cuppedAt": "2026-05-09T10:00:00Z",
-457:     "cuppedBy": "사용자명 또는 팀원",
-458:     "scores": {
-459:         "fragrance": 8.0, // 향
-460:         "aroma": 8.0, // 아로마
-461:         "flavor": 8.0, // 맛
-462:         "aftertaste": 7.5, // 후미
-463:         "acidity": 8.0, // 산미
-464:         "body": 7.5, // 바디
-465:         "balance": 8.0, // 균형
-466:         "overall": 8.0, // 전체
-467:     },
-468:     "totalScore": 85.0, // SCA 합산 (기본값 36 + 각 항목 합)
-469:     "defects": 0, // 결점 수
-470:     "notes": "자유 텍스트 테이스팅 노트",
-471:     "descriptors": ["citrus", "floral", "honey"], // 태그
-472: }
-473: ```
-474: 
-475: **Why:** 로스팅 프로파일과 커핑 결과를 연결하면 어떤 프로파일이 좋은 컵을 만드는지 데이터로 파악 가능. 반복 재현 기준이 됨.
-476: 
-477: **How:**
-478: 
-479: 1. `RoastSummaryModal` 또는 별도 `CuppingModal`에 커핑 입력 UI 추가
-480: 2. 로스트 저장 JSON에 `cupping` 배열 필드 추가 (나중에 여러 번 커핑 가능)
-481: 3. Profiles/History 뷰에서 커핑 점수 표시 (별점 또는 숫자)
-482: 4. 커핑 입력은 로스트 직후가 아니어도 되도록 히스토리 뷰에서 "Add Cupping" 버튼 제공
-483: 
-484: 
-485: ### [T24] Artisan .alog 파일 가져오기
-486: 
-487: **What:** Artisan이 저장한 `.alog` 파일을 FC Desktop으로 가져와 히스토리 뷰에서 조회/오버레이 가능하게 한다.
-488: 
-489: **Artisan .alog 구조 요약 (내부는 JSON):**
-490: 
-491: ```json
-492: {
-493:   "timex": [0, 0.5, 1.0, ...],   // 경과 초 배열
-494:   "temp1": [220.0, ...],          // ET
-495:   "temp2": [190.0, ...],          // BT
-496:   "title": "Ethiopia Yirgacheffe",
-497:   "beans": "Ethiopia Washed",
-498:   "datetime": "2026-05-09 10:00",
-499:   "roastepoch": 1746784800,
-500:   "Eflags": [...],                // 이벤트 플래그
-501:   "Etypes": [...],
-502:   "Evalues": [...],
-503:   "Enames": [...]                  // 이벤트 이름 배열
-504: }
-505: ```
-506: 
-507: **매핑 규칙:**
-508: | Artisan 필드 | FC Desktop 필드 |
-509: |---|---|
-510: | `timex[i]` | `timeseries[i].t` |
-511: | `temp1[i]` | `timeseries[i].et` |
-512: | `temp2[i]` | `timeseries[i].bt` |
-513: | `title` | `bean.name` |
-514: | `datetime` | `roastedAt` |
-515: | `Enames[i]` | `events[i].event` |
-516: | `Evalues[i]` | `events[i].bt` |
-517: 
-518: **RoR 재계산:** Artisan의 RoR 배열(`delta1`, `delta2`)이 있으면 그대로 사용, 없으면 BT 시계열에서 재계산.
-519: 
-520: **How:**
-521: 
-522: 1. 히스토리 뷰 "Import" 드롭다운에 "From Artisan (.alog)" 옵션 추가
-523: 2. `open_dialog` → `.alog` 파일 선택 → JSON 파싱 → `alogToFcProfile()` 변환 함수 적용
-524: 3. 변환 결과를 FC Desktop 스키마(D1)로 저장
-525: 4. 가져온 프로파일에 `source: "artisan"` 메타 필드 표시
-526: 
-527: **Depends on:** D1 (로스트 저장 구조 완성)
-528: 
-529: ---
-530: 
-531: ### [T25] Firescope CSV 파일 임포터
-532: 
-533: **What:** Firescope가 내보내는 CSV 파일을 자동으로 컬럼 분석·매핑하여 FC Desktop 히스토리로 가져오는 전용 임포터.
-534: 
-535: **Why:** Firescope CSV는 헤더 컬럼명이 고정되어 있지 않거나 버전별로 다를 수 있음. 단순 column index 매핑이 아닌 **컬럼명 기반 자동 탐지** 필요.
-536: 
-537: **Firescope CSV 예상 구조 (분석 필요):**
-538: 
-539: ```
-540: Time,BT,ET,RoR,Heater,Fan,...
-541: 0,190.2,220.1,0.0,80,60,...
-542: 0.5,155.3,218.4,-12.4,80,60,...
-543: ```
-544: 
-545: **자동 매핑 전략:**
-546: 
-547: 1. **헤더 정규화:** 대소문자 무시, 공백/특수문자 제거 후 비교
-548: 2. **컬럼 감지 규칙:**
-549:    | 우선순위 | 후보 컬럼명 패턴 | 매핑 대상 |
-550:    |---|---|---|
-551:    | 1 | `time`, `elapsed`, `t`, `seconds` | `timeseries.t` |
-552:    | 2 | `bt`, `bean temp`, `temp2` | `timeseries.bt` |
-553:    | 3 | `et`, `env temp`, `temp1` | `timeseries.et` |
-554:    | 4 | `ror`, `ror_bt`, `delta` | `timeseries.ror` |
-555:    | 5 | `heater`, `heat`, `power` | `liveData.heater` |
-556:    | 6 | `fan`, `airflow`, `air` | `liveData.fan` |
-557: 3. **매핑 실패 시:** 사용자에게 컬럼 선택 UI 표시 (수동 매핑 fallback)
-558: 4. **이벤트 행 감지:** 숫자가 아닌 셀 또는 별도 이벤트 컬럼 (`event`, `marker`, `flag`) 파싱
-559: 
-560: **컬럼 매핑 UI (수동 fallback):**
-561: 
-562: - 자동 매핑 결과를 테이블로 표시: `감지된 컬럼` → `FC 필드` 드롭다운
-563: - 사용자가 수정 후 "Import" 확인
-564: 
-565: **How:**
-566: 
-567: 1. `src/features/import/` 디렉토리에 `FirescopeImporter.ts` 생성
-568: 2. CSV 파싱: `papaparse` 라이브러리 사용 (헤더 자동 감지 옵션)
-569: 3. `detectColumns(headers: string[]): ColumnMapping` 함수 — 위 규칙 적용
-570: 4. `FirescopeImportModal.tsx` — 파일 선택 → 미리보기 → 컬럼 매핑 확인 → 가져오기
-571: 5. 가져온 프로파일에 `source: "firescope"` 메타 필드 표시
-572: 
-573: **필요한 패키지:**
-574: 
-575: - `papaparse` (CSV 파싱, 이미 많은 React 프로젝트에서 사용)
-576: 
-577: **Depends on:** D1 (로스트 저장 구조 완성)
-578: 
-579: ---
-580: 
-581: ### [T8] CORS 제한 — Tauri Origin으로 좁히기
-582: 
-583: **What:** cors_middleware에서 `Access-Control-Allow-Origin: *`을 `http://localhost:1420` (Tauri devUrl)으로 제한.
-584: **Why:** 현재 로컬의 모든 웹 페이지가 POST /control로 로스터를 제어 가능. 물리적 안전 우려.
-585: **Context:** main.py cors_middleware. 프로덕션 빌드 origin은 `tauri://localhost`로 변경 필요.
-586: **Depends on:** Tauri sidecar 번들링 완료 후 실제 origin 확인
-587: 
-588: ---
-589: 
-590: ## Plan View (오늘의 로스팅 계획) — 추후 개선 항목
-591: 
-592: _CEO review 2026-05-10에서 V2로 연기된 항목들_
-593: 
-594: ### [P1] Plan 배치 드래그 앤 드롭 순서 변경
-595: 
-596: **What:** Plan 뷰에서 pending 배치를 드래그하여 순서 변경.
-597: **Why:** V1에서는 삭제+재입력으로 우회하지만, 배치가 5개 이상이면 번거롭다.
-598: **Pros:** UX 개선, 로스팅 순서 즉흥 변경 쉬워짐.
-599: **Cons:** drag-and-drop 라이브러리 의존성 추가 (예: @dnd-kit/core), 복잡도 증가.
-600: **Context:** `src/views/Plan.tsx`. in-progress/done 배치는 이동 불가. batches 배열 인덱스로 순서 관리.
-601: **Effort:** M (human) → S (CC)
-602: **Priority:** P3
-603: **Depends on:** Plan 뷰 V1 구현 완료
-604: 
-605: ---
-606: 
-607: ### [P2] '어제 계획 반복' 버튼
-608: 
-609: **What:** 가장 최근 DayPlan을 오늘 계획 초안으로 로드 (원두명, 투입량 복사, 상태는 모두 pending).
-610: **Why:** 매주 비슷한 로스팅 패턴을 가진 로스터에게 유용. 빈 상태에서 시작하는 시간 절약.
-611: **Pros:** 반복 작업 최소화, 빠른 계획 수립.
-612: **Cons:** 날짜별 plan 히스토리가 쌓여야 의미 있음. LazyStore에 최근 날짜 키 탐색 필요.
-613: **Context:** `LazyStore('plans.json')`의 키 목록에서 가장 최근 날짜 찾기. 오늘 계획이 이미 있으면 비활성화.
-614: **Effort:** M (human) → S (CC)
-615: **Priority:** P3
-616: **Depends on:** Plan 뷰 V1 구현, 최소 1회 이상 계획 저장 후 테스트 가능
-617: 
-618: ---
-619: 
-620: ### [P3] Profiles에 estimatedTimeSec 필드 추가
-621: 
-622: **What:** Profiles 데이터 모델에 `estimatedTimeSec?: number` 추가. Plan 뷰 ETA 계산에 사용.
-623: **Why:** 현재 ETA는 프로파일 없을 때 600초(10분) fallback만 사용. 프로파일마다 다른 로스팅 시간을 반영하면 ETA가 정확해짐.
-624: **Pros:** 오늘 로스팅 예상 종료 시간 정확도 향상.
-625: **Cons:** Profiles mock data → 실 데이터화 이후에 의미 있음.
-626: **Context:** `src/views/Profiles.tsx` mock data 및 향후 Profiles 타입 정의.
-627: **Effort:** S (human) → S (CC)
-628: **Priority:** P2
-629: **Depends on:** Profiles 실 데이터화 (D1 결정 이후)
-630: 
-631: ### [T33] 세팅 모달에서 결제 및 구독 상태 확인
-632: 
-633: 
-634: ## GLOBAL COMPLIANCE — 글로벌 컴플라이언스
-635: 
-636: ### [C1] EUDR (EU 삼림벌채 규정) 준수 기능
-637: 
-638: **What:** 2025년 12월 발효 예정인 EU Deforestation Regulation(EUDR)에 따라 커피 원두의 공급망 추적 정보를 기록·보고하는 기능.
-639: 
-640: **EUDR 핵심 요구사항:**
-641: 
-642: - 원두가 삼림벌채 없는 토지에서 재배됐음을 증명하는 Due Diligence Statement (DDS) 작성
-643: - 농장 단위 지리 좌표 (위도·경도 또는 폴리곤) 수집
-644: - 생산자/공급자 정보 (국가, 이름, 인증서) 기록
-645: - EU TRACES NT 또는 대체 시스템으로 DDS 제출
-646: 
-647: **필요한 데이터 필드 (Beans 모델 확장):**
-648: 
-649: ```jsonc
-650: {
-651:   "eudr": {
-652:     "farmCoordinates": [            // 농장 위·경도 (단일 점 또는 폴리곤)
-653:       { "lat": 6.123, "lng": 38.456 }
-654:     ],
-655:     "countryOfOrigin": "Ethiopia",  // ISO 3166-1 alpha-2
-656:     "producerName": "Yirgacheffe Farmers Coop",
-657:     "supplierName": "Importer Co.",
-658:     "harvestYear": 2024,
-659:     "certifications": ["Rainforest Alliance", "Organic"],
-660:     "ddsReferenceNumber": "EU-DDS-2025-XXXXX",  // 제출 후 부여
-661:     "ddsStatus": "draft" | "submitted" | "approved"
-662:   }
-663: }
-664: ```
-665: 
-666: **How:**
-667: 
-668: 1. Beans 뷰 — 원두 추가/편집 폼에 EUDR 섹션 추가 (지도 핀 또는 좌표 직접 입력)
-669: 2. `eudr_compliance` 테이블 또는 `beans` 테이블 컬럼 확장 (Supabase 마이그레이션)
-670: 3. DDS 보고서 생성 — PDF 또는 CSV 내보내기 (EU 양식 기준)
-671: 4. EUDR 미완성 원두 경고 배지 — 컴플라이언스 미비 시 Beans 카드에 ⚠️ 표시
-672: 5. (Phase 2) EU TRACES NT API 연동으로 DDS 직접 제출
-673: 
-674: **Priority:** HIGH — 2025년 12월 이후 EU 수출/판매 시 법적 필수.
-675: **Depends on:** D1 (원두 데이터 모델), Beans 뷰 편집 UI 완성
-676: 
-677: ---
-678: 
-679: ### [C2] 세무 보고서 (Tax & Duty Reporting)
-680: 
-681: **What:** 국가별 세무·통관 요건에 맞는 보고서 자동 생성. 초기 타겟: 한국 부가가치세, EU VAT, 미국 수입 관세.
-682: 
-683: **보고서 유형:**
-684: 
-685: | 유형                 | 대상 국가 | 주요 데이터                             |
-686: | -------------------- | --------- | --------------------------------------- |
-687: | 부가가치세 매출 명세 | 한국      | 로스팅 완료 배치 × 판매가, 부가세율 10% |
-688: | EU VAT 보고          | EU 전체   | 원두 수입 송장, HS Code 0901.21         |
-689: | 수입 관세 내역       | 미국      | Green bean 중량 × 관세율 (0901.11)      |
-690: | 원두 재고 이동 내역  | 공통      | 입고/출고/손실(로스로스%) 추적          |
-691: 
-692: **필요한 추가 데이터:**
-693: 
-694: ```jsonc
-695: {
-696:   "purchaseInvoice": {
-697:     "invoiceNumber": "INV-2025-001",
-698:     "supplierVatId": "ET-VAT-XXXXX",
-699:     "purchasePriceUsd": 8.50,       // $/kg green
-700:     "totalWeightKg": 100,
-701:     "importDutyPaid": 0.00,
-702:     "hsCode": "0901.11"
-703:   },
-704:   "salesRecord": {
-705:     "saleDate": "2026-05-14",
-706:     "channelType": "b2b" | "b2c" | "export",
-707:     "unitPriceKrw": 45000,
-708:     "vatRate": 0.10
-709:   }
-710: }
-711: ```
-712: 
-713: **How:**
-714: 
-715: 1. Beans 뷰 — 원두별 구매 인보이스 정보 입력 필드 추가
-716: 2. 로스팅 완료 시 `green_weight → roasted_weight` 손실률(로스로스) 자동 계산 및 재고 차감
-717: 3. Reports 뷰 (신규) — 기간 선택 → 보고서 유형 선택 → CSV/PDF 생성
-718: 4. 한국 세금계산서 양식 매핑 (공급가액, 세액 분리)
-719: 5. (Phase 2) 국세청 홈택스 전자신고 포맷(.xlsx) 내보내기
-720: 
-721: **Priority:** MEDIUM — 사업자 고객 대상 필수. 개인 로스터는 낮은 우선순위.
-722: **Depends on:** D1 (로스트 저장), Beans 재고 관리 구현
-723: 
-724: ---
-725: 
-726: ### [C3] 재고 원가 보고서 (Inventory Cost Report)
-727: 
-728: **What:** 생두 재고의 취득 원가, 로스팅 후 원가 변동, 기말 재고 평가액을 기간별로 집계하는 보고서.
-729: 
-730: **핵심 계산:**
-731: 
-732: | 항목           | 계산식                                              |
-733: | -------------- | --------------------------------------------------- |
-734: | 생두 취득 원가 | 구매가($/kg) × 환율 × 입고량(kg)                    |
-735: | 로스팅 원가    | 취득 원가 + 로스팅 인건비 + 에너지 비용 (수동 입력) |
-736: | 로스로스 반영  | `roasted_weight / green_weight` → 원가 단가 재계산  |
-737: | 기말 재고 평가 | 잔여 재고량 × 단위 원가 (FIFO 또는 이동평균)        |
-738: | 매출원가(COGS) | 출고량 × 단위 원가 (판매 기록 연동)                 |
-739: 
-740: **보고서 출력 형식:**
-741: 
-742: ```
-743: 기간: 2026-01-01 ~ 2026-03-31
-744: 
-745: 원두명          입고량   취득원가    로스로스   로스팅후 단가   기말재고량   기말평가액
-746: Ethiopia Y.    100kg   ₩850,000   14.2%     ₩9,907/kg      23kg       ₩227,861
-747: Guatemala A.    50kg   ₩380,000   13.8%     ₩8,796/kg      10kg       ₩87,960
-748: ──────────────────────────────────────────────────────────────────────────────
-749: 합계                  ₩1,230,000                            33kg       ₩315,821
-750: 
-751: 매출원가(COGS): ₩914,179
-752: ```
-753: 
-754: **How:**
-755: 
-756: 1. Beans 뷰 — 원두별 구매 단가·환율·입고일 기록 (C2 인보이스 데이터 재활용)
-757: 2. 원가 계산 엔진 — FIFO 또는 이동평균 선택 가능 (설정에서)
-758: 3. Reports 뷰 — 기간 선택 → 재고 원가 보고서 탭 → 테이블 표시 + CSV/PDF 내보내기
-759: 4. 로스팅 완료 시 `green_weight → roasted_weight` 자동 반영 (D1 연동)
-760: 5. (Phase 2) 회계 소프트웨어 연동 포맷 — 더존/SAP CSV 내보내기
-761: 
-762: **Priority:** MEDIUM — 사업자 재무관리·세무조정 시 필수.
-763: **Depends on:** D1 (로스트 저장), C2 (구매 인보이스 데이터)
-764: 
-765: ---
-766: 
-767: ### [C4] 원두 원산지 추적 (Bean Traceability)
-768: 
-769: **What:** 원두의 농장 → 수입 → 로스팅 → 판매까지 전 공급망을 단일 뷰에서 조회 가능하게 한다. EUDR DDS 생성의 데이터 소스이기도 함.
-770: 
-771: **Traceability Record 구조:**
-772: 
-773: ```jsonc
-774: {
-775:     "traceabilityId": "uuid",
-776:     "beanId": "연결된 Bean",
-777:     "chain": [
-778:         { "stage": "farm", "actor": "Farmer Coop", "country": "ET", "date": "2024-10" },
-779:         { "stage": "mill", "actor": "Washing Station", "country": "ET", "date": "2024-11" },
-780:         { "stage": "export", "actor": "Exporter", "country": "ET", "date": "2024-12" },
-781:         { "stage": "import", "actor": "Importer Co.", "country": "KR", "date": "2025-01" },
-782:         { "stage": "roast", "actor": "First Crack", "country": "KR", "date": "2026-05" },
-783:     ],
-784:     "documents": [
-785:         { "type": "phytosanitary", "fileUrl": "...", "issuedAt": "2024-12-01" },
-786:         { "type": "ico_certificate", "fileUrl": "...", "issuedAt": "2024-12-01" },
-787:     ],
-788: }
-789: ```
-790: 
-791: **How:**
-792: 
-793: 1. Beans 뷰 — 공급망 단계별 입력 UI (스텝 폼 또는 타임라인 편집기)
-794: 2. 문서 첨부 (Tauri `tauri-plugin-fs` 또는 Supabase Storage)
-795: 3. Traceability 카드 — Beans 상세 뷰에 공급망 타임라인 시각화
-796: 4. EUDR C1과 연동: traceability chain → DDS 자동 채우기
-797: 
-798: **Priority:** MEDIUM — EUDR 요건 충족에 필수. C1 이후 구현.
-799: **Depends on:** C1 (EUDR), C3 (재고 원가), D1 (원두 데이터 모델)
-800: 
-801: ---
-802: 
-803: ## GRAPH SETTINGS REQUIREMENTS — 향후 그래프 설정 UI 구현 시 참고
-804: 
-805: ### 1. 선 색상 & 표시 여부 (Line Colors & Visibility)
-806: 
-807: - **BT (Bean Temperature):** 원두 표면 온도 색상 및 표시 여부.
-808: - **ET (Exhaust/Environmental Temp):** 배기 또는 드럼 내부 온도 색상 및 표시 여부.
-809: - **Inlet Temp.:** 열풍 입구 온도 색상 및 표시 여부.
-810: - **BT RoR / ET RoR:** BT와 ET의 온도 변화율(Rate of Rise).
-811: - **하드웨어 조작 값:** 버너 / 드럼 스피드 / 압력 / 에어플로우 변화 표시.
-812: - **기록 / 이벤트:** 기록 시작/종료 및 특정 조작 시점 표시.
-813: - **기타:** 가로선 표시, 추가 센서 그래프, 배치 간 예열 기록 등 시각적 보조 기능.
-814: 
-815: ### 2. 축 설정 (Axis Settings)
-816: 
-817: - **시간 축 (Time Axis):**
-818:     - 눈금 간격 (예: 60초) 및 보조눈금 간격 (예: 30초).
-819:     - 시작/종료 시점 (예: 투입 전 -15초 ~ 720초).
-820:     - 시간 축 자동 연장 기능.
-821: - **온도 축 (Temperature Axis):**
-822:     - 눈금 간격 (예: 50°C) 및 보조눈금 간격 (예: 10°C).
-823:     - 최소/최대 온도 범위 (예: 50°C ~ 250°C).
-824: - **RoR 축:**
-825:     - 눈금 간격 단위.
-826:     - 표시 범위 (예: 0~30°C).
-827:     - RoR 부드럽게 보정 (노이즈 제거).
-828: 
-829: ### 3. 구간 및 센서 설정 (Phase & Sensor Settings)
-830: 
-831: - **추가 센서:** 좌/우 y축에 버너, 압력 등 데이터 할당.
-832: - **구간 설정:**
-833:     - 옐로우 지점 온도 (예: 150°C).
-834:     - 1차 크랙 온도 (예: 200°C).
-835: - **자동 이벤트:** 설정 온도 도달 시 자동 마킹 기능.
-836: 
-837: ### 4. 이벤트 및 기타 (Events & Misc)
-838: 
-839: - **이벤트 기준 온도:** BT 또는 ET 중 선택.
-840: - **명칭 변경:** 'Gas', 'Airflow' 등 커스텀 명칭 지원.
-841: - **UI 배치:** 로스팅 구간 바 위치 설정 (예: 화면 하단).
-842: - **자동 감지 기능:**
-843:     - **투입 감지:** BT가 설정값(예: 7°C) 이상 급격히 하락 시 자동 기록 시작.
-844:     - **배출 감지:** BT가 설정값(예: 3°C) 이상 하락 시 자동 기록 종료.
-845: 
-846: ---
-847: 
-848: ### [T35] AddBeanModal에 Blend 기능 추가 및 서버 구조 분리 고민
-849: 
-850: **What:** AddBeanModal에서 싱글 원두뿐 아니라 블렌드 원두(여러 원두 혼합) 생성 지원.
-851: 
-852: **Why:** 실제 로스터리에서 블렌드 원두 사용 빈번. 재고 관리, 로스팅 기록 연동 시 블렌드 비율 추적 필요.
-853: 
-854: **How (Phase 1 - UI):**
-855: 
-856: 1. AddBeanModal에 "Blend" 토글 추가 → 싱글/블렌드 모드 전환
-857: 2. Blend 모드: 기존 원두 목록에서 2~5개 선택 + 비율(%) 입력 (합계 100% 검증)
-858: 3. 생성된 블렌드: `beans` 테이블에 `is_blend: true`, `blend_components: [{bean_id, ratio}]` JSONB 저장
-859: 
-860: **고민: 서버 구조 (싱글/블렌드) 분리 필요성?**
-861: 
-862: - **옵션 A:** 단일 `beans` 테이블 + `blend_components` JSONB 배열 (Supabase 추천, 간단)
-863: - **옵션 B:** 별도 `bean_blends` 테이블 + junction table (N:N 관계, 정규화)
-864: 
-865: **장단점:**
-866: | 옵션 | 장점 | 단점 |
-867: |------|------|------|
-868: | A | 쿼리 단순, 마이그레이션 없음 | 복잡 쿼리(JSONB) 성능, 관계 무결성 약함 |
-869: | B | 관계 무결성 강함, 복잡 분석 쉬움 | 스키마 변경, JOIN 쿼리 증가 |
-870: 
-871: **추천:** Phase 1 JSONB → 블렌드 사용 비중 확인 후 정규화 검토.
-872: 
-873: **Depends on:** 없음
-</file>
-
-<file path=".github/workflows/ci.yml">
- 1: name: CI
- 2: 
- 3: on:
- 4:   push:
- 5:     branches: [main]
- 6:   pull_request:
- 7:     branches: [main]
- 8: 
- 9: concurrency:
-10:   group: ci-${{ github.ref }}
-11:   cancel-in-progress: true
-12: 
-13: jobs:
-14:   typecheck:
-15:     runs-on: ubuntu-latest
-16:     steps:
-17:       - uses: actions/checkout@v4
-18: 
-19:       - uses: pnpm/action-setup@v4
-20: 
-21:       - uses: actions/setup-node@v4
-22:         with:
-23:           node-version: 22
-24:           cache: pnpm
-25: 
-26:       - name: Install dependencies
-27:         run: pnpm install
-28: 
-29:       - name: Type check
-30:         run: pnpm tsc --noEmit
-31: 
-32:   lint:
-33:     runs-on: ubuntu-latest
-34:     steps:
-35:       - uses: actions/checkout@v4
-36: 
-37:       - uses: pnpm/action-setup@v4
-38: 
-39:       - uses: actions/setup-node@v4
-40:         with:
-41:           node-version: 22
-42:           cache: pnpm
-43: 
-44:       - name: Install dependencies
-45:         run: pnpm install
-46: 
-47:       - name: Biome check
-48:         run: pnpm check
-49: 
-50:   sidecar:
-51:     runs-on: ubuntu-latest
-52:     steps:
-53:       - uses: actions/checkout@v4
-54: 
-55:       - uses: actions/setup-python@v5
-56:         with:
-57:           python-version: '3.13'
-58:           cache: pip
-59:           cache-dependency-path: src-tauri/sidecar/requirements-dev.txt
-60: 
-61:       - name: Install sidecar test dependencies
-62:         run: pip install -r src-tauri/sidecar/requirements-dev.txt
-63: 
-64:       - name: Run sidecar tests
-65:         run: python -m pytest tests/ -q --tb=short
-66:         working-directory: src-tauri/sidecar
+<file path="repomix.config.json">
+ 1: {
+ 2:     "output": {
+ 3:         "filePath": "repomix-output.xml",
+ 4:         "style": "xml",
+ 5:         "removeComments": false,
+ 6:         "showLineNumbers": true
+ 7:     },
+ 8:     "include": ["**/*"],
+ 9:     "ignore": {
+10:         "useGitignore": true,
+11:         "customPatterns": [
+12:             "node_modules/**",
+13:             ".git/**",
+14:             "dist/**",
+15:             "build/**",
+16:             ".next/**",
+17:             "repomix-output.txt",
+18:             "package-lock.json",
+19:             "yarn.lock",
+20:             "pnpm-lock.yaml"
+21:         ]
+22:     }
+23: }
 </file>
 
 <file path="scripts/append-db-aliases.mjs">
@@ -19480,6 +18630,420 @@ This section contains the contents of the repository's files.
 63: - NO test/lint
 </file>
 
+<file path="biome.json">
+ 1: {
+ 2:     "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
+ 3:     "assist": { "actions": { "source": { "organizeImports": "on" } } },
+ 4:     "linter": {
+ 5:         "enabled": true,
+ 6:         "rules": {
+ 7:             "preset": "recommended",
+ 8:             "a11y": {
+ 9:                 "useButtonType": "warn",
+10:                 "noLabelWithoutControl": "warn",
+11:                 "noStaticElementInteractions": "warn",
+12:                 "useKeyWithClickEvents": "warn",
+13:                 "noSvgWithoutTitle": "warn",
+14:                 "useSemanticElements": "warn",
+15:                 "noAutofocus": "warn"
+16:             },
+17:             "correctness": {
+18:                 "noUnusedVariables": "error",
+19:                 "useExhaustiveDependencies": "warn"
+20:             },
+21:             "complexity": {
+22:                 "noForEach": "warn",
+23:                 "useLiteralKeys": "error",
+24:                 "noImportantStyles": "warn"
+25:             },
+26:             "style": {
+27:                 "noDefaultExport": "error",
+28:                 "useConst": "error",
+29:                 "useTemplate": "warn",
+30:                 "useImportType": "error",
+31:                 "noNonNullAssertion": "warn"
+32:             },
+33:             "suspicious": {
+34:                 "noConsole": "warn",
+35:                 "noDoubleEquals": "error",
+36:                 "noExplicitAny": "warn",
+37:                 "noArrayIndexKey": "warn",
+38:                 "noGlobalIsNan": "warn",
+39:                 "noConfusingVoidType": "warn",
+40:                 "useIterableCallbackReturn": "warn"
+41:             }
+42:         }
+43:     },
+44:     "formatter": {
+45:         "enabled": true,
+46:         "indentStyle": "space",
+47:         "indentWidth": 4,
+48:         "lineWidth": 120,
+49:         "lineEnding": "lf"
+50:     },
+51:     "javascript": {
+52:         "formatter": {
+53:             "quoteStyle": "single",
+54:             "semicolons": "always",
+55:             "trailingCommas": "all",
+56:             "arrowParentheses": "always"
+57:         }
+58:     },
+59:     "json": {
+60:         "formatter": {
+61:             "trailingCommas": "none"
+62:         }
+63:     },
+64:     "css": {
+65:         "parser": {
+66:             "tailwindDirectives": true
+67:         },
+68:         "formatter": {
+69:             "enabled": true
+70:         }
+71:     },
+72:     "files": {
+73:         "includes": ["**", "!**/dist", "!**/build", "!**/.next", "!**/coverage", "!**/src-tauri", "!**/node_modules"]
+74:     }
+75: }
+</file>
+
+<file path="DESIGN.md">
+  1: # DESIGN.md: First Crack Desktop
+  2: 
+  3: **프로젝트:** 로스터리 관리를 위한 데스크탑 애플리케이션 (Tauri v2 + React)
+  4: 
+  5: ---
+  6: 
+  7: ## Design Philosophy
+  8: 
+  9: 미니멀하고 차분한 엔터프라이즈 감성. 높은 가독성과 정확한 수치 표현이 핵심. 장시간 사용하는 도구이므로 눈의 피로를 최소화하고, 데이터에 집중할 수 있도록 장식은 배제한다.
+ 10: 
+ 11: - **분위기:** 조용하고 정확한, 장인적인
+ 12: - **키워드:** 미니멀, 저대비, 따뜻한 중성톤, 정밀함
+ 13: - **No emoji** — 모든 아이콘은 Lucide 사용
+ 14: - **No gradients** — 단색 + 미세한 그림자 레이어로 깊이감 표현
+ 15: 
+ 16: ---
+ 17: 
+ 18: ## Design Tokens
+ 19: 
+ 20: ### Colors
+ 21: 
+ 22: CSS 변수는 `src/App.css`의 `@theme` 블록에 정의되어 있음.
+ 23: 
+ 24: | 역할 | Light | Dark | 용도 |
+ 25: |---|---|---|---|
+ 26: | `--color-main-bg` | `#ffffff` | `#1a1a1a` | 페이지/카드 배경 |
+ 27: | `--color-roast-bg` | `#ffffff` | `#181d21` | 로스팅 화면 전용 배경 |
+ 28: | `--color-surface` | `#efeff0` | `#222222` | 버튼/인풋/서피스 배경 |
+ 29: | `--color-surface-warm` | `rgba(245,242,239,0.8)` | `rgba(30,28,26,0.8)` | 따뜻한 톤 서피스 (호버 등) |
+ 30: | `--color-surface-warm-solid` | `#f5f2ef` | `#1e1c1a` | 따뜻한 톤 서피스 (불투명) |
+ 31: | `--color-primary` | `#171717` | `#e5e5e5` | 주요 텍스트 |
+ 32: | `--color-secondary` | `#4e4e4e` | `#a3a3a3` | 보조 텍스트 |
+ 33: | `--color-muted` | `#777169` | `#8a8580` | 덜 중요한 텍스트, 플레이스홀더 |
+ 34: | `--color-border` | `#e5e5e5` | `#2e2e2e` | 테두리 |
+ 35: | `--color-border-subtle` | `rgba(0,0,0,0.05)` | `rgba(255,255,255,0.08)` | 매우 미세한 테두리 |
+ 36: | `--color-divider` | `#efeff0` | `#6c6a6b` | 구분선 |
+ 37: 
+ 38: ### Point Color Palette (Accent Colors)
+ 39: 
+ 40: 프로젝트 전반에서 강조, 시각적 구분, 브랜딩에 사용하는 포인트 컬러. 필요에 따라 Light/Dark 모드에서 동일하게 사용하거나 명도만 조정한다.
+ 41: 
+ 42: | Hex | 역할 예시 |
+ 43: |---|---|
+ 44: | `#0B0B0B` | 진한 검정 — 다크 배경, 강한 대비 강조, Danger 위상 (대비용) |
+ 45: | `#FFFF54` | 밝은 노랑 — Rate of Rise 라인 (dark), Drying 위상 / Yellow 마커 / Heat 라인 |
+ 46: | `#81FBA5` | 민트 그린 — Ready 위상 / TP 마커 / 연결 상태 도트 / 현재 시간 라인 |
+ 47: | `#72EBBC` | 청록 민트 — Note 마커 / Drum 온도 라인 / Default 프로필 배지 |
+ 48: | `#44BFFC` | 밝은 파랑 — FC Start 마커 / Maillard 위상 / Fan 라인 / 진행중 배지 / 첫번째 배치 번호 |
+ 49: | `#5C41FF` | 진한 보라 — Delete 액션 배지 / KPI 부정 변화 |
+ 50: | `#756AFC` | 연한 보라 — FC End 마커 / Development 위상 / 프로필 비교 / 재고 차감 도트 / 다음 배치 라벨 |
+ 51: | `#8080F0` | 중간 보라 — End 마커 / 재고 부족(Out) 배지 / UI 악센트 |
+ 52: | `#A6B0FF` | 연한 페리윙클 — Drop 마커 / 대기(pending)/건너뜀(skipped) 배지 / 오프라인 상태 / 무료 플랜 배지 / Coming soon 배지 |
+ 53: | `#E4E4E4` | 밝은 회색 — 보더/구분선 (light) |
+ 54: | `#A3A2A2` | 중간 회색 — Light 로스트 레벨 텍스트 |
+ 55: | `#6C6A6B` | 어두운 회색 — Medium-Light 로스트 레벨, 구분선 (dark) |
+ 56: 
+ 57: ### Sensor & Chart Colors (light / dark)
+ 58: 
+ 59: | 토큰 | Light | Dark | 의미 |
+ 60: |---|---|---|---|
+ 61: | `--color-sensor-bt` | `#22a85a` | `#4be08c` | Bean Temperature (녹색) |
+ 62: | `--color-sensor-bt-target` | `rgba(40,180,130,0.65)` | `rgba(75,224,140,0.65)` | BT 목표 곡선 |
+ 63: | `--color-sensor-et` | `#4a85c5` | `#beacf8` | Environmental Temp (청색) |
+ 64: | `--color-sensor-ror` | `#e8a828` | `#ffff54` | Rate of Rise (황색) |
+ 65: | `--color-chart-grid` | `rgba(0,0,0,0.08)` / stroke `0.10` | `rgba(255,255,255,0.10)` / stroke `0.12` | 차트 그리드 |
+ 66: | `--color-chart-axis-label` | `#666` | `#888` | 차트 축 레이블 |
+ 67: | `--color-chart-phaseline` | `rgba(0,0,0,0.07)` | `rgba(255,255,255,0.08)` | 페이즈 경계선 |
+ 68: | `--color-chart-tooltip-bg` | `#fff` | `#222` | 툴팁 배경 |
+ 69: | `--color-scrollbar-thumb` | `rgba(0,0,0,0.1)` | `rgba(255,255,255,0.12)` | 스크롤바 |
+ 70: 
+ 71: ### Phase Colors
+ 72: 
+ 73: | 페이즈 | Hex | 용도 |
+ 74: |---|---|---|
+ 75: | Ready | `#81FBA5` | 준비 완료 |
+ 76: | Drying | `#FFFF54` | 건조 |
+ 77: | Maillard | `#44BFFC` | 마이야르 |
+ 78: | Development | `#756AFC` | 전개 |
+ 79: | Danger | `#0B0B0B` | 위험 / 임계 |
+ 80: 
+ 81: ### Shadows
+ 82: 
+ 83: 다중 레이어 저불투명도 그림자 — 절대 10%를 넘지 않음. 따뜻한 톤의 `rgba(78,50,23,0.04)`를 사용해 부드러운 깊이감.
+ 84: 
+ 85: | 토큰 | Light 값 | 용도 |
+ 86: |---|---|---|
+ 87: | `--shadow-inset` | `rgba(0,0,0,0.075) 0px 0px 0px 0.5px inset` | 인풋 내부 그림자 |
+ 88: | `--shadow-outline` | `rgba(0,0,0,0.06) 0px 0px 0px 1px` | 아웃라인 |
+ 89: | `--shadow-elevation` | `rgba(0,0,0,0.04) 0px 4px 4px` | 얕은 입체 |
+ 90: | `--shadow-card` | `rgba(0,0,0,0.4) 0px 0px 1px, rgba(0,0,0,0.04) 0px 4px 4px` | 카드 |
+ 91: | `--shadow-warm` | `rgba(78,50,23,0.04) 0px 6px 16px` | 따뜻한 그림자 (드롭다운 등) |
+ 92: | `--shadow-ring` | `rgba(0,0,0,0.06) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 1px 2px, rgba(0,0,0,0.04) 0px 2px 4px` | 셀렉트/팝오버 링 |
+ 93: | `--shadow-edge` | `rgba(0,0,0,0.08) 0px 0px 0px 0.5px` | 엣지 라인 |
+ 94: 
+ 95: > **원칙:** 그림자는 항상 `opacity < 0.1`. 다중 레이어로 쌓아 자연스러운 깊이감을 만든다. Dark 모드에서는 대비를 높여 `opacity 0.2~0.4`.
+ 96: 
+ 97: ### Typography
+ 98: 
+ 99: | 속성 | 값 |
+100: |---|---|
+101: | `--font-display` | `'Inter', 'Pretendard', system-ui, -apple-system, sans-serif` |
+102: | `--font-body` | `'Inter', 'Pretendard', system-ui, -apple-system, sans-serif` |
+103: | `--font-mono` | `monospace` |
+104: 
+105: - **영문 전용 페이지**에서는 Pretendard 제외: `html[lang='en']` → `--font-display: 'Inter', system-ui...`
+106: - **`font-variant-numeric: tabular-nums lining-nums`** 가 `body`에 전역 적용. 재선언 금지.
+107: - **`font-kerning: normal`**, `font-feature-settings: 'kern' 1, 'tnum' 1, 'lnum' 1, 'zero' 1`
+108: 
+109: #### Type Scale
+110: 
+111: | 요소 | Size | Weight | Tracking | 기타 |
+112: |---|---|---|---|---|
+113: | Page Title (h1) | `32px` | Semi-bold | `-0.4px` | `font-(--font-display)` |
+114: | 섹션 타이틀 (h2) | `26px` | Light (`300wt`) | `-0.3px` | `font-display` |
+115: | KPI Value | `26px` | Semi-bold | `-0.5px` | `leading-[1.2]` |
+116: | 본문 | `14-16px` | Regular/Medium | `+0.14px` | |
+117: | 작은 텍스트 | `13px` | Medium | `+0.14px` | 버튼, 테이블 셀 |
+118: | 캡션/라벨 | `12px` | Medium | `+0.14px` | |
+119: | 베이지/카드 라벨 | `13px` | — | `+0.14px` | `text-muted` |
+120: | 머신/설정 라벨 | `12px` | Medium | — | `text-secondary`, `mb-1.5` |
+121: 
+122: ### Spacing & Layout
+123: 
+124: | 토큰 | 값 |
+125: |---|---|
+126: | Base unit | `4px` (Tailwind spacing) |
+127: | Page padding (X) | `40px` (`px-10`) |
+128: | Page padding (Y) | `32px` (`py-8`) |
+129: | Page max-width | `1280px` (가변, `PageLayout` 기본값) |
+130: | Section 제목 아래 여백 | `28px` (`mb-7`) |
+131: | 섹션 간격 | `24-32px` |
+132: | 그리드 갭 | `24px` (`gap-6`) |
+133: 
+134: ---
+135: 
+136: ## Components
+137: 
+138: ### Buttons
+139: 
+140: **Primary (Pill)**
+141: ```tsx
+142: <PillButton>
+143: // bg-primary text-white rounded-full
+144: // px-4.5 py-2.5 text-sm font-medium
+145: // tracking-[0.14px], cursor-pointer
+146: // border-none, dark:border-white dark:bg-[#171717]
+147: ```
+148: 
+149: - Shape: **rounded-full (9999px pill)**
+150: - Background: `--color-primary` (`#171717`)
+151: - Text: white
+152: - 좌측에 Lucide 아이콘을 `gap-2`로 배치 가능
+153: 
+154: **Secondary (Dashed Border)**
+155: ```
+156: // rounded-lg border border-dashed border-[#E5E5E5]
+157: // bg-transparent text-sm text-muted
+158: // hover:text-secondary hover:border-black/15
+159: // tracking-[0.14px]
+160: ```
+161: 
+162: - Shape: rounded-lg (8px), dashed border
+163: - 사용처: "추가" 버튼 (bean, blend 등)
+164: 
+165: ### Page Header
+166: 
+167: ```
+168: ┌──────────────────────────────────────┐
+169: │ Page Title (h1, 32px)       [Actions]│
+170: │ Subtitle (text-sm, muted)            │
+171: └──────────────────────────────────────┘
+172: ```
+173: 
+174: - `PageLayout` (px-10 py-8) 내부에서 사용
+175: - 제목 + 액션 영역은 `flex items-end justify-between`
+176: - 제목과 첫 콘텐츠 사이 `mb-7`
+177: 
+178: ### Page Layout
+179: 
+180: ```tsx
+181: <PageLayout maxWidth={1280}>
+182:   <PageHeader title="..." subtitle="..." actions={...} />
+183:   {/* content */}
+184: </PageLayout>
+185: ```
+186: 
+187: - 가운데 정렬 (`mx-auto`), `w-full` 고정
+188: - 패딩: `px-10 py-8`
+189: 
+190: ### Modal (ModalShell)
+191: 
+192: - **Overlay:** `fixed inset-0 bg-[rgba(23,23,23,0.32)] backdrop-blur-sm`
+193: - **정렬:** `flex items-center justify-center p-6`
+194: - **z-index:** `z-1000`
+195: - Overlay 클릭 → 닫힘, 내부 클릭 → 이벤트 전파 차단
+196: 
+197: ### KPI Card
+198: 
+199: ```
+200: ┌──────────────────────────┐
+201: │ [icon]            [+12%] │ <- 배지
+202: │                          │
+203: │ 1,234                    │ <- KPI 값 (26px, semibold)
+204: │ Total Batches            │ <- 라벨 (13px, muted)
+205: └──────────────────────────┘
+206: ```
+207: 
+208: - `bg-main-bg rounded-lg`
+209: - 내부 패딩: `px-5 pt-5 pb-4.5`
+210: - 아이콘: 16px, `strokeWidth={1.5}`, `--color-secondary`, 34x34 surface 박스 (`rounded-lg`)
+211: 
+212: ### Input / CounterInput
+213: 
+214: ```
+215: // 라벨: block text-[12px] font-medium text-secondary mb-1.5
+216: // 인풋: rounded-xl border border-[rgba(0,0,0,0.08)]
+217: //       bg-surface px-3.5 py-2.5 text-[13px]
+218: //       shadow-(--shadow-inset)
+219: //       focus:border-[rgba(0,0,0,0.2)]
+220: ```
+221: 
+222: - Label은 상단에 위치, `htmlFor`로 input과 연결
+223: - 숫자 입력 전용: 좌우 Chevron 버튼으로 증감 가능
+224: 
+225: ### Select (Radix UI)
+226: 
+227: ```
+228: trigger: min-w-[6rem] / text-[13px] / tracking-[0.14px]
+229: content: z-50 / max-h-56 / min-w-[6rem] / rounded-lg / shadow-ring
+230: item:    px-2 py-1.5 / text-[13px] / tracking-[0.14px] / text-secondary
+231: label:   px-2 py-1 / text-[11px] / font-medium / uppercase / tracking-[0.5px] / text-muted
+232: ```
+233: 
+234: ### Calendar (react-day-picker)
+235: 
+236: - Day cell: `w-9 h-9 rounded-lg text-[13px] font-medium`
+237: - Navigation: `w-6 h-6 rounded-md bg-surface shadow-inset`
+238: - Weekday header: `text-[11px] font-medium text-muted`
+239: 
+240: ---
+241: 
+242: ## Page Patterns
+243: 
+244: ### 페이지별 구조
+245: 
+246: **Dashboard (대시보드)**
+247: - KPI 카드 4열 그리드 (Total Batches, Avg Score, Monthly Volume, Active Machines)
+248: - 최근 로스팅 목록
+249: - 월별 배치 차트
+250: 
+251: **History (히스토리)**
+252: - 필터 바 (날짜, 원두, 정렬)
+253: - 검색 + CSV 내보내기
+254: - 페이지네이션된 테이블 (컬럼: Date, Bean, Duration, Drop Temp, Level)
+255: - 월간 보고서 모달
+256: 
+257: **Active Roast (로스팅 중)**
+258: - 좌측: 실시간 센서读数 + 차트 (uPlot)
+259: - 우측: 이벤트 버튼 + 로그
+260: - 하단: 머신 컨트롤
+261: 
+262: **Bean (생두 관리)**
+263: - 좌측 블렌드 목록 + 우측 디테일 패널
+264: - 블렌드/생두 추가 모달
+265: 
+266: ### 공통 패턴
+267: 
+268: 1. **PageLayout** 으로 페이지 감싸기
+269: 2. **PageHeader** 로 제목 + 액션 배치
+270: 3. 카드는 `bg-main-bg rounded-lg`
+271: 4. 버튼은 **pill** (`rounded-full`), 보조 버튼은 **dashed border**
+272: 5. 모든 아이콘은 **Lucide** (`lucide-react`), `strokeWidth={1.5}` 기본
+273: 6. 로딩 중에는 **Spinner** 컴포넌트 사용
+274: 7. **tracking-[0.14px]** 가 body 텍스트의 기본
+275: 
+276: ---
+277: 
+278: ## Dark Mode
+279: 
+280: `html.dark` 클래스 기반. CSS 변수로 전환.
+281: 
+282: | Light 변수 | Dark 변수 |
+283: |---|---|
+284: | `--color-main-bg: #fff` | `--color-main-bg: #1a1a1a` |
+285: | `--color-surface: #efeff0` | `--color-surface: #222` |
+286: | `--color-primary: #171717` | `--color-primary: #e5e5e5` |
+287: | `--color-sensor-bt: #22a85a` | `--color-sensor-bt: #4be08c` |
+288: | `--color-sensor-et: #4a85c5` | `--color-sensor-et: #beacf8` |
+289: | `--color-sensor-ror: #e8a828` | `--color-sensor-ror: #ffff54` |
+290: 
+291: > 센서 색상은 Dark 모드에서 더 밝고 선명하게 전환 — 어두운 배경에서 가독성 확보.
+292: 
+293: ---
+294: 
+295: ## CSS Architecture
+296: 
+297: - **Tailwind CSS v4** (`@tailwindcss/vite`)
+298: - **shadcn/ui** 스타일 레이어 — `cn()` 유틸리티로 클래스 병합
+299: - 모든 스타일은 Tailwind utility class 사용. **인라인 `style` prop 금지** (예외: 동적 계산값)
+300: - `@theme` 블록에 커스텀 토큰 정의
+301: - `@custom-variant dark`로 다크 모드 지원
+302: - `font-variant-numeric` — 전역 설정, 컴포넌트에서 재선언 금지
+303: 
+304: ### Tailwind v4 주의사항
+305: 
+306: - `@import 'tailwindcss'` — v4 진입점
+307: - `@theme` 블록 내에서 `--color-*` 변수 선언
+308: - `shadow-(--shadow-inset)` 문법으로 커스텀 그림자 참조
+309: - `font-(--font-display)` 문법으로 커스텀 폰트 참조
+310: 
+311: ---
+312: 
+313: ## Asset References
+314: 
+315: | 리소스 | 위치 |
+316: |---|---|
+317: | Pretendard 폰트 | `public/fonts/PretendardVariable.woff2` |
+318: | Inter 폰트 | Google Fonts (`https://fonts.googleapis.com/css2?family=Inter:wght@100..900`) |
+319: | 아이콘 | `lucide-react` 패키지 |
+320: 
+321: ---
+322: 
+323: ## 코드 구조 참고
+324: 
+325: - **CSS 변수:** `src/App.css` (`@theme` + `:root` + `html.dark`)
+326: - **UI 프리미티브:** `src/shared/ui/`
+327: - **센서/차트 색상:** `src/features/active-roast/lib/colors.ts`
+328: - **페이지 레이아웃:** `src/shared/ui/PageLayout.tsx`, `src/shared/ui/PageHeader.tsx`
+329: - **버튼:** `src/shared/ui/PillButton.tsx`
+330: - **모달:** `src/shared/ui/modal-shell/ModalShell.tsx`
+331: - **KPI 카드:** `src/shared/ui/KpiCard.tsx`
+332: - **달력:** `src/shared/ui/calendar/Calendar.tsx`
+333: - **셀렉트:** `src/shared/ui/select/Select.tsx`
+</file>
+
 <file path="pnpm-workspace.yaml">
 1: allowBuilds:
 2:   '@carbon/icon-helpers': false
@@ -19491,30 +19055,880 @@ This section contains the contents of the repository's files.
 8:   optipng-bin: true
 </file>
 
-<file path="repomix.config.json">
- 1: {
- 2:     "output": {
- 3:         "filePath": "repomix-output.xml",
- 4:         "style": "xml",
- 5:         "removeComments": false,
- 6:         "showLineNumbers": true
- 7:     },
- 8:     "include": ["**/*"],
- 9:     "ignore": {
-10:         "useGitignore": true,
-11:         "customPatterns": [
-12:             "node_modules/**",
-13:             ".git/**",
-14:             "dist/**",
-15:             "build/**",
-16:             ".next/**",
-17:             "repomix-output.txt",
-18:             "package-lock.json",
-19:             "yarn.lock",
-20:             "pnpm-lock.yaml"
-21:         ]
-22:     }
-23: }
+<file path="TODOS.md">
+  1: # TODOS
+  2: 
+  3: Generated by /plan-eng-review on 2026-05-01. Items ordered by priority.
+  4: 
+  5: ---
+  6: 
+  7: ## OPEN QUESTION — 결정 대기
+  8: 
+  9: ### [Q3] Bean/Blend — 팀 공유 RLS 마이그레이션 (미결)
+ 10: 
+ 11: 현재 `blends`, `blend_components`, `bean_stock_events` RLS는 `user_id` 기반.
+ 12: 
+ 13: **문제:** 팀이 배치 계획을 공유하게 되면 블렌드/재고도 팀 단위로 공유되어야 함. 현재 RLS 정책은 단일 사용자만 허용.
+ 14: 
+ 15: **필요한 마이그레이션 (팀 기능 설계 시):**
+ 16: 1. `blends`, `bean_stock_events`에 `team_id uuid REFERENCES teams(id)` 컬럼 추가
+ 17: 2. RLS 정책을 `user_id = auth.uid() OR team_id IN (SELECT team_id FROM team_members WHERE user_id = auth.uid())`로 수정
+ 18: 3. 기존 데이터의 `team_id` 백필
+ 19: 
+ 20: → **팀 공유 기능 설계 착수 시 이 마이그레이션을 첫 번째 단계로 처리.**
+ 21: 
+ 22: ---
+ 23: 
+ 24: ### [Q4] 프론트엔드 단위 테스트 (vitest) 미구현
+ 25: 
+ 26: 현재 프론트엔드 테스트 프레임워크 없음. 특히 비즈니스 로직이 집중된 순수 함수들이 테스트 없이 구현됨.
+ 27: 
+ 28: **우선 대상:**
+ 29: - `getReservedStock` 예약 집계 계산 (grams 단위 변환, blend 비율 가중치)
+ 30: - `effectiveGrams` 부족 경고 로직
+ 31: - `blendApi.create` 비원자 생성의 오류 경로
+ 32: 
+ 33: **Setup:**
+ 34: ```bash
+ 35: npm install -D vitest @testing-library/react @testing-library/user-event
+ 36: ```
+ 37: `vite.config.ts`에 `test: { environment: 'jsdom' }` 추가.
+ 38: 
+ 39: → **Bean/Blend 기능 완료 후 추가. 순수 함수 먼저, React 컴포넌트 테스트는 선택.**
+ 40: 
+ 41: ---
+ 42: 
+ 43: ### [Q1] React Query staleTime 전략
+ 44: 
+ 45: 현재 `main.tsx`에 `staleTime: Infinity, refetchOnWindowFocus: false` 전역 설정 중.
+ 46: 
+ 47: **문제:** `staleTime: Infinity`는 cross-page 뮤테이션에서 명시적 `invalidateQueries` 필수.
+ 48: 예: 로스팅 완료 저장 → `roast_sessions`(히스토리) + `beans.stock_grams` 캐시 둘 다 무효화 안 하면 stale 데이터 표시.
+ 49: 
+ 50: **A안:** Infinity 유지 + 뮤테이션마다 관련 쿼리 invalidation 명시적으로 관리
+ 51: **B안:** staleTime 제거(기본값 0) + 탭 전환마다 refetch 감수
+ 52: 
+ 53: → **로스팅 완료 저장 뮤테이션 구현 시 재검토 필요.**
+ 54: 
+ 55: ---
+ 56: 
+ 57: ### [Q2] Pro 플랜 enforcement 전략
+ 58: 
+ 59: 현재 `useAuthStore`에서 `profiles.plan`을 로드해 클라이언트 전역(`selectIsPro`)으로 관리 중.
+ 60: 
+ 61: **클라이언트만으로 충분한 기능:**
+ 62: 
+ 63: - Update Rate 250ms 제한 (T26) — 폴링 주기는 프론트에서만 결정
+ 64: - UI 잠금 아이콘, Pro 배지 표시
+ 65: 
+ 66: **서버 RLS가 필요한 기능 (구현 시 추가 필요):**
+ 67: 
+ 68: - 로스트 기록 개수 제한
+ 69: - 팀 공유 데이터 접근
+ 70: 
+ 71: → **데이터 접근 제한이 필요한 Pro 기능 추가 시, Supabase RLS에 plan 조건 추가 필요.**
+ 72: 
+ 73: ---
+ 74: 
+ 75: ## DESIGN DECISION — 구현 전 결정 필요
+ 76: 
+ 77: ### [D1] 로스팅 프로파일 데이터 모델 및 Export 전략
+ 78: 
+ 79: **목표:** 로스트 종료 후 프로파일을 저장하고, 나중에 불러오거나 외부 툴로 내보낼 수 있게 한다.
+ 80: 
+ 81: ---
+ 82: 
+ 83: #### 결정 포인트 1 — 내부 저장 방식
+ 84: 
+ 85: **옵션 A: Tauri `tauri-plugin-fs` + JSON 파일**
+ 86: 
+ 87: - 앱 데이터 디렉토리에 `roasts/<uuid>.json` 저장
+ 88: - 장점: 단순, 사람이 읽을 수 있음, git으로 백업 가능, 마이그레이션 쉬움
+ 89: - 단점: 수백 개 쌓이면 목록 조회가 파일 시스템 traverse
+ 90: 
+ 91: **옵션 B: Tauri `tauri-plugin-sql` (SQLite)**
+ 92: 
+ 93: - `roasts` 테이블 + `roast_points` 테이블 (시계열)
+ 94: - 장점: 필터/정렬/집계 쿼리, 비교/오버레이 뷰 확장 용이
+ 95: - 단점: 스키마 마이그레이션 관리 필요, 초기 셋업 복잡
+ 96: 
+ 97: **추천:** 초기에는 **옵션 A (JSON 파일)**. 로스트 기록이 수백 개를 넘거나 비교/오버레이 기능이 생기면 SQLite로 마이그레이션.
+ 98: 
+ 99: ---
+100: 
+101: #### 결정 포인트 2 — 내부 JSON 스키마
+102: 
+103: ```jsonc
+104: {
+105:     "version": 1, // 스키마 버전 (마이그레이션용)
+106:     "id": "uuid-v4",
+107:     "roastedAt": "2026-05-04T14:32:00Z", // ISO 8601
+108:     "machine": {
+109:         "brand": "Giesen",
+110:         "displayName": "Giesen W6A PRO",
+111:         "roasterKey": "giesen_w6a_pro",
+112:     },
+113:     "bean": {
+114:         "name": "Ethiopia Yirgacheffe", // 사용자 입력
+115:         "origin": "Ethiopia",
+116:         "variety": "Heirloom",
+117:         "process": "Washed",
+118:         "greenWeightG": 500,
+119:         "roastedWeightG": 430, // 로스트 후 입력 (배출 후 계량)
+120:     },
+121:     "profile": {
+122:         "totalTimeSec": 742,
+123:         "chargeTemp": 195.2,
+124:         "dropTemp": 208.7,
+125:         "developmentTimeSec": 87, // FC Start → Drop
+126:         "developmentRatio": 0.117, // DTR = development / total
+127:     },
+128:     "events": [
+129:         { "timeSec": 0, "event": "Charge", "bt": 195.2, "note": "" },
+130:         { "timeSec": 312, "event": "Yellow", "bt": 150.1, "note": "" },
+131:         { "timeSec": 655, "event": "FC Start", "bt": 198.3, "note": "" },
+132:         { "timeSec": 742, "event": "Drop", "bt": 208.7, "note": "" },
+133:     ],
+134:     "timeseries": [
+135:         { "t": 0.0, "bt": 195.2, "et": 220.1, "ror": 0.0, "ror_et": 0.0 },
+136:         { "t": 0.5, "bt": 155.3, "et": 218.4, "ror": -12.4, "ror_et": -5.1 },
+137:         // ... 0.5s 해상도
+138:     ],
+139:     "notes": "2차 크랙 직전 에어 올림",
+140: }
+141: ```
+142: 
+143: **timeseries 용량 계산:** 13분 로스트 × 2포인트/s × ~50 bytes/point ≈ **78KB/로스트**. 수천 개도 수백 MB 이하 → JSON 파일로 충분.
+144: 
+145: ---
+146: 
+147: #### 결정 포인트 3 — Export 포맷
+148: 
+149: | 포맷                      | 용도                          | 구현 난이도 |
+150: | ------------------------- | ----------------------------- | ----------- |
+151: | **자체 JSON** (위 스키마) | 앱 내 재가져오기, 백업        | 즉시 가능   |
+152: | **CSV** (timeseries만)    | Excel 분석, 단순 공유         | 낮음        |
+153: | **Artisan .alog**         | Artisan과 호환, 커뮤니티 공유 | 중간        |
+154: 
+155: **Artisan .alog 포맷 요점:**
+156: 
+157: - 내부적으로 JSON, 확장자만 `.alog`
+158: - 필수 키: `timex` (초 배열), `temp1` (ET), `temp2` (BT), `title`, `beans`, `datetime`, `roastepoch`
+159: - 이벤트: `Eflags`, `Etypes`, `Evalues`, `Enames` 배열로 표현
+160: - 우리 `timeseries` + `events`만 있으면 변환 가능 (단방향 변환기 ~100줄)
+161: 
+162: **추천 순서:** 자체 JSON → CSV → Artisan .alog (커뮤니티 피드백 후)
+163: 
+164: ---
+165: 
+166: #### 결정 포인트 4 — 저장 트리거 시점
+167: 
+168: - **현재:** `RoastSummaryModal` 닫으면 데이터 소멸
+169: - **필요:** Summary Modal의 "Save" 버튼 → Tauri `invoke('save_roast', { profile })` 호출
+170: - 원두 메타데이터 입력은 **Charge 직전** (bean name, green weight) + **Summary Modal** (roasted weight, 최종 노트)로 분리
+171: 
+172: ---
+173: 
+174: #### 구현 순서 (제안)
+175: 
+176: 1. **원두 입력 UI** — Charge 버튼 클릭 시 BeforeChargeModal (bean name, green weight 입력)
+177: 2. **내부 JSON 저장** — Tauri `save_roast` command + `tauri-plugin-fs`
+178: 3. **히스토리 뷰** — 저장된 로스트 목록 + 프로파일 차트 재생
+179: 4. **Export** — CSV 먼저, Artisan .alog는 사용자 요청 기반으로
+180: 5. **오버레이** — 과거 프로파일을 현재 로스트 차트에 target으로 표시
+181: 
+182: **Depends on:** T1 (테스트), 하드웨어 연결 검증 후 실제 timeseries 품질 확인
+183: 
+184: ---
+185: 
+186: ## CRITICAL — 프로덕션 배포 전 필수
+187: 
+188: ### [T36] Apple 코드 사이닝 & 노타리제이션 시크릿 설정
+189: 
+190: **What:** GitHub 레포 Settings → Secrets and variables → Actions에 아래 6개 시크릿 추가.
+191: 
+192: | 시크릿 이름 | 내용 |
+193: |------------|------|
+194: | `APPLE_CERTIFICATE` | .p12 인증서를 base64로 인코딩한 값 (`base64 -i cert.p12 \| pbcopy`) |
+195: | `APPLE_CERTIFICATE_PASSWORD` | .p12 인증서 비밀번호 |
+196: | `APPLE_SIGNING_IDENTITY` | `Developer ID Application: 이름 (TEAMID)` 형식 |
+197: | `APPLE_ID` | Apple Developer 계정 이메일 |
+198: | `APPLE_PASSWORD` | 앱 전용 비밀번호 (appleid.apple.com → App-Specific Passwords) |
+199: | `APPLE_TEAM_ID` | Apple Developer Team ID (10자리, developer.apple.com에서 확인) |
+200: 
+201: **Why:** 시크릿 없이 배포 시 macOS Gatekeeper가 앱 실행 차단. 일반 사용자가 우회 불가.
+202: **Status:** 워크플로우 코드는 준비 완료. 시크릿 값만 입력하면 즉시 적용.
+203: **Depends on:** Apple Developer Program 가입 완료 ✅
+204: 
+205: ---
+206: 
+207: ### [T1] manager + HTTP API pytest 테스트
+208: 
+209: **What:** pytest로 manager.py, HTTP 엔드포인트, RoR 계산 단위 테스트 작성.
+210: **Why:** 실제 하드웨어 없이 MODBUS 레지스터 주소 오류, RoR 계산 버그, connect/disconnect 사이클 검증 가능. 현재 커버리지 0%.
+211: **Pros:** 하드웨어 테스트 전에 로직 버그 사전 차단. mock 어댑터로 빠른 피드백.
+212: **Cons:** 초기 setup 시간 (~20분 CC).
+213: **Context:** src-tauri/sidecar/manager.py의 RoR 계산(\_compute_ror), connect() 예외 처리, read_temperatures() 에러 경로가 주요 타겟. pytest + httpx 사용.
+214: **Depends on:** 없음
+215: 
+216: ---
+217: 
+218: ## HIGH — 배포 후 1스프린트 내
+219: 
+220: ### [T2] Tailwind CSS 마이그레이션 (스타일 정합성)
+221: 
+222: **What:** Machines.tsx, AddMachineModal.tsx, ActiveRoast.tsx의 inline `style={{}}` 및 History.css를 Tailwind 클래스로 교체.
+223: **Why:** CLAUDE.md 정책 위반. 코드베이스가 두 패턴으로 분열됨. 신규 개발 시 어느 패턴을 따를지 혼란.
+224: **Pros:** 스타일 시스템 통합, CLAUDE.md 준수.
+225: **Cons:** 큰 작업 (human: ~4시간), 동작에는 무관, 하드웨어 테스트와 병행 어려움.
+226: **Context:** ActiveRoast.tsx가 가장 크고 복잡. Machines.tsx, AddMachineModal.tsx는 상대적으로 작음.
+227: **Depends on:** 없음
+228: 
+229: ### [T3] Shadow 제거 및 Border 스타일 전환 — Views/Widgets ✅ 완료, 모달 [T3.1] 잔여
+230: 
+231: **완료:** Views (Dashboard, Machines, Profiles, History, Bean Inventory, Active Roast, Schedule) 및 Widgets (BeanList, BeanDetail, RoastSummaryModal, EndRoastModal, LiveReadings, RoastHeader) shadow 제거 및 `border border-[#E5E5E5]` 통일.
+232: 
+233: **미완료:** ⏳ [T3.1] 모든 모달 스타일 전환 필요
+234: 
+235: ### [T3.1] 모달 스타일 전환 — Shadow 제거 및 Border 통일
+236: 
+237: **What:** 모든 모달 컴포넌트의 shadow 제거 및 border 스타일 전환.
+238: **대상 파일:**
+239: - `src/widgets/add-bean-modal/ui/AddBeanModal.tsx`
+240: - `src/widgets/add-machine-modal/ui/AddMachineModal.tsx`
+241: - `src/views/profiles/NewProfileModal.tsx`
+242: - `src/widgets/add-batch-modal/ui/AddBatchModal.tsx` (Schedule)
+243: - `src/widgets/add-batch-modal/ui/EditBatchModal.tsx` (Schedule)
+244: - `src/widgets/settings-modal/ui/RoastSettingsTab.tsx`
+245: - 그 외 모달 컴포넌트들
+246: 
+247: **Style 규칙:**
+248: - ModalShell의 shadow 속성 제거 또는 border 기반으로 변경
+249: - 모달 내부 input/textarea: `shadow-(--shadow-inset)` → 제거
+250: - 모달 버튼: `shadow-(--shadow-card)`, `shadow-(--shadow-inset)` → 제거
+251: - Border 필요시 `border border-[#E5E5E5]` 적용
+252: 
+253: **Why:** [T3]의 일관성 확장. 모달도 동일한 subtle border 스타일 적용.
+254: **Pros:** 전체 앱의 일관된 비주얼 언어.
+255: **Cons:** 모달 개수 많음 (~10+).
+256: **Depends on:** [T3] 완료 후
+257: 
+258: ### [T4] /control 시맨틱 개선 — no-op 시 명확한 응답
+259: 
+260: **What:** 어댑터 control()이 no-op일 때 ok:true 대신 ok:false 또는 skipped:true 반환.
+261: **Why:** capabilities에 heater/fan을 광고하면서 실제로는 아무 동작 없음. 나중에 control write를 구현할 때 클라이언트가 이미 "성공"으로 믿고 있으면 디버깅 어려움.
+262: **Pros:** API 신뢰성 향상.
+263: **Cons:** 프론트엔드 사이드 처리 변경 필요.
+264: **Context:** control write 구현 시 함께 처리. adapters/base.py에 control() 기본 구현 추가하고 각 어댑터가 override하는 패턴.
+265: **Depends on:** control write 구현 결정
+266: 
+267: ### [T5] Machine identity 개선 — roasterKey 중복 문제
+268: 
+269: **What:** Machines.tsx의 isThisMachineConnected()가 roasterKey뿐 아니라 실제 연결된 머신을 구분하도록 개선.
+270: **Why:** 같은 브랜드/모델 2대 (IP 다름)를 등록하면 둘 다 "connected" 표시. 현장에서 2대 이상 운영 시 혼란.
+271: **Pros:** 올바른 연결 상태 표시.
+272: **Cons:** sidecar API 변경 필요 (GET /status에 machine_id 또는 connection hash 추가).
+273: **Context:** 가장 간단한 방법: POST /connect 시 machine_id(localStorage ID)를 body에 포함, GET /status에서 반환. Machines.tsx에서 m.id === sidecarStatus.machine_id로 비교.
+274: **Depends on:** 없음
+275: 
+276: ### [T30] 온보딩 가이드 구현 (driver.js 또는 React Joyride 활용)
+277: 
+278: **What:** `driver.js` 또는 `React Joyride`를 사용하여 앱의 주요 기능(머신 연결, 로스팅 시작, 프로파일 관리 등)에 대한 인터랙티브 튜토리얼 구현.
+279: **Why:** 처음 사용자가 머신을 연결하고 로스팅을 시작하는 전체 워크플로우를 쉽게 이해하도록 돕기 위함. 특히 하드웨어 설정이 복잡할 수 있으므로 단계별 안내가 필수적임.
+280: **How:**
+281: 
+282: 1. 라이브러리 선정 (가벼운 `driver.js` 또는 React 친화적인 `React Joyride`)
+283: 2. 주요 뷰(Dashboard, Machines, ActiveRoast)별 Step 정의
+284: 3. '처음 방문 시' 또는 '도움말 버튼 클릭 시' 가이드 트리거 로직 추가
+285: 4. 단계별 설명 및 하이라이트 영역 지정
+286:    **Depends on:** 없음
+287: 
+288: ### [T31] Active Roast에서 원두(Bean) 선택 기능 구현
+289: 
+290: **What:** 로스팅 시작 전 또는 도중에 해당 배치의 원두(Bean)를 선택할 수 있는 UI 구현 (Profiles 선택과 유사한 방식).
+291: **Why:** 로스팅 기록 저장 시 원두 정보(이름, 원산지, 재고 등)를 자동으로 연동하여 이력 관리를 자동화하기 위함. 현재는 프로파일만 선택 가능.
+292: **How:**
+293: 
+294: 1. `ActiveRoast` 헤더(`RoastHeader`)에 원두 선택 드롭다운 또는 셀렉터 추가.
+295: 2. `Beans` 인벤토리 데이터(Supabase 또는 Local)에서 현재 재고가 있는 원두 목록 로드.
+296: 3. 원두 선택 시 해당 배치의 메타데이터로 설정하고, 로스팅 종료 후 저장 시 `roast_sessions` 테이블의 `bean_id`와 연동.
+297: 4. 원두 선택에 따른 투입량(Green Weight) 입력 UI 병행 검토 (D1 관련).
+298:    **Depends on:** D1 (로스트 저장 구조)
+299: 
+300: ---
+301: 
+302: ## LOW — 하드웨어 테스트 후
+303: 
+304: ### [T28] ja / zh-CN 언어별 폰트 적용
+305: 
+306: **What:** 현재 한국어(`ko`)만 Pretendard 로컬 폰트 적용. 일본어/중국어 폰트 추가.
+307: **Why:** `App.css`에 `html[lang='ja']`, `html[lang='zh-CN']` 규칙이 주석처리로 준비됨. 적합한 폰트 결정 후 활성화 필요.
+308: **Options:**
+309: 
+310: - `ja` → Noto Sans JP, M PLUS 1p (woff2 로컬 or Google Fonts)
+311: - `zh-CN` → Noto Sans SC (woff2 로컬 or Google Fonts)
+312:   **How:** `public/fonts/`에 woff2 파일 추가 → `App.css`의 주석 해제 및 `@font-face` 등록.
+313:   **Note:** CJK 폰트는 파일 크기가 크므로(수 MB) variable subset woff2 사용 권장.
+314:   **Depends on:** 없음
+315: 
+316: ---
+317: 
+318: ### [T6] KaleidoAdapter sleep(1.0) race condition 개선
+319: 
+320: **What:** connect()에서 asyncio.sleep(1.0) 고정 대기를 KaleidoPort on_connect 콜백 기반으로 교체.
+321: **Why:** 1초 대기 후 WebSocket 미연결이어도 connected=True 설정. 다음 read() 호출 시에야 에러 발생.
+322: **Context:** extern/kaleido.py의 KaleidoPort 콜백 구조 확인 필요. on_connected 이벤트가 노출되면 asyncio.Event 기반으로 교체.
+323: **Depends on:** Kaleido 하드웨어 테스트
+324: 
+325: 
+326: ### [T9] ET-BT Gap 차트 표시
+327: 
+328: **What:** RoR 차트 아래(또는 별도 서브차트)에 `ET - BT` 값을 실시간으로 표시.
+329: **Why:** ET-BT Gap은 원두로의 열전달 마진을 나타내는 핵심 지표. 값이 줄어들수록 개발 단계 종료에 가까워짐. ET가 BT보다 낮아지는 크로싱 포인트는 로스팅 전환점.
+330: **Pros:** 로스터가 화력/에어플로우 조절 타이밍을 더 정확히 판단 가능. 재현 가능한 로스팅 프로파일 설계에 필수.
+331: **Context:** 계산식 `ET - BT`. 정상 범위 약 100~150°C. 양수=정상 가열 중, 음수=발열 반응 진행 중(2차 크랙 근처). Artisan에서도 비공식적으로 "Temperature Gap"으로 불림. 프론트엔드에서 계산 가능(별도 sidecar API 불필요).
+332: **Depends on:** 없음
+333: 
+334: ### [T11] 시리얼 포트 OS별 처리 — comport 필드 개선
+335: 
+336: **What:** `GET /serial-ports` 엔드포인트 추가 후, AddMachineModal의 `comport` 텍스트 입력을 실제 포트 목록 드롭다운으로 교체.
+337: **Why:** 현재 `comport` placeholder가 `/dev/ttyUSB0` (Linux 형식) 하드코딩. Windows 사용자는 `COM3`, Mac 사용자는 `/dev/cu.usbserial-XXXX` 형식인데 힌트 없이 직접 타이핑해야 함. Loring 항목은 `default_params.comport = "COM5"`로 불일치.
+338: **How:**
+339: 
+340: 1. `GET /serial-ports` 엔드포인트는 `main.py`에 이미 구현됨 (`serial.tools.list_ports.comports()` 사용, Bluetooth 가상 포트 필터 포함)
+341: 2. `roaster_registry.py`의 `comport` 필드 type을 `"select"` 또는 `"combo"`로 변경, options는 런타임에 채움
+342: 3. `AddMachineModal.tsx`: `comport` 필드 선택 시 `/serial-ports` 호출 → 드롭다운 옵션 채우기 (자유 입력 fallback 유지)
+343: 4. placeholder는 Windows면 `COM3`, Mac이면 `/dev/cu.usbserial-XXXX`, Linux면 `/dev/ttyUSB0` (sidecar에서 `platform.system()` 분기)
+344:    **Context:** `async_comm.py`의 transport 레이어는 이미 OS 분기 됨 (`os.name == 'nt'` 폴링, `clear_HUPCL` Unix 전용). 누락된 것은 UX 레이어만.
+345:    **Depends on:** 없음
+346: 
+347: ---
+348: 
+349: ### [T12] 뷰 간 네비게이션 플로우 완성
+350: 
+351: **What:** 여러 뷰에서 다른 뷰로 이동하는 CTA들이 연결되어 있지 않음. 구체적으로:
+352: 
+353: 1. **Machines → Roast**: 연결 성공(`handleConnect` 완료) 후 "Start Roasting" 토스트/버튼이 없음. `Machines`에 `onNavigate` prop 추가 후, connect 성공 시 `onNavigate('roast')` 유도 UI 제공.
+354: 2. **Dashboard → Beans (Inventory Alerts)**: Inventory Alerts 카드의 각 항목 클릭 시 Beans 뷰로 이동하지 않음. 항목에 `onClick={() => onNavigate('beans')}` 추가.
+355: 3. **Dashboard → Roast (Upcoming Batches)**: Upcoming Batches 항목에 "Start" 버튼이 없음. 각 항목에 roast 뷰로 이동하는 액션 추가.
+356: 
+357: **참고:** Profiles → Roast ("Start with this Profile") 는 2026-05-04 완료.
+358: 
+359: **Why:** 사용자가 자연스러운 워크플로우(머신 연결 → 로스팅 시작, 원두 재고 확인 → 로스팅)를 따를 수 없어 매번 사이드바를 통해 직접 탭 전환 필요.
+360: **Depends on:** 없음
+361: 
+362: ---
+363: 
+364: ### [T26] Roast Settings — 빠른 Update Rate Pro 제한
+365: 
+366: **What:** Update Rate의 `250ms`, `500ms` 옵션은 Pro 사용자만 사용할 수 있게 제한한다. Free 사용자는 `1s`만 선택 가능.
+367: **Why:** 고주파 폴링은 더 높은 데이터 해상도와 실시간성이 필요한 고급 기능이므로 Pro 플랜 기능으로 분리.
+368: **How:**
+369: 
+370: 1. 사용자 플랜 상태(`free` / `pro`)를 settings 또는 auth store에서 읽는다.
+371: 2. Free 사용자가 `250ms` 또는 `500ms`를 선택하려고 하면 Pro 업그레이드 안내를 표시하고 설정값은 변경하지 않는다.
+372: 3. 기존 저장값이 `250ms` 또는 `500ms`인데 사용자가 Free로 내려간 경우 앱 로드 시 `1s`로 보정한다.
+373: 4. UI에는 잠금 아이콘과 짧은 Pro 배지를 표시한다.
+374:    **Depends on:** 사용자 플랜/구독 상태 모델 결정
+375: 
+376: ---
+377: 
+378: ### [T15] 앱 재시작 시 마지막 머신 자동 재연결
+379: 
+380: **What:** sidecar 시작 시 마지막으로 연결했던 머신에 자동으로 재연결 시도.
+381: **Why:** 현재 앱을 껐다 켜면 매번 Machines 뷰 → 머신 선택 → Connect를 반복해야 함. 실제 로스터리 환경에서는 항상 같은 머신을 사용하므로 마찰이 큼.
+382: **How:**
+383: 
+384: 1. sidecar: `POST /connect` 성공 시 `last_connection.json` (또는 `~/.config/firstcrack/`) 저장 → roaster_key + params
+385: 2. sidecar `on_startup`: `last_connection.json` 읽어서 자동 connect 시도 (실패 시 무시)
+386: 3. 개발용 VirtualMachine 자동연결(`main.py:on_startup`) 제거
+387: 4. 프론트엔드: 앱 시작 시 `GET /status`에서 connected=true면 Machines 뷰에 "자동 연결됨" 배지 표시
+388:    **Context:** main.py on_startup에 현재 개발용 VirtualMachine 자동연결 코드 있음 — 프로덕션 전 제거 필요. 저장 경로는 Tauri의 appConfigDir 또는 sidecar 실행 경로 기준 상대 경로 사용.
+389:    **Depends on:** T8 (CORS), 실제 하드웨어 테스트 후 안정성 확인
+390: 
+391: ---
+392: 
+393: ### [T16] 시리얼 포트 Refresh 버튼
+394: 
+395: **What:** AddMachineModal의 comport 드롭다운 옆에 ↺ Refresh 버튼 추가.
+396: **Why:** 현재 포트 목록은 모달 열릴 때 한 번만 fetch. USB 케이블을 모달 열린 상태에서 꽂으면 새 포트가 안 보임. 버튼 클릭으로 즉시 재스캔.
+397: **How:** ComportSelect에 `onRefresh` prop 추가 → 클릭 시 `sidecar.getSerialPorts()` 재호출.
+398: **Depends on:** 없음
+399: 
+400: ---
+401: 
+402: ### [T17] 네트워크 기기 자동 탐색 (Network Device Discovery)
+403: 
+404: **What:** AddMachineModal에 "Scan Network" 기능 추가 — 로컬 서브넷에서 로스터 머신 응답을 감지해 IP를 자동 입력.
+405: **Why:** 현재 S7(Giesen/Probat), MODBUS TCP, Probat WebSocket 머신은 IP를 직접 타이핑해야 함. 처음 세팅하는 사용자가 PLC IP를 모르는 경우 많음.
+406: **How:**
+407: 
+408: 1. sidecar `GET /scan-network?protocol=s7` → 로컬 서브넷(/24) 에서 해당 포트(102/502/80) 응답 호스트 열거
+409: 2. scan은 asyncio로 병렬 실행 (timeout 0.5s per host, ~254 hosts → 약 2~3초)
+410: 3. AddMachineModal: 프로토콜이 네트워크 타입일 때 "Scan" 버튼 표시 → 결과를 host 드롭다운으로 제공
+411:    **Context:** 포트별 스캔 대상: S7=102, MODBUS TCP=502, Probat/Kaleido WS=80. 실제 연결 시도는 안 하고 TCP connect만 확인. 프라이버시 우려 없음 (로컬 네트워크만).
+412:    **Depends on:** 없음
+413: 
+414: ---
+415: 
+416: ### [T18] 프로토콜별 Mock Adapter 구현
+417: 
+418: **What:** 각 프로토콜 어댑터의 Mock 버전 생성 (`adapters/modbus_sim.py`, `kaleido_sim.py`, `probat_ws_sim.py`, `s7_sim.py`, `phidget_sim.py`). 실제 라이브러리(snap7, pymodbus, Phidget22 등) 없이 realistic한 온도 데이터 반환. `roaster_registry.py`에 sim 항목 추가.
+419: **Why:** 실제 통신 기기 없이 프로토콜별 파라미터 파싱, 데이터 변환 로직, 연결 흐름 테스트 가능.
+420: **Depends on:** 없음
+421: 
+422: ---
+423: 
+424: ### [T19] Local Fake Server 구현 (modbus / kaleido / probat_ws)
+425: 
+426: **What:** 로컬에 fake 서버를 띄워 실 어댑터가 연결하도록 구성. pymodbus MockServer (MODBUS TCP), asyncio WebSocket 서버 (Kaleido WS, Probat WS). s7/phidget은 T18(Mock Adapter) 방식 유지.
+427: **Why:** 실 어댑터 코드 전체 경로 테스트 — 연결/재연결/오류 핸들링 흐름까지 검증 가능.
+428: **Depends on:** T18
+429: 
+430: ---
+431: 
+432: ### [T21] 연동 가이드 버튼
+433: 
+434: **What:** Machines 뷰에 "연동 가이드 보러가기" 버튼 추가 — 외부 문서 사이트 또는 앱 내 뷰로 연결.
+435: **Why:** 처음 세팅하는 사용자가 머신별 IP/시리얼 포트 설정 방법을 모르는 경우 많음. 연결 실패 시 가이드 진입점이 없음.
+436: **Decision needed:** 링크 대상 결정 (외부 docs 사이트 URL / 앱 내 Help 뷰 / 로컬 MD 파일 열기).
+437: **How (링크 결정 후):**
+438: 
+439: 1. Machines 헤더 또는 빈 상태 화면에 버튼 배치
+440: 2. 외부 URL이면 `@tauri-apps/plugin-opener`의 `openUrl()` 사용 (이미 설치됨)
+441: 3. 앱 내 뷰면 `onNavigate('help')` 패턴
+442:    **Depends on:** 링크 URL/대상 결정
+443: 
+444: ---
+445: 
+446: ### [T22] 커핑(Cupping) 기록 기능
+447: 
+448: **What:** 로스팅 완료 후 커핑 결과를 기록하고 로스트 프로파일에 연결. SCA 커핑 폼 기준.
+449: 
+450: **필드 구조:**
+451: 
+452: ```jsonc
+453: {
+454:     "cuppingId": "uuid-v4",
+455:     "roastId": "연결된 로스트 ID (D1 스키마)",
+456:     "cuppedAt": "2026-05-09T10:00:00Z",
+457:     "cuppedBy": "사용자명 또는 팀원",
+458:     "scores": {
+459:         "fragrance": 8.0, // 향
+460:         "aroma": 8.0, // 아로마
+461:         "flavor": 8.0, // 맛
+462:         "aftertaste": 7.5, // 후미
+463:         "acidity": 8.0, // 산미
+464:         "body": 7.5, // 바디
+465:         "balance": 8.0, // 균형
+466:         "overall": 8.0, // 전체
+467:     },
+468:     "totalScore": 85.0, // SCA 합산 (기본값 36 + 각 항목 합)
+469:     "defects": 0, // 결점 수
+470:     "notes": "자유 텍스트 테이스팅 노트",
+471:     "descriptors": ["citrus", "floral", "honey"], // 태그
+472: }
+473: ```
+474: 
+475: **Why:** 로스팅 프로파일과 커핑 결과를 연결하면 어떤 프로파일이 좋은 컵을 만드는지 데이터로 파악 가능. 반복 재현 기준이 됨.
+476: 
+477: **How:**
+478: 
+479: 1. `RoastSummaryModal` 또는 별도 `CuppingModal`에 커핑 입력 UI 추가
+480: 2. 로스트 저장 JSON에 `cupping` 배열 필드 추가 (나중에 여러 번 커핑 가능)
+481: 3. Profiles/History 뷰에서 커핑 점수 표시 (별점 또는 숫자)
+482: 4. 커핑 입력은 로스트 직후가 아니어도 되도록 히스토리 뷰에서 "Add Cupping" 버튼 제공
+483: 
+484: 
+485: ### [T24] Artisan .alog 파일 가져오기
+486: 
+487: **What:** Artisan이 저장한 `.alog` 파일을 FC Desktop으로 가져와 히스토리 뷰에서 조회/오버레이 가능하게 한다.
+488: 
+489: **Artisan .alog 구조 요약 (내부는 JSON):**
+490: 
+491: ```json
+492: {
+493:   "timex": [0, 0.5, 1.0, ...],   // 경과 초 배열
+494:   "temp1": [220.0, ...],          // ET
+495:   "temp2": [190.0, ...],          // BT
+496:   "title": "Ethiopia Yirgacheffe",
+497:   "beans": "Ethiopia Washed",
+498:   "datetime": "2026-05-09 10:00",
+499:   "roastepoch": 1746784800,
+500:   "Eflags": [...],                // 이벤트 플래그
+501:   "Etypes": [...],
+502:   "Evalues": [...],
+503:   "Enames": [...]                  // 이벤트 이름 배열
+504: }
+505: ```
+506: 
+507: **매핑 규칙:**
+508: | Artisan 필드 | FC Desktop 필드 |
+509: |---|---|
+510: | `timex[i]` | `timeseries[i].t` |
+511: | `temp1[i]` | `timeseries[i].et` |
+512: | `temp2[i]` | `timeseries[i].bt` |
+513: | `title` | `bean.name` |
+514: | `datetime` | `roastedAt` |
+515: | `Enames[i]` | `events[i].event` |
+516: | `Evalues[i]` | `events[i].bt` |
+517: 
+518: **RoR 재계산:** Artisan의 RoR 배열(`delta1`, `delta2`)이 있으면 그대로 사용, 없으면 BT 시계열에서 재계산.
+519: 
+520: **How:**
+521: 
+522: 1. 히스토리 뷰 "Import" 드롭다운에 "From Artisan (.alog)" 옵션 추가
+523: 2. `open_dialog` → `.alog` 파일 선택 → JSON 파싱 → `alogToFcProfile()` 변환 함수 적용
+524: 3. 변환 결과를 FC Desktop 스키마(D1)로 저장
+525: 4. 가져온 프로파일에 `source: "artisan"` 메타 필드 표시
+526: 
+527: **Depends on:** D1 (로스트 저장 구조 완성)
+528: 
+529: ---
+530: 
+531: ### [T25] Firescope CSV 파일 임포터
+532: 
+533: **What:** Firescope가 내보내는 CSV 파일을 자동으로 컬럼 분석·매핑하여 FC Desktop 히스토리로 가져오는 전용 임포터.
+534: 
+535: **Why:** Firescope CSV는 헤더 컬럼명이 고정되어 있지 않거나 버전별로 다를 수 있음. 단순 column index 매핑이 아닌 **컬럼명 기반 자동 탐지** 필요.
+536: 
+537: **Firescope CSV 예상 구조 (분석 필요):**
+538: 
+539: ```
+540: Time,BT,ET,RoR,Heater,Fan,...
+541: 0,190.2,220.1,0.0,80,60,...
+542: 0.5,155.3,218.4,-12.4,80,60,...
+543: ```
+544: 
+545: **자동 매핑 전략:**
+546: 
+547: 1. **헤더 정규화:** 대소문자 무시, 공백/특수문자 제거 후 비교
+548: 2. **컬럼 감지 규칙:**
+549:    | 우선순위 | 후보 컬럼명 패턴 | 매핑 대상 |
+550:    |---|---|---|
+551:    | 1 | `time`, `elapsed`, `t`, `seconds` | `timeseries.t` |
+552:    | 2 | `bt`, `bean temp`, `temp2` | `timeseries.bt` |
+553:    | 3 | `et`, `env temp`, `temp1` | `timeseries.et` |
+554:    | 4 | `ror`, `ror_bt`, `delta` | `timeseries.ror` |
+555:    | 5 | `heater`, `heat`, `power` | `liveData.heater` |
+556:    | 6 | `fan`, `airflow`, `air` | `liveData.fan` |
+557: 3. **매핑 실패 시:** 사용자에게 컬럼 선택 UI 표시 (수동 매핑 fallback)
+558: 4. **이벤트 행 감지:** 숫자가 아닌 셀 또는 별도 이벤트 컬럼 (`event`, `marker`, `flag`) 파싱
+559: 
+560: **컬럼 매핑 UI (수동 fallback):**
+561: 
+562: - 자동 매핑 결과를 테이블로 표시: `감지된 컬럼` → `FC 필드` 드롭다운
+563: - 사용자가 수정 후 "Import" 확인
+564: 
+565: **How:**
+566: 
+567: 1. `src/features/import/` 디렉토리에 `FirescopeImporter.ts` 생성
+568: 2. CSV 파싱: `papaparse` 라이브러리 사용 (헤더 자동 감지 옵션)
+569: 3. `detectColumns(headers: string[]): ColumnMapping` 함수 — 위 규칙 적용
+570: 4. `FirescopeImportModal.tsx` — 파일 선택 → 미리보기 → 컬럼 매핑 확인 → 가져오기
+571: 5. 가져온 프로파일에 `source: "firescope"` 메타 필드 표시
+572: 
+573: **필요한 패키지:**
+574: 
+575: - `papaparse` (CSV 파싱, 이미 많은 React 프로젝트에서 사용)
+576: 
+577: **Depends on:** D1 (로스트 저장 구조 완성)
+578: 
+579: ---
+580: 
+581: ### [T8] CORS 제한 — Tauri Origin으로 좁히기
+582: 
+583: **What:** cors_middleware에서 `Access-Control-Allow-Origin: *`을 `http://localhost:1420` (Tauri devUrl)으로 제한.
+584: **Why:** 현재 로컬의 모든 웹 페이지가 POST /control로 로스터를 제어 가능. 물리적 안전 우려.
+585: **Context:** main.py cors_middleware. 프로덕션 빌드 origin은 `tauri://localhost`로 변경 필요.
+586: **Depends on:** Tauri sidecar 번들링 완료 후 실제 origin 확인
+587: 
+588: ---
+589: 
+590: ## Plan View (오늘의 로스팅 계획) — 추후 개선 항목
+591: 
+592: _CEO review 2026-05-10에서 V2로 연기된 항목들_
+593: 
+594: ### [P1] Plan 배치 드래그 앤 드롭 순서 변경
+595: 
+596: **What:** Plan 뷰에서 pending 배치를 드래그하여 순서 변경.
+597: **Why:** V1에서는 삭제+재입력으로 우회하지만, 배치가 5개 이상이면 번거롭다.
+598: **Pros:** UX 개선, 로스팅 순서 즉흥 변경 쉬워짐.
+599: **Cons:** drag-and-drop 라이브러리 의존성 추가 (예: @dnd-kit/core), 복잡도 증가.
+600: **Context:** `src/views/Plan.tsx`. in-progress/done 배치는 이동 불가. batches 배열 인덱스로 순서 관리.
+601: **Effort:** M (human) → S (CC)
+602: **Priority:** P3
+603: **Depends on:** Plan 뷰 V1 구현 완료
+604: 
+605: ---
+606: 
+607: ### [P2] '어제 계획 반복' 버튼
+608: 
+609: **What:** 가장 최근 DayPlan을 오늘 계획 초안으로 로드 (원두명, 투입량 복사, 상태는 모두 pending).
+610: **Why:** 매주 비슷한 로스팅 패턴을 가진 로스터에게 유용. 빈 상태에서 시작하는 시간 절약.
+611: **Pros:** 반복 작업 최소화, 빠른 계획 수립.
+612: **Cons:** 날짜별 plan 히스토리가 쌓여야 의미 있음. LazyStore에 최근 날짜 키 탐색 필요.
+613: **Context:** `LazyStore('plans.json')`의 키 목록에서 가장 최근 날짜 찾기. 오늘 계획이 이미 있으면 비활성화.
+614: **Effort:** M (human) → S (CC)
+615: **Priority:** P3
+616: **Depends on:** Plan 뷰 V1 구현, 최소 1회 이상 계획 저장 후 테스트 가능
+617: 
+618: ---
+619: 
+620: ### [P3] Profiles에 estimatedTimeSec 필드 추가
+621: 
+622: **What:** Profiles 데이터 모델에 `estimatedTimeSec?: number` 추가. Plan 뷰 ETA 계산에 사용.
+623: **Why:** 현재 ETA는 프로파일 없을 때 600초(10분) fallback만 사용. 프로파일마다 다른 로스팅 시간을 반영하면 ETA가 정확해짐.
+624: **Pros:** 오늘 로스팅 예상 종료 시간 정확도 향상.
+625: **Cons:** Profiles mock data → 실 데이터화 이후에 의미 있음.
+626: **Context:** `src/views/Profiles.tsx` mock data 및 향후 Profiles 타입 정의.
+627: **Effort:** S (human) → S (CC)
+628: **Priority:** P2
+629: **Depends on:** Profiles 실 데이터화 (D1 결정 이후)
+630: 
+631: ### [T33] 세팅 모달에서 결제 및 구독 상태 확인
+632: 
+633: 
+634: ## GLOBAL COMPLIANCE — 글로벌 컴플라이언스
+635: 
+636: ### [C1] EUDR (EU 삼림벌채 규정) 준수 기능
+637: 
+638: **What:** 2025년 12월 발효 예정인 EU Deforestation Regulation(EUDR)에 따라 커피 원두의 공급망 추적 정보를 기록·보고하는 기능.
+639: 
+640: **EUDR 핵심 요구사항:**
+641: 
+642: - 원두가 삼림벌채 없는 토지에서 재배됐음을 증명하는 Due Diligence Statement (DDS) 작성
+643: - 농장 단위 지리 좌표 (위도·경도 또는 폴리곤) 수집
+644: - 생산자/공급자 정보 (국가, 이름, 인증서) 기록
+645: - EU TRACES NT 또는 대체 시스템으로 DDS 제출
+646: 
+647: **필요한 데이터 필드 (Beans 모델 확장):**
+648: 
+649: ```jsonc
+650: {
+651:   "eudr": {
+652:     "farmCoordinates": [            // 농장 위·경도 (단일 점 또는 폴리곤)
+653:       { "lat": 6.123, "lng": 38.456 }
+654:     ],
+655:     "countryOfOrigin": "Ethiopia",  // ISO 3166-1 alpha-2
+656:     "producerName": "Yirgacheffe Farmers Coop",
+657:     "supplierName": "Importer Co.",
+658:     "harvestYear": 2024,
+659:     "certifications": ["Rainforest Alliance", "Organic"],
+660:     "ddsReferenceNumber": "EU-DDS-2025-XXXXX",  // 제출 후 부여
+661:     "ddsStatus": "draft" | "submitted" | "approved"
+662:   }
+663: }
+664: ```
+665: 
+666: **How:**
+667: 
+668: 1. Beans 뷰 — 원두 추가/편집 폼에 EUDR 섹션 추가 (지도 핀 또는 좌표 직접 입력)
+669: 2. `eudr_compliance` 테이블 또는 `beans` 테이블 컬럼 확장 (Supabase 마이그레이션)
+670: 3. DDS 보고서 생성 — PDF 또는 CSV 내보내기 (EU 양식 기준)
+671: 4. EUDR 미완성 원두 경고 배지 — 컴플라이언스 미비 시 Beans 카드에 ⚠️ 표시
+672: 5. (Phase 2) EU TRACES NT API 연동으로 DDS 직접 제출
+673: 
+674: **Priority:** HIGH — 2025년 12월 이후 EU 수출/판매 시 법적 필수.
+675: **Depends on:** D1 (원두 데이터 모델), Beans 뷰 편집 UI 완성
+676: 
+677: ---
+678: 
+679: ### [C2] 세무 보고서 (Tax & Duty Reporting)
+680: 
+681: **What:** 국가별 세무·통관 요건에 맞는 보고서 자동 생성. 초기 타겟: 한국 부가가치세, EU VAT, 미국 수입 관세.
+682: 
+683: **보고서 유형:**
+684: 
+685: | 유형                 | 대상 국가 | 주요 데이터                             |
+686: | -------------------- | --------- | --------------------------------------- |
+687: | 부가가치세 매출 명세 | 한국      | 로스팅 완료 배치 × 판매가, 부가세율 10% |
+688: | EU VAT 보고          | EU 전체   | 원두 수입 송장, HS Code 0901.21         |
+689: | 수입 관세 내역       | 미국      | Green bean 중량 × 관세율 (0901.11)      |
+690: | 원두 재고 이동 내역  | 공통      | 입고/출고/손실(로스로스%) 추적          |
+691: 
+692: **필요한 추가 데이터:**
+693: 
+694: ```jsonc
+695: {
+696:   "purchaseInvoice": {
+697:     "invoiceNumber": "INV-2025-001",
+698:     "supplierVatId": "ET-VAT-XXXXX",
+699:     "purchasePriceUsd": 8.50,       // $/kg green
+700:     "totalWeightKg": 100,
+701:     "importDutyPaid": 0.00,
+702:     "hsCode": "0901.11"
+703:   },
+704:   "salesRecord": {
+705:     "saleDate": "2026-05-14",
+706:     "channelType": "b2b" | "b2c" | "export",
+707:     "unitPriceKrw": 45000,
+708:     "vatRate": 0.10
+709:   }
+710: }
+711: ```
+712: 
+713: **How:**
+714: 
+715: 1. Beans 뷰 — 원두별 구매 인보이스 정보 입력 필드 추가
+716: 2. 로스팅 완료 시 `green_weight → roasted_weight` 손실률(로스로스) 자동 계산 및 재고 차감
+717: 3. Reports 뷰 (신규) — 기간 선택 → 보고서 유형 선택 → CSV/PDF 생성
+718: 4. 한국 세금계산서 양식 매핑 (공급가액, 세액 분리)
+719: 5. (Phase 2) 국세청 홈택스 전자신고 포맷(.xlsx) 내보내기
+720: 
+721: **Priority:** MEDIUM — 사업자 고객 대상 필수. 개인 로스터는 낮은 우선순위.
+722: **Depends on:** D1 (로스트 저장), Beans 재고 관리 구현
+723: 
+724: ---
+725: 
+726: ### [C3] 재고 원가 보고서 (Inventory Cost Report)
+727: 
+728: **What:** 생두 재고의 취득 원가, 로스팅 후 원가 변동, 기말 재고 평가액을 기간별로 집계하는 보고서.
+729: 
+730: **핵심 계산:**
+731: 
+732: | 항목           | 계산식                                              |
+733: | -------------- | --------------------------------------------------- |
+734: | 생두 취득 원가 | 구매가($/kg) × 환율 × 입고량(kg)                    |
+735: | 로스팅 원가    | 취득 원가 + 로스팅 인건비 + 에너지 비용 (수동 입력) |
+736: | 로스로스 반영  | `roasted_weight / green_weight` → 원가 단가 재계산  |
+737: | 기말 재고 평가 | 잔여 재고량 × 단위 원가 (FIFO 또는 이동평균)        |
+738: | 매출원가(COGS) | 출고량 × 단위 원가 (판매 기록 연동)                 |
+739: 
+740: **보고서 출력 형식:**
+741: 
+742: ```
+743: 기간: 2026-01-01 ~ 2026-03-31
+744: 
+745: 원두명          입고량   취득원가    로스로스   로스팅후 단가   기말재고량   기말평가액
+746: Ethiopia Y.    100kg   ₩850,000   14.2%     ₩9,907/kg      23kg       ₩227,861
+747: Guatemala A.    50kg   ₩380,000   13.8%     ₩8,796/kg      10kg       ₩87,960
+748: ──────────────────────────────────────────────────────────────────────────────
+749: 합계                  ₩1,230,000                            33kg       ₩315,821
+750: 
+751: 매출원가(COGS): ₩914,179
+752: ```
+753: 
+754: **How:**
+755: 
+756: 1. Beans 뷰 — 원두별 구매 단가·환율·입고일 기록 (C2 인보이스 데이터 재활용)
+757: 2. 원가 계산 엔진 — FIFO 또는 이동평균 선택 가능 (설정에서)
+758: 3. Reports 뷰 — 기간 선택 → 재고 원가 보고서 탭 → 테이블 표시 + CSV/PDF 내보내기
+759: 4. 로스팅 완료 시 `green_weight → roasted_weight` 자동 반영 (D1 연동)
+760: 5. (Phase 2) 회계 소프트웨어 연동 포맷 — 더존/SAP CSV 내보내기
+761: 
+762: **Priority:** MEDIUM — 사업자 재무관리·세무조정 시 필수.
+763: **Depends on:** D1 (로스트 저장), C2 (구매 인보이스 데이터)
+764: 
+765: ---
+766: 
+767: ### [C4] 원두 원산지 추적 (Bean Traceability)
+768: 
+769: **What:** 원두의 농장 → 수입 → 로스팅 → 판매까지 전 공급망을 단일 뷰에서 조회 가능하게 한다. EUDR DDS 생성의 데이터 소스이기도 함.
+770: 
+771: **Traceability Record 구조:**
+772: 
+773: ```jsonc
+774: {
+775:     "traceabilityId": "uuid",
+776:     "beanId": "연결된 Bean",
+777:     "chain": [
+778:         { "stage": "farm", "actor": "Farmer Coop", "country": "ET", "date": "2024-10" },
+779:         { "stage": "mill", "actor": "Washing Station", "country": "ET", "date": "2024-11" },
+780:         { "stage": "export", "actor": "Exporter", "country": "ET", "date": "2024-12" },
+781:         { "stage": "import", "actor": "Importer Co.", "country": "KR", "date": "2025-01" },
+782:         { "stage": "roast", "actor": "First Crack", "country": "KR", "date": "2026-05" },
+783:     ],
+784:     "documents": [
+785:         { "type": "phytosanitary", "fileUrl": "...", "issuedAt": "2024-12-01" },
+786:         { "type": "ico_certificate", "fileUrl": "...", "issuedAt": "2024-12-01" },
+787:     ],
+788: }
+789: ```
+790: 
+791: **How:**
+792: 
+793: 1. Beans 뷰 — 공급망 단계별 입력 UI (스텝 폼 또는 타임라인 편집기)
+794: 2. 문서 첨부 (Tauri `tauri-plugin-fs` 또는 Supabase Storage)
+795: 3. Traceability 카드 — Beans 상세 뷰에 공급망 타임라인 시각화
+796: 4. EUDR C1과 연동: traceability chain → DDS 자동 채우기
+797: 
+798: **Priority:** MEDIUM — EUDR 요건 충족에 필수. C1 이후 구현.
+799: **Depends on:** C1 (EUDR), C3 (재고 원가), D1 (원두 데이터 모델)
+800: 
+801: ---
+802: 
+803: ## GRAPH SETTINGS REQUIREMENTS — 향후 그래프 설정 UI 구현 시 참고
+804: 
+805: ### 1. 선 색상 & 표시 여부 (Line Colors & Visibility)
+806: 
+807: - **BT (Bean Temperature):** 원두 표면 온도 색상 및 표시 여부.
+808: - **ET (Exhaust/Environmental Temp):** 배기 또는 드럼 내부 온도 색상 및 표시 여부.
+809: - **Inlet Temp.:** 열풍 입구 온도 색상 및 표시 여부.
+810: - **BT RoR / ET RoR:** BT와 ET의 온도 변화율(Rate of Rise).
+811: - **하드웨어 조작 값:** 버너 / 드럼 스피드 / 압력 / 에어플로우 변화 표시.
+812: - **기록 / 이벤트:** 기록 시작/종료 및 특정 조작 시점 표시.
+813: - **기타:** 가로선 표시, 추가 센서 그래프, 배치 간 예열 기록 등 시각적 보조 기능.
+814: 
+815: ### 2. 축 설정 (Axis Settings)
+816: 
+817: - **시간 축 (Time Axis):**
+818:     - 눈금 간격 (예: 60초) 및 보조눈금 간격 (예: 30초).
+819:     - 시작/종료 시점 (예: 투입 전 -15초 ~ 720초).
+820:     - 시간 축 자동 연장 기능.
+821: - **온도 축 (Temperature Axis):**
+822:     - 눈금 간격 (예: 50°C) 및 보조눈금 간격 (예: 10°C).
+823:     - 최소/최대 온도 범위 (예: 50°C ~ 250°C).
+824: - **RoR 축:**
+825:     - 눈금 간격 단위.
+826:     - 표시 범위 (예: 0~30°C).
+827:     - RoR 부드럽게 보정 (노이즈 제거).
+828: 
+829: ### 3. 구간 및 센서 설정 (Phase & Sensor Settings)
+830: 
+831: - **추가 센서:** 좌/우 y축에 버너, 압력 등 데이터 할당.
+832: - **구간 설정:**
+833:     - 옐로우 지점 온도 (예: 150°C).
+834:     - 1차 크랙 온도 (예: 200°C).
+835: - **자동 이벤트:** 설정 온도 도달 시 자동 마킹 기능.
+836: 
+837: ### 4. 이벤트 및 기타 (Events & Misc)
+838: 
+839: - **이벤트 기준 온도:** BT 또는 ET 중 선택.
+840: - **명칭 변경:** 'Gas', 'Airflow' 등 커스텀 명칭 지원.
+841: - **UI 배치:** 로스팅 구간 바 위치 설정 (예: 화면 하단).
+842: - **자동 감지 기능:**
+843:     - **투입 감지:** BT가 설정값(예: 7°C) 이상 급격히 하락 시 자동 기록 시작.
+844:     - **배출 감지:** BT가 설정값(예: 3°C) 이상 하락 시 자동 기록 종료.
+845: 
+846: ---
+847: 
+848: ### [T35] AddBeanModal에 Blend 기능 추가 및 서버 구조 분리 고민
+849: 
+850: **What:** AddBeanModal에서 싱글 원두뿐 아니라 블렌드 원두(여러 원두 혼합) 생성 지원.
+851: 
+852: **Why:** 실제 로스터리에서 블렌드 원두 사용 빈번. 재고 관리, 로스팅 기록 연동 시 블렌드 비율 추적 필요.
+853: 
+854: **How (Phase 1 - UI):**
+855: 
+856: 1. AddBeanModal에 "Blend" 토글 추가 → 싱글/블렌드 모드 전환
+857: 2. Blend 모드: 기존 원두 목록에서 2~5개 선택 + 비율(%) 입력 (합계 100% 검증)
+858: 3. 생성된 블렌드: `beans` 테이블에 `is_blend: true`, `blend_components: [{bean_id, ratio}]` JSONB 저장
+859: 
+860: **고민: 서버 구조 (싱글/블렌드) 분리 필요성?**
+861: 
+862: - **옵션 A:** 단일 `beans` 테이블 + `blend_components` JSONB 배열 (Supabase 추천, 간단)
+863: - **옵션 B:** 별도 `bean_blends` 테이블 + junction table (N:N 관계, 정규화)
+864: 
+865: **장단점:**
+866: | 옵션 | 장점 | 단점 |
+867: |------|------|------|
+868: | A | 쿼리 단순, 마이그레이션 없음 | 복잡 쿼리(JSONB) 성능, 관계 무결성 약함 |
+869: | B | 관계 무결성 강함, 복잡 분석 쉬움 | 스키마 변경, JOIN 쿼리 증가 |
+870: 
+871: **추천:** Phase 1 JSONB → 블렌드 사용 비중 확인 후 정규화 검토.
+872: 
+873: **Depends on:** 없음
 </file>
 
 <file path=".github/workflows/publish-r2.yml">
@@ -22028,420 +22442,6 @@ This section contains the contents of the repository's files.
 419:         assert manager._connected is False
 420:         if manager._reconnect_task is not None:
 421:             manager._reconnect_task.cancel()
-</file>
-
-<file path="biome.json">
- 1: {
- 2:     "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
- 3:     "assist": { "actions": { "source": { "organizeImports": "on" } } },
- 4:     "linter": {
- 5:         "enabled": true,
- 6:         "rules": {
- 7:             "preset": "recommended",
- 8:             "a11y": {
- 9:                 "useButtonType": "warn",
-10:                 "noLabelWithoutControl": "warn",
-11:                 "noStaticElementInteractions": "warn",
-12:                 "useKeyWithClickEvents": "warn",
-13:                 "noSvgWithoutTitle": "warn",
-14:                 "useSemanticElements": "warn",
-15:                 "noAutofocus": "warn"
-16:             },
-17:             "correctness": {
-18:                 "noUnusedVariables": "error",
-19:                 "useExhaustiveDependencies": "warn"
-20:             },
-21:             "complexity": {
-22:                 "noForEach": "warn",
-23:                 "useLiteralKeys": "error",
-24:                 "noImportantStyles": "warn"
-25:             },
-26:             "style": {
-27:                 "noDefaultExport": "error",
-28:                 "useConst": "error",
-29:                 "useTemplate": "warn",
-30:                 "useImportType": "error",
-31:                 "noNonNullAssertion": "warn"
-32:             },
-33:             "suspicious": {
-34:                 "noConsole": "warn",
-35:                 "noDoubleEquals": "error",
-36:                 "noExplicitAny": "warn",
-37:                 "noArrayIndexKey": "warn",
-38:                 "noGlobalIsNan": "warn",
-39:                 "noConfusingVoidType": "warn",
-40:                 "useIterableCallbackReturn": "warn"
-41:             }
-42:         }
-43:     },
-44:     "formatter": {
-45:         "enabled": true,
-46:         "indentStyle": "space",
-47:         "indentWidth": 4,
-48:         "lineWidth": 120,
-49:         "lineEnding": "lf"
-50:     },
-51:     "javascript": {
-52:         "formatter": {
-53:             "quoteStyle": "single",
-54:             "semicolons": "always",
-55:             "trailingCommas": "all",
-56:             "arrowParentheses": "always"
-57:         }
-58:     },
-59:     "json": {
-60:         "formatter": {
-61:             "trailingCommas": "none"
-62:         }
-63:     },
-64:     "css": {
-65:         "parser": {
-66:             "tailwindDirectives": true
-67:         },
-68:         "formatter": {
-69:             "enabled": true
-70:         }
-71:     },
-72:     "files": {
-73:         "includes": ["**", "!**/dist", "!**/build", "!**/.next", "!**/coverage", "!**/src-tauri", "!**/node_modules"]
-74:     }
-75: }
-</file>
-
-<file path="DESIGN.md">
-  1: # DESIGN.md: First Crack Desktop
-  2: 
-  3: **프로젝트:** 로스터리 관리를 위한 데스크탑 애플리케이션 (Tauri v2 + React)
-  4: 
-  5: ---
-  6: 
-  7: ## Design Philosophy
-  8: 
-  9: 미니멀하고 차분한 엔터프라이즈 감성. 높은 가독성과 정확한 수치 표현이 핵심. 장시간 사용하는 도구이므로 눈의 피로를 최소화하고, 데이터에 집중할 수 있도록 장식은 배제한다.
- 10: 
- 11: - **분위기:** 조용하고 정확한, 장인적인
- 12: - **키워드:** 미니멀, 저대비, 따뜻한 중성톤, 정밀함
- 13: - **No emoji** — 모든 아이콘은 Lucide 사용
- 14: - **No gradients** — 단색 + 미세한 그림자 레이어로 깊이감 표현
- 15: 
- 16: ---
- 17: 
- 18: ## Design Tokens
- 19: 
- 20: ### Colors
- 21: 
- 22: CSS 변수는 `src/App.css`의 `@theme` 블록에 정의되어 있음.
- 23: 
- 24: | 역할 | Light | Dark | 용도 |
- 25: |---|---|---|---|
- 26: | `--color-main-bg` | `#ffffff` | `#1a1a1a` | 페이지/카드 배경 |
- 27: | `--color-roast-bg` | `#ffffff` | `#181d21` | 로스팅 화면 전용 배경 |
- 28: | `--color-surface` | `#efeff0` | `#222222` | 버튼/인풋/서피스 배경 |
- 29: | `--color-surface-warm` | `rgba(245,242,239,0.8)` | `rgba(30,28,26,0.8)` | 따뜻한 톤 서피스 (호버 등) |
- 30: | `--color-surface-warm-solid` | `#f5f2ef` | `#1e1c1a` | 따뜻한 톤 서피스 (불투명) |
- 31: | `--color-primary` | `#171717` | `#e5e5e5` | 주요 텍스트 |
- 32: | `--color-secondary` | `#4e4e4e` | `#a3a3a3` | 보조 텍스트 |
- 33: | `--color-muted` | `#777169` | `#8a8580` | 덜 중요한 텍스트, 플레이스홀더 |
- 34: | `--color-border` | `#e5e5e5` | `#2e2e2e` | 테두리 |
- 35: | `--color-border-subtle` | `rgba(0,0,0,0.05)` | `rgba(255,255,255,0.08)` | 매우 미세한 테두리 |
- 36: | `--color-divider` | `#efeff0` | `#6c6a6b` | 구분선 |
- 37: 
- 38: ### Point Color Palette (Accent Colors)
- 39: 
- 40: 프로젝트 전반에서 강조, 시각적 구분, 브랜딩에 사용하는 포인트 컬러. 필요에 따라 Light/Dark 모드에서 동일하게 사용하거나 명도만 조정한다.
- 41: 
- 42: | Hex | 역할 예시 |
- 43: |---|---|
- 44: | `#0B0B0B` | 진한 검정 — 다크 배경, 강한 대비 강조, Danger 위상 (대비용) |
- 45: | `#FFFF54` | 밝은 노랑 — Rate of Rise 라인 (dark), Drying 위상 / Yellow 마커 / Heat 라인 |
- 46: | `#81FBA5` | 민트 그린 — Ready 위상 / TP 마커 / 연결 상태 도트 / 현재 시간 라인 |
- 47: | `#72EBBC` | 청록 민트 — Note 마커 / Drum 온도 라인 / Default 프로필 배지 |
- 48: | `#44BFFC` | 밝은 파랑 — FC Start 마커 / Maillard 위상 / Fan 라인 / 진행중 배지 / 첫번째 배치 번호 |
- 49: | `#5C41FF` | 진한 보라 — Delete 액션 배지 / KPI 부정 변화 |
- 50: | `#756AFC` | 연한 보라 — FC End 마커 / Development 위상 / 프로필 비교 / 재고 차감 도트 / 다음 배치 라벨 |
- 51: | `#8080F0` | 중간 보라 — End 마커 / 재고 부족(Out) 배지 / UI 악센트 |
- 52: | `#A6B0FF` | 연한 페리윙클 — Drop 마커 / 대기(pending)/건너뜀(skipped) 배지 / 오프라인 상태 / 무료 플랜 배지 / Coming soon 배지 |
- 53: | `#E4E4E4` | 밝은 회색 — 보더/구분선 (light) |
- 54: | `#A3A2A2` | 중간 회색 — Light 로스트 레벨 텍스트 |
- 55: | `#6C6A6B` | 어두운 회색 — Medium-Light 로스트 레벨, 구분선 (dark) |
- 56: 
- 57: ### Sensor & Chart Colors (light / dark)
- 58: 
- 59: | 토큰 | Light | Dark | 의미 |
- 60: |---|---|---|---|
- 61: | `--color-sensor-bt` | `#22a85a` | `#4be08c` | Bean Temperature (녹색) |
- 62: | `--color-sensor-bt-target` | `rgba(40,180,130,0.65)` | `rgba(75,224,140,0.65)` | BT 목표 곡선 |
- 63: | `--color-sensor-et` | `#4a85c5` | `#beacf8` | Environmental Temp (청색) |
- 64: | `--color-sensor-ror` | `#e8a828` | `#ffff54` | Rate of Rise (황색) |
- 65: | `--color-chart-grid` | `rgba(0,0,0,0.08)` / stroke `0.10` | `rgba(255,255,255,0.10)` / stroke `0.12` | 차트 그리드 |
- 66: | `--color-chart-axis-label` | `#666` | `#888` | 차트 축 레이블 |
- 67: | `--color-chart-phaseline` | `rgba(0,0,0,0.07)` | `rgba(255,255,255,0.08)` | 페이즈 경계선 |
- 68: | `--color-chart-tooltip-bg` | `#fff` | `#222` | 툴팁 배경 |
- 69: | `--color-scrollbar-thumb` | `rgba(0,0,0,0.1)` | `rgba(255,255,255,0.12)` | 스크롤바 |
- 70: 
- 71: ### Phase Colors
- 72: 
- 73: | 페이즈 | Hex | 용도 |
- 74: |---|---|---|
- 75: | Ready | `#81FBA5` | 준비 완료 |
- 76: | Drying | `#FFFF54` | 건조 |
- 77: | Maillard | `#44BFFC` | 마이야르 |
- 78: | Development | `#756AFC` | 전개 |
- 79: | Danger | `#0B0B0B` | 위험 / 임계 |
- 80: 
- 81: ### Shadows
- 82: 
- 83: 다중 레이어 저불투명도 그림자 — 절대 10%를 넘지 않음. 따뜻한 톤의 `rgba(78,50,23,0.04)`를 사용해 부드러운 깊이감.
- 84: 
- 85: | 토큰 | Light 값 | 용도 |
- 86: |---|---|---|
- 87: | `--shadow-inset` | `rgba(0,0,0,0.075) 0px 0px 0px 0.5px inset` | 인풋 내부 그림자 |
- 88: | `--shadow-outline` | `rgba(0,0,0,0.06) 0px 0px 0px 1px` | 아웃라인 |
- 89: | `--shadow-elevation` | `rgba(0,0,0,0.04) 0px 4px 4px` | 얕은 입체 |
- 90: | `--shadow-card` | `rgba(0,0,0,0.4) 0px 0px 1px, rgba(0,0,0,0.04) 0px 4px 4px` | 카드 |
- 91: | `--shadow-warm` | `rgba(78,50,23,0.04) 0px 6px 16px` | 따뜻한 그림자 (드롭다운 등) |
- 92: | `--shadow-ring` | `rgba(0,0,0,0.06) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 1px 2px, rgba(0,0,0,0.04) 0px 2px 4px` | 셀렉트/팝오버 링 |
- 93: | `--shadow-edge` | `rgba(0,0,0,0.08) 0px 0px 0px 0.5px` | 엣지 라인 |
- 94: 
- 95: > **원칙:** 그림자는 항상 `opacity < 0.1`. 다중 레이어로 쌓아 자연스러운 깊이감을 만든다. Dark 모드에서는 대비를 높여 `opacity 0.2~0.4`.
- 96: 
- 97: ### Typography
- 98: 
- 99: | 속성 | 값 |
-100: |---|---|
-101: | `--font-display` | `'Inter', 'Pretendard', system-ui, -apple-system, sans-serif` |
-102: | `--font-body` | `'Inter', 'Pretendard', system-ui, -apple-system, sans-serif` |
-103: | `--font-mono` | `monospace` |
-104: 
-105: - **영문 전용 페이지**에서는 Pretendard 제외: `html[lang='en']` → `--font-display: 'Inter', system-ui...`
-106: - **`font-variant-numeric: tabular-nums lining-nums`** 가 `body`에 전역 적용. 재선언 금지.
-107: - **`font-kerning: normal`**, `font-feature-settings: 'kern' 1, 'tnum' 1, 'lnum' 1, 'zero' 1`
-108: 
-109: #### Type Scale
-110: 
-111: | 요소 | Size | Weight | Tracking | 기타 |
-112: |---|---|---|---|---|
-113: | Page Title (h1) | `32px` | Semi-bold | `-0.4px` | `font-(--font-display)` |
-114: | 섹션 타이틀 (h2) | `26px` | Light (`300wt`) | `-0.3px` | `font-display` |
-115: | KPI Value | `26px` | Semi-bold | `-0.5px` | `leading-[1.2]` |
-116: | 본문 | `14-16px` | Regular/Medium | `+0.14px` | |
-117: | 작은 텍스트 | `13px` | Medium | `+0.14px` | 버튼, 테이블 셀 |
-118: | 캡션/라벨 | `12px` | Medium | `+0.14px` | |
-119: | 베이지/카드 라벨 | `13px` | — | `+0.14px` | `text-muted` |
-120: | 머신/설정 라벨 | `12px` | Medium | — | `text-secondary`, `mb-1.5` |
-121: 
-122: ### Spacing & Layout
-123: 
-124: | 토큰 | 값 |
-125: |---|---|
-126: | Base unit | `4px` (Tailwind spacing) |
-127: | Page padding (X) | `40px` (`px-10`) |
-128: | Page padding (Y) | `32px` (`py-8`) |
-129: | Page max-width | `1280px` (가변, `PageLayout` 기본값) |
-130: | Section 제목 아래 여백 | `28px` (`mb-7`) |
-131: | 섹션 간격 | `24-32px` |
-132: | 그리드 갭 | `24px` (`gap-6`) |
-133: 
-134: ---
-135: 
-136: ## Components
-137: 
-138: ### Buttons
-139: 
-140: **Primary (Pill)**
-141: ```tsx
-142: <PillButton>
-143: // bg-primary text-white rounded-full
-144: // px-4.5 py-2.5 text-sm font-medium
-145: // tracking-[0.14px], cursor-pointer
-146: // border-none, dark:border-white dark:bg-[#171717]
-147: ```
-148: 
-149: - Shape: **rounded-full (9999px pill)**
-150: - Background: `--color-primary` (`#171717`)
-151: - Text: white
-152: - 좌측에 Lucide 아이콘을 `gap-2`로 배치 가능
-153: 
-154: **Secondary (Dashed Border)**
-155: ```
-156: // rounded-lg border border-dashed border-[#E5E5E5]
-157: // bg-transparent text-sm text-muted
-158: // hover:text-secondary hover:border-black/15
-159: // tracking-[0.14px]
-160: ```
-161: 
-162: - Shape: rounded-lg (8px), dashed border
-163: - 사용처: "추가" 버튼 (bean, blend 등)
-164: 
-165: ### Page Header
-166: 
-167: ```
-168: ┌──────────────────────────────────────┐
-169: │ Page Title (h1, 32px)       [Actions]│
-170: │ Subtitle (text-sm, muted)            │
-171: └──────────────────────────────────────┘
-172: ```
-173: 
-174: - `PageLayout` (px-10 py-8) 내부에서 사용
-175: - 제목 + 액션 영역은 `flex items-end justify-between`
-176: - 제목과 첫 콘텐츠 사이 `mb-7`
-177: 
-178: ### Page Layout
-179: 
-180: ```tsx
-181: <PageLayout maxWidth={1280}>
-182:   <PageHeader title="..." subtitle="..." actions={...} />
-183:   {/* content */}
-184: </PageLayout>
-185: ```
-186: 
-187: - 가운데 정렬 (`mx-auto`), `w-full` 고정
-188: - 패딩: `px-10 py-8`
-189: 
-190: ### Modal (ModalShell)
-191: 
-192: - **Overlay:** `fixed inset-0 bg-[rgba(23,23,23,0.32)] backdrop-blur-sm`
-193: - **정렬:** `flex items-center justify-center p-6`
-194: - **z-index:** `z-1000`
-195: - Overlay 클릭 → 닫힘, 내부 클릭 → 이벤트 전파 차단
-196: 
-197: ### KPI Card
-198: 
-199: ```
-200: ┌──────────────────────────┐
-201: │ [icon]            [+12%] │ <- 배지
-202: │                          │
-203: │ 1,234                    │ <- KPI 값 (26px, semibold)
-204: │ Total Batches            │ <- 라벨 (13px, muted)
-205: └──────────────────────────┘
-206: ```
-207: 
-208: - `bg-main-bg rounded-lg`
-209: - 내부 패딩: `px-5 pt-5 pb-4.5`
-210: - 아이콘: 16px, `strokeWidth={1.5}`, `--color-secondary`, 34x34 surface 박스 (`rounded-lg`)
-211: 
-212: ### Input / CounterInput
-213: 
-214: ```
-215: // 라벨: block text-[12px] font-medium text-secondary mb-1.5
-216: // 인풋: rounded-xl border border-[rgba(0,0,0,0.08)]
-217: //       bg-surface px-3.5 py-2.5 text-[13px]
-218: //       shadow-(--shadow-inset)
-219: //       focus:border-[rgba(0,0,0,0.2)]
-220: ```
-221: 
-222: - Label은 상단에 위치, `htmlFor`로 input과 연결
-223: - 숫자 입력 전용: 좌우 Chevron 버튼으로 증감 가능
-224: 
-225: ### Select (Radix UI)
-226: 
-227: ```
-228: trigger: min-w-[6rem] / text-[13px] / tracking-[0.14px]
-229: content: z-50 / max-h-56 / min-w-[6rem] / rounded-lg / shadow-ring
-230: item:    px-2 py-1.5 / text-[13px] / tracking-[0.14px] / text-secondary
-231: label:   px-2 py-1 / text-[11px] / font-medium / uppercase / tracking-[0.5px] / text-muted
-232: ```
-233: 
-234: ### Calendar (react-day-picker)
-235: 
-236: - Day cell: `w-9 h-9 rounded-lg text-[13px] font-medium`
-237: - Navigation: `w-6 h-6 rounded-md bg-surface shadow-inset`
-238: - Weekday header: `text-[11px] font-medium text-muted`
-239: 
-240: ---
-241: 
-242: ## Page Patterns
-243: 
-244: ### 페이지별 구조
-245: 
-246: **Dashboard (대시보드)**
-247: - KPI 카드 4열 그리드 (Total Batches, Avg Score, Monthly Volume, Active Machines)
-248: - 최근 로스팅 목록
-249: - 월별 배치 차트
-250: 
-251: **History (히스토리)**
-252: - 필터 바 (날짜, 원두, 정렬)
-253: - 검색 + CSV 내보내기
-254: - 페이지네이션된 테이블 (컬럼: Date, Bean, Duration, Drop Temp, Level)
-255: - 월간 보고서 모달
-256: 
-257: **Active Roast (로스팅 중)**
-258: - 좌측: 실시간 센서读数 + 차트 (uPlot)
-259: - 우측: 이벤트 버튼 + 로그
-260: - 하단: 머신 컨트롤
-261: 
-262: **Bean (생두 관리)**
-263: - 좌측 블렌드 목록 + 우측 디테일 패널
-264: - 블렌드/생두 추가 모달
-265: 
-266: ### 공통 패턴
-267: 
-268: 1. **PageLayout** 으로 페이지 감싸기
-269: 2. **PageHeader** 로 제목 + 액션 배치
-270: 3. 카드는 `bg-main-bg rounded-lg`
-271: 4. 버튼은 **pill** (`rounded-full`), 보조 버튼은 **dashed border**
-272: 5. 모든 아이콘은 **Lucide** (`lucide-react`), `strokeWidth={1.5}` 기본
-273: 6. 로딩 중에는 **Spinner** 컴포넌트 사용
-274: 7. **tracking-[0.14px]** 가 body 텍스트의 기본
-275: 
-276: ---
-277: 
-278: ## Dark Mode
-279: 
-280: `html.dark` 클래스 기반. CSS 변수로 전환.
-281: 
-282: | Light 변수 | Dark 변수 |
-283: |---|---|
-284: | `--color-main-bg: #fff` | `--color-main-bg: #1a1a1a` |
-285: | `--color-surface: #efeff0` | `--color-surface: #222` |
-286: | `--color-primary: #171717` | `--color-primary: #e5e5e5` |
-287: | `--color-sensor-bt: #22a85a` | `--color-sensor-bt: #4be08c` |
-288: | `--color-sensor-et: #4a85c5` | `--color-sensor-et: #beacf8` |
-289: | `--color-sensor-ror: #e8a828` | `--color-sensor-ror: #ffff54` |
-290: 
-291: > 센서 색상은 Dark 모드에서 더 밝고 선명하게 전환 — 어두운 배경에서 가독성 확보.
-292: 
-293: ---
-294: 
-295: ## CSS Architecture
-296: 
-297: - **Tailwind CSS v4** (`@tailwindcss/vite`)
-298: - **shadcn/ui** 스타일 레이어 — `cn()` 유틸리티로 클래스 병합
-299: - 모든 스타일은 Tailwind utility class 사용. **인라인 `style` prop 금지** (예외: 동적 계산값)
-300: - `@theme` 블록에 커스텀 토큰 정의
-301: - `@custom-variant dark`로 다크 모드 지원
-302: - `font-variant-numeric` — 전역 설정, 컴포넌트에서 재선언 금지
-303: 
-304: ### Tailwind v4 주의사항
-305: 
-306: - `@import 'tailwindcss'` — v4 진입점
-307: - `@theme` 블록 내에서 `--color-*` 변수 선언
-308: - `shadow-(--shadow-inset)` 문법으로 커스텀 그림자 참조
-309: - `font-(--font-display)` 문법으로 커스텀 폰트 참조
-310: 
-311: ---
-312: 
-313: ## Asset References
-314: 
-315: | 리소스 | 위치 |
-316: |---|---|
-317: | Pretendard 폰트 | `public/fonts/PretendardVariable.woff2` |
-318: | Inter 폰트 | Google Fonts (`https://fonts.googleapis.com/css2?family=Inter:wght@100..900`) |
-319: | 아이콘 | `lucide-react` 패키지 |
-320: 
-321: ---
-322: 
-323: ## 코드 구조 참고
-324: 
-325: - **CSS 변수:** `src/App.css` (`@theme` + `:root` + `html.dark`)
-326: - **UI 프리미티브:** `src/shared/ui/`
-327: - **센서/차트 색상:** `src/features/active-roast/lib/colors.ts`
-328: - **페이지 레이아웃:** `src/shared/ui/PageLayout.tsx`, `src/shared/ui/PageHeader.tsx`
-329: - **버튼:** `src/shared/ui/PillButton.tsx`
-330: - **모달:** `src/shared/ui/modal-shell/ModalShell.tsx`
-331: - **KPI 카드:** `src/shared/ui/KpiCard.tsx`
-332: - **달력:** `src/shared/ui/calendar/Calendar.tsx`
-333: - **셀렉트:** `src/shared/ui/select/Select.tsx`
 </file>
 
 <file path=".husky/pre-push">
@@ -26199,248 +26199,6 @@ This section contains the contents of the repository's files.
 263: };
 </file>
 
-<file path=".github/workflows/release.yml">
-  1: name: Release
-  2: 
-  3: on:
-  4:   push:
-  5:     tags:
-  6:       - 'v*'
-  7:   workflow_dispatch:
-  8:     inputs:
-  9:       version:
- 10:         description: 'Version to release (e.g. 1.0.2). Required when not triggered by a tag.'
- 11:         required: false
- 12: 
- 13: permissions:
- 14:   contents: read
- 15:   actions: write
- 16: 
- 17: jobs:
- 18:   setup:
- 19:     runs-on: ubuntu-latest
- 20:     outputs:
- 21:       version: ${{ steps.version.outputs.version }}
- 22:     steps:
- 23:       - name: Resolve version
- 24:         id: version
- 25:         run: |
- 26:           if [ -n "${{ inputs.version }}" ]; then
- 27:             VERSION="${{ inputs.version }}"
- 28:           elif [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
- 29:             VERSION="${GITHUB_REF_NAME#v}"
- 30:           else
- 31:             echo "::error::Cannot determine version. Push a semver tag (v*) or supply the 'version' input."
- 32:             exit 1
- 33:           fi
- 34:           echo "version=$VERSION" >> $GITHUB_OUTPUT
- 35:           echo "Resolved version: $VERSION"
- 36: 
- 37:   build:
- 38:     needs: setup
- 39:     runs-on: ${{ matrix.runner }}
- 40:     strategy:
- 41:       fail-fast: false
- 42:       matrix:
- 43:         include:
- 44:           - runner: macos-latest
- 45:             target: aarch64-apple-darwin
- 46:           - runner: macos-15-intel
- 47:             target: x86_64-apple-darwin
- 48:           - runner: windows-latest
- 49:             target: x86_64-pc-windows-msvc
- 50: 
- 51:     defaults:
- 52:       run:
- 53:         shell: bash
- 54: 
- 55:     steps:
- 56:       - uses: actions/checkout@v4
- 57: 
- 58:       - name: Validate required secrets
- 59:         env:
- 60:           TAURI_KEY:     ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
- 61:           TAURI_KEY_PW:  ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
- 62:           SUPABASE_URL:  ${{ secrets.VITE_SUPABASE_URL }}
- 63:           SUPABASE_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
- 64:           R2_ID:         ${{ secrets.VITE_R2_ACCOUNT_ID }}
- 65:           R2_ACCESS:     ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
- 66:           R2_SECRET:     ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
- 67:           R2_BUCKET:     ${{ secrets.VITE_R2_BUCKET_NAME }}
- 68:           APPLE_CERT:    ${{ secrets.APPLE_CERTIFICATE }}
- 69:           APPLE_CERT_PW: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
- 70:           APPLE_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
- 71:           APPLE_ID:      ${{ secrets.APPLE_ID }}
- 72:           APPLE_PW:      ${{ secrets.APPLE_PASSWORD }}
- 73:           APPLE_TEAM:    ${{ secrets.APPLE_TEAM_ID }}
- 74:         run: |
- 75:           missing=false
- 76:           check() {
- 77:             if [ -z "${!1}" ]; then
- 78:               echo "  MISSING: $2"
- 79:               missing=true
- 80:             fi
- 81:           }
- 82: 
- 83:           echo "Checking shared secrets..."
- 84:           check TAURI_KEY        "TAURI_SIGNING_PRIVATE_KEY"
- 85:           check TAURI_KEY_PW     "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
- 86:           check SUPABASE_URL     "VITE_SUPABASE_URL"
- 87:           check SUPABASE_ANON    "VITE_SUPABASE_ANON_KEY"
- 88:           check R2_ID            "VITE_R2_ACCOUNT_ID"
- 89:           check R2_ACCESS        "VITE_R2_ACCESS_KEY_ID"
- 90:           check R2_SECRET        "VITE_R2_SECRET_ACCESS_KEY"
- 91:           check R2_BUCKET        "VITE_R2_BUCKET_NAME"
- 92: 
- 93:           if [ "$RUNNER_OS" = "macOS" ]; then
- 94:             echo "Checking macOS signing secrets..."
- 95:             check APPLE_CERT      "APPLE_CERTIFICATE"
- 96:             check APPLE_CERT_PW   "APPLE_CERTIFICATE_PASSWORD"
- 97:             check APPLE_IDENTITY  "APPLE_SIGNING_IDENTITY"
- 98:             check APPLE_ID        "APPLE_ID"
- 99:             check APPLE_PW        "APPLE_PASSWORD"
-100:             check APPLE_TEAM      "APPLE_TEAM_ID"
-101:           fi
-102: 
-103:           if [ "$missing" = "true" ]; then
-104:             echo "::error::One or more required secrets are missing – aborting before build."
-105:             exit 1
-106:           fi
-107:           echo "All required secrets present."
-108: 
-109:       - uses: pnpm/action-setup@v4
-110: 
-111:       - uses: actions/setup-node@v4
-112:         with:
-113:           node-version: 22
-114:           cache: pnpm
-115: 
-116:       - name: Install Rust
-117:         uses: dtolnay/rust-toolchain@stable
-118:         with:
-119:           targets: ${{ matrix.target }}
-120: 
-121:       - name: Rust cache
-122:         uses: swatinem/rust-cache@v2
-123:         with:
-124:           workspaces: src-tauri
-125:           shared-key: rust-${{ matrix.target }}
-126:           save-if: ${{ github.ref == 'refs/heads/main' }}
-127: 
-128:       - name: Install frontend deps
-129:         run: pnpm install
-130: 
-131:       - name: Cache sidecar binary
-132:         id: sidecar-cache
-133:         uses: actions/cache@v4
-134:         with:
-135:           path: src-tauri/binaries
-136:           key: sidecar-${{ matrix.target }}-${{ hashFiles('src-tauri/sidecar/requirements.txt', 'src-tauri/sidecar/**/*.py', 'src-tauri/sidecar/sidecar.spec') }}
-137: 
-138:       - name: Set up Python
-139:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
-140:         uses: actions/setup-python@v5
-141:         with:
-142:           python-version: '3.13'
-143:           cache: pip
-144:           cache-dependency-path: src-tauri/sidecar/requirements.txt
-145: 
-146:       - name: Install sidecar dependencies
-147:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
-148:         run: pip install pyinstaller -r src-tauri/sidecar/requirements.txt
-149: 
-150:       - name: Build sidecar binary
-151:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
-152:         run: npm run build:sidecar
-153: 
-154:       - name: Build Tauri app
-155:         uses: tauri-apps/tauri-action@v0
-156:         env:
-157:           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-158:           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-159:           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-160:           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-161:           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-162:           VITE_R2_ACCOUNT_ID: ${{ secrets.VITE_R2_ACCOUNT_ID }}
-163:           VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
-164:           VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
-165:           VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
-166:           PUBLIC_SITE_URL: https://your-domain.com
-167:           PUBLIC_TAURI_REDIRECT: firstcrack://auth/callback
-168:           CARGO_INCREMENTAL: "0"
-169:           RUSTFLAGS: "-C debuginfo=0"
-170:           CARGO_NET_RETRY: "3"
-171:           CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-172:           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-173:           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-174:           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-175:           APPLE_ID: ${{ secrets.APPLE_ID }}
-176:           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-177:           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-178:         with:
-179:           args: --target ${{ matrix.target }}
-180: 
-181:       - name: Upload macOS artifacts
-182:         if: runner.os == 'macOS'
-183:         uses: actions/upload-artifact@v4
-184:         with:
-185:           name: macos-${{ matrix.target }}
-186:           path: |
-187:             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
-188:             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
-189:             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
-190:           retention-days: 7
-191: 
-192:       - name: Upload Windows artifacts
-193:         if: runner.os == 'Windows'
-194:         uses: actions/upload-artifact@v4
-195:         with:
-196:           name: windows-${{ matrix.target }}
-197:           path: |
-198:             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
-199:             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.sig
-200:           retention-days: 7
-201: 
-202:       - name: Notify build failure
-203:         if: failure()
-204:         env:
-205:           SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
-206:         run: |
-207:           if [ -n "$SLACK_WEBHOOK" ]; then
-208:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
-209:               --data "{\"text\":\":x: *Release build FAILED* — \`${GITHUB_REF_NAME}\` | \`${{ matrix.target }}\` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
-210:           else
-211:             echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
-212:           fi
-213: 
-214:   notify-build:
-215:     needs: [setup, build]
-216:     if: success()
-217:     runs-on: ubuntu-latest
-218:     steps:
-219:       - name: Notify build success
-220:         env:
-221:           SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
-222:           VERSION: ${{ needs.setup.outputs.version }}
-223:         run: |
-224:           if [ -n "$SLACK_WEBHOOK" ]; then
-225:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
-226:               --data "{\"text\":\":white_check_mark: *Release build succeeded* — v${VERSION} (macOS arm64/x64 + Windows) | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
-227:           else
-228:             echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
-229:           fi
-230: 
-231:   publish-r2:
-232:     needs: [setup, build]
-233:     permissions:
-234:       contents: read
-235:       actions: read
-236:     uses: ./.github/workflows/_publish-r2-reusable.yml
-237:     with:
-238:       version: ${{ needs.setup.outputs.version }}
-239:     secrets: inherit
-</file>
-
 <file path="src/entities/bean-stock-event/api.ts">
   1: import { expandRRuleInRange, formatDateLocal } from '@shared/lib/rrule';
   2: import { supabase } from '@shared/lib/supabase';
@@ -28173,6 +27931,271 @@ This section contains the contents of the repository's files.
 128: 
 129:     return { handleSubmit, isSubmitting };
 130: };
+</file>
+
+<file path=".github/workflows/release.yml">
+  1: name: Release
+  2: 
+  3: on:
+  4:   push:
+  5:     tags:
+  6:       - 'v*'
+  7:   workflow_dispatch:
+  8:     inputs:
+  9:       version:
+ 10:         description: 'Version to release (e.g. 1.0.2). Required when not triggered by a tag.'
+ 11:         required: false
+ 12: 
+ 13: permissions:
+ 14:   contents: read
+ 15:   actions: write
+ 16:   checks: read
+ 17: 
+ 18: jobs:
+ 19:   setup:
+ 20:     runs-on: ubuntu-latest
+ 21:     outputs:
+ 22:       version: ${{ steps.version.outputs.version }}
+ 23:     steps:
+ 24:       - name: Resolve version
+ 25:         id: version
+ 26:         run: |
+ 27:           if [ -n "${{ inputs.version }}" ]; then
+ 28:             VERSION="${{ inputs.version }}"
+ 29:           elif [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+ 30:             VERSION="${GITHUB_REF_NAME#v}"
+ 31:           else
+ 32:             echo "::error::Cannot determine version. Push a semver tag (v*) or supply the 'version' input."
+ 33:             exit 1
+ 34:           fi
+ 35:           echo "version=$VERSION" >> $GITHUB_OUTPUT
+ 36:           echo "Resolved version: $VERSION"
+ 37: 
+ 38:   build:
+ 39:     needs: setup
+ 40:     runs-on: ${{ matrix.runner }}
+ 41:     strategy:
+ 42:       fail-fast: false
+ 43:       matrix:
+ 44:         include:
+ 45:           - runner: macos-latest
+ 46:             target: aarch64-apple-darwin
+ 47:           - runner: macos-15-intel
+ 48:             target: x86_64-apple-darwin
+ 49:           - runner: windows-latest
+ 50:             target: x86_64-pc-windows-msvc
+ 51: 
+ 52:     defaults:
+ 53:       run:
+ 54:         shell: bash
+ 55: 
+ 56:     steps:
+ 57:       - uses: actions/checkout@v4
+ 58: 
+ 59:       - name: Check CI status before building
+ 60:         env:
+ 61:           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 62:         run: |
+ 63:           echo "Checking CI status for commit ${GITHUB_SHA}..."
+ 64:           RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
+ 65:             --jq '[.check_runs[] | select(.name == "typecheck" or .name == "lint" or .name == "sidecar")]')
+ 66:           TOTAL=$(echo "$RESPONSE" | jq 'length')
+ 67:           FAILED=$(echo "$RESPONSE" | jq '[.[] | select(.conclusion != "success")] | length')
+ 68: 
+ 69:           echo "CI checks found: $TOTAL"
+ 70:           echo "$RESPONSE" | jq -r '.[] | "  \(.name): \(.conclusion)"'
+ 71: 
+ 72:           if [ "$TOTAL" -eq 0 ]; then
+ 73:             echo "::warning::No CI checks found for this commit. Proceeding anyway."
+ 74:           elif [ "$FAILED" -gt 0 ]; then
+ 75:             echo "::error::$FAILED CI check(s) failed. Release aborted to prevent wasted resources."
+ 76:             exit 1
+ 77:           else
+ 78:             echo "✅ All CI checks passed."
+ 79:           fi
+ 80: 
+ 81:       - name: Validate required secrets
+ 82:         env:
+ 83:           TAURI_KEY:     ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+ 84:           TAURI_KEY_PW:  ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+ 85:           SUPABASE_URL:  ${{ secrets.VITE_SUPABASE_URL }}
+ 86:           SUPABASE_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+ 87:           R2_ID:         ${{ secrets.VITE_R2_ACCOUNT_ID }}
+ 88:           R2_ACCESS:     ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+ 89:           R2_SECRET:     ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+ 90:           R2_BUCKET:     ${{ secrets.VITE_R2_BUCKET_NAME }}
+ 91:           APPLE_CERT:    ${{ secrets.APPLE_CERTIFICATE }}
+ 92:           APPLE_CERT_PW: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+ 93:           APPLE_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+ 94:           APPLE_ID:      ${{ secrets.APPLE_ID }}
+ 95:           APPLE_PW:      ${{ secrets.APPLE_PASSWORD }}
+ 96:           APPLE_TEAM:    ${{ secrets.APPLE_TEAM_ID }}
+ 97:         run: |
+ 98:           missing=false
+ 99:           check() {
+100:             if [ -z "${!1}" ]; then
+101:               echo "  MISSING: $2"
+102:               missing=true
+103:             fi
+104:           }
+105: 
+106:           echo "Checking shared secrets..."
+107:           check TAURI_KEY        "TAURI_SIGNING_PRIVATE_KEY"
+108:           check TAURI_KEY_PW     "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+109:           check SUPABASE_URL     "VITE_SUPABASE_URL"
+110:           check SUPABASE_ANON    "VITE_SUPABASE_ANON_KEY"
+111:           check R2_ID            "VITE_R2_ACCOUNT_ID"
+112:           check R2_ACCESS        "VITE_R2_ACCESS_KEY_ID"
+113:           check R2_SECRET        "VITE_R2_SECRET_ACCESS_KEY"
+114:           check R2_BUCKET        "VITE_R2_BUCKET_NAME"
+115: 
+116:           if [ "$RUNNER_OS" = "macOS" ]; then
+117:             echo "Checking macOS signing secrets..."
+118:             check APPLE_CERT      "APPLE_CERTIFICATE"
+119:             check APPLE_CERT_PW   "APPLE_CERTIFICATE_PASSWORD"
+120:             check APPLE_IDENTITY  "APPLE_SIGNING_IDENTITY"
+121:             check APPLE_ID        "APPLE_ID"
+122:             check APPLE_PW        "APPLE_PASSWORD"
+123:             check APPLE_TEAM      "APPLE_TEAM_ID"
+124:           fi
+125: 
+126:           if [ "$missing" = "true" ]; then
+127:             echo "::error::One or more required secrets are missing – aborting before build."
+128:             exit 1
+129:           fi
+130:           echo "All required secrets present."
+131: 
+132:       - uses: pnpm/action-setup@v4
+133: 
+134:       - uses: actions/setup-node@v4
+135:         with:
+136:           node-version: 22
+137:           cache: pnpm
+138: 
+139:       - name: Install Rust
+140:         uses: dtolnay/rust-toolchain@stable
+141:         with:
+142:           targets: ${{ matrix.target }}
+143: 
+144:       - name: Rust cache
+145:         uses: swatinem/rust-cache@v2
+146:         with:
+147:           workspaces: src-tauri
+148:           shared-key: rust-${{ matrix.target }}
+149:           save-if: ${{ github.ref == 'refs/heads/main' }}
+150: 
+151:       - name: Install frontend deps
+152:         run: pnpm install
+153: 
+154:       - name: Cache sidecar binary
+155:         id: sidecar-cache
+156:         uses: actions/cache@v4
+157:         with:
+158:           path: src-tauri/binaries
+159:           key: sidecar-${{ matrix.target }}-${{ hashFiles('src-tauri/sidecar/requirements.txt', 'src-tauri/sidecar/**/*.py', 'src-tauri/sidecar/sidecar.spec') }}
+160: 
+161:       - name: Set up Python
+162:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
+163:         uses: actions/setup-python@v5
+164:         with:
+165:           python-version: '3.13'
+166:           cache: pip
+167:           cache-dependency-path: src-tauri/sidecar/requirements.txt
+168: 
+169:       - name: Install sidecar dependencies
+170:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
+171:         run: pip install pyinstaller -r src-tauri/sidecar/requirements.txt
+172: 
+173:       - name: Build sidecar binary
+174:         if: steps.sidecar-cache.outputs.cache-hit != 'true'
+175:         run: npm run build:sidecar
+176: 
+177:       - name: Build Tauri app
+178:         uses: tauri-apps/tauri-action@v0
+179:         env:
+180:           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+181:           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+182:           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+183:           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+184:           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+185:           VITE_R2_ACCOUNT_ID: ${{ secrets.VITE_R2_ACCOUNT_ID }}
+186:           VITE_R2_ACCESS_KEY_ID: ${{ secrets.VITE_R2_ACCESS_KEY_ID }}
+187:           VITE_R2_SECRET_ACCESS_KEY: ${{ secrets.VITE_R2_SECRET_ACCESS_KEY }}
+188:           VITE_R2_BUCKET_NAME: ${{ secrets.VITE_R2_BUCKET_NAME }}
+189:           PUBLIC_SITE_URL: https://your-domain.com
+190:           PUBLIC_TAURI_REDIRECT: firstcrack://auth/callback
+191:           CARGO_INCREMENTAL: "0"
+192:           RUSTFLAGS: "-C debuginfo=0"
+193:           CARGO_NET_RETRY: "3"
+194:           CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+195:           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+196:           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+197:           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+198:           APPLE_ID: ${{ secrets.APPLE_ID }}
+199:           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+200:           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+201:         with:
+202:           args: --target ${{ matrix.target }}
+203: 
+204:       - name: Upload macOS artifacts
+205:         if: runner.os == 'macOS'
+206:         uses: actions/upload-artifact@v4
+207:         with:
+208:           name: macos-${{ matrix.target }}
+209:           path: |
+210:             src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+211:             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
+212:             src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
+213:           retention-days: 7
+214: 
+215:       - name: Upload Windows artifacts
+216:         if: runner.os == 'Windows'
+217:         uses: actions/upload-artifact@v4
+218:         with:
+219:           name: windows-${{ matrix.target }}
+220:           path: |
+221:             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+222:             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi.sig
+223:           retention-days: 7
+224: 
+225:       - name: Notify build failure
+226:         if: failure()
+227:         env:
+228:           SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
+229:         run: |
+230:           if [ -n "$SLACK_WEBHOOK" ]; then
+231:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+232:               --data "{\"text\":\":x: *Release build FAILED* — \`${GITHUB_REF_NAME}\` | \`${{ matrix.target }}\` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
+233:           else
+234:             echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
+235:           fi
+236: 
+237:   notify-build:
+238:     needs: [setup, build]
+239:     if: success()
+240:     runs-on: ubuntu-latest
+241:     steps:
+242:       - name: Notify build success
+243:         env:
+244:           SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
+245:           VERSION: ${{ needs.setup.outputs.version }}
+246:         run: |
+247:           if [ -n "$SLACK_WEBHOOK" ]; then
+248:             curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+249:               --data "{\"text\":\":white_check_mark: *Release build succeeded* — v${VERSION} (macOS arm64/x64 + Windows) | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
+250:           else
+251:             echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
+252:           fi
+253: 
+254:   publish-r2:
+255:     needs: [setup, build]
+256:     permissions:
+257:       contents: read
+258:       actions: read
+259:     uses: ./.github/workflows/_publish-r2-reusable.yml
+260:     with:
+261:       version: ${{ needs.setup.outputs.version }}
+262:     secrets: inherit
 </file>
 
 <file path="src/views/machines/Machines.tsx">
@@ -36599,7 +36622,7 @@ This section contains the contents of the repository's files.
 565:                                                     })}
 566:                                                 </span>
 567:                                             )}
-568:                                             {isSchedule && item.effectiveGrams >= 0 && (
+568:                                             {item.reason === 'schedule' && item.effectiveGrams >= 0 && (
 569:                                                 <span className="block text-amber-600 mt-0.5">
 570:                                                     {t('dashboard.upcomingStockShort')}
 571:                                                 </span>
