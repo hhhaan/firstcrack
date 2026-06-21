@@ -1,13 +1,12 @@
 import { useRoastingStore } from '@features/active-roast';
-import { getDateFnsLocale, i18n } from '@shared/i18n';
-import { durationDiff, formatDuration } from '@shared/lib/format';
+import { i18n } from '@shared/i18n';
+import { durationDiff, formatDuration, pctChange } from '@shared/lib/format';
 import { useAuthStore } from '@shared/store/auth';
 import type { View } from '@shared/types/view';
 import { KpiCard } from '@shared/ui/KpiCard';
+import { MonthlyBatchesChart } from '@shared/ui/MonthlyBatchesChart';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
-import { format } from 'date-fns';
-import { enUS } from 'date-fns/locale';
 import {
     ArrowRight,
     Calendar,
@@ -19,9 +18,10 @@ import {
     Thermometer,
     TrendingUp,
 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { MonthlyBatch } from './useDashboard';
+import { alertBg, alertColor, levelBg, levelColor } from './constants';
+import { formatDate, formatMonth, formatWeight, getGreeting, localeForDate } from './lib';
 import { useDashboard } from './useDashboard';
 import { useWeather } from './useWeather';
 
@@ -29,203 +29,32 @@ interface DashboardProps {
     onNavigate: (view: View) => void;
 }
 
-interface BarCanvasProps {
-    data: MonthlyBatch[];
-}
-
-const BarCanvas = ({ data }: BarCanvasProps) => {
-    const { t } = useTranslation();
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const tooltipRef = useRef<HTMLDivElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
-    const dfLocale = i18n.language === 'ko' ? enUS : getDateFnsLocale();
-
-    const hideTooltip = () => {
-        if (tooltipRef.current) tooltipRef.current.style.display = 'none';
-    };
-
-    const draw = (canvas: HTMLCanvasElement) => {
-        const dpr = window.devicePixelRatio || 1;
-        const W = canvas.offsetWidth;
-        const H = canvas.offsetHeight;
-        if (!W || !H) return;
-        canvas.width = W * dpr;
-        canvas.height = H * dpr;
-        canvas.style.width = `${W}px`;
-        canvas.style.height = `${H}px`;
-
-        const ctx = canvas.getContext('2d')!;
-        ctx.scale(dpr, dpr);
-
-        const cs = getComputedStyle(document.documentElement);
-        const isDark = document.documentElement.classList.contains('dark');
-        const colorPrimary = isDark ? '#e5e5e5' : '#0B0B0B';
-        const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#9ca3af';
-
-        const maxVal = Math.max(...data.map((d) => d.batches), 1);
-        const padL = 32;
-        const padR = 32;
-        const padT = 8;
-        const padB = 28;
-        const plotW = W - padL - padR;
-        const plotH = H - padT - padB;
-        const barW = Math.min(24, (plotW / data.length) * 0.4);
-        const gap = plotW / data.length;
-
-        ctx.strokeStyle = 'rgba(0,0,0,0.05)';
-        ctx.lineWidth = 1;
-        ctx.fillStyle = colorMuted;
-        ctx.font = '11px sans-serif';
-        for (let i = 0; i <= 3; i++) {
-            const y = padT + plotH - (i / 3) * plotH;
-            ctx.beginPath();
-            ctx.moveTo(padL, y);
-            ctx.lineTo(padL + plotW, y);
-            ctx.stroke();
-            ctx.textAlign = 'right';
-            ctx.fillText(String(Math.round((i / 3) * maxVal)), padL - 8, y + 4);
-        }
-
-        ctx.font = '12px sans-serif';
-        ctx.textAlign = 'center';
-
-        data.forEach((d, i) => {
-            const centerX = padL + gap * i + gap / 2;
-            const x = centerX - barW / 2;
-            const barH = (d.batches / maxVal) * plotH;
-            const y = padT + plotH - barH;
-            const r = 4;
-
-            ctx.fillStyle = colorPrimary;
-            ctx.beginPath();
-            ctx.moveTo(x + r, y);
-            ctx.lineTo(x + barW - r, y);
-            ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
-            ctx.lineTo(x + barW, y + barH);
-            ctx.lineTo(x, y + barH);
-            ctx.lineTo(x, y + r);
-            ctx.quadraticCurveTo(x, y, x + r, y);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.fillStyle = colorMuted;
-            ctx.fillText(format(d.date, 'MMM', { locale: dfLocale }), centerX, H - 6);
-        });
-    };
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        draw(canvas);
-        const obs = new ResizeObserver(() => {
-            if (canvas) draw(canvas);
-        });
-        obs.observe(canvas.parentElement!);
-        return () => obs.disconnect();
-    }, [data, dfLocale]);
-
-    const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        const canvas = canvasRef.current;
-        const tt = tooltipRef.current;
-        if (!canvas || !tt) return;
-
-        const rect = canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const W = canvas.offsetWidth;
-        const padL = 28;
-        const padR = 8;
-        const plotW = W - padL - padR;
-        const gap = plotW / data.length;
-
-        const idx = Math.floor((mx - padL) / gap);
-        if (idx < 0 || idx >= data.length) {
-            tt.style.display = 'none';
-            return;
-        }
-
-        tt.textContent = `${format(data[idx].date, 'MMM', { locale: dfLocale })}: ${data[idx].batches} ${t('dashboard.batches')}`;
-        tt.style.display = 'block';
-        tt.style.left = `${e.clientX - rect.left + 10}px`;
-        tt.style.top = `${e.clientY - rect.top - 30}px`;
-    };
-
-    return (
-        <div ref={containerRef} className="relative w-full h-full flex items-center justify-center">
-            <canvas
-                ref={canvasRef}
-                className="block w-full h-full"
-                onMouseMove={handleMouseMove}
-                onMouseLeave={hideTooltip}
-            />
-            <div
-                ref={tooltipRef}
-                className="absolute pointer-events-none bg-white rounded-[10px] px-3 py-1.5 text-[13px] whitespace-nowrap z-10"
-                style={{
-                    display: 'none',
-                }}
-            />
-        </div>
-    );
-};
-
-const levelColor: Record<string, string> = {
-    Light: 'var(--color-palette-yellow)',
-    'Medium-Light': 'var(--color-palette-teal)',
-    Medium: 'var(--color-palette-blue)',
-    'Medium-Dark': 'var(--color-palette-purple)',
-    Dark: 'var(--color-palette-violet)',
-};
-
-const levelBg: Record<string, string> = {
-    Light: 'color-mix(in srgb, var(--color-palette-yellow) 20%, transparent)',
-    'Medium-Light': 'color-mix(in srgb, var(--color-palette-teal) 15%, transparent)',
-    Medium: 'color-mix(in srgb, var(--color-palette-blue) 12%, transparent)',
-    'Medium-Dark': 'color-mix(in srgb, var(--color-palette-purple) 12%, transparent)',
-    Dark: 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
-};
-
-const alertColor: Record<string, string> = {
-    out: '#8080F0',
-    schedule: '#F59E0B',
-    low: '#FFFF54',
-};
-
-const alertBg: Record<string, string> = {
-    out: 'rgba(128,128,240,0.12)',
-    schedule: 'rgba(245,158,11,0.12)',
-    low: 'rgba(255,255,84,0.2)',
-};
-
-const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString(localeForDate(), { month: 'short', day: 'numeric' });
-};
-
-const pctChange = (current: number, previous: number) => {
-    if (previous === 0) return current > 0 ? '+∞%' : '0%';
-    const diff = ((current - previous) / previous) * 100;
-    return `${diff >= 0 ? '+' : ''}${Math.round(diff)}%`;
-};
-
-const getGreeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return 'morning';
-    if (h < 18) return 'afternoon';
-    return 'evening';
-};
-
-const localeForDate = () => {
-    switch (i18n.language) {
-        case 'ko':
-            return 'en-US';
-        case 'zh-CN':
-            return 'zh-CN';
-        case 'ja':
-            return 'ja-JP';
-        default:
-            return 'en-US';
-    }
-};
+const KPI_STATS = [
+    {
+        label: 'dashboard.kpi.batchesThisMonth',
+        field: 'batchesThisMonth',
+        changeField: 'batchesLastMonth' as const,
+        icon: Coffee,
+    },
+    {
+        label: 'dashboard.kpi.beansRoasted',
+        field: 'kgRoastedThisMonth',
+        changeField: 'kgRoastedLastMonth' as const,
+        icon: TrendingUp,
+    },
+    {
+        label: 'dashboard.kpi.avgRoastTime',
+        field: 'avgDurationSeconds',
+        changeField: 'avgDurationLastMonthSeconds' as const,
+        icon: Clock,
+    },
+    {
+        label: 'dashboard.kpi.successRate',
+        field: null,
+        changeField: null,
+        icon: CheckCircle,
+    },
+] as const;
 
 export const Dashboard = ({ onNavigate }: DashboardProps) => {
     const userId = useAuthStore((s) => s.user?.id ?? '');
@@ -234,32 +63,45 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
     const weather = useWeather();
     const { t } = useTranslation();
 
-    const stats = [
-        {
-            label: t('dashboard.kpi.batchesThisMonth'),
-            value: db.loading ? '—' : String(db.batchesThisMonth),
-            change: db.loading ? '' : pctChange(db.batchesThisMonth, db.batchesLastMonth),
-            icon: Coffee,
-        },
-        {
-            label: t('dashboard.kpi.beansRoasted'),
-            value: db.loading ? '—' : `${db.kgRoastedThisMonth.toFixed(1)} kg`,
-            change: db.loading ? '' : pctChange(db.kgRoastedThisMonth, db.kgRoastedLastMonth),
-            icon: TrendingUp,
-        },
-        {
-            label: t('dashboard.kpi.avgRoastTime'),
-            value: db.loading ? '—' : formatDuration(db.avgDurationSeconds),
-            change: db.loading ? '' : durationDiff(db.avgDurationSeconds, db.avgDurationLastMonthSeconds),
-            icon: Clock,
-        },
-        {
-            label: t('dashboard.kpi.successRate'),
-            value: '96%',
-            change: '+2%',
-            icon: CheckCircle,
-        },
-    ];
+    const stats = useMemo(
+        () =>
+            KPI_STATS.map((kpi) => ({
+                label: t(kpi.label),
+                value:
+                    kpi.field === null
+                        ? '96%'
+                        : db.loading
+                          ? '—'
+                          : String(
+                                kpi.field === 'batchesThisMonth'
+                                    ? db.batchesThisMonth
+                                    : kpi.field === 'kgRoastedThisMonth'
+                                      ? `${db.kgRoastedThisMonth.toFixed(1)}`
+                                      : formatDuration(db.avgDurationSeconds),
+                            ),
+                change:
+                    kpi.changeField === null
+                        ? '+2%'
+                        : db.loading
+                          ? ''
+                          : kpi.field === 'batchesThisMonth'
+                            ? pctChange(db.batchesThisMonth, db.batchesLastMonth)
+                            : kpi.field === 'kgRoastedThisMonth'
+                              ? pctChange(db.kgRoastedThisMonth, db.kgRoastedLastMonth)
+                              : durationDiff(db.avgDurationSeconds, db.avgDurationLastMonthSeconds),
+                icon: kpi.icon,
+            })),
+        [db, t],
+    );
+
+    const chartData = useMemo(
+        () =>
+            db.monthlyBatches.map(({ date, batches }) => ({
+                month: formatMonth(date),
+                batches,
+            })),
+        [db.monthlyBatches, i18n.language],
+    );
 
     return (
         <PageLayout>
@@ -376,9 +218,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                                 {session.roast_profiles?.name ?? '—'}
                                             </td>
                                             <td className="px-6 py-3 text-[13px] text-secondary whitespace-nowrap">
-                                                {session.weight_grams >= 1000
-                                                    ? `${session.weight_grams / 1000}kg`
-                                                    : `${session.weight_grams}g`}
+                                                {formatWeight(session.weight_grams)}
                                             </td>
                                             <td className="px-6 py-3 text-[13px] text-secondary font-mono whitespace-nowrap">
                                                 {session.drop_temp_celsius ? `${session.drop_temp_celsius}°C` : '—'}
@@ -418,7 +258,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                         <Calendar size={15} strokeWidth={1.5} color="var(--color-muted)" />
                     </div>
                     <div className="flex-1 min-h-[120px]">
-                        <BarCanvas data={db.monthlyBatches} />
+                        <MonthlyBatchesChart data={chartData} />
                     </div>
 
                     <div className="mt-5 pt-4 border-t border-divider shrink-0">
