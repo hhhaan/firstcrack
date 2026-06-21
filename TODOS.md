@@ -481,36 +481,6 @@ npm install -D vitest @testing-library/react @testing-library/user-event
 3. Profiles/History 뷰에서 커핑 점수 표시 (별점 또는 숫자)
 4. 커핑 입력은 로스트 직후가 아니어도 되도록 히스토리 뷰에서 "Add Cupping" 버튼 제공
 
-**Depends on:** D1 (로스트 저장 구현 완료 후)
-
----
-
-### [T23] 팀 공유 기능 (Shared Roast Profiles)
-
-**What:** 로스트 프로파일 + 커핑 결과를 팀원과 공유. 초기에는 파일 내보내기/가져오기 기반, 이후 클라우드 옵션.
-
-**Phase 1 — 파일 기반 공유 (오프라인 우선):**
-
-- 로스트 JSON 내보내기 (D1 스키마 그대로)
-- 받은 JSON 가져오기 → 히스토리에 추가 (중복 방지: `roastId` UUID 체크)
-- 내보내기: `tauri-plugin-dialog`의 `save()` 파일 다이얼로그
-
-**Phase 2 — 클라우드 공유 (결정 필요):**
-
-- **옵션 A:** Supabase (Row Level Security로 팀 격리)
-- **옵션 B:** 자체 서버 (복잡, 초기에는 오버킬)
-- **옵션 C:** Git 기반 (`~/.firstcrack/roasts/` 폴더를 GitHub Private Repo로 동기화)
-- **추천:** Phase 1 파일 기반 먼저 검증 → 사용자 수요 확인 후 Supabase
-
-**Phase 1 How:**
-
-1. 히스토리 뷰 각 로스트 카드에 "Export" 버튼 → `save_dialog` → JSON 저장
-2. 히스토리 뷰 상단 "Import Roast" 버튼 → `open_dialog` → JSON 파싱 → 유효성 검증 → 추가
-3. 가져온 프로파일에 `importedFrom` 메타 필드 추가 (출처 표시)
-
-**Depends on:** D1 (로스트 저장), T22 (커핑 데이터 포함하려면)
-
----
 
 ### [T24] Artisan .alog 파일 가져오기
 
@@ -660,21 +630,6 @@ _CEO review 2026-05-10에서 V2로 연기된 항목들_
 
 ### [T33] 세팅 모달에서 결제 및 구독 상태 확인
 
-### [T34] navigator.geolocation 기반 위치 정보 연동
-
-**What:** 브라우저 표준 `navigator.geolocation` API를 사용하여 사용자의 현재 위도/경도 정보를 가져온다.
-**Why:** 로스팅 환경의 날씨(기온, 습도, 기압)는 로스팅 결과에 큰 영향을 미치므로, 로스팅 기록 시 위치 기반 날씨 정보를 자동으로 연동하여 저장하기 위함. `useWeather.ts` 등에서 활용.
-**How:**
-
-1.  `navigator.geolocation.getCurrentPosition()`을 호출하여 권한 요청 및 좌표 획득.
-2.  권한 거부 시 IP 기반 위치 정보 추적 등으로 Fallback 처리 검토.
-3.  획득한 좌표를 전역 상태(예: `useSettingsStore`) 또는 `useWeather` 훅에 전달하여 날씨 데이터 API 호출에 사용.
-4.  로스팅 시작 시 해당 위치 정보를 `roast_sessions` 메타데이터에 포함하여 저장.
-    **Depends on:** 없음
-
----
-
----
 
 ## GLOBAL COMPLIANCE — 글로벌 컴플라이언스
 

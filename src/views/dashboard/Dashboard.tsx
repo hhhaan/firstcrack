@@ -565,7 +565,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                                                     })}
                                                 </span>
                                             )}
-                                            {isSchedule && item.effectiveGrams >= 0 && (
+                                            {item.reason === 'schedule' && item.effectiveGrams >= 0 && (
                                                 <span className="block text-amber-600 mt-0.5">
                                                     {t('dashboard.upcomingStockShort')}
                                                 </span>
