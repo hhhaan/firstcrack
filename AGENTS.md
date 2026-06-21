@@ -71,6 +71,7 @@ violations→split:
 - file importing 2+ unrelated domains (entities/roast+entities/auth) → split/move to shared
 - #[tauri::command] w/ inline multi-step orchestration → extract to domain fn, command=thin wrapper
 - component: fetch+form state+render all inline → container/presentational split or extract hook
+- views/*/components/* calling useQuery/useMutation/axios directly → move to entities or features
 
 split naming: name=reason-to-change, NO utils.ts/helpers.ts
 
