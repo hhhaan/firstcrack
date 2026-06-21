@@ -57,6 +57,10 @@ ReactQuery+axios | NO useEffect fetch
 ## FSD
 Unidirectional: shared → entities → features → widgets → views → app
 
+### Hook segment naming (per slice)
+model:domain logic/state(useAuth) | lib:pure infra util(useDebounce) | api:query/mutation wrap(useRoastQuery) | ui:render-only local state(useModalAnimation)
+mismatch→move to correct segment
+
 ## SRP — all files (.ts/.tsx/.rs/.py)
 check: count reasons-to-change → 1=OK, >1=split
 size: >300L = re-check trigger, NOT the rule (50L file can still violate)

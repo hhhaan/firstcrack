@@ -213,7 +213,6 @@ export const useDashboard = (userId: string): DashboardData => {
         queryKey: ['dashboard', userId],
         queryFn: () => fetchDashboard(userId),
         enabled: !!userId,
-        // 5분 캐시 — 날짜 기반 집계 데이터라 Infinity 대신 짧게 설정
         staleTime: 5 * 60 * 1000,
     });
 

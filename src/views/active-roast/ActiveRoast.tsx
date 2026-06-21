@@ -30,7 +30,7 @@ import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { LogEntry } from '@shared/types/roast';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
-import { useWeather } from '@views/dashboard/useWeather';
+import { useWeather } from '@views/dashboard/api/useWeather';
 import {
     EventButtons,
     LiveReadings,

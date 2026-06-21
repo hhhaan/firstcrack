@@ -1,4 +1,4 @@
-import type { InventoryAlert } from './useDashboard';
+import type { InventoryAlert } from '../api/useDashboard';
 
 /** 로스팅 레벨 → 전경색 */
 export const levelColor: Record<string, string> = {
