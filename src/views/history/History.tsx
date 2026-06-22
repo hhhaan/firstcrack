@@ -1,7 +1,8 @@
 import { useProfile } from '@entities/profile';
-import { useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
+import { useDeleteRoastSession, useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
 import { useExportCsv } from '@features/export-csv';
 import { buildReportData } from '@shared/lib/buildReportData';
+import { formatDateShort } from '@shared/lib/format';
 import { filterSessions, paginateSessions, type SessionFilterCriteria, sortSessions } from '@shared/lib/sessionFilter';
 import { useAuthStore } from '@shared/store/auth';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
@@ -13,6 +14,7 @@ import type { DatePreset } from '@widgets/date-range-filter';
 import { DateRangeFilter, getPresetYMRange } from '@widgets/date-range-filter';
 import type { SortKey } from '@widgets/history-table';
 import { HistoryTable } from '@widgets/history-table';
+import { DeleteSessionModal } from '@widgets/history-table/ui/DeleteSessionModal';
 import { Download, FileText, Search, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +36,7 @@ export const History = () => {
     const [fromYM, setFromYM] = useState<string>('');
     const [toYM, setToYM] = useState<string>('');
     const [page, setPage] = useState<number>(1);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const user = useAuthStore((s) => s.user);
     const { data: profile } = useProfile(user?.id ?? '');
@@ -123,6 +126,12 @@ export const History = () => {
     );
 
     const exportCsv = useExportCsv();
+    const deleteSession = useDeleteRoastSession(user?.id ?? '');
+
+    const deletingSession = useMemo(
+        () => rawSessions.find((s) => s.id === deletingId) ?? null,
+        [rawSessions, deletingId],
+    );
 
     // ── Handlers ──
 
@@ -185,6 +194,18 @@ export const History = () => {
         void exportCsv(filtered);
     }, [rawSessions, filterCriteria, exportCsv]);
 
+    const handleDeleteClick = useCallback((id: string) => setDeletingId(id), []);
+    const handleCloseDelete = useCallback(() => setDeletingId(null), []);
+    const handleConfirmDelete = useCallback(() => {
+        if (!deletingId) return;
+        deleteSession.mutate(deletingId, {
+            onSuccess: () => {
+                setDeletingId(null);
+                setExpandedId((prev) => (prev === deletingId ? null : prev));
+            },
+        });
+    }, [deletingId, deleteSession]);
+
     const renderContent = (): React.ReactNode => {
         if (isError) {
             return <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">{t('history.error')}</div>;
@@ -201,6 +222,7 @@ export const History = () => {
                 filteredTotal={displayTotal}
                 expandedId={expandedId}
                 onRowClick={handleRowClick}
+                onDeleteClick={handleDeleteClick}
                 sortKey={sortKey}
                 sortAsc={sortAsc}
                 onSort={handleSort}
@@ -288,6 +310,17 @@ export const History = () => {
                     </div>
                 </ModalShell>
             )}
+            <DeleteSessionModal
+                open={deletingId !== null}
+                sessionName={
+                    deletingSession
+                        ? `${deletingSession.beans?.name ?? ''} (${formatDateShort(deletingSession.roasted_at)})`.trim()
+                        : ''
+                }
+                isLoading={deleteSession.isPending}
+                onClose={handleCloseDelete}
+                onConfirm={handleConfirmDelete}
+            />
         </PageLayout>
     );
 };

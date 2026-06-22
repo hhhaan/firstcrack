@@ -2,7 +2,7 @@ import { useHistoryChart } from '@entities/roast';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { RoastTempChart } from '@views/active-roast/ui/RoastTempChart';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -84,6 +84,13 @@ const columns: Column[] = [
                 <span className="text-muted">—</span>
             ),
     },
+    {
+        key: null,
+        label: '',
+        width: '60px',
+        sortable: false,
+        render: () => null,
+    },
 ];
 
 // ── SortIcon ──
@@ -117,7 +124,7 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
 
     return (
         <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)] dark:bg-[rgba(38,43,48,0.3)]">
-            <td colSpan={7} className="px-4 py-4 md:px-6">
+            <td colSpan={8} className="px-4 py-4 md:px-6">
                 <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
                     {[
                         { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
@@ -185,6 +192,7 @@ interface HistoryTableProps {
     filteredTotal: number;
     expandedId: string | null;
     onRowClick: (id: string) => void;
+    onDeleteClick: (id: string) => void;
     sortKey: SortKey;
     sortAsc: boolean;
     onSort: (key: SortKey) => void;
@@ -200,6 +208,7 @@ export const HistoryTable = ({
     filteredTotal,
     expandedId,
     onRowClick,
+    onDeleteClick,
     sortKey,
     sortAsc,
     onSort,
@@ -265,15 +274,17 @@ export const HistoryTable = ({
                             <Fragment key={session.id}>
                                 <tr
                                     onClick={() => onRowClick(session.id)}
-                                    className={`cursor-pointer border-b border-border-subtle dark:border-[#585d61] transition ${isExpanded ? 'bg-[rgba(245,245,245,0.5)] dark:bg-[rgba(38,43,48,0.5)]' : 'hover:bg-[rgba(245,242,239,0.45)] dark:hover:bg-[rgba(38,43,48,0.45)]'}`}
+                                    className={`group cursor-pointer border-b border-border-subtle dark:border-[#585d61] transition ${isExpanded ? 'bg-[rgba(245,245,245,0.5)] dark:bg-[rgba(38,43,48,0.5)]' : 'hover:bg-[rgba(245,242,239,0.45)] dark:hover:bg-[rgba(38,43,48,0.45)]'}`}
                                 >
                                     {columns.map((col, idx) => {
-                                        const cellClass =
-                                            col.key === 'date'
-                                                ? 'font-mono text-muted'
-                                                : col.key === 'bean'
-                                                  ? 'font-medium tracking-[0.14px] text-primary'
-                                                  : 'tracking-[0.14px] text-secondary';
+                                        const isActions = col.key === null;
+                                        const cellClass = isActions
+                                            ? 'text-right'
+                                            : col.key === 'date'
+                                              ? 'font-mono text-muted'
+                                              : col.key === 'bean'
+                                                ? 'font-medium tracking-[0.14px] text-primary'
+                                                : 'tracking-[0.14px] text-secondary';
                                         const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
                                         const cellTitle = getCellTitle(col, session);
                                         return (
@@ -283,7 +294,21 @@ export const HistoryTable = ({
                                                 className={`overflow-hidden px-3 py-3 text-[13px] whitespace-nowrap ${cellClass} ${responsiveClass}`}
                                                 style={{ width: col.width }}
                                             >
-                                                {col.render(session)}
+                                                {isActions ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            onDeleteClick(session.id);
+                                                        }}
+                                                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted opacity-0 transition hover:bg-[rgba(254,226,226,0.5)] hover:text-[#dc2626] group-hover:opacity-100 focus:opacity-100"
+                                                        aria-label={t('history.delete.title')}
+                                                    >
+                                                        <Trash2 size={14} strokeWidth={2} />
+                                                    </button>
+                                                ) : (
+                                                    col.render(session)
+                                                )}
                                             </td>
                                         );
                                     })}

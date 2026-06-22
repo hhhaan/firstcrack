@@ -571,6 +571,12 @@
             "duration": "时长",
             "level": "烘焙度"
         },
+        "delete": {
+            "title": "删除烘焙记录？",
+            "description": "将被永久删除。此操作无法撤销。",
+            "cancel": "取消",
+            "confirm": "删除"
+        },
         "monthlyReport": "月度报告",
         "exportCsv": "Export CSV",
         "exportConfirm": "保存到：{{path}}\n导出{{count}}条会话为CSV？",

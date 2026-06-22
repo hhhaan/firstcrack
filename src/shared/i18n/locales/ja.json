@@ -560,6 +560,12 @@
             "duration": "時間",
             "notes": "ノート"
         },
+        "delete": {
+            "title": "ローストセッションを削除しますか？",
+            "description": "が永久に削除されます。元に戻せません。",
+            "cancel": "キャンセル",
+            "confirm": "削除"
+        },
         "monthlyReport": "月次レポート",
         "exportCsv": "Export CSV",
         "exportConfirm": "保存先: {{path}}\n{{count}}件のセッションをCSVにエクスポートしますか？",

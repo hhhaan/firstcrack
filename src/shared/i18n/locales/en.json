@@ -571,6 +571,12 @@
             "duration": "Duration",
             "level": "Level"
         },
+        "delete": {
+            "title": "Delete roast session?",
+            "description": "will be permanently deleted. This cannot be undone.",
+            "cancel": "Cancel",
+            "confirm": "Delete"
+        },
         "monthlyReport": "Monthly Report",
         "exportCsv": "Export CSV",
         "exportConfirm": "Save to: {{path}}\nExport {{count}} session(s) as CSV?",
