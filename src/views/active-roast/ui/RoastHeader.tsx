@@ -167,10 +167,13 @@ export const RoastHeader = ({
                 </div>
 
                 {/* ─── Bean secondary info: farm · variety · process ───── */}
-                {beanSecondary && <p className="text-[15px] text-primary tracking-[-0.1px] mb-0.5">{beanSecondary} </p>}
 
                 {/* ─── Target profile selector ───────────────────────────── */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
+                    {beanSecondary && (
+                        <p className="text-[13px] text-muted tracking-[-0.1px] mb-0.5">{beanSecondary} / </p>
+                    )}
+
                     <span className="text-[13px] text-muted tracking-[0.14px]">Target:</span>
                     <OverlaySelect
                         value={targetProfileId}
