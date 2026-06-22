@@ -26,12 +26,13 @@ import { useRoastSessionStore } from '@shared/store/roastSession';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { useWeather } from '@views/dashboard/api/useWeather';
-import { LiveReadings, MachineControls, PlanBatchContinueModal, RoastHeader } from '@widgets/active-roast';
+import { LiveReadings, MachineControls, PlanBatchContinueModal } from '@widgets/active-roast';
 import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
 import {
     type RoastSummaryData,
     RoastSummaryModal,
 } from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
+import { StockDeductModal } from '@widgets/stock-deduct-modal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { extractVisibleControl, extractVisibleSeries, extractVisibleTarget } from './lib/chart-series';
@@ -43,6 +44,7 @@ import { useChartKeyboard } from './model/useChartKeyboard';
 import { useChartZoom } from './model/useChartZoom';
 import { useSidecarPolling } from './model/useSidecarPolling';
 import { ChartLegend } from './ui/ChartLegend';
+import { RoastHeader } from './ui/RoastHeader';
 import { RoastSidePanel } from './ui/RoastSidePanel';
 import { RoastTempChart } from './ui/RoastTempChart';
 
@@ -108,6 +110,15 @@ export const ActiveRoast = ({
     const [summaryData, setSummaryData] = useState<RoastSummaryData | null>(null);
     const [noteInput, setNoteInput] = useState('');
     const [showContinueModal, setShowContinueModal] = useState(false);
+    const [showDeductModal, setShowDeductModal] = useState(false);
+    const [continueAfterDeduct, setContinueAfterDeduct] = useState(false);
+    const [pendingStockDeduct, setPendingStockDeduct] = useState<{
+        deductionGrams: number;
+        singleBeanId: string | null;
+        blendId: string | null;
+        referenceId: string;
+        beanName: string | null;
+    } | null>(null);
 
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
     const exitFullscreen = useCallback(() => setIsFullscreen(false), []);
@@ -346,6 +357,31 @@ export const ActiveRoast = ({
     const uploadRoastProfileTsv = useUploadRoastProfile();
     const { mutateAsync: updatePlanBatch } = useUpdatePlanBatch(planBatchHandoff?.planId ?? '');
     const deductRoastStock = useDeductRoastStock();
+
+    const finishStockDeductFlow = useCallback(() => {
+        setShowDeductModal(false);
+        setPendingStockDeduct(null);
+        if (continueAfterDeduct) {
+            setContinueAfterDeduct(false);
+            setShowContinueModal(true);
+        }
+    }, [continueAfterDeduct]);
+
+    const handleStockDeductConfirm = useCallback(
+        async (deductStock: boolean) => {
+            if (deductStock && pendingStockDeduct) {
+                await deductRoastStock({
+                    deductionGrams: pendingStockDeduct.deductionGrams,
+                    singleBeanId: pendingStockDeduct.singleBeanId,
+                    blendId: pendingStockDeduct.blendId,
+                    referenceId: pendingStockDeduct.referenceId,
+                });
+            }
+            finishStockDeductFlow();
+        },
+        [pendingStockDeduct, deductRoastStock, finishStockDeductFlow],
+    );
+
     useEffect(() => {
         tpTimeSecRef.current = turningPoints[0]?.timeSec ?? null;
     }, [turningPoints]);
@@ -673,13 +709,8 @@ export const ActiveRoast = ({
                             : saveWeight > 0
                               ? saveWeight
                               : 0;
-
-                        await deductRoastStock({
-                            deductionGrams,
-                            singleBeanId: selectedBeanId ?? null,
-                            blendId: planBatchHandoff?.blendId ?? null,
-                            referenceId: savedSession.id,
-                        });
+                        const blendId = planBatchHandoff?.blendId ?? null;
+                        const canDeductStock = deductionGrams > 0 && Boolean(selectedBeanId || blendId);
 
                         const newCompletedCount = (planBatchHandoff?.completedSessions ?? 0) + 1;
                         const isNowBatchDone =
@@ -693,7 +724,18 @@ export const ActiveRoast = ({
                         setShowSummaryModal(false);
                         setSummaryData(null);
                         resetActiveRoast();
-                        if (planBatchHandoff) {
+
+                        if (canDeductStock) {
+                            setPendingStockDeduct({
+                                deductionGrams,
+                                singleBeanId: selectedBeanId,
+                                blendId,
+                                referenceId: savedSession.id,
+                                beanName: handoffBeanName ?? planBatchHandoff?.beanName ?? null,
+                            });
+                            setContinueAfterDeduct(!!planBatchHandoff);
+                            setShowDeductModal(true);
+                        } else if (planBatchHandoff) {
                             setShowContinueModal(true);
                         }
                     } catch (err) {
@@ -704,6 +746,15 @@ export const ActiveRoast = ({
                         });
                     }
                 }}
+            />
+
+            <StockDeductModal
+                open={showDeductModal}
+                beanName={pendingStockDeduct?.beanName ?? undefined}
+                deductionKg={((pendingStockDeduct?.deductionGrams ?? 0) / 1000).toFixed(1)}
+                canDeduct={Boolean(pendingStockDeduct)}
+                onClose={finishStockDeductFlow}
+                onConfirm={handleStockDeductConfirm}
             />
 
             <PlanBatchContinueModal
