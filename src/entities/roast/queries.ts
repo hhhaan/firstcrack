@@ -80,8 +80,43 @@ export const useDeleteRoastSession = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: roastSessionApi.delete,
-        onSuccess: (_, id) => {
+        onMutate: async (id) => {
+            await qc.cancelQueries({ queryKey: roastSessionKeys.all(userId) });
+            await qc.cancelQueries({ queryKey: ['roast_sessions', 'paginated', userId] });
+
+            const prevAll = qc.getQueryData<RoastSessionWithRelations[]>(roastSessionKeys.all(userId));
+            const prevPaginated = qc.getQueryData<{ data: RoastSessionWithRelations[]; total: number }>([
+                'roast_sessions',
+                'paginated',
+                userId,
+            ]);
+
+            if (prevAll) {
+                qc.setQueryData<RoastSessionWithRelations[]>(
+                    roastSessionKeys.all(userId),
+                    prevAll.filter((s) => s.id !== id),
+                );
+            }
+            if (prevPaginated) {
+                qc.setQueryData<{ data: RoastSessionWithRelations[]; total: number }>(
+                    ['roast_sessions', 'paginated', userId],
+                    {
+                        ...prevPaginated,
+                        data: prevPaginated.data.filter((s) => s.id !== id),
+                        total: prevPaginated.total - 1,
+                    },
+                );
+            }
+
+            return { prevAll, prevPaginated };
+        },
+        onError: (_err, _id, context) => {
+            if (context?.prevAll) qc.setQueryData(roastSessionKeys.all(userId), context.prevAll);
+            if (context?.prevPaginated) qc.setQueryData(['roast_sessions', 'paginated', userId], context.prevPaginated);
+        },
+        onSettled: (_data, _err, id) => {
             qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
+            qc.invalidateQueries({ queryKey: ['roast_sessions', 'paginated', userId] });
             qc.removeQueries({ queryKey: roastSessionKeys.detail(id) });
         },
     });
