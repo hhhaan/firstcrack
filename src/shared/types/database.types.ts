@@ -205,6 +205,83 @@ export type Database = {
                 };
                 Relationships: [];
             };
+            inventory_alert_runs: {
+                Row: {
+                    error_message: string | null;
+                    finished_at: string | null;
+                    id: string;
+                    started_at: string;
+                    status: string;
+                    users_processed: number;
+                };
+                Insert: {
+                    error_message?: string | null;
+                    finished_at?: string | null;
+                    id?: string;
+                    started_at?: string;
+                    status?: string;
+                    users_processed?: number;
+                };
+                Update: {
+                    error_message?: string | null;
+                    finished_at?: string | null;
+                    id?: string;
+                    started_at?: string;
+                    status?: string;
+                    users_processed?: number;
+                };
+                Relationships: [];
+            };
+            inventory_alerts: {
+                Row: {
+                    available_grams: number;
+                    bean_id: string;
+                    computed_at: string;
+                    current_grams: number;
+                    dismissed_at: string | null;
+                    effective_grams: number;
+                    horizon_days: number;
+                    id: string;
+                    reason: string;
+                    reserved_grams: number;
+                    user_id: string;
+                };
+                Insert: {
+                    available_grams: number;
+                    bean_id: string;
+                    computed_at?: string;
+                    current_grams: number;
+                    dismissed_at?: string | null;
+                    effective_grams: number;
+                    horizon_days?: number;
+                    id?: string;
+                    reason: string;
+                    reserved_grams: number;
+                    user_id: string;
+                };
+                Update: {
+                    available_grams?: number;
+                    bean_id?: string;
+                    computed_at?: string;
+                    current_grams?: number;
+                    dismissed_at?: string | null;
+                    effective_grams?: number;
+                    horizon_days?: number;
+                    id?: string;
+                    reason?: string;
+                    reserved_grams?: number;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'inventory_alerts_bean_id_fkey';
+                        columns: ['bean_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'beans';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             machine_connection_logs: {
                 Row: {
                     brand: string;
@@ -865,6 +942,51 @@ export type Database = {
             };
         };
         Functions: {
+            calc_plan_batch_count: {
+                Args: {
+                    p_batch_count?: number;
+                    p_batch_size_kg: number;
+                    p_target_roasted_kg: number;
+                    p_yield_pct: number;
+                };
+                Returns: number;
+            };
+            compute_inventory_alerts: {
+                Args: { p_horizon_days?: number; p_user_id: string };
+                Returns: undefined;
+            };
+            compute_inventory_alerts_for_all_users: {
+                Args: { p_horizon_days?: number };
+                Returns: string;
+            };
+            expand_rrule_in_range: {
+                Args: {
+                    p_dtstart: string;
+                    p_range_end: string;
+                    p_range_start: string;
+                    p_rrule: string;
+                    p_until?: string;
+                };
+                Returns: string[];
+            };
+            get_bean_available_stock: { Args: { p_bean_id: string }; Returns: number };
+            get_bean_current_stock: { Args: { p_bean_id: string }; Returns: number };
+            get_bean_effective_stock: {
+                Args: { p_bean_id: string; p_horizon_days?: number };
+                Returns: number;
+            };
+            get_bean_reserved_stock: {
+                Args: { p_bean_id: string; p_horizon_days?: number };
+                Returns: number;
+            };
+            get_bean_stock_summary: {
+                Args: { p_bean_id: string; p_horizon_days?: number };
+                Returns: Json;
+            };
+            get_user_stock_summaries: {
+                Args: { p_horizon_days?: number; p_user_id: string };
+                Returns: Json;
+            };
             insert_stock_events_batch: {
                 Args: { p_events: Json };
                 Returns: undefined;

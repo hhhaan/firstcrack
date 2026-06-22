@@ -1,8 +1,9 @@
 import { beanStockEventApi } from '@entities/bean-stock-event';
+import { type InventoryAlert, inventoryAlertApi } from '@entities/inventory-alert';
 import { planBatchApi } from '@entities/plan';
-import { isBatchStockShort, STOCK_RESERVATION_HORIZON_DAYS } from '@shared/lib/batch-stock';
+import { isBatchStockShort } from '@shared/lib/batch-stock';
 import { supabase } from '@shared/lib/supabase';
-import type { Bean, RoastSessionWithRelations } from '@shared/types/database.types';
+import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
 
@@ -22,13 +23,15 @@ export interface UpcomingBatch {
     stockShort: boolean;
 }
 
-export interface InventoryAlert {
+export interface DashboardInventoryAlert {
     id: string;
     name: string;
     effectiveGrams: number;
+    currentGrams: number;
+    availableGrams: number;
     capacityGrams: number;
     lowStockThresholdGrams: number;
-    reason: 'out' | 'schedule' | 'low';
+    reason: InventoryAlert['reason'];
 }
 
 export interface DashboardData {
@@ -40,11 +43,22 @@ export interface DashboardData {
     avgDurationLastMonthSeconds: number;
     recentSessions: RoastSessionWithRelations[];
     upcomingBatches: UpcomingBatch[];
-    inventoryAlerts: InventoryAlert[];
+    inventoryAlerts: DashboardInventoryAlert[];
     monthlyBatches: MonthlyBatch[];
     loading: boolean;
     error: string | null;
 }
+
+const mapDbAlert = (row: InventoryAlert, beanMeta?: { capacity_grams: number; low_stock_threshold_grams: number }) => ({
+    id: row.bean_id,
+    name: row.beans?.name ?? '',
+    effectiveGrams: row.effective_grams,
+    currentGrams: row.current_grams,
+    availableGrams: row.available_grams,
+    capacityGrams: beanMeta?.capacity_grams ?? 0,
+    lowStockThresholdGrams: beanMeta?.low_stock_threshold_grams ?? 0,
+    reason: row.reason,
+});
 
 const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'loading' | 'error'>> => {
     const now = new Date();
@@ -53,7 +67,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
 
-    const [completedRes, alertsRes, stockSummaries, monthlyRes] = await Promise.all([
+    const [completedRes, beansRes, stockSummaries, monthlyRes, inventoryAlertsRes] = await Promise.all([
         supabase
             .from('roast_sessions')
             .select('*, beans(name, origin), roast_profiles!profile_id(name, target_level)')
@@ -62,10 +76,8 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
             .gte('roasted_at', lastMonthStart)
             .order('roasted_at', { ascending: false }),
 
-        // 전체 가져와서 클라이언트에서 필터 (PostgREST는 컬럼 간 비교 미지원)
         supabase.from('beans').select('*').eq('user_id', userId),
 
-        // 재고 요약 (이벤트 기반)
         beanStockEventApi.getStockSummariesByUser(userId),
 
         supabase
@@ -75,31 +87,16 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
             .eq('status', 'completed')
             .gte('roasted_at', sixMonthsAgo)
             .order('roasted_at', { ascending: true }),
+
+        inventoryAlertApi.listActive(userId),
     ]);
 
     if (completedRes.error) throw completedRes.error;
-    if (alertsRes.error) throw alertsRes.error;
+    if (beansRes.error) throw beansRes.error;
     if (monthlyRes.error) throw monthlyRes.error;
 
     const horizonEnd14 = format(addDays(now, 14), 'yyyy-MM-dd');
-    const horizonEnd28 = format(addDays(now, STOCK_RESERVATION_HORIZON_DAYS), 'yyyy-MM-dd');
-
-    const [rangeBatches14, rangeBatches28] = await Promise.all([
-        planBatchApi.listForDateRange(userId, today, horizonEnd14),
-        planBatchApi.listForDateRange(userId, today, horizonEnd28),
-    ]);
-
-    const isBatchPending = (b: { status: string; completed_sessions: number; batch_count: number }) =>
-        b.status !== 'done' && b.status !== 'skipped' && b.completed_sessions < b.batch_count;
-
-    const scheduleShortBeanIds = new Set<string>();
-    for (const b of rangeBatches28) {
-        if (!b.bean_id || !isBatchPending(b)) continue;
-        const effectiveGrams = stockSummaries?.[b.bean_id]?.effectiveGrams ?? 0;
-        if (isBatchStockShort(b, effectiveGrams)) {
-            scheduleShortBeanIds.add(b.bean_id);
-        }
-    }
+    const rangeBatches14 = await planBatchApi.listForDateRange(userId, today, horizonEnd14);
 
     const upcomingBatches: UpcomingBatch[] = rangeBatches14
         .filter((b) => {
@@ -114,7 +111,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         .slice(0, 5)
         .map((b) => {
             const beanId = b.bean_id ?? '';
-            const effectiveGrams = beanId ? (stockSummaries?.[beanId]?.effectiveGrams ?? 0) : 0;
+            const summary = beanId ? stockSummaries?.[beanId] : undefined;
             const recurring = !!b.recurrence_rule_id;
             return {
                 id: b.id,
@@ -124,7 +121,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
                 status: b.status,
                 date: b.scheduled_date ?? today,
                 isRecurring: recurring,
-                stockShort: recurring && isBatchStockShort(b, effectiveGrams),
+                stockShort: recurring && isBatchStockShort(b, summary),
             };
         });
 
@@ -153,31 +150,11 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         return { date: new Date(year, month, 1), batches };
     });
 
-    const allBeans = (alertsRes.data ?? []) as Bean[];
-    const inventoryAlerts: InventoryAlert[] = allBeans
-        .map((b) => {
-            const effectiveGrams = stockSummaries?.[b.id]?.effectiveGrams ?? 0;
-            let reason: InventoryAlert['reason'] | null = null;
-            if (effectiveGrams <= 0) {
-                reason = 'out';
-            } else if (scheduleShortBeanIds.has(b.id)) {
-                reason = 'schedule';
-            } else if (effectiveGrams <= b.low_stock_threshold_grams) {
-                reason = 'low';
-            }
-            if (!reason) return null;
-            return {
-                id: b.id,
-                name: b.name,
-                effectiveGrams,
-                capacityGrams: b.capacity_grams,
-                lowStockThresholdGrams: b.low_stock_threshold_grams,
-                reason,
-            };
-        })
-        .filter((item): item is InventoryAlert => item !== null)
+    const beanMeta = new Map((beansRes.data ?? []).map((b) => [b.id, b]));
+    const inventoryAlerts: DashboardInventoryAlert[] = (inventoryAlertsRes ?? [])
+        .map((row) => mapDbAlert(row, beanMeta.get(row.bean_id)))
         .sort((a, b) => {
-            const rank = { out: 0, schedule: 1, low: 2 };
+            const rank: Record<DashboardInventoryAlert['reason'], number> = { out: 0, schedule: 1, low: 2 };
             return rank[a.reason] - rank[b.reason] || a.effectiveGrams - b.effectiveGrams;
         });
 

@@ -1,4 +1,4 @@
-import { batchGreenNeededGrams } from '@shared/lib/batch-stock';
+import { batchGreenNeededGramsFromBatch } from '@shared/lib/batch-stock';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Check } from 'lucide-react';
@@ -19,7 +19,7 @@ export const CompleteBatchModal = ({ open, batch, onClose, onConfirm }: Complete
     if (!open || !batch) return null;
 
     const remainingSessions = Math.max(0, batch.batch_count - batch.completed_sessions);
-    const deductionKg = (batchGreenNeededGrams(batch) / 1000).toFixed(1);
+    const deductionKg = (batchGreenNeededGramsFromBatch(batch) / 1000).toFixed(1);
     const canDeductStock = remainingSessions > 0 && Boolean(batch.bean_id || batch.blend_id);
 
     const handleClose = () => {

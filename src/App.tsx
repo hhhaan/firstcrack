@@ -6,6 +6,7 @@ import { useRoastSessionStore } from './shared/store/roastSession';
 import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
 import { Spinner } from '@shared/ui/Spinner';
+import { useInventoryAlertSync } from './features/inventory-alert';
 import { useSidecarDeadListener } from './features/sidecar';
 import { useUpdateChecker } from './features/updater';
 import { useAuthStore } from './shared/store/auth';
@@ -20,12 +21,14 @@ import { Login } from './views/login';
 import { Machines } from './views/machines';
 import { Profiles } from './views/profiles';
 import { Schedule } from './views/schedule';
+import { InventoryAlertBanner } from './widgets/inventory-alert-banner';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
 
 export const App = () => {
     const user = useAuthStore((s) => s.user);
+    useInventoryAlertSync(user?.id);
     const loading = useAuthStore((s) => s.loading);
     const init = useAuthStore((s) => s.init);
     const theme = useThemeStore((s) => s.theme);
@@ -192,6 +195,7 @@ export const App = () => {
                         background: 'var(--color-surface)',
                     }}
                 >
+                    <InventoryAlertBanner userId={user.id} />
                     {view === 'dashboard' && (
                         <ViewErrorBoundary>
                             <Dashboard onNavigate={setView} />

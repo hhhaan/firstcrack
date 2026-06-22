@@ -1,4 +1,5 @@
-import { Frequency, RRule } from 'rrule';
+import { Frequency, type Options, RRule } from 'rrule';
+import { UI_PREVIEW_DAYS } from './stock-calc';
 
 /**
  * Recurrence interval types mapped to RFC 5545 FREQ values.
@@ -56,11 +57,11 @@ export function expandRRule(rruleStr: string, dtstart: Date): Date[] {
     const dtstartLocal = new Date(dtstart);
     dtstartLocal.setHours(0, 0, 0, 0);
 
-    const rule = RRule.fromString(rruleStr);
+    const rule = rruleWithDtstart(rruleStr, dtstartLocal);
     const allDates = rule
         .between(
             dtstartLocal,
-            new Date(dtstartLocal.getTime() + 365 * 24 * 60 * 60 * 1000),
+            new Date(dtstartLocal.getTime() + UI_PREVIEW_DAYS * 24 * 60 * 60 * 1000),
             true, // inclusive
         )
         .map((d) => {
@@ -101,7 +102,7 @@ export function expandRRuleInRange(rruleStr: string, dtstart: Date, rangeStart: 
     const to = new Date(rangeEnd);
     to.setHours(23, 59, 59, 999);
 
-    const rule = RRule.fromString(rruleStr);
+    const rule = rruleWithDtstart(rruleStr, dtstartLocal);
     return rule.between(from, to, true).map((d) => {
         const local = new Date(d);
         local.setHours(0, 0, 0, 0);
@@ -221,6 +222,11 @@ export function previewRecurrenceDates(interval: RecurrenceInterval | null, dtst
 }
 
 // ── Internal types ────────────────────────────────────────────────────────────
+
+const rruleWithDtstart = (rruleStr: string, dtstart: Date): RRule => {
+    const parsed = RRule.parseString(rruleStr) as Partial<Options>;
+    return new RRule({ ...parsed, dtstart });
+};
 
 interface RRuleOptions {
     freq: Frequency;

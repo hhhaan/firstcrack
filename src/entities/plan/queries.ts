@@ -1,5 +1,6 @@
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { buildRRule } from '@shared/lib/rrule';
+import { calcPlanBatchCount } from '@shared/lib/stock-calc';
 import type { PlanBatchInsert, PlanBatchUpdate, PlanBatchWithProgress } from '@shared/types/database.types';
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns';
@@ -138,7 +139,7 @@ export const useCreatePlanBatch = (planId: string, userId: string, date: string)
                 batch_type: batch.batch_type ?? '',
                 batch_size_kg: batch.batch_size_kg,
                 target_roasted_kg: batch.target_roasted_kg,
-                batch_count: Math.ceil(batch.target_roasted_kg / batch.batch_size_kg),
+                batch_count: calcPlanBatchCount(batch.target_roasted_kg, batch.batch_size_kg, batch.yield_pct ?? 1),
                 yield_pct: batch.yield_pct ?? 1,
                 order_index: orderIndex,
                 machine_id: batch.machine_id ?? null,
@@ -247,7 +248,7 @@ export const useCreateRecurringBatches = (userId: string, currentPlanId?: string
 
             const batchSize = Number(baseBatch.batch_size_kg) || 0;
             const targetKg = Number(baseBatch.target_roasted_kg) || 0;
-            const batchCount = batchSize > 0 && targetKg > 0 ? Math.ceil(targetKg / batchSize) : 1;
+            const batchCount = calcPlanBatchCount(targetKg, batchSize, baseBatch.yield_pct ?? 1);
             const orderIndex = baseBatch.order_index ?? previousDayBatches?.length ?? previousCurrentPlan?.length ?? 0;
 
             const optimistic: PlanBatchWithProgress = {

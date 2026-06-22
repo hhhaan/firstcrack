@@ -1,3 +1,4 @@
+import { calcPlanBatchCount } from '@shared/lib/stock-calc';
 import { supabase } from '@shared/lib/supabase';
 import type {
     DayPlan,
@@ -524,7 +525,7 @@ export const planBatchApi = {
 
                     const batchSize = Number(rule.batch_size_kg) || 0;
                     const targetKg = Number(rule.target_roasted_kg) || 0;
-                    const batchCount = batchSize > 0 && targetKg > 0 ? Math.ceil(targetKg / batchSize) : 1;
+                    const batchCount = calcPlanBatchCount(targetKg, batchSize, Number(rule.yield_pct) || 1);
 
                     result.push({
                         id: `${rule.id}:${instance.originalDate}`,

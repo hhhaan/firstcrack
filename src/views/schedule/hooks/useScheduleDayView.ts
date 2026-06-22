@@ -16,7 +16,7 @@ import {
 } from '@entities/plan';
 import { useDeductRoastStock } from '@features/active-roast';
 import { getDateFnsLocale, i18n } from '@shared/i18n';
-import { batchGreenNeededGrams, isBatchStockShort } from '@shared/lib/batch-stock';
+import { batchGreenNeededGramsFromBatch, isBatchStockShort } from '@shared/lib/batch-stock';
 import { buildRRule } from '@shared/lib/rrule';
 import type { PlanBatchHandoff, PlanBatchInsert, PlanBatchWithProgress } from '@shared/types/database.types';
 import type { NewBatchData } from '@widgets/add-batch-modal';
@@ -377,7 +377,7 @@ export const useScheduleDayView = ({
                 const { targetId } = await commitStatusTransition(batch, 'done');
 
                 if (deductStock) {
-                    const deductionGrams = batchGreenNeededGrams(batch);
+                    const deductionGrams = batchGreenNeededGramsFromBatch(batch);
                     if (deductionGrams > 0 && (batch.bean_id || batch.blend_id)) {
                         await deductRoastStock({
                             deductionGrams,
@@ -408,7 +408,7 @@ export const useScheduleDayView = ({
     const recurringStockShortDetail = useCallback(
         (batch: PlanBatchWithProgress) => {
             if (!batch.bean_id) return null;
-            const neededKg = (batchGreenNeededGrams(batch) / 1000).toFixed(1);
+            const neededKg = (batchGreenNeededGramsFromBatch(batch) / 1000).toFixed(1);
             const availableKg = ((stockSummaries[batch.bean_id]?.effectiveGrams ?? 0) / 1000).toFixed(1);
             return { neededKg, availableKg };
         },

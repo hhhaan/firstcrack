@@ -122,7 +122,7 @@ const BeanSelector = ({
                             <Check size={18} strokeWidth={2.5} />
                         ) : (
                             <div className="text-[13px] font-mono opacity-60">
-                                {((stockSummaries[bean.id]?.effectiveGrams ?? 0) / 1000).toFixed(2)}
+                                {((stockSummaries[bean.id]?.currentGrams ?? 0) / 1000).toFixed(2)}
                                 kg
                             </div>
                         )}
@@ -149,7 +149,7 @@ interface AddBeanModalProps {
     onClose: () => void;
     userId: string;
     existingBeans: Bean[];
-    initialTab?: 'new' | 'restock' | 'edit' | 'adjust';
+    initialTab?: 'new' | 'restock' | 'expected' | 'edit' | 'adjust';
     initialBeanId?: string | null;
     initialData?: Bean | null;
     onSuccess?: (bean: Bean | null) => void;
@@ -165,9 +165,11 @@ export const AddBeanModal = ({
     initialData = null,
     onSuccess,
 }: AddBeanModalProps) => {
-    const [tab, setTab] = useState<'new' | 'restock' | 'edit' | 'adjust'>(initialTab);
+    const [tab, setTab] = useState<'new' | 'restock' | 'expected' | 'edit' | 'adjust'>(initialTab);
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(initialBeanId);
     const [restockAmount, setRestockAmount] = useState('');
+    const [expectedAmount, setExpectedAmount] = useState('');
+    const [expectedNote, setExpectedNote] = useState('');
     const [adjustType, setAdjustType] = useState<'adjustment' | 'write_off'>('adjustment');
     const [adjustSign, setAdjustSign] = useState<'+' | '-'>('+');
     const [adjustAmount, setAdjustAmount] = useState('');
@@ -197,6 +199,8 @@ export const AddBeanModal = ({
         tab,
         selectedBeanId,
         restockAmount,
+        expectedAmount,
+        expectedNote,
         adjustType,
         adjustSign,
         adjustAmount,
@@ -215,6 +219,8 @@ export const AddBeanModal = ({
         setTab(initialTab);
         setSelectedBeanId(initialBeanId);
         setRestockAmount('');
+        setExpectedAmount('');
+        setExpectedNote('');
         setAdjustType('adjustment');
         setAdjustSign('+');
         setAdjustAmount('');
@@ -257,10 +263,12 @@ export const AddBeanModal = ({
     };
 
     const restockGrams = Math.round((parseFloat(restockAmount) || 0) * 1000);
+    const expectedGrams = Math.round((parseFloat(expectedAmount) || 0) * 1000);
     const adjustGrams = Math.round((parseFloat(adjustAmount) || 0) * 1000);
     const isSubmitDisabled =
         isSubmitting ||
         (tab === 'restock' && (!selectedBeanId || restockGrams <= 0)) ||
+        (tab === 'expected' && (!selectedBeanId || expectedGrams <= 0)) ||
         (tab === 'adjust' && (!selectedBeanId || adjustGrams <= 0));
 
     const BEAN_LIMIT = 4;
@@ -329,7 +337,9 @@ export const AddBeanModal = ({
                                   ? 'Edit Bean Details'
                                   : tab === 'restock'
                                     ? 'Restock Existing'
-                                    : 'Adjust Stock'}
+                                    : tab === 'expected'
+                                      ? 'Expected Inbound'
+                                      : 'Adjust Stock'}
                         </h2>
                     </div>
                     <button
@@ -348,6 +358,9 @@ export const AddBeanModal = ({
                             </button>
                             <button onClick={() => setTab('restock')} className={tabCls(tab === 'restock')}>
                                 Restock
+                            </button>
+                            <button onClick={() => setTab('expected')} className={tabCls(tab === 'expected')}>
+                                Expected
                             </button>
                             <button onClick={() => setTab('adjust')} className={tabCls(tab === 'adjust')}>
                                 Adjust
@@ -688,6 +701,54 @@ export const AddBeanModal = ({
                             />
                         </div>
                     </form>
+                ) : tab === 'expected' ? (
+                    <div className="flex flex-col gap-6">
+                        <BeanSelector
+                            label="Select Bean"
+                            visibleBeans={visibleBeans}
+                            selectedBeanId={selectedBeanId}
+                            showAllBeans={showAllBeans}
+                            hiddenBeanCount={hiddenBeanCount}
+                            stockSummaries={stockSummaries}
+                            onSelect={setSelectedBeanId}
+                            onShowAll={() => setShowAllBeans(true)}
+                        />
+                        <div
+                            className="p-6 rounded-[20px] transition-opacity duration-200"
+                            style={{
+                                background: 'var(--color-surface-warm-solid)',
+                                boxShadow: 'var(--shadow-warm)',
+                                opacity: selectedBeanId ? 1 : 0.5,
+                                pointerEvents: selectedBeanId ? 'auto' : 'none',
+                            }}
+                        >
+                            <label className={labelCls}>
+                                <Scale size={14} /> Expected Inbound (kg)
+                            </label>
+                            <div className="flex items-center gap-3">
+                                <input
+                                    {...NUMERIC_INPUT_PROPS}
+                                    className={`${inputCls} text-2xl font-semibold p-4`}
+                                    placeholder="0"
+                                    value={expectedAmount}
+                                    onChange={(e) => setExpectedAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+                                />
+                                <div className="text-lg font-medium text-muted">kg</div>
+                            </div>
+                            <label className={`${labelCls} mt-4`}>
+                                <Info size={14} /> Note (optional)
+                            </label>
+                            <input
+                                className={inputCls}
+                                placeholder="e.g. PO #1234, ETA next week"
+                                value={expectedNote}
+                                onChange={(e) => setExpectedNote(e.target.value)}
+                            />
+                            <p className="text-xs text-muted mt-3">
+                                Counts toward available stock for shortage alerts, not physical on-hand stock.
+                            </p>
+                        </div>
+                    </div>
                 ) : (
                     <div className="flex flex-col gap-6">
                         {/* Bean selector */}
@@ -784,9 +845,11 @@ export const AddBeanModal = ({
                                 ? 'Saving...'
                                 : tab === 'restock'
                                   ? 'Confirm Restock'
-                                  : adjustType === 'write_off'
-                                    ? 'Confirm Write-off'
-                                    : 'Confirm Adjustment'}
+                                  : tab === 'expected'
+                                    ? 'Confirm Expected Inbound'
+                                    : adjustType === 'write_off'
+                                      ? 'Confirm Write-off'
+                                      : 'Confirm Adjustment'}
                         </button>
                     )}
                 </div>

@@ -1,6 +1,9 @@
 import { setLanguage, supportedLanguages } from '@shared/i18n';
+import { inventoryStore } from '@shared/lib/inventoryStore';
+import { STOCK_HORIZON_DAYS } from '@shared/lib/stock-calc';
 import { type Theme, useThemeStore } from '@shared/store/theme';
-import { Languages, Moon, Sun } from 'lucide-react';
+import { Languages, Moon, Package, Sun } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const themeOptions: { value: Theme; icon: typeof Sun; labelKey: string; descKey: string }[] = [
@@ -31,6 +34,17 @@ export const GeneralSettingsTab = () => {
     const theme = useThemeStore((s) => s.theme);
     const setTheme = useThemeStore((s) => s.setTheme);
     const activeTheme = theme ?? 'system';
+    const [horizonDays, setHorizonDays] = useState(STOCK_HORIZON_DAYS);
+
+    useEffect(() => {
+        void inventoryStore.getHorizonDays().then(setHorizonDays);
+    }, []);
+
+    const saveHorizon = async (value: number) => {
+        const next = Math.max(1, Math.min(365, value));
+        setHorizonDays(next);
+        await inventoryStore.setHorizonDays(next);
+    };
 
     return (
         <div className="grid gap-4">
@@ -123,6 +137,31 @@ export const GeneralSettingsTab = () => {
                             </label>
                         );
                     })}
+                </div>
+            </section>
+
+            <section className={sectionCls}>
+                <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-0.5">
+                        <Package size={16} strokeWidth={1.8} className="text-[#6B7280] dark:text-[#999] shrink-0" />
+                        <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0">
+                            Stock alert horizon
+                        </h4>
+                    </div>
+                    <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0">
+                        Days ahead to reserve planned roasts when checking for bean shortages (default 28).
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={horizonDays}
+                        onChange={(e) => void saveHorizon(Number(e.target.value))}
+                        className="w-24 px-3 py-2 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] text-sm"
+                    />
+                    <span className="text-sm text-[#6B7280] dark:text-[#999]">days</span>
                 </div>
             </section>
         </div>

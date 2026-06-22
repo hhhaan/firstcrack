@@ -10,6 +10,7 @@ import {
     Settings,
     SidePanelClose,
 } from '@carbon/icons-react';
+import { useInventoryAlerts } from '@entities/inventory-alert';
 import { cn } from '@shared/lib/cn';
 import { useAuthStore } from '@shared/store/auth';
 import { useThemeStore } from '@shared/store/theme';
@@ -45,6 +46,8 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     const logoSrc = resolvedTheme === 'dark' ? '/logo_dark.png' : '/logo.png';
     const { data: profile } = useProfile(user?.id ?? '');
+    const { data: inventoryAlerts = [] } = useInventoryAlerts(user?.id ?? '');
+    const alertCount = inventoryAlerts.length;
     const workspaceName = profile?.business_name || 'My Roastery';
     const workspaceInitial = workspaceName.charAt(0).toUpperCase();
 
@@ -154,6 +157,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                     {navItems.map(({ id, labelKey, icon: Icon }) => {
                         const isActive = activeView === id;
                         const label = t(labelKey);
+                        const showBadge = id === 'beans' && alertCount > 0;
                         return (
                             <button
                                 key={id}
@@ -162,12 +166,15 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 title={collapsed ? label : undefined}
                                 className="w-full flex items-center rounded-lg border-none cursor-pointer mb-0.5 transition-colors duration-150 bg-transparent hover:bg-surface/50 h-9 overflow-hidden"
                             >
-                                <div className="w-9 h-9 shrink-0 flex items-center justify-center">
+                                <div className="w-9 h-9 shrink-0 flex items-center justify-center relative">
                                     <Icon size={18} className={isActive ? 'text-primary' : 'text-muted'} />
+                                    {showBadge && collapsed && (
+                                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" />
+                                    )}
                                 </div>
                                 <div
                                     className={cn(
-                                        'transition-all duration-220 overflow-hidden whitespace-nowrap',
+                                        'flex items-center gap-2 transition-all duration-220 overflow-hidden whitespace-nowrap',
                                         collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[150px]',
                                     )}
                                 >
@@ -179,6 +186,11 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                     >
                                         {label}
                                     </span>
+                                    {showBadge && !collapsed && (
+                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-700 dark:text-amber-300">
+                                            {alertCount}
+                                        </span>
+                                    )}
                                 </div>
                             </button>
                         );

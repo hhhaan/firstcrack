@@ -1,10 +1,10 @@
 import { Coffee } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { InventoryAlert } from '../api/useDashboard';
+import type { DashboardInventoryAlert } from '../api/useDashboard';
 import { alertBg, alertColor } from '../lib/constants';
 
 interface InventoryAlertsProps {
-    data: InventoryAlert[];
+    data: DashboardInventoryAlert[];
     loading: boolean;
 }
 

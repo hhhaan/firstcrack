@@ -55,10 +55,10 @@ export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, s
                 <div className="flex flex-col gap-2">
                     {filtered.map((bean) => {
                         const summary = stockSummaries[bean.id];
-                        const effectiveGrams = summary?.effectiveGrams ?? 0;
-                        const status = getStatus(effectiveGrams, bean.low_stock_threshold_grams);
+                        const currentGrams = summary?.currentGrams ?? 0;
+                        const status = getStatus(currentGrams, bean.low_stock_threshold_grams);
                         const cfg = statusConfig[status];
-                        const pct = Math.min(100, (effectiveGrams / bean.capacity_grams) * 100);
+                        const pct = Math.min(100, (currentGrams / bean.capacity_grams) * 100);
 
                         return (
                             <div
@@ -99,7 +99,7 @@ export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, s
                                     />
                                 </div>
                                 <div className="text-xs text-muted font-mono">
-                                    {(effectiveGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
+                                    {(currentGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
                                 </div>
                             </div>
                         );

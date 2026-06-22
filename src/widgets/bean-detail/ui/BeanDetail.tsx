@@ -53,8 +53,10 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
     if (isLoading) return <Skeleton />;
     if (!bean) return <Empty hasAny={false} />;
 
+    const currentGrams = summary?.currentGrams ?? 0;
+    const availableGrams = summary?.availableGrams ?? 0;
     const effectiveGrams = summary?.effectiveGrams ?? 0;
-    const status = getStatus(effectiveGrams, bean.low_stock_threshold_grams);
+    const status = getStatus(currentGrams, bean.low_stock_threshold_grams);
     const cfg = statusConfig[status];
 
     return (
@@ -118,7 +120,15 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                             value: bean.altitude_masl ? `${bean.altitude_masl.toLocaleString()} masl` : '—',
                         },
                         { label: 'Received', value: bean.purchase_date ?? '—' },
-                        { label: 'Current Stock', value: `${(effectiveGrams / 1000).toFixed(2)}kg` },
+                        { label: 'Current Stock', value: `${(currentGrams / 1000).toFixed(2)}kg` },
+                        {
+                            label: 'Available (incl. inbound)',
+                            value: `${(availableGrams / 1000).toFixed(2)}kg`,
+                        },
+                        {
+                            label: 'Effective (28d plan)',
+                            value: `${(effectiveGrams / 1000).toFixed(2)}kg`,
+                        },
                     ].map(({ label, value }) => (
                         <div key={label}>
                             <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-0.75">
@@ -151,14 +161,14 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                     <div className="flex justify-between mb-1.5">
                         <span className="text-xs font-medium text-secondary tracking-[0.14px]">Stock Level</span>
                         <span className="text-xs text-muted font-mono">
-                            {(effectiveGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
+                            {(currentGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
                         </span>
                     </div>
                     <div className="h-1.5 bg-surface rounded-full overflow-hidden">
                         <div
                             className="h-full rounded-full transition-all duration-500"
                             style={{
-                                width: `${Math.min(100, (effectiveGrams / bean.capacity_grams) * 100)}%`,
+                                width: `${Math.min(100, (currentGrams / bean.capacity_grams) * 100)}%`,
                                 background: cfg.color,
                             }}
                         />
@@ -218,9 +228,11 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                                 <span className="text-gray-400 dark:text-white ml-1">
                                     {ev.event_type === 'purchase'
                                         ? '입고'
-                                        : ev.event_type === 'roast'
-                                          ? '로스팅'
-                                          : '조정'}
+                                        : ev.event_type === 'expected_inbound'
+                                          ? '입고 예정'
+                                          : ev.event_type === 'roast'
+                                            ? '로스팅'
+                                            : '조정'}
                                 </span>
                                 {ev.note && <span className="text-gray-400 dark:text-white ml-1">— {ev.note}</span>}
                             </div>

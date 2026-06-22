@@ -2,6 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BeanStockEventInsert, StockSummary } from './api';
 import { beanStockEventApi } from './api';
 
+const applyDelta = (summary: StockSummary, event: BeanStockEventInsert): StockSummary => {
+    const affectsCurrent = event.event_type !== 'expected_inbound';
+    const nextCurrent = affectsCurrent ? summary.currentGrams + event.delta_grams : summary.currentGrams;
+    const nextAvailable = summary.availableGrams + event.delta_grams;
+    return {
+        currentGrams: nextCurrent,
+        availableGrams: nextAvailable,
+        reservedGrams: summary.reservedGrams,
+        effectiveGrams: nextAvailable - summary.reservedGrams,
+    };
+};
+
 export const stockEventKeys = {
     byBean: (beanId: string) => ['bean-stock-events', beanId] as const,
     summary: (beanId: string) => ['bean-stock-summary', beanId] as const,
@@ -44,19 +56,12 @@ export const useInsertStockEvent = () => {
             });
 
             if (prevSummary) {
-                const next = prevSummary.currentGrams + newEvent.delta_grams;
-                qc.setQueryData<StockSummary>(stockEventKeys.summary(beanId), {
-                    ...prevSummary,
-                    currentGrams: next,
-                    effectiveGrams: next - prevSummary.reservedGrams,
-                });
+                qc.setQueryData<StockSummary>(stockEventKeys.summary(beanId), applyDelta(prevSummary, newEvent));
             }
 
             qc.setQueriesData<Record<string, StockSummary>>({ queryKey: ['bean-stock-summaries'] }, (prev) => {
                 if (!prev?.[beanId]) return prev;
-                const old = prev[beanId];
-                const next = old.currentGrams + newEvent.delta_grams;
-                return { ...prev, [beanId]: { ...old, currentGrams: next, effectiveGrams: next - old.reservedGrams } };
+                return { ...prev, [beanId]: applyDelta(prev[beanId], newEvent) };
             });
 
             return { prevSummary, prevSummaries };
@@ -68,11 +73,17 @@ export const useInsertStockEvent = () => {
                 for (const [queryKey, data] of ctx.prevSummaries) qc.setQueryData(queryKey, data);
             }
         },
-        onSettled: (_data, _err, newEvent: BeanStockEventInsert) => {
+        onSettled: async (_data, _err, newEvent: BeanStockEventInsert) => {
             const beanId = newEvent.bean_id!;
             qc.invalidateQueries({ queryKey: stockEventKeys.byBean(beanId) });
             qc.invalidateQueries({ queryKey: stockEventKeys.summary(beanId) });
             qc.invalidateQueries({ queryKey: ['bean-stock-summaries'] });
+            qc.invalidateQueries({ queryKey: ['inventory-alerts'] });
+            if (newEvent.user_id) {
+                await beanStockEventApi.computeInventoryAlerts(newEvent.user_id);
+                qc.invalidateQueries({ queryKey: ['inventory-alerts'] });
+                qc.invalidateQueries({ queryKey: ['dashboard', newEvent.user_id] });
+            }
         },
     });
 };
