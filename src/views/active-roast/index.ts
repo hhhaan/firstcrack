@@ -6,6 +6,14 @@ export { buildEventMarkers, buildRoastLogDisplayEntries, calcDelta, calcDevTime 
 export { formatElapsed } from './lib/format';
 export { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
 export { useChartKeyboard } from './model/useChartKeyboard';
+export { EndRoastModal } from './ui/EndRoastModal';
+export { EventButtons } from './ui/EventButtons';
+export type { EventButtonDef } from './ui/EventButtons';
+export { LiveReadings } from './ui/LiveReadings';
+export { MachineControls } from './ui/MachineControls';
+export { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
+export { RoastLog } from './ui/RoastLog';
+export { RoastSummaryModal } from './ui/RoastSummaryModal';
 export { ChartLegend } from './ui/ChartLegend';
 export { RoastSidePanel } from './ui/RoastSidePanel';
 export type { RoastEventMarker } from './ui/RoastTempChart';

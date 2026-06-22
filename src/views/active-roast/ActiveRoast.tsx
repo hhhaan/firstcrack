@@ -26,12 +26,12 @@ import { useRoastSessionStore } from '@shared/store/roastSession';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { useWeather } from '@views/dashboard/api/useWeather';
-import { LiveReadings, MachineControls, PlanBatchContinueModal } from '@widgets/active-roast';
-import { EndRoastModal } from '@widgets/active-roast/end-roast-modal/ui/EndRoastModal';
-import {
-    type RoastSummaryData,
-    RoastSummaryModal,
-} from '@widgets/active-roast/roast-summary-modal/ui/RoastSummaryModal';
+import { EndRoastModal } from './ui/EndRoastModal';
+import { LiveReadings } from './ui/LiveReadings';
+import { MachineControls } from './ui/MachineControls';
+import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
+import type { RoastSummaryData } from './ui/RoastSummaryModal';
+import { RoastSummaryModal } from './ui/RoastSummaryModal';
 import { StockDeductModal } from '@widgets/stock-deduct-modal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';

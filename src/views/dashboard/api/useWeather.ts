@@ -25,7 +25,11 @@ const fetchOpenMeteo = async (lat: number, lng: number): Promise<WeatherData> =>
 export const useWeather = () => {
     const coords = useQuery({
         queryKey: ['weather', 'coords'],
-        queryFn: () => locationStore.get(),
+        queryFn: async () => {
+            const c = await locationStore.get();
+            if (!c) throw new Error('no coords');
+            return c;
+        },
         staleTime: Infinity,
     });
 
