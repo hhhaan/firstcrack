@@ -3,7 +3,7 @@ import { type InventoryAlert, inventoryAlertApi } from '@entities/inventory-aler
 import { planBatchApi } from '@entities/plan';
 import { isBatchStockShort } from '@shared/lib/batch-stock';
 import { supabase } from '@shared/lib/supabase';
-import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import type { PlanBatchWithProgress, RoastSessionWithRelations } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
 
@@ -60,6 +60,13 @@ const mapDbAlert = (row: InventoryAlert, beanMeta?: { capacity_grams: number; lo
     reason: row.reason,
 });
 
+const isUpcomingBatch = (batch: PlanBatchWithProgress, today: string): boolean => {
+    if (!batch.scheduled_date || batch.scheduled_date < today) return false;
+    if (batch.status === 'done' || batch.status === 'skipped') return false;
+    if (batch.completed_sessions >= batch.batch_count) return false;
+    return true;
+};
+
 const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'loading' | 'error'>> => {
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
@@ -99,11 +106,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     const rangeBatches14 = await planBatchApi.listForDateRange(userId, today, horizonEnd14);
 
     const upcomingBatches: UpcomingBatch[] = rangeBatches14
-        .filter((b) => {
-            if (b.status === 'done' || b.status === 'skipped') return false;
-            if (b.completed_sessions >= b.batch_count) return false;
-            return true;
-        })
+        .filter((b) => isUpcomingBatch(b, today))
         .sort(
             (a, b) =>
                 (a.scheduled_date ?? today).localeCompare(b.scheduled_date ?? today) || a.order_index - b.order_index,
@@ -125,9 +128,11 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
             };
         });
 
-    const completed = completedRes.data as RoastSessionWithRelations[];
-    const thisMonth = completed.filter((s) => s.roasted_at! >= thisMonthStart);
-    const lastMonth = completed.filter((s) => s.roasted_at! < thisMonthStart);
+    const completed = (completedRes.data ?? []).filter(
+        (s): s is RoastSessionWithRelations & { roasted_at: string } => !!s.roasted_at,
+    );
+    const thisMonth = completed.filter((s) => s.roasted_at >= thisMonthStart);
+    const lastMonth = completed.filter((s) => s.roasted_at < thisMonthStart);
 
     const sumKg = (arr: typeof completed) => arr.reduce((acc, s) => acc + s.weight_grams, 0) / 1000;
     const avgDuration = (arr: typeof completed) =>
@@ -139,7 +144,8 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         monthlyMap.set(`${d.getFullYear()}-${d.getMonth()}`, 0);
     }
     for (const s of (monthlyRes.data ?? []) as { roasted_at: string | null }[]) {
-        const d = new Date(s.roasted_at!);
+        if (!s.roasted_at) continue;
+        const d = new Date(s.roasted_at);
         const key = `${d.getFullYear()}-${d.getMonth()}`;
         if (monthlyMap.has(key)) {
             monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + 1);
