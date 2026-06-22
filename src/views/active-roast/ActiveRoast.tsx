@@ -183,7 +183,7 @@ export const ActiveRoast = ({
         () => dbProfiles.find((p) => p.id === targetProfileId) ?? null,
         [dbProfiles, targetProfileId],
     );
-    const { points: targetCurvePoints, source: targetCurveSource } = useResolvedProfileCurve(targetProfile);
+    const { points: targetCurvePoints } = useResolvedProfileCurve(targetProfile);
 
     // charge 후: 실제 버퍼에 쌓인 구간과 설정값 중 짧은 쪽을 사용
     // (ready → charge 대기 시간이 설정값보다 짧으면 빈 공간 없이 딱 맞게)
@@ -581,11 +581,7 @@ export const ActiveRoast = ({
                     >
                         <ChartLegend
                             showTarget={!!targetProfileId && targetCurvePoints.length > 0}
-                            targetLabel={
-                                targetProfile
-                                    ? `${targetProfile.name}${targetCurveSource === 'synthetic' ? ' (target)' : ''}`
-                                    : undefined
-                            }
+                            targetLabel={targetProfile ? targetProfile.name : undefined}
                         />
 
                         <RoastTempChart
