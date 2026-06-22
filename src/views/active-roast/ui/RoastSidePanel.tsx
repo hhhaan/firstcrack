@@ -3,10 +3,10 @@ import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import type { LogEntry } from '@shared/types/roast';
-import { EventButtons } from './EventButtons';
-import { RoastLog } from './RoastLog';
 import { Play, Square } from 'lucide-react';
 import type { RoastLogDisplayEntry } from '../lib/display-derivatives';
+import { EventButtons } from './EventButtons';
+import { RoastLog } from './RoastLog';
 
 interface RoastSidePanelProps {
     rawBT: number | null;
