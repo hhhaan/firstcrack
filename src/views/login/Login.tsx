@@ -38,6 +38,9 @@ export const Login = ({ onLogin }: LoginProps) => {
     const [testimonialIndex] = useState(() => Math.floor(Math.random() * testimonials.length));
 
     const signInWithEmail = useAuthStore((s) => s.signInWithEmail);
+    const startOAuth = useAuthStore((s) => s.startOAuth);
+    const cancelOAuth = useAuthStore((s) => s.cancelOAuth);
+    const oauthError = useAuthStore((s) => s.oauthError);
     const testimonial = testimonials[testimonialIndex];
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -293,7 +296,8 @@ export const Login = ({ onLogin }: LoginProps) => {
                     <button
                         type="button"
                         onClick={async () => {
-                            console.log('[auth] starting Google OAuth...');
+                            setError(null);
+                            startOAuth();
                             const { data, error } = await supabase.auth.signInWithOAuth({
                                 provider: 'google',
                                 options: {
@@ -301,13 +305,12 @@ export const Login = ({ onLogin }: LoginProps) => {
                                     ...(import.meta.env.DEV ? {} : { skipBrowserRedirect: true }),
                                 },
                             });
-                            console.log('[auth] signInWithOAuth result:', { url: data?.url, error });
                             if (error) {
-                                console.error('[auth] OAuth error:', error);
+                                cancelOAuth(error.message);
                                 return;
                             }
                             if (!data?.url) {
-                                console.warn('[auth] no URL returned');
+                                cancelOAuth('Could not start Google sign-in.');
                                 return;
                             }
 
@@ -508,7 +511,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                         </div>
 
                         {/* Error message */}
-                        {error && (
+                        {(error || oauthError) && (
                             <div
                                 style={{
                                     marginBottom: 14,
@@ -521,7 +524,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                                     lineHeight: 1.5,
                                 }}
                             >
-                                {error}
+                                {error ?? oauthError}
                             </div>
                         )}
 

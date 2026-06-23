@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/react';
 import { supabase } from '@shared/lib/supabase';
-import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useOAuthDeepLink } from './features/auth';
 import { useRoastSessionStore } from './shared/store/roastSession';
 import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
@@ -30,12 +30,14 @@ export const App = () => {
     const user = useAuthStore((s) => s.user);
     useInventoryAlertSync(user?.id);
     const loading = useAuthStore((s) => s.loading);
+    const oauthPending = useAuthStore((s) => s.oauthPending);
     const init = useAuthStore((s) => s.init);
     const theme = useThemeStore((s) => s.theme);
     const initTheme = useThemeStore((s) => s.initTheme);
 
     useEffect(() => init(), [init]);
     useEffect(() => initTheme(), [initTheme]);
+    useOAuthDeepLink();
 
     // Auto-updater: silent background download → system notification
     const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
@@ -71,54 +73,6 @@ export const App = () => {
         }
     }, []);
 
-    const handledRef = useRef(false);
-    useEffect(() => {
-        const handleCallback = async (url: string) => {
-            console.log('[deep-link] received:', url);
-            if (!url.includes('auth/callback') || handledRef.current) return;
-            handledRef.current = true;
-
-            const parsed = new URL(url);
-            const code = parsed.searchParams.get('code');
-
-            if (code) {
-                console.log('[deep-link] exchanging PKCE code...');
-                const { error } = await supabase.auth.exchangeCodeForSession(code);
-                if (error) console.error('[deep-link] exchangeCodeForSession failed:', error);
-                else console.log('[deep-link] session exchanged successfully');
-                return;
-            }
-
-            // implicit flow 폴백: #access_token=...&refresh_token=...
-            const hash = new URLSearchParams(parsed.hash.slice(1));
-            const accessToken = hash.get('access_token');
-            const refreshToken = hash.get('refresh_token');
-            if (accessToken && refreshToken) {
-                console.log('[deep-link] setting session from hash tokens...');
-                const { error } = await supabase.auth.setSession({
-                    access_token: accessToken,
-                    refresh_token: refreshToken,
-                });
-                if (error) console.error('[deep-link] setSession failed:', error);
-                else console.log('[deep-link] session set successfully');
-            }
-        };
-
-        getCurrent().then((urls) => {
-            console.log('[deep-link] getCurrent:', urls);
-            if (urls?.length) handleCallback(urls[0]);
-        });
-
-        let unlisten: (() => void) | undefined;
-        onOpenUrl((urls) => {
-            console.log('[deep-link] onOpenUrl:', urls);
-            if (urls.length) handleCallback(urls[0]);
-        }).then((fn) => {
-            unlisten = fn;
-        });
-
-        return () => unlisten?.();
-    }, []);
     const [view, setView] = useState<View>('dashboard');
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -144,18 +98,25 @@ export const App = () => {
         setView('schedule');
     }, [completeBatch]);
 
-    if (loading)
+    if (loading || oauthPending)
         return (
             <div
                 style={{
                     display: 'flex',
                     height: '100vh',
+                    flexDirection: 'column',
+                    gap: 12,
                     alignItems: 'center',
                     justifyContent: 'center',
                     background: 'var(--color-surface)',
                 }}
             >
                 <Spinner size={24} />
+                {oauthPending && (
+                    <p style={{ fontSize: 13, color: 'var(--color-secondary)', letterSpacing: '0.14px' }}>
+                        Completing sign-in…
+                    </p>
+                )}
             </div>
         );
     if (!user) return <Login />;

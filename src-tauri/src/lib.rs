@@ -125,20 +125,26 @@ pub fn run() {
     sentry::Hub::main().bind_client(Some(std::sync::Arc::new(client.clone())));
 
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_sentry::init(&client))
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            // 두 번째 실행 시 기존 창을 앞으로 가져옴
+        // single-instance는 반드시 첫 번째. deep-link feature로 OAuth 콜백 URL을 기존 인스턴스에 전달.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.set_focus();
             }
+            // deep-link 플러그인이 못 받은 경우 argv에서 직접 전달 (백업)
+            for arg in args {
+                if arg.contains("firstcrack://") && arg.contains("auth/callback") {
+                    let _ = app.emit("oauth-callback-url", arg.clone());
+                }
+            }
         }))
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_sentry::init(&client))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::default().build())
