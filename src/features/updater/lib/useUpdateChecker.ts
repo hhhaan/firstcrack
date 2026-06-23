@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import type { DownloadEvent } from '@tauri-apps/plugin-updater';
 import { check } from '@tauri-apps/plugin-updater';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type UpdateStatus = 'idle' | 'checking' | 'downloading' | 'ready' | 'applying' | 'error';
 
@@ -23,6 +23,8 @@ export interface UseUpdateCheckerReturn {
     checkAndDownload: () => Promise<void>;
     /** 앱 재시작 (업데이트 적용) */
     applyAndRelaunch: () => Promise<void>;
+    /** DEV 전용: ready 상태를 강제로 만들어 dialog/UI 미리보기 */
+    mockReady: (version: string) => void;
 }
 
 const INITIAL_STATE: UpdateState = {
@@ -58,9 +60,17 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
     const [state, setState] = useState<UpdateState>(INITIAL_STATE);
     const downloadedRef = useRef(0);
     const totalRef = useRef<number | undefined>(undefined);
+    const statusRef = useRef<UpdateStatus>('idle');
+    const versionRef = useRef<string | null>(null);
+
+    // 상태를 ref에 동기화 (useCallback deps=[] 에서도 최신 상태 읽기 위함)
+    useEffect(() => {
+        statusRef.current = state.status;
+    }, [state.status]);
 
     const checkAndDownload = useCallback(async () => {
         if (import.meta.env.DEV) return;
+        if (statusRef.current === 'ready') return;
 
         setState((prev) => ({ ...prev, status: 'checking', error: null }));
 
@@ -103,7 +113,7 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
                 }
             });
 
-            writeLastDownloadedVersion(update.version);
+            versionRef.current = update.version;
 
             setState((prev) => ({ ...prev, status: 'ready', progress: 100 }));
 
@@ -126,8 +136,10 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
     const applyAndRelaunch = useCallback(async () => {
         setState((prev) => ({ ...prev, status: 'applying', error: null }));
         try {
+            writeLastDownloadedVersion(versionRef.current ?? '');
             await invoke('relaunch_for_update');
         } catch (error) {
+            clearLastDownloadedVersion();
             const msg = error instanceof Error ? error.message : '재시작에 실패했습니다.';
             Sentry.captureException(error, { extra: { context: 'relaunch_for_update' } });
             console.error('[updater] relaunch failed:', error);
@@ -135,5 +147,10 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
         }
     }, []);
 
-    return { state, checkAndDownload, applyAndRelaunch };
+    const mockReady = useCallback((version: string) => {
+        if (!import.meta.env.DEV) return;
+        setState({ status: 'ready', version, progress: 100, error: null });
+    }, []);
+
+    return { state, checkAndDownload, applyAndRelaunch, mockReady };
 };

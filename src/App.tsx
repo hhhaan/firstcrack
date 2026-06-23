@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/react';
 import { supabase } from '@shared/lib/supabase';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useOAuthDeepLink } from './features/auth';
 import { useRoastSessionStore } from './shared/store/roastSession';
 import type { PlanBatchHandoff } from './shared/types/database.types';
@@ -75,6 +75,7 @@ export const App = () => {
 
     const [view, setView] = useState<View>('dashboard');
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const _updateDialogLockRef = useRef(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId>('general');
     const startBatch = useRoastSessionStore((s) => s.startBatch);
