@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import { invoke } from '@tauri-apps/api/core';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import type { DownloadEvent } from '@tauri-apps/plugin-updater';
@@ -75,6 +76,10 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             if (lastDownloaded === update.version && update.currentVersion !== update.version) {
                 const msg =
                     '업데이트가 적용되지 않았습니다. dmg에서 앱을 다시 설치하거나 최신 버전을 수동으로 받아 주세요.';
+                Sentry.captureMessage('[updater] loop-guard triggered', {
+                    level: 'warning',
+                    extra: { currentVersion: update.currentVersion, availableVersion: update.version },
+                });
                 setState({ status: 'error', version: update.version, progress: 0, error: msg });
                 return;
             }
@@ -124,6 +129,7 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             await invoke('relaunch_for_update');
         } catch (error) {
             const msg = error instanceof Error ? error.message : '재시작에 실패했습니다.';
+            Sentry.captureException(error, { extra: { context: 'relaunch_for_update' } });
             console.error('[updater] relaunch failed:', error);
             setState((prev) => ({ ...prev, status: 'error', error: msg }));
         }
