@@ -34,6 +34,8 @@ const INITIAL_STATE: UpdateState = {
     error: null,
 };
 
+const MAX_RETRY_ATTEMPTS = 3;
+
 const LAST_DOWNLOADED_KEY = 'fc_updater_last_downloaded';
 
 const readLastDownloadedVersion = () => localStorage.getItem(LAST_DOWNLOADED_KEY);
@@ -42,6 +44,19 @@ const writeLastDownloadedVersion = (version: string) => {
 };
 const clearLastDownloadedVersion = () => {
     localStorage.removeItem(LAST_DOWNLOADED_KEY);
+};
+
+const RETRY_ATTEMPTS_KEY = 'fc_updater_restart_attempts';
+
+const readRetryAttempts = (): number => {
+    const v = localStorage.getItem(RETRY_ATTEMPTS_KEY);
+    return v ? parseInt(v, 10) : 0;
+};
+const incrementRetryAttempts = () => {
+    localStorage.setItem(RETRY_ATTEMPTS_KEY, String(readRetryAttempts() + 1));
+};
+const clearRetryAttempts = () => {
+    localStorage.removeItem(RETRY_ATTEMPTS_KEY);
 };
 
 /** 시스템 알림 권한 확보 (앱 생애 첫 한 번만 묻고 이후 재사용) */
@@ -78,20 +93,29 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             const update = await check();
             if (!update) {
                 clearLastDownloadedVersion();
+                clearRetryAttempts();
                 setState(INITIAL_STATE);
                 return;
             }
 
             const lastDownloaded = readLastDownloadedVersion();
             if (lastDownloaded === update.version && update.currentVersion !== update.version) {
-                const msg =
-                    '업데이트가 적용되지 않았습니다. dmg에서 앱을 다시 설치하거나 최신 버전을 수동으로 받아 주세요.';
-                Sentry.captureMessage('[updater] loop-guard triggered', {
-                    level: 'warning',
-                    extra: { currentVersion: update.currentVersion, availableVersion: update.version },
-                });
-                setState({ status: 'error', version: update.version, progress: 0, error: msg });
-                return;
+                incrementRetryAttempts();
+                clearLastDownloadedVersion();
+
+                const attempts = readRetryAttempts();
+                if (attempts >= MAX_RETRY_ATTEMPTS) {
+                    const msg =
+                        '업데이트가 적용되지 않았습니다. dmg에서 앱을 다시 설치하거나 최신 버전을 수동으로 받아 주세요.';
+                    Sentry.captureMessage('[updater] loop-guard triggered', {
+                        level: 'warning',
+                        extra: { currentVersion: update.currentVersion, availableVersion: update.version, attempts },
+                    });
+                    setState({ status: 'error', version: update.version, progress: 0, error: msg });
+                    return;
+                }
+
+                // retry: 아래로 fall-through → downloadAndInstall 재시도
             }
 
             // 새 버전 발견 — 백그라운드 다운로드 시작
@@ -114,6 +138,7 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             });
 
             versionRef.current = update.version;
+            clearRetryAttempts();
 
             setState((prev) => ({ ...prev, status: 'ready', progress: 100 }));
 
