@@ -19,6 +19,14 @@ fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
     window.print().map_err(|e| e.to_string())
 }
 
+/// 업데이트 적용 재시작. single-instance 소켓을 먼저 제거해 재시작 프로세스가 즉시 종료되지 않도록 한다.
+#[tauri::command]
+fn relaunch_for_update(app: tauri::AppHandle) -> Result<(), String> {
+    tauri_plugin_single_instance::destroy(&app);
+    app.request_restart();
+    Ok(())
+}
+
 
 /// 포트 9999를 점유한 프로세스가 우리 사이드카 바이너리인지 확인 후 kill.
 /// 정상 twin이 없다고 single-instance 플러그인이 이미 보장한 상태에서만 호출된다.
@@ -151,6 +159,17 @@ pub fn run() {
         // CommandChild has no Drop impl — storing via manage() keeps it alive for the app lifetime.
         .manage(SidecarChild(Mutex::new(None)))
         .setup(|app| {
+            // Diagnostic: 앱 시작 버전·경로를 Sentry에 기록 — 업데이터 재시작 전후 버전 전이 추적용
+            {
+                let exe = std::env::current_exe()
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .unwrap_or_else(|_| "unknown".to_owned());
+                let ver = app.package_info().version.to_string();
+                sentry::capture_message(
+                    &format!("[startup] v{ver} from {exe}"),
+                    sentry::Level::Info,
+                );
+            }
             // DEBUG: `tauri dev` 시 beforeDevCommand가 띄운 venv Python 사이드카를
             // 존중한다. 포트 9999가 이미 응답하면 스폰을 건너뜀 (X1).
             #[cfg(debug_assertions)]
@@ -251,7 +270,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![save_pdf, print_window])
+        .invoke_handler(tauri::generate_handler![save_pdf, print_window, relaunch_for_update])
         .build(tauri::generate_context!())
         .expect("error while running tauri application");
 

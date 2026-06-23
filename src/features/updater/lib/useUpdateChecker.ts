@@ -1,10 +1,10 @@
+import { invoke } from '@tauri-apps/api/core';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
-import { relaunch } from '@tauri-apps/plugin-process';
 import type { DownloadEvent } from '@tauri-apps/plugin-updater';
 import { check } from '@tauri-apps/plugin-updater';
 import { useCallback, useRef, useState } from 'react';
 
-export type UpdateStatus = 'idle' | 'checking' | 'downloading' | 'ready' | 'error';
+export type UpdateStatus = 'idle' | 'checking' | 'downloading' | 'ready' | 'applying' | 'error';
 
 export interface UpdateState {
     status: UpdateStatus;
@@ -29,6 +29,16 @@ const INITIAL_STATE: UpdateState = {
     version: null,
     progress: 0,
     error: null,
+};
+
+const LAST_DOWNLOADED_KEY = 'fc_updater_last_downloaded';
+
+const readLastDownloadedVersion = () => localStorage.getItem(LAST_DOWNLOADED_KEY);
+const writeLastDownloadedVersion = (version: string) => {
+    localStorage.setItem(LAST_DOWNLOADED_KEY, version);
+};
+const clearLastDownloadedVersion = () => {
+    localStorage.removeItem(LAST_DOWNLOADED_KEY);
 };
 
 /** 시스템 알림 권한 확보 (앱 생애 첫 한 번만 묻고 이후 재사용) */
@@ -56,7 +66,16 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
         try {
             const update = await check();
             if (!update) {
+                clearLastDownloadedVersion();
                 setState(INITIAL_STATE);
+                return;
+            }
+
+            const lastDownloaded = readLastDownloadedVersion();
+            if (lastDownloaded === update.version && update.currentVersion !== update.version) {
+                const msg =
+                    '업데이트가 적용되지 않았습니다. dmg에서 앱을 다시 설치하거나 최신 버전을 수동으로 받아 주세요.';
+                setState({ status: 'error', version: update.version, progress: 0, error: msg });
                 return;
             }
 
@@ -79,6 +98,8 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
                 }
             });
 
+            writeLastDownloadedVersion(update.version);
+
             setState((prev) => ({ ...prev, status: 'ready', progress: 100 }));
 
             // 시스템 알림 발송 (권한 확인 후)
@@ -98,7 +119,14 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
     }, []);
 
     const applyAndRelaunch = useCallback(async () => {
-        await relaunch();
+        setState((prev) => ({ ...prev, status: 'applying', error: null }));
+        try {
+            await invoke('relaunch_for_update');
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : '재시작에 실패했습니다.';
+            console.error('[updater] relaunch failed:', error);
+            setState((prev) => ({ ...prev, status: 'error', error: msg }));
+        }
     }, []);
 
     return { state, checkAndDownload, applyAndRelaunch };

@@ -223,7 +223,8 @@ export const App = () => {
 
                 {state.status === 'ready' && (
                     <button
-                        onClick={applyAndRelaunch}
+                        type="button"
+                        onClick={() => void applyAndRelaunch()}
                         style={{
                             position: 'fixed',
                             bottom: 24,
@@ -242,6 +243,32 @@ export const App = () => {
                     >
                         새 업데이트 (v{state.version}) 재시작
                     </button>
+                )}
+
+                {state.status === 'applying' && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            bottom: 24,
+                            right: 24,
+                            zIndex: 9999,
+                            padding: '10px 20px',
+                            borderRadius: 9999,
+                            background: 'var(--color-accent, #2563eb)',
+                            color: '#fff',
+                            fontSize: 14,
+                            fontWeight: 500,
+                            boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+                        }}
+                    >
+                        재시작 중...
+                    </div>
+                )}
+
+                {state.status === 'error' && state.error && (
+                    <div className="fixed bottom-6 right-6 z-[9999] max-w-sm px-4 py-3 rounded-lg bg-red-900/90 border border-red-700 text-red-100 text-sm shadow-lg">
+                        {state.error}
+                    </div>
                 )}
             </div>
         </Sentry.ErrorBoundary>

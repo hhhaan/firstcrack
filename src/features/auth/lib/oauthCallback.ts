@@ -4,6 +4,7 @@ const isOAuthCallbackUrl = (url: string) => url.includes('auth/callback');
 
 export const exchangeOAuthCallbackUrl = async (
     rawUrl: string,
+    _source = 'unknown',
 ): Promise<{ ok: true } | { ok: false; error: string }> => {
     if (!isOAuthCallbackUrl(rawUrl)) {
         return { ok: false, error: 'Not an OAuth callback URL' };

@@ -166,6 +166,26 @@ jobs:
       - name: Install frontend deps
         run: pnpm install
 
+      - name: Sync version across manifests
+        run: |
+          VERSION="${{ needs.setup.outputs.version }}"
+          echo "Syncing version to $VERSION"
+          node <<'NODE'
+          const fs = require('fs');
+          const version = process.env.VERSION;
+          const tauriConfPath = 'src-tauri/tauri.conf.json';
+          const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, 'utf8'));
+          tauriConf.version = version;
+          fs.writeFileSync(tauriConfPath, `${JSON.stringify(tauriConf, null, 4)}\n`);
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.version = version;
+          fs.writeFileSync('package.json', `${JSON.stringify(pkg, null, 4)}\n`);
+          NODE
+          sed -i.bak "s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          rm -f src-tauri/Cargo.toml.bak
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+
       - name: Cache sidecar binary
         id: sidecar-cache
         uses: actions/cache@v4
