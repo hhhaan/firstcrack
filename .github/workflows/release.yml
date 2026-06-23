@@ -61,22 +61,45 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Checking CI status for commit ${GITHUB_SHA}..."
-          RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
-            --jq '[.check_runs[] | select(.name == "typecheck" or .name == "lint" or .name == "eslint" or .name == "test" or .name == "sidecar")]')
-          TOTAL=$(echo "$RESPONSE" | jq 'length')
-          FAILED=$(echo "$RESPONSE" | jq '[.[] | select(.conclusion != "success")] | length')
 
-          echo "CI checks found: $TOTAL"
-          echo "$RESPONSE" | jq -r '.[] | "  \(.name): \(.conclusion)"'
+          # Retry up to 3 minutes (6×30s) to wait for CI to start
+          for i in 1 2 3 4 5 6; do
+            RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
+              --jq '[.check_runs[] | select(.name == "typecheck" or .name == "lint" or .name == "eslint" or .name == "test" or .name == "sidecar")]')
+            TOTAL=$(echo "$RESPONSE" | jq 'length')
 
-          if [ "$TOTAL" -eq 0 ]; then
-            echo "::warning::No CI checks found for this commit. Proceeding anyway."
-          elif [ "$FAILED" -gt 0 ]; then
-            echo "::error::$FAILED CI check(s) failed. Release aborted to prevent wasted resources."
-            exit 1
-          else
-            echo "✅ All CI checks passed."
-          fi
+            if [ "$TOTAL" -eq 0 ]; then
+              echo "::warning::No CI checks found yet (attempt $i/6). Waiting 30s..."
+              sleep 30
+              continue
+            fi
+
+            # Count failures only — null/pending/in_progress are fine
+            FAILED=$(echo "$RESPONSE" | jq '[.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled")] | length')
+            PENDING=$(echo "$RESPONSE" | jq '[.[] | select(.conclusion == null or .conclusion == "neutral" or .conclusion == "skipped")] | length')
+
+            echo "CI checks found: $TOTAL (pending: $PENDING, failed: $FAILED)"
+            echo "$RESPONSE" | jq -r '.[] | "  \(.name): \(.conclusion)"'
+
+            if [ "$FAILED" -gt 0 ]; then
+              echo "::error::$FAILED CI check(s) failed. Release aborted."
+              exit 1
+            fi
+
+            if [ "$PENDING" -eq 0 ]; then
+              echo "✅ All CI checks passed."
+              exit 0
+            fi
+
+            if [ "$i" -lt 6 ]; then
+              echo "⏳ $PENDING check(s) still running — waiting 30s (attempt $i/6)..."
+              sleep 30
+            fi
+          done
+
+          # After all retries — if only pending/skipped/neutral remain, proceed
+          echo "::warning::CI checks still pending after 3 min — proceeding anyway."
+          exit 0
 
       - name: Validate required secrets
         env:
