@@ -301,6 +301,35 @@ npm install -D vitest @testing-library/react @testing-library/user-event
 
 ## LOW — 하드웨어 테스트 후
 
+### [T38] OAuth 완료 후 브라우저 탭 자동 닫기
+
+**What:** Google OAuth 완료 후 브라우저 탭이 `firstcrack://` 커스텀 스킴으로 리디렉트되어 HTTP 응답 없이 무한 로딩 상태로 남는 UX 개선.
+
+**Why:** 로그인 자체는 정상 완료되지만 브라우저 탭이 영구적으로 로딩 상태로 남아 사용자에게 혼란을 줌.
+
+**Root cause:** 브라우저가 커스텀 스킴(`firstcrack://`)으로 리디렉트하면 OS는 앱에 URL을 전달하지만 브라우저는 HTTP 응답을 받지 못해 스피너가 영구적으로 표시됨.
+
+**Fix:** `redirectTo`를 중간 웹 페이지로 경유하도록 변경.
+
+1. `.env.production`에서 `PUBLIC_TAURI_REDIRECT` 변경:
+   ```
+   PUBLIC_TAURI_REDIRECT=https://firstcrack.io/auth/callback
+   ```
+2. `firstcrack.io/auth/callback` 페이지 (단일 HTML):
+   ```html
+   <script>
+     const code = new URLSearchParams(location.search).get('code');
+     if (code) location.href = `firstcrack://auth/callback?code=${code}`;
+     setTimeout(() => window.close(), 100);
+   </script>
+   <p>First Crack로 이동 중... 이 탭을 닫으셔도 됩니다.</p>
+   ```
+3. Supabase allowed redirect URLs에 `https://firstcrack.io/auth/callback` 추가
+
+**Depends on:** 도메인 확보
+
+---
+
 ### [T28] ja / zh-CN 언어별 폰트 적용
 
 **What:** 현재 한국어(`ko`)만 Pretendard 로컬 폰트 적용. 일본어/중국어 폰트 추가.
