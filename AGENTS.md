@@ -30,6 +30,25 @@ Roastery management desktop app (like Cropster): roast profile logging, roast hi
 - verify: `pnpm verify:all` (check + typecheck + test + lint + sidecar) — run before push
 - fix: `pnpm check:fix` | `types:gen` after DB schema migration
 
+## Versioning
+Single source of truth: `tauri.conf.json > version`. Always bump all three manifests atomically — never edit one file manually.
+
+**Bump command** (updates `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` in one shot):
+```bash
+pnpm version:bump <major.minor.patch>   # e.g. pnpm version:bump 1.0.11
+```
+
+**Release flow:**
+```bash
+pnpm version:bump 1.0.11
+git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+git commit -m "chore(release): bump version to 1.0.11"
+git tag v1.0.11
+git push origin main && git push origin v1.0.11
+```
+
+CI's "Sync version across manifests" step overwrites all three files from the tag/input version — so if local bump is skipped, CI still builds the correct version. The tag is the final authority.
+
 ## Automation
 | When | What runs | Auto-fix? |
 |------|-----------|-----------|
