@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/react';
 import { invoke } from '@tauri-apps/api/core';
-import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
+// 시스템 알림: floating 버튼이 이미 강제 수단이므로 불필요한 중복이라 비활성화
+// import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import type { DownloadEvent } from '@tauri-apps/plugin-updater';
 import { check } from '@tauri-apps/plugin-updater';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -58,18 +59,17 @@ const incrementRetryAttempts = () => {
 const clearRetryAttempts = () => {
     localStorage.removeItem(RETRY_ATTEMPTS_KEY);
 };
-
-/** 시스템 알림 권한 확보 (앱 생애 첫 한 번만 묻고 이후 재사용) */
-let permissionReady: Promise<boolean> | null = null;
-const ensurePermission = async (): Promise<boolean> => {
-    if (permissionReady) return permissionReady;
-    permissionReady = (async () => {
-        if (await isPermissionGranted()) return true;
-        const result = await requestPermission();
-        return result === 'granted';
-    })();
-    return permissionReady;
-};
+// 시스템 알림: floating 버튼이 이미 존재하므로 비활성화
+// let permissionReady: Promise<boolean> | null = null;
+// const ensurePermission = async (): Promise<boolean> => {
+//     if (permissionReady) return permissionReady;
+//     permissionReady = (async () => {
+//         if (await isPermissionGranted()) return true;
+//         const result = await requestPermission();
+//         return result === 'granted';
+//     })();
+//     return permissionReady;
+// };
 
 export const useUpdateChecker = (): UseUpdateCheckerReturn => {
     const [state, setState] = useState<UpdateState>(INITIAL_STATE);
@@ -142,15 +142,15 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
 
             setState((prev) => ({ ...prev, status: 'ready', progress: 100 }));
 
-            // 시스템 알림 발송 (권한 확인 후)
-            ensurePermission().then((granted) => {
-                if (granted) {
-                    sendNotification({
-                        title: 'First Crack 업데이트 준비 완료',
-                        body: `v${update.version} — 앱을 재시작하면 적용됩니다.`,
-                    });
-                }
-            });
+            // 시스템 알림: floating 버튼이 이미 강제 수단이므로 비활성화
+            // ensurePermission().then((granted) => {
+            //     if (granted) {
+            //         sendNotification({
+            //             title: 'First Crack 업데이트 준비 완료',
+            //             body: `v${update.version} — 앱을 재시작하면 적용됩니다.`,
+            //         });
+            //     }
+            // });
         } catch (error) {
             const msg = error instanceof Error ? error.message : '업데이트 확인 중 오류가 발생했습니다.';
             console.error('[updater]', msg, error);
