@@ -12,7 +12,7 @@ interface UseRoastActionsParams {
     rawBT: number | null;
     setLogEntries: React.Dispatch<React.SetStateAction<LogEntry[]>>;
     setIsRunning: React.Dispatch<React.SetStateAction<boolean>>;
-    setShowEndRoastModal: React.Dispatch<React.SetStateAction<boolean>>;
+    setShowEndRoastModal: () => void;
     storeStartCharge: () => void;
     roastStartTimeRef: React.MutableRefObject<number>;
 }
@@ -60,7 +60,7 @@ export const useRoastActions = ({
                 },
             ];
         });
-        setShowEndRoastModal(true);
+        setShowEndRoastModal();
     }, [rawBT, unit, setLogEntries, setShowEndRoastModal]);
 
     const handleTurningPoint = useCallback(

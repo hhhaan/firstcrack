@@ -4,20 +4,9 @@ import { Spinner } from '@shared/ui/Spinner';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { type RoastSummaryForm, roastSummarySchema } from '../lib/schema';
+import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
 
-export interface RoastLogEntry {
-    time: string;
-    event: string;
-    temp: string;
-    note: string;
-}
-
-export interface RoastSummaryData {
-    totalTime: string;
-    development: string;
-    finalBt: string;
-    logEntries: RoastLogEntry[];
-}
+export type { RoastSummaryData };
 
 interface RoastSummaryModalProps {
     open: boolean;

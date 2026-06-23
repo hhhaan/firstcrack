@@ -4,7 +4,7 @@ import { addMonths, format, parse } from 'date-fns';
 
 const SELECT_WITH_RELATIONS = '*, beans(name, origin), roast_profiles!profile_id(name, target_level)';
 
-type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at'>;
+export type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at'>;
 type RoastSessionUpdate = { id: string } & Partial<Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;
 
 interface PaginatedParams {

@@ -1,3 +1,4 @@
+export type { RoastSessionInsert } from './api';
 export { roastSessionApi } from './api';
 export { useHistoryChart } from './chart-queries';
 export {

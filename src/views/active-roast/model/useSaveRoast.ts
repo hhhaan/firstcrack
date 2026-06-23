@@ -1,0 +1,92 @@
+import { useUpdatePlanBatch } from '@entities/plan';
+import { useCreateRoastSession } from '@entities/roast';
+import { useUploadRoastProfile } from '@features/upload-roast-profile';
+import { useAuthStore } from '@shared/store/auth';
+import { useRoastSessionStore } from '@shared/store/roastSession';
+import type { PlanBatchHandoff } from '@shared/types/database.types';
+import { useCallback, useMemo } from 'react';
+import { type BuildSavePayloadParams, buildRoastSavePayload } from '../lib/build-roast-save-payload';
+import { determineStockDeduction } from '../lib/determine-stock-deduction';
+import type { RoastSummaryForm } from '../lib/schema';
+
+export interface SaveRoastParams extends Omit<BuildSavePayloadParams, 'saveLevel' | 'saveWeight' | 'notes'> {
+    formData: RoastSummaryForm;
+    handoffBeanName: string | null;
+    sessionId: string | null;
+}
+
+export interface SaveRoastResult {
+    savedSession: Awaited<ReturnType<ReturnType<typeof useCreateRoastSession>['mutateAsync']>>;
+    deductionPlan: ReturnType<typeof determineStockDeduction>;
+    shouldOpenContinue: boolean;
+}
+
+export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
+    const user = useAuthStore((s) => s.user);
+    const userId = user?.id ?? '';
+
+    const { mutateAsync: saveRoastSession, isPending: isSaving } = useCreateRoastSession(userId);
+    const uploadRoastProfileTsv = useUploadRoastProfile();
+    const { mutateAsync: updatePlanBatch } = useUpdatePlanBatch(planBatchHandoff?.planId ?? '');
+    const incrementCompletedSession = useRoastSessionStore((s) => s.incrementCompletedSession);
+
+    const saveRoast = useCallback(
+        async (params: SaveRoastParams): Promise<SaveRoastResult> => {
+            if (!user) {
+                throw new Error('Not authenticated');
+            }
+
+            const { formData, handoffBeanName, sessionId, ...payloadParams } = params;
+
+            let tsvPath: string | null = null;
+            if (sessionId) {
+                tsvPath = await uploadRoastProfileTsv(sessionId);
+            }
+
+            const payload = buildRoastSavePayload(
+                {
+                    ...payloadParams,
+                    userId: user.id,
+                    saveWeight: formData.weightGrams,
+                    saveLevel: formData.roastLevel,
+                    notes: formData.notes,
+                },
+                tsvPath,
+            );
+
+            const savedSession = await saveRoastSession(payload);
+
+            const newCompletedCount = (planBatchHandoff?.completedSessions ?? 0) + 1;
+            const isNowBatchDone = planBatchHandoff != null && newCompletedCount >= planBatchHandoff.batchCount;
+
+            incrementCompletedSession();
+
+            if (isNowBatchDone && planBatchHandoff) {
+                await updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' });
+            }
+
+            const deductionPlan = determineStockDeduction({
+                planBatchHandoff,
+                saveWeight: formData.weightGrams,
+                selectedBeanId: payloadParams.selectedBeanId,
+                referenceId: savedSession.id,
+                handoffBeanName,
+            });
+
+            return {
+                savedSession,
+                deductionPlan,
+                shouldOpenContinue: planBatchHandoff != null,
+            };
+        },
+        [user, uploadRoastProfileTsv, saveRoastSession, planBatchHandoff, incrementCompletedSession, updatePlanBatch],
+    );
+
+    return useMemo(
+        () => ({
+            saveRoast,
+            isSaving,
+        }),
+        [saveRoast, isSaving],
+    );
+};
