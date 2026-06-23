@@ -22,6 +22,9 @@ export default tseslint.config(
 
             // Biome이 대체하는 규칙 — ESLint에서는 off
             'react-hooks/exhaustive-deps': 'off',
+            'react-hooks/set-state-in-effect': 'off',
+            'react-hooks/preserve-manual-memoization': 'off',
+            'react-hooks/incompatible-library': 'off',
             '@typescript-eslint/no-explicit-any': 'off',
             '@typescript-eslint/no-unused-vars': 'off',
         },

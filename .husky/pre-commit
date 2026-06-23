@@ -1,7 +1,5 @@
 #!/usr/bin/env sh
 . "$(dirname "$0")/_/husky.sh"
 
-# Auto-fix import sorting, formatting, and safe lint fixes
-npx biome check --write src
-
-npx lint-staged
+# biome check --write on staged files only; lint-staged re-stages auto-fixed files
+pnpm exec lint-staged

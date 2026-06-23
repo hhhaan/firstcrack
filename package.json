@@ -7,12 +7,16 @@
         "predev": "lsof -ti:9999 | xargs kill -9 2>/dev/null || true",
         "dev": "concurrently --names \"vite,sidecar\" --prefix-colors \"cyan,yellow\" \"vite\" \"src-tauri/sidecar/.venv/bin/python src-tauri/sidecar/main.py\"",
         "build": "tsc && vite build",
+        "typecheck": "tsc --noEmit",
         "test": "vitest run",
+        "verify": "pnpm check && pnpm typecheck && pnpm test && pnpm lint",
+        "verify:sidecar": "bash scripts/verify-sidecar.sh",
+        "verify:all": "pnpm verify && pnpm verify:sidecar",
         "preview": "vite preview",
         "tauri": "tauri",
         "types:gen": "supabase gen types typescript --linked 2>/dev/null > src/shared/types/database.types.ts && node scripts/append-db-aliases.mjs",
         "build:sidecar": "bash scripts/build-sidecar.sh",
-        "build:debug": "npm run build:sidecar && tauri build --debug && open 'src-tauri/target/debug/bundle/macos/First Crack.app'",
+        "build:debug": "pnpm run build:sidecar && pnpm tauri build --debug && open 'src-tauri/target/debug/bundle/macos/First Crack.app'",
         "lint": "eslint src",
         "lint:fix": "eslint src --fix",
         "check": "biome check src",
@@ -93,8 +97,8 @@
         "vitest": "^4.1.9"
     },
     "lint-staged": {
-        "src/**/*.{ts,tsx}": "biome format --write --no-errors-on-unmatched",
-        "**/*.{js,jsx,mjs,cjs,json,css,md}": "biome format --write --no-errors-on-unmatched",
+        "src/**/*.{ts,tsx}": "biome check --write --no-errors-on-unmatched",
+        "**/*.{js,jsx,mjs,cjs,json,css,md}": "biome check --write --no-errors-on-unmatched",
         "*.{png,jpeg,jpg,gif,svg}": "imagemin-lint-staged",
         "**/*.{ts,tsx,js,jsx,mjs,cjs,json,yml,yaml,toml,md,py,sh,html,css,env,env.*}": "secretlint"
     },

@@ -1,14 +1,5 @@
 #!/usr/bin/env sh
 . "$(dirname "$0")/_/husky.sh"
 
-# Regenerate repomix output for downstream AI tools
-repomix --quiet
-
-# Check lint — auto-fix already done in pre-commit
-npx biome check src
-
-npx tsc --noEmit --pretty
-npx react-doctor --diff
-
-# Sidecar Python tests
-(cd src-tauri/sidecar && .venv/bin/python -m pytest tests/ -q)
+pnpm verify:all
+pnpm doctor:fast

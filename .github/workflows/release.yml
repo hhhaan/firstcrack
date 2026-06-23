@@ -62,7 +62,7 @@ jobs:
         run: |
           echo "Checking CI status for commit ${GITHUB_SHA}..."
           RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
-            --jq '[.check_runs[] | select(.name == "typecheck" or .name == "lint" or .name == "sidecar")]')
+            --jq '[.check_runs[] | select(.name == "typecheck" or .name == "lint" or .name == "eslint" or .name == "test" or .name == "sidecar")]')
           TOTAL=$(echo "$RESPONSE" | jq 'length')
           FAILED=$(echo "$RESPONSE" | jq '[.[] | select(.conclusion != "success")] | length')
 
@@ -164,7 +164,7 @@ jobs:
 
       - name: Build sidecar binary
         if: steps.sidecar-cache.outputs.cache-hit != 'true'
-        run: npm run build:sidecar
+        run: pnpm run build:sidecar
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0

@@ -58,7 +58,6 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
     useEffect(() => {
         if (profiles.length > 0 && !selectedId) {
-            // eslint-disable-next-line react/hooks/set-state-in-effect
             setSelectedId(profiles[0].id);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,7 +65,6 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
     useEffect(() => {
         if (userProfile !== undefined) {
-            // eslint-disable-next-line react/hooks/set-state-in-effect
             setDefaultId(userProfile?.default_roast_profile_id ?? null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps

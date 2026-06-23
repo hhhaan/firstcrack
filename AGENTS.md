@@ -24,9 +24,19 @@ Roastery management desktop app (like Cropster): roast profile logging, roast hi
 ## Commands
 - dev: `pnpm tauri dev` (desktop; vite:1420 + sidecar) | web-only `pnpm dev`
 - build: `pnpm build` (frontend) | release `pnpm build:sidecar && pnpm tauri build` | local debug (macOS) `pnpm build:debug`
-- test: `pnpm test` (vitest) | sidecar `(cd src-tauri/sidecar && .venv/bin/python -m pytest tests/ -q)`
-- lint: `pnpm check` (biome; CI gate) | `pnpm lint` (eslint)
-- typecheck: `pnpm tsc --noEmit`
+- test: `pnpm test` (vitest) | sidecar `pnpm verify:sidecar`
+- lint: `pnpm check` (biome; CI gate) | `pnpm lint` (eslint, react-refresh)
+- typecheck: `pnpm typecheck`
+- verify: `pnpm verify:all` (check + typecheck + test + lint + sidecar) — run before push
+- fix: `pnpm check:fix` | `types:gen` after DB schema migration
+
+## Automation
+| When | What runs | Auto-fix? |
+|------|-----------|-----------|
+| `git commit` | lint-staged → `biome check --write` on **staged files only** + secretlint | yes; lint-staged re-stages fixed files |
+| `git push` | `pnpm verify:all` + `pnpm doctor:fast` | no |
+| CI | typecheck, lint (biome), eslint, test, sidecar | no |
+| repomix | manual — session start or large/structural change | — |
 
 ## External Services
 - Supabase: BaaS — auth, DB (roast records, inventory), Edge Functions (R2 presigned URL issuer)
@@ -40,7 +50,7 @@ Roastery management desktop app (like Cropster): roast profile logging, roast hi
 
 # AGENT RULES
 - When implementing/editing code: NO chat/greetings/summaries — output ONLY precise code diffs (modified lines only). (Reviews, evaluations, questions, and planning are exempt — answer normally.)
-- repomix-output.md: regenerate at session start and after large/structural changes (not every edit) via `rtk npx repomix --compress --remove-comments --remove-empty-lines --silent`.
+- repomix-output.xml: regenerate at session start and after large/structural changes (not every edit) via `rtk npx repomix --compress --remove-comments --remove-empty-lines --silent`.
 - ALWAYS prefix all bash/shell commands with `rtk ` (e.g., `rtk ls`, `rtk git`, `rtk npm`).
 - [Exception] Omit `rtk ` prefix ONLY if output compression breaks error debugging.
 
@@ -111,7 +121,7 @@ split naming: name=reason-to-change, NO utils.ts/helpers.ts
 | entities/ | Domain models & server state                         | api.ts, queries.ts, model.ts, types.ts |
 | features/ | Single user action (one feature = one mutation)      | use<Action>.ts, UI                     |
 | widgets/  | Composed blocks from multiple features               | modals, sidebar                        |
-| views/    | Page-level composition only                          | History.tsx, ActiveRoast.tsx           |
+| views/    | Orchestration only: compose widgets/features, no domain logic, no direct fetch | History.tsx, ActiveRoast.tsx |
 | app/      | Providers, router, global config                     | —                                      |
 
 ### Rules
