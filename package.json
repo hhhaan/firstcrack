@@ -1,7 +1,7 @@
 {
     "name": "roastery-agent",
     "private": true,
-    "version": "1.0.9",
+    "version": "1.0.10",
     "type": "module",
     "scripts": {
         "predev": "lsof -ti:9999 | xargs kill -9 2>/dev/null || true",
@@ -29,7 +29,8 @@
         "doctor:fast": "react-doctor --diff",
         "doctor:fix": "react-doctor --fix",
         "doctor:strict": "react-doctor --fail-on-warnings",
-        "doctor:report": "react-doctor --format json > react-doctor-report.json"
+        "doctor:report": "react-doctor --format json > react-doctor-report.json",
+        "version:bump": "node scripts/version-bump.mjs"
     },
     "dependencies": {
         "@carbon/icons-react": "^11.82.0",
