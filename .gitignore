@@ -44,6 +44,7 @@ src-tauri/binaries/sidecar-*
 __pycache__/
 *.py[cod]
 sidecar/.venv/
+src-tauri/sidecar/.venv/
 sidecar/__pycache__/
 sidecar/**/*.pyc
 sidecar/extern/

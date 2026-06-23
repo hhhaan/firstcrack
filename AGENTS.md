@@ -100,3 +100,13 @@ split naming: name=reason-to-change, NO utils.ts/helpers.ts
 - sidecar/native deps: no Windows sidecar binary built yet → serial/socket/driver code NOT Unix-path-assuming
 
 - before tag: PR touched sidecar or path logic → manual full-matrix build first
+
+## Cursor Cloud specific instructions
+This runs on a headless **Linux** VM. The native Tauri desktop shell (`src-tauri/`) targets macOS/Windows only (CI is macOS arm64) — do NOT expect `pnpm tauri dev` (a native window) to work here. Develop/verify via the two dev-mode services instead: the **Vite web frontend** (`:1420`) + the **Python sidecar** (`127.0.0.1:9999`).
+
+- **Run both services:** `pnpm dev` (runs `vite` + the sidecar via `concurrently`; `predev` kills anything on `:9999`). Requires the sidecar venv at `src-tauri/sidecar/.venv` (created by the update script).
+- **`.env` is required** at repo root or the frontend white-screens (`shared/lib/supabase.ts` calls `createClient` which throws on an undefined URL). `.env` is gitignored. Keys (see `src/vite-env.d.ts`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `PUBLIC_SITE_URL`, `PUBLIC_TAURI_REDIRECT`. Placeholder values render the UI (login page); real Supabase creds are only needed for auth + server data.
+- **Test roasting without hardware:** connect the `virtual` roaster via the sidecar HTTP API (`POST /connect {"roaster":"virtual"}` → `POST /start` → poll `GET /temperatures`; also `/control`, `/reset`). This is the core live-roast path and needs no external service.
+- **Checks:** lint `pnpm check` (Biome — emits ~300 pre-existing *warnings* but exits 0; CI treats as pass). Typecheck `pnpm tsc --noEmit`. Frontend tests `pnpm test` (Vitest). Sidecar tests `cd src-tauri/sidecar && .venv/bin/python -m pytest tests/ -q`.
+- The `rtk ` shell-prefix convention in AGENT RULES is a local-only output-compression wrapper; the binary is not installed on this VM, so run commands without it.
+- System dep `python3-venv` (for the sidecar venv) is preinstalled in the VM image, not in the update script.
