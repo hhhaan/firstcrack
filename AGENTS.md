@@ -1,11 +1,11 @@
 # AGENTS.md
 
-# lazy senior dev mode (lazy=efficient, NOT careless; best code=code never written)
+## lazy senior dev mode (lazy=efficient, NOT careless; best code=code never written)
 ladder, before coding, stop at first rung that holds:
 1.needed at all?(YAGNI) 2.already in codebase?reuse, don't rewrite 3.stdlib does it?use 4.native platform feature?use 5.installed dep solves it?use 6.one-line possible?do it 7.else: minimum code that works
 ladder runs AFTER understanding problem, not instead: trace real flow end-to-end first, climb only then
 bugfix=root cause not symptom: report names a symptom → grep ALL callers, fix shared fn once. one guard there < one patch per caller; patching only ticket's named path leaves sibling caller broken
- 
+
 Rules:
 - no unrequested abstractions (extraction threshold = SRP section below; this is the ladder's stance, that's the bar)
 - no new dep if avoidable | no unrequested boilerplate
@@ -14,11 +14,19 @@ Rules:
 - question complex requests: "need X, or does Y cover it?"
 - same-size stdlib options → pick edge-case-correct one; lazy=less code, not weaker algorithm
 - intentional shortcut → `ponytail:` comment; if it has a ceiling (global lock, O(n²), naive heuristic) name ceiling + upgrade path
+
 NOT lazy about: understanding the problem first (trace flow before picking rung — an unread diff is laziness in disguise), input validation at trust boundaries, error handling preventing data loss, security, accessibility, real-hardware calibration (platform≠spec ideal: clock drifts, sensor reads off), anything explicitly requested.
 non-trivial logic → leaves ONE runnable check behind (assert demo or small test file, no frameworks/fixtures); trivial one-liners need none.
 
 ## Project
 Roastery management desktop app (like Cropster): roast profile logging, roast history tracking, green bean inventory management.
+
+## Commands
+- dev: `pnpm tauri dev` (desktop; vite:1420 + sidecar) | web-only `pnpm dev`
+- build: `pnpm build` (frontend) | release `pnpm build:sidecar && pnpm tauri build` | local debug (macOS) `pnpm build:debug`
+- test: `pnpm test` (vitest) | sidecar `(cd src-tauri/sidecar && .venv/bin/python -m pytest tests/ -q)`
+- lint: `pnpm check` (biome; CI gate) | `pnpm lint` (eslint)
+- typecheck: `pnpm tsc --noEmit`
 
 ## External Services
 - Supabase: BaaS — auth, DB (roast records, inventory), Edge Functions (R2 presigned URL issuer)
@@ -26,14 +34,14 @@ Roastery management desktop app (like Cropster): roast profile logging, roast hi
 - Slack webhook: CI/CD notifications only (build/release success/failure)
 
 ## Security — Secrets
-- NO `VITE_*` prefix for any credential (access key, secret key, service role key) → bundled into client JS, extractable by anyone
+- NO `VITE_*` prefix for any credential (access key, secret key, service role key) → bundled into client JS, extractable by anyone. If a `VITE_*` secret is ever found in code: rotate the credential immediately, don't just remove the line
 - R2/S3 uploads from frontend: NO direct credentials → presigned URL only, issued by Supabase Edge Function
 - presigned URL: short expiry (≤5min), scoped to single key, validate user owns the resource before issuing
-- if a `VITE_*` secret is ever found in code: rotate the credential immediately, don't just remove the line
 
 # AGENT RULES
-- NO chat/greetings/summaries. Output ONLY precise code diffs (modified lines only).
-- Keep repomix-output.md updated via npx repomix --compress --remove-comments --remove-empty-lines --silent before/after code changes.- ALWAYS prefix all bash/shell commands with `rtk ` (e.g., `rtk ls`, `rtk git`, `rtk npm`).
+- When implementing/editing code: NO chat/greetings/summaries — output ONLY precise code diffs (modified lines only). (Reviews, evaluations, questions, and planning are exempt — answer normally.)
+- repomix-output.md: regenerate at session start and after large/structural changes (not every edit) via `rtk npx repomix --compress --remove-comments --remove-empty-lines --silent`.
+- ALWAYS prefix all bash/shell commands with `rtk ` (e.g., `rtk ls`, `rtk git`, `rtk npm`).
 - [Exception] Omit `rtk ` prefix ONLY if output compression breaks error debugging.
 
 ## Tauri v2
@@ -91,7 +99,7 @@ violations→split:
 
 split naming: name=reason-to-change, NO utils.ts/helpers.ts
 
-- prefer duplication over wrong abstraction
+- extraction threshold (ladder rung 2 says reuse what exists; this is when NEW shared code is justified):
   - extract only if: 3+ occurrences + same reason-to-change + none of below
   - bad-abstraction signals (1+ → don't extract/revert):
     type-branching grows w/ callers | one caller's change leaks to others | boolean flag param (isX/mode) forks behavior | generic name (handleData/process/util) | can't explain "why same" in 1 sentence
@@ -103,7 +111,7 @@ split naming: name=reason-to-change, NO utils.ts/helpers.ts
 | entities/ | Domain models & server state                         | api.ts, queries.ts, model.ts, types.ts |
 | features/ | Single user action (one feature = one mutation)      | use<Action>.ts, UI                     |
 | widgets/  | Composed blocks from multiple features               | modals, sidebar                        |
-| views/    | Orchestration only: compose widgets/features, no domain logic, no direct fetch | History.tsx, ActiveRoast.tsx |
+| views/    | Page-level composition only                          | History.tsx, ActiveRoast.tsx           |
 | app/      | Providers, router, global config                     | —                                      |
 
 ### Rules
