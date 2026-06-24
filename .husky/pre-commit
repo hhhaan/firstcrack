@@ -1,5 +1,8 @@
 #!/usr/bin/env sh
 . "$(dirname "$0")/_/husky.sh"
 
+# block commits where release files would desync versions (reads git index)
+node scripts/check-version-sync.mjs
+
 # biome check --write on staged files only; lint-staged re-stages auto-fixed files
 pnpm exec lint-staged
