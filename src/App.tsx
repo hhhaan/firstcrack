@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/react';
 import { supabase } from '@shared/lib/supabase';
 import { useCallback, useEffect, useState } from 'react';
+import { useRoastingStore } from './features/active-roast';
 import { useOAuthDeepLink } from './features/auth';
 import { useRoastSessionStore } from './shared/store/roastSession';
 import type { PlanBatchHandoff } from './shared/types/database.types';
@@ -42,6 +43,11 @@ export const App = () => {
     // Auto-updater: silent background download → system notification
     const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
     const { isDead: isSidecarDead } = useSidecarDeadListener();
+
+    // 로스팅 진행 중에는 재시작 버튼을 숨긴다 — 즉시 relaunch 시 라이브 세션이 소실되므로.
+    // 다운로드는 백그라운드에서 이미 완료되어, 로스팅 종료 후 앱을 다시 열면 자동 반영된다.
+    const roastPhase = useRoastingStore((s) => s.phase);
+    const isRoastIdle = roastPhase === 'idle';
 
     useEffect(() => {
         checkAndDownload();
@@ -221,7 +227,7 @@ export const App = () => {
                     </div>
                 )}
 
-                {state.status === 'ready' && (
+                {state.status === 'ready' && isRoastIdle && (
                     <button
                         type="button"
                         onClick={() => void applyAndRelaunch()}
