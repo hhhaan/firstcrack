@@ -270,6 +270,12 @@ verify_jwt = true
 [functions.get-download-url]
 verify_jwt = true
 
+[functions.create-polar-checkout]
+verify_jwt = true
+
+[functions.polar-webhook]
+verify_jwt = false
+
 # [functions.MY_FUNCTION_NAME]
 # enabled = true
 # verify_jwt = true

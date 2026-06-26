@@ -4,7 +4,7 @@ import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { Link, LogOut, User } from 'lucide-react';
+import { CreditCard, Link, LogOut, Settings, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 const SectionCard = ({ children }: { children: React.ReactNode }) => (
@@ -33,6 +33,7 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
     const [location, setLocation] = useState('');
     const [profileSaveStatus, setProfileSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [checkoutLoading, setCheckoutLoading] = useState(false);
 
     useEffect(() => {
         if (profile?.display_name) setDisplayName(profile.display_name);
@@ -84,6 +85,29 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
         saveTimerRef.current = setTimeout(() => setProfileSaveStatus('idle'), 2500);
     };
 
+    const handleUpgrade = async (priceId: string) => {
+        setCheckoutLoading(true);
+        try {
+            const { data, error } = await supabase.functions.invoke<{ url: string }>('create-polar-checkout', {
+                body: { priceId },
+            });
+            if (error || !data?.url) throw error;
+            await openUrl(data.url);
+        } catch (err) {
+            console.error('[AccountSettingsTab] checkout failed:', err);
+        } finally {
+            setCheckoutLoading(false);
+        }
+    };
+
+    const currentPlan = (profile?.plan ?? 'free') as string;
+
+    const plans = [
+        { key: 'free', name: 'Free', price: '$0', interval: '/mo', priceId: '' },
+        { key: 'pro', name: 'Pro', price: '$39', interval: '/mo', priceId: 'POLAR_PRO_PRICE_ID' },
+        { key: 'enterprise', name: 'Enterprise', price: '$89', interval: '/mo', priceId: 'POLAR_ENTERPRISE_PRICE_ID' },
+    ];
+
     return (
         <div className="grid gap-4">
             <SectionCard>
@@ -99,9 +123,6 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                             {displayName || '—'}
                         </div>
                         <div className="text-[13px] text-[#6B7280] dark:text-[#999] mt-1">{user?.email || '—'}</div>
-                        <span className="inline-block mt-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-palette-lavender/12 text-palette-lavender capitalize">
-                            {profile?.plan ?? 'free'}
-                        </span>
                     </div>
                 </div>
 
@@ -179,6 +200,76 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                     {profileSaveStatus === 'error' && (
                         <span className="text-[13px] text-red-600 dark:text-red-400 font-medium">Failed to save</span>
                     )}
+                </div>
+            </SectionCard>
+
+            <SectionCard>
+                <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-4">Plan & Usage</h4>
+                <div className="grid grid-cols-3 gap-3">
+                    {plans.map((p) => {
+                        const isActive = currentPlan === p.key;
+                        return (
+                            <div
+                                key={p.key}
+                                className={`rounded-xl p-4 border ${
+                                    isActive
+                                        ? 'border-palette-lavender/40 bg-palette-lavender/[0.06] dark:bg-palette-lavender/[0.08]'
+                                        : 'border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#262b31]'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="text-[10px] font-semibold tracking-wider text-[#9CA3AF] dark:text-[#666] uppercase">
+                                        {isActive ? 'Current' : p.key === 'free' ? 'Free' : 'Available'}
+                                    </div>
+                                    {isActive && (
+                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-palette-lavender/15 text-palette-lavender">
+                                            ★
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-baseline gap-1.5 mb-1">
+                                    <span className="text-[18px] font-bold text-[#111827] dark:text-[#e5e5e5]">
+                                        {p.name}
+                                    </span>
+                                    <span className="text-[13px] text-[#6B7280] dark:text-[#999]">
+                                        {p.price}
+                                        {p.interval}
+                                    </span>
+                                </div>
+                                {p.key === 'free' && (
+                                    <div className="text-[12px] text-[#6B7280] dark:text-[#999] mb-3">Free forever</div>
+                                )}
+                                {p.key === 'pro' && (
+                                    <div className="text-[12px] text-[#6B7280] dark:text-[#999] mb-3">
+                                        Full access to all features
+                                    </div>
+                                )}
+                                {p.key === 'enterprise' && (
+                                    <div className="text-[12px] text-[#6B7280] dark:text-[#999] mb-3">
+                                        Priority support & custom limits
+                                    </div>
+                                )}
+                                {isActive ? (
+                                    <button
+                                        disabled
+                                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] text-[12px] font-medium text-[#6B7280] dark:text-[#999] cursor-default"
+                                    >
+                                        <Settings size={12} strokeWidth={2} />
+                                        Current
+                                    </button>
+                                ) : p.key === 'free' ? null : (
+                                    <button
+                                        onClick={() => handleUpgrade(p.priceId)}
+                                        disabled={checkoutLoading}
+                                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-palette-lavender text-white text-[12px] font-semibold hover:opacity-90 active:opacity-80 disabled:opacity-50 transition-all cursor-pointer"
+                                    >
+                                        <CreditCard size={12} strokeWidth={2} />
+                                        {checkoutLoading ? 'Redirecting…' : 'Upgrade'}
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             </SectionCard>
 
