@@ -23,10 +23,18 @@ export const useRoastSession = (id: string) =>
         enabled: !!id,
     });
 
+const is4xx = (error: unknown) => {
+    if (!error || typeof error !== 'object') return false;
+    const status =
+        (error as Record<string, unknown>).status ?? (error as { response?: { status?: unknown } }).response?.status;
+    return typeof status === 'number' && status >= 400 && status < 500;
+};
+
 export const useCreateRoastSession = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: roastSessionApi.create,
+        retry: (failureCount, error) => !is4xx(error) && failureCount < 3,
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
             qc.invalidateQueries({ queryKey: ['dashboard', userId] });

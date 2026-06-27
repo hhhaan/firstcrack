@@ -4,6 +4,7 @@ import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
+import { BaseDirectory, remove } from '@tauri-apps/plugin-fs';
 import { useCallback, useMemo } from 'react';
 import { type BuildSavePayloadParams, buildRoastSavePayload } from '../lib/build-roast-save-payload';
 import { determineStockDeduction } from '../lib/determine-stock-deduction';
@@ -55,6 +56,10 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
             );
 
             const savedSession = await saveRoastSession(payload);
+
+            if (sessionId && '__TAURI_INTERNALS__' in window) {
+                remove(`session_${sessionId}.tsv`, { baseDir: BaseDirectory.AppLocalData }).catch(() => {});
+            }
 
             const newCompletedCount = (planBatchHandoff?.completedSessions ?? 0) + 1;
             const isNowBatchDone = planBatchHandoff != null && newCompletedCount >= planBatchHandoff.batchCount;
