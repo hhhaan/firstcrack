@@ -1,3 +1,0 @@
-{"type":"entity","name":"RoasteryProject","entityType":"Project","observations":["커피 로스터리 Tauri 앱","Python sidecar + React UI","MCP Memory 서버 사용"]}
-{"type":"entity","name":"MCPMemoryServer","entityType":"MCPServer","observations":["@modelcontextprotocol/server-memory","MEMORY_FILE_PATH: memory.jsonl","현재 빈 그래프"]}
-{"type":"relation","from":"RoasteryProject","to":"MCPMemoryServer","relationType":"uses"}

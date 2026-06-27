@@ -73,4 +73,6 @@ repomix-output.xml
 
 .cursor/
 
-.gstack/
+# Agent/local tooling
+.commandcode/
+memory.jsonl
