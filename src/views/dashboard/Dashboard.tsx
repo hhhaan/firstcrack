@@ -31,7 +31,7 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 loading={db.loading}
             />
 
-            <div className="grid grid-cols-[1fr_320px] gap-5 mb-5">
+            <div className="grid grid-cols-[1fr_350px] gap-5 mb-5">
                 <RecentSessionsTable data={db.recentSessions} loading={db.loading} onNavigate={onNavigate} />
                 <MonthlyChartSection
                     monthlyBatches={db.monthlyBatches}

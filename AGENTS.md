@@ -31,23 +31,15 @@ Roastery management desktop app (like Cropster): roast profile logging, roast hi
 - fix: `pnpm check:fix` | `types:gen` after DB schema migration
 
 ## Versioning
-Single source of truth: `tauri.conf.json > version`. Always bump all three manifests atomically — never edit one file manually.
-
-**Bump command** (updates `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` in one shot):
+SSoT: `tauri.conf.json > version`. Bump all 3 atomically (`package.json`, `tauri.conf.json`, `Cargo.toml`):
 ```bash
-pnpm version:bump <major.minor.patch>   # e.g. pnpm version:bump 1.0.11
-```
-
-**Release flow:**
-```bash
-pnpm version:bump 1.0.11
+pnpm version:bump <major.minor.patch>
 git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
-git commit -m "chore(release): bump version to 1.0.11"
-git tag v1.0.11
-git push origin main && git push origin v1.0.11
+git commit -m "chore(release): bump version to <version>"
+git tag v<version>
+git push origin main && git push origin v<version>
 ```
-
-CI's "Sync version across manifests" step overwrites all three files from the tag/input version — so if local bump is skipped, CI still builds the correct version. The tag is the final authority.
+CI "Sync version across manifests" overwrites from tag — tag is final authority.
 
 ## Automation
 | When | What runs | Auto-fix? |
@@ -63,14 +55,15 @@ CI's "Sync version across manifests" step overwrites all three files from the ta
 - Slack webhook: CI/CD notifications only (build/release success/failure)
 
 ## Security — Secrets
-- NO `VITE_*` prefix for any credential (access key, secret key, service role key) → bundled into client JS, extractable by anyone. If a `VITE_*` secret is ever found in code: rotate the credential immediately, don't just remove the line
-- R2/S3 uploads from frontend: NO direct credentials → presigned URL only, issued by Supabase Edge Function
-- presigned URL: short expiry (≤5min), scoped to single key, validate user owns the resource before issuing
+- NO `VITE_*` prefix for any secret → bundled into client JS, extractable. If found: rotate immediately, don't just remove
+- R2/S3 from frontend: NO direct credentials → presigned URL only (issued by Edge Function)
+- presigned URL: ≤5min expiry, scoped to single key, validate user ownership
 
 # AGENT RULES
 - When implementing/editing code: NO chat/greetings/summaries — output ONLY precise code diffs (modified lines only). (Reviews, evaluations, questions, and planning are exempt — answer normally.)
 - repomix-output.xml: regenerate at session start and after large/structural changes (not every edit) via `rtk npx repomix --compress --remove-comments --remove-empty-lines --silent`.
 - ALWAYS prefix all bash/shell commands with `rtk ` (e.g., `rtk ls`, `rtk git`, `rtk npm`).
+- Commit: `git add` → `rtk gen-cmt` (no manual commit messages).
 - [Exception] Omit `rtk ` prefix ONLY if output compression breaks error debugging.
 
 ## Tauri v2

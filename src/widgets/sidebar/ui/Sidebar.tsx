@@ -53,7 +53,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
 
     return (
         <aside
-            className="shrink-0 h-screen bg-main-bg border-r border-border dark:border-[#585d61] flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out"
+            className="shrink-0 h-full bg-main-bg border-r border-border dark:border-[#585d61] flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out"
             style={{ width: collapsed ? 68 : 240 }}
         >
             {/* Header */}

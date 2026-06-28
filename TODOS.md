@@ -185,25 +185,6 @@ npm install -D vitest @testing-library/react @testing-library/user-event
 
 ## CRITICAL — 프로덕션 배포 전 필수
 
-### [T36] Apple 코드 사이닝 & 노타리제이션 시크릿 설정
-
-**What:** GitHub 레포 Settings → Secrets and variables → Actions에 아래 6개 시크릿 추가.
-
-| 시크릿 이름 | 내용 |
-|------------|------|
-| `APPLE_CERTIFICATE` | .p12 인증서를 base64로 인코딩한 값 (`base64 -i cert.p12 \| pbcopy`) |
-| `APPLE_CERTIFICATE_PASSWORD` | .p12 인증서 비밀번호 |
-| `APPLE_SIGNING_IDENTITY` | `Developer ID Application: 이름 (TEAMID)` 형식 |
-| `APPLE_ID` | Apple Developer 계정 이메일 |
-| `APPLE_PASSWORD` | 앱 전용 비밀번호 (appleid.apple.com → App-Specific Passwords) |
-| `APPLE_TEAM_ID` | Apple Developer Team ID (10자리, developer.apple.com에서 확인) |
-
-**Why:** 시크릿 없이 배포 시 macOS Gatekeeper가 앱 실행 차단. 일반 사용자가 우회 불가.
-**Status:** 워크플로우 코드는 준비 완료. 시크릿 값만 입력하면 즉시 적용.
-**Depends on:** Apple Developer Program 가입 완료 ✅
-
----
-
 ### [T1] manager + HTTP API pytest 테스트
 
 **What:** pytest로 manager.py, HTTP 엔드포인트, RoR 계산 단위 테스트 작성.
@@ -225,12 +206,6 @@ npm install -D vitest @testing-library/react @testing-library/user-event
 **Cons:** 큰 작업 (human: ~4시간), 동작에는 무관, 하드웨어 테스트와 병행 어려움.
 **Context:** ActiveRoast.tsx가 가장 크고 복잡. Machines.tsx, AddMachineModal.tsx는 상대적으로 작음.
 **Depends on:** 없음
-
-### [T3] Shadow 제거 및 Border 스타일 전환 — Views/Widgets ✅ 완료, 모달 [T3.1] 잔여
-
-**완료:** Views (Dashboard, Machines, Profiles, History, Bean Inventory, Active Roast, Schedule) 및 Widgets (BeanList, BeanDetail, RoastSummaryModal, EndRoastModal, LiveReadings, RoastHeader) shadow 제거 및 `border border-[#E5E5E5]` 통일.
-
-**미완료:** ⏳ [T3.1] 모든 모달 스타일 전환 필요
 
 ### [T3.1] 모달 스타일 전환 — Shadow 제거 및 Border 통일
 
@@ -264,15 +239,6 @@ npm install -D vitest @testing-library/react @testing-library/user-event
 **Context:** control write 구현 시 함께 처리. adapters/base.py에 control() 기본 구현 추가하고 각 어댑터가 override하는 패턴.
 **Depends on:** control write 구현 결정
 
-### [T5] Machine identity 개선 — roasterKey 중복 문제
-
-**What:** Machines.tsx의 isThisMachineConnected()가 roasterKey뿐 아니라 실제 연결된 머신을 구분하도록 개선.
-**Why:** 같은 브랜드/모델 2대 (IP 다름)를 등록하면 둘 다 "connected" 표시. 현장에서 2대 이상 운영 시 혼란.
-**Pros:** 올바른 연결 상태 표시.
-**Cons:** sidecar API 변경 필요 (GET /status에 machine_id 또는 connection hash 추가).
-**Context:** 가장 간단한 방법: POST /connect 시 machine_id(localStorage ID)를 body에 포함, GET /status에서 반환. Machines.tsx에서 m.id === sidecarStatus.machine_id로 비교.
-**Depends on:** 없음
-
 ### [T30] 온보딩 가이드 구현 (driver.js 또는 React Joyride 활용)
 
 **What:** `driver.js` 또는 `React Joyride`를 사용하여 앱의 주요 기능(머신 연결, 로스팅 시작, 프로파일 관리 등)에 대한 인터랙티브 튜토리얼 구현.
@@ -285,17 +251,36 @@ npm install -D vitest @testing-library/react @testing-library/user-event
 4. 단계별 설명 및 하이라이트 영역 지정
    **Depends on:** 없음
 
-### [T31] Active Roast에서 원두(Bean) 선택 기능 구현
+### [T31] Charge 전 원두/프로파일 강제 선택 모달
 
-**What:** 로스팅 시작 전 또는 도중에 해당 배치의 원두(Bean)를 선택할 수 있는 UI 구현 (Profiles 선택과 유사한 방식).
-**Why:** 로스팅 기록 저장 시 원두 정보(이름, 원산지, 재고 등)를 자동으로 연동하여 이력 관리를 자동화하기 위함. 현재는 프로파일만 선택 가능.
+**What:** Charge 버튼 클릭 시 원두(Bean) 또는 프로파일(Profile)이 선택되지 않은 상태면 선택 모달을 띄우고, 선택 후에만 Charge 진행.
+
+**Why:** 
+- 저장할 때 bean_id/profile_id가 항상 존재하도록 보장
+- 로스팅 중 타겟 커브 오버레이 표시 가능 (profile 필요)
+- 재고 차감(StockDeductModal)이 정상 동작하려면 bean_id 필수
+- 사용자가 로스팅 후 "무슨 원두였지?" 기억할 필요 없음
+
+**Current status:** RoastHeader의 드롭다운은 이미 구현됨 (`useRoastProfileSelection`). 부족한 건 "없으면 막는" 검사.
+
 **How:**
 
-1. `ActiveRoast` 헤더(`RoastHeader`)에 원두 선택 드롭다운 또는 셀렉터 추가.
-2. `Beans` 인벤토리 데이터(Supabase 또는 Local)에서 현재 재고가 있는 원두 목록 로드.
-3. 원두 선택 시 해당 배치의 메타데이터로 설정하고, 로스팅 종료 후 저장 시 `roast_sessions` 테이블의 `bean_id`와 연동.
-4. 원두 선택에 따른 투입량(Green Weight) 입력 UI 병행 검토 (D1 관련).
-   **Depends on:** D1 (로스트 저장 구조)
+1. `useRoastLifecycle.ts` 또는 Charge 핸들러에 검사 추가
+   - `selectedBeanId === null && handoff 없으면` → 모달 오픈 (Charge 진행 중단)
+   - `targetProfileId === null` → 모달 오픈 (하나만 null이면 해당 항목만 표시)
+2. `PreChargeSelectionModal` 신규 생성
+   - Bean 드롭다운: `useBeans()` 로드, 현재 stock > 0 인 항목 우선
+   - Profile 드롭다운: `useProfiles()` 로드
+   - "선택 안 함" 허용 여부 → 프로파일은 허용(커브 없이 시작), 원두는 필수(저장/재고 위해)
+   - 선택 완료 시 `useRoastProfileSelection.setBean/profile` 호출
+3. **ponytail:** 모달은 기존 `RoastHeader`의 드롭다운 로직 재사용. 새로 만드는 건 `PreChargeSelectionModal.tsx` 하나 + `useRoastLifecycle.ts`에 `if` 조건 하나.
+
+**구현 순서:**
+1. `PreChargeSelectionModal.tsx` 생성
+2. `useRoastLifecycle.ts` Charge 직전 검사 조건 추가
+3. 검증: 원두 선택 안 한 상태로 Charge → 모달 뜸 → 선택 후 Charge 진행됨
+
+**Depends on:** 없음
 
 ---
 
@@ -382,8 +367,6 @@ npm install -D vitest @testing-library/react @testing-library/user-event
 1. **Machines → Roast**: 연결 성공(`handleConnect` 완료) 후 "Start Roasting" 토스트/버튼이 없음. `Machines`에 `onNavigate` prop 추가 후, connect 성공 시 `onNavigate('roast')` 유도 UI 제공.
 2. **Dashboard → Beans (Inventory Alerts)**: Inventory Alerts 카드의 각 항목 클릭 시 Beans 뷰로 이동하지 않음. 항목에 `onClick={() => onNavigate('beans')}` 추가.
 3. **Dashboard → Roast (Upcoming Batches)**: Upcoming Batches 항목에 "Start" 버튼이 없음. 각 항목에 roast 뷰로 이동하는 액션 추가.
-
-**참고:** Profiles → Roast ("Start with this Profile") 는 2026-05-04 완료.
 
 **Why:** 사용자가 자연스러운 워크플로우(머신 연결 → 로스팅 시작, 원두 재고 확인 → 로스팅)를 따를 수 없어 매번 사이드바를 통해 직접 탭 전환 필요.
 **Depends on:** 없음

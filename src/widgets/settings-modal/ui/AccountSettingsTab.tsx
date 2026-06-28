@@ -4,14 +4,12 @@ import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { CreditCard, Link, LogOut, Settings, User } from 'lucide-react';
+import { CreditCard, Link, LogOut, Settings, Star, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-const SectionCard = ({ children }: { children: React.ReactNode }) => (
-    <section className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
-        {children}
-    </section>
-);
+type AccountSettingsTabProps = {
+    onClose: () => void;
+};
 
 const inputCls =
     'w-full px-3.5 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#262b31] text-[14px] text-[#111827] dark:text-[#e5e5e5] font-normal outline-none focus:border-[#111827] dark:focus:border-[#666] focus:ring-1 focus:ring-[#111827] dark:focus:ring-[#666] transition-colors placeholder:text-[#9CA3AF] dark:placeholder:text-[#666]';
@@ -22,30 +20,200 @@ const readonlyInputCls =
 const primaryBtnCls =
     'px-4 py-2.5 rounded-lg bg-[#111827] dark:bg-[#e5e5e5] text-white dark:text-[#111827] text-[13px] font-semibold border hover:opacity-90 active:opacity-80 disabled:opacity-50 transition-all cursor-pointer';
 
-export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
+function SectionCard({ children }: { children: React.ReactNode }) {
+    return (
+        <section className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
+            {children}
+        </section>
+    );
+}
+
+type InputFieldProps = {
+    label: string;
+    value: string;
+    onValueChange?: (value: string) => void;
+    readOnly?: boolean;
+    type?: string;
+    placeholder?: string;
+    right?: React.ReactNode;
+};
+
+function InputField({
+    label,
+    value,
+    onValueChange,
+    readOnly = false,
+    type = 'text',
+    placeholder,
+    right,
+}: InputFieldProps) {
+    return (
+        <div>
+            <label className="block text-[13px] font-medium text-[#374151] dark:text-[#ccc] mb-1.5">
+                {label}
+                {right}
+            </label>
+            <input
+                type={type}
+                value={value}
+                readOnly={readOnly}
+                placeholder={placeholder}
+                onChange={onValueChange ? (e) => onValueChange(e.target.value) : undefined}
+                className={readOnly ? readonlyInputCls : inputCls}
+            />
+        </div>
+    );
+}
+
+type Plan = {
+    key: string;
+    name: string;
+    price: string;
+    interval: string;
+    priceId: string;
+    description: string;
+};
+
+const PLANS: Plan[] = [
+    { key: 'free', name: 'Free', price: '$0', interval: '/mo', priceId: '', description: 'Free forever' },
+    {
+        key: 'pro',
+        name: 'Pro',
+        price: '$39',
+        interval: '/mo',
+        priceId: 'POLAR_PRO_PRICE_ID',
+        description: 'Full access to all features',
+    },
+    {
+        key: 'enterprise',
+        name: 'Enterprise',
+        price: '$89',
+        interval: '/mo',
+        priceId: 'POLAR_ENTERPRISE_PRICE_ID',
+        description: 'Priority support & custom limits',
+    },
+];
+
+type PlanCardProps = {
+    plan: Plan;
+    isActive: boolean;
+    checkoutLoading: boolean;
+    onUpgrade: (priceId: string) => void;
+};
+
+function getPlanBadgeLabel(isActive: boolean, planKey: string): string {
+    if (isActive) return 'Current';
+    if (planKey === 'free') return 'Free';
+    return 'Available';
+}
+
+function PlanActionButton({ plan, isActive, checkoutLoading, onUpgrade }: PlanCardProps) {
+    if (isActive) {
+        return (
+            <button
+                type="button"
+                disabled
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] text-[12px] font-medium text-[#6B7280] dark:text-[#999] cursor-default"
+            >
+                <Settings size={12} strokeWidth={2} />
+                Current
+            </button>
+        );
+    }
+
+    if (plan.key === 'free') {
+        return null;
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={() => onUpgrade(plan.priceId)}
+            disabled={checkoutLoading}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-palette-lavender text-white text-[12px] font-semibold hover:opacity-90 active:opacity-80 disabled:opacity-50 transition-all cursor-pointer"
+        >
+            <CreditCard size={12} strokeWidth={2} />
+            {checkoutLoading ? 'Redirecting…' : 'Upgrade'}
+        </button>
+    );
+}
+
+function PlanCard({ plan, isActive, checkoutLoading, onUpgrade }: PlanCardProps) {
+    const badgeLabel = getPlanBadgeLabel(isActive, plan.key);
+    const cardBorder = isActive
+        ? 'border-palette-lavender/40 bg-palette-lavender/[0.06] dark:bg-palette-lavender/[0.08]'
+        : 'border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#262b31]';
+
+    return (
+        <div className={`rounded-xl p-4 border ${cardBorder}`}>
+            <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] font-semibold tracking-wider text-[#9CA3AF] dark:text-[#666] uppercase">
+                    {badgeLabel}
+                </div>
+                {isActive && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-palette-lavender/15 text-palette-lavender">
+                        <Star size={10} fill="currentColor" />
+                    </span>
+                )}
+            </div>
+
+            <div className="flex items-baseline gap-1.5 mb-1">
+                <span className="text-[18px] font-bold text-[#111827] dark:text-[#e5e5e5]">{plan.name}</span>
+                <span className="text-[13px] text-[#6B7280] dark:text-[#999]">
+                    {plan.price}
+                    {plan.interval}
+                </span>
+            </div>
+            <div className="text-[12px] text-[#6B7280] dark:text-[#999] mb-3">{plan.description}</div>
+
+            <PlanActionButton plan={plan} isActive={isActive} checkoutLoading={checkoutLoading} onUpgrade={onUpgrade} />
+        </div>
+    );
+}
+
+function GoogleIcon() {
+    return (
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+            />
+            <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            />
+            <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+            />
+            <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+            />
+        </svg>
+    );
+}
+
+export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
     const qc = useQueryClient();
     const user = useAuthStore((s) => s.user);
     const { data: profile } = useProfile(user?.id ?? '');
     const updateProfile = useUpdateProfile(user?.id ?? '');
+
     const [displayName, setDisplayName] = useState('');
     const [businessName, setBusinessName] = useState('');
     const [businessRegNumber, setBusinessRegNumber] = useState('');
     const [location, setLocation] = useState('');
     const [profileSaveStatus, setProfileSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
-    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [checkoutLoading, setCheckoutLoading] = useState(false);
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
-        if (profile?.display_name) setDisplayName(profile.display_name);
-    }, [profile?.display_name]);
-
-    useEffect(() => {
-        if (profile?.business_name) setBusinessName(profile.business_name);
-    }, [profile?.business_name]);
-
-    useEffect(() => {
-        if (profile?.business_registration_number) setBusinessRegNumber(profile.business_registration_number);
-    }, [profile?.business_registration_number]);
+        if (!profile) return;
+        if (profile.display_name) setDisplayName(profile.display_name);
+        if (profile.business_name) setBusinessName(profile.business_name);
+        if (profile.business_registration_number) setBusinessRegNumber(profile.business_registration_number);
+    }, [profile]);
 
     useEffect(() => {
         locationStore
@@ -101,12 +269,7 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
     };
 
     const currentPlan = (profile?.plan ?? 'free') as string;
-
-    const plans = [
-        { key: 'free', name: 'Free', price: '$0', interval: '/mo', priceId: '' },
-        { key: 'pro', name: 'Pro', price: '$39', interval: '/mo', priceId: 'POLAR_PRO_PRICE_ID' },
-        { key: 'enterprise', name: 'Enterprise', price: '$89', interval: '/mo', priceId: 'POLAR_ENTERPRISE_PRICE_ID' },
-    ];
+    const avatarInitial = (displayName || user?.email || '').charAt(0).toUpperCase();
 
     return (
         <div className="grid gap-4">
@@ -115,7 +278,7 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                 <div className="flex items-center gap-4 mb-5">
                     <div className="relative shrink-0">
                         <div className="w-16 h-16 rounded-full bg-[#111827] dark:bg-[#262B31] flex items-center justify-center text-2xl font-semibold text-white select-none">
-                            {(displayName || user?.email || '').charAt(0).toUpperCase()}
+                            {avatarInitial}
                         </div>
                     </div>
                     <div>
@@ -127,51 +290,31 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                 </div>
 
                 <div className="grid gap-3">
-                    <div>
-                        <label className="block text-[13px] font-medium text-[#374151] dark:text-[#ccc] mb-1.5">
-                            Display name
-                        </label>
-                        <input
-                            type="text"
-                            value={displayName}
-                            onChange={(e) => setDisplayName(e.target.value)}
-                            placeholder="Your name"
-                            className={inputCls}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-[13px] font-medium text-[#374151] dark:text-[#ccc] mb-1.5">
-                            Business name
-                        </label>
-                        <input
-                            type="text"
-                            value={businessName}
-                            onChange={(e) => setBusinessName(e.target.value)}
-                            placeholder="Your business name"
-                            className={inputCls}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-[13px] font-medium text-[#374151] dark:text-[#ccc] mb-1.5">
-                            Business registration number
-                        </label>
-                        <input
-                            type="text"
-                            value={businessRegNumber}
-                            onChange={(e) => setBusinessRegNumber(e.target.value)}
-                            placeholder="000-00-00000"
-                            className={inputCls}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-[13px] font-medium text-[#374151] dark:text-[#ccc] mb-1.5">
-                            Email
-                        </label>
-                        <input type="email" value={user?.email ?? ''} readOnly className={readonlyInputCls} />
-                    </div>
-                    <div>
-                        <label className="block text-[13px] font-medium text-[#374151] dark:text-[#ccc] mb-1.5">
-                            Location
+                    <InputField
+                        label="Display name"
+                        value={displayName}
+                        onValueChange={setDisplayName}
+                        placeholder="Your name"
+                    />
+                    <InputField
+                        label="Business name"
+                        value={businessName}
+                        onValueChange={setBusinessName}
+                        placeholder="Your business name"
+                    />
+                    <InputField
+                        label="Business registration number"
+                        value={businessRegNumber}
+                        onValueChange={setBusinessRegNumber}
+                        placeholder="000-00-00000"
+                    />
+                    <InputField label="Email" value={user?.email ?? ''} readOnly type="email" />
+                    <InputField
+                        label="Location"
+                        value={location}
+                        onValueChange={setLocation}
+                        placeholder="36.632661, 127.464867"
+                        right={
                             <button
                                 type="button"
                                 onClick={() => openUrl('https://maps.google.com')}
@@ -179,15 +322,8 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                             >
                                 Google Maps에서 복사
                             </button>
-                        </label>
-                        <input
-                            type="text"
-                            value={location}
-                            onChange={(e) => setLocation(e.target.value)}
-                            placeholder="36.632661, 127.464867"
-                            className={inputCls}
-                        />
-                    </div>
+                        }
+                    />
                 </div>
 
                 <div className="flex items-center gap-3 mt-4">
@@ -204,72 +340,17 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
             </SectionCard>
 
             <SectionCard>
-                <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-4">Plan & Usage</h4>
+                <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-4">Current Plan</h4>
                 <div className="grid grid-cols-3 gap-3">
-                    {plans.map((p) => {
-                        const isActive = currentPlan === p.key;
-                        return (
-                            <div
-                                key={p.key}
-                                className={`rounded-xl p-4 border ${
-                                    isActive
-                                        ? 'border-palette-lavender/40 bg-palette-lavender/[0.06] dark:bg-palette-lavender/[0.08]'
-                                        : 'border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#262b31]'
-                                }`}
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="text-[10px] font-semibold tracking-wider text-[#9CA3AF] dark:text-[#666] uppercase">
-                                        {isActive ? 'Current' : p.key === 'free' ? 'Free' : 'Available'}
-                                    </div>
-                                    {isActive && (
-                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-palette-lavender/15 text-palette-lavender">
-                                            ★
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-baseline gap-1.5 mb-1">
-                                    <span className="text-[18px] font-bold text-[#111827] dark:text-[#e5e5e5]">
-                                        {p.name}
-                                    </span>
-                                    <span className="text-[13px] text-[#6B7280] dark:text-[#999]">
-                                        {p.price}
-                                        {p.interval}
-                                    </span>
-                                </div>
-                                {p.key === 'free' && (
-                                    <div className="text-[12px] text-[#6B7280] dark:text-[#999] mb-3">Free forever</div>
-                                )}
-                                {p.key === 'pro' && (
-                                    <div className="text-[12px] text-[#6B7280] dark:text-[#999] mb-3">
-                                        Full access to all features
-                                    </div>
-                                )}
-                                {p.key === 'enterprise' && (
-                                    <div className="text-[12px] text-[#6B7280] dark:text-[#999] mb-3">
-                                        Priority support & custom limits
-                                    </div>
-                                )}
-                                {isActive ? (
-                                    <button
-                                        disabled
-                                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] text-[12px] font-medium text-[#6B7280] dark:text-[#999] cursor-default"
-                                    >
-                                        <Settings size={12} strokeWidth={2} />
-                                        Current
-                                    </button>
-                                ) : p.key === 'free' ? null : (
-                                    <button
-                                        onClick={() => handleUpgrade(p.priceId)}
-                                        disabled={checkoutLoading}
-                                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-palette-lavender text-white text-[12px] font-semibold hover:opacity-90 active:opacity-80 disabled:opacity-50 transition-all cursor-pointer"
-                                    >
-                                        <CreditCard size={12} strokeWidth={2} />
-                                        {checkoutLoading ? 'Redirecting…' : 'Upgrade'}
-                                    </button>
-                                )}
-                            </div>
-                        );
-                    })}
+                    {PLANS.map((plan) => (
+                        <PlanCard
+                            key={plan.key}
+                            plan={plan}
+                            isActive={currentPlan === plan.key}
+                            checkoutLoading={checkoutLoading}
+                            onUpgrade={handleUpgrade}
+                        />
+                    ))}
                 </div>
             </SectionCard>
 
@@ -292,24 +373,7 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
                             <div className="text-[12px] text-[#6B7280] dark:text-[#999] truncate">{user.email}</div>
                         </div>
                         <div className="flex items-center gap-1.5 text-[12px] text-green-600 dark:text-green-400 font-medium shrink-0">
-                            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-                                <path
-                                    fill="#4285F4"
-                                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                                />
-                                <path
-                                    fill="#34A853"
-                                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                                />
-                                <path
-                                    fill="#FBBC05"
-                                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                                />
-                                <path
-                                    fill="#EA4335"
-                                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                                />
-                            </svg>
+                            <GoogleIcon />
                             <Link size={13} strokeWidth={2} />
                             Connected
                         </div>
@@ -351,4 +415,4 @@ export const AccountSettingsTab = ({ onClose }: { onClose: () => void }) => {
             </SectionCard>
         </div>
     );
-};
+}
