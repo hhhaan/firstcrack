@@ -1,5 +1,5 @@
 import { useUpdatePlanBatch } from '@entities/plan';
-import { useCreateRoastSession } from '@entities/roast';
+import { useCreateRoastSession, useUpdateRoastSession } from '@entities/roast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
@@ -27,6 +27,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
     const userId = user?.id ?? '';
 
     const { mutateAsync: saveRoastSession, isPending: isSaving } = useCreateRoastSession(userId);
+    const { mutateAsync: updateSessionTsv } = useUpdateRoastSession(userId);
     const uploadRoastProfileTsv = useUploadRoastProfile();
     const { mutateAsync: updatePlanBatch } = useUpdatePlanBatch(planBatchHandoff?.planId ?? '');
     const incrementCompletedSession = useRoastSessionStore((s) => s.incrementCompletedSession);
@@ -39,17 +40,9 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
 
             const { formData, handoffBeanName, sessionId, ...payloadParams } = params;
 
-            let tsvPath: string | null = null;
-            if (sessionId) {
-                try {
-                    tsvPath = await uploadRoastProfileTsv(sessionId);
-                } catch (err) {
-                    console.error('[saveRoast] TSV upload failed, saving session without profile:', err);
-                }
-            }
-
             const weightGrams = Math.round(formData.weightGrams * 1000);
 
+            // 1. DB 먼저 저장 (TSV 없이)
             const payload = buildRoastSavePayload(
                 {
                     ...payloadParams,
@@ -58,13 +51,25 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                     saveLevel: formData.roastLevel,
                     notes: formData.notes,
                 },
-                tsvPath,
+                null,
             );
 
             const savedSession = await saveRoastSession(payload);
 
-            if (sessionId && '__TAURI_INTERNALS__' in window) {
-                remove(`session_${sessionId}.tsv`, { baseDir: BaseDirectory.AppLocalData }).catch(() => {});
+            // 2. 세션 저장 후 TSV 업로드 (실패해도 세션은 유지)
+            if (sessionId) {
+                try {
+                    const tsvPath = await uploadRoastProfileTsv(sessionId);
+                    if (tsvPath) {
+                        await updateSessionTsv({ id: savedSession.id, tsv_path: tsvPath });
+                    }
+                } catch (err) {
+                    console.error('[saveRoast] TSV upload failed, session saved without profile:', err);
+                } finally {
+                    if ('__TAURI_INTERNALS__' in window) {
+                        remove(`session_${sessionId}.tsv`, { baseDir: BaseDirectory.AppLocalData }).catch(() => {});
+                    }
+                }
             }
 
             const newCompletedCount = (planBatchHandoff?.completedSessions ?? 0) + 1;
