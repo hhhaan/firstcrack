@@ -26,7 +26,6 @@ export const useRoastProfiles = (userId: string) =>
     useQuery({
         queryKey: roastProfileKeys.all(userId),
         queryFn: () => roastProfileApi.list(userId),
-        staleTime: 30_000,
         enabled: !!userId,
     });
 

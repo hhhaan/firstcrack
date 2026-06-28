@@ -69,7 +69,9 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
             incrementCompletedSession();
 
             if (isNowBatchDone && planBatchHandoff) {
-                await updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' });
+                updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' }).catch((err) =>
+                    console.error('[saveRoast] batch status update failed:', err),
+                );
             }
 
             const deductionPlan = determineStockDeduction({

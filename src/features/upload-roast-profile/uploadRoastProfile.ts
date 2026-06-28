@@ -18,6 +18,7 @@ export const uploadRoastProfile = async (sessionId: string, userId: string): Pro
         method: 'PUT',
         body: tsvContent,
         headers: { 'Content-Type': 'text/tab-separated-values' },
+        signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
         const text = await res.text().catch(() => '');
