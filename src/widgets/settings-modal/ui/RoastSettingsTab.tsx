@@ -5,6 +5,7 @@ import {
     updateRoastSettings,
     useRoastSettings,
 } from '@features/active-roast';
+import { SectionCard } from '@shared/ui/SectionCard';
 
 const temperatureOptions: TemperatureUnit[] = ['C', 'F'];
 const pollOptions: PollIntervalMs[] = [500, 1000];
@@ -106,12 +107,6 @@ const RangeRow = ({
             <NumberInput value={maxVal} onChange={onMaxChange} min={minVal + 1} max={max} suffix={suffix} />
         </div>
     </div>
-);
-
-const SectionCard = ({ children }: { children: React.ReactNode }) => (
-    <section className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
-        {children}
-    </section>
 );
 
 const CheckboxRow = ({ checked, label, onChange }: { checked: boolean; label: string; onChange: () => void }) => (

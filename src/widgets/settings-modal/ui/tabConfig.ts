@@ -73,56 +73,7 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
                 },
             ],
         },
-        // {
-        //     id: 'session',
-        //     label: tk('session', 'label'),
-        //     icon: PlayCircle,
-        //     title: tk('session', 'title'),
-        //     description: tk('session', 'description'),
-        //     cards: [
-        //         {
-        //             title: tk('session', 'startTitle'),
-        //             description: tk('session', 'startDescription'),
-        //             items: [
-        //                 tk('session', 'autoStartTimer'),
-        //                 tk('session', 'openActiveRoast'),
-        //                 tk('session', 'confirmBeforeStart'),
-        //             ],
-        //         },
-        //         {
-        //             title: tk('session', 'endTitle'),
-        //             description: tk('session', 'endDescription'),
-        //             items: [
-        //                 tk('session', 'showSummary'),
-        //                 tk('session', 'confirmDiscard'),
-        //                 tk('session', 'keepNotesVisible'),
-        //             ],
-        //         },
-        //     ],
-        // },
-        // {
-        //     id: 'system',
-        //     label: tk('system', 'label'),
-        //     icon: Database,
-        //     title: tk('system', 'title'),
-        //     description: tk('system', 'description'),
-        //     cards: [
-        //         {
-        //             title: tk('system', 'dataTitle'),
-        //             description: tk('system', 'dataDescription'),
-        //             items: [
-        //                 tk('system', 'exportWorkspace'),
-        //                 tk('system', 'backupSnapshot'),
-        //                 tk('system', 'preserveLogs'),
-        //             ],
-        //         },
-        //         {
-        //             title: tk('system', 'environmentTitle'),
-        //             description: tk('system', 'environmentDescription'),
-        //             items: [tk('system', 'healthBadge'), tk('system', 'checkServices'), tk('system', 'confirmResets')],
-        //         },
-        //     ],
-        // },
+
         {
             id: 'roast',
             label: tk('roast', 'label'),

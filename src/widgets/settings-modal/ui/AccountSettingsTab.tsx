@@ -2,6 +2,7 @@ import { useProfile, useUpdateProfile } from '@entities/profile';
 import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
+import { SectionCard } from '@shared/ui/SectionCard';
 import { useQueryClient } from '@tanstack/react-query';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Link, LogOut, User } from 'lucide-react';
@@ -19,14 +20,6 @@ const readonlyInputCls =
 
 const primaryBtnCls =
     'px-4 py-2.5 rounded-lg bg-[#111827] dark:bg-[#e5e5e5] text-white dark:text-[#111827] text-[13px] font-semibold border hover:opacity-90 active:opacity-80 disabled:opacity-50 transition-all cursor-pointer';
-
-function SectionCard({ children }: { children: React.ReactNode }) {
-    return (
-        <section className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
-            {children}
-        </section>
-    );
-}
 
 type InputFieldProps = {
     label: string;

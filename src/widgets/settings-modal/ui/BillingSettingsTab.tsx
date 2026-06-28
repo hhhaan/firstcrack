@@ -6,7 +6,7 @@ import { CreditCard, Settings, Star } from 'lucide-react';
 import { useState } from 'react';
 
 const PLANS = [
-    { key: 'free', name: 'Free', price: '$0', interval: '/mo', priceId: '', description: 'Free forever' },
+    { key: 'free', name: 'Free', price: '$0', interval: '/mo', description: 'Free forever' },
     {
         key: 'pro',
         name: 'Pro',
@@ -37,6 +37,7 @@ function PlanCard({
     onUpgrade: (priceId: string) => void;
 }) {
     const badgeLabel = isCurrent ? 'Current' : plan.key === 'free' ? 'Free' : 'Available';
+    const canUpgrade = !isCurrent && plan.priceId;
     const cardBorder = isCurrent
         ? 'border-palette-lavender/40 bg-palette-lavender/[0.06] dark:bg-palette-lavender/[0.08]'
         : 'border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#262b31]';
@@ -73,17 +74,17 @@ function PlanCard({
                         <Settings size={12} strokeWidth={2} />
                         Current
                     </button>
-                ) : plan.key === 'free' ? null : (
+                ) : canUpgrade ? (
                     <button
                         type="button"
-                        onClick={() => onUpgrade(plan.priceId)}
+                        onClick={() => onUpgrade(plan.priceId ?? '')}
                         disabled={checkoutLoading}
                         className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-palette-lavender text-white text-[12px] font-semibold hover:opacity-90 active:opacity-80 disabled:opacity-50 transition-all cursor-pointer"
                     >
                         <CreditCard size={12} strokeWidth={2} />
                         {checkoutLoading ? 'Redirecting…' : 'Upgrade'}
                     </button>
-                )}
+                ) : null}
             </div>
         </div>
     );

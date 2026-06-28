@@ -46,7 +46,7 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
         <ModalShell
             onClose={onClose}
             labelledBy="settings-modal-title"
-            contentClassName="max-w-[920px] w-full max-h-[min(780px,calc(100vh-48px))] flex flex-col rounded-xl bg-white dark:bg-[#181d21] shadow-2xl border border-gray-200 dark:border-[#585d61] overflow-hidden"
+            contentClassName="max-w-[920px] w-full h-[min(780px,calc(100vh-48px))] flex flex-col rounded-xl bg-white dark:bg-[#181d21] shadow-2xl border border-gray-200 dark:border-[#585d61] overflow-hidden"
         >
             <div className="flex items-center justify-between px-7 pt-6 pb-4 border-b border-gray-100 dark:border-[#585d61] bg-white dark:bg-[#181d21]">
                 <h2
@@ -100,7 +100,7 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                     </div>
                 </aside>
 
-                <div className="p-7 overflow-y-auto flex flex-col">
+                <div className="px-7 pt-7 overflow-y-auto flex flex-col min-h-0 flex-1">
                     <div className="flex items-start gap-3.5 mb-6 shrink-0">
                         <div className="mt-0.5">
                             <h3 className="text-[18px] leading-snug font-semibold text-[#111827] dark:text-[#e5e5e5] m-0">
@@ -112,7 +112,7 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                         </div>
                     </div>
 
-                    <div className="grid gap-2.5 min-h-0 flex-1">
+                    <div className="grid gap-2.5 min-h-0 flex-1 pb-7">
                         {activeTab === 'roast' && <RoastSettingsTab />}
 
                         {activeTab === 'account' && <AccountSettingsTab onClose={onClose} />}
@@ -145,8 +145,8 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                             >
                                                 <input
                                                     type="checkbox"
-                                                    defaultChecked
-                                                    className="w-4 h-4 accent-[#111827] dark:accent-white"
+                                                    disabled
+                                                    className="w-4 h-4 accent-[#111827] dark:accent-white opacity-40"
                                                 />
                                                 <span className="text-[14px] font-medium text-[#111827] dark:text-[#e5e5e5]">
                                                     {item}
