@@ -7,6 +7,7 @@ import { getTabs, type SettingsTabId } from './tabConfig';
 export type { SettingsTabId };
 
 import { AccountSettingsTab } from './AccountSettingsTab';
+import { BillingSettingsTab } from './BillingSettingsTab';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
 import { RoastSettingsTab } from './RoastSettingsTab';
 
@@ -115,6 +116,8 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                         {activeTab === 'roast' && <RoastSettingsTab />}
 
                         {activeTab === 'account' && <AccountSettingsTab onClose={onClose} />}
+
+                        {activeTab === 'billing' && <BillingSettingsTab />}
 
                         {activeTab === 'general' && <GeneralSettingsTab />}
 

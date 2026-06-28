@@ -76,6 +76,7 @@ export const RoastChartContainer = ({
     return (
         <div
             ref={chartAreaRef}
+            data-tour="active-roast-chart"
             className={`relative flex-1 flex flex-col min-w-0 min-h-0 outline-none ${
                 effectiveZoomRange
                     ? isChartDragging

@@ -26,15 +26,6 @@ async function verifySignature(body: string, signature: string | null): Promise<
     return expected === signature;
 }
 
-function getSupabase(serviceRole = false) {
-    return createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        serviceRole
-            ? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-            : Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    );
-}
-
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', {
@@ -64,7 +55,10 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Invalid JSON' }, 400);
     }
 
-    const supabase = getSupabase(true);
+    const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
 
     switch (event.type) {
         case 'subscription.created':
@@ -85,12 +79,14 @@ Deno.serve(async (req) => {
                 currency?: string;
                 recurring_interval?: string;
             };
+            const { external_id } = (event.data.customer ?? {}) as { external_id?: string };
+            const userId = external_id ?? sub.customer_id;
 
             const { error: upsertErr } = await supabase
                 .from('subscriptions')
                 .upsert(
                     {
-                        user_id: sub.customer_id,
+                        user_id: userId,
                         polar_subscription_id: sub.id,
                         status: sub.status,
                         current_period_start: sub.current_period_start ?? null,
@@ -116,7 +112,7 @@ Deno.serve(async (req) => {
                 const { error: planErr } = await supabase
                     .from('profiles')
                     .update({ plan })
-                    .eq('polar_customer_id', sub.customer_id);
+                    .eq('id', userId);
 
                 if (planErr) {
                     console.error('[polar-webhook] plan update:', planErr);
@@ -128,6 +124,8 @@ Deno.serve(async (req) => {
         case 'subscription.canceled':
         case 'subscription.revoked': {
             const sub = event.data as { id: string; customer_id: string };
+            const { external_id } = (event.data.customer ?? {}) as { external_id?: string };
+            const userId = external_id ?? sub.customer_id;
 
             await supabase
                 .from('subscriptions')
@@ -137,7 +135,7 @@ Deno.serve(async (req) => {
             const { error: planErr } = await supabase
                 .from('profiles')
                 .update({ plan: 'free' })
-                .eq('polar_customer_id', sub.customer_id);
+                .eq('id', userId);
 
             if (planErr) {
                 console.error('[polar-webhook] plan revert:', planErr);

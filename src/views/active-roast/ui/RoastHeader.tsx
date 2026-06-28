@@ -195,14 +195,6 @@ export const RoastHeader = ({
 
             {/* ─── Right side: elapsed time + settings ────────────────────── */}
             <div className="flex items-start gap-3">
-                {/*
-                <div className="text-right">
-                    <div className="font-mono text-[44px] font-semibold text-primary tracking-[-2px] leading-none mb-1">
-                        {timeStr}
-                    </div>
-                    <div className="text-[13px] text-muted tracking-[0.14px]">{phase} phase</div>
-                </div>
-                */}
                 {onOpenRoastSettings && (
                     <button
                         onClick={onOpenRoastSettings}

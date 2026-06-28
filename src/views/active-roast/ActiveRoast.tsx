@@ -9,6 +9,7 @@ import {
 } from '@features/active-roast';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { useActiveRoastOnboarding } from '@features/active-roast/model/useActiveRoastOnboarding';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { useAuthStore } from '@shared/store/auth';
@@ -45,6 +46,8 @@ interface ActiveRoastProps {
 }
 
 export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
+    useActiveRoastOnboarding(isActive);
+
     // ── 설정 ──────────────────────────────────────────────────────
     const roastSettings = useRoastSettings();
     const unit = roastSettings.temperatureUnit;

@@ -2,21 +2,20 @@ import { useProfile } from '@entities/profile';
 import { useDeleteRoastSession, useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
 import { useExportCsv } from '@features/export-csv';
 import { formatDateShort } from '@shared/lib/format';
-import { filterSessions, paginateSessions, type SessionFilterCriteria, sortSessions } from '@shared/lib/sessionFilter';
+import { filterSessions, paginateSessions, sortSessions } from '@shared/lib/sessionFilter';
 import { useAuthStore } from '@shared/store/auth';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
-import type { DatePreset } from '@widgets/date-range-filter';
-import { DateRangeFilter, getPresetYMRange } from '@widgets/date-range-filter';
+import { DateRangeFilter } from '@widgets/date-range-filter';
 import { Download, FileText, Search, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useHistoryFilters } from './hooks/useHistoryFilters';
 import { buildReportData } from './lib/buildReportData';
 import { DeleteSessionModal } from './ui/DeleteSessionModal';
-import type { SortKey } from './ui/HistoryTable';
 import { HistoryTable } from './ui/HistoryTable';
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
@@ -25,28 +24,35 @@ const PAGE_SIZE = 10;
 
 export const History = () => {
     const { t } = useTranslation();
-    const [search, setSearch] = useState<string>('');
     const [expandedId, setExpandedId] = useState<string | null>(null);
-    const [sortKey, setSortKey] = useState<SortKey>('date');
-    const [sortAsc, setSortAsc] = useState<boolean>(false);
     const [showReport, setShowReport] = useState(false);
-    const [levelFilter, setLevelFilter] = useState<string>('all');
-    const [originFilter, setOriginFilter] = useState<string>('all');
-    const [datePreset, setDatePreset] = useState<DatePreset>('all');
-    const [fromYM, setFromYM] = useState<string>('');
-    const [toYM, setToYM] = useState<string>('');
-    const [page, setPage] = useState<number>(1);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+
+    const {
+        search,
+        levelFilter,
+        originFilter,
+        datePreset,
+        fromYM,
+        toYM,
+        page,
+        sortKey,
+        sortAsc,
+        filterCriteria,
+        setSearch,
+        setLevelFilter,
+        setOriginFilter,
+        setDatePreset,
+        setFromYM,
+        setToYM,
+        setSort,
+        setPage,
+    } = useHistoryFilters();
 
     const user = useAuthStore((s) => s.user);
     const { data: profile } = useProfile(user?.id ?? '');
 
     const useClientPagination = search.length > 0 || originFilter !== 'all';
-
-    const filterCriteria: SessionFilterCriteria = useMemo(
-        () => ({ search, levelFilter, fromYM, toYM, originFilter }),
-        [search, levelFilter, fromYM, toYM, originFilter],
-    );
 
     const {
         data: paginatedResult,
@@ -135,55 +141,8 @@ export const History = () => {
 
     // ── Handlers ──
 
-    const handleSort = (key: SortKey): void => {
-        if (sortKey === key) {
-            setSortAsc((prev) => !prev);
-        } else {
-            setSortKey(key);
-            setSortAsc(false);
-        }
-        setPage(1);
-    };
-
     const handleRowClick = (id: string): void => {
         setExpandedId(expandedId === id ? null : id);
-    };
-
-    const resetPage = useCallback(() => setPage(1), []);
-
-    const handleLevelFilter = (v: string) => {
-        setLevelFilter(v);
-        resetPage();
-    };
-    const handleOriginFilter = (v: string) => {
-        setOriginFilter(v);
-        resetPage();
-    };
-    const handlePresetChange = (p: DatePreset) => {
-        setDatePreset(p);
-        resetPage();
-        if (p === 'all') {
-            setFromYM('');
-            setToYM('');
-        } else if (p !== 'custom') {
-            const range = getPresetYMRange(p);
-            if (range) {
-                setFromYM(range.fromYM);
-                setToYM(range.toYM);
-            }
-        }
-    };
-    const handleFromYM = (v: string) => {
-        setFromYM(v);
-        resetPage();
-    };
-    const handleToYM = (v: string) => {
-        setToYM(v);
-        resetPage();
-    };
-    const handleSearch = (v: string) => {
-        setSearch(v);
-        resetPage();
     };
 
     const handleOpenReport = useCallback(() => setShowReport(true), []);
@@ -225,7 +184,7 @@ export const History = () => {
                 onDeleteClick={handleDeleteClick}
                 sortKey={sortKey}
                 sortAsc={sortAsc}
-                onSort={handleSort}
+                onSort={setSort}
                 page={safePage}
                 totalPages={totalPages}
                 pageSize={PAGE_SIZE}
@@ -267,7 +226,7 @@ export const History = () => {
                     <input
                         className="w-full border-none bg-transparent text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted font-body"
                         value={search}
-                        onChange={(e) => handleSearch(e.target.value)}
+                        onChange={(e) => setSearch(e.target.value)}
                         placeholder={t('history.searchPlaceholder')}
                     />
                 </div>
@@ -276,22 +235,22 @@ export const History = () => {
                         label={t('history.allLevels')}
                         value={levelFilter}
                         options={ROAST_LEVELS.filter((l) => rawSessions.some((s) => s.roast_level === l))}
-                        onSelect={handleLevelFilter}
+                        onSelect={setLevelFilter}
                     />
                     <FilterDropdown
                         label={t('history.allOrigins')}
                         value={originFilter}
                         options={uniqueOrigins}
-                        onSelect={handleOriginFilter}
+                        onSelect={setOriginFilter}
                     />
                     <DateRangeFilter
                         preset={datePreset}
                         fromYM={fromYM}
                         toYM={toYM}
                         monthOptions={monthOptions}
-                        onPresetChange={handlePresetChange}
-                        onFromYM={handleFromYM}
-                        onToYM={handleToYM}
+                        onPresetChange={setDatePreset}
+                        onFromYM={setFromYM}
+                        onToYM={setToYM}
                     />
                 </div>
             </div>

@@ -111,6 +111,11 @@
                 "label": "Account",
                 "title": "Account",
                 "description": "Manage your profile, workspace name, and account settings."
+            },
+            "billing": {
+                "label": "Billing",
+                "title": "Billing & Plan",
+                "description": "Manage your subscription plan and billing information."
             }
         }
     },
