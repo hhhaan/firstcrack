@@ -15,6 +15,7 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Check, Info, MapPin, Scale, Search, Tag, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { type BeanForm, beanFormSchema, EMPTY_BEAN_FORM } from '../lib/schema';
 import { useAddBeanSubmit } from './useAddBeanSubmit';
 
@@ -36,8 +37,8 @@ const chipCls = (selected: boolean) =>
 const tabCls = (active: boolean) =>
     `flex-1 py-3 rounded-xl border-none text-sm cursor-pointer transition-all duration-200 ${
         active
-            ? 'bg-white dark:bg-surface-elevated font-semibold text-primary dark:text-white shadow-[0_4px_12px_rgba(0,0,0,0.08)]'
-            : 'bg-transparent font-medium text-muted dark:text-white hover:text-secondary dark:hover:text-white/70'
+            ? 'bg-white dark:bg-surface-elevated font-semibold text-primary dark:text-[#e5e5e5] shadow-[0_4px_12px_rgba(0,0,0,0.08)]'
+            : 'bg-transparent font-medium text-muted dark:text-[#e5e5e5] hover:text-secondary dark:hover:text-white/70'
     }`;
 
 // ── 공통 입력 필드 ───────────────────────────────────────────
@@ -94,53 +95,56 @@ const BeanSelector = ({
     stockSummaries: Record<string, StockSummary>;
     onSelect: (id: string) => void;
     onShowAll: () => void;
-}) => (
-    <div>
-        <label className={labelCls}>
-            <Search size={14} /> {label}
-        </label>
-        <div className="grid gap-2.5 p-1">
-            {visibleBeans.map((bean) => {
-                const isSelected = selectedBeanId === bean.id;
-                return (
-                    <div
-                        key={bean.id}
-                        onClick={() => onSelect(bean.id)}
-                        className={`px-4.5 py-3.5 rounded-2xl border border-black/6 dark:border-[#585d61] flex items-center justify-between cursor-pointer transition-all duration-200 ${
-                            isSelected
-                                ? 'bg-primary dark:bg-black dark:border-white text-white shadow-[0_8px_20px_rgba(0,0,0,0.12)]'
-                                : 'bg-white/70 dark:bg-surface-elevated text-primary shadow-(--shadow-ring)'
-                        }`}
-                    >
-                        <div>
-                            <div className="text-sm font-semibold">{bean.name}</div>
-                            <div className="text-xs opacity-70">
-                                {bean.origin ?? '—'} · {bean.process ?? '—'}
+}) => {
+    const { t } = useTranslation();
+    return (
+        <div>
+            <label className={labelCls}>
+                <Search size={14} /> {label}
+            </label>
+            <div className="grid gap-2.5 p-1">
+                {visibleBeans.map((bean) => {
+                    const isSelected = selectedBeanId === bean.id;
+                    return (
+                        <div
+                            key={bean.id}
+                            onClick={() => onSelect(bean.id)}
+                            className={`px-4.5 py-3.5 rounded-2xl border border-black/6 dark:border-[#585d61] flex items-center justify-between cursor-pointer transition-all duration-200 ${
+                                isSelected
+                                    ? 'bg-primary dark:bg-black dark:border-white text-white shadow-[0_8px_20px_rgba(0,0,0,0.12)]'
+                                    : 'bg-white/70 dark:bg-surface-elevated text-primary shadow-(--shadow-ring)'
+                            }`}
+                        >
+                            <div>
+                                <div className="text-sm font-semibold">{bean.name}</div>
+                                <div className="text-xs opacity-70">
+                                    {bean.origin ?? '—'} · {bean.process ?? '—'}
+                                </div>
                             </div>
+                            {isSelected ? (
+                                <Check size={18} strokeWidth={2.5} />
+                            ) : (
+                                <div className="text-[13px] font-mono opacity-60">
+                                    {((stockSummaries[bean.id]?.currentGrams ?? 0) / 1000).toFixed(2)}
+                                    kg
+                                </div>
+                            )}
                         </div>
-                        {isSelected ? (
-                            <Check size={18} strokeWidth={2.5} />
-                        ) : (
-                            <div className="text-[13px] font-mono opacity-60">
-                                {((stockSummaries[bean.id]?.currentGrams ?? 0) / 1000).toFixed(2)}
-                                kg
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-            {!showAllBeans && hiddenBeanCount > 0 && (
-                <button
-                    type="button"
-                    onClick={onShowAll}
-                    className="py-2.5 rounded-2xl border border-black/6 dark:border-[#585d61] bg-white/50 dark:bg-surface-elevated text-sm font-medium text-muted cursor-pointer hover:bg-white/80 dark:hover:bg-[#262b31] transition-all duration-200"
-                >
-                    +{hiddenBeanCount} more
-                </button>
-            )}
+                    );
+                })}
+                {!showAllBeans && hiddenBeanCount > 0 && (
+                    <button
+                        type="button"
+                        onClick={onShowAll}
+                        className="py-2.5 rounded-2xl border border-black/6 dark:border-[#585d61] bg-white/50 dark:bg-surface-elevated text-sm font-medium text-muted cursor-pointer hover:bg-white/80 dark:hover:bg-[#262b31] transition-all duration-200"
+                    >
+                        {t('addBeanModal.more', { count: hiddenBeanCount })}
+                    </button>
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 // ──────────────────────────────────────────────────────────────
 
@@ -165,6 +169,7 @@ export const AddBeanModal = ({
     initialData = null,
     onSuccess,
 }: AddBeanModalProps) => {
+    const { t } = useTranslation();
     const [tab, setTab] = useState<'new' | 'restock' | 'expected' | 'edit' | 'adjust'>(initialTab);
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(initialBeanId);
     const [restockAmount, setRestockAmount] = useState('');
@@ -332,14 +337,14 @@ export const AddBeanModal = ({
                             className="font-(--font-display) text-2xl text-primary tracking-[-0.02em] m-0"
                         >
                             {tab === 'new'
-                                ? 'New Bean Lot'
+                                ? t('addBeanModal.newTitle')
                                 : tab === 'edit'
-                                  ? 'Edit Bean Details'
+                                  ? t('addBeanModal.editTitle')
                                   : tab === 'restock'
-                                    ? 'Restock Existing'
+                                    ? t('addBeanModal.restockTitle')
                                     : tab === 'expected'
-                                      ? 'Expected Inbound'
-                                      : 'Adjust Stock'}
+                                      ? t('addBeanModal.expectedTitle')
+                                      : t('addBeanModal.adjustTitle')}
                         </h2>
                     </div>
                     <button
@@ -354,16 +359,16 @@ export const AddBeanModal = ({
                     <div className="px-8 pb-5">
                         <div className="flex bg-surface p-1 rounded-2xl shadow-(--shadow-inset)">
                             <button onClick={() => setTab('new')} className={tabCls(tab === 'new')}>
-                                New Lot
+                                {t('addBeanModal.newTab')}
                             </button>
                             <button onClick={() => setTab('restock')} className={tabCls(tab === 'restock')}>
-                                Restock
+                                {t('addBeanModal.restockTab')}
                             </button>
                             <button onClick={() => setTab('expected')} className={tabCls(tab === 'expected')}>
-                                Expected
+                                {t('addBeanModal.expectedTab')}
                             </button>
                             <button onClick={() => setTab('adjust')} className={tabCls(tab === 'adjust')}>
-                                Adjust
+                                {t('addBeanModal.adjustTab')}
                             </button>
                         </div>
                     </div>
@@ -376,7 +381,7 @@ export const AddBeanModal = ({
                     <div className="flex flex-col gap-6">
                         {/* Bean selector */}
                         <BeanSelector
-                            label="Select Bean"
+                            label={t('addBeanModal.selectBean')}
                             visibleBeans={visibleBeans}
                             selectedBeanId={selectedBeanId}
                             showAllBeans={showAllBeans}
@@ -403,7 +408,7 @@ export const AddBeanModal = ({
                                     onClick={() => setAdjustType('adjustment')}
                                     className={tabCls(adjustType === 'adjustment')}
                                 >
-                                    재고 조정
+                                    {t('addBeanModal.adjust.adjustment')}
                                 </button>
                                 <button
                                     type="button"
@@ -413,15 +418,14 @@ export const AddBeanModal = ({
                                     }}
                                     className={tabCls(adjustType === 'write_off')}
                                 >
-                                    폐기 처리
+                                    {t('addBeanModal.adjust.writeOff')}
                                 </button>
                             </div>
 
                             {/* Amount */}
                             <div>
                                 <label className={labelCls}>
-                                    <Scale size={14} />{' '}
-                                    {adjustType === 'write_off' ? 'Discard Amount (kg)' : 'Amount (kg)'}
+                                    <Scale size={14} /> {t('addBeanModal.adjust.amount')}
                                 </label>
                                 <div className="flex items-center gap-3">
                                     {adjustType === 'adjustment' && (
@@ -461,7 +465,9 @@ export const AddBeanModal = ({
                                     if (isDeduction && adjustGrams > 0 && adjustGrams > current) {
                                         return (
                                             <p className="text-xs text-amber-500 dark:text-amber-400 mt-2">
-                                                현재 재고({(current / 1000).toFixed(2)}kg)를 초과합니다.
+                                                {t('addBeanModal.adjust.exceedsStock', {
+                                                    amount: (current / 1000).toFixed(2),
+                                                })}
                                             </p>
                                         );
                                     }
@@ -472,12 +478,14 @@ export const AddBeanModal = ({
                             {/* Note */}
                             <div>
                                 <label className={labelCls}>
-                                    <Info size={14} /> 사유 (선택)
+                                    <Info size={14} /> {t('addBeanModal.adjust.reason')}
                                 </label>
                                 <input
                                     className={inputCls}
                                     placeholder={
-                                        adjustType === 'write_off' ? '예: 유통기한 초과' : '예: 실측 후 재고 보정'
+                                        adjustType === 'write_off'
+                                            ? t('addBeanModal.adjust.writeOffPlaceholder')
+                                            : t('addBeanModal.adjust.adjustPlaceholder')
                                     }
                                     value={adjustNote}
                                     onChange={(e) => setAdjustNote(e.target.value)}
@@ -494,11 +502,11 @@ export const AddBeanModal = ({
                         {/* Lot Name */}
                         <div className="col-span-2">
                             <label className={labelCls}>
-                                <Info size={14} /> Lot Name
+                                <Info size={14} /> {t('addBeanModal.form.lotName')}
                             </label>
                             <input
                                 className={inputCls}
-                                placeholder="Origin 선택 시 자동 입력됩니다"
+                                placeholder={t('addBeanModal.form.lotNamePlaceholder')}
                                 {...register('name')}
                             />
                             {errors.name && <p className="text-[11px] text-red-500 mt-1">{errors.name.message}</p>}
@@ -507,9 +515,13 @@ export const AddBeanModal = ({
                         {/* Origin */}
                         <div>
                             <label className={labelCls}>
-                                <MapPin size={14} /> Origin Country
+                                <MapPin size={14} /> {t('addBeanModal.form.origin')}
                             </label>
-                            <input className={inputCls} placeholder="e.g. Ethiopia" {...register('origin')} />
+                            <input
+                                className={inputCls}
+                                placeholder={t('addBeanModal.form.originPlaceholder')}
+                                {...register('origin')}
+                            />
                             <div className="flex flex-wrap gap-1.5 mt-2">
                                 <ChipGroup
                                     items={[...COMMON_ORIGINS]}
@@ -533,9 +545,13 @@ export const AddBeanModal = ({
                         {/* Region */}
                         <div>
                             <label className={labelCls}>
-                                <MapPin size={14} /> Region
+                                <MapPin size={14} /> {t('addBeanModal.form.region')}
                             </label>
-                            <input className={inputCls} placeholder="e.g. Guji Zone" {...register('region')} />
+                            <input
+                                className={inputCls}
+                                placeholder={t('addBeanModal.form.regionPlaceholder')}
+                                {...register('region')}
+                            />
                             {REGIONS_BY_ORIGIN[formValues.origin] && (
                                 <div className="flex flex-wrap gap-1.5 mt-2">
                                     {REGIONS_BY_ORIGIN[formValues.origin].map((region: string) => {
@@ -558,9 +574,13 @@ export const AddBeanModal = ({
                         {/* Farm / Producer */}
                         <div>
                             <label className={labelCls}>
-                                <MapPin size={14} /> Farm / Producer
+                                <MapPin size={14} /> {t('addBeanModal.form.farm')}
                             </label>
-                            <input className={inputCls} placeholder="e.g. Guji Zone" {...register('farm')} />
+                            <input
+                                className={inputCls}
+                                placeholder={t('addBeanModal.form.farmPlaceholder')}
+                                {...register('farm')}
+                            />
                             {formValues.origin && formValues.region && FARMS_BY_REGION[formValues.region] && (
                                 <div className="flex flex-wrap gap-1.5 mt-2">
                                     {FARMS_BY_REGION[formValues.region].slice(0, 5).map((farm: string) => {
@@ -583,9 +603,13 @@ export const AddBeanModal = ({
                         {/* Variety */}
                         <div>
                             <label className={labelCls}>
-                                <Info size={14} /> Variety
+                                <Info size={14} /> {t('addBeanModal.form.variety')}
                             </label>
-                            <input className={inputCls} placeholder="e.g. Heirloom" {...register('variety')} />
+                            <input
+                                className={inputCls}
+                                placeholder={t('addBeanModal.form.varietyPlaceholder')}
+                                {...register('variety')}
+                            />
                             {formValues.origin && VARIETIES_BY_ORIGIN[formValues.origin] && (
                                 <div className="flex flex-wrap gap-1.5 mt-2">
                                     <ChipGroup
@@ -611,7 +635,7 @@ export const AddBeanModal = ({
                         {/* Process */}
                         <div>
                             <label className={labelCls}>
-                                <Tag size={14} /> Process
+                                <Tag size={14} /> {t('addBeanModal.form.process')}
                             </label>
                             <div className="flex flex-wrap gap-1.5">
                                 <ChipGroup
@@ -636,12 +660,12 @@ export const AddBeanModal = ({
                         {/* Altitude */}
                         <div>
                             <label className={labelCls}>
-                                <MapPin size={14} /> Altitude (masl)
+                                <MapPin size={14} /> {t('addBeanModal.form.altitude')}
                             </label>
                             <input
                                 {...numericProps}
                                 className={inputCls}
-                                placeholder="e.g. 2100"
+                                placeholder={t('addBeanModal.form.altitudePlaceholder')}
                                 value={formValues.altitude}
                                 onChange={(e) => setValue('altitude', e.target.value.replace(/\D/g, ''))}
                             />
@@ -650,7 +674,7 @@ export const AddBeanModal = ({
                         {/* Stock */}
                         <div>
                             <label className={labelCls}>
-                                <Scale size={14} /> {tab === 'edit' ? 'Current Stock (kg)' : 'Initial Stock (kg)'}
+                                <Scale size={14} /> {t('addBeanModal.form.stock')}
                             </label>
                             <input
                                 {...numericProps}
@@ -664,7 +688,7 @@ export const AddBeanModal = ({
                         {/* Capacity */}
                         <div>
                             <label className={labelCls}>
-                                <Scale size={14} /> Bag Capacity (kg)
+                                <Scale size={14} /> {t('addBeanModal.form.capacity')}
                             </label>
                             <input
                                 {...numericProps}
@@ -678,12 +702,12 @@ export const AddBeanModal = ({
                         {/* Cost per kg */}
                         <div>
                             <label className={labelCls}>
-                                <Scale size={14} /> 원가 (원/kg)
+                                <Scale size={14} /> {t('addBeanModal.form.cost')}
                             </label>
                             <input
                                 {...numericProps}
                                 className={inputCls}
-                                placeholder="예: 32000"
+                                placeholder={t('addBeanModal.form.costPlaceholder')}
                                 value={formValues.costPerKg}
                                 onChange={(e) => setValue('costPerKg', e.target.value.replace(/\D/g, ''))}
                             />
@@ -692,11 +716,11 @@ export const AddBeanModal = ({
                         {/* Tasting Notes */}
                         <div className="col-span-2">
                             <label className={labelCls}>
-                                <Info size={14} /> Tasting Notes
+                                <Info size={14} /> {t('addBeanModal.form.tastingNotes')}
                             </label>
                             <textarea
                                 className={`${inputCls} min-h-25 resize-none`}
-                                placeholder="e.g. Jasmine, Blueberry, Milk Chocolate"
+                                placeholder={t('addBeanModal.form.tastingNotesPlaceholder')}
                                 {...register('tastingNotes')}
                             />
                         </div>
@@ -704,7 +728,7 @@ export const AddBeanModal = ({
                 ) : tab === 'expected' ? (
                     <div className="flex flex-col gap-6">
                         <BeanSelector
-                            label="Select Bean"
+                            label={t('addBeanModal.selectBean')}
                             visibleBeans={visibleBeans}
                             selectedBeanId={selectedBeanId}
                             showAllBeans={showAllBeans}
@@ -723,7 +747,7 @@ export const AddBeanModal = ({
                             }}
                         >
                             <label className={labelCls}>
-                                <Scale size={14} /> Expected Inbound (kg)
+                                <Scale size={14} /> {t('addBeanModal.expected.inbound')}
                             </label>
                             <div className="flex items-center gap-3">
                                 <input
@@ -736,24 +760,22 @@ export const AddBeanModal = ({
                                 <div className="text-lg font-medium text-muted">kg</div>
                             </div>
                             <label className={`${labelCls} mt-4`}>
-                                <Info size={14} /> Note (optional)
+                                <Info size={14} /> {t('addBeanModal.expected.note')}
                             </label>
                             <input
                                 className={inputCls}
-                                placeholder="e.g. PO #1234, ETA next week"
+                                placeholder={t('addBeanModal.expected.notePlaceholder')}
                                 value={expectedNote}
                                 onChange={(e) => setExpectedNote(e.target.value)}
                             />
-                            <p className="text-xs text-muted mt-3">
-                                Counts toward available stock for shortage alerts, not physical on-hand stock.
-                            </p>
+                            <p className="text-xs text-muted mt-3">{t('addBeanModal.expected.countsNote')}</p>
                         </div>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-6">
                         {/* Bean selector */}
                         <BeanSelector
-                            label="Select Bean to Restock"
+                            label={t('addBeanModal.selectBeanRestock')}
                             visibleBeans={visibleBeans}
                             selectedBeanId={selectedBeanId}
                             showAllBeans={showAllBeans}
@@ -774,7 +796,7 @@ export const AddBeanModal = ({
                             }}
                         >
                             <label className={labelCls}>
-                                <Scale size={14} /> Weight to Add (kg)
+                                <Scale size={14} /> {t('addBeanModal.restock.weight')}
                             </label>
                             <div className="flex items-center gap-3">
                                 <input
@@ -809,7 +831,7 @@ export const AddBeanModal = ({
                                     onClick={() => setRestockAmount('')}
                                     className="py-3 px-5 rounded-xl border border-black/12 dark:border-[#585d61] bg-white dark:bg-surface-elevated text-[#e74c3c] dark:text-red-400 text-sm font-semibold cursor-pointer"
                                 >
-                                    Clear
+                                    {t('addBeanModal.restock.clear')}
                                 </button>
                             </div>
                         </div>
@@ -822,34 +844,38 @@ export const AddBeanModal = ({
                 <div className="flex gap-3">
                     <button
                         onClick={onClose}
-                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
+                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
                     >
-                        Cancel
+                        {t('addBeanModal.cancel')}
                     </button>
                     {tab === 'new' || tab === 'edit' ? (
                         <button
                             type="submit"
                             form="bean-form"
                             disabled={isSubmitting}
-                            className="flex-2 py-3.5 rounded-2xl border border-transparent dark:border-white bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="flex-2 py-3.5 rounded-2xl border border-transparent  bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                            {isSubmitting ? 'Saving...' : tab === 'new' ? 'Create Bean Lot' : 'Update Bean Details'}
+                            {isSubmitting
+                                ? t('addBeanModal.saving')
+                                : tab === 'new'
+                                  ? t('addBeanModal.create')
+                                  : t('addBeanModal.update')}
                         </button>
                     ) : (
                         <button
                             disabled={isSubmitDisabled}
                             onClick={() => submitBean(getValues())}
-                            className="flex-2 py-3.5 rounded-2xl border border-transparent dark:border-white bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="flex-2 py-3.5 rounded-2xl border border-transparent bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             {isSubmitting
-                                ? 'Saving...'
+                                ? t('addBeanModal.saving')
                                 : tab === 'restock'
-                                  ? 'Confirm Restock'
+                                  ? t('addBeanModal.confirmRestock')
                                   : tab === 'expected'
-                                    ? 'Confirm Expected Inbound'
+                                    ? t('addBeanModal.confirmExpected')
                                     : adjustType === 'write_off'
-                                      ? 'Confirm Write-off'
-                                      : 'Confirm Adjustment'}
+                                      ? t('addBeanModal.confirmWriteOff')
+                                      : t('addBeanModal.confirmAdjustment')}
                         </button>
                     )}
                 </div>

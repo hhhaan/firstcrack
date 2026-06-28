@@ -14,8 +14,10 @@ import { BeanList } from '@widgets/bean-list/ui/BeanList';
 import { BlendList } from '@widgets/blend-list/ui/BlendList';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
+    const { t } = useTranslation();
     const userId = useAuthStore((s) => s.user?.id ?? '');
     const { data: beans = [], isLoading } = useBeans(userId);
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
@@ -45,15 +47,16 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
     const emptyState = (
         <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
             <div className="text-[13px] text-muted text-center leading-relaxed">
-                등록된 원두가 없습니다.
-                <br />첫 번째 원두를 추가해 보세요.
+                {t('beans.empty.title')}
+                <br />
+                {t('beans.empty.description')}
             </div>
             <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
             >
                 <Plus size={14} strokeWidth={2} />
-                생두 추가
+                {t('beans.addBean')}
             </button>
         </div>
     );
@@ -65,7 +68,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] dark:border-[#585d61] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 transition-colors tracking-[0.14px]"
             >
                 <Plus size={14} strokeWidth={2} />
-                Add Bean
+                {t('beans.addBean')}
             </button>
             <BeanList
                 beans={beans}
@@ -111,11 +114,11 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
             />
 
             <PageHeader
-                title="Bean Inventory"
+                title={t('beans.title')}
                 actions={
                     <PillButton onClick={() => setIsAddModalOpen(true)}>
                         <Plus size={15} strokeWidth={2.5} />
-                        Add Bean Lot
+                        {t('beans.addBeanLot')}
                     </PillButton>
                 }
             />
@@ -125,13 +128,13 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                     className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'single' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
                     onClick={() => setTab('single')}
                 >
-                    싱글
+                    {t('beans.tab.single')}
                 </button>
                 <button
                     className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'blend' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
                     onClick={() => setTab('blend')}
                 >
-                    블렌드
+                    {t('beans.tab.blend')}
                 </button>
             </div>
 

@@ -6,7 +6,8 @@
         "connecting": "连接中...",
         "disconnected": "未连接",
         "live": "实时",
-        "offline": "离线"
+        "offline": "离线",
+        "loading": "加载中…"
     },
     "sidebar": {
         "roasteryDashboard": "烘焙工作台",
@@ -75,7 +76,7 @@
             "session": {
                 "label": "会话",
                 "title": "烘焙会话行为",
-                "description": "设置每次烘焙从开始到结束会影响流程的小型默认值。",
+                "description": "设置影响每次烘焙从开始到结束流程的默认值。",
                 "startTitle": "会话开始",
                 "startDescription": "帮助操作者快速开始的自动化选项。",
                 "autoStartTimer": "自动开始烘焙计时",
@@ -90,7 +91,7 @@
             "system": {
                 "label": "系统",
                 "title": "系统与数据",
-                "description": "用于全局应用操作、本地数据健康状态和导出相关控制。",
+                "description": "全局应用操作、本地数据健康检查和导出相关控制。",
                 "dataTitle": "数据控制",
                 "dataDescription": "不直接属于生豆、设备或曲线页面的工作区级操作。",
                 "exportWorkspace": "导出当前工作区数据",
@@ -110,7 +111,7 @@
             "account": {
                 "label": "账户",
                 "title": "账户",
-                "description": "管理您的个人资料、工作区名称和账户设置。"
+                "description": "管理个人资料、工作区名称和账户设置。"
             }
         }
     },
@@ -167,7 +168,9 @@
         "saving": "正在保存...",
         "saveOnly": "仅保存",
         "saveAndConnect": "保存并连接",
-        "failedToSave": "保存失败"
+        "failedToSave": "保存失败",
+        "phidgetDriverNotice": "该设备需要单独安装Phidget22系统驱动程序。",
+        "phidgetDriverLink": "查看驱动安装指南"
     },
     "dashboard": {
         "greeting": {
@@ -178,7 +181,7 @@
         "viewActiveRoast": "查看正在烘焙",
         "kpi": {
             "batchesThisMonth": "本月批次数",
-            "beansRoasted": "烘焙豆量",
+            "beansRoasted": "烘焙量",
             "avgRoastTime": "平均烘焙时间",
             "successRate": "成功率"
         },
@@ -204,7 +207,7 @@
         "noUpcoming": "暂无计划批次",
         "inventoryAlerts": "库存提醒",
         "allStockOk": "所有库存正常",
-        "outOfStock": "缺货",
+        "outOfStock": "无库存",
         "lowStock": "库存不足",
         "kgRemaining": "剩余{{kg}}kg",
         "scheduleReservedShortfall": "含计划预留后短缺{{kg}}kg",
@@ -222,11 +225,14 @@
             "single": "单品",
             "blend": "拼配"
         },
-        "empty": "尚未注册生豆",
+        "empty": {
+            "title": "尚未注册生豆",
+            "description": "添加您的第一支生豆开始使用"
+        },
         "addFirst": "添加您的第一支生豆",
         "blend": {
             "empty": "尚未注册拼配",
-            "addBlendFirst": "添加您的第一个拼配配方",
+            "addBlendFirst": "添加第一个拼配配方",
             "addBlend": "添加拼配",
             "componentBeans": "构成生豆",
             "selectBlend": "选择拼配以查看详情",
@@ -234,7 +240,7 @@
             "summary_other": "{{count}}支生豆 · {{total}}%组成",
             "roastableCapacity": "可烘焙量",
             "roastableKg": "最多 {{kg}}kg",
-            "limitingBean": "限制生豆: {{name}} (可用 {{grams}}g)",
+            "limitingBean": "最短缺生豆: {{name}} (可用 {{grams}}g)",
             "noStock": "库存不足，无法烘焙",
             "edit": "编辑",
             "delete": "删除",
@@ -269,9 +275,9 @@
             "openSettings": "打开烘焙设置"
         },
         "readings": {
-            "beanTemp": "Bean Temp",
-            "envTemp": "Env Temp",
-            "rateOfRise": "Rate of Rise",
+            "beanTemp": "豆温",
+            "envTemp": "环境温度",
+            "rateOfRise": "升温率",
             "phase": "阶段"
         },
         "controls": {
@@ -280,25 +286,25 @@
             "drum": "滚筒"
         },
         "log": {
-            "title": "Roast Log",
+            "title": "烘焙记录",
             "deleteNote": "删除备注"
         },
         "phase": {
-            "ready": "READY",
-            "preheating": "PREHEATING",
-            "idle": "IDLE",
-            "drying": "Drying",
-            "maillard": "Maillard",
-            "development": "Development"
+            "ready": "就绪",
+            "preheating": "预热中",
+            "idle": "待机",
+            "drying": "脱水",
+            "maillard": "梅纳反应",
+            "development": "发展期"
         },
         "actions": {
-            "charge": "Charge",
-            "roastReady": "Roast Ready",
-            "endRoast": "End Roast",
-            "yellow": "Yellow",
-            "fcStart": "FC Start",
-            "fcEnd": "FC End",
-            "markDrop": "Mark Drop",
+            "charge": "投豆",
+            "roastReady": "准备就绪",
+            "endRoast": "结束烘焙",
+            "yellow": "转黄",
+            "fcStart": "一爆开始",
+            "fcEnd": "一爆结束",
+            "markDrop": "标记下豆",
             "inProgress": "{{phase}} 进行中",
             "roastComplete": "烘焙完成",
             "end": "结束",
@@ -345,11 +351,11 @@
             "save": "保存",
             "discard": "不保存",
             "levels": {
-                "light": "Light",
-                "mediumLight": "Medium-Light",
-                "medium": "Medium",
-                "mediumDark": "Medium-Dark",
-                "dark": "Dark"
+                "light": "浅烘焙",
+                "mediumLight": "中浅烘焙",
+                "medium": "中烘焙",
+                "mediumDark": "中深烘焙",
+                "dark": "深烘焙"
             }
         },
         "planBatch": {
@@ -484,16 +490,16 @@
     },
     "addBatchModal": {
         "batchType": {
-            "singleOrigin": "Single Origin",
-            "preRoastBlend": "Pre-roast Blend",
-            "postRoastBlend": "Post-roast Blend"
+            "singleOrigin": "单品",
+            "preRoastBlend": "烘焙前拼配",
+            "postRoastBlend": "烘焙后拼配"
         },
         "type": "批次类型",
         "date": "日期",
         "machine": "设备",
         "roastProfile": "烘焙曲线",
         "profilePlaceholder": "选择曲线...",
-        "greenCoffeeLot": "Green Coffee Lot",
+        "greenCoffeeLot": "生豆批次",
         "lotPlaceholder": "选择批次...",
         "stock": "库存 {{kg}} kg",
         "shortage": "库存不足 — 可用 {{effective}}g / 需要 {{needed}}g",
@@ -502,8 +508,8 @@
         "blendComposition": "{{count}}种生豆组成",
         "blendShortage": "{{name}}: 可用 {{effective}}g / 需要 {{needed}}g",
         "targetRoasted": "目标烘焙量 (kg)",
-        "batchSize": "Batch Size (kg)",
-        "yield": "Yield (%)",
+        "batchSize": "批次量 (kg)",
+        "yield": "收率 (%)",
         "batches": "批次",
         "greenNeeded": "生豆需要 (kg)",
         "currentStock": "当前库存:",
@@ -578,11 +584,176 @@
             "confirm": "删除"
         },
         "monthlyReport": "月度报告",
-        "exportCsv": "Export CSV",
-        "exportConfirm": "保存到：{{path}}\n导出{{count}}条会话为CSV？",
+        "exportCsv": "导出 CSV",
+        "exportConfirm": "保存到：{{path}}\n导出{{count}}条记录为CSV？",
         "exportNoSessions": "没有可导出的会话。",
         "exportTitle": "First Crack",
         "exportOkLabel": "导出",
         "exportCancelLabel": "取消"
+    },
+    "beanList": {
+        "searchPlaceholder": "搜索生豆...",
+        "empty": "尚无生豆。请添加您的第一批生豆！",
+        "noResults": "未找到结果。"
+    },
+    "deleteBeanModal": {
+        "title": "删除生豆？",
+        "description": "{{name}}将被永久删除。此操作无法撤销。",
+        "cancel": "取消",
+        "confirm": "删除"
+    },
+    "profiles": {
+        "title": "烘焙曲线",
+        "drop": "下豆",
+        "newProfile": "新建曲线",
+        "empty": "尚无曲线",
+        "createFirst": "创建第一条曲线",
+        "subtitle_one": "{{count}}条曲线",
+        "subtitle_other": "{{count}}条曲线",
+        "compare": {
+            "selectPrompt": "选择要比较的曲线",
+            "maxSelected": "最多选择4条",
+            "selected": "已选{{count}}条 · 最多4条",
+            "exit": "退出比较",
+            "enter": "比较"
+        }
+    },
+    "newProfileModal": {
+        "editTitle": "编辑烘焙曲线",
+        "fromSession": "从烘焙记录创建曲线",
+        "newTitle": "新建烘焙曲线",
+        "selectSession": "选择烘焙记录",
+        "basedOn": "基于",
+        "unknownBean": "未知生豆",
+        "profileName": "曲线名称",
+        "profileNamePlaceholder": "例如：浅花香",
+        "description": "描述",
+        "descriptionPlaceholder": "简短描述…",
+        "targetLevel": "目标烘焙度",
+        "chargeTemp": "投豆温度 (°C)",
+        "tempPlaceholder": "例如：200",
+        "dropTemp": "下豆温度 (°C)",
+        "duration": "时长 (秒)",
+        "durationPlaceholder": "例如：720",
+        "devTime": "发展时间 (秒)",
+        "devTimePlaceholder": "例如：90",
+        "devPct": "发展率 (%)",
+        "devPctPlaceholder": "例如：13",
+        "defaultBean": "默认生豆 (可选)",
+        "none": "无",
+        "singleOrigin": "单品",
+        "blend": "拼配",
+        "selectBeanOption": "选择生豆",
+        "selectBlendOption": "选择拼配",
+        "cancel": "取消",
+        "saveProfile": "保存曲线",
+        "createProfile": "创建曲线",
+        "noSessions": "暂无完成的烘焙记录。",
+        "drop": "下豆",
+        "howToCreate": "您希望如何创建曲线？",
+        "manualInput": "手动输入",
+        "manualInputDesc": "直接设置投豆温度、下豆温度、时长等参数",
+        "fromSessionOption": "从烘焙记录导入",
+        "fromSessionDesc": "根据历史烘焙记录自动填充参数",
+        "roastLevel": {
+            "Light": "浅烘焙",
+            "Medium-Light": "中浅烘焙",
+            "Medium": "中烘焙",
+            "Medium-Dark": "中深烘焙",
+            "Dark": "深烘焙"
+        }
+    },
+    "addBeanModal": {
+        "newTitle": "新批次",
+        "editTitle": "编辑生豆信息",
+        "restockTitle": "补货",
+        "expectedTitle": "预计入库",
+        "adjustTitle": "库存调整",
+        "newTab": "新批次",
+        "restockTab": "补货",
+        "expectedTab": "预计入库",
+        "adjustTab": "调整",
+        "selectBean": "选择生豆",
+        "selectBeanRestock": "选择要补货的生豆",
+        "more": "+{{count}}更多",
+        "cancel": "取消",
+        "saving": "保存中...",
+        "create": "创建批次",
+        "update": "更新生豆信息",
+        "confirmRestock": "确认补货",
+        "confirmExpected": "确认预计入库",
+        "confirmWriteOff": "确认报废",
+        "confirmAdjustment": "确认调整",
+        "adjust": {
+            "adjustment": "库存调整",
+            "writeOff": "报废处理",
+            "amount": "数量 (kg)",
+            "exceedsStock": "超过当前库存 ({{amount}}kg)",
+            "reason": "原因 (可选)",
+            "writeOffPlaceholder": "例如：过期",
+            "adjustPlaceholder": "例如：盘点后调整"
+        },
+        "form": {
+            "lotName": "批次名称",
+            "lotNamePlaceholder": "选择产地后自动填写",
+            "origin": "产地国",
+            "originPlaceholder": "例如：埃塞俄比亚",
+            "region": "产区",
+            "regionPlaceholder": "例如：古吉",
+            "farm": "农场 / 生产商",
+            "farmPlaceholder": "例如：古吉产区",
+            "variety": "品种",
+            "varietyPlaceholder": "例如：原生种",
+            "process": "处理法",
+            "altitude": "海拔 (masl)",
+            "altitudePlaceholder": "例如：2100",
+            "stock": "库存 (kg)",
+            "capacity": "袋容量 (kg)",
+            "cost": "成本 (元/kg)",
+            "costPlaceholder": "例如：32000",
+            "tastingNotes": "风味描述",
+            "tastingNotesPlaceholder": "例如：茉莉花、蓝莓、牛奶巧克力"
+        },
+        "expected": {
+            "inbound": "预计入库 (kg)",
+            "note": "备注 (可选)",
+            "notePlaceholder": "例如：PO #1234，下周到货",
+            "countsNote": "计入库存短缺提醒的可使用库存，非实际库存。"
+        },
+        "restock": {
+            "weight": "添加重量 (kg)",
+            "clear": "清除"
+        }
+    },
+    "beanDetail": {
+        "empty": {
+            "select": "选择生豆以查看详情",
+            "addFirst": "添加您的第一批生豆开始使用。"
+        },
+        "origin": "产地",
+        "region": "产区",
+        "farm": "农场",
+        "altitude": "海拔",
+        "received": "入库日期",
+        "currentStock": "当前库存",
+        "available": "可用 (含预计入库)",
+        "effective": "有效 (28天计划)",
+        "tastingNotes": "风味描述",
+        "stockLevel": "库存水平",
+        "startRoast": "开始烘焙",
+        "restock": "补货",
+        "stockCards": {
+            "current": "当前库存",
+            "reserved": "已预留",
+            "available": "可用"
+        },
+        "stockHistory": {
+            "title": "库存历史",
+            "empty": "无记录",
+            "purchase": "入库",
+            "expectedInbound": "预计入库",
+            "roast": "烘焙",
+            "adjustment": "调整"
+        }
     }
 }

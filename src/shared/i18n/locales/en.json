@@ -6,6 +6,7 @@
         "connecting": "Connecting...",
         "disconnected": "Disconnected",
         "live": "Live",
+        "loading": "Loading…",
         "offline": "Offline"
     },
     "sidebar": {
@@ -172,7 +173,9 @@
         "saving": "Saving...",
         "saveOnly": "Save only",
         "saveAndConnect": "Save & Connect",
-        "failedToSave": "Failed to save"
+        "failedToSave": "Failed to save",
+        "phidgetDriverNotice": "This device requires the Phidget22 system driver separately.",
+        "phidgetDriverLink": "View driver installation guide"
     },
     "dashboard": {
         "greeting": {
@@ -227,7 +230,10 @@
             "single": "Single Origin",
             "blend": "Blend"
         },
-        "empty": "No beans registered yet",
+        "empty": {
+            "title": "No beans registered yet.",
+            "description": "Add your first bean to get started."
+        },
         "addFirst": "Add your first bean to get started",
         "blend": {
             "empty": "No blends registered yet",
@@ -589,5 +595,170 @@
         "exportTitle": "First Crack",
         "exportOkLabel": "Export",
         "exportCancelLabel": "Cancel"
+    },
+    "profiles": {
+        "title": "Roast Profiles",
+        "drop": "Drop",
+        "newProfile": "New Profile",
+        "empty": "No profiles yet",
+        "createFirst": "Create your first profile",
+        "subtitle_one": "{{count}} profile",
+        "subtitle_other": "{{count}} profiles",
+        "compare": {
+            "selectPrompt": "Select profiles to compare",
+            "maxSelected": "Max 4 selected",
+            "selected": "{{count}} selected · Max 4",
+            "exit": "Exit Compare",
+            "enter": "Compare"
+        }
+    },
+    "newProfileModal": {
+        "editTitle": "Edit Roast Profile",
+        "fromSession": "Profile from Session",
+        "newTitle": "New Roast Profile",
+        "selectSession": "Select Roast Session",
+        "basedOn": "Based on",
+        "unknownBean": "Unknown bean",
+        "profileName": "Profile Name",
+        "profileNamePlaceholder": "e.g. Light Floral",
+        "description": "Description",
+        "descriptionPlaceholder": "Short description…",
+        "targetLevel": "Target Roast Level",
+        "chargeTemp": "Charge Temp (°C)",
+        "tempPlaceholder": "e.g. 200",
+        "dropTemp": "Drop Temp (°C)",
+        "duration": "Duration (sec)",
+        "durationPlaceholder": "e.g. 720",
+        "devTime": "Dev Time (sec)",
+        "devTimePlaceholder": "e.g. 90",
+        "devPct": "Dev %",
+        "devPctPlaceholder": "e.g. 13",
+        "defaultBean": "Default Bean (optional)",
+        "none": "None",
+        "singleOrigin": "Single",
+        "blend": "Blend",
+        "selectBeanOption": "Select bean",
+        "selectBlendOption": "Select blend",
+        "cancel": "Cancel",
+        "saveProfile": "Save Profile",
+        "createProfile": "Create Profile",
+        "noSessions": "No completed roast sessions.",
+        "drop": "Drop",
+        "howToCreate": "How would you like to create the profile?",
+        "manualInput": "Manual Input",
+        "manualInputDesc": "Set charge temp, drop temp, duration, etc. directly",
+        "fromSessionOption": "From Roast History",
+        "fromSessionDesc": "Auto-fill parameters from a past roast session",
+        "roastLevel": {
+            "Light": "Light",
+            "Medium-Light": "Medium-Light",
+            "Medium": "Medium",
+            "Medium-Dark": "Medium-Dark",
+            "Dark": "Dark"
+        }
+    },
+    "beanList": {
+        "searchPlaceholder": "Search beans...",
+        "empty": "No beans yet. Add your first lot!",
+        "noResults": "No results found."
+    },
+    "deleteBeanModal": {
+        "title": "Delete bean?",
+        "description": "{{name}} will be permanently deleted. This cannot be undone.",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+    },
+    "addBeanModal": {
+        "newTitle": "New Bean Lot",
+        "editTitle": "Edit Bean Details",
+        "restockTitle": "Restock Existing",
+        "expectedTitle": "Expected Inbound",
+        "adjustTitle": "Adjust Stock",
+        "newTab": "New Lot",
+        "restockTab": "Restock",
+        "expectedTab": "Expected",
+        "adjustTab": "Adjust",
+        "selectBean": "Select Bean",
+        "selectBeanRestock": "Select Bean to Restock",
+        "more": "+{{count}} more",
+        "cancel": "Cancel",
+        "saving": "Saving...",
+        "create": "Create Bean Lot",
+        "update": "Update Bean Details",
+        "confirmRestock": "Confirm Restock",
+        "confirmExpected": "Confirm Expected Inbound",
+        "confirmWriteOff": "Confirm Write-off",
+        "confirmAdjustment": "Confirm Adjustment",
+        "adjust": {
+            "adjustment": "Adjustment",
+            "writeOff": "Write Off",
+            "amount": "Amount (kg)",
+            "exceedsStock": "Exceeds current stock ({{amount}}kg)",
+            "reason": "Reason (optional)",
+            "writeOffPlaceholder": "e.g. Expired",
+            "adjustPlaceholder": "e.g. Physical count correction"
+        },
+        "form": {
+            "lotName": "Lot Name",
+            "lotNamePlaceholder": "Auto-filled when origin is selected",
+            "origin": "Origin Country",
+            "originPlaceholder": "e.g. Ethiopia",
+            "region": "Region",
+            "regionPlaceholder": "e.g. Guji Zone",
+            "farm": "Farm / Producer",
+            "farmPlaceholder": "e.g. Guji Zone",
+            "variety": "Variety",
+            "varietyPlaceholder": "e.g. Heirloom",
+            "process": "Process",
+            "altitude": "Altitude (masl)",
+            "altitudePlaceholder": "e.g. 2100",
+            "stock": "Stock (kg)",
+            "capacity": "Bag Capacity (kg)",
+            "cost": "Cost (KRW/kg)",
+            "costPlaceholder": "e.g. 32000",
+            "tastingNotes": "Tasting Notes",
+            "tastingNotesPlaceholder": "e.g. Jasmine, Blueberry, Milk Chocolate"
+        },
+        "expected": {
+            "inbound": "Expected Inbound (kg)",
+            "note": "Note (optional)",
+            "notePlaceholder": "e.g. PO #1234, ETA next week",
+            "countsNote": "Counts toward available stock for shortage alerts, not physical on-hand stock."
+        },
+        "restock": {
+            "weight": "Weight to Add (kg)",
+            "clear": "Clear"
+        }
+    },
+    "beanDetail": {
+        "empty": {
+            "select": "Select a bean to view details",
+            "addFirst": "Add your first bean lot to get started."
+        },
+        "origin": "Origin",
+        "region": "Region",
+        "farm": "Farm",
+        "altitude": "Altitude",
+        "received": "Received",
+        "currentStock": "Current Stock",
+        "available": "Available (incl. inbound)",
+        "effective": "Effective (28d plan)",
+        "tastingNotes": "Tasting Notes",
+        "stockLevel": "Stock Level",
+        "startRoast": "Start Roast",
+        "restock": "Restock",
+        "stockCards": {
+            "current": "Current",
+            "reserved": "Reserved",
+            "available": "Available"
+        },
+        "stockHistory": {
+            "title": "Stock History",
+            "empty": "No history",
+            "purchase": "Inbound",
+            "expectedInbound": "Expected Inbound",
+            "roast": "Roast",
+            "adjustment": "Adjustment"
+        }
     }
 }

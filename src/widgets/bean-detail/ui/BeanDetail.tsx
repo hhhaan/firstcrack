@@ -3,6 +3,7 @@ import { useBeanStockEvents, useBeanStockSummary } from '@entities/bean-stock-ev
 import type { Bean } from '@shared/types/database.types';
 import { Edit3, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DeleteBeanModal } from './DeleteBeanModal';
 
 interface BeanDetailProps {
@@ -39,13 +40,17 @@ const Skeleton = () => (
     </div>
 );
 
-const Empty = ({ hasAny }: { hasAny: boolean }) => (
-    <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex items-center justify-center text-sm text-muted dark:text-white tracking-[0.14px]">
-        {hasAny ? 'Select a bean to view details' : 'Add your first bean lot to get started.'}
-    </div>
-);
+const Empty = ({ hasAny }: { hasAny: boolean }) => {
+    const { t } = useTranslation();
+    return (
+        <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-15 flex items-center justify-center text-sm text-muted dark:text-[#e5e5e5] tracking-[0.14px]">
+            {hasAny ? t('beanDetail.empty.select') : t('beanDetail.empty.addFirst')}
+        </div>
+    );
+};
 
 export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, onDelete }: BeanDetailProps) => {
+    const { t } = useTranslation();
     const [confirming, setConfirming] = useState(false);
     const { data: summary } = useBeanStockSummary(bean?.id ?? '');
     const { data: events = [] } = useBeanStockEvents(bean?.id ?? '');
@@ -112,21 +117,21 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
                     {[
-                        { label: 'Origin', value: bean.origin ?? '—' },
-                        { label: 'Region', value: bean.region ?? '—' },
-                        { label: 'Farm', value: bean.farm ?? '—' },
+                        { label: t('beanDetail.origin'), value: bean.origin ?? '—' },
+                        { label: t('beanDetail.region'), value: bean.region ?? '—' },
+                        { label: t('beanDetail.farm'), value: bean.farm ?? '—' },
                         {
-                            label: 'Altitude',
+                            label: t('beanDetail.altitude'),
                             value: bean.altitude_masl ? `${bean.altitude_masl.toLocaleString()} masl` : '—',
                         },
-                        { label: 'Received', value: bean.purchase_date ?? '—' },
-                        { label: 'Current Stock', value: `${(currentGrams / 1000).toFixed(2)}kg` },
+                        { label: t('beanDetail.received'), value: bean.purchase_date ?? '—' },
+                        { label: t('beanDetail.currentStock'), value: `${(currentGrams / 1000).toFixed(2)}kg` },
                         {
-                            label: 'Available (incl. inbound)',
+                            label: t('beanDetail.available'),
                             value: `${(availableGrams / 1000).toFixed(2)}kg`,
                         },
                         {
-                            label: 'Effective (28d plan)',
+                            label: t('beanDetail.effective'),
                             value: `${(effectiveGrams / 1000).toFixed(2)}kg`,
                         },
                     ].map(({ label, value }) => (
@@ -142,7 +147,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                 {bean.tasting_notes && (
                     <div className="bg-surface-warm-solid rounded-lg px-4 py-3.5 mb-6">
                         <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
-                            Tasting Notes
+                            {t('beanDetail.tastingNotes')}
                         </div>
                         <div className="flex gap-1.5 flex-wrap">
                             {bean.tasting_notes.split(', ').map((note) => (
@@ -159,7 +164,9 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
 
                 <div className="mb-6">
                     <div className="flex justify-between mb-1.5">
-                        <span className="text-xs font-medium text-secondary tracking-[0.14px]">Stock Level</span>
+                        <span className="text-xs font-medium text-secondary tracking-[0.14px]">
+                            {t('beanDetail.stockLevel')}
+                        </span>
                         <span className="text-xs text-muted font-mono">
                             {(currentGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
                         </span>
@@ -180,30 +187,30 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                         onClick={onStartRoast}
                         className="flex-1 py-2.5 rounded-full border border-gray-200 dark:border-[#585d61] dark:bg-[#1a1e23] bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
                     >
-                        Start Roast
+                        {t('beanDetail.startRoast')}
                     </button>
                     <button
                         onClick={() => onRestock(bean.id)}
-                        className="flex-1 py-2.5 rounded-full border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
+                        className="flex-1 py-2.5 rounded-full border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-sm font-medium cursor-pointer tracking-[0.14px]"
                     >
-                        Restock
+                        {t('beanDetail.restock')}
                     </button>
                 </div>
 
                 <div className="mt-6 space-y-3">
                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
                         <div className="bg-gray-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
-                            <p className="text-muted dark:text-muted">현재 재고</p>
+                            <p className="text-muted dark:text-muted">{t('beanDetail.stockCards.current')}</p>
                             <p className="font-semibold text-primary dark:text-primary">
                                 {summary?.currentGrams ?? 0}g
                             </p>
                         </div>
                         <div className="bg-yellow-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
-                            <p className="text-muted dark:text-muted">예약됨</p>
+                            <p className="text-muted dark:text-muted">{t('beanDetail.stockCards.reserved')}</p>
                             <p className="font-semibold text-palette-yellow">{summary?.reservedGrams ?? 0}g</p>
                         </div>
                         <div className="bg-green-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
-                            <p className="text-muted dark:text-muted">가용</p>
+                            <p className="text-muted dark:text-muted">{t('beanDetail.stockCards.available')}</p>
                             <p
                                 className={`font-semibold ${(summary?.effectiveGrams ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-palette-green'}`}
                             >
@@ -212,8 +219,14 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                         </div>
                     </div>
 
-                    <p className="text-xs font-medium text-gray-500 dark:text-white mt-4">재고 이력</p>
-                    {events.length === 0 && <p className="text-xs text-gray-300 dark:text-white">이력 없음</p>}
+                    <p className="text-xs font-medium text-gray-500 dark:text-[#e5e5e5] mt-4">
+                        {t('beanDetail.stockHistory.title')}
+                    </p>
+                    {events.length === 0 && (
+                        <p className="text-xs text-gray-300 dark:text-[#e5e5e5]">
+                            {t('beanDetail.stockHistory.empty')}
+                        </p>
+                    )}
                     {events.map((ev) => (
                         <div key={ev.id} className="flex items-start gap-3 text-xs">
                             <span
@@ -225,18 +238,18 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                                 <span className="font-medium">
                                     {ev.delta_grams > 0 ? `+${ev.delta_grams}g` : `${ev.delta_grams}g`}
                                 </span>
-                                <span className="text-gray-400 dark:text-white ml-1">
+                                <span className="text-gray-400 dark:text-[#e5e5e5] ml-1">
                                     {ev.event_type === 'purchase'
-                                        ? '입고'
+                                        ? t('beanDetail.stockHistory.purchase')
                                         : ev.event_type === 'expected_inbound'
-                                          ? '입고 예정'
+                                          ? t('beanDetail.stockHistory.expectedInbound')
                                           : ev.event_type === 'roast'
-                                            ? '로스팅'
-                                            : '조정'}
+                                            ? t('beanDetail.stockHistory.roast')
+                                            : t('beanDetail.stockHistory.adjustment')}
                                 </span>
-                                {ev.note && <span className="text-gray-400 dark:text-white ml-1">— {ev.note}</span>}
+                                {ev.note && <span className="text-gray-400 dark:text-[#e5e5e5] ml-1">— {ev.note}</span>}
                             </div>
-                            <span className="text-gray-300 dark:text-white">
+                            <span className="text-gray-300 dark:text-[#e5e5e5]">
                                 {new Date(ev.created_at).toLocaleDateString('ko-KR')}
                             </span>
                         </div>

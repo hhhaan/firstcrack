@@ -7,6 +7,7 @@ import type { RoastProfile } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Check, ChevronDown, ChevronRight, History, Pencil, Plus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 
@@ -90,6 +91,7 @@ interface NewProfileModalProps {
 }
 
 export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUpdated }: NewProfileModalProps) => {
+    const { t } = useTranslation();
     const [mode, setMode] = useState<Mode>('pick');
     const [form, setForm] = useState<FormState>(INITIAL_FORM);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -241,10 +243,10 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                             className="font-(--font-display) text-2xl text-primary tracking-[-0.02em] m-0"
                         >
                             {editingProfile
-                                ? 'Edit Roast Profile'
+                                ? t('newProfileModal.editTitle')
                                 : mode === 'from-session'
-                                  ? 'Profile from Session'
-                                  : 'New Roast Profile'}
+                                  ? t('newProfileModal.fromSession')
+                                  : t('newProfileModal.newTitle')}
                         </h2>
                     </div>
                     <button
@@ -265,9 +267,9 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                                 <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface/60 dark:bg-surface-elevated border border-transparent dark:border-[#585d61] text-[12px] text-secondary shadow-(--shadow-inset)">
                                     <History size={14} strokeWidth={2} className="text-muted flex-shrink-0" />
                                     <span>
-                                        Based on{' '}
+                                        {t('newProfileModal.basedOn')}{' '}
                                         <span className="font-medium text-primary">
-                                            {session.beans?.name ?? 'Unknown bean'}
+                                            {session.beans?.name ?? t('newProfileModal.unknownBean')}
                                         </span>
                                         {' · '}
                                         {fmtDate(session.roasted_at)}
@@ -286,25 +288,25 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     {/* Profile Name */}
                     <div>
                         <label className={labelCls}>
-                            Profile Name <span className="text-red-400">*</span>
+                            {t('newProfileModal.profileName')} <span className="text-red-400">*</span>
                         </label>
                         <input
                             ref={nameRef}
                             type="text"
                             value={form.name}
                             onChange={set('name')}
-                            placeholder="e.g. Light Floral"
+                            placeholder={t('newProfileModal.profileNamePlaceholder')}
                             className={inputCls}
                         />
                     </div>
 
                     {/* Description */}
                     <div>
-                        <label className={labelCls}>Description</label>
+                        <label className={labelCls}>{t('newProfileModal.description')}</label>
                         <textarea
                             value={form.description}
                             onChange={set('description')}
-                            placeholder="Short description…"
+                            placeholder={t('newProfileModal.descriptionPlaceholder')}
                             rows={2}
                             className={`${inputCls} min-h-[56px] resize-none`}
                         />
@@ -312,7 +314,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
 
                     {/* Target Roast Level */}
                     <div>
-                        <label className={labelCls}>Target Roast Level</label>
+                        <label className={labelCls}>{t('newProfileModal.targetLevel')}</label>
                         <div className="relative">
                             <select
                                 value={form.target_level}
@@ -322,7 +324,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                             >
                                 {ROAST_LEVELS.map((l) => (
                                     <option key={l} value={l}>
-                                        {l}
+                                        {t(`newProfileModal.roastLevel.${l}`)}
                                     </option>
                                 ))}
                             </select>
@@ -337,21 +339,21 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     {/* Charge Temp / Drop Temp */}
                     <div className="grid grid-cols-2 gap-6">
                         <div>
-                            <label className={labelCls}>Charge Temp (°C)</label>
+                            <label className={labelCls}>{t('newProfileModal.chargeTemp')}</label>
                             <input
                                 {...numericProps}
                                 className={inputCls}
-                                placeholder="e.g. 200"
+                                placeholder={t('newProfileModal.tempPlaceholder')}
                                 value={form.charge_temp_celsius}
                                 onChange={set('charge_temp_celsius')}
                             />
                         </div>
                         <div>
-                            <label className={labelCls}>Drop Temp (°C)</label>
+                            <label className={labelCls}>{t('newProfileModal.dropTemp')}</label>
                             <input
                                 {...numericProps}
                                 className={inputCls}
-                                placeholder="e.g. 200"
+                                placeholder={t('newProfileModal.tempPlaceholder')}
                                 value={form.drop_temp_celsius}
                                 onChange={set('drop_temp_celsius')}
                             />
@@ -361,31 +363,31 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     {/* Duration / Dev Time / Dev % */}
                     <div className="grid grid-cols-3 gap-6">
                         <div>
-                            <label className={labelCls}>Duration (sec)</label>
+                            <label className={labelCls}>{t('newProfileModal.duration')}</label>
                             <input
                                 {...numericProps}
                                 className={inputCls}
-                                placeholder="e.g. 720"
+                                placeholder={t('newProfileModal.durationPlaceholder')}
                                 value={form.duration_sec}
                                 onChange={set('duration_sec')}
                             />
                         </div>
                         <div>
-                            <label className={labelCls}>Dev Time (sec)</label>
+                            <label className={labelCls}>{t('newProfileModal.devTime')}</label>
                             <input
                                 {...numericProps}
                                 className={inputCls}
-                                placeholder="e.g. 90"
+                                placeholder={t('newProfileModal.devTimePlaceholder')}
                                 value={form.dev_time_sec}
                                 onChange={set('dev_time_sec')}
                             />
                         </div>
                         <div>
-                            <label className={labelCls}>Dev %</label>
+                            <label className={labelCls}>{t('newProfileModal.devPct')}</label>
                             <input
                                 type="number"
                                 className={inputCls}
-                                placeholder="e.g. 13"
+                                placeholder={t('newProfileModal.devPctPlaceholder')}
                                 value={form.dev_pct}
                                 onChange={set('dev_pct')}
                                 min={0}
@@ -397,20 +399,20 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
 
                     {/* Default Bean / Blend */}
                     <div className="border-t border-black/4 dark:border-[#585d61] pt-6">
-                        <label className={labelCls}>기본 생두 (선택)</label>
+                        <label className={labelCls}>{t('newProfileModal.defaultBean')}</label>
                         <div className="flex gap-2 mt-2">
                             {(
                                 [
-                                    ['none', '없음'],
-                                    ['bean', '싱글'],
-                                    ['blend', '블렌드'],
+                                    ['none', t('newProfileModal.none')],
+                                    ['bean', t('newProfileModal.singleOrigin')],
+                                    ['blend', t('newProfileModal.blend')],
                                 ] as const
-                            ).map(([t, label]) => (
+                            ).map(([type, label]) => (
                                 <button
-                                    key={t}
+                                    key={type}
                                     type="button"
-                                    onClick={() => setDefaultType(t)}
-                                    className={chipCls(defaultType === t)}
+                                    onClick={() => setDefaultType(type)}
+                                    className={chipCls(defaultType === type)}
                                 >
                                     {label}
                                 </button>
@@ -424,7 +426,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                                     className={selectCls}
                                     style={{ paddingRight: '2.5rem' }}
                                 >
-                                    <option value="">생두 선택</option>
+                                    <option value="">{t('newProfileModal.selectBeanOption')}</option>
                                     {beans.map((b) => (
                                         <option key={b.id} value={b.id}>
                                             {b.name}
@@ -446,7 +448,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                                     className={selectCls}
                                     style={{ paddingRight: '2.5rem' }}
                                 >
-                                    <option value="">블렌드 선택</option>
+                                    <option value="">{t('newProfileModal.selectBlendOption')}</option>
                                     {blends.map((b) => (
                                         <option key={b.id} value={b.id}>
                                             {b.name}
@@ -470,9 +472,9 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
+                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
                     >
-                        Cancel
+                        {t('newProfileModal.cancel')}
                     </button>
                     <button
                         type="submit"
@@ -481,11 +483,11 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                     >
                         {editingProfile ? (
                             <>
-                                <Check size={16} strokeWidth={2.5} /> Save Profile
+                                <Check size={16} strokeWidth={2.5} /> {t('newProfileModal.saveProfile')}
                             </>
                         ) : (
                             <>
-                                <Plus size={16} strokeWidth={2.5} /> Create Profile
+                                <Plus size={16} strokeWidth={2.5} /> {t('newProfileModal.createProfile')}
                             </>
                         )}
                     </button>
@@ -508,7 +510,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                             <ChevronRight size={14} strokeWidth={2.5} className="rotate-180" />
                         </button>
                         <h2 className="font-(--font-display) text-2xl text-primary tracking-[-0.02em] m-0">
-                            Select Roast Session
+                            {t('newProfileModal.selectSession')}
                         </h2>
                     </div>
                     <button
@@ -524,7 +526,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
             {/* Scrollable Body */}
             <div className="px-8 py-6 overflow-y-auto flex-1">
                 {sessions.length === 0 ? (
-                    <p className="text-sm text-muted text-center py-8">완료된 로스팅 세션이 없습니다.</p>
+                    <p className="text-sm text-muted text-center py-8">{t('newProfileModal.noSessions')}</p>
                 ) : (
                     <div className="flex flex-col gap-2">
                         {sessions.map((session) => (
@@ -537,12 +539,12 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                                 <div className="flex items-center justify-between">
                                     <div className="flex flex-col gap-0.5">
                                         <span className="text-sm font-semibold text-primary">
-                                            {session.beans?.name ?? 'Unknown bean'}
+                                            {session.beans?.name ?? t('newProfileModal.unknownBean')}
                                         </span>
                                         <span className="text-[12px] text-muted">
                                             {fmtDate(session.roasted_at)}
                                             {session.drop_temp_celsius != null &&
-                                                ` · Drop ${session.drop_temp_celsius}°C`}
+                                                ` · ${t('newProfileModal.drop')} ${session.drop_temp_celsius}°C`}
                                             {session.duration_seconds != null &&
                                                 ` · ${fmtDuration(session.duration_seconds)}`}
                                             {session.roast_level && ` · ${session.roast_level}`}
@@ -565,9 +567,9 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                 <button
                     type="button"
                     onClick={onClose}
-                    className="w-full py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
+                    className="w-full py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
                 >
-                    Cancel
+                    {t('newProfileModal.cancel')}
                 </button>
             </div>
         </div>
@@ -582,7 +584,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                         id="new-profile-modal-title"
                         className="font-(--font-display) text-2xl text-primary tracking-[-0.02em] m-0"
                     >
-                        New Roast Profile
+                        {t('newProfileModal.newTitle')}
                     </h2>
                     <button
                         type="button"
@@ -596,7 +598,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
 
             {/* Scrollable Body */}
             <div className="px-8 py-6 overflow-y-auto flex-1">
-                <p className="text-sm text-secondary tracking-[0.14px] mb-4">프로파일을 어떻게 만들까요?</p>
+                <p className="text-sm text-secondary tracking-[0.14px] mb-4">{t('newProfileModal.howToCreate')}</p>
 
                 <div className="flex flex-col gap-4">
                     {/* Option: Manual Input */}
@@ -610,10 +612,10 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                         </div>
                         <div className="flex-1">
                             <div className="text-[13px] font-semibold text-primary tracking-[0.14px] mb-0.5">
-                                직접 입력
+                                {t('newProfileModal.manualInput')}
                             </div>
                             <div className="text-[12px] text-muted tracking-[0.14px]">
-                                Charge temp, Drop temp, Duration 등 직접 설정
+                                {t('newProfileModal.manualInputDesc')}
                             </div>
                         </div>
                         <ChevronRight
@@ -634,10 +636,10 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                         </div>
                         <div className="flex-1">
                             <div className="text-[13px] font-semibold text-primary tracking-[0.14px] mb-0.5">
-                                로스팅 기록에서 불러오기
+                                {t('newProfileModal.fromSessionOption')}
                             </div>
                             <div className="text-[12px] text-muted tracking-[0.14px]">
-                                과거 로스팅 세션 기준으로 파라미터 자동 완성
+                                {t('newProfileModal.fromSessionDesc')}
                             </div>
                         </div>
                         <ChevronRight
@@ -654,9 +656,9 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
                 <button
                     type="button"
                     onClick={onClose}
-                    className="w-full py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
+                    className="w-full py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
                 >
-                    Cancel
+                    {t('newProfileModal.cancel')}
                 </button>
             </div>
         </div>

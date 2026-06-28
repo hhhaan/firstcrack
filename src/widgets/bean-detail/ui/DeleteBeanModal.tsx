@@ -1,5 +1,6 @@
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface DeleteBeanModalProps {
     open: boolean;
@@ -9,6 +10,7 @@ interface DeleteBeanModalProps {
 }
 
 export const DeleteBeanModal = ({ open, beanName, onClose, onConfirm }: DeleteBeanModalProps) => {
+    const { t } = useTranslation();
     if (!open) return null;
 
     return (
@@ -26,24 +28,23 @@ export const DeleteBeanModal = ({ open, beanName, onClose, onConfirm }: DeleteBe
                 id="delete-bean-modal-title"
                 className="font-(--font-mono) text-[28px] leading-[1.05] text-primary tracking-[-0.5px] mb-2.5"
             >
-                생두를 삭제할까요?
+                {t('deleteBeanModal.title')}
             </h2>
             <p className="text-sm text-secondary leading-[1.6] mb-5.5">
-                <span className="font-medium text-primary">{beanName}</span>이(가) 영구적으로 삭제됩니다. 되돌릴 수
-                없습니다.
+                {t('deleteBeanModal.description', { name: beanName })}
             </p>
             <div className="grid grid-cols-2 gap-2">
                 <button
                     onClick={onClose}
                     className="w-full py-3 rounded-lg border-none bg-surface text-secondary text-sm font-(--font-mono) cursor-pointer tracking-[0.14px] shadow-(--shadow-inset)"
                 >
-                    취소
+                    {t('deleteBeanModal.cancel')}
                 </button>
                 <button
                     onClick={onConfirm}
                     className="w-full py-3 rounded-lg border-none bg-[rgba(254,226,226,0.8)] text-[#dc2626] text-sm font-(--font-mono) cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
                 >
-                    삭제
+                    {t('deleteBeanModal.confirm')}
                 </button>
             </div>
         </ModalShell>

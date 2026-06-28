@@ -21,6 +21,7 @@ import { ProfileCompare } from '@widgets/profile-compare/ui/ProfileCompare';
 import { ProfileDetail } from '@widgets/profile-detail/ui/ProfileDetail';
 import { Check, GitCompare, Plus, Star } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NewProfileModal } from './NewProfileModal';
 
 const COMPARE_COLORS = [
@@ -35,6 +36,7 @@ interface ProfilesProps {
 }
 
 export const Profiles = ({ onNavigate }: ProfilesProps) => {
+    const { t } = useTranslation();
     const user = useAuthStore((s) => s.user);
     const { data: profiles = [], isLoading } = useRoastProfiles(user?.id ?? '');
     const { mutateAsync: createProfile } = useCreateRoastProfile(user?.id ?? '');
@@ -146,10 +148,10 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             {compareMode && (
                 <p className="text-[11px] font-medium text-muted tracking-[0.4px] px-1 mb-0.5">
                     {compareIds.length === 0
-                        ? '비교할 프로파일을 선택하세요'
+                        ? t('profiles.compare.selectPrompt')
                         : compareIds.length >= 4
-                          ? '최대 4개 선택됨'
-                          : `${compareIds.length}개 선택됨 · 최대 4개`}
+                          ? t('profiles.compare.maxSelected')
+                          : t('profiles.compare.selected', { count: compareIds.length })}
                 </p>
             )}
             {sortedProfiles.map((profile) => {
@@ -201,7 +203,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 </div>
                                 <div className="text-[12px] text-muted tracking-[0.14px]">
                                     {profile.drop_temp_celsius != null
-                                        ? `Drop ${profile.drop_temp_celsius}°C`
+                                        ? `${t('profiles.drop')} ${profile.drop_temp_celsius}°C`
                                         : profile.target_level}
                                     {profile.duration_sec != null && ` · ${formatDuration(profile.duration_sec)}`}
                                 </div>
@@ -216,7 +218,9 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     if (isLoading) {
         return (
             <PageLayout>
-                <div className="flex items-center justify-center h-64 text-sm text-muted dark:text-white">Loading…</div>
+                <div className="flex items-center justify-center h-64 text-sm text-muted dark:text-[#e5e5e5]">
+                    {t('common.loading')}
+                </div>
             </PageLayout>
         );
     }
@@ -224,8 +228,8 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     return (
         <PageLayout>
             <PageHeader
-                title="Roast Profiles"
-                subtitle={`${profiles.length} profile${profiles.length !== 1 ? 's' : ''}`}
+                title={t('profiles.title')}
+                subtitle={t('profiles.subtitle', { count: profiles.length })}
                 actions={
                     <div className="flex gap-2 items-center">
                         {profiles.length > 1 && (
@@ -234,11 +238,11 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 className={`flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none text-sm font-medium cursor-pointer tracking-[0.14px] transition-colors ${
                                     compareMode
                                         ? 'bg-primary text-white '
-                                        : 'bg-surface dark:bg-surface-elevated text-secondary  hover:text-primary'
+                                        : 'bg-main-bg dark:bg-[#262b31] text-secondary dark:text-[#e5e5e5] border border-transparent dark:border-[#585d61] hover:text-primary'
                                 }`}
                             >
                                 <GitCompare size={14} strokeWidth={2} />
-                                {compareMode ? '비교 모드 종료' : '비교하기'}
+                                {compareMode ? t('profiles.compare.exit') : t('profiles.compare.enter')}
                             </button>
                         )}
                         <button
@@ -246,7 +250,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                             className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#171717] text-white text-sm font-medium cursor-pointer  tracking-[0.14px]"
                         >
                             <Plus size={15} strokeWidth={2.5} />
-                            New Profile
+                            {t('profiles.newProfile')}
                         </button>
                     </div>
                 }
@@ -254,9 +258,10 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
             {profiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-lg bg-main-bg dark:border dark:border-[#585d61]">
-                    <p className="text-sm text-muted tracking-[0.14px]">아직 프로파일이 없습니다.</p>
+                    <p className="text-sm text-muted tracking-[0.14px]">{t('profiles.empty')}</p>
                     <PillButton onClick={() => setShowNewModal(true)}>
-                        <Plus size={14} strokeWidth={2.5} />첫 프로파일 만들기
+                        <Plus size={14} strokeWidth={2.5} />
+                        {t('profiles.createFirst')}
                     </PillButton>
                 </div>
             ) : (

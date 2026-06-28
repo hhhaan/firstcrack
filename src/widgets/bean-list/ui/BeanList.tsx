@@ -2,6 +2,7 @@ import { getStatus, statusConfig } from '@entities/bean/lib';
 import type { StockSummary } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
 import { Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface BeanListProps {
     beans: Bean[];
@@ -32,6 +33,7 @@ const Skeleton = () => (
 );
 
 export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, stockSummaries }: BeanListProps) => {
+    const { t } = useTranslation();
     const searchLower = search.toLowerCase();
     const filtered = beans.filter(
         (b) => b.name.toLowerCase().includes(searchLower) || (b.origin ?? '').toLowerCase().includes(searchLower),
@@ -44,7 +46,7 @@ export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, s
                 <input
                     value={search}
                     onChange={(e) => onSearchChange(e.target.value)}
-                    placeholder="Search beans..."
+                    placeholder={t('beanList.searchPlaceholder')}
                     className="border-none bg-transparent outline-none text-[13px] text-primary font-body w-full tracking-[0.14px]"
                 />
             </div>
@@ -107,7 +109,7 @@ export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, s
 
                     {filtered.length === 0 && (
                         <div className="px-5 py-10 text-center text-muted text-sm tracking-[0.14px]">
-                            {beans.length === 0 ? 'No beans yet. Add your first lot!' : 'No results found.'}
+                            {beans.length === 0 ? t('beanList.empty') : t('beanList.noResults')}
                         </div>
                     )}
                 </div>

@@ -6,6 +6,7 @@
         "connecting": "연결 중...",
         "disconnected": "연결 안 됨",
         "live": "실시간",
+        "loading": "불러오는 중…",
         "offline": "오프라인"
     },
     "sidebar": {
@@ -435,7 +436,10 @@
             "single": "싱글 오리진",
             "blend": "블렌드"
         },
-        "empty": "등록된 생두가 없습니다",
+        "empty": {
+            "title": "등록된 원두가 없습니다.",
+            "description": "첫 번째 원두를 추가해 보세요."
+        },
         "addFirst": "첫 생두를 추가해 시작하세요",
         "blend": {
             "empty": "등록된 블렌드가 없습니다",
@@ -590,6 +594,171 @@
             "deductStockDisabled": "연결된 원두가 없어 재고를 차감할 수 없습니다.",
             "skip": "차감 안 함",
             "confirm": "확인"
+        }
+    },
+    "profiles": {
+        "title": "로스팅 프로파일",
+        "drop": "Drop",
+        "newProfile": "새 프로파일",
+        "empty": "아직 프로파일이 없습니다.",
+        "createFirst": "첫 프로파일 만들기",
+        "subtitle_one": "프로파일 {{count}}개",
+        "subtitle_other": "프로파일 {{count}}개",
+        "compare": {
+            "selectPrompt": "비교할 프로파일을 선택하세요",
+            "maxSelected": "최대 4개 선택됨",
+            "selected": "{{count}}개 선택됨 · 최대 4개",
+            "exit": "비교 모드 종료",
+            "enter": "비교하기"
+        }
+    },
+    "newProfileModal": {
+        "editTitle": "로스팅 프로파일 수정",
+        "fromSession": "세션에서 프로파일 만들기",
+        "newTitle": "새 로스팅 프로파일",
+        "selectSession": "로스팅 세션 선택",
+        "basedOn": "기준",
+        "unknownBean": "알 수 없는 생두",
+        "profileName": "프로파일 이름",
+        "profileNamePlaceholder": "예: Light Floral",
+        "description": "설명",
+        "descriptionPlaceholder": "간단한 설명…",
+        "targetLevel": "목표 로스팅 레벨",
+        "chargeTemp": "투입 온도 (°C)",
+        "tempPlaceholder": "예: 200",
+        "dropTemp": "배출 온도 (°C)",
+        "duration": "시간 (초)",
+        "durationPlaceholder": "예: 720",
+        "devTime": "발달 시간 (초)",
+        "devTimePlaceholder": "예: 90",
+        "devPct": "발달율 (%)",
+        "devPctPlaceholder": "예: 13",
+        "defaultBean": "기본 생두 (선택)",
+        "none": "없음",
+        "singleOrigin": "싱글",
+        "blend": "블렌드",
+        "selectBeanOption": "생두 선택",
+        "selectBlendOption": "블렌드 선택",
+        "cancel": "취소",
+        "saveProfile": "프로파일 저장",
+        "createProfile": "프로파일 생성",
+        "noSessions": "완료된 로스팅 세션이 없습니다.",
+        "drop": "Drop",
+        "howToCreate": "프로파일을 어떻게 만들까요?",
+        "manualInput": "직접 입력",
+        "manualInputDesc": "Charge temp, Drop temp, Duration 등 직접 설정",
+        "fromSessionOption": "로스팅 기록에서 불러오기",
+        "fromSessionDesc": "과거 로스팅 세션 기준으로 파라미터 자동 완성",
+        "roastLevel": {
+            "Light": "라이트",
+            "Medium-Light": "미디엄 라이트",
+            "Medium": "미디엄",
+            "Medium-Dark": "미디엄 다크",
+            "Dark": "다크"
+        }
+    },
+    "beanList": {
+        "searchPlaceholder": "생두 검색...",
+        "empty": "아직 등록된 원두가 없습니다. 첫 번째 원두를 추가해 보세요!",
+        "noResults": "검색 결과가 없습니다."
+    },
+    "deleteBeanModal": {
+        "title": "생두를 삭제할까요?",
+        "description": "{{name}}이(가) 영구적으로 삭제됩니다. 되돌릴 수 없습니다.",
+        "cancel": "취소",
+        "confirm": "삭제"
+    },
+    "addBeanModal": {
+        "newTitle": "새 생두 로트",
+        "editTitle": "생두 정보 수정",
+        "restockTitle": "기존 생두 재입고",
+        "expectedTitle": "입고 예정",
+        "adjustTitle": "재고 조정",
+        "newTab": "새 로트",
+        "restockTab": "재입고",
+        "expectedTab": "입고 예정",
+        "adjustTab": "조정",
+        "selectBean": "생두 선택",
+        "selectBeanRestock": "재입고할 생두 선택",
+        "more": "+{{count}}개 더",
+        "cancel": "취소",
+        "saving": "저장 중...",
+        "create": "생두 로트 생성",
+        "update": "생두 정보 업데이트",
+        "confirmRestock": "재입고 확인",
+        "confirmExpected": "입고 예정 확인",
+        "confirmWriteOff": "폐기 확인",
+        "confirmAdjustment": "조정 확인",
+        "adjust": {
+            "adjustment": "재고 조정",
+            "writeOff": "폐기 처리",
+            "amount": "수량 (kg)",
+            "exceedsStock": "현재 재고({{amount}}kg)를 초과합니다.",
+            "reason": "사유 (선택)",
+            "writeOffPlaceholder": "예: 유통기한 초과",
+            "adjustPlaceholder": "예: 실측 후 재고 보정"
+        },
+        "form": {
+            "lotName": "로트 이름",
+            "lotNamePlaceholder": "원산지 선택 시 자동 입력됩니다",
+            "origin": "원산지",
+            "originPlaceholder": "예: 에티오피아",
+            "region": "지역",
+            "regionPlaceholder": "예: Guji Zone",
+            "farm": "농장 / 생산자",
+            "farmPlaceholder": "예: Guji Zone",
+            "variety": "품종",
+            "varietyPlaceholder": "예: Heirloom",
+            "process": "가공 방식",
+            "altitude": "고도 (masl)",
+            "altitudePlaceholder": "예: 2100",
+            "stock": "재고 (kg)",
+            "capacity": "포대 용량 (kg)",
+            "cost": "원가 (원/kg)",
+            "costPlaceholder": "예: 32000",
+            "tastingNotes": "시음 노트",
+            "tastingNotesPlaceholder": "예: 자스민, 블루베리, 밀크 초콜릿"
+        },
+        "expected": {
+            "inbound": "입고 예정량 (kg)",
+            "note": "메모 (선택)",
+            "notePlaceholder": "예: PO #1234, 다음 주 도착 예정",
+            "countsNote": "재고 부족 알림에 사용되는 가용 재고에 포함됩니다. 실제 보유 재고와는 다릅니다."
+        },
+        "restock": {
+            "weight": "추가 중량 (kg)",
+            "clear": "초기화"
+        }
+    },
+    "beanDetail": {
+        "empty": {
+            "select": "생두를 선택해 상세 정보를 확인하세요",
+            "addFirst": "첫 번째 생두를 추가해 시작하세요."
+        },
+        "origin": "원산지",
+        "region": "지역",
+        "farm": "농장",
+        "altitude": "고도",
+        "received": "입고일",
+        "currentStock": "현재 재고",
+        "available": "가용 재고 (입고 예정 포함)",
+        "effective": "실효 재고 (28일 계획)",
+        "tastingNotes": "시음 노트",
+        "stockLevel": "재고 수준",
+        "startRoast": "로스팅 시작",
+        "restock": "재입고",
+        "stockCards": {
+            "current": "현재 재고",
+            "reserved": "예약됨",
+            "available": "가용"
+        },
+        "stockHistory": {
+            "title": "재고 이력",
+            "empty": "이력 없음",
+            "purchase": "입고",
+            "expectedInbound": "입고 예정",
+            "roast": "로스팅",
+            "adjustment": "조정"
         }
     }
 }
