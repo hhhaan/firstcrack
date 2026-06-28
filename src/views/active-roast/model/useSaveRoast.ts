@@ -42,7 +42,6 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
 
             const weightGrams = Math.round(formData.weightGrams * 1000);
 
-            // 1. DB 먼저 저장 (TSV 없이)
             const payload = buildRoastSavePayload(
                 {
                     ...payloadParams,
@@ -56,7 +55,6 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
 
             const savedSession = await saveRoastSession(payload);
 
-            // 2. TSV 업로드 (fire-and-forget + 3회 재시도, 실패해도 세션은 유지)
             if (sessionId) {
                 const uploadWithRetry = async () => {
                     for (let attempt = 0; attempt < 3; attempt++) {
