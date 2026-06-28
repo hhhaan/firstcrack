@@ -29,11 +29,11 @@ interface RoastSummaryModalProps {
 }
 
 const ROAST_LEVELS = [
-    { value: 'light', label: 'Light' },
-    { value: 'medium-light', label: 'Medium-Light' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'medium-dark', label: 'Medium-Dark' },
-    { value: 'dark', label: 'Dark' },
+    { value: 'Light', label: 'Light' },
+    { value: 'Medium-Light', label: 'Medium-Light' },
+    { value: 'Medium', label: 'Medium' },
+    { value: 'Medium-Dark', label: 'Medium-Dark' },
+    { value: 'Dark', label: 'Dark' },
 ] as const;
 
 export const RoastSummaryModal = ({
