@@ -40,6 +40,9 @@ export const sidecar = {
 
     getTemperatures: () => request<TemperatureReading>('/temperatures'),
 
+    updateSettings: (settings: Record<string, unknown>) =>
+        request<{ ok: boolean }>('/settings', { method: 'POST', body: JSON.stringify(settings) }),
+
     // READY 버튼과 연동 — 가상 머신에 standby 진입 알림 (생두 투입 시뮬레이션 시작)
     enterStandby: () => request<{ ok: boolean }>('/standby', { method: 'POST' }),
 

@@ -27,8 +27,6 @@ export const AXIS_LABEL_FONT_SM = { fontSize: 10, fontFamily: 'monospace' as con
 // ── Temperature axis range ───────────────────────────────────────────────────
 export const TEMP_Y_MIN_C = 50;
 export const TEMP_Y_MAX_C = 250;
-export const TEMP_Y_MIN_F = 122;
-export const TEMP_Y_MAX_F = 482;
 export const TEMP_Y_INTERVAL = 20;
 
 // ── Multi-grid layout proportions (controlData mode) ────────────────────────

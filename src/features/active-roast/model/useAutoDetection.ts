@@ -1,6 +1,9 @@
 import type { TurningPoint } from '@features/active-roast';
 import { detectTurningPoints } from '@features/active-roast';
+import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toDisplayTemp } from '../lib/temperature';
+import type { TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
 
 const AUTO_CHARGE_WINDOW = 5;
@@ -15,12 +18,19 @@ export const useAutoDetection = (
     onAutoDrop: () => void,
     onTurningPoint: (tp: TurningPoint) => void,
     autoChargeDropC: number = 5,
+    yellowTempC: number = 150,
+    fcStartTempC: number = 200,
+    unit: TemperatureUnit = 'C',
+    markEvent?: (event: string, note: string) => void,
+    logEntries: LogEntry[] = [],
 ) => {
     const btWindowRef = useRef<number[]>([]);
     const dropWindowRef = useRef<number[]>([]);
     const autoChargedRef = useRef(false);
     const autoDroppedRef = useRef(false);
     const tpFiredRef = useRef(false);
+    const yellowFiredRef = useRef(false);
+    const fcStartFiredRef = useRef(false);
 
     const [confirmedTP, setConfirmedTP] = useState<TurningPoint | null>(null);
 
@@ -43,7 +53,7 @@ export const useAutoDetection = (
                 onAutoCharge(bt);
             }
         }
-    }, [phase, bt, onAutoCharge]);
+    }, [phase, bt, onAutoCharge, autoChargeDropC]);
 
     // Auto Drop
     useEffect(() => {
@@ -61,6 +71,30 @@ export const useAutoDetection = (
             }
         }
     }, [phase, bt, elapsed, onAutoDrop]);
+
+    // Auto Yellow / FC Start by temperature
+    useEffect(() => {
+        if (phase !== 'roasting' || bt == null || !markEvent) return;
+        if (logEntries.some((e) => e.event === 'Drop' || e.event === 'End')) return;
+
+        const displayBT = toDisplayTemp(bt, unit);
+        if (
+            !yellowFiredRef.current &&
+            !logEntries.some((e) => e.event === 'Yellow') &&
+            displayBT >= toDisplayTemp(yellowTempC, unit)
+        ) {
+            yellowFiredRef.current = true;
+            markEvent('Yellow', 'Auto-marked by temperature');
+        }
+        if (
+            !fcStartFiredRef.current &&
+            !logEntries.some((e) => e.event === 'FC Start') &&
+            displayBT >= toDisplayTemp(fcStartTempC, unit)
+        ) {
+            fcStartFiredRef.current = true;
+            markEvent('FC Start', 'Auto-marked by temperature');
+        }
+    }, [phase, bt, unit, yellowTempC, fcStartTempC, markEvent, logEntries]);
 
     // Turning Point detection
     const detectedTPs = useMemo(() => {
@@ -97,6 +131,8 @@ export const useAutoDetection = (
         autoChargedRef.current = false;
         autoDroppedRef.current = false;
         tpFiredRef.current = false;
+        yellowFiredRef.current = false;
+        fcStartFiredRef.current = false;
         setConfirmedTP(null);
     }, []);
 

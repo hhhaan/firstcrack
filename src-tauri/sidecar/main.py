@@ -150,6 +150,16 @@ async def handle_reset(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+async def handle_settings(request: web.Request) -> web.Response:
+    try:
+        body: dict[str, Any] = await request.json()
+    except Exception:
+        return web.json_response({"error": "invalid JSON"}, status=400)
+    manager: RoasterManager = request.app["manager"]
+    manager.update_settings(body)
+    return web.json_response({"ok": True})
+
+
 async def handle_shutdown(request: web.Request) -> web.Response:
     """Tauri Exit 핸들러에서 호출하는 graceful shutdown 엔드포인트."""
     import asyncio
@@ -287,6 +297,7 @@ def create_app() -> web.Application:
     app.router.add_post("/standby", handle_standby)
     app.router.add_post("/start", handle_start)
     app.router.add_post("/reset", handle_reset)
+    app.router.add_post("/settings", handle_settings)
     app.router.add_post("/control", handle_control)
     app.router.add_get("/debug/trace", handle_debug_trace_get)
     app.router.add_post("/debug/trace", handle_debug_trace_post)

@@ -12,6 +12,7 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { useActiveRoastOnboarding } from '@features/active-roast/model/useActiveRoastOnboarding';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
+import { sidecar } from '@shared/lib/sidecar';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -217,6 +218,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         handleAutoDrop,
         handleTurningPoint,
         roastSettings.autoChargeDropC,
+        roastSettings.yellowTempC,
+        roastSettings.fcStartTempC,
+        unit,
+        markEvent,
+        logEntries,
     );
 
     useEffect(() => {
@@ -225,12 +231,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         triggerChargeRef.current = triggerCharge;
     }, [resetAutoDetection, disableAutoCharge, triggerCharge]);
 
+    // ── Effect: rorSpanSec 변경 시 사이드카에 전달 ────────────────
+    useEffect(() => {
+        if (!sidecarConnected) return;
+        sidecar.updateSettings({ ror_window_sec: roastSettings.rorSpanSec }).catch(() => {});
+    }, [sidecarConnected, roastSettings.rorSpanSec]);
+
     // ── Effect: 머신 disconnect 시 진행 중 로스트 초기화 ─────────
     useEffect(() => {
         if (sidecarConnected) return;
         if (phase === 'idle' || phase === 'ended') return;
         lifecycle.resetActiveRoast();
-    }, [sidecarConnected]);
+    }, [sidecarConnected, phase, lifecycle.resetActiveRoast]);
 
     // ── Effect: 타이머 ────────────────────────────────────────────
     useEffect(() => {
@@ -434,6 +446,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                                   }
                                 : undefined
                         }
+                        tempMinC={roastSettings.tempMinC}
+                        tempMaxC={roastSettings.tempMaxC}
+                        rorYMin={roastSettings.rorYMin}
+                        rorYMax={roastSettings.rorYMax}
                         elapsed={elapsed}
                         eventMarkers={eventMarkers}
                         turningPoints={turningPoints}

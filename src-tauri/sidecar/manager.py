@@ -110,6 +110,7 @@ class RoasterManager:
         self._ror_warmup: int = 0
         self._consecutive_errors: int = 0
         self._last_good: dict[str, Any] | None = None
+        self._ror_window_secs: float = config.ROR_WINDOW_SECS
 
     async def connect(self, roaster_key: str, params: dict[str, Any]) -> None:
         async with self._lock:
@@ -357,6 +358,14 @@ class RoasterManager:
                     pass
                 await self._adapter.connect()
 
+    def update_settings(self, settings: dict[str, Any]) -> None:
+        """프론트엔드 설정 변경을 런타임에 반영."""
+        if "ror_window_sec" in settings:
+            try:
+                self._ror_window_secs = float(settings["ror_window_sec"])
+            except (TypeError, ValueError):
+                pass
+
     def status(self) -> dict[str, Any]:
         uptime = round(time.monotonic() - self._start_time, 1) if self._connected else 0
         reg = ROASTER_REGISTRY.get(self._roaster_key, {})
@@ -412,7 +421,7 @@ class RoasterManager:
         else:
             self._bt_display_ema = config.DISPLAY_ALPHA * bt + (1.0 - config.DISPLAY_ALPHA) * self._bt_display_ema
         self._ror_window.append((ts, self._bt_ema))
-        cutoff = ts - config.ROR_WINDOW_SECS
+        cutoff = ts - self._ror_window_secs
         while self._ror_window and self._ror_window[0][0] < cutoff:
             self._ror_window.popleft()
 
@@ -426,7 +435,7 @@ class RoasterManager:
         else:
             self._et_display_ema = config.DISPLAY_ALPHA * et + (1.0 - config.DISPLAY_ALPHA) * self._et_display_ema
         self._et_ror_window.append((ts, self._et_ema))
-        cutoff = ts - config.ROR_WINDOW_SECS
+        cutoff = ts - self._ror_window_secs
         while self._et_ror_window and self._et_ror_window[0][0] < cutoff:
             self._et_ror_window.popleft()
 

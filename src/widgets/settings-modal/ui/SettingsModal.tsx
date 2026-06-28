@@ -112,7 +112,7 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                         </div>
                     </div>
 
-                    <div className="grid gap-2.5 min-h-0 flex-1 pb-7">
+                    <div className="grid gap-2.5 min-h-0 pb-7">
                         {activeTab === 'roast' && <RoastSettingsTab />}
 
                         {activeTab === 'account' && <AccountSettingsTab onClose={onClose} />}

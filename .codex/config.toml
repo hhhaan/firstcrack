@@ -1,0 +1,9 @@
+[mcp_servers.sentry]
+command = "npx"
+args = [
+    "-y",
+    "@sentry/mcp-server",
+]
+
+[mcp_servers.sentry.env]
+SENTRY_ACCESS_TOKEN = "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"

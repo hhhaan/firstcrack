@@ -32,6 +32,10 @@ interface RoastChartContainerProps {
         heatPower: (number | null)[];
         fanSpeed: (number | null)[];
     };
+    tempMinC: number;
+    tempMaxC: number;
+    rorYMin: number;
+    rorYMax: number;
     elapsed: number;
     eventMarkers: RoastEventMarker[];
     turningPoints: { timeSec: number; temp: number }[];
@@ -64,6 +68,10 @@ export const RoastChartContainer = ({
     showRoR,
     showRoRET,
     controlData,
+    tempMinC,
+    tempMaxC,
+    rorYMin,
+    rorYMax,
     elapsed,
     eventMarkers,
     turningPoints,
@@ -116,6 +124,10 @@ export const RoastChartContainer = ({
                 temperatureUnit={unit}
                 controlData={controlData}
                 phaseSegments={phaseSegments}
+                tempMinC={tempMinC}
+                tempMaxC={tempMaxC}
+                rorYMin={rorYMin}
+                rorYMax={rorYMax}
             />
         </div>
     );

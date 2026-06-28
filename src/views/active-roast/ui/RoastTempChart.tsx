@@ -33,11 +33,10 @@ import {
     TEMP_GRID_HEIGHT_WITH_PHASE,
     TEMP_Y_INTERVAL,
     TEMP_Y_MAX_C,
-    TEMP_Y_MAX_F,
     TEMP_Y_MIN_C,
-    TEMP_Y_MIN_F,
     Y_AXIS_NAME_GAP,
 } from '@features/active-roast/lib/chart-config';
+import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { useThemeStore } from '@shared/store/theme';
 import type { EChartsOption } from 'echarts';
 import * as echarts from 'echarts';
@@ -79,6 +78,10 @@ interface Props {
     rorEtActual?: (number | null)[];
     controlData?: ControlData;
     phaseSegments?: PhaseSegment[];
+    tempMinC?: number;
+    tempMaxC?: number;
+    rorYMin?: number;
+    rorYMax?: number;
 }
 
 const fmtSec = (v: number) => {
@@ -120,6 +123,10 @@ export const RoastTempChart: React.FC<Props> = ({
     rorEtActual = [],
     controlData,
     phaseSegments = [],
+    tempMinC = TEMP_Y_MIN_C,
+    tempMaxC = TEMP_Y_MAX_C,
+    rorYMin = ROR_Y_MIN,
+    rorYMax = ROR_Y_MAX,
 }) => {
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
@@ -546,8 +553,8 @@ export const RoastTempChart: React.FC<Props> = ({
                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
                           minorTick: { show: true, splitNumber: 2 },
                           minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
-                          min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
-                          max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
+                          min: toDisplayTemp(tempMinC, temperatureUnit),
+                          max: toDisplayTemp(tempMaxC, temperatureUnit),
                           interval: TEMP_Y_INTERVAL,
                       },
                       {
@@ -561,8 +568,8 @@ export const RoastTempChart: React.FC<Props> = ({
                           axisLine: { onZero: false },
                           axisLabel: rightYAxisLabel,
                           splitLine: { show: false },
-                          min: ROR_Y_MIN,
-                          max: ROR_Y_MAX,
+                          min: rorYMin,
+                          max: rorYMax,
                           interval: 20,
                       },
                       {
@@ -614,8 +621,8 @@ export const RoastTempChart: React.FC<Props> = ({
                           splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
                           minorTick: { show: true, splitNumber: 2 },
                           minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
-                          min: temperatureUnit === 'F' ? TEMP_Y_MIN_F : TEMP_Y_MIN_C,
-                          max: temperatureUnit === 'F' ? TEMP_Y_MAX_F : TEMP_Y_MAX_C,
+                          min: toDisplayTemp(tempMinC, temperatureUnit),
+                          max: toDisplayTemp(tempMaxC, temperatureUnit),
                           interval: TEMP_Y_INTERVAL,
                       },
                       {
@@ -629,8 +636,8 @@ export const RoastTempChart: React.FC<Props> = ({
                           axisLine: { onZero: false },
                           axisLabel: rightYAxisLabel,
                           splitLine: { show: false },
-                          min: ROR_Y_MIN,
-                          max: ROR_Y_MAX,
+                          min: rorYMin,
+                          max: rorYMax,
                           interval: 20,
                       },
                       {
@@ -794,8 +801,8 @@ export const RoastTempChart: React.FC<Props> = ({
                     axisLine: { onZero: false },
                     axisLabel: axisLabelStyle,
                     splitLine: { show: true, lineStyle: { color: colors.gridLine } },
-                    min: temperatureUnit === 'F' ? 122 : 50,
-                    max: temperatureUnit === 'F' ? 482 : 250,
+                    min: toDisplayTemp(tempMinC, temperatureUnit),
+                    max: toDisplayTemp(tempMaxC, temperatureUnit),
                     interval: 20,
                 },
                 {
@@ -809,8 +816,8 @@ export const RoastTempChart: React.FC<Props> = ({
                     axisLine: { onZero: false },
                     axisLabel: rightYAxisLabel,
                     splitLine: { show: false },
-                    min: ROR_Y_MIN,
-                    max: ROR_Y_MAX,
+                    min: rorYMin,
+                    max: rorYMax,
                     interval: 20,
                 },
                 ...(hasPhaseBar
@@ -855,6 +862,10 @@ export const RoastTempChart: React.FC<Props> = ({
         controlData,
         phaseSegments,
         resolvedTheme,
+        tempMinC,
+        tempMaxC,
+        rorYMin,
+        rorYMax,
     ]);
 
     // 옵션 적용 — controlData/phaseBar/target 유무가 바뀌면 grid/axis/series 구조가 달라지므로 notMerge로 완전 교체
