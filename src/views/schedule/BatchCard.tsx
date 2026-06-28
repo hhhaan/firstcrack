@@ -1,7 +1,7 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { AlertTriangle, Check, ChevronDown, ChevronUp, Package, Pencil, Play, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { batchProgress, batchStatus, getRecurrenceLabel } from './lib';
+import { batchStatus, getRecurrenceLabel } from './lib';
 
 const statusStyles: Record<string, string> = {
     pending: 'bg-palette-lavender/10 text-palette-lavender',
@@ -48,15 +48,17 @@ export const BatchCard = ({
                     <span className="text-[14px] font-semibold text-primary">{batch.bean_name}</span>
                     {isRecurring && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-palette-lavender/15 text-palette-lavender border border-palette-lavender/25">
-                            {t('schedule.recurrence.' + getRecurrenceLabel(batch.rrule))}
+                            {t(`schedule.recurrence.${getRecurrenceLabel(batch.rrule)}`)}
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-md ${statusStyles[status]}`}>
                         {status === 'in-progress'
-                            ? t('schedule.status.inProgressWith', { progress: batchProgress(batch) })
-                            : t('schedule.status.' + status)}
+                            ? t('schedule.status.inProgressWith', {
+                                  progress: `${batch.completed_sessions}/${batch.batch_count}`,
+                              })
+                            : t(`schedule.status.${status}`)}
                     </span>
                     {isActive && (
                         <button

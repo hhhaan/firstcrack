@@ -1,8 +1,7 @@
-import { getDateFnsLocale } from '@shared/i18n';
+import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { addDays, addMonths, addWeeks, endOfWeek, format, isToday, startOfWeek } from 'date-fns';
 import { useCallback, useState } from 'react';
 import type { ViewMode } from '../lib';
-import { toFullDisplayDate } from '../lib';
 
 export const useScheduleNav = () => {
     const [view, setView] = useState<ViewMode>('day');
@@ -25,7 +24,7 @@ export const useScheduleNav = () => {
     );
 
     const navLabel = (() => {
-        if (view === 'day') return toFullDisplayDate(selectedDate);
+        if (view === 'day') return format(selectedDate, i18n.t('schedule.dateFormat'), { locale: getDateFnsLocale() });
         if (view === 'week') {
             const ws = startOfWeek(selectedDate, { weekStartsOn: 1 });
             const we = endOfWeek(selectedDate, { weekStartsOn: 1 });

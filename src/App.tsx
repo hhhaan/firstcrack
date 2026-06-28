@@ -14,14 +14,15 @@ import { useAuthStore } from './shared/store/auth';
 import { useThemeStore } from './shared/store/theme';
 import type { View } from './shared/types/view';
 import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
-import { ActiveRoast } from './views/active-roast';
-import { Beans } from './views/bean';
-import { Dashboard } from './views/dashboard';
-import { History } from './views/history';
-import { Login } from './views/login';
-import { Machines } from './views/machines';
-import { Profiles } from './views/profiles';
-import { Schedule } from './views/schedule';
+import { ActiveRoast } from './views/active-roast/ActiveRoast';
+import { Beans } from './views/bean/Beans';
+import { Dashboard } from './views/dashboard/Dashboard';
+import { History } from './views/history/History';
+import { Login } from './views/login/Login';
+import { Machines } from './views/machines/Machines';
+import { Profiles } from './views/profiles/Profiles';
+import { Schedule } from './views/schedule/Schedule';
+// import { BottomToolbar } from './widgets/bottom-toolbar';
 import { InventoryAlertBanner } from './widgets/inventory-alert-banner';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
@@ -143,77 +144,87 @@ export const App = () => {
 
     return (
         <Sentry.ErrorBoundary fallback={sentryFallback}>
-            <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+            <div
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100vh',
+                    overflow: 'hidden',
+                }}
+            >
                 {theme === null && <ThemeSelectModal />}
-                <Sidebar
-                    activeView={view}
-                    onNavigate={setView}
-                    collapsed={sidebarCollapsed}
-                    onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
-                    onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
-                />
-                <div
-                    style={{
-                        flex: 1,
-                        minHeight: 0,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        overflow: view === 'roast' ? 'hidden' : 'auto',
-                        background: 'var(--color-surface)',
-                    }}
-                >
-                    <InventoryAlertBanner userId={user.id} />
-                    {view === 'dashboard' && (
-                        <ViewErrorBoundary>
-                            <Dashboard onNavigate={setView} />
-                        </ViewErrorBoundary>
-                    )}
-                    {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
-            TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
+                <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                    <Sidebar
+                        activeView={view}
+                        onNavigate={setView}
+                        collapsed={sidebarCollapsed}
+                        onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
+                        onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
+                    />
                     <div
                         style={{
-                            display: view === 'roast' ? 'flex' : 'none',
-                            flexDirection: 'column',
-                            flex: view === 'roast' ? 1 : undefined,
-                            height: view === 'roast' ? undefined : '100%',
+                            flex: 1,
                             minHeight: 0,
-                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: view === 'roast' ? 'hidden' : 'auto',
+                            background: 'var(--color-surface)',
                         }}
                     >
-                        <ViewErrorBoundary>
-                            <ActiveRoast
-                                isActive={view === 'roast'}
-                                onOpenRoastSettings={() => openSettings('roast')}
-                                onPlanBatchComplete={handlePlanBatchComplete}
-                            />
-                        </ViewErrorBoundary>
+                        <InventoryAlertBanner userId={user.id} />
+                        {view === 'dashboard' && (
+                            <ViewErrorBoundary>
+                                <Dashboard onNavigate={setView} />
+                            </ViewErrorBoundary>
+                        )}
+                        {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
+            TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
+                        <div
+                            style={{
+                                display: view === 'roast' ? 'flex' : 'none',
+                                flexDirection: 'column',
+                                flex: view === 'roast' ? 1 : undefined,
+                                height: view === 'roast' ? undefined : '100%',
+                                minHeight: 0,
+                                overflow: 'hidden',
+                            }}
+                        >
+                            <ViewErrorBoundary>
+                                <ActiveRoast
+                                    isActive={view === 'roast'}
+                                    onOpenRoastSettings={() => openSettings('roast')}
+                                    onPlanBatchComplete={handlePlanBatchComplete}
+                                />
+                            </ViewErrorBoundary>
+                        </div>
+                        {view === 'history' && (
+                            <ViewErrorBoundary>
+                                <History />
+                            </ViewErrorBoundary>
+                        )}
+                        {view === 'beans' && (
+                            <ViewErrorBoundary>
+                                <Beans onNavigate={setView} />
+                            </ViewErrorBoundary>
+                        )}
+                        {view === 'profiles' && (
+                            <ViewErrorBoundary>
+                                <Profiles onNavigate={setView} />
+                            </ViewErrorBoundary>
+                        )}
+                        <div style={{ display: view === 'machines' ? 'block' : 'none' }}>
+                            <ViewErrorBoundary>
+                                <Machines isActive={view === 'machines'} onNavigate={setView} />
+                            </ViewErrorBoundary>
+                        </div>
+                        {view === 'schedule' && (
+                            <ViewErrorBoundary>
+                                <Schedule onStartBatch={handleStartBatch} />
+                            </ViewErrorBoundary>
+                        )}
                     </div>
-                    {view === 'history' && (
-                        <ViewErrorBoundary>
-                            <History />
-                        </ViewErrorBoundary>
-                    )}
-                    {view === 'beans' && (
-                        <ViewErrorBoundary>
-                            <Beans onNavigate={setView} />
-                        </ViewErrorBoundary>
-                    )}
-                    {view === 'profiles' && (
-                        <ViewErrorBoundary>
-                            <Profiles onNavigate={setView} />
-                        </ViewErrorBoundary>
-                    )}
-                    <div style={{ display: view === 'machines' ? 'block' : 'none' }}>
-                        <ViewErrorBoundary>
-                            <Machines isActive={view === 'machines'} onNavigate={setView} />
-                        </ViewErrorBoundary>
-                    </div>
-                    {view === 'schedule' && (
-                        <ViewErrorBoundary>
-                            <Schedule onStartBatch={handleStartBatch} />
-                        </ViewErrorBoundary>
-                    )}
                 </div>
+                {/* <BottomToolbar /> */}
                 <SettingsModal
                     open={settingsOpen}
                     initialTab={settingsInitialTab}

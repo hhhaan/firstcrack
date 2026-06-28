@@ -1,7 +1,6 @@
 import { useProfile } from '@entities/profile';
 import { useDeleteRoastSession, useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
 import { useExportCsv } from '@features/export-csv';
-import { buildReportData } from '@shared/lib/buildReportData';
 import { formatDateShort } from '@shared/lib/format';
 import { filterSessions, paginateSessions, type SessionFilterCriteria, sortSessions } from '@shared/lib/sessionFilter';
 import { useAuthStore } from '@shared/store/auth';
@@ -15,6 +14,7 @@ import { DateRangeFilter, getPresetYMRange } from '@widgets/date-range-filter';
 import { Download, FileText, Search, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { buildReportData } from './lib/buildReportData';
 import { DeleteSessionModal } from './ui/DeleteSessionModal';
 import type { SortKey } from './ui/HistoryTable';
 import { HistoryTable } from './ui/HistoryTable';

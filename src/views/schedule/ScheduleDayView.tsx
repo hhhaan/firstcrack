@@ -26,34 +26,12 @@ export const ScheduleDayView = ({
         ? `${hooks.scopeBatch.bean_name} / ${hooks.scopeBatch.batch_size_kg}kg`
         : '';
     const scopeRecurrenceLabel = hooks.scopeBatch
-        ? t('schedule.recurrence.' + getRecurrenceLabel(hooks.scopeBatch.rrule))
+        ? t(`schedule.recurrence.${getRecurrenceLabel(hooks.scopeBatch.rrule)}`)
         : '';
     const scopeIsFirstInstance =
         !!hooks.scopeBatch &&
         batchStatus(hooks.scopeBatch) === 'pending' &&
         hooks.batches.indexOf(hooks.scopeBatch) === 0;
-
-    const clearEditScope = () => {
-        hooks.setIsEditScopeModalOpen(false);
-        hooks.setScopeBatch(null);
-        hooks.setEditScope(null);
-    };
-
-    const clearDeleteScope = () => {
-        hooks.setIsDeleteScopeModalOpen(false);
-        hooks.setScopeBatch(null);
-    };
-
-    const clearAddModal = () => {
-        hooks.setIsAddModalOpen(false);
-        hooks.setEditingBatch(null);
-        hooks.setEditScope(null);
-    };
-
-    const clearEditState = () => {
-        hooks.setEditingBatch(null);
-        hooks.setEditScope(null);
-    };
 
     return (
         <>
@@ -113,7 +91,7 @@ export const ScheduleDayView = ({
                 <>
                     <RecurringEditScopeModal
                         open={hooks.isEditScopeModalOpen}
-                        onClose={clearEditScope}
+                        onClose={hooks.clearEditScope}
                         onConfirm={hooks.handleEditScopeConfirm}
                         batchLabel={scopeBatchLabel}
                         recurrenceLabel={scopeRecurrenceLabel}
@@ -121,8 +99,8 @@ export const ScheduleDayView = ({
                     />
                     <RecurringDeleteScopeModal
                         open={hooks.isDeleteScopeModalOpen}
-                        onClose={clearDeleteScope}
-                        onConfirm={hooks.handleDeleteScopeConfirm}
+                        onClose={hooks.clearDeleteScope}
+                        onConfirm={(scope) => hooks.scopeBatch && hooks.handleScopeDelete(scope, hooks.scopeBatch)}
                         batchLabel={scopeBatchLabel}
                         recurrenceLabel={scopeRecurrenceLabel}
                         isFirstInstance={scopeIsFirstInstance}
@@ -140,12 +118,12 @@ export const ScheduleDayView = ({
             <AddBatchModal
                 key={String(hooks.isAddModalOpen) + (hooks.editingBatch?.id ?? '') + (hooks.editScope ?? '')}
                 open={hooks.isAddModalOpen || hooks.editingBatch !== null}
-                onClose={clearAddModal}
+                onClose={hooks.clearAddModal}
                 onAdd={hooks.handleAddBatch}
                 editingBatch={hooks.editingBatch}
                 editScope={hooks.editScope}
                 currentDateKey={dateKey}
-                onSaved={clearEditState}
+                onSaved={hooks.clearEditState}
             />
         </>
     );

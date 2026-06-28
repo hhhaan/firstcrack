@@ -23,13 +23,7 @@ import type { NewBatchData } from '@widgets/add-batch-modal';
 import type { EditScope } from '@widgets/recurring-edit-scope-modal';
 import { format } from 'date-fns';
 import { useCallback, useState } from 'react';
-import {
-    buildMaterializePatch,
-    buildRecurrenceMeta,
-    buildRecurrencePatch,
-    isVirtualPlanBatch,
-    toDateKey,
-} from '../lib';
+import { toDateKey } from '../lib';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
 
@@ -73,9 +67,22 @@ export const useScheduleDayView = ({
 
     const commitStatusTransition = useCallback(
         async (batch: PlanBatchWithProgress, status: 'in-progress' | 'done') => {
-            const patch = buildMaterializePatch(batch, status);
+            const patch = {
+                bean_name: batch.bean_name,
+                batch_size_kg: Number(batch.batch_size_kg),
+                target_roasted_kg: Number(batch.target_roasted_kg),
+                machine_id: batch.machine_id,
+                bean_id: batch.bean_id,
+                blend_id: batch.blend_id ?? null,
+                roast_profile_id: batch.roast_profile_id,
+                notes: batch.notes,
+                green_lot: batch.green_lot,
+                batch_type: batch.batch_type,
+                yield_pct: batch.yield_pct,
+                status,
+            };
 
-            if (isVirtualPlanBatch(batch) && batch.recurrence_rule_id && batch.scheduled_date) {
+            if (batch.recurrence_rule_id && batch.id.includes(':') && batch.scheduled_date) {
                 const realBatch = await planBatchApi.materialize(
                     userId,
                     batch.recurrence_rule_id,
@@ -92,9 +99,24 @@ export const useScheduleDayView = ({
                     id: batch.id,
                     plan_id: batch.plan_id,
                     status,
-                    ...(batch.recurrence_rule_id ? buildRecurrencePatch(batch) : {}),
+                    ...(batch.recurrence_rule_id
+                        ? {
+                              bean_id: batch.bean_id,
+                              blend_id: batch.blend_id ?? null,
+                              bean_name: batch.bean_name,
+                              roast_profile_id: batch.roast_profile_id,
+                              batch_size_kg: batch.batch_size_kg,
+                              target_roasted_kg: batch.target_roasted_kg,
+                              yield_pct: batch.yield_pct,
+                              notes: batch.notes,
+                              green_lot: batch.green_lot,
+                              batch_type: batch.batch_type,
+                          }
+                        : {}),
                 },
-                ...buildRecurrenceMeta(batch),
+                ...(batch.recurrence_rule_id && batch.original_date
+                    ? { meta: { recurrenceRuleId: batch.recurrence_rule_id, originalDate: batch.original_date } }
+                    : {}),
             });
 
             return { targetId: batch.id, targetPlanId: batch.plan_id };
@@ -180,14 +202,6 @@ export const useScheduleDayView = ({
             setScopeBatch(null);
         },
         [scopeBatch],
-    );
-
-    const handleDeleteScopeConfirm = useCallback(
-        (scope: EditScope) => {
-            if (!scopeBatch) return;
-            handleScopeDelete(scope, scopeBatch);
-        },
-        [scopeBatch, handleScopeDelete],
     );
 
     const handleEditScopeUpdate = useCallback(
@@ -282,7 +296,6 @@ export const useScheduleDayView = ({
                     { baseBatch, interval: data.recurringInterval, dtstart: data.date },
                     {
                         onError: (err) => {
-                            console.error('[Schedule] createRecurringBatches failed:', err);
                             alert(
                                 i18n.t('schedule.error.createRecurring') +
                                     ` ${err instanceof Error ? err.message : String(err)}`,
@@ -293,7 +306,6 @@ export const useScheduleDayView = ({
             } else if (planId) {
                 createBatch.mutate({ ...baseBatch, plan_id: planId } as PlanBatchInsert, {
                     onError: (err) => {
-                        console.error('[Schedule] createBatch failed:', err);
                         alert(
                             i18n.t('schedule.error.createBatch') +
                                 ` ${err instanceof Error ? err.message : String(err)}`,
@@ -351,9 +363,7 @@ export const useScheduleDayView = ({
                     batchCount: batch.batch_count,
                     completedSessions: batch.completed_sessions,
                 });
-            } catch (err) {
-                console.error('[Schedule] materialize failed:', err);
-            }
+            } catch (_err) {}
         },
         [commitStatusTransition, onStartBatch],
     );
@@ -388,8 +398,7 @@ export const useScheduleDayView = ({
                     }
                 }
             } catch (err) {
-                console.error('[Schedule] complete failed:', err);
-                alert(i18n.t('schedule.error.completeBatch') + ` ${err instanceof Error ? err.message : String(err)}`);
+                alert(`${i18n.t('schedule.error.completeBatch')} ${err instanceof Error ? err.message : String(err)}`);
             } finally {
                 handleCompleteClose();
             }
@@ -415,6 +424,28 @@ export const useScheduleDayView = ({
         [stockSummaries],
     );
 
+    const clearEditScope = useCallback(() => {
+        setIsEditScopeModalOpen(false);
+        setScopeBatch(null);
+        setEditScope(null);
+    }, []);
+
+    const clearDeleteScope = useCallback(() => {
+        setIsDeleteScopeModalOpen(false);
+        setScopeBatch(null);
+    }, []);
+
+    const clearAddModal = useCallback(() => {
+        setIsAddModalOpen(false);
+        setEditingBatch(null);
+        setEditScope(null);
+    }, []);
+
+    const clearEditState = useCallback(() => {
+        setEditingBatch(null);
+        setEditScope(null);
+    }, []);
+
     return {
         isLoading,
         isAddModalOpen,
@@ -424,12 +455,7 @@ export const useScheduleDayView = ({
         editScope,
         scopeBatch,
         isEditScopeModalOpen,
-        setIsEditScopeModalOpen,
         isDeleteScopeModalOpen,
-        setIsDeleteScopeModalOpen,
-        setEditingBatch,
-        setEditScope,
-        setScopeBatch,
         handleAddBatch,
         handleMove,
         handleStart,
@@ -441,7 +467,11 @@ export const useScheduleDayView = ({
         handleEdit,
         handleBatchDelete,
         handleEditScopeConfirm,
-        handleDeleteScopeConfirm,
+        handleScopeDelete,
+        clearEditScope,
+        clearDeleteScope,
+        clearAddModal,
+        clearEditState,
         isRecurringStockShort,
         recurringStockShortDetail,
     };

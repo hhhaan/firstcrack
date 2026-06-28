@@ -11,15 +11,6 @@
     font-display: swap;
 }
 
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
-
 /* ── Light theme ─────────────────────────────────────────────── */
 @theme {
     --font-display: "Inter", "Pretendard", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -249,21 +240,6 @@ html[lang="en"] {
     background: var(--color-scrollbar-thumb-hover);
 }
 
-/* Recharts overrides */
-.recharts-wrapper .recharts-cartesian-grid-horizontal line,
-.recharts-wrapper .recharts-cartesian-grid-vertical line {
-    stroke: var(--color-chart-grid-stroke, rgba(0, 0, 0, 0.05));
-}
-.recharts-tooltip-wrapper {
-    outline: none;
-}
-.recharts-default-tooltip {
-    border: none !important;
-    box-shadow: var(--shadow-card) !important;
-    border-radius: 10px !important;
-    font-family: var(--font-body) !important;
-    font-size: 13px !important;
-}
 *,
 *::before,
 *::after {

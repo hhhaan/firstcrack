@@ -8,6 +8,7 @@ import {
     useUpdateRoastProfile,
 } from '@entities/roast-profile';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
+import { formatDuration } from '@shared/lib/format';
 import { useAuthStore } from '@shared/store/auth';
 import type { RoastProfile } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
@@ -28,13 +29,6 @@ const COMPARE_COLORS = [
     'var(--color-palette-purple)',
     'var(--color-palette-yellow)',
 ] as const;
-
-const fmtDuration = (sec: number | null): string => {
-    if (sec == null) return '—';
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${String(s).padStart(2, '0')}`;
-};
 
 interface ProfilesProps {
     onNavigate: (view: View) => void;
@@ -69,6 +63,13 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.default_roast_profile_id]);
+
+    const sortedProfiles = [...profiles].sort((a, b) => {
+        if (!defaultId) return 0;
+        if (a.id === defaultId) return -1;
+        if (b.id === defaultId) return 1;
+        return 0;
+    });
 
     const selected = profiles.find((p) => p.id === selectedId) ?? null;
 
@@ -151,7 +152,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                           : `${compareIds.length}개 선택됨 · 최대 4개`}
                 </p>
             )}
-            {profiles.map((profile) => {
+            {sortedProfiles.map((profile) => {
                 const isSelected = !compareMode && selectedId === profile.id;
                 const compareIdx = compareMode ? compareIds.indexOf(profile.id) : -1;
                 const isCompareSelected = compareIdx !== -1;
@@ -202,7 +203,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                     {profile.drop_temp_celsius != null
                                         ? `Drop ${profile.drop_temp_celsius}°C`
                                         : profile.target_level}
-                                    {profile.duration_sec != null && ` · ${fmtDuration(profile.duration_sec)}`}
+                                    {profile.duration_sec != null && ` · ${formatDuration(profile.duration_sec)}`}
                                 </div>
                             </div>
                         </div>

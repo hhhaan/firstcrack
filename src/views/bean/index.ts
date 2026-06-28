@@ -1,1 +1,0 @@
-export { Beans } from './Beans';
