@@ -56,20 +56,29 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
 
             const savedSession = await saveRoastSession(payload);
 
-            // 2. 세션 저장 후 TSV 업로드 (실패해도 세션은 유지)
+            // 2. TSV 업로드 (fire-and-forget + 3회 재시도, 실패해도 세션은 유지)
             if (sessionId) {
-                try {
-                    const tsvPath = await uploadRoastProfileTsv(sessionId);
-                    if (tsvPath) {
-                        await updateSessionTsv({ id: savedSession.id, tsv_path: tsvPath });
+                const uploadWithRetry = async () => {
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        try {
+                            const tsvPath = await uploadRoastProfileTsv(sessionId);
+                            if (tsvPath) {
+                                await updateSessionTsv({ id: savedSession.id, tsv_path: tsvPath });
+                            }
+                            return;
+                        } catch {
+                            if (attempt < 2) {
+                                await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+                            }
+                        }
                     }
-                } catch (err) {
-                    console.error('[saveRoast] TSV upload failed, session saved without profile:', err);
-                } finally {
+                    console.error('[saveRoast] TSV upload failed after 3 retries');
+                };
+                uploadWithRetry().finally(() => {
                     if ('__TAURI_INTERNALS__' in window) {
                         remove(`session_${sessionId}.tsv`, { baseDir: BaseDirectory.AppLocalData }).catch(() => {});
                     }
-                }
+                });
             }
 
             const newCompletedCount = (planBatchHandoff?.completedSessions ?? 0) + 1;
@@ -97,7 +106,15 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 shouldOpenContinue: planBatchHandoff != null,
             };
         },
-        [user, uploadRoastProfileTsv, saveRoastSession, planBatchHandoff, incrementCompletedSession, updatePlanBatch],
+        [
+            user,
+            uploadRoastProfileTsv,
+            saveRoastSession,
+            planBatchHandoff,
+            incrementCompletedSession,
+            updatePlanBatch,
+            updateSessionTsv,
+        ],
     );
 
     return useMemo(
