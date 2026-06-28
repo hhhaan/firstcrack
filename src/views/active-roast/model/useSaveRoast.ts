@@ -1,19 +1,27 @@
 import { useUpdatePlanBatch } from '@entities/plan';
-import { useCreateRoastSession, useUpdateRoastSession } from '@entities/roast';
+import { type RoastSessionInsert, useCreateRoastSession, useUpdateRoastSession } from '@entities/roast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { BaseDirectory, remove } from '@tauri-apps/plugin-fs';
 import { useCallback, useMemo } from 'react';
-import { type BuildSavePayloadParams, buildRoastSavePayload } from '../lib/build-roast-save-payload';
 import { determineStockDeduction } from '../lib/determine-stock-deduction';
-import type { RoastSummaryForm } from '../lib/schema';
+import type { RoastSummaryForm } from '../ui/RoastSummaryModal';
 
-export interface SaveRoastParams extends Omit<BuildSavePayloadParams, 'saveLevel' | 'saveWeight' | 'notes'> {
+export interface SaveRoastParams {
     formData: RoastSummaryForm;
     handoffBeanName: string | null;
     sessionId: string | null;
+    userId: string;
+    elapsed: number;
+    roastStartTimeRef: React.MutableRefObject<number>;
+    rawBT: number | null;
+    ambientTemperature?: number | null;
+    ambientHumidity?: number | null;
+    selectedBeanId: string | null;
+    targetProfileId: string | null;
+    planBatchHandoff: PlanBatchHandoff | null;
 }
 
 export interface SaveRoastResult {
@@ -42,16 +50,28 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
 
             const weightGrams = Math.round(formData.weightGrams * 1000);
 
-            const payload = buildRoastSavePayload(
-                {
-                    ...payloadParams,
-                    userId: user.id,
-                    saveWeight: weightGrams,
-                    saveLevel: formData.roastLevel,
-                    notes: formData.notes,
-                },
-                null,
-            );
+            const roastedAt =
+                payloadParams.roastStartTimeRef.current > 0
+                    ? new Date(payloadParams.roastStartTimeRef.current).toISOString()
+                    : null;
+
+            const payload: RoastSessionInsert = {
+                user_id: user.id,
+                weight_grams: weightGrams,
+                status: 'completed',
+                roasted_at: roastedAt,
+                duration_seconds: payloadParams.elapsed,
+                drop_temp_celsius: payloadParams.rawBT != null ? Math.round(payloadParams.rawBT) : null,
+                roast_level: formData.roastLevel,
+                scheduled_at: null,
+                notes: formData.notes || null,
+                ambient_temp_celsius: payloadParams.ambientTemperature ?? null,
+                ambient_humidity_pct: payloadParams.ambientHumidity ?? null,
+                bean_id: payloadParams.selectedBeanId,
+                profile_id: payloadParams.targetProfileId,
+                tsv_path: null,
+                plan_batch_id: payloadParams.planBatchHandoff?.planBatchId ?? null,
+            };
 
             const savedSession = await saveRoastSession(payload);
 

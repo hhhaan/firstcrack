@@ -3,10 +3,18 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Spinner } from '@shared/ui/Spinner';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { type RoastSummaryForm, roastSummarySchema } from '../lib/schema';
+import { z } from 'zod';
 import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
 
 export type { RoastSummaryData };
+
+const roastSummarySchema = z.object({
+    notes: z.string().max(2000, 'Notes are too long'),
+    weightGrams: z.number().min(0, 'Weight must be 0 or greater'),
+    roastLevel: z.string().nullable(),
+});
+
+export type RoastSummaryForm = z.infer<typeof roastSummarySchema>;
 
 interface RoastSummaryModalProps {
     open: boolean;
