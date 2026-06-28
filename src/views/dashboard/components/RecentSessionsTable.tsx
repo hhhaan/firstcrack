@@ -42,7 +42,7 @@ export const RecentSessionsTable = ({ data, loading, onNavigate }: RecentSession
                         ].map((h) => (
                             <th
                                 key={h}
-                                className="px-6 py-2.5 text-left text-xs font-medium text-muted tracking-[0.5px] uppercase"
+                                className="px-6 py-2.5 text-left text-xs font-medium text-muted tracking-[0.5px] uppercase whitespace-nowrap overflow-hidden text-ellipsis"
                             >
                                 {h}
                             </th>
