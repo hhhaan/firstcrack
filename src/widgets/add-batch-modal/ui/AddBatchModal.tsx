@@ -3,6 +3,7 @@ import { beanStockEventApi, useBeanStockSummaries, useBeanStockSummary } from '@
 import { type BlendWithComponents, useBlends } from '@entities/blend';
 import { type Machine, useMachines } from '@entities/machine';
 import { dayPlanApi, planBatchApi, planKeys } from '@entities/plan';
+import { useProfile } from '@entities/profile';
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { useRoastProfiles } from '@entities/roast-profile/queries';
 import { getDateFnsLocale } from '@shared/i18n';
@@ -117,6 +118,7 @@ export const AddBatchModal = ({
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
     const { machines } = useMachines();
     const { data: profiles = [] } = useRoastProfiles(userId);
+    const { data: userProfile } = useProfile(userId);
     const { data: blends = [] } = useBlends(userId);
 
     const isEdit = !!editingBatch;
@@ -417,7 +419,15 @@ export const AddBatchModal = ({
 
     // Bean items for searchable select
     const beanItems = beans.map((b) => ({ ...b }));
-    const profileItems = profiles.map((p) => ({ ...p }));
+    const defaultProfileId = userProfile?.default_roast_profile_id;
+    const profileItems = [...profiles]
+        .sort((a, b) => {
+            if (!defaultProfileId) return 0;
+            if (a.id === defaultProfileId) return -1;
+            if (b.id === defaultProfileId) return 1;
+            return 0;
+        })
+        .map((p) => ({ ...p }));
 
     return (
         <ModalShell

@@ -1,5 +1,5 @@
 import { useBeans } from '@entities/bean/queries';
-import { useUpdateProfile } from '@entities/profile';
+import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
@@ -85,6 +85,7 @@ export const RoastHeader = ({
     const user = useAuthStore((s) => s.user);
     const { data: beans = [] } = useBeans(user?.id ?? '');
     const { data: dbProfiles = [] } = useRoastProfiles(user?.id ?? '');
+    const { data: userProfile } = useProfile(user?.id ?? '');
     const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
     // 드롭다운을 빠르게 바꿀 때 매번 DB 쓰기가 발생하는 걸 막기 위한 디바운스 타이머.
     // 300ms 안에 다시 바뀌면 이전 요청은 취소되고 마지막 값만 저장됨.
@@ -122,7 +123,14 @@ export const RoastHeader = ({
 
     const selectedBean = beans.find((b) => b.id === selectedBeanId);
     const beanSecondary = joinDisplay([selectedBean?.farm, selectedBean?.variety, selectedBean?.process]);
-    const profileOptions = dbProfiles.map((p) => ({ value: p.id, label: p.name }));
+    const defaultProfileId = userProfile?.default_roast_profile_id;
+    const sortedProfiles = [...dbProfiles].sort((a, b) => {
+        if (!defaultProfileId) return 0;
+        if (a.id === defaultProfileId) return -1;
+        if (b.id === defaultProfileId) return 1;
+        return 0;
+    });
+    const profileOptions = sortedProfiles.map((p) => ({ value: p.id, label: p.name }));
 
     return (
         <div className="flex items-end justify-between">
