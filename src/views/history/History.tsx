@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { useHistoryFilters } from './hooks/useHistoryFilters';
 import { buildReportData } from './lib/buildReportData';
 import { DeleteSessionModal } from './ui/DeleteSessionModal';
+import { HistorySkeleton } from './ui/HistorySkeleton';
 import { HistoryTable } from './ui/HistoryTable';
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
@@ -170,9 +171,7 @@ export const History = () => {
             return <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">{t('history.error')}</div>;
         }
         if (isLoading) {
-            return (
-                <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">{t('history.loading')}</div>
-            );
+            return <HistorySkeleton />;
         }
         return (
             <HistoryTable
