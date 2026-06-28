@@ -473,7 +473,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                                     'px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-opacity',
                                     !selectedKey
                                         ? 'border-none bg-surface dark:bg-surface-elevated text-muted cursor-default shadow-(--shadow-inset)'
-                                        : 'border border-transparent dark:border-white bg-primary dark:bg-black text-white cursor-pointer shadow-(--shadow-card)',
+                                        : 'border border-transparent bg-primary dark:bg-black text-white cursor-pointer shadow-(--shadow-card)',
                                     saving && 'opacity-70',
                                 )}
                             >
