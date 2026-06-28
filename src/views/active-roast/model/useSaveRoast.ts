@@ -44,11 +44,13 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 tsvPath = await uploadRoastProfileTsv(sessionId);
             }
 
+            const weightGrams = Math.round(formData.weightGrams * 1000);
+
             const payload = buildRoastSavePayload(
                 {
                     ...payloadParams,
                     userId: user.id,
-                    saveWeight: formData.weightGrams,
+                    saveWeight: weightGrams,
                     saveLevel: formData.roastLevel,
                     notes: formData.notes,
                 },
@@ -72,7 +74,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
 
             const deductionPlan = determineStockDeduction({
                 planBatchHandoff,
-                saveWeight: formData.weightGrams,
+                saveWeight: weightGrams,
                 selectedBeanId: payloadParams.selectedBeanId,
                 referenceId: savedSession.id,
                 handoffBeanName,

@@ -154,12 +154,12 @@ export const RoastSummaryModal = ({
                     <input
                         type="number"
                         min={0}
-                        step={1}
+                        step={0.1}
                         {...register('weightGrams', { valueAsNumber: true })}
-                        placeholder="0"
+                        placeholder="0.0"
                         className="w-full px-3.5 py-2.5 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
                     />
-                    <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">g</span>
+                    <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">kg</span>
                 </div>
                 {errors.weightGrams && <p className="text-[11px] text-red-500 mt-1">{errors.weightGrams.message}</p>}
             </div>
