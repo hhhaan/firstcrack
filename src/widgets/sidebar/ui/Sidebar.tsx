@@ -238,7 +238,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                             collapsed ? 'opacity-0 max-w-0' : 'opacity-100',
                         )}
                     >
-                        <Settings size={16} className="text-muted dark:text-white" />
+                        <Settings size={16} className="text-muted dark:text-[#e5e5e5]" />
                     </div>
                 </button>
             </div>

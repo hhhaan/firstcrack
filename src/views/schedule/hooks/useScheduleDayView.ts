@@ -2,6 +2,7 @@ import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import {
     dayPlanApi,
     planBatchApi,
+    planKeys,
     useCreatePlanBatch,
     useCreateRecurringBatches,
     useDayBatches,
@@ -19,6 +20,7 @@ import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { batchGreenNeededGramsFromBatch, isBatchStockShort } from '@shared/lib/batch-stock';
 import { buildRRule } from '@shared/lib/rrule';
 import type { PlanBatchHandoff, PlanBatchInsert, PlanBatchWithProgress } from '@shared/types/database.types';
+import { useQueryClient } from '@tanstack/react-query';
 import type { NewBatchData } from '@widgets/add-batch-modal';
 import type { EditScope } from '@widgets/recurring-edit-scope-modal';
 import { format } from 'date-fns';
@@ -37,6 +39,7 @@ export const useScheduleDayView = ({
     onStartBatch: (handoff: PlanBatchHandoff) => void;
 }) => {
     const dateKey = toDateKey(selectedDate);
+    const qc = useQueryClient();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingBatch, setEditingBatch] = useState<PlanBatchWithProgress | null>(null);
     const [editScope, setEditScope] = useState<EditScope | null>(null);
@@ -231,7 +234,7 @@ export const useScheduleDayView = ({
                     const plan = await dayPlanApi.getOrCreate(userId, scheduleDate);
                     targetPlanId = plan.id;
                 }
-                updateSingleBatch.mutate({
+                await updateSingleBatch.mutateAsync({
                     id: editingBatch.id,
                     patch: { ...basePatch, plan_id: targetPlanId ?? '' },
                     meta: {
@@ -257,13 +260,13 @@ export const useScheduleDayView = ({
                 };
 
                 if (editScope === 'from_this') {
-                    updateFromThis.mutate({
+                    await updateFromThis.mutateAsync({
                         ruleId: editingBatch.recurrence_rule_id,
                         fromDate: instanceDate,
                         patch: { ...masterPatch, dtstart: instanceDate, userId },
                     });
                 } else if (editScope === 'all') {
-                    updateAllBatches.mutate({
+                    await updateAllBatches.mutateAsync({
                         ruleId: editingBatch.recurrence_rule_id,
                         patch: masterPatch,
                     });
@@ -271,6 +274,51 @@ export const useScheduleDayView = ({
             }
         },
         [editScope, editingBatch, updateSingleBatch, updateFromThis, updateAllBatches, dateKey, userId],
+    );
+
+    const handleEditBatch = useCallback(
+        async (data: NewBatchData) => {
+            if (!editingBatch) return;
+
+            const newDateKey = format(data.date, 'yyyy-MM-dd');
+            const dateChanged = newDateKey !== dateKey;
+            const isBlendType = data.batchType === 'Pre-roast Blend' || data.batchType === 'Post-roast Blend';
+            let targetPlanId = editingBatch.plan_id;
+            const oldPlanId = editingBatch.plan_id;
+
+            if (dateChanged) {
+                const newPlan = await dayPlanApi.getOrCreate(userId, newDateKey);
+                targetPlanId = newPlan.id;
+                await planBatchApi.move(editingBatch.id, targetPlanId);
+            }
+
+            await updateSingleBatch.mutateAsync({
+                id: editingBatch.id,
+                patch: {
+                    id: editingBatch.id,
+                    plan_id: targetPlanId,
+                    machine_id: data.machineId || null,
+                    batch_type: data.batchType,
+                    roast_profile_id: data.profileId,
+                    bean_id: isBlendType ? null : data.beanId,
+                    blend_id: isBlendType ? data.blendId : null,
+                    bean_name: data.beanName || editingBatch.bean_name,
+                    target_roasted_kg: data.targetRoasted,
+                    batch_size_kg: data.batchSize,
+                    yield_pct: data.yieldPct / 100,
+                    green_lot: data.greenLot,
+                    notes: data.notes,
+                },
+            });
+
+            if (dateChanged) {
+                qc.invalidateQueries({ queryKey: planKeys.batches(oldPlanId) });
+                qc.invalidateQueries({ queryKey: planKeys.batches(targetPlanId) });
+                qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, dateKey) });
+                qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, newDateKey) });
+            }
+        },
+        [editingBatch, dateKey, userId, updateSingleBatch, qc],
     );
 
     const handleNewBatch = useCallback(
@@ -292,40 +340,41 @@ export const useScheduleDayView = ({
             };
 
             if (data.recurringInterval) {
-                createRecurringBatches.mutate(
-                    { baseBatch, interval: data.recurringInterval, dtstart: data.date },
-                    {
-                        onError: (err) => {
-                            alert(
-                                i18n.t('schedule.error.createRecurring') +
-                                    ` ${err instanceof Error ? err.message : String(err)}`,
-                            );
-                        },
-                    },
-                );
-            } else if (planId) {
-                createBatch.mutate({ ...baseBatch, plan_id: planId } as PlanBatchInsert, {
-                    onError: (err) => {
-                        alert(
-                            i18n.t('schedule.error.createBatch') +
-                                ` ${err instanceof Error ? err.message : String(err)}`,
-                        );
-                    },
+                await createRecurringBatches.mutateAsync({
+                    baseBatch,
+                    interval: data.recurringInterval,
+                    dtstart: data.date,
                 });
+            } else if (planId) {
+                await createBatch.mutateAsync({ ...baseBatch, plan_id: planId } as PlanBatchInsert);
             }
         },
         [planId, batches.length, createBatch, createRecurringBatches],
     );
 
-    const handleAddBatch = useCallback(
+    const handleSaveBatch = useCallback(
         async (data: NewBatchData) => {
-            if (editScope && editingBatch?.recurrence_rule_id) {
-                await handleEditScopeUpdate(data);
-                return;
+            try {
+                if (editingBatch) {
+                    if (editScope && editingBatch.recurrence_rule_id) {
+                        await handleEditScopeUpdate(data);
+                    } else {
+                        await handleEditBatch(data);
+                    }
+                } else {
+                    await handleNewBatch(data);
+                }
+            } catch (err) {
+                const key = editingBatch
+                    ? 'addBatchModal.saveFailed'
+                    : data.recurringInterval
+                      ? 'schedule.error.createRecurring'
+                      : 'schedule.error.createBatch';
+                alert(i18n.t(key) + ` ${err instanceof Error ? err.message : String(err)}`);
+                throw err;
             }
-            await handleNewBatch(data);
         },
-        [editScope, editingBatch, handleEditScopeUpdate, handleNewBatch],
+        [editingBatch, editScope, handleEditScopeUpdate, handleEditBatch, handleNewBatch],
     );
 
     const handleMove = useCallback(
@@ -456,7 +505,7 @@ export const useScheduleDayView = ({
         scopeBatch,
         isEditScopeModalOpen,
         isDeleteScopeModalOpen,
-        handleAddBatch,
+        handleSaveBatch,
         handleMove,
         handleStart,
         handleCompleteClick,

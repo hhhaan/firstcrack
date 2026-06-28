@@ -282,6 +282,38 @@ npm install -D vitest @testing-library/react @testing-library/user-event
 
 **Depends on:** 없음
 
+### [T32] 로스팅 중 타이틀바에 실시간 온도 표시
+
+**What:** `getCurrentWindow().setTitle()`로 OS 네이티브 타이틀바에 BT/ET/경과시간을 실시간 표시.
+
+**Why:** 로스팅 중 다른 앱 위에 떠 있을 때도 온도 확인 가능. UX 간지.
+
+**포맷:**
+```
+First Crack — BT 195.2°C | ET 210.5°C | +8:32
+```
+
+**변경 파일 (1개):**
+- `src/views/active-roast/ActiveRoast.tsx`
+
+**구현:**
+1. `getCurrentWindow`는 이미 import 되어 있음 (close prevention effect에서 사용 중)
+2. `setTitle` permission (`core:window:allow-set-title`) 이미 있음
+3. 새 `useEffect` 추가:
+   - deps: `[phase, liveData, elapsed, settings.temperatureUnit]`
+   - `roasting / preheating / standby` 중일 때만 타이틀 업데이트
+   - `idle`이면 기본 타이틀(`"First Crack"`)으로 복원
+   - BT/ET null이면 `"--°C"` 표시
+   - `toDisplayTemp()` 유틸 재사용해서 `°C`/`°F` 지원
+   - `__TAURI_INTERNALS__` 가드 (웹 빌드 대응)
+
+**ponytail:** ~10줄 `useEffect` 하나. 새 파일/의존성/타입 없음. 기존 코드만 재사용. `setTitle`이 이미 열려있는데 안 쓰고 있는 걸 쓰는 게 가장 짧은 길.
+
+**검증:**
+- 로스팅 중 다른 앱으로 전환 → 타이틀바에 온도 보이는지 확인
+- 로스팅 종료 시 타이틀이 `"First Crack"`으로 복원되는지 확인
+- 웹 빌드에서 `__TAURI_INTERNALS__` 가드로 크래시 없는지 확인
+
 ---
 
 ## LOW — 하드웨어 테스트 후

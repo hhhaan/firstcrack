@@ -35,7 +35,7 @@ export const BlendList = () => {
             </button>
 
             {isLoading ? (
-                <div className="flex items-center justify-center py-12 text-sm text-muted dark:text-white">
+                <div className="flex items-center justify-center py-12 text-sm text-muted dark:text-[#e5e5e5]">
                     {t('beans.loading')}
                 </div>
             ) : (

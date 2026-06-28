@@ -221,6 +221,16 @@ export function previewRecurrenceDates(interval: RecurrenceInterval | null, dtst
     return expandRRule(rruleStr, dtstart).slice(0, limit);
 }
 
+/** Parse an RRULE string back to a RecurrenceInterval label (UI pre-fill). */
+export function parseRruleToInterval(rrule: string | null): RecurrenceInterval | null {
+    if (!rrule) return null;
+    if (rrule.includes('FREQ=DAILY')) return 'daily';
+    if (rrule.includes('FREQ=WEEKLY') && rrule.includes('INTERVAL=2')) return 'biweekly';
+    if (rrule.includes('FREQ=WEEKLY')) return 'weekly';
+    if (rrule.includes('FREQ=MONTHLY')) return 'monthly';
+    return null;
+}
+
 // ── Internal types ────────────────────────────────────────────────────────────
 
 const rruleWithDtstart = (rruleStr: string, dtstart: Date): RRule => {

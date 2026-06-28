@@ -116,10 +116,9 @@ export const ScheduleDayView = ({
             />
 
             <AddBatchModal
-                key={String(hooks.isAddModalOpen) + (hooks.editingBatch?.id ?? '') + (hooks.editScope ?? '')}
                 open={hooks.isAddModalOpen || hooks.editingBatch !== null}
                 onClose={hooks.clearAddModal}
-                onAdd={hooks.handleAddBatch}
+                onSave={hooks.handleSaveBatch}
                 editingBatch={hooks.editingBatch}
                 editScope={hooks.editScope}
                 currentDateKey={dateKey}

@@ -1,24 +1,12 @@
 import { useCreateBean, useUpdateBean } from '@entities/bean/queries';
 import { useInsertStockEvent } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
-
-export interface FormData {
-    name: string;
-    origin: string;
-    region: string;
-    farm: string;
-    process: string;
-    variety: string;
-    altitude: string;
-    stock: string;
-    capacity: string;
-    costPerKg: string;
-    tastingNotes: string;
-}
+import type { BeanForm } from '../lib/schema';
+import type { BeanModalTab } from '../lib/types';
 
 interface UseAddBeanSubmitParams {
     userId: string;
-    tab: 'new' | 'restock' | 'expected' | 'edit' | 'adjust';
+    tab: BeanModalTab;
     selectedBeanId: string | null;
     restockAmount: string;
     expectedAmount: string;
@@ -55,7 +43,7 @@ export const useAddBeanSubmit = ({
 
     const isSubmitting = createBean.isPending || updateBean.isPending || insertStockEvent.isPending;
 
-    const handleSubmit = async (formData: FormData) => {
+    const handleSubmit = async (formData: BeanForm) => {
         if (isSubmitting) return;
         try {
             if (tab === 'new') {

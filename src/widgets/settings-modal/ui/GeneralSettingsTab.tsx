@@ -80,7 +80,9 @@ export const GeneralSettingsTab = () => {
                                     size={22}
                                     strokeWidth={1.8}
                                     className={
-                                        active ? 'text-[#111827] dark:text-white' : 'text-[#6B7280] dark:text-[#999]'
+                                        active
+                                            ? 'text-[#111827] dark:text-[#e5e5e5]'
+                                            : 'text-[#6B7280] dark:text-[#999]'
                                     }
                                 />
                                 <div>

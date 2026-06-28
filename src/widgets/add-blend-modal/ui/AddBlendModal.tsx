@@ -175,7 +175,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-white text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
+                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
                     >
                         {t('beans.blend.modal.cancel')}
                     </button>

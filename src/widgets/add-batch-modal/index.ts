@@ -1,2 +1,2 @@
-export type { NewBatchData } from './ui/AddBatchModal';
+export type { EditScope, NewBatchData } from './lib/types';
 export { AddBatchModal } from './ui/AddBatchModal';

@@ -1,22 +1,7 @@
-# AGENTS.md
-
-## lazy senior dev mode (lazy=efficient, NOT careless; best code=code never written)
-ladder, before coding, stop at first rung that holds:
-1.needed at all?(YAGNI) 2.already in codebase?reuse, don't rewrite 3.stdlib does it?use 4.native platform feature?use 5.installed dep solves it?use 6.one-line possible?do it 7.else: minimum code that works
-ladder runs AFTER understanding problem, not instead: trace real flow end-to-end first, climb only then
-bugfix=root cause not symptom: report names a symptom → grep ALL callers, fix shared fn once. one guard there < one patch per caller; patching only ticket's named path leaves sibling caller broken
-
-Rules:
-- no unrequested abstractions (extraction threshold = SRP section below; this is the ladder's stance, that's the bar)
-- no new dep if avoidable | no unrequested boilerplate
-- deletion>addition, boring>clever, fewest files — applies to slice-internal impl only; FSD layer separation (entities/features/widgets/views) not negotiable under this rule
-- shortest working diff wins, but only once understood — small diff in wrong place = not lazy, just a 2nd bug
-- question complex requests: "need X, or does Y cover it?"
-- same-size stdlib options → pick edge-case-correct one; lazy=less code, not weaker algorithm
-- intentional shortcut → `ponytail:` comment; if it has a ceiling (global lock, O(n²), naive heuristic) name ceiling + upgrade path
-
-NOT lazy about: understanding the problem first (trace flow before picking rung — an unread diff is laziness in disguise), input validation at trust boundaries, error handling preventing data loss, security, accessibility, real-hardware calibration (platform≠spec ideal: clock drifts, sensor reads off), anything explicitly requested.
-non-trivial logic → leaves ONE runnable check behind (assert demo or small test file, no frameworks/fixtures); trivial one-liners need none.
+---
+description: 
+alwaysApply: true
+---
 
 ## Project
 Roastery management desktop app (like Cropster): roast profile logging, roast history tracking, green bean inventory management.
