@@ -100,8 +100,8 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                     </div>
                 </aside>
 
-                <div className="p-7 overflow-y-auto">
-                    <div className="flex items-start gap-3.5 mb-6">
+                <div className="p-7 overflow-y-auto flex flex-col">
+                    <div className="flex items-start gap-3.5 mb-6 shrink-0">
                         <div className="mt-0.5">
                             <h3 className="text-[18px] leading-snug font-semibold text-[#111827] dark:text-[#e5e5e5] m-0">
                                 {activeConfig.title}
@@ -112,7 +112,7 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                         </div>
                     </div>
 
-                    <div className="grid gap-2.5">
+                    <div className="grid gap-2.5 min-h-0 flex-1">
                         {activeTab === 'roast' && <RoastSettingsTab />}
 
                         {activeTab === 'account' && <AccountSettingsTab onClose={onClose} />}
