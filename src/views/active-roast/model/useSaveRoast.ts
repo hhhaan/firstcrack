@@ -41,7 +41,11 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
 
             let tsvPath: string | null = null;
             if (sessionId) {
-                tsvPath = await uploadRoastProfileTsv(sessionId);
+                try {
+                    tsvPath = await uploadRoastProfileTsv(sessionId);
+                } catch (err) {
+                    console.error('[saveRoast] TSV upload failed, saving session without profile:', err);
+                }
             }
 
             const weightGrams = Math.round(formData.weightGrams * 1000);
