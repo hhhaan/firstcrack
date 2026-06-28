@@ -314,18 +314,18 @@ export const Machines = ({
                                         <div className="text-[12px] font-semibold text-secondary mb-2.5">
                                             {t('machines.connection')}
                                         </div>
-                                        <div className="grid gap-1.5">
+                                        <div className="grid grid-cols-2 gap-2">
                                             {Object.entries(selected.connectionParams)
                                                 .filter(([, v]) => v !== '' && v != null)
                                                 .map(([k, v]) => (
                                                     <div
                                                         key={k}
-                                                        className="flex justify-between gap-3 px-2.5 py-1.75 rounded-lg bg-white/82 dark:bg-[#2e3338]"
+                                                        className="flex flex-col gap-1 px-2.5 py-2 rounded-lg bg-white/82 dark:bg-[#2e3338]"
                                                     >
                                                         <span className="text-[11px] text-muted uppercase tracking-wider">
                                                             {k}
                                                         </span>
-                                                        <span className="text-[12px] font-semibold text-primary">
+                                                        <span className="text-[13px] font-semibold text-primary">
                                                             {String(v)}
                                                         </span>
                                                     </div>

@@ -238,7 +238,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
             {/* Header */}
             <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm border-b border-black/4 dark:border-[#585d61] px-7 pt-5.5 pb-4.5 flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3.5">
-                    <div className="w-11 h-11 rounded-[14px] bg-primary flex items-center justify-center text-white shrink-0">
+                    <div className="w-11 h-11 rounded-[14px] bg-primary dark:bg-black flex items-center justify-center text-white shrink-0">
                         <Cpu size={20} strokeWidth={1.8} />
                     </div>
                     <div>
