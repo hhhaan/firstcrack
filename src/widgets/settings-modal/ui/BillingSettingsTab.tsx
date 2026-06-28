@@ -113,7 +113,7 @@ export function BillingSettingsTab() {
     const currentPlan = (profile?.plan ?? 'free') as string;
 
     return (
-        <section className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
+        <section className="self-start bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
             <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-4">Current Plan</h4>
             <div className="grid grid-cols-3 gap-3 items-stretch">
                 {PLANS.map((plan) => (
