@@ -2,6 +2,7 @@ import { useProfile } from '@entities/profile';
 import { useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import {
     computePhaseSegments,
+    formatTemp,
     toDisplayRoR,
     useRoastActions,
     useRoastKeyboardShortcuts,
@@ -282,6 +283,19 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             unlisten?.();
         };
     }, []);
+
+    // ── Effect: 타이틀바에 실시간 온도 표시 ─────────────────────
+    useEffect(() => {
+        if (!('__TAURI_INTERNALS__' in window)) return;
+        const isActivePhase = phase === 'roasting' || phase === 'preheating' || phase === 'standby';
+        if (!isActivePhase) {
+            getCurrentWindow().setTitle('First Crack');
+            return;
+        }
+        const bt = formatTemp(rawBT, unit);
+        const et = formatTemp(rawET, unit);
+        getCurrentWindow().setTitle(`First Crack — BT ${bt} | ET ${et} | ${timeStr}`);
+    }, [phase, rawBT, rawET, timeStr, unit]);
 
     // ── 단계 표시 및 파생값 ──────────────────────────────────────
     const roastPhaseName = getRoastPhaseName(charged, phase, elapsed, logEntries);
