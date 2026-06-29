@@ -1,0 +1,60 @@
+name: Hotfix Windows updater URL
+
+# Re-publish latest.json with a URL-safe Windows MSI path (no rebuild needed).
+# Run once after merging the publish script fix, before the next tagged release.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Released version to hotfix (e.g. 1.0.16)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy MSI to URL-safe name and refresh latest.json
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_PUBLISH_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_PUBLISH_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://${{ secrets.R2_PUBLISH_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_PUBLISH_BUCKET_NAME }}
+          R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -e
+          S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
+
+          WIN_MSI_R2="First-Crack-${VERSION}-x64.msi"
+          OLD_MSI=$(aws s3 ls "s3://$R2_BUCKET/releases/$VERSION/" --endpoint-url "$R2_ENDPOINT" --region auto \
+            | grep -E '\.msi$' | grep -v '\.sig' | sed -E 's/^[^ ]+ +[^ ]+ +[0-9]+ //' | head -1)
+
+          if [ -z "$OLD_MSI" ]; then
+            echo "::error::No .msi found under releases/$VERSION/"
+            exit 1
+          fi
+
+          echo "Copying $OLD_MSI → $WIN_MSI_R2"
+          $S3 "s3://$R2_BUCKET/releases/$VERSION/$OLD_MSI" \
+            "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2"
+
+          OLD_SIG="${OLD_MSI}.sig"
+          if aws s3 ls "s3://$R2_BUCKET/releases/$VERSION/$OLD_SIG" --endpoint-url "$R2_ENDPOINT" --region auto >/dev/null 2>&1; then
+            $S3 "s3://$R2_BUCKET/releases/$VERSION/$OLD_SIG" \
+              "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig"
+          fi
+
+          aws s3 cp "s3://$R2_BUCKET/releases/latest.json" latest.json \
+            --endpoint-url "$R2_ENDPOINT" --region auto
+
+          jq --arg url "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
+            '.platforms."windows-x86_64".url = $url' latest.json > latest.fixed.json
+
+          $S3 latest.fixed.json "s3://$R2_BUCKET/releases/latest.json" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "application/json"
+
+          echo "✅ latest.json windows-x86_64.url → $R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2"
