@@ -5,7 +5,7 @@ import type { Bean } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { X } from 'lucide-react';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { beanFormSchema, EMPTY_BEAN_FORM } from '../lib/schema';
 import { tabCls } from '../lib/styles';
@@ -53,6 +53,10 @@ export const AddBeanModal = ({
 
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
 
+    const form = useForm({
+        resolver: zodResolver(beanFormSchema),
+        defaultValues: EMPTY_BEAN_FORM,
+    });
     const {
         register,
         handleSubmit: rhfSubmit,
@@ -60,10 +64,7 @@ export const AddBeanModal = ({
         reset,
         getValues,
         formState: { errors },
-    } = useForm({
-        resolver: zodResolver(beanFormSchema),
-        defaultValues: EMPTY_BEAN_FORM,
-    });
+    } = form;
 
     const { handleSubmit: submitBean, isSubmitting } = useAddBeanSubmit({
         userId,
@@ -198,16 +199,18 @@ export const AddBeanModal = ({
                         onAdjustNoteChange={setAdjustNote}
                     />
                 ) : tab === 'new' || tab === 'edit' ? (
-                    <BeanFormFields
-                        register={register}
-                        setValue={setValue}
-                        getValues={getValues}
-                        errors={errors}
-                        nameIsAuto={nameIsAuto}
-                        setNameIsAuto={setNameIsAuto}
-                        onSubmit={submitBean}
-                        handleSubmit={rhfSubmit}
-                    />
+                    <FormProvider {...form}>
+                        <BeanFormFields
+                            register={register}
+                            setValue={setValue}
+                            getValues={getValues}
+                            errors={errors}
+                            nameIsAuto={nameIsAuto}
+                            setNameIsAuto={setNameIsAuto}
+                            onSubmit={submitBean}
+                            handleSubmit={rhfSubmit}
+                        />
+                    </FormProvider>
                 ) : tab === 'expected' ? (
                     <BeanExpectedTab
                         {...pickerProps}
