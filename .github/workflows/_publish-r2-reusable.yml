@@ -101,7 +101,9 @@ jobs:
 
           AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
           X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
-          # ponytail: Tauri MSI basename is "First Crack_…msi" (productName space) — invalid in URLs; mac tarballs already use hyphens
+          AARCH64_DMG_R2="First-Crack-${VERSION}-aarch64.dmg"
+          X64_DMG_R2="First-Crack-${VERSION}-x64.dmg"
+          # ponytail: Tauri MSI/DMG basenames include productName space ("First Crack_…") — rename on upload for URL safety
           WIN_MSI_R2="First-Crack-${VERSION}-x64.msi"
 
           # Phase 1: fire all binary uploads in parallel
@@ -112,8 +114,8 @@ jobs:
           [ -n "$X64_SIG" ]     && { $S3 "$X64_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_TAR_R2.sig" & pids="$pids $!"; }
           $S3 "$WIN_MSI"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2" & pids="$pids $!"
           [ -n "$WIN_SIG" ]     && { $S3 "$WIN_SIG"     "s3://$R2_BUCKET/releases/$VERSION/$WIN_MSI_R2.sig" & pids="$pids $!"; }
-          [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$(basename "$AARCH64_DMG")" & pids="$pids $!"; }
-          [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$(basename "$X64_DMG")" & pids="$pids $!"; }
+          [ -n "$AARCH64_DMG" ] && { $S3 "$AARCH64_DMG" "s3://$R2_BUCKET/releases/$VERSION/$AARCH64_DMG_R2" & pids="$pids $!"; }
+          [ -n "$X64_DMG" ]     && { $S3 "$X64_DMG"     "s3://$R2_BUCKET/releases/$VERSION/$X64_DMG_R2" & pids="$pids $!"; }
 
           # Build latest.json while uploads run
           jq --null-input \
@@ -127,6 +129,12 @@ jobs:
             --arg win_url   "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
             '{version:$version,notes:"",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
             > latest.json
+
+          if grep -q ' "url": ".* .*"' latest.json; then
+            echo "::error::latest.json contains a URL with unencoded spaces"
+            cat latest.json
+            exit 1
+          fi
 
           # Wait for all Phase 1 binary uploads
           fail=0
