@@ -101,7 +101,8 @@ jobs:
 
           AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
           X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
-          WIN_MSI_R2=$(basename "$WIN_MSI")
+          # ponytail: Tauri MSI basename is "First Crack_…msi" (productName space) — invalid in URLs; mac tarballs already use hyphens
+          WIN_MSI_R2="First-Crack-${VERSION}-x64.msi"
 
           # Phase 1: fire all binary uploads in parallel
           pids=""
