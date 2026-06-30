@@ -143,7 +143,7 @@
         "zh-CN": "简体中文"
     },
     "machines": {
-        "title": "设备列表",
+        "title": "设备",
         "registered": "已注册 {{count}} 台",
         "connectedSuffix": "{{name}} 已连接",
         "noActiveConnection": "无活动连接",

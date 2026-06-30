@@ -143,7 +143,7 @@
         "zh-CN": "简体中文"
     },
     "machines": {
-        "title": "Machines",
+        "title": "머신",
         "registered": "{{count}}대 등록됨",
         "connectedSuffix": "{{name}} 연결됨",
         "noActiveConnection": "활성 연결 없음",

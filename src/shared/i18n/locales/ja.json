@@ -142,7 +142,7 @@
         "zh-CN": "简体中文"
     },
     "machines": {
-        "title": "マシン一覧",
+        "title": "マシン",
         "registered": "{{count}}台登録済み",
         "connectedSuffix": "{{name}} 接続済み",
         "noActiveConnection": "アクティブな接続なし",
