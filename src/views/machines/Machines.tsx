@@ -161,7 +161,7 @@ export const Machines = ({
             />
 
             <PageHeader
-                title="Machines"
+                title={t('machines.title')}
                 subtitle={`${t('machines.registered', { count: machines.length })}${
                     sidecarStatus?.connected && connectedMachine
                         ? ` · ${t('machines.connectedSuffix', { name: connectedMachine.name })}`

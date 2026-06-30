@@ -112,6 +112,27 @@
                 "label": "账户",
                 "title": "账户",
                 "description": "管理个人资料、工作区名称和账户设置。"
+            },
+            "billing": {
+                "label": "账单",
+                "title": "账单与套餐",
+                "description": "管理订阅套餐和账单信息。",
+                "currentPlan": "当前套餐",
+                "current": "当前",
+                "free": "免费",
+                "available": "可选",
+                "upgrade": "升级",
+                "redirecting": "跳转中…",
+                "freeDesc": "永久免费",
+                "proDesc": "全部功能无限制使用",
+                "enterpriseDesc": "优先支持与自定义限制"
+            },
+            "software": {
+                "label": "软件",
+                "title": "软件信息",
+                "description": "查看当前应用版本和软件详细信息。",
+                "version": "应用版本",
+                "versionDescription": "当前安装的应用程序版本。"
             }
         }
     },
@@ -319,11 +340,11 @@
         },
         "sidebar": {
             "bt": "BT",
-            "deltaBt": "ΔBT (30s)",
+            "deltaBt": "ΔBT (30秒)",
             "et": "ET",
-            "deltaEt": "ΔET (30s)",
+            "deltaEt": "ΔET (30秒)",
             "ror": "RoR",
-            "time": "Time",
+            "time": "时间",
             "dtr": "DTR"
         },
         "chart": {
@@ -338,7 +359,7 @@
         "summary": {
             "title": "烘焙完成",
             "totalTime": "总时间",
-            "development": "Development",
+            "development": "发展期",
             "finalBt": "最终 BT",
             "temperature": "温度",
             "humidity": "湿度",
@@ -430,7 +451,7 @@
         "stockShortRecurring": "按预约库存计算生豆可能不足（需{{needed}}kg / 可用{{available}}kg）",
         "detail": {
             "target": "目标 {{kg}} kg",
-            "batch": "Batch {{kg}} kg",
+            "batch": "批次 {{kg}} kg",
             "count": "{{count}}次"
         },
         "recurrence": {
@@ -616,6 +637,31 @@
             "selected": "已选{{count}}条 · 最多4条",
             "exit": "退出比较",
             "enter": "比较"
+        },
+        "detail": {
+            "default": "默认",
+            "setDefault": "设为默认",
+            "duplicate": "复制",
+            "edit": "编辑",
+            "more": "更多",
+            "profileCurve": "曲线",
+            "noRecordedData": "无记录数据 · 参考曲线",
+            "beansRoasted": "使用此曲线烘焙的生豆",
+            "times": "{{count}}次",
+            "lastDate": "最近 {{date}}",
+            "startWith": "使用此曲线开始",
+            "delete": "删除",
+            "totalDuration": "总时间",
+            "dropTemp": "下豆温度",
+            "chargeTemp": "投豆温度",
+            "devTime": "发展时间",
+            "devPct": "发展率",
+            "targetLevel": "目标烘焙度",
+            "duration": "时间",
+            "curveOverlay": "曲线叠加",
+            "selectToCompare": "从列表中选择要比较的曲线",
+            "compareMode": "比较模式 · 已选{{count}}条",
+            "editDisabledMulti": "多选时无法编辑"
         }
     },
     "newProfileModal": {

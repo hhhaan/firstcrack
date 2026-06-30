@@ -4,16 +4,17 @@ import { useAuthStore } from '@shared/store/auth';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { CreditCard, Settings, Star } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const PLANS = [
-    { key: 'free', name: 'Free', price: '$0', interval: '/mo', description: 'Free forever' },
+    { key: 'free', name: 'Free', price: '$0', interval: '/mo', descKey: 'settings.tabs.billing.freeDesc' },
     {
         key: 'pro',
         name: 'Pro',
         price: '$39',
         interval: '/mo',
         priceId: 'POLAR_PRO_PRODUCT_ID',
-        description: 'Full access to all features',
+        descKey: 'settings.tabs.billing.proDesc',
     },
     {
         key: 'enterprise',
@@ -21,7 +22,7 @@ const PLANS = [
         price: '$89',
         interval: '/mo',
         priceId: 'POLAR_ENTERPRISE_PRODUCT_ID',
-        description: 'Priority support & custom limits',
+        descKey: 'settings.tabs.billing.enterpriseDesc',
     },
 ];
 
@@ -31,12 +32,17 @@ function PlanCard({
     checkoutLoading,
     onUpgrade,
 }: {
-    plan: (typeof PLANS)[number];
+    plan: { key: string; name: string; price: string; interval: string; priceId?: string; descKey: string };
     isCurrent: boolean;
     checkoutLoading: boolean;
     onUpgrade: (priceId: string) => void;
 }) {
-    const badgeLabel = isCurrent ? 'Current' : plan.key === 'free' ? 'Free' : 'Available';
+    const { t } = useTranslation();
+    const badgeLabel = isCurrent
+        ? t('settings.tabs.billing.current')
+        : plan.key === 'free'
+          ? t('settings.tabs.billing.free')
+          : t('settings.tabs.billing.available');
     const canUpgrade = !isCurrent && plan.priceId;
     const cardBorder = isCurrent
         ? 'border-palette-lavender/40 bg-palette-lavender/[0.06] dark:bg-palette-lavender/[0.08]'
@@ -62,7 +68,7 @@ function PlanCard({
                         {plan.interval}
                     </span>
                 </div>
-                <div className="text-[12px] text-[#6B7280] dark:text-[#999] mb-3">{plan.description}</div>
+                <div className="text-[12px] text-[#6B7280] dark:text-[#999] mb-3">{t(plan.descKey)}</div>
             </div>
             <div className="mt-auto">
                 {isCurrent ? (
@@ -72,7 +78,7 @@ function PlanCard({
                         className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] text-[12px] font-medium text-[#6B7280] dark:text-[#999] cursor-default"
                     >
                         <Settings size={12} strokeWidth={2} />
-                        Current
+                        {t('settings.tabs.billing.current')}
                     </button>
                 ) : canUpgrade ? (
                     <button
@@ -82,7 +88,7 @@ function PlanCard({
                         className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-palette-lavender text-white text-[12px] font-semibold hover:opacity-90 active:opacity-80 disabled:opacity-50 transition-all cursor-pointer"
                     >
                         <CreditCard size={12} strokeWidth={2} />
-                        {checkoutLoading ? 'Redirecting…' : 'Upgrade'}
+                        {checkoutLoading ? t('settings.tabs.billing.redirecting') : t('settings.tabs.billing.upgrade')}
                     </button>
                 ) : null}
             </div>
@@ -91,6 +97,7 @@ function PlanCard({
 }
 
 export function BillingSettingsTab() {
+    const { t } = useTranslation();
     const user = useAuthStore((s) => s.user);
     const { data: profile } = useProfile(user?.id ?? '');
     const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -114,7 +121,9 @@ export function BillingSettingsTab() {
 
     return (
         <section className="self-start bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
-            <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-4">Current Plan</h4>
+            <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-4">
+                {t('settings.tabs.billing.currentPlan')}
+            </h4>
             <div className="grid grid-cols-3 gap-3 items-stretch">
                 {PLANS.map((plan) => (
                     <PlanCard

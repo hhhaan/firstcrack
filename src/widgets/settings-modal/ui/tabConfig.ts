@@ -1,6 +1,6 @@
-import { Bell, CreditCard, Flame, LayoutDashboard, type LucideIcon, User } from 'lucide-react';
+import { Bell, CreditCard, Flame, Info, LayoutDashboard, type LucideIcon, User } from 'lucide-react';
 
-export type SettingsTabId = 'general' | 'notifications' | 'session' | 'roast' | 'account' | 'billing';
+export type SettingsTabId = 'general' | 'notifications' | 'session' | 'roast' | 'account' | 'billing' | 'software';
 
 export interface TabConfig {
     id: SettingsTabId;
@@ -96,6 +96,14 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
             icon: CreditCard,
             title: tk('billing', 'title'),
             description: tk('billing', 'description'),
+            cards: [],
+        },
+        {
+            id: 'software',
+            label: tk('software', 'label'),
+            icon: Info,
+            title: tk('software', 'title'),
+            description: tk('software', 'description'),
             cards: [],
         },
     ];

@@ -4,6 +4,7 @@ import { generateProfileCurve } from '@shared/data/roast-profiles';
 import type { SeriesData } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { COMPARE_COLORS, ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { AlertCircle, GitCompare, Pencil } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const fmtDuration = (sec: number | null): string => {
     if (sec == null) return '—';
@@ -21,6 +22,7 @@ const DefaultBadge = ({
     defaultId: string | null;
     onSetDefault: (id: string) => void;
 }) => {
+    const { t } = useTranslation();
     if (defaultId === id) {
         return (
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#EFEFF0] dark:bg-surface-elevated ">
@@ -34,14 +36,14 @@ const DefaultBadge = ({
                 >
                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
-                <span className="text-[11px] font-medium tracking-[0.3px]">Default</span>
+                <span className="text-[11px] font-medium tracking-[0.3px]">{t('profiles.detail.default')}</span>
             </div>
         );
     }
     return (
         <button
             onClick={() => onSetDefault(id)}
-            title="Set as Default"
+            title={t('profiles.detail.setDefault')}
             className="flex items-center gap-1 px-2.5 py-1 rounded-full border-none bg-surface dark:bg-surface-elevated cursor-pointer  hover:bg-palette-teal/12 transition-colors"
         >
             <svg
@@ -55,19 +57,30 @@ const DefaultBadge = ({
             >
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
-            <span className="text-[11px] font-medium text-muted tracking-[0.3px]">Set Default</span>
+            <span className="text-[11px] font-medium text-muted tracking-[0.3px]">
+                {t('profiles.detail.setDefault')}
+            </span>
         </button>
     );
 };
 
-const TABLE_ROWS: { label: string; getValue: (p: RoastProfileWithSource) => string }[] = [
-    { label: 'Duration', getValue: (p) => fmtDuration(p.duration_sec) },
-    { label: 'Drop Temp', getValue: (p) => (p.drop_temp_celsius != null ? `${p.drop_temp_celsius}°C` : '—') },
-    { label: 'Charge Temp', getValue: (p) => (p.charge_temp_celsius != null ? `${p.charge_temp_celsius}°C` : '—') },
-    { label: 'Dev Time', getValue: (p) => fmtDuration(p.dev_time_sec) },
-    { label: 'Dev %', getValue: (p) => (p.dev_pct != null ? `${p.dev_pct.toFixed(1)}%` : '—') },
-    { label: 'Target Level', getValue: (p) => p.target_level },
-];
+const useTableRows = (): { label: string; getValue: (p: RoastProfileWithSource) => string }[] => {
+    const { t } = useTranslation();
+    return [
+        { label: t('profiles.detail.duration'), getValue: (p) => fmtDuration(p.duration_sec) },
+        {
+            label: t('profiles.detail.dropTemp'),
+            getValue: (p) => (p.drop_temp_celsius != null ? `${p.drop_temp_celsius}°C` : '—'),
+        },
+        {
+            label: t('profiles.detail.chargeTemp'),
+            getValue: (p) => (p.charge_temp_celsius != null ? `${p.charge_temp_celsius}°C` : '—'),
+        },
+        { label: t('profiles.detail.devTime'), getValue: (p) => fmtDuration(p.dev_time_sec) },
+        { label: t('profiles.detail.devPct'), getValue: (p) => (p.dev_pct != null ? `${p.dev_pct.toFixed(1)}%` : '—') },
+        { label: t('profiles.detail.targetLevel'), getValue: (p) => p.target_level ?? '—' },
+    ];
+};
 
 interface ProfileCompareProps {
     compareIds: string[];
@@ -86,6 +99,8 @@ export const ProfileCompare = ({
     chartKey,
     onSetDefault,
 }: ProfileCompareProps) => {
+    const { t } = useTranslation();
+    const TABLE_ROWS = useTableRows();
     const compareQueries = useRoastProfileCurves(
         compareProfiles.map((p) => p.source_session?.tsv_path),
         compareProfiles.map((p) => p.id),
@@ -104,7 +119,7 @@ export const ProfileCompare = ({
         return (
             <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-lg px-8 py-7 flex flex-col items-center justify-center gap-3 min-h-[320px]">
                 <GitCompare size={32} strokeWidth={1.5} color="var(--color-muted)" />
-                <p className="text-sm text-muted tracking-[0.14px]">좌측 리스트에서 프로파일을 선택하세요</p>
+                <p className="text-sm text-muted tracking-[0.14px]">{t('profiles.detail.selectToCompare')}</p>
             </div>
         );
     }
@@ -115,20 +130,20 @@ export const ProfileCompare = ({
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface dark:bg-surface-elevated ">
                     <GitCompare size={11} strokeWidth={2} color="var(--color-secondary)" />
                     <span className="text-[11px] font-medium text-secondary tracking-[0.3px]">
-                        비교 모드 · {compareIds.length}개 선택됨
+                        {t('profiles.detail.compareMode', { count: compareIds.length })}
                     </span>
                 </div>
                 <div className="flex gap-1.5 items-center">
                     <DefaultBadge id={primaryId} defaultId={defaultId} onSetDefault={onSetDefault} />
                     <button
                         disabled
-                        title="다중 선택 시 편집 불가"
+                        title={t('profiles.detail.editDisabledMulti')}
                         className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated/50 flex items-center justify-center cursor-not-allowed opacity-35 "
                     >
                         <Pencil size={14} strokeWidth={1.5} color="var(--color-secondary)" />
                     </button>
                     <button
-                        title="More"
+                        title={t('profiles.detail.more')}
                         className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer "
                     >
                         <svg
@@ -149,7 +164,9 @@ export const ProfileCompare = ({
             </div>
 
             <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 pt-4 pb-2 mb-3 ">
-                <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">Curve Overlay</div>
+                <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
+                    {t('profiles.detail.curveOverlay')}
+                </div>
                 <ProfileCurveChart key={chartKey} series={chartSeries} />
             </div>
 
@@ -167,7 +184,7 @@ export const ProfileCompare = ({
                             />
                             <span className="text-[12px] font-medium text-secondary tracking-[0.14px]">{p.name}</span>
                             {!hasReal && (
-                                <span title="기록된 데이터 없음 · 참고용 곡선" className="flex items-center">
+                                <span title={t('profiles.detail.noRecordedData')} className="flex items-center">
                                     <AlertCircle size={10} strokeWidth={2} className="text-amber-500" />
                                 </span>
                             )}

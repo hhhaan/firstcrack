@@ -116,7 +116,23 @@
             "billing": {
                 "label": "Billing",
                 "title": "Billing & Plan",
-                "description": "Manage your subscription plan and billing information."
+                "description": "Manage your subscription plan and billing information.",
+                "currentPlan": "Current Plan",
+                "current": "Current",
+                "free": "Free",
+                "available": "Available",
+                "upgrade": "Upgrade",
+                "redirecting": "Redirecting…",
+                "freeDesc": "Free forever",
+                "proDesc": "Full access to all features",
+                "enterpriseDesc": "Priority support & custom limits"
+            },
+            "software": {
+                "label": "Software",
+                "title": "Software Info",
+                "description": "View the current app version and software details.",
+                "version": "App Version",
+                "versionDescription": "The currently installed version of the application."
             }
         }
     },
@@ -610,6 +626,31 @@
             "selected": "{{count}} selected · Max 4",
             "exit": "Exit Compare",
             "enter": "Compare"
+        },
+        "detail": {
+            "default": "Default",
+            "setDefault": "Set Default",
+            "duplicate": "Duplicate",
+            "edit": "Edit",
+            "more": "More",
+            "profileCurve": "Profile Curve",
+            "noRecordedData": "No recorded data · Reference curve",
+            "beansRoasted": "Beans Roasted with This Profile",
+            "times": "{{count}} times",
+            "lastDate": "Last {{date}}",
+            "startWith": "Start with this Profile",
+            "delete": "Delete",
+            "totalDuration": "Total Duration",
+            "dropTemp": "Drop Temperature",
+            "chargeTemp": "Charge Temperature",
+            "devTime": "Development Time",
+            "devPct": "Dev/Total %",
+            "targetLevel": "Target Level",
+            "duration": "Duration",
+            "curveOverlay": "Curve Overlay",
+            "selectToCompare": "Select profiles from the list to compare",
+            "compareMode": "Compare mode · {{count}} selected",
+            "editDisabledMulti": "Cannot edit when multiple selected"
         }
     },
     "newProfileModal": {

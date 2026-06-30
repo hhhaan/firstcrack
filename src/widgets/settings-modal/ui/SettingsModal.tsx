@@ -10,6 +10,7 @@ import { AccountSettingsTab } from './AccountSettingsTab';
 import { BillingSettingsTab } from './BillingSettingsTab';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
 import { RoastSettingsTab } from './RoastSettingsTab';
+import { SoftwareSettingsTab } from './SoftwareSettingsTab';
 
 interface SettingsModalProps {
     open: boolean;
@@ -120,6 +121,8 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                         {activeTab === 'billing' && <BillingSettingsTab />}
 
                         {activeTab === 'general' && <GeneralSettingsTab />}
+
+                        {activeTab === 'software' && <SoftwareSettingsTab />}
 
                         {activeConfig.cards.length > 0 &&
                             activeTab !== 'general' &&
