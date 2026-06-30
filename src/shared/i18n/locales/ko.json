@@ -143,7 +143,7 @@
         "zh-CN": "简体中文"
     },
     "machines": {
-        "title": "머신",
+        "title": "Machines",
         "registered": "{{count}}대 등록됨",
         "connectedSuffix": "{{name}} 연결됨",
         "noActiveConnection": "활성 연결 없음",
@@ -613,7 +613,7 @@
         }
     },
     "profiles": {
-        "title": "로스팅 프로파일",
+        "title": "Profiles",
         "drop": "드롭",
         "newProfile": "새 프로파일",
         "empty": "아직 프로파일이 없습니다.",
