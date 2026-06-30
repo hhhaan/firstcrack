@@ -227,33 +227,39 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                             {t('beanDetail.stockHistory.empty')}
                         </p>
                     )}
-                    {events.map((ev) => (
-                        <div key={ev.id} className="flex items-start gap-3 text-xs">
-                            <span
-                                className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
-                                    ev.delta_grams > 0 ? 'bg-palette-green' : 'bg-palette-purple'
-                                }`}
-                            />
-                            <div className="flex-1">
-                                <span className="font-medium">
-                                    {ev.delta_grams > 0 ? `+${ev.delta_grams}g` : `${ev.delta_grams}g`}
-                                </span>
-                                <span className="text-gray-400 dark:text-[#e5e5e5] ml-1">
-                                    {ev.event_type === 'purchase'
-                                        ? t('beanDetail.stockHistory.purchase')
-                                        : ev.event_type === 'expected_inbound'
-                                          ? t('beanDetail.stockHistory.expectedInbound')
-                                          : ev.event_type === 'roast'
-                                            ? t('beanDetail.stockHistory.roast')
-                                            : t('beanDetail.stockHistory.adjustment')}
-                                </span>
-                                {ev.note && <span className="text-gray-400 dark:text-[#e5e5e5] ml-1">— {ev.note}</span>}
-                            </div>
-                            <span className="text-gray-300 dark:text-[#e5e5e5]">
-                                {new Date(ev.created_at).toLocaleDateString('ko-KR')}
-                            </span>
+                    {events.length > 0 && (
+                        <div className={events.length > 5 ? 'max-h-[76px] overflow-y-auto space-y-3 pr-1' : 'space-y-3'}>
+                            {events.map((ev) => (
+                                <div key={ev.id} className="flex items-start gap-3 text-xs">
+                                    <span
+                                        className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${
+                                            ev.delta_grams > 0 ? 'bg-palette-green' : 'bg-palette-purple'
+                                        }`}
+                                    />
+                                    <div className="flex-1">
+                                        <span className="font-medium">
+                                            {ev.delta_grams > 0 ? `+${ev.delta_grams}g` : `${ev.delta_grams}g`}
+                                        </span>
+                                        <span className="text-gray-400 dark:text-[#e5e5e5] ml-1">
+                                            {ev.event_type === 'purchase'
+                                                ? t('beanDetail.stockHistory.purchase')
+                                                : ev.event_type === 'expected_inbound'
+                                                  ? t('beanDetail.stockHistory.expectedInbound')
+                                                  : ev.event_type === 'roast'
+                                                    ? t('beanDetail.stockHistory.roast')
+                                                    : t('beanDetail.stockHistory.adjustment')}
+                                        </span>
+                                        {ev.note && (
+                                            <span className="text-gray-400 dark:text-[#e5e5e5] ml-1">— {ev.note}</span>
+                                        )}
+                                    </div>
+                                    <span className="text-gray-300 dark:text-[#e5e5e5] whitespace-nowrap">
+                                        {new Date(ev.created_at).toLocaleDateString('ko-KR')}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    )}
                 </div>
             </div>
         </>

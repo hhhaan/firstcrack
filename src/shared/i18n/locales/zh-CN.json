@@ -799,7 +799,9 @@
             "purchase": "入库",
             "expectedInbound": "预计入库",
             "roast": "烘焙",
-            "adjustment": "调整"
+            "adjustment": "调整",
+            "showMore": "查看更多",
+            "showLess": "收起"
         }
     }
 }

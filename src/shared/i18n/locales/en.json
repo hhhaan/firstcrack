@@ -799,7 +799,9 @@
             "purchase": "Inbound",
             "expectedInbound": "Expected Inbound",
             "roast": "Roast",
-            "adjustment": "Adjustment"
+            "adjustment": "Adjustment",
+            "showMore": "Show more",
+            "showLess": "Show less"
         }
     }
 }

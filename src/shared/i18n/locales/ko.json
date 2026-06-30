@@ -799,7 +799,9 @@
             "purchase": "입고",
             "expectedInbound": "입고 예정",
             "roast": "로스팅",
-            "adjustment": "조정"
+            "adjustment": "조정",
+            "showMore": "더보기",
+            "showLess": "접기"
         }
     }
 }

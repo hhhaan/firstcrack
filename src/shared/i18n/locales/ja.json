@@ -798,7 +798,9 @@
             "purchase": "入荷",
             "expectedInbound": "入荷予定",
             "roast": "ロースト",
-            "adjustment": "調整"
+            "adjustment": "調整",
+            "showMore": "もっと見る",
+            "showLess": "折りたたむ"
         }
     }
 }
