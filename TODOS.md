@@ -314,6 +314,15 @@ First Crack — BT 195.2°C | ET 210.5°C | +8:32
 - 로스팅 종료 시 타이틀이 `"First Crack"`으로 복원되는지 확인
 - 웹 빌드에서 `__TAURI_INTERNALS__` 가드로 크래시 없는지 확인
 
+### [T32-fix] Machines 페이지에서 머신 연결 시에도 타이틀바에 온도 반영
+
+**What:** 지금은 `ActiveRoast` 뷰의 `useSidecarPolling`이 `isActive=true`일 때만 `enterPreheating()`을 호출해서 phase가 변경되고 폴링이 시작됨. Machines 페이지에서 머신 연결 시에는 store가 업데이트되지 않아 타이틀이 "First Crack"으로 고정됨.
+
+**Fix:** `Machines.tsx`의 `handleConnect` 성공 후 `useRoastingStore.getState().enterPreheating(status.capabilities)` 호출 추가. phase가 `preheating`으로 바뀌면 `useSidecarPolling` 폴링이 시작되고 타이틀에 온도 반영됨.
+
+**변경 파일 (1개):**
+- `src/views/machines/Machines.tsx`: `handleConnect` 성공 브랜치에 store 업데이트 1줄 추가
+
 ---
 
 ## LOW — 하드웨어 테스트 후

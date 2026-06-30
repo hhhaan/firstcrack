@@ -202,7 +202,7 @@ export const History = () => {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleOpenReport}
-                            className="inline-flex items-center gap-1.5 self-start rounded-full border border-transparent bg-main-bg dark:bg-[#262b31] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary dark:text-[#e5e5e5] transition hover:-translate-y-px hover:text-primary"
+                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent bg-main-bg dark:bg-[#262b31] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary dark:text-[#e5e5e5] transition hover:-translate-y-px hover:text-primary"
                         >
                             <FileText size={14} strokeWidth={2} />
                             {t('history.monthlyReport')}
