@@ -22,6 +22,7 @@
             "roast": "진행 중인 로스팅",
             "history": "로스팅 기록",
             "beans": "재고",
+            "pricing": "원가·판매가",
             "profiles": "프로파일",
             "machines": "머신",
             "schedule": "로스팅 일정"
@@ -769,6 +770,58 @@
         "restock": {
             "weight": "추가 중량 (kg)",
             "clear": "초기화"
+        }
+    },
+    "pricing": {
+        "title": "원가·판매가",
+        "subtitle": "로스팅 후 원가를 계산하고 마진으로 판매가를 정합니다",
+        "source": {
+            "title": "원두 선택",
+            "mode": {
+                "single": "싱글 오리진",
+                "blend": "블렌드"
+            },
+            "bean": "생두",
+            "selectBean": "원두 선택",
+            "greenCost": "생두 원가 (원/kg)",
+            "greenCostPlaceholder": "예: 32000",
+            "missingCost": "이 원두에 원가가 등록되어 있지 않습니다.",
+            "goToBeans": "재고로 이동",
+            "blend": "블렌드",
+            "selectBlend": "블렌드 선택",
+            "blendSource": {
+                "saved": "저장된 블렌드",
+                "custom": "직접 입력"
+            },
+            "components": "구성",
+            "ratioHeader": "비율",
+            "costShort": "원/kg",
+            "addComponent": "구성 추가"
+        },
+        "cost": {
+            "title": "원가 내역",
+            "greenCost": "생두 원가",
+            "blendGreenCost": "블렌드 생두 원가",
+            "yield": "로스팅 수율",
+            "roastedCost": "로스팅 후 원가",
+            "overhead": "부대비용 (원/kg)",
+            "totalCost": "총 원가 (부대비용 포함)"
+        },
+        "selling": {
+            "title": "판매가",
+            "hint": "판매가 대비 총이익률 — 40% 마진이면 판매가의 40%가 이익입니다.",
+            "margin": "총이익률",
+            "price": "판매가 (원/kg)",
+            "priceEdit": "판매가 직접 입력",
+            "costBasis": "원가 기준",
+            "profit": "이익"
+        },
+        "flow": {
+            "green": "생두",
+            "yield": "수율",
+            "roasted": "로스팅",
+            "overhead": "부대비용",
+            "sell": "판매"
         }
     },
     "beanDetail": {
