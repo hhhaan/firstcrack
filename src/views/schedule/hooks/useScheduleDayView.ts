@@ -24,8 +24,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { NewBatchData } from '@widgets/add-batch-modal';
 import type { EditScope } from '@widgets/recurring-edit-scope-modal';
 import { format } from 'date-fns';
-import { useCallback, useState } from 'react';
-import { toDateKey } from '../lib';
+import { useCallback, useMemo, useState } from 'react';
+import { batchStatus, toDateKey } from '../lib';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
 
@@ -54,7 +54,19 @@ export const useScheduleDayView = ({
     const { data: dayPlan, isLoading: isDayPlanLoading } = useDayPlan(userId, dateKey);
     const planId = dayPlan?.id ?? '';
 
-    const { data: batches = [], isLoading: isBatchesLoading } = useDayBatches(userId, dateKey);
+    const { data: rangeData = [], isLoading: isBatchesLoading } = useDayBatches(userId, dateKey, 14);
+    const batches = useMemo(() => rangeData.filter((b) => b.scheduled_date === dateKey), [rangeData, dateKey]);
+    const overdueBatches = useMemo(
+        () =>
+            rangeData.filter(
+                (b) =>
+                    b.scheduled_date &&
+                    b.scheduled_date < dateKey &&
+                    batchStatus(b) !== 'done' &&
+                    batchStatus(b) !== 'skipped',
+            ),
+        [rangeData, dateKey],
+    );
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
     const isLoading = isDayPlanLoading || isBatchesLoading;
 
@@ -500,6 +512,7 @@ export const useScheduleDayView = ({
         isAddModalOpen,
         setIsAddModalOpen,
         batches,
+        overdueBatches,
         editingBatch,
         editScope,
         scopeBatch,
