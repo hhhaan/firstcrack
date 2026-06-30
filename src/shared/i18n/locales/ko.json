@@ -724,7 +724,7 @@
         "more": "+{{count}}개 더",
         "cancel": "취소",
         "saving": "저장 중...",
-        "create": "생두 로트 생성",
+        "create": "생두 Lot 생성",
         "update": "생두 정보 업데이트",
         "confirmRestock": "재입고 확인",
         "confirmExpected": "입고 예정 확인",

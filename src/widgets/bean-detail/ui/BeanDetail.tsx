@@ -184,16 +184,16 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
 
                 <div className="flex gap-2.5">
                     <button
-                        onClick={onStartRoast}
-                        className="flex-1 py-2.5 rounded-full border border-gray-200 dark:border-0 dark:bg-[#0d0d0d] bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
-                    >
-                        {t('beanDetail.startRoast')}
-                    </button>
-                    <button
                         onClick={() => onRestock(bean.id)}
                         className="flex-1 py-2.5 rounded-full border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-sm font-medium cursor-pointer tracking-[0.14px]"
                     >
                         {t('beanDetail.restock')}
+                    </button>
+                    <button
+                        onClick={onStartRoast}
+                        className="flex-1 py-2.5 rounded-full border border-gray-200 dark:border-0 dark:bg-[#0d0d0d] bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
+                    >
+                        {t('beanDetail.startRoast')}
                     </button>
                 </div>
 
