@@ -3710,7 +3710,7 @@ dependencies = [
 
 [[package]]
 name = "roastery-agent"
-version = "1.0.16"
+version = "1.0.17"
 dependencies = [
  "sentry",
  "serde",
