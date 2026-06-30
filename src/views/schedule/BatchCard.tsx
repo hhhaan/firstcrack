@@ -1,5 +1,5 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
-import { AlertTriangle, Check, ChevronDown, ChevronUp, Package, Pencil, Play, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Clock, Package, Pencil, Play, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { batchStatus, getRecurrenceLabel } from './lib';
 
@@ -21,6 +21,7 @@ export const BatchCard = ({
     onEdit,
     stockShort = false,
     stockShortDetail,
+    isOverdue = false,
 }: {
     batch: PlanBatchWithProgress;
     index: number;
@@ -32,20 +33,33 @@ export const BatchCard = ({
     onEdit: () => void;
     stockShort?: boolean;
     stockShortDetail?: { neededKg: string; availableKg: string } | null;
+    isOverdue?: boolean;
 }) => {
     const { t } = useTranslation();
     const status = batchStatus(batch);
     const isActive = status === 'pending' || status === 'in-progress';
     const isRecurring = !!batch.recurrence_rule_id;
-    const canReorder = !isRecurring;
-    const reorderTitle = isRecurring ? t('schedule.reorderDisabledRecurring') : undefined;
+    const canReorder = !isOverdue && !isRecurring;
+    const reorderTitle = isOverdue
+        ? '밀린 배치는 순서를 변경할 수 없습니다'
+        : isRecurring
+          ? t('schedule.reorderDisabledRecurring')
+          : undefined;
 
     return (
-        <div className="rounded-xl p-4 bg-main-bg dark:bg-[#262b31] transition-colors duration-150">
+        <div
+            className={`rounded-xl p-4 bg-main-bg dark:bg-[#262b31] transition-colors duration-150${isOverdue ? ' border-l-2 border-amber-500/40' : ''}`}
+        >
             <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <Package size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 mt-[1px]" />
                     <span className="text-[14px] font-semibold text-primary">{batch.bean_name}</span>
+                    {isOverdue && (
+                        <span className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/25">
+                            <Clock size={9} strokeWidth={2.5} />
+                            {t('schedule.overdue.badge')}
+                        </span>
+                    )}
                     {isRecurring && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-palette-lavender/15 text-palette-lavender border border-palette-lavender/25">
                             {t(`schedule.recurrence.${getRecurrenceLabel(batch.rrule)}`)}
@@ -112,6 +126,11 @@ export const BatchCard = ({
                         </>
                     )}
                 </div>
+                {isOverdue && (
+                    <div className="text-[12px] text-amber-600 font-medium">
+                        {t('schedule.overdue.originalDate', { date: batch.scheduled_date })}
+                    </div>
+                )}
                 {batch.notes && <div className="text-[12px] text-muted">{batch.notes}</div>}
                 {isRecurring && stockShort && stockShortDetail && (
                     <div className="flex items-start gap-1.5 text-[11px] text-amber-600 font-medium pt-1">
