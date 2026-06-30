@@ -72,10 +72,11 @@ export const useAutoDetection = (
         }
     }, [phase, bt, elapsed, onAutoDrop]);
 
-    // Auto Yellow / FC Start by temperature
+    // Auto Yellow / FC Start by temperature — only fire after turning point
     useEffect(() => {
         if (phase !== 'roasting' || bt == null || !markEvent) return;
         if (logEntries.some((e) => e.event === 'Drop' || e.event === 'End')) return;
+        if (!tpFiredRef.current) return;
 
         const displayBT = toDisplayTemp(bt, unit);
         if (
