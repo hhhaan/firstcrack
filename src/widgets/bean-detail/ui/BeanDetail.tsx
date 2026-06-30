@@ -185,7 +185,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                 <div className="flex gap-2.5">
                     <button
                         onClick={onStartRoast}
-                        className="flex-1 py-2.5 rounded-full border border-gray-200 dark:border-[#585d61] dark:bg-[#1a1e23] bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
+                        className="flex-1 py-2.5 rounded-full border border-gray-200 dark:border-0 dark:bg-[#0d0d0d] bg-primary text-white text-sm font-medium cursor-pointer tracking-[0.14px]"
                     >
                         {t('beanDetail.startRoast')}
                     </button>
