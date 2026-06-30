@@ -21,7 +21,7 @@
             "dashboard": "대시보드",
             "roast": "진행 중인 로스팅",
             "history": "로스팅 기록",
-            "beans": "생두 재고",
+            "beans": "재고",
             "profiles": "프로파일",
             "machines": "머신",
             "schedule": "로스팅 일정"
@@ -273,7 +273,7 @@
             "description": "\"{{name}}\" 배치를 완료 처리합니다.",
             "remainingSessions": "남은 회차: {{count}}회",
             "deductionAmount": "차감 예정: {{kg}} kg",
-            "deductStock": "생두 재고를 차감할까요?",
+            "deductStock": "재고를 차감할까요?",
             "deductStockDisabled": "생두가 연결되지 않아 재고를 차감할 수 없습니다.",
             "cancel": "취소",
             "confirm": "완료 처리"
@@ -461,7 +461,7 @@
             "empty": "등록된 블렌드가 없습니다",
             "addBlendFirst": "첫 블렌드 레시피를 추가해 시작하세요",
             "addBlend": "블렌드 추가",
-            "componentBeans": "구성 생두",
+            "componentBeans": "구성",
             "selectBlend": "블렌드를 선택해 상세 정보를 확인하세요",
             "summary_one": "생두 {{count}}종 · 총 {{total}}%",
             "summary_other": "생두 {{count}}종 · 총 {{total}}%",
@@ -478,7 +478,7 @@
                 "namePlaceholder": "블렌드 이름",
                 "descriptionLabel": "설명 (선택)",
                 "descriptionPlaceholder": "설명 (선택)",
-                "componentsLabel": "구성 생두",
+                "componentsLabel": "구성",
                 "totalRatio": "합계 {{total}}%",
                 "selectBean": "생두 선택",
                 "addComponent": "+ 생두 추가",
@@ -604,9 +604,9 @@
         },
         "stockDeduct": {
             "title": "재고 차감",
-            "description": "로스팅 기록이 저장되었습니다. 생두 재고를 차감할지 선택하세요.",
+            "description": "로스팅 기록이 저장되었습니다. 재고를 차감할지 선택하세요.",
             "deductionAmount": "차감 예정량: {{kg}}kg",
-            "deductStock": "생두 재고 차감",
+            "deductStock": "재고 차감",
             "deductStockDisabled": "연결된 원두가 없어 재고를 차감할 수 없습니다.",
             "skip": "차감 안 함",
             "confirm": "확인"

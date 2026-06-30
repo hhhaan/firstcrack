@@ -208,7 +208,7 @@ export const ProfileDetail = ({
             <div className="flex gap-2.5">
                 <button
                     onClick={() => onNavigate('roast')}
-                    className="flex-1 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#171717] text-white text-sm font-medium cursor-pointer tracking-[0.14px] "
+                    className="flex-1 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium cursor-pointer tracking-[0.14px] "
                 >
                     {t('profiles.detail.startWith')}
                 </button>

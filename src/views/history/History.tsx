@@ -210,7 +210,7 @@ export const History = () => {
                         <button
                             type="button"
                             onClick={handleExportCsv}
-                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#171717] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px"
+                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px"
                         >
                             <Download size={14} strokeWidth={2} />
                             {t('history.exportCsv')}

@@ -63,7 +63,7 @@ export const BatchCard = ({
                     {isActive && (
                         <button
                             onClick={onStart}
-                            className="flex items-center gap-1 text-[12px] font-medium text-white bg-primary dark:bg-[#171717] px-2.5 py-1 rounded-lg border-none cursor-pointer hover:opacity-90 transition-opacity"
+                            className="flex items-center gap-1 text-[12px] font-medium text-white bg-primary dark:bg-[#0d0d0d] px-2.5 py-1 rounded-lg border-none cursor-pointer hover:opacity-90 transition-opacity"
                         >
                             <Play size={11} strokeWidth={2.5} />
                             {t('schedule.start')}

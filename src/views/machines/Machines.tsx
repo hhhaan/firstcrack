@@ -181,7 +181,7 @@ export const Machines = ({
                     <p className="text-[15px] text-muted mb-5">{t('machines.empty')}</p>
                     <button
                         onClick={openAddModal}
-                        className="px-5 py-2.5 rounded-[10px] border-none bg-primary dark:bg-[#171717] text-white text-[13px] font-medium cursor-pointer"
+                        className="px-5 py-2.5 rounded-[10px] border-none bg-primary dark:bg-[#0d0d0d] text-white text-[13px] font-medium cursor-pointer"
                     >
                         {t('machines.addFirst')}
                     </button>
@@ -356,7 +356,7 @@ export const Machines = ({
                                         <button
                                             onClick={() => handleConnect(selected)}
                                             disabled={connecting}
-                                            className={`flex-1 py-3 rounded-lg border-none bg-primary dark:bg-[#171717] text-white text-sm font-medium flex items-center justify-center gap-2 ${connecting ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
+                                            className={`flex-1 py-3 rounded-lg border-none bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium flex items-center justify-center gap-2 ${connecting ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
                                         >
                                             {connecting ? (
                                                 <>
@@ -372,7 +372,7 @@ export const Machines = ({
                                     {isSelectedConnected && onNavigate && (
                                         <button
                                             onClick={() => onNavigate('roast')}
-                                            className="flex-1 py-3 rounded-lg border-none bg-primary dark:bg-[#171717] text-white text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
+                                            className="flex-1 py-3 rounded-lg border-none bg-primary dark:bg-[#0d0d0d] text-white text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
                                         >
                                             <Flame size={15} strokeWidth={2} />
                                             {t('machines.startRoasting')}

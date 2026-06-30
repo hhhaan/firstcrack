@@ -79,13 +79,13 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                 <div className="absolute top-6 right-6 flex gap-2 z-2">
                     <button
                         onClick={() => onEdit(bean)}
-                        className="w-9 h-9 rounded-[10px] border border-black/6 bg-white text-muted flex items-center justify-center cursor-pointer transition-all duration-200"
+                        className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-[#585d61] bg-white dark:bg-[#262b31] text-muted dark:text-[#e5e5e5] flex items-center justify-center cursor-pointer transition-all duration-200"
                     >
                         <Edit3 size={16} />
                     </button>
                     <button
                         onClick={() => setConfirming(true)}
-                        className="w-9 h-9 rounded-[10px] border border-black/6 bg-white flex items-center justify-center cursor-pointer transition-all duration-200 text-red-600"
+                        className="w-9 h-9 rounded-[10px] border border-black/6 dark:border-[#585d61] bg-white dark:bg-[#262b31] flex items-center justify-center cursor-pointer transition-all duration-200 text-red-600 dark:text-red-400"
                     >
                         <Trash2 size={16} />
                     </button>

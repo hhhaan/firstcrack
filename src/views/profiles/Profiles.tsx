@@ -247,7 +247,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                         )}
                         <button
                             onClick={() => setShowNewModal(true)}
-                            className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#171717] text-white text-sm font-medium cursor-pointer  tracking-[0.14px]"
+                            className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium cursor-pointer  tracking-[0.14px]"
                         >
                             <Plus size={15} strokeWidth={2.5} />
                             {t('profiles.newProfile')}
