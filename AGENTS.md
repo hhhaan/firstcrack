@@ -18,12 +18,10 @@ Roastery management desktop app (like Cropster): roast profile logging, roast hi
 ## Versioning
 SSoT: `tauri.conf.json > version`. Bump all 3 atomically (`package.json`, `tauri.conf.json`, `Cargo.toml`):
 ```bash
-pnpm version:bump <major.minor.patch>
-git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
-git commit -m "chore(release): bump version to <version>"
-git tag v<version>
-git push origin main && git push origin v<version>
+pnpm release <major.minor.patch>
 ```
+This runs: bump → `git add` → commit(`chore(release): bump version to <version>`) → tag(`v<version>`) → push.
+
 CI "Sync version across manifests" overwrites from tag — tag is final authority.
 
 ## Automation

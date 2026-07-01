@@ -30,7 +30,8 @@
         "doctor:fix": "react-doctor --fix",
         "doctor:strict": "react-doctor --fail-on-warnings",
         "doctor:report": "react-doctor --format json > react-doctor-report.json",
-        "version:bump": "node scripts/version-bump.mjs"
+        "version:bump": "node scripts/version-bump.mjs",
+        "release": "node scripts/release.mjs"
     },
     "dependencies": {
         "@carbon/icons-react": "^11.82.0",
