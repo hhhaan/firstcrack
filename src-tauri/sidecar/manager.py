@@ -97,7 +97,6 @@ class RoasterManager:
         self._protocol: str = ""
         self._merged_params: dict[str, Any] = {}
         self._connected: bool = False
-        self._data_ok: bool = False  # 실제 bt/et 값이 읽힌 적 있어야 connected로 판단
         self._error: str | None = None
         self._start_time: float = 0.0
         self._ror_window: deque[tuple[float, float]] = deque()
@@ -166,15 +165,7 @@ class RoasterManager:
                 await self._adapter.connect()
                 self._connected = True
                 self._start_time = time.monotonic()
-                # Warmup read: _data_ok를 connect 응답 전에 설정해 프론트엔드가 즉시 connected를 볼 수 있게 함
-                try:
-                    reading = await self._adapter.read()
-                    if reading.bt > 0:
-                        self._data_ok = True
-                except Exception as exc:
-                    # 연결은 성공했으나 첫 read 실패 — 폴링에서 재시도되므로 치명적이지 않다.
-                    # 단, status.connected가 _data_ok=False로 인해 false로 보이므로 단서를 남긴다.
-                    _log.warning("warmup read 실패 (폴링에서 재시도): %s", exc)
+                _log.info("연결 성공 [%s]: %s", roaster_key, protocol)
             except Exception as exc:
                 self._error = _format_connection_error(exc, protocol, merged)
                 self._connected = False
@@ -199,7 +190,6 @@ class RoasterManager:
                 pass
         self._adapter = None
         self._connected = False
-        self._data_ok = False
         self._roaster_key = ""
         self._protocol = ""
         self._merged_params = {}
@@ -322,7 +312,6 @@ class RoasterManager:
         self._consecutive_errors = 0
 
         if reading.bt > 0:
-            self._data_ok = True
             self._add_to_ror_window(reading.timestamp, reading.bt)
         if reading.et > 0:
             self._add_to_et_ror_window(reading.timestamp, reading.et)
@@ -402,7 +391,7 @@ class RoasterManager:
         reg = ROASTER_REGISTRY.get(self._roaster_key, {})
         reconnecting = self._reconnect_task is not None and not self._reconnect_task.done()
         return {
-            "connected": self._connected and self._data_ok,
+            "connected": self._connected,
             "reconnecting": reconnecting,
             "reconnect_attempt": self._reconnect_attempt,
             "roaster": self._roaster_key,

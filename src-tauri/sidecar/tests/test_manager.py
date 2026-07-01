@@ -64,19 +64,17 @@ class TestStatus:
         assert s["roaster"] == ""
         assert s["error"] is None
 
-    async def test_connected_false_until_data_ok(self, manager):
+    async def test_connected_true_on_transport_success(self, manager):
+        """소켓 연결 성공 시 bt=0이어도 connected=True (Artisan 동작과 일치)."""
         fake = FakeAdapter(readings=[make_reading(bt=0.0)])
         with patch("manager.make_adapter", return_value=fake):
             await manager.connect("virtual", {})
-        # bt=0 so _data_ok should remain False
-        assert manager._data_ok is False
-        assert manager.status()["connected"] is False
+        assert manager.status()["connected"] is True
 
     async def test_connected_true_after_positive_bt(self, manager):
         fake = FakeAdapter(readings=[make_reading(bt=150.0)])
         with patch("manager.make_adapter", return_value=fake):
             await manager.connect("virtual", {})
-        assert manager._data_ok is True
         assert manager.status()["connected"] is True
 
     async def test_disconnect_resets_connected(self, manager):
@@ -131,8 +129,8 @@ class TestConnect:
         fake2 = FakeAdapter(readings=[make_reading(bt=160.0)])
         with patch("manager.make_adapter", return_value=fake2):
             await manager.connect("virtual", {})
-        # Window should have been cleared and then populated by warmup read
-        assert len(manager._ror_window) <= 1
+        # Window should have been cleared on reconnect (no warmup read)
+        assert len(manager._ror_window) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -157,19 +155,16 @@ class TestReadTemperatures:
         assert isinstance(result["ror"], float)
 
     async def test_read_failure_sets_not_connected(self, manager):
-        # Warmup succeeds, then read raises
-        warmup = make_reading(bt=150.0)
-        fake = FakeAdapter(readings=[warmup])  # no more readings after warmup
+        fake = FakeAdapter(readings=[])  # no readings → read() will raise
         with patch("manager.make_adapter", return_value=fake):
             await manager.connect("virtual", {})
         assert manager._connected is True
 
-        await manager.read_temperatures()  # will raise RuntimeError internally
+        await manager.read_temperatures()  # RuntimeError from FakeAdapter
         assert manager._connected is False
 
     async def test_read_failure_spawns_reconnect_task(self, manager):
-        warmup = make_reading(bt=150.0)
-        fake = FakeAdapter(readings=[warmup])
+        fake = FakeAdapter(readings=[])  # no readings → read() will raise
         with patch("manager.make_adapter", return_value=fake):
             await manager.connect("virtual", {})
 
@@ -181,17 +176,6 @@ class TestReadTemperatures:
             await manager._reconnect_task
         except asyncio.CancelledError:
             pass
-
-    async def test_data_ok_set_on_positive_bt_read(self, manager):
-        t = time.monotonic()
-        warmup = make_reading(bt=0.0, ts=t)  # warmup with bt=0
-        live = make_reading(bt=150.0, ts=t + 1)
-        fake = FakeAdapter(readings=[warmup, live])
-        with patch("manager.make_adapter", return_value=fake):
-            await manager.connect("virtual", {})
-        assert manager._data_ok is False  # warmup bt=0
-        await manager.read_temperatures()
-        assert manager._data_ok is True
 
     async def test_heater_fan_drum_returned(self, manager):
         r = Reading(bt=160.0, et=210.0, heater=75.0, fan=55.0, drum=80.0, timestamp=time.monotonic())
