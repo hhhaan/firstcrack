@@ -1,2 +1,1 @@
-export { profileApi } from './api';
-export { profileKeys, useProfile, useUpdateProfile } from './queries';
+export { useProfile, useUpdateProfile } from './queries';

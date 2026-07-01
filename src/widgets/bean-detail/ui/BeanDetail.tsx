@@ -228,7 +228,9 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
                         </p>
                     )}
                     {events.length > 0 && (
-                        <div className={events.length > 5 ? 'max-h-[76px] overflow-y-auto space-y-3 pr-1' : 'space-y-3'}>
+                        <div
+                            className={events.length > 5 ? 'max-h-[76px] overflow-y-auto space-y-3 pr-1' : 'space-y-3'}
+                        >
                             {events.map((ev) => (
                                 <div key={ev.id} className="flex items-start gap-3 text-xs">
                                     <span

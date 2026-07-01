@@ -1,8 +1,7 @@
-export { type RoastProfileWithSource, roastProfileApi } from './api';
+export type { RoastProfileWithSource } from './api';
 export {
     type BeanHistoryItem,
     type ProfileCurveSource,
-    roastProfileKeys,
     useCreateRoastProfile,
     useDeleteRoastProfile,
     useProfileBeanHistory,

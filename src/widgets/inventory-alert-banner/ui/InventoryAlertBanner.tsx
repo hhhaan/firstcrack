@@ -1,8 +1,8 @@
 import { type InventoryAlert, useDismissInventoryAlert, useInventoryAlerts } from '@entities/inventory-alert';
 import { useDismissedAlerts } from '@shared/store/dismissedAlerts';
+import type { View } from '@shared/types/view';
 import { alertColor } from '@views/dashboard/lib/constants';
 import { X } from 'lucide-react';
-import type { View } from '@shared/types/view';
 import { useTranslation } from 'react-i18next';
 
 interface InventoryAlertBannerProps {
@@ -41,11 +41,18 @@ export const InventoryAlertBanner = ({ userId, onNavigate }: InventoryAlertBanne
                     <div
                         key={item.id}
                         className="flex items-center gap-3 rounded-xl px-3 py-2.5 border shadow-lg"
-                        style={{ background: `color-mix(in srgb, ${color} 15%, var(--color-surface))`, borderColor: color }}
+                        style={{
+                            background: `color-mix(in srgb, ${color} 15%, var(--color-surface))`,
+                            borderColor: color,
+                        }}
                     >
                         <button
                             type="button"
-                            onClick={() => { dismissed.add(item.id); onNavigate('beans'); dismiss.mutate(item.id); }}
+                            onClick={() => {
+                                dismissed.add(item.id);
+                                onNavigate('beans');
+                                dismiss.mutate(item.id);
+                            }}
                             className="flex-1 min-w-0 text-left cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
                         >
                             <div className="text-[13px] font-medium text-primary truncate leading-snug">{name}</div>
@@ -59,7 +66,10 @@ export const InventoryAlertBanner = ({ userId, onNavigate }: InventoryAlertBanne
                         </button>
                         <button
                             type="button"
-                            onClick={() => { dismissed.add(item.id); dismiss.mutate(item.id); }}
+                            onClick={() => {
+                                dismissed.add(item.id);
+                                dismiss.mutate(item.id);
+                            }}
                             className="shrink-0 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
                             aria-label={t('common.dismiss')}
                         >
