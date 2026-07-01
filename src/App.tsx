@@ -195,6 +195,7 @@ export const App = () => {
                                     isActive={view === 'roast'}
                                     onOpenRoastSettings={() => openSettings('roast')}
                                     onPlanBatchComplete={handlePlanBatchComplete}
+                                    onClose={() => setView('dashboard')}
                                 />
                             </ViewErrorBoundary>
                         </div>
