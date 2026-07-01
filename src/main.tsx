@@ -1,9 +1,10 @@
 import * as Sentry from '@sentry/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { initI18n } from './shared/i18n';
+import { logger } from './shared/lib/logger';
 import 'uplot/dist/uPlot.min.css';
 
 const is4xx = (error: unknown) => {
@@ -13,7 +14,13 @@ const is4xx = (error: unknown) => {
     return typeof status === 'number' && status >= 400 && status < 500;
 };
 
+const onQueryError = (error: Error) => {
+    if (import.meta.env.PROD) logger.capture(error);
+};
+
 const queryClient = new QueryClient({
+    queryCache: new QueryCache({ onError: onQueryError }),
+    mutationCache: new MutationCache({ onError: onQueryError }),
     defaultOptions: {
         queries: {
             staleTime: Infinity,

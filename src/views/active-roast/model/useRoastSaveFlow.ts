@@ -1,4 +1,5 @@
 import { useDeductRoastStock } from '@features/active-roast/model/useDeductRoastStock';
+import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { message } from '@tauri-apps/plugin-dialog';
@@ -62,7 +63,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 flow.onSaveSuccess({ deductionPlan, shouldOpenContinue });
                 onResetActiveRoast();
             } catch (err) {
-                console.error('[RoastSummary] 저장 실패:', err);
+                logger.capture(err, { context: 'roastSummary save' });
                 await message(`저장에 실패했습니다.\n\n${err instanceof Error ? err.message : String(err)}`, {
                     title: '저장 실패',
                     kind: 'error',

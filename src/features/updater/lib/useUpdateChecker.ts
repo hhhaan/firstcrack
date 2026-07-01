@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react';
+import { logger } from '@shared/lib/logger';
 import { invoke } from '@tauri-apps/api/core';
 import { platform } from '@tauri-apps/plugin-os';
 import type { DownloadEvent } from '@tauri-apps/plugin-updater';
@@ -171,7 +172,7 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             // });
         } catch (error) {
             const msg = error instanceof Error ? error.message : '업데이트 확인 중 오류가 발생했습니다.';
-            console.error('[updater]', msg, error);
+            logger.capture(error, { context: 'updater' });
             setState({ status: 'error', version: null, progress: 0, error: msg });
         }
     }, []);
@@ -192,7 +193,6 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             clearLastDownloadedVersion();
             const msg = error instanceof Error ? error.message : '재시작에 실패했습니다.';
             Sentry.captureException(error, { extra: { context: 'relaunch_for_update' } });
-            console.error('[updater] relaunch failed:', error);
             setState((prev) => ({ ...prev, status: 'error', error: msg }));
         }
     }, []);

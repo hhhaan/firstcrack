@@ -1,4 +1,5 @@
 import { useProfile } from '@entities/profile';
+import { logger } from '@shared/lib/logger';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -111,7 +112,7 @@ export function BillingSettingsTab() {
             if (error || !data?.url) throw error;
             await openUrl(data.url);
         } catch (err) {
-            console.error('[BillingSettingsTab] checkout failed:', err);
+            logger.capture(err, { context: 'billing checkout' });
         } finally {
             setCheckoutLoading(false);
         }

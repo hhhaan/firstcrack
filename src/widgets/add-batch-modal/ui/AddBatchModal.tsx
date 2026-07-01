@@ -6,6 +6,7 @@ import { useProfile } from '@entities/profile';
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { useRoastProfiles } from '@entities/roast-profile/queries';
 import { getDateFnsLocale } from '@shared/i18n';
+import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { useAuthStore } from '@shared/store/auth';
 import type { Bean, PlanBatchWithProgress, RoastProfile } from '@shared/types/database.types';
@@ -68,9 +69,7 @@ export const AddBatchModal = ({
     const [saving, setSaving] = useState(false);
     const [date, setDate] = useState<Date | undefined>();
     const [calendarOpen, setCalendarOpen] = useState(false);
-    const [recurringInterval, setRecurringInterval] = useState<import('@shared/lib/rrule').RecurrenceInterval | null>(
-        null,
-    );
+    const [recurringInterval, setRecurringInterval] = useState<RecurrenceInterval | null>(null);
     const [machineId, setMachineId] = useState('');
     const [batchType, setBatchType] = useState<BatchType>('Single Origin');
     const [profileId, setProfileId] = useState('');

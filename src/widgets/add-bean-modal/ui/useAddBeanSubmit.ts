@@ -1,5 +1,6 @@
 import { useCreateBean, useUpdateBean } from '@entities/bean/queries';
 import { useInsertStockEvent } from '@entities/bean-stock-event';
+import { logger } from '@shared/lib/logger';
 import type { Bean } from '@shared/types/database.types';
 import type { BeanForm } from '../lib/schema';
 import type { BeanModalTab } from '../lib/types';
@@ -126,7 +127,7 @@ export const useAddBeanSubmit = ({
             }
             onClose();
         } catch (err) {
-            console.error('AddBeanModal submit error:', err);
+            logger.capture(err, { context: 'add bean modal' });
         }
     };
 
