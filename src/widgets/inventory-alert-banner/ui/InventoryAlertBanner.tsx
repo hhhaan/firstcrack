@@ -1,7 +1,7 @@
 import { type InventoryAlert, useDismissInventoryAlert, useInventoryAlerts } from '@entities/inventory-alert';
+import type { View } from '@shared/types/view';
 import { alertColor } from '@views/dashboard/lib/constants';
 import { X } from 'lucide-react';
-import type { View } from '@shared/types/view';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -69,11 +69,17 @@ export const InventoryAlertBanner = ({ userId, onNavigate }: InventoryAlertBanne
                     <div
                         key={item.id}
                         className="flex items-center gap-3 rounded-xl px-3 py-2.5 border shadow-lg"
-                        style={{ background: `color-mix(in srgb, ${color} 15%, var(--color-surface))`, borderColor: color }}
+                        style={{
+                            background: `color-mix(in srgb, ${color} 15%, var(--color-surface))`,
+                            borderColor: color,
+                        }}
                     >
                         <button
                             type="button"
-                            onClick={() => { dismissAlert(item.id); onNavigate('beans'); }}
+                            onClick={() => {
+                                dismissAlert(item.id);
+                                onNavigate('beans');
+                            }}
                             className="flex-1 min-w-0 text-left cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
                         >
                             <div className="text-[13px] font-medium text-primary truncate leading-snug">{name}</div>
