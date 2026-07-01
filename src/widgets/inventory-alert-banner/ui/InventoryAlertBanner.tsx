@@ -2,8 +2,23 @@ import { type InventoryAlert, useDismissInventoryAlert, useInventoryAlerts } fro
 import { alertColor } from '@views/dashboard/lib/constants';
 import { X } from 'lucide-react';
 import type { View } from '@shared/types/view';
-import { useRef } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+const STORAGE_KEY = 'fc_dismissed_alerts';
+
+const loadDismissed = (): Set<string> => {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return new Set<string>(raw ? JSON.parse(raw) : []);
+    } catch {
+        return new Set<string>();
+    }
+};
+
+const persistDismissed = (ids: Set<string>) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+};
 
 interface InventoryAlertBannerProps {
     userId: string;
@@ -20,10 +35,23 @@ export const InventoryAlertBanner = ({ userId, onNavigate }: InventoryAlertBanne
     const { t } = useTranslation();
     const { data: alerts = [] } = useInventoryAlerts(userId);
     const dismiss = useDismissInventoryAlert(userId);
-    const dismissedBeanIds = useRef(new Set<string>());
+    const [dismissedIds, setDismissedIds] = useState(() => loadDismissed());
+
+    const dismissAlert = useCallback(
+        (id: string) => {
+            setDismissedIds((prev) => {
+                const next = new Set(prev);
+                next.add(id);
+                persistDismissed(next);
+                return next;
+            });
+            dismiss.mutate(id);
+        },
+        [dismiss],
+    );
 
     const top = alerts
-        .filter((a) => !dismissedBeanIds.current.has(a.bean_id))
+        .filter((a) => !dismissedIds.has(a.id))
         .sort((a, b) => {
             const rank: Record<InventoryAlert['reason'], number> = { out: 0, schedule: 1, low: 2 };
             return rank[a.reason] - rank[b.reason] || a.effective_grams - b.effective_grams;
@@ -45,7 +73,7 @@ export const InventoryAlertBanner = ({ userId, onNavigate }: InventoryAlertBanne
                     >
                         <button
                             type="button"
-                            onClick={() => { dismissedBeanIds.current.add(item.bean_id); onNavigate('beans'); dismiss.mutate(item.id); }}
+                            onClick={() => { dismissAlert(item.id); onNavigate('beans'); }}
                             className="flex-1 min-w-0 text-left cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
                         >
                             <div className="text-[13px] font-medium text-primary truncate leading-snug">{name}</div>
@@ -59,7 +87,7 @@ export const InventoryAlertBanner = ({ userId, onNavigate }: InventoryAlertBanne
                         </button>
                         <button
                             type="button"
-                            onClick={() => { dismissedBeanIds.current.add(item.bean_id); dismiss.mutate(item.id); }}
+                            onClick={() => dismissAlert(item.id)}
                             className="shrink-0 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
                             aria-label={t('common.dismiss')}
                         >
