@@ -1,6 +1,7 @@
 import type { Machine, SidecarStatus, TemperatureReading } from '@entities/machine';
 import { isSameSidecarStatus, useMachines, VIRTUAL_ID } from '@entities/machine';
 import * as Sentry from '@sentry/react';
+import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import type { View } from '@shared/types/view';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
@@ -116,7 +117,7 @@ export const Machines = ({
                 Sentry.captureMessage(`로스터 연결 실패: ${machine.name} — ${status.error}`, 'warning');
             }
         } catch (e) {
-            console.error(e);
+            logger.capture(e, { context: 'machine connect' });
             Sentry.addBreadcrumb({
                 category: 'hardware.connection',
                 message: `로스터 연결 중 예외: ${machine.name}`,

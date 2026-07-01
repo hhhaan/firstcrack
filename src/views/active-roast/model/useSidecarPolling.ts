@@ -1,4 +1,5 @@
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { BaseDirectory, writeTextFile } from '@tauri-apps/plugin-fs';
 import type { MutableRefObject } from 'react';
@@ -222,7 +223,7 @@ export const useSidecarPolling = ({
                     ]);
                 }
             } catch (e) {
-                console.error('[sidecar] 폴링 오류:', e);
+                logger.capture(e, { context: 'sidecar polling' });
                 const status = await sidecar.getStatus().catch(() => null);
                 useRoastingStore.getState().setError(status?.error ?? null);
                 useRoastingStore.getState().setReconnecting(false);
