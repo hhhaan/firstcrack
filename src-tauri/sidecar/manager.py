@@ -198,6 +198,12 @@ class RoasterManager:
                 await self._adapter.disconnect()
             except Exception:
                 pass
+        if self._roaster_key:
+            sentry_sdk.add_breadcrumb(
+                category="hardware",
+                message=f"disconnected: {self._roaster_key} ({self._protocol})",
+                level="info",
+            )
         self._adapter = None
         self._connected = False
         self._roaster_key = ""
@@ -250,12 +256,22 @@ class RoasterManager:
                         self._et_display_ema = None
                         self._ror_warmup = config.ROR_WARMUP_READS
                         _log.info("자동 재연결 성공: %s", self._roaster_key)
+                        sentry_sdk.add_breadcrumb(
+                            category="hardware",
+                            message=f"reconnected: {self._roaster_key} ({self._protocol}) after {attempt} attempts",
+                            level="info",
+                        )
                         return
                     except Exception as exc:
                         self._error = _format_connection_error(
                             exc, self._protocol, self._merged_params
                         )
                         _log.error("재연결 실패 (%d): %s", attempt, exc)
+                        sentry_sdk.add_breadcrumb(
+                            category="hardware",
+                            message=f"reconnect failed ({attempt}): {exc}",
+                            level="error",
+                        )
                         self._capture_hardware_error(exc, "reconnect_failed")
         finally:
             self._reconnect_attempt = 0
@@ -308,6 +324,11 @@ class RoasterManager:
             )
             self._connected = False
             _log.error("읽기 실패: %s", exc, exc_info=True)
+            sentry_sdk.add_breadcrumb(
+                category="hardware",
+                message=f"read failed, disconnected: {self._roaster_key} ({self._protocol}) — {exc}",
+                level="error",
+            )
             self._capture_hardware_error(exc, "read_failed_disconnected")
             if self._reconnect_task is None or self._reconnect_task.done():
                 self._reconnect_task = asyncio.create_task(self._reconnect_loop())
@@ -324,6 +345,12 @@ class RoasterManager:
                 "reconnecting": True,
             }
 
+        if self._consecutive_errors > 0:
+            sentry_sdk.add_breadcrumb(
+                category="hardware",
+                message=f"read recovered: {self._roaster_key} after {self._consecutive_errors} errors",
+                level="info",
+            )
         self._consecutive_errors = 0
 
         if reading.bt > 0:
