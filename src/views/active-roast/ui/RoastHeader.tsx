@@ -3,7 +3,7 @@ import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
-import { ChevronDown, Settings2, X } from 'lucide-react';
+import { ChevronDown, Settings2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -69,7 +69,6 @@ export const RoastHeader = ({
     onTargetProfileChange,
     onBeanChange,
     onOpenRoastSettings,
-    onClose,
 }: {
     phase: string;
     targetProfileId: string | null;
@@ -78,7 +77,6 @@ export const RoastHeader = ({
     onTargetProfileChange: (id: string | null) => void;
     onBeanChange: (id: string | null) => void;
     onOpenRoastSettings?: () => void;
-    onClose?: () => void;
 }) => {
     // ─── Store state ─────────────────────────────────────────────────────────
     const charged = useRoastingStore((s) => s.charged);
@@ -195,18 +193,8 @@ export const RoastHeader = ({
                 </div>
             </div>
 
-            {/* ─── Right side: close + settings ─────────────────────────── */}
+            {/* ─── Right side: settings ─────────────────────────────────── */}
             <div className="flex items-start gap-3">
-                {onClose && (
-                    <button
-                        onClick={onClose}
-                        aria-label="Close active roast"
-                        title="Close"
-                        className="w-8.5 h-8.5 rounded-md border border-transparent bg-main-bg dark:bg-[#262b31] text-secondary dark:text-[#e5e5e5] flex items-center justify-center cursor-pointer shrink-0 mt-1.5 hover:-translate-y-px transition"
-                    >
-                        <X size={15} strokeWidth={1.9} />
-                    </button>
-                )}
                 {onOpenRoastSettings && (
                     <button
                         onClick={onOpenRoastSettings}

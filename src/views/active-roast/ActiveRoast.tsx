@@ -45,10 +45,9 @@ interface ActiveRoastProps {
     isActive: boolean;
     onOpenRoastSettings?: () => void;
     onPlanBatchComplete?: () => void;
-    onClose?: () => void;
 }
 
-export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete, onClose }: ActiveRoastProps) => {
+export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
     useActiveRoastOnboarding(isActive);
 
     // ── 설정 ──────────────────────────────────────────────────────
@@ -399,7 +398,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 onTargetProfileChange={setUserSelectedTarget}
                 onBeanChange={setSelectedBeanId}
                 onOpenRoastSettings={onOpenRoastSettings}
-                onClose={onClose}
             />
 
             {isFullscreen && (
