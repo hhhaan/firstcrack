@@ -3,7 +3,7 @@ import { buildRRule } from '@shared/lib/rrule';
 import { calcPlanBatchCount } from '@shared/lib/stock-calc';
 import type { PlanBatchInsert, PlanBatchUpdate, PlanBatchWithProgress } from '@shared/types/database.types';
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns';
+import { endOfMonth, endOfWeek, format, startOfMonth, startOfWeek, subDays } from 'date-fns';
 import { dayPlanApi, dayPlanRangeApi, planBatchApi, type RecurrenceRuleMasterPatch, recurrenceRuleApi } from './api';
 
 // ── Query keys ────────────────────────────────────────────────────────────────
@@ -11,7 +11,10 @@ import { dayPlanApi, dayPlanRangeApi, planBatchApi, type RecurrenceRuleMasterPat
 export const planKeys = {
     day: (userId: string, date: string) => ['day_plan', userId, date] as const,
     batches: (planId: string) => ['plan_batches', planId] as const,
-    dayBatches: (userId: string, date: string) => ['day_batches', userId, date] as const,
+    dayBatches: (userId: string, date: string, lookbackDays?: number) =>
+        lookbackDays && lookbackDays > 0
+            ? (['day_batches', userId, date, lookbackDays] as const)
+            : (['day_batches', userId, date] as const),
     rangeBatches: (userId: string, start: string, end: string) => ['range_batches', userId, start, end] as const,
     rangeSummary: (userId: string, start: string, end: string) => ['day_plan_range', userId, start, end] as const,
     recurrenceRules: (userId: string) => ['recurrence_rules', userId] as const,
@@ -105,12 +108,15 @@ export const usePlanBatches = (planId: string) =>
         staleTime: 15_000,
     });
 
-export const useDayBatches = (userId: string, date: string) =>
-    useQuery({
-        queryKey: planKeys.dayBatches(userId, date),
-        queryFn: () => planBatchApi.listForDateRange(userId, date, date),
-        enabled: !!userId && !!date,
+export const useDayBatches = (userId: string, date: string, lookbackDays?: number) => {
+    const range = lookbackDays && lookbackDays > 0;
+    const start = range ? format(subDays(new Date(`${date}T00:00:00`), lookbackDays), 'yyyy-MM-dd') : date;
+    return useQuery({
+        queryKey: planKeys.dayBatches(userId, date, lookbackDays),
+        queryFn: () => planBatchApi.listForDateRange(userId, start, date),
+        enabled: !!userId && !!date && !Number.isNaN(Date.parse(date)),
     });
+};
 
 export const useRangeBatches = (userId: string, start: string, end: string) =>
     useQuery({

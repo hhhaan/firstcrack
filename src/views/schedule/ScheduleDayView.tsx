@@ -2,7 +2,7 @@ import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { AddBatchModal } from '@widgets/add-batch-modal';
 import { CompleteBatchModal } from '@widgets/complete-batch-modal';
 import { RecurringDeleteScopeModal, RecurringEditScopeModal } from '@widgets/recurring-edit-scope-modal';
-import { Plus } from 'lucide-react';
+import { Clock, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BatchCard } from './BatchCard';
 import { BatchCardSkeleton } from './BatchCardSkeleton';
@@ -45,6 +45,38 @@ export const ScheduleDayView = ({
                     {t('schedule.addBatch')}
                 </button>
             </div>
+
+            {/* Overdue Section */}
+            {hooks.overdueBatches.length > 0 && (
+                <div className="border-b border-amber-500/10">
+                    <div className="bg-amber-50/40 dark:bg-amber-950/8 px-8 py-4">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Clock size={14} strokeWidth={1.5} className="text-amber-600 dark:text-amber-400" />
+                            <span className="text-[13px] font-semibold text-amber-700 dark:text-amber-400">
+                                {t('schedule.overdue.title', { count: hooks.overdueBatches.length })}
+                            </span>
+                        </div>
+                        <div className="space-y-3">
+                            {hooks.overdueBatches.map((batch) => (
+                                <BatchCard
+                                    key={`overdue-${batch.id}`}
+                                    batch={batch}
+                                    index={-1}
+                                    total={-1}
+                                    isOverdue={true}
+                                    onMove={() => {}}
+                                    onDelete={() => hooks.handleBatchDelete(batch)}
+                                    onStart={() => hooks.handleStart(batch)}
+                                    onComplete={() => hooks.handleCompleteClick(batch)}
+                                    onEdit={() => hooks.handleEdit(batch)}
+                                    stockShort={hooks.isRecurringStockShort(batch)}
+                                    stockShortDetail={hooks.recurringStockShortDetail(batch)}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="flex-1 overflow-y-auto px-8 py-6">
                 {hooks.isLoading ? (
