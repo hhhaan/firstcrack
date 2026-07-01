@@ -171,7 +171,7 @@ export const App = () => {
                             background: 'var(--color-surface)',
                         }}
                     >
-                        <InventoryAlertBanner userId={user.id} />
+                        <InventoryAlertBanner userId={user.id} onNavigate={setView} />
                         {view === 'dashboard' && (
                             <ViewErrorBoundary>
                                 <Dashboard onNavigate={setView} />
@@ -194,6 +194,7 @@ export const App = () => {
                                     isActive={view === 'roast'}
                                     onOpenRoastSettings={() => openSettings('roast')}
                                     onPlanBatchComplete={handlePlanBatchComplete}
+                                    onClose={() => setView('dashboard')}
                                 />
                             </ViewErrorBoundary>
                         </div>

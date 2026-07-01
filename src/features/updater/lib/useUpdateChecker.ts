@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/react';
+import { logger } from '@shared/lib/logger';
 import { invoke } from '@tauri-apps/api/core';
-// 시스템 알림: floating 버튼이 이미 강제 수단이므로 불필요한 중복이라 비활성화
-// import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
+import { platform } from '@tauri-apps/plugin-os';
 import type { DownloadEvent } from '@tauri-apps/plugin-updater';
 import { check } from '@tauri-apps/plugin-updater';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -77,6 +77,7 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
     const totalRef = useRef<number | undefined>(undefined);
     const statusRef = useRef<UpdateStatus>('idle');
     const versionRef = useRef<string | null>(null);
+    const updateRef = useRef<Awaited<ReturnType<typeof check>>>(null);
 
     // 상태를 ref에 동기화 (useCallback deps=[] 에서도 최신 상태 읽기 위함)
     useEffect(() => {
@@ -123,19 +124,37 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             totalRef.current = undefined;
             setState({ status: 'downloading', version: update.version, progress: 0, error: null });
 
-            await update.downloadAndInstall((event: DownloadEvent) => {
-                if (event.event === 'Started') {
-                    totalRef.current = event.data.contentLength;
-                } else if (event.event === 'Progress') {
-                    downloadedRef.current += event.data.chunkLength;
-                    const total = totalRef.current;
-                    const pct =
-                        total && total > 0
-                            ? Math.round((downloadedRef.current / total) * 100)
-                            : Math.min(downloadedRef.current / 1024 / 50, 95);
-                    setState((prev) => ({ ...prev, progress: Math.min(pct, 99) }));
-                }
-            });
+            const isWindows = platform() === 'windows';
+            if (isWindows) {
+                updateRef.current = update;
+                await update.download((event: DownloadEvent) => {
+                    if (event.event === 'Started') {
+                        totalRef.current = event.data.contentLength;
+                    } else if (event.event === 'Progress') {
+                        downloadedRef.current += event.data.chunkLength;
+                        const total = totalRef.current;
+                        const pct =
+                            total && total > 0
+                                ? Math.round((downloadedRef.current / total) * 100)
+                                : Math.min(downloadedRef.current / 1024 / 50, 95);
+                        setState((prev) => ({ ...prev, progress: Math.min(pct, 99) }));
+                    }
+                });
+            } else {
+                await update.downloadAndInstall((event: DownloadEvent) => {
+                    if (event.event === 'Started') {
+                        totalRef.current = event.data.contentLength;
+                    } else if (event.event === 'Progress') {
+                        downloadedRef.current += event.data.chunkLength;
+                        const total = totalRef.current;
+                        const pct =
+                            total && total > 0
+                                ? Math.round((downloadedRef.current / total) * 100)
+                                : Math.min(downloadedRef.current / 1024 / 50, 95);
+                        setState((prev) => ({ ...prev, progress: Math.min(pct, 99) }));
+                    }
+                });
+            }
 
             versionRef.current = update.version;
             clearRetryAttempts();
@@ -153,7 +172,7 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             // });
         } catch (error) {
             const msg = error instanceof Error ? error.message : '업데이트 확인 중 오류가 발생했습니다.';
-            console.error('[updater]', msg, error);
+            logger.capture(error, { context: 'updater' });
             setState({ status: 'error', version: null, progress: 0, error: msg });
         }
     }, []);
@@ -161,13 +180,19 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
     const applyAndRelaunch = useCallback(async () => {
         setState((prev) => ({ ...prev, status: 'applying', error: null }));
         try {
-            writeLastDownloadedVersion(versionRef.current ?? '');
-            await invoke('relaunch_for_update');
+            const isWindows = platform() === 'windows';
+            if (isWindows) {
+                writeLastDownloadedVersion(versionRef.current ?? '');
+                await updateRef.current?.install();
+                // Windows: install() 시점에 앱 강제 종료됨 — 아래 코드는 도달하지 않음
+            } else {
+                writeLastDownloadedVersion(versionRef.current ?? '');
+                await invoke('relaunch_for_update');
+            }
         } catch (error) {
             clearLastDownloadedVersion();
             const msg = error instanceof Error ? error.message : '재시작에 실패했습니다.';
             Sentry.captureException(error, { extra: { context: 'relaunch_for_update' } });
-            console.error('[updater] relaunch failed:', error);
             setState((prev) => ({ ...prev, status: 'error', error: msg }));
         }
     }, []);

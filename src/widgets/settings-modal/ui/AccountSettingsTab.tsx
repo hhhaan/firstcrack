@@ -1,5 +1,6 @@
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import { locationStore, parseLocationString } from '@shared/lib/locationStore';
+import { logger } from '@shared/lib/logger';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
 import { SectionCard } from '@shared/ui/SectionCard';
@@ -107,7 +108,7 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
             .then((loc) => {
                 if (loc) setLocation(`${loc.lat}, ${loc.lng}`);
             })
-            .catch((e) => console.error('[settings] failed to load location:', e));
+            .catch((e) => logger.capture(e, { context: 'settings load location' }));
     }, []);
 
     useEffect(
@@ -132,7 +133,7 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
             if (coords) qc.invalidateQueries({ queryKey: ['weather', 'coords'] });
             setProfileSaveStatus('saved');
         } catch (e) {
-            console.error('[AccountSettingsTab] save failed:', e);
+            logger.capture(e, { context: 'settings save profile' });
             setProfileSaveStatus('error');
         }
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);

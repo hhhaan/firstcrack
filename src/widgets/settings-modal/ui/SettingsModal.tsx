@@ -10,6 +10,7 @@ import { AccountSettingsTab } from './AccountSettingsTab';
 import { BillingSettingsTab } from './BillingSettingsTab';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
 import { RoastSettingsTab } from './RoastSettingsTab';
+import { SoftwareSettingsTab } from './SoftwareSettingsTab';
 
 interface SettingsModalProps {
     open: boolean;
@@ -114,48 +115,10 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
 
                     <div className="grid gap-2.5 min-h-0">
                         {activeTab === 'roast' && <RoastSettingsTab />}
-
                         {activeTab === 'account' && <AccountSettingsTab onClose={onClose} />}
-
                         {activeTab === 'billing' && <BillingSettingsTab />}
-
                         {activeTab === 'general' && <GeneralSettingsTab />}
-
-                        {activeConfig.cards.length > 0 &&
-                            activeTab !== 'general' &&
-                            activeConfig.cards.map((card) => (
-                                <section
-                                    key={card.title}
-                                    className="bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5"
-                                >
-                                    <div className="mb-4">
-                                        <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-0.5">
-                                            {card.title}
-                                        </h4>
-                                        <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0">
-                                            {card.description}
-                                        </p>
-                                    </div>
-
-                                    <div className="grid gap-1.5">
-                                        {card.items.map((item) => (
-                                            <label
-                                                key={item}
-                                                className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] cursor-pointer"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    disabled
-                                                    className="w-4 h-4 accent-[#111827] dark:accent-white opacity-40"
-                                                />
-                                                <span className="text-[14px] font-medium text-[#111827] dark:text-[#e5e5e5]">
-                                                    {item}
-                                                </span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </section>
-                            ))}
+                        {activeTab === 'software' && <SoftwareSettingsTab />}
                     </div>
                 </div>
             </div>

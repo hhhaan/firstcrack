@@ -144,13 +144,26 @@ CSS 변수는 `src/App.css`의 `@theme` 블록에 정의되어 있음.
 // bg-primary text-white rounded-full
 // px-4.5 py-2.5 text-sm font-medium
 // tracking-[0.14px], cursor-pointer
-// border-none, dark:border-white dark:bg-[#171717]
+// border-none, dark:border-white dark:bg-[#0d0d0d]
 ```
 
 - Shape: **rounded-full (9999px pill)**
 - Background: `--color-primary` (`#171717`)
 - Text: white
 - 좌측에 Lucide 아이콘을 `gap-2`로 배치 가능
+- **Dark mode:** 배경 `#0d0d0d`, 보더 `white` (1px border)
+
+**Outline / Start Roast**
+```
+// rounded-full border border-gray-200
+// bg-primary text-white
+// dark:border-0 dark:bg-[#0d0d0d] dark:text-white
+// text-sm font-medium tracking-[0.14px]
+```
+
+- Shape: **rounded-full (pill)**, border 동반 (light only)
+- **Dark mode:** 배경 `#0d0d0d`, 보더 없음
+- 사용처: 생두 디테일 패널의 "로스팅 시작" 버튼
 
 **Secondary (Dashed Border)**
 ```

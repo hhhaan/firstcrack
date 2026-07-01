@@ -111,6 +111,27 @@
                 "label": "アカウント",
                 "title": "アカウント",
                 "description": "プロフィール、ワークスペース名、アカウント設定を管理します。"
+            },
+            "billing": {
+                "label": "請求",
+                "title": "請求とプラン",
+                "description": "サブスクリプションプランと請求情報を管理します。",
+                "currentPlan": "現在のプラン",
+                "current": "現在",
+                "free": "無料",
+                "available": "利用可能",
+                "upgrade": "アップグレード",
+                "redirecting": "リダイレクト中…",
+                "freeDesc": "永久無料",
+                "proDesc": "全機能にフルアクセス",
+                "enterpriseDesc": "優先サポートとカスタム制限"
+            },
+            "software": {
+                "label": "ソフトウェア",
+                "title": "ソフトウェア情報",
+                "description": "現在のアプリバージョンとソフトウェア詳細を確認します。",
+                "version": "アプリバージョン",
+                "versionDescription": "現在インストールされているアプリケーションのバージョンです。"
             }
         }
     },
@@ -121,7 +142,7 @@
         "zh-CN": "简体中文"
     },
     "machines": {
-        "title": "マシン一覧",
+        "title": "マシン",
         "registered": "{{count}}台登録済み",
         "connectedSuffix": "{{name}} 接続済み",
         "noActiveConnection": "アクティブな接続なし",
@@ -167,7 +188,9 @@
         "saving": "保存中...",
         "saveOnly": "保存のみ",
         "saveAndConnect": "保存して接続",
-        "failedToSave": "保存に失敗しました"
+        "failedToSave": "保存に失敗しました",
+        "phidgetDriverNotice": "このデバイスにはPhidget22システムドライバーが別途必要です。",
+        "phidgetDriverLink": "ドライバーインストールガイドを見る"
     },
     "dashboard": {
         "greeting": {
@@ -222,7 +245,10 @@
             "single": "シングル",
             "blend": "ブレンド"
         },
-        "empty": "登録された生豆はまだありません",
+        "empty": {
+            "title": "登録された生豆はまだありません。",
+            "description": "最初の豆を追加して始めましょう。"
+        },
         "addFirst": "最初の生豆を追加してください",
         "blend": {
             "empty": "登録されたブレンドはまだありません",
@@ -269,9 +295,9 @@
             "openSettings": "ロースト設定を開く"
         },
         "readings": {
-            "beanTemp": "Bean Temp",
-            "envTemp": "Env Temp",
-            "rateOfRise": "Rate of Rise",
+            "beanTemp": "ベーン温度",
+            "envTemp": "環境温度",
+            "rateOfRise": "上昇率",
             "phase": "フェーズ"
         },
         "controls": {
@@ -280,25 +306,25 @@
             "drum": "ドラム"
         },
         "log": {
-            "title": "Roast Log",
+            "title": "ローストログ",
             "deleteNote": "ノート削除"
         },
         "phase": {
-            "ready": "READY",
-            "preheating": "PREHEATING",
-            "idle": "IDLE",
-            "drying": "Drying",
-            "maillard": "Maillard",
-            "development": "Development"
+            "ready": "準備完了",
+            "preheating": "予熱中",
+            "idle": "待機中",
+            "drying": "ドライ",
+            "maillard": "メillard",
+            "development": "開発"
         },
         "actions": {
-            "charge": "Charge",
-            "roastReady": "Roast Ready",
-            "endRoast": "End Roast",
-            "yellow": "Yellow",
-            "fcStart": "FC Start",
-            "fcEnd": "FC End",
-            "markDrop": "Mark Drop",
+            "charge": "チャージ",
+            "roastReady": "ロースト準備完了",
+            "endRoast": "ロースト終了",
+            "yellow": "イエロー",
+            "fcStart": "ファーストクラック開始",
+            "fcEnd": "ファーストクラック終了",
+            "markDrop": "ドロップ",
             "inProgress": "{{phase}} 進行中",
             "roastComplete": "ロースト完了",
             "end": "終了",
@@ -313,11 +339,11 @@
         },
         "sidebar": {
             "bt": "BT",
-            "deltaBt": "ΔBT (30s)",
+            "deltaBt": "ΔBT (30秒)",
             "et": "ET",
-            "deltaEt": "ΔET (30s)",
+            "deltaEt": "ΔET (30秒)",
             "ror": "RoR",
-            "time": "Time",
+            "time": "時間",
             "dtr": "DTR"
         },
         "chart": {
@@ -332,7 +358,7 @@
         "summary": {
             "title": "ロースト完了",
             "totalTime": "総時間",
-            "development": "Development",
+            "development": "開発",
             "finalBt": "最終BT",
             "temperature": "温度",
             "humidity": "湿度",
@@ -345,11 +371,11 @@
             "save": "保存",
             "discard": "保存しない",
             "levels": {
-                "light": "Light",
-                "mediumLight": "Medium-Light",
-                "medium": "Medium",
-                "mediumDark": "Medium-Dark",
-                "dark": "Dark"
+                "light": "ライト",
+                "mediumLight": "ミディアムライト",
+                "medium": "ミディアム",
+                "mediumDark": "ミディアムダーク",
+                "dark": "ダーク"
             }
         },
         "planBatch": {
@@ -558,7 +584,18 @@
             "origin": "産地",
             "dropTemp": "排気温度",
             "duration": "時間",
-            "notes": "ノート"
+            "notes": "ノート",
+            "chartLoading": "チャート読み込み中...",
+            "chartUnavailable": "チャート利用不可"
+        },
+        "table": {
+            "date": "日付",
+            "bean": "豆",
+            "profile": "プロファイル",
+            "weight": "重量",
+            "dropTemp": "排気温度",
+            "duration": "時間",
+            "level": "ロースト度"
         },
         "delete": {
             "title": "ローストセッションを削除しますか？",
@@ -567,11 +604,203 @@
             "confirm": "削除"
         },
         "monthlyReport": "月次レポート",
-        "exportCsv": "Export CSV",
+        "exportCsv": "CSVエクスポート",
         "exportConfirm": "保存先: {{path}}\n{{count}}件のセッションをCSVにエクスポートしますか？",
         "exportNoSessions": "エクスポートするセッションがありません。",
         "exportTitle": "First Crack",
         "exportOkLabel": "エクスポート",
         "exportCancelLabel": "キャンセル"
+    },
+    "profiles": {
+        "title": "ローストプロファイル",
+        "drop": "ドロップ",
+        "newProfile": "新規プロファイル",
+        "empty": "プロファイルがまだありません",
+        "createFirst": "最初のプロファイルを作成",
+        "subtitle_one": "{{count}} 件のプロファイル",
+        "subtitle_other": "{{count}} 件のプロファイル",
+        "compare": {
+            "selectPrompt": "比較するプロファイルを選択",
+            "maxSelected": "最大4つまで選択",
+            "selected": "{{count}} 選択中 · 最大4つ",
+            "exit": "比較終了",
+            "enter": "比較"
+        },
+        "detail": {
+            "default": "デフォルト",
+            "setDefault": "デフォルトに設定",
+            "duplicate": "複製",
+            "edit": "編集",
+            "more": "その他",
+            "profileCurve": "プロファイルカーブ",
+            "noRecordedData": "記録データなし · 参考カーブ",
+            "beansRoasted": "このプロファイルでローストした豆",
+            "times": "{{count}}回",
+            "lastDate": "最終 {{date}}",
+            "startWith": "このプロファイルで開始",
+            "delete": "削除",
+            "totalDuration": "総時間",
+            "dropTemp": "ドロップ温度",
+            "chargeTemp": "チャージ温度",
+            "devTime": "開発時間",
+            "devPct": "開発率",
+            "targetLevel": "ターゲットレベル",
+            "duration": "時間",
+            "curveOverlay": "カーブオーバーレイ",
+            "selectToCompare": "リストから比較するプロファイルを選択してください",
+            "compareMode": "比較モード · {{count}}件選択中",
+            "editDisabledMulti": "複数選択時は編集できません"
+        }
+    },
+    "newProfileModal": {
+        "editTitle": "ローストプロファイルを編集",
+        "fromSession": "セッションから作成",
+        "newTitle": "新規ローストプロファイル",
+        "selectSession": "ローストセッションを選択",
+        "basedOn": "元:",
+        "unknownBean": "不明な豆",
+        "profileName": "プロファイル名",
+        "profileNamePlaceholder": "例: ライトフローラル",
+        "description": "説明",
+        "descriptionPlaceholder": "簡単な説明...",
+        "targetLevel": "ターゲットロースト度",
+        "chargeTemp": "チャージ温度 (°C)",
+        "tempPlaceholder": "例: 200",
+        "dropTemp": "ドロップ温度 (°C)",
+        "duration": "時間 (秒)",
+        "durationPlaceholder": "例: 720",
+        "devTime": "開発時間 (秒)",
+        "devTimePlaceholder": "例: 90",
+        "devPct": "開発率 (%)",
+        "devPctPlaceholder": "例: 13",
+        "defaultBean": "既定の豆 (任意)",
+        "none": "なし",
+        "singleOrigin": "シングル",
+        "blend": "ブレンド",
+        "selectBeanOption": "豆を選択",
+        "selectBlendOption": "ブレンドを選択",
+        "cancel": "キャンセル",
+        "saveProfile": "プロファイルを保存",
+        "createProfile": "プロファイルを作成",
+        "noSessions": "完了したローストセッションがありません。",
+        "drop": "ドロップ",
+        "howToCreate": "プロファイルの作成方法を選択してください",
+        "manualInput": "手動入力",
+        "manualInputDesc": "チャージ温度、ドロップ温度、時間を直接設定",
+        "fromSessionOption": "ロースト履歴から",
+        "fromSessionDesc": "過去のローストセッションからパラメータを自動入力",
+        "roastLevel": {
+            "Light": "ライト",
+            "Medium-Light": "ミディアムライト",
+            "Medium": "ミディアム",
+            "Medium-Dark": "ミディアムダーク",
+            "Dark": "ダーク"
+        }
+    },
+    "beanList": {
+        "searchPlaceholder": "豆を検索...",
+        "empty": "豆がまだありません。最初のロットを追加してください！",
+        "noResults": "結果が見つかりません。"
+    },
+    "deleteBeanModal": {
+        "title": "豆を削除しますか？",
+        "description": "{{name}} が完全に削除されます。この操作は取り消せません。",
+        "cancel": "キャンセル",
+        "confirm": "削除"
+    },
+    "addBeanModal": {
+        "newTitle": "新規生豆ロット",
+        "editTitle": "豆の詳細を編集",
+        "restockTitle": "在庫補充",
+        "expectedTitle": "入荷予定",
+        "adjustTitle": "在庫調整",
+        "newTab": "新規ロット",
+        "restockTab": "補充",
+        "expectedTab": "入荷予定",
+        "adjustTab": "調整",
+        "selectBean": "豆を選択",
+        "selectBeanRestock": "補充する豆を選択",
+        "more": "他 {{count}} 件",
+        "cancel": "キャンセル",
+        "saving": "保存中...",
+        "create": "生豆ロットを作成",
+        "update": "豆の詳細を更新",
+        "confirmRestock": "補充を確認",
+        "confirmExpected": "入荷予定を確認",
+        "confirmWriteOff": "廃棄を確認",
+        "confirmAdjustment": "調整を確認",
+        "adjust": {
+            "adjustment": "調整",
+            "writeOff": "廃棄",
+            "amount": "数量 (kg)",
+            "exceedsStock": "現在の在庫を超えています ({{amount}}kg)",
+            "reason": "理由 (任意)",
+            "writeOffPlaceholder": "例: 期限切れ",
+            "adjustPlaceholder": "例: 実地棚卸し修正"
+        },
+        "form": {
+            "lotName": "ロット名",
+            "lotNamePlaceholder": "産地を選択すると自動入力されます",
+            "origin": "産地",
+            "originPlaceholder": "例: エチオピア",
+            "region": "地域",
+            "regionPlaceholder": "例: ギジゾーン",
+            "farm": "農園 / 生産者",
+            "farmPlaceholder": "例: ギジゾーン",
+            "variety": "品種",
+            "varietyPlaceholder": "例: ヒアリューム",
+            "process": "精製方法",
+            "altitude": "標高 (masl)",
+            "altitudePlaceholder": "例: 2100",
+            "stock": "在庫 (kg)",
+            "capacity": "袋容量 (kg)",
+            "cost": "原価 (円/kg)",
+            "costPlaceholder": "例: 32000",
+            "tastingNotes": "テイスティングノート",
+            "tastingNotesPlaceholder": "例: ジャスミン、ブルーベリー、ミルクチョコレート"
+        },
+        "expected": {
+            "inbound": "入荷予定 (kg)",
+            "note": "メモ (任意)",
+            "notePlaceholder": "例: PO #1234、来週到着予定",
+            "countsNote": "不足アラートの利用可能在庫に含めますが、実在庫には含みません。"
+        },
+        "restock": {
+            "weight": "追加数量 (kg)",
+            "clear": "クリア"
+        }
+    },
+    "beanDetail": {
+        "empty": {
+            "select": "豆を選択して詳細を表示",
+            "addFirst": "最初の生豆ロットを追加してください。"
+        },
+        "origin": "産地",
+        "region": "地域",
+        "farm": "農園",
+        "altitude": "標高",
+        "received": "受入日",
+        "currentStock": "現在の在庫",
+        "available": "利用可能 (入荷予定含む)",
+        "effective": "実効 (28日計画)",
+        "tastingNotes": "テイスティングノート",
+        "stockLevel": "在庫レベル",
+        "startRoast": "ロースト開始",
+        "restock": "在庫補充",
+        "stockCards": {
+            "current": "現在",
+            "reserved": "予約",
+            "available": "利用可能"
+        },
+        "stockHistory": {
+            "title": "在庫履歴",
+            "empty": "履歴なし",
+            "purchase": "入荷",
+            "expectedInbound": "入荷予定",
+            "roast": "ロースト",
+            "adjustment": "調整",
+            "showMore": "もっと見る",
+            "showLess": "折りたたむ"
+        }
     }
 }

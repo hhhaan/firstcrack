@@ -21,7 +21,8 @@
             "dashboard": "대시보드",
             "roast": "진행 중인 로스팅",
             "history": "로스팅 기록",
-            "beans": "생두 재고",
+            "beans": "재고",
+            "pricing": "원가·판매가",
             "profiles": "프로파일",
             "machines": "머신",
             "schedule": "로스팅 일정"
@@ -116,7 +117,23 @@
             "billing": {
                 "label": "결제",
                 "title": "결제 및 플랜",
-                "description": "구독 플랜과 결제 정보를 관리합니다."
+                "description": "구독 플랜과 결제 정보를 관리합니다.",
+                "currentPlan": "현재 플랜",
+                "current": "현재",
+                "free": "무료",
+                "available": "이용 가능",
+                "upgrade": "업그레이드",
+                "redirecting": "이동 중…",
+                "freeDesc": "영구 무료",
+                "proDesc": "모든 기능 무제한 이용",
+                "enterpriseDesc": "우선 지원 및 커스텀 제한"
+            },
+            "software": {
+                "label": "소프트웨어",
+                "title": "소프트웨어 정보",
+                "description": "현재 앱 버전과 소프트웨어 정보를 확인합니다.",
+                "version": "앱 버전",
+                "versionDescription": "현재 설치된 애플리케이션의 버전입니다."
             }
         }
     },
@@ -127,7 +144,7 @@
         "zh-CN": "简体中文"
     },
     "machines": {
-        "title": "머신 목록",
+        "title": "Machines",
         "registered": "{{count}}대 등록됨",
         "connectedSuffix": "{{name}} 연결됨",
         "noActiveConnection": "활성 연결 없음",
@@ -257,13 +274,16 @@
             "description": "\"{{name}}\" 배치를 완료 처리합니다.",
             "remainingSessions": "남은 회차: {{count}}회",
             "deductionAmount": "차감 예정: {{kg}} kg",
-            "deductStock": "생두 재고를 차감할까요?",
+            "deductStock": "재고를 차감할까요?",
             "deductStockDisabled": "생두가 연결되지 않아 재고를 차감할 수 없습니다.",
             "cancel": "취소",
             "confirm": "완료 처리"
         },
         "reorderDisabledRecurring": "반복 일정 배치는 순서를 변경할 수 없습니다",
         "stockShortRecurring": "예약 재고 기준 생두가 부족할 수 있습니다 (필요 {{needed}}kg / 가용 {{available}}kg)",
+        "overdue.title": "밀린 배치 {{count}}건",
+        "overdue.badge": "밀림",
+        "overdue.originalDate": "원래 일정: {{date}}",
         "detail": {
             "target": "목표 {{kg}} kg",
             "batch": "Batch {{kg}} kg",
@@ -428,8 +448,8 @@
         "exportCancelLabel": "취소"
     },
     "beans": {
-        "title": "생두 재고",
-        "addBeanLot": "생두 로트 추가",
+        "title": "Bean Inventory",
+        "addBeanLot": "생두 추가",
         "addBean": "생두 추가",
         "loading": "로딩 중…",
         "tab": {
@@ -445,7 +465,7 @@
             "empty": "등록된 블렌드가 없습니다",
             "addBlendFirst": "첫 블렌드 레시피를 추가해 시작하세요",
             "addBlend": "블렌드 추가",
-            "componentBeans": "구성 생두",
+            "componentBeans": "구성",
             "selectBlend": "블렌드를 선택해 상세 정보를 확인하세요",
             "summary_one": "생두 {{count}}종 · 총 {{total}}%",
             "summary_other": "생두 {{count}}종 · 총 {{total}}%",
@@ -462,7 +482,7 @@
                 "namePlaceholder": "블렌드 이름",
                 "descriptionLabel": "설명 (선택)",
                 "descriptionPlaceholder": "설명 (선택)",
-                "componentsLabel": "구성 생두",
+                "componentsLabel": "구성",
                 "totalRatio": "합계 {{total}}%",
                 "selectBean": "생두 선택",
                 "addComponent": "+ 생두 추가",
@@ -588,17 +608,17 @@
         },
         "stockDeduct": {
             "title": "재고 차감",
-            "description": "로스팅 기록이 저장되었습니다. 생두 재고를 차감할지 선택하세요.",
+            "description": "로스팅 기록이 저장되었습니다. 재고를 차감할지 선택하세요.",
             "deductionAmount": "차감 예정량: {{kg}}kg",
-            "deductStock": "생두 재고 차감",
+            "deductStock": "재고 차감",
             "deductStockDisabled": "연결된 원두가 없어 재고를 차감할 수 없습니다.",
             "skip": "차감 안 함",
             "confirm": "확인"
         }
     },
     "profiles": {
-        "title": "로스팅 프로파일",
-        "drop": "Drop",
+        "title": "Profiles",
+        "drop": "드롭",
         "newProfile": "새 프로파일",
         "empty": "아직 프로파일이 없습니다.",
         "createFirst": "첫 프로파일 만들기",
@@ -610,6 +630,31 @@
             "selected": "{{count}}개 선택됨 · 최대 4개",
             "exit": "비교 모드 종료",
             "enter": "비교하기"
+        },
+        "detail": {
+            "default": "기본",
+            "setDefault": "기본으로 설정",
+            "duplicate": "복제",
+            "edit": "수정",
+            "more": "더보기",
+            "profileCurve": "프로파일 곡선",
+            "noRecordedData": "기록된 데이터 없음 · 참고용 곡선",
+            "beansRoasted": "이 프로파일로 로스팅된 생두",
+            "times": "{{count}}회",
+            "lastDate": "마지막 {{date}}",
+            "startWith": "이 프로파일로 시작",
+            "delete": "삭제",
+            "totalDuration": "총 시간",
+            "dropTemp": "배출 온도",
+            "chargeTemp": "투입 온도",
+            "devTime": "발달 시간",
+            "devPct": "발달율",
+            "targetLevel": "목표 레벨",
+            "duration": "시간",
+            "curveOverlay": "곡선 오버레이",
+            "selectToCompare": "좌측 리스트에서 프로파일을 선택하세요",
+            "compareMode": "비교 모드 · {{count}}개 선택됨",
+            "editDisabledMulti": "다중 선택 시 편집 불가"
         }
     },
     "newProfileModal": {
@@ -669,7 +714,7 @@
         "confirm": "삭제"
     },
     "addBeanModal": {
-        "newTitle": "새 생두 로트",
+        "newTitle": "새 생두 추가",
         "editTitle": "생두 정보 수정",
         "restockTitle": "기존 생두 재입고",
         "expectedTitle": "입고 예정",
@@ -683,7 +728,7 @@
         "more": "+{{count}}개 더",
         "cancel": "취소",
         "saving": "저장 중...",
-        "create": "생두 로트 생성",
+        "create": "생두 Lot 생성",
         "update": "생두 정보 업데이트",
         "confirmRestock": "재입고 확인",
         "confirmExpected": "입고 예정 확인",
@@ -730,6 +775,58 @@
             "clear": "초기화"
         }
     },
+    "pricing": {
+        "title": "원가·판매가",
+        "subtitle": "로스팅 후 원가를 계산하고 마진으로 판매가를 정합니다",
+        "source": {
+            "title": "원두 선택",
+            "mode": {
+                "single": "싱글 오리진",
+                "blend": "블렌드"
+            },
+            "bean": "생두",
+            "selectBean": "원두 선택",
+            "greenCost": "생두 원가 (원/kg)",
+            "greenCostPlaceholder": "예: 32000",
+            "missingCost": "이 원두에 원가가 등록되어 있지 않습니다.",
+            "goToBeans": "재고로 이동",
+            "blend": "블렌드",
+            "selectBlend": "블렌드 선택",
+            "blendSource": {
+                "saved": "저장된 블렌드",
+                "custom": "직접 입력"
+            },
+            "components": "구성",
+            "ratioHeader": "비율",
+            "costShort": "원/kg",
+            "addComponent": "구성 추가"
+        },
+        "cost": {
+            "title": "원가 내역",
+            "greenCost": "생두 원가",
+            "blendGreenCost": "블렌드 생두 원가",
+            "yield": "로스팅 수율",
+            "roastedCost": "로스팅 후 원가",
+            "overhead": "부대비용 (원/kg)",
+            "totalCost": "총 원가 (부대비용 포함)"
+        },
+        "selling": {
+            "title": "판매가",
+            "hint": "판매가 대비 총이익률 — 40% 마진이면 판매가의 40%가 이익입니다.",
+            "margin": "총이익률",
+            "price": "판매가 (원/kg)",
+            "priceEdit": "판매가 직접 입력",
+            "costBasis": "원가 기준",
+            "profit": "이익"
+        },
+        "flow": {
+            "green": "생두",
+            "yield": "수율",
+            "roasted": "로스팅",
+            "overhead": "부대비용",
+            "sell": "판매"
+        }
+    },
     "beanDetail": {
         "empty": {
             "select": "생두를 선택해 상세 정보를 확인하세요",
@@ -758,7 +855,9 @@
             "purchase": "입고",
             "expectedInbound": "입고 예정",
             "roast": "로스팅",
-            "adjustment": "조정"
+            "adjustment": "조정",
+            "showMore": "더보기",
+            "showLess": "접기"
         }
     }
 }

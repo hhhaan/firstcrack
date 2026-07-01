@@ -1,5 +1,6 @@
 import type { User } from '@supabase/supabase-js';
 import { create } from 'zustand';
+import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabase';
 
 type Plan = 'free' | 'pro' | 'team';
@@ -66,7 +67,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                         const { data } = await supabase.from('profiles').select('plan').eq('id', next.id).single();
                         if (data?.plan) set({ plan: data.plan as Plan });
                     } catch (e) {
-                        console.warn('[auth] plan fetch failed:', e);
+                        logger.capture(e, { context: 'auth plan fetch' });
                     }
                 })();
             }
@@ -97,7 +98,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                         const { data } = await supabase.from('profiles').select('plan').eq('id', next.id).single();
                         if (data?.plan) set({ plan: data.plan as Plan });
                     } catch (e) {
-                        console.warn('[auth] plan fetch failed:', e);
+                        logger.capture(e, { context: 'auth plan fetch' });
                     }
                 })();
             }

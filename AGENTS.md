@@ -92,6 +92,10 @@ Unidirectional: shared → entities → features → widgets → views → app
 model:domain logic/state(useAuth) | lib:pure infra util(useDebounce) | api:query/mutation wrap(useRoastQuery) | ui:render-only local state(useModalAnimation)
 mismatch→move to correct segment
 
+## Architecture priority
+Readability and maintainability matter more than reducing file count or line count. Do not sacrifice clear separation of concerns for a smaller diff.
+When ponytail's "shortest working diff wins" conflicts with separation of concerns, SRP, or layer rules — architecture wins. Split files over squashing them.
+
 ## SRP — all files (.ts/.tsx/.rs/.py)
 check: count reasons-to-change → 1=OK, >1=split
 size: >300L = re-check trigger, NOT the rule (50L file can still violate)

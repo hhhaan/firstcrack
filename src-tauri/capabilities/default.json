@@ -25,6 +25,7 @@
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
     "fs:allow-remove",
-    "notification:default"
+    "notification:default",
+    "os:default"
   ]
 }

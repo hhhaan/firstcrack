@@ -235,7 +235,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                         {profiles.length > 1 && (
                             <button
                                 onClick={compareMode ? exitCompareMode : enterCompareMode}
-                                className={`flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none text-sm font-medium cursor-pointer tracking-[0.14px] transition-colors ${
+                                className={`flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none text-sm font-medium cursor-pointer tracking-[0.14px] transition hover:-translate-y-px ${
                                     compareMode
                                         ? 'bg-primary text-white '
                                         : 'bg-main-bg dark:bg-[#262b31] text-secondary dark:text-[#e5e5e5] border border-transparent dark:border-[#585d61] hover:text-primary'
@@ -247,7 +247,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                         )}
                         <button
                             onClick={() => setShowNewModal(true)}
-                            className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#171717] text-white text-sm font-medium cursor-pointer  tracking-[0.14px]"
+                            className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium cursor-pointer tracking-[0.14px] transition hover:-translate-y-px"
                         >
                             <Plus size={15} strokeWidth={2.5} />
                             {t('profiles.newProfile')}

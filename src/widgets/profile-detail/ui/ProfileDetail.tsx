@@ -4,6 +4,7 @@ import { generateProfileCurve } from '@shared/data/roast-profiles';
 import type { View } from '@shared/types/view';
 import { ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { AlertCircle, Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const fmtDuration = (sec: number | null): string => {
     if (sec == null) return '—';
@@ -21,6 +22,7 @@ const DefaultBadge = ({
     defaultId: string | null;
     onSetDefault: (id: string) => void;
 }) => {
+    const { t } = useTranslation();
     if (defaultId === id) {
         return (
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#EFEFF0] dark:bg-surface-elevated ">
@@ -34,14 +36,14 @@ const DefaultBadge = ({
                 >
                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
-                <span className="text-[11px] font-medium tracking-[0.3px]">Default</span>
+                <span className="text-[11px] font-medium tracking-[0.3px]">{t('profiles.detail.default')}</span>
             </div>
         );
     }
     return (
         <button
             onClick={() => onSetDefault(id)}
-            title="Set as Default"
+            title={t('profiles.detail.setDefault')}
             className="flex items-center gap-1 px-2.5 py-1 rounded-full border-none bg-surface dark:bg-surface-elevated cursor-pointer  hover:bg-palette-teal/12 transition-colors"
         >
             <svg
@@ -55,7 +57,9 @@ const DefaultBadge = ({
             >
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
-            <span className="text-[11px] font-medium text-muted tracking-[0.3px]">Set Default</span>
+            <span className="text-[11px] font-medium text-muted tracking-[0.3px]">
+                {t('profiles.detail.setDefault')}
+            </span>
         </button>
     );
 };
@@ -72,17 +76,23 @@ interface ProfileDetailProps {
     onNavigate: (view: View) => void;
 }
 
-const TABLE_ROWS: { label: string; getValue: (p: RoastProfileWithSource) => string }[] = [
-    { label: 'Total Duration', getValue: (p) => fmtDuration(p.duration_sec) },
-    { label: 'Drop Temperature', getValue: (p) => (p.drop_temp_celsius != null ? `${p.drop_temp_celsius}°C` : '—') },
-    {
-        label: 'Charge Temperature',
-        getValue: (p) => (p.charge_temp_celsius != null ? `${p.charge_temp_celsius}°C` : '—'),
-    },
-    { label: 'Development Time', getValue: (p) => fmtDuration(p.dev_time_sec) },
-    { label: 'Dev/Total %', getValue: (p) => (p.dev_pct != null ? `${p.dev_pct.toFixed(1)}%` : '—') },
-    { label: 'Target Level', getValue: (p) => p.target_level },
-];
+const useTableRows = (): { label: string; getValue: (p: RoastProfileWithSource) => string }[] => {
+    const { t } = useTranslation();
+    return [
+        { label: t('profiles.detail.totalDuration'), getValue: (p) => fmtDuration(p.duration_sec) },
+        {
+            label: t('profiles.detail.dropTemp'),
+            getValue: (p) => (p.drop_temp_celsius != null ? `${p.drop_temp_celsius}°C` : '—'),
+        },
+        {
+            label: t('profiles.detail.chargeTemp'),
+            getValue: (p) => (p.charge_temp_celsius != null ? `${p.charge_temp_celsius}°C` : '—'),
+        },
+        { label: t('profiles.detail.devTime'), getValue: (p) => fmtDuration(p.dev_time_sec) },
+        { label: t('profiles.detail.devPct'), getValue: (p) => (p.dev_pct != null ? `${p.dev_pct.toFixed(1)}%` : '—') },
+        { label: t('profiles.detail.targetLevel'), getValue: (p) => p.target_level ?? '—' },
+    ];
+};
 
 export const ProfileDetail = ({
     selected,
@@ -95,7 +105,9 @@ export const ProfileDetail = ({
     onDelete,
     onNavigate,
 }: ProfileDetailProps) => {
+    const { t } = useTranslation();
     const { data: beanHistory = [] } = useProfileBeanHistory(selected.id ?? '');
+    const TABLE_ROWS = useTableRows();
 
     return (
         <div className="bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
@@ -113,13 +125,13 @@ export const ProfileDetail = ({
                 <div className="flex gap-1.5 items-center">
                     <DefaultBadge id={selected.id} defaultId={defaultId} onSetDefault={onSetDefault} />
                     {[
-                        { icon: Copy, label: 'Duplicate' },
-                        { icon: Pencil, label: 'Edit', onClick: onEdit },
-                        { icon: MoreHorizontal, label: 'More' },
-                    ].map(({ icon: Icon, label, onClick }) => (
+                        { icon: Copy, labelKey: 'profiles.detail.duplicate' },
+                        { icon: Pencil, labelKey: 'profiles.detail.edit', onClick: onEdit },
+                        { icon: MoreHorizontal, labelKey: 'profiles.detail.more' },
+                    ].map(({ icon: Icon, labelKey, onClick }) => (
                         <button
-                            key={label}
-                            title={label}
+                            key={labelKey}
+                            title={t(labelKey)}
                             onClick={onClick}
                             className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer "
                         >
@@ -131,12 +143,14 @@ export const ProfileDetail = ({
 
             <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 pt-4 pb-2 mb-5 ">
                 <div className="flex items-center justify-between mb-2">
-                    <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase">Profile Curve</div>
+                    <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase">
+                        {t('profiles.detail.profileCurve')}
+                    </div>
                     {!selectedHasReal && (
                         <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-palette-yellow/15">
                             <AlertCircle size={10} strokeWidth={2} className="text-palette-yellow" />
                             <span className="text-[10px] font-medium text-palette-yellow tracking-[0.2px]">
-                                기록된 데이터 없음 · 참고용 곡선
+                                {t('profiles.detail.noRecordedData')}
                             </span>
                         </div>
                     )}
@@ -171,7 +185,7 @@ export const ProfileDetail = ({
             {beanHistory.length > 0 && (
                 <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 py-3 mb-5">
                     <p className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
-                        이 프로파일로 로스팅된 생두
+                        {t('profiles.detail.beansRoasted')}
                     </p>
                     <div className="space-y-1">
                         {beanHistory.map((item) => (
@@ -181,9 +195,9 @@ export const ProfileDetail = ({
                             >
                                 <span className="text-primary font-medium">{item.name}</span>
                                 <span className="text-muted">
-                                    {item.count}회
+                                    {t('profiles.detail.times', { count: item.count })}
                                     {item.lastDate &&
-                                        ` · 마지막 ${new Date(item.lastDate).toLocaleDateString('ko-KR')}`}
+                                        ` · ${t('profiles.detail.lastDate', { date: new Date(item.lastDate).toLocaleDateString() })}`}
                                 </span>
                             </div>
                         ))}
@@ -194,16 +208,16 @@ export const ProfileDetail = ({
             <div className="flex gap-2.5">
                 <button
                     onClick={() => onNavigate('roast')}
-                    className="flex-1 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#171717] text-white text-sm font-medium cursor-pointer tracking-[0.14px] "
+                    className="flex-1 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium cursor-pointer tracking-[0.14px] "
                 >
-                    Start with this Profile
+                    {t('profiles.detail.startWith')}
                 </button>
                 <button
                     onClick={() => onDelete(selected.id)}
                     className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border-none bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400 text-sm font-medium cursor-pointer tracking-[0.14px]"
                 >
                     <Trash2 size={14} strokeWidth={2} />
-                    Delete
+                    {t('profiles.detail.delete')}
                 </button>
             </div>
         </div>

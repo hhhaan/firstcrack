@@ -1,7 +1,2 @@
 export { type InventoryAlert, inventoryAlertApi } from './api';
-export {
-    inventoryAlertKeys,
-    useComputeInventoryAlerts,
-    useDismissInventoryAlert,
-    useInventoryAlerts,
-} from './queries';
+export { useComputeInventoryAlerts, useDismissInventoryAlert, useInventoryAlerts } from './queries';

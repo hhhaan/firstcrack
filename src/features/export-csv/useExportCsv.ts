@@ -1,3 +1,4 @@
+import { logger } from '@shared/lib/logger';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { downloadDir } from '@tauri-apps/api/path';
 import { confirm, message } from '@tauri-apps/plugin-dialog';
@@ -41,7 +42,7 @@ export const useExportCsv = () => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             } catch (err) {
-                console.error('Export CSV failed:', err);
+                logger.capture(err, { context: 'export csv' });
             }
         },
         [t],

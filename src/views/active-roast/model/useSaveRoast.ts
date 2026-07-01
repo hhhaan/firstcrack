@@ -1,6 +1,7 @@
 import { useUpdatePlanBatch } from '@entities/plan';
 import { type RoastSessionInsert, useCreateRoastSession, useUpdateRoastSession } from '@entities/roast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
+import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
@@ -90,7 +91,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                             }
                         }
                     }
-                    console.error('[saveRoast] TSV upload failed after 3 retries');
+                    logger.capture(new Error('TSV upload failed after 3 retries'), { context: 'saveRoast tsv' });
                 };
                 uploadWithRetry().finally(() => {
                     if ('__TAURI_INTERNALS__' in window) {
@@ -106,7 +107,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
 
             if (isNowBatchDone && planBatchHandoff) {
                 updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' }).catch((err) =>
-                    console.error('[saveRoast] batch status update failed:', err),
+                    logger.capture(err, { context: 'saveRoast batch status' }),
                 );
             }
 
