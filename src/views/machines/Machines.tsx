@@ -2,6 +2,7 @@ import type { Machine, SidecarStatus, TemperatureReading } from '@entities/machi
 import { isSameSidecarStatus, useMachines, VIRTUAL_ID } from '@entities/machine';
 import * as Sentry from '@sentry/react';
 import { logger } from '@shared/lib/logger';
+import { sendOsNotification } from '@shared/lib/osNotification';
 import { sidecar } from '@shared/lib/sidecar';
 import type { View } from '@shared/types/view';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
@@ -115,6 +116,10 @@ export const Machines = ({
                     data: { roasterKey: machine.roasterKey, protocol: machine.protocol, error: status.error },
                 });
                 Sentry.captureMessage(`로스터 연결 실패: ${machine.name} — ${status.error}`, 'warning');
+                sendOsNotification(
+                    '연결 실패',
+                    `「${machine.name}」로스터에 연결할 수 없습니다. 연결 정보와 네트워크 상태를 확인해 주세요.`,
+                );
             }
         } catch (e) {
             logger.capture(e, { context: 'machine connect' });
@@ -124,6 +129,10 @@ export const Machines = ({
                 level: 'error',
                 data: { roasterKey: machine.roasterKey, error: String(e) },
             });
+            sendOsNotification(
+                '연결 오류',
+                `「${machine.name}」로스터 연결 중 문제가 발생했습니다. 사이드카 상태와 네트워크를 확인해 주세요.`,
+            );
         } finally {
             setConnecting(false);
         }

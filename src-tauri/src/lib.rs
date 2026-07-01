@@ -191,7 +191,11 @@ pub fn run() {
 
             let sidecar_command = app.shell().sidecar("sidecar")?;
             let parent_pid = std::process::id().to_string();
-            let (rx, child) = sidecar_command.env("SIDECAR_PARENT_PID", &parent_pid).spawn()?;
+            let version = app.package_info().version.to_string();
+            let (rx, child) = sidecar_command
+                .env("SIDECAR_PARENT_PID", &parent_pid)
+                .env("SIDECAR_VERSION", &version)
+                .spawn()?;
             *app.state::<SidecarChild>().0.lock().unwrap() = Some(child);
 
             // stdout/stderr 드레인 + Terminated 감지 시 백오프 재시작.
@@ -213,6 +217,14 @@ pub fn run() {
                             }
                             CommandEvent::Terminated(payload) => {
                                 eprintln!("[sidecar] terminated: code={:?}", payload.code);
+                                sentry::capture_message(
+                                    &format!(
+                                        "[sidecar-terminated] code={:?} after {:.0}s",
+                                        payload.code,
+                                        spawned_at.elapsed().as_secs_f64(),
+                                    ),
+                                    sentry::Level::Warning,
+                                );
                                 break;
                             }
                             _ => {}
@@ -230,6 +242,13 @@ pub fn run() {
                         eprintln!(
                             "[sidecar-restart] {}회 재시작 모두 실패 — 사이드카 복구 포기",
                             RESTART_BACKOFFS_SECS.len()
+                        );
+                        sentry::capture_message(
+                            &format!(
+                                "[sidecar-dead] {}회 재시작 모두 실패 — 복구 포기",
+                                RESTART_BACKOFFS_SECS.len()
+                            ),
+                            sentry::Level::Error,
                         );
                         let _ = app_handle.emit("sidecar-dead", ());
                         break;

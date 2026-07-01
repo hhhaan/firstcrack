@@ -4,6 +4,8 @@ import time
 from collections import deque
 from typing import Any
 
+import sentry_sdk
+
 import config
 from adapters import make_adapter
 from roaster_registry import ROASTER_REGISTRY
@@ -112,6 +114,29 @@ class RoasterManager:
         self._last_good: dict[str, Any] | None = None
         self._ror_window_secs: float = config.ROR_WINDOW_SECS
 
+    def _capture_hardware_error(self, exc: Exception, event: str = "hardware_error") -> None:
+        """하드웨어 에러를 Sentry에 캡처 — 프로토콜/로스터 정보 포함."""
+        try:
+            sentry_sdk.set_context(
+                "sidecar",
+                {
+                    "protocol": self._protocol,
+                    "roaster": self._roaster_key,
+                    "event": event,
+                    "consecutive_errors": self._consecutive_errors,
+                    "reconnect_attempt": self._reconnect_attempt,
+                },
+            )
+            if self._merged_params:
+                sentry_sdk.set_context("connection", {
+                    "mode": self._merged_params.get("mode"),
+                    "host": self._merged_params.get("host"),
+                    "comport": self._merged_params.get("comport"),
+                })
+            sentry_sdk.capture_exception(exc)
+        except Exception:
+            pass
+
     async def connect(self, roaster_key: str, params: dict[str, Any]) -> None:
         async with self._lock:
             if self._adapter is not None:
@@ -153,7 +178,11 @@ class RoasterManager:
             except Exception as exc:
                 self._error = _format_connection_error(exc, protocol, merged)
                 self._connected = False
+                self._protocol = protocol
+                self._roaster_key = roaster_key
+                self._merged_params = merged
                 _log.error("연결 실패 [%s]: %s", roaster_key, exc, exc_info=True)
+                self._capture_hardware_error(exc, "connect_failed")
 
     async def disconnect(self) -> None:
         async with self._lock:
@@ -227,6 +256,7 @@ class RoasterManager:
                             exc, self._protocol, self._merged_params
                         )
                         _log.error("재연결 실패 (%d): %s", attempt, exc)
+                        self._capture_hardware_error(exc, "reconnect_failed")
         finally:
             self._reconnect_attempt = 0
 
@@ -273,6 +303,7 @@ class RoasterManager:
             )
             self._connected = False
             _log.error("읽기 실패: %s", exc, exc_info=True)
+            self._capture_hardware_error(exc, "read_failed_disconnected")
             if self._reconnect_task is None or self._reconnect_task.done():
                 self._reconnect_task = asyncio.create_task(self._reconnect_loop())
             return {

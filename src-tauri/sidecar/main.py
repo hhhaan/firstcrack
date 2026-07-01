@@ -23,11 +23,30 @@ import sys
 import time
 from typing import Any
 
+import sentry_sdk
+from sentry_sdk.integrations.aiohttp import AioHttpIntegration
 from aiohttp import web
 
 from manager import RoasterManager
 from protocol_trace import TRACE
 from roaster_registry import ROASTER_REGISTRY, PROTOCOL_FORM_FIELDS
+
+# ---------------------------------------------------------------------------
+# Sentry
+# ---------------------------------------------------------------------------
+_SENTRY_DSN = (
+    "https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944"
+)
+
+if _SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        environment="production",
+        release=os.environ.get("SIDECAR_VERSION", "unknown"),
+        traces_sample_rate=0.1,
+        integrations=[AioHttpIntegration()],
+        send_default_pii=False,
+    )
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 _log = logging.getLogger(__name__)
