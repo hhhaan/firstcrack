@@ -102,9 +102,9 @@ jobs:
           AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
           X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
           AARCH64_DMG_R2="First-Crack-${VERSION}-aarch64.dmg"
-          X64_DMG_R2="First-Crack-${VERSION}-x64.dmg"
-          # ponytail: Tauri MSI/DMG basenames include productName space ("First Crack_…") — rename on upload for URL safety
-          WIN_MSI_R2="First-Crack-${VERSION}-x64.msi"
+          X64_DMG_R2="First-Crack-${VERSION}-x86_64.dmg"
+          # ponytail: Tauri MSI/DMG basenames include productName space ("First Crack_…") — rename on upload for URL safety; arch tags match latest.json keys (aarch64/x86_64)
+          WIN_MSI_R2="First-Crack-${VERSION}-x86_64.msi"
 
           # Phase 1: fire all binary uploads in parallel
           pids=""
