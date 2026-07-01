@@ -116,6 +116,9 @@ class RoasterManager:
     def _capture_hardware_error(self, exc: Exception, event: str = "hardware_error") -> None:
         """하드웨어 에러를 Sentry에 캡처 — 프로토콜/로스터 정보 포함."""
         try:
+            sentry_sdk.set_tag("roaster", self._roaster_key)
+            sentry_sdk.set_tag("protocol", self._protocol)
+            sentry_sdk.set_tag("event", event)
             sentry_sdk.set_context(
                 "sidecar",
                 {
@@ -166,6 +169,13 @@ class RoasterManager:
                 self._connected = True
                 self._start_time = time.monotonic()
                 _log.info("연결 성공 [%s]: %s", roaster_key, protocol)
+                sentry_sdk.set_tag("roaster", roaster_key)
+                sentry_sdk.set_tag("protocol", protocol)
+                sentry_sdk.add_breadcrumb(
+                    category="hardware",
+                    message=f"connected: {roaster_key} ({protocol})",
+                    level="info",
+                )
             except Exception as exc:
                 self._error = _format_connection_error(exc, protocol, merged)
                 self._connected = False
@@ -281,6 +291,11 @@ class RoasterManager:
                     self._consecutive_errors,
                     config.STALE_TOLERANCE_READS,
                     exc,
+                )
+                sentry_sdk.add_breadcrumb(
+                    category="hardware",
+                    message=f"stale read ({self._consecutive_errors}/{config.STALE_TOLERANCE_READS}): {exc}",
+                    level="warning",
                 )
                 return {
                     **self._last_good,
