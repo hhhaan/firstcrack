@@ -9,6 +9,7 @@ import { DeleteBeanModal } from './DeleteBeanModal';
 interface BeanDetailProps {
     bean: Bean | null;
     isLoading: boolean;
+    affectedBlendNames: string[];
     onEdit: (bean: Bean) => void;
     onRestock: (id: string) => void;
     onStartRoast: () => void;
@@ -49,7 +50,7 @@ const Empty = ({ hasAny }: { hasAny: boolean }) => {
     );
 };
 
-export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, onDelete }: BeanDetailProps) => {
+export const BeanDetail = ({ bean, isLoading, affectedBlendNames, onEdit, onRestock, onStartRoast, onDelete }: BeanDetailProps) => {
     const { t } = useTranslation();
     const [confirming, setConfirming] = useState(false);
     const { data: summary } = useBeanStockSummary(bean?.id ?? '');
@@ -69,6 +70,7 @@ export const BeanDetail = ({ bean, isLoading, onEdit, onRestock, onStartRoast, o
             <DeleteBeanModal
                 open={confirming}
                 beanName={bean.name}
+                affectedBlendNames={affectedBlendNames}
                 onClose={() => setConfirming(false)}
                 onConfirm={() => {
                     onDelete(bean.id);

@@ -705,6 +705,7 @@
     "deleteBeanModal": {
         "title": "豆を削除しますか？",
         "description": "{{name}} が完全に削除されます。この操作は取り消せません。",
+        "blendWarning": "この豆を使用するブレンド {{count}} も同時に削除されます: {{names}}",
         "cancel": "キャンセル",
         "confirm": "削除"
     },

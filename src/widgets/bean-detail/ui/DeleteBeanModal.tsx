@@ -1,15 +1,22 @@
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
-import { Trash2 } from 'lucide-react';
+import { AlertTriangle, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface DeleteBeanModalProps {
     open: boolean;
     beanName: string;
+    affectedBlendNames: string[];
     onClose: () => void;
     onConfirm: () => void;
 }
 
-export const DeleteBeanModal = ({ open, beanName, onClose, onConfirm }: DeleteBeanModalProps) => {
+export const DeleteBeanModal = ({
+    open,
+    beanName,
+    affectedBlendNames,
+    onClose,
+    onConfirm,
+}: DeleteBeanModalProps) => {
     const { t } = useTranslation();
     if (!open) return null;
 
@@ -33,6 +40,19 @@ export const DeleteBeanModal = ({ open, beanName, onClose, onConfirm }: DeleteBe
             <p className="text-sm text-secondary leading-[1.6] mb-5.5">
                 {t('deleteBeanModal.description', { name: beanName })}
             </p>
+
+            {affectedBlendNames.length > 0 && (
+                <div className="flex gap-2.5 items-start bg-[rgba(254,226,226,0.5)] border border-[rgba(220,38,38,0.15)] rounded-xl px-4 py-3 mb-5.5">
+                    <AlertTriangle size={16} className="text-[#dc2626] mt-0.5 shrink-0" />
+                    <p className="text-xs text-[#dc2626] leading-[1.6]">
+                        {t('deleteBeanModal.blendWarning', {
+                            count: affectedBlendNames.length,
+                            names: affectedBlendNames.join(', '),
+                        })}
+                    </p>
+                </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2">
                 <button
                     onClick={onClose}

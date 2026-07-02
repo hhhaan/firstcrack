@@ -235,7 +235,7 @@ export const BeanFormFields = ({
                     className={inputCls}
                     placeholder={t('addBeanModal.form.costPlaceholder')}
                     value={costPerKg}
-                    onChange={(e) => setValue('costPerKg', e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => setValue('costPerKg', e.target.value.replace(/[^0-9.]/g, ''))}
                 />
             </div>
 

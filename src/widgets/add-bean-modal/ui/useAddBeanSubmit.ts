@@ -59,7 +59,7 @@ export const useAddBeanSubmit = ({
                     variety: formData.variety || null,
                     altitude_masl: formData.altitude ? parseInt(formData.altitude, 10) : null,
                     capacity_grams: Math.round(parseFloat(formData.capacity) * 1000) || 5000,
-                    cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg, 10) : null,
+                    cost_per_kg: formData.costPerKg ? parseFloat(formData.costPerKg) : null,
                     tasting_notes: formData.tastingNotes || null,
                     purchase_date: new Date().toISOString().split('T')[0],
                 });
@@ -83,7 +83,7 @@ export const useAddBeanSubmit = ({
                     variety: formData.variety || null,
                     altitude_masl: formData.altitude ? parseInt(formData.altitude, 10) : null,
                     capacity_grams: Math.round(parseFloat(formData.capacity) * 1000) || 5000,
-                    cost_per_kg: formData.costPerKg ? parseInt(formData.costPerKg, 10) : null,
+                    cost_per_kg: formData.costPerKg ? parseFloat(formData.costPerKg) : null,
                     tasting_notes: formData.tastingNotes || null,
                 });
                 onSuccess?.(updated);

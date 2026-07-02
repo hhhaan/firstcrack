@@ -1,5 +1,6 @@
 import { useBeans, useDeleteBean } from '@entities/bean/queries';
 import { useBeanStockSummaries } from '@entities/bean-stock-event';
+import { useBlends } from '@entities/blend';
 import { useRoastingStore } from '@features/active-roast';
 import { useAuthStore } from '@shared/store/auth';
 import type { Bean } from '@shared/types/database.types';
@@ -21,6 +22,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
     const userId = useAuthStore((s) => s.user?.id ?? '');
     const { data: beans = [], isLoading } = useBeans(userId);
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
+    const { data: blends = [] } = useBlends(userId);
     const { mutate: deleteBean } = useDeleteBean(userId);
 
     const [tab, setTab] = useState<'single' | 'blend'>('single');
@@ -43,6 +45,12 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
     };
 
     const selected = beans.find((b) => b.id === selectedId) ?? beans[0] ?? null;
+
+    const affectedBlendNames = selected
+        ? blends
+              .filter((blend) => blend.blend_components.some((c) => c.bean_id === selected.id))
+              .map((b) => b.name)
+        : [];
 
     const emptyState = (
         <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
@@ -86,6 +94,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
         <BeanDetail
             bean={selected}
             isLoading={isLoading}
+            affectedBlendNames={affectedBlendNames}
             onEdit={(bean) => openModal('edit', bean.id, bean)}
             onRestock={(id) => openModal('restock', id)}
             onStartRoast={() => {

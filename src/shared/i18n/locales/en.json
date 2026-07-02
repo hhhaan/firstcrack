@@ -706,6 +706,7 @@
     "deleteBeanModal": {
         "title": "Delete bean?",
         "description": "{{name}} will be permanently deleted. This cannot be undone.",
+        "blendWarning": "{{count}} blend(s) using this bean will also be deleted: {{names}}",
         "cancel": "Cancel",
         "confirm": "Delete"
     },

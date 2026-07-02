@@ -620,6 +620,7 @@
     "deleteBeanModal": {
         "title": "删除生豆？",
         "description": "{{name}}将被永久删除。此操作无法撤销。",
+        "blendWarning": "使用此生豆的 {{count}} 个拼配也将被删除：{{names}}",
         "cancel": "取消",
         "confirm": "删除"
     },
