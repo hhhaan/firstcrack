@@ -160,7 +160,7 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                                 {t('history.expanded.chartLoading')}
                             </div>
                         ) : isError ? (
-                            <div className="flex h-[220px] items-center justify-center text-xs text-muted">
+                            <div className="flex h-[550px] items-center justify-center text-xs text-muted">
                                 {t('history.expanded.chartUnavailable')}
                             </div>
                         ) : (
@@ -174,7 +174,7 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                                 eventMarkers={[]}
                                 showTargetCurve={false}
                                 showRoRET={false}
-                                height={220}
+                                height={550}
                             />
                         )}
                     </div>
