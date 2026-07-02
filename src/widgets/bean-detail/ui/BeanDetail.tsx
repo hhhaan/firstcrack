@@ -50,7 +50,15 @@ const Empty = ({ hasAny }: { hasAny: boolean }) => {
     );
 };
 
-export const BeanDetail = ({ bean, isLoading, affectedBlendNames, onEdit, onRestock, onStartRoast, onDelete }: BeanDetailProps) => {
+export const BeanDetail = ({
+    bean,
+    isLoading,
+    affectedBlendNames,
+    onEdit,
+    onRestock,
+    onStartRoast,
+    onDelete,
+}: BeanDetailProps) => {
     const { t } = useTranslation();
     const [confirming, setConfirming] = useState(false);
     const { data: summary } = useBeanStockSummary(bean?.id ?? '');

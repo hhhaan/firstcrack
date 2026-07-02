@@ -47,9 +47,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
     const selected = beans.find((b) => b.id === selectedId) ?? beans[0] ?? null;
 
     const affectedBlendNames = selected
-        ? blends
-              .filter((blend) => blend.blend_components.some((c) => c.bean_id === selected.id))
-              .map((b) => b.name)
+        ? blends.filter((blend) => blend.blend_components.some((c) => c.bean_id === selected.id)).map((b) => b.name)
         : [];
 
     const emptyState = (

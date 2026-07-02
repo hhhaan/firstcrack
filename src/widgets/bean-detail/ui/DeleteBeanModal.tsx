@@ -10,13 +10,7 @@ interface DeleteBeanModalProps {
     onConfirm: () => void;
 }
 
-export const DeleteBeanModal = ({
-    open,
-    beanName,
-    affectedBlendNames,
-    onClose,
-    onConfirm,
-}: DeleteBeanModalProps) => {
+export const DeleteBeanModal = ({ open, beanName, affectedBlendNames, onClose, onConfirm }: DeleteBeanModalProps) => {
     const { t } = useTranslation();
     if (!open) return null;
 
