@@ -30,7 +30,7 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 | `git commit` | lint-staged → `biome check --write` on **staged files only** + secretlint | yes; lint-staged re-stages fixed files |
 | `git push` | `pnpm verify:all` + `pnpm doctor:fast` | no |
 | CI | typecheck, lint (biome), eslint, test, sidecar | no |
-| repomix | manual — session start or large/structural change | — |
+| repomix | manual — `pnpm repomix` at session start or after large/structural change | — |
 
 ## External Services
 - Supabase: BaaS — auth, DB (roast records, inventory), Edge Functions (R2 presigned URL issuer)
@@ -44,7 +44,7 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 
 # AGENT RULES
 - When implementing/editing code: NO chat/greetings/summaries — output ONLY precise code diffs (modified lines only). (Reviews, evaluations, questions, and planning are exempt — answer normally.)
-- repomix-output.xml: regenerate at session start and after large/structural changes (not every edit) via `rtk npx repomix --compress --remove-comments --remove-empty-lines --silent`.
+- repomix-output.xml: regenerate at session start and after large/structural changes (not every edit) via `pnpm repomix`.
 - ALWAYS prefix all bash/shell commands with `rtk ` (e.g., `rtk ls`, `rtk git`, `rtk npm`).
 - Commit: `git add` → `rtk gen-cmt` (no manual commit messages).
 - [Exception] Omit `rtk ` prefix ONLY if output compression breaks error debugging.
