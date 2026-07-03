@@ -20,8 +20,14 @@ interface SettingsModalProps {
 
 export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps) => {
     const { t } = useTranslation();
-    const [activeTab, setActiveTab] = useState<SettingsTabId>(initialTab ?? 'general');
+    const [activeTab, setActiveTab] = useState<SettingsTabId>(initialTab ?? 'account');
     const tabs = useMemo(() => getTabs(t), [t]);
+
+    useEffect(() => {
+        if (open && initialTab) {
+            setActiveTab(initialTab);
+        }
+    }, [open, initialTab]);
 
     useEffect(() => {
         if (!open) {

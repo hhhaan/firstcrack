@@ -1,6 +1,6 @@
-import { Bell, CreditCard, Flame, Info, LayoutDashboard, type LucideIcon, User } from 'lucide-react';
+import { CreditCard, Flame, Info, LayoutDashboard, type LucideIcon, User } from 'lucide-react';
 
-export type SettingsTabId = 'general' | 'notifications' | 'session' | 'roast' | 'account' | 'billing' | 'software';
+export type SettingsTabId = 'general' | 'roast' | 'account' | 'billing' | 'software';
 
 export interface TabConfig {
     id: SettingsTabId;
@@ -21,6 +21,7 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
             title: tk('general', 'title'),
             description: tk('general', 'description'),
         },
+        /* TODO: notifications 탭 - 기능 구현 시 활성화
         {
             id: 'notifications',
             label: tk('notifications', 'label'),
@@ -28,6 +29,8 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
             title: tk('notifications', 'title'),
             description: tk('notifications', 'description'),
         },
+        */
+        /* TODO: session 탭 - 기능 구현 시 활성화
         {
             id: 'session',
             label: tk('session', 'label'),
@@ -35,13 +38,7 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
             title: tk('session', 'title'),
             description: tk('session', 'description'),
         },
-        {
-            id: 'roast',
-            label: tk('roast', 'label'),
-            icon: Flame,
-            title: tk('roast', 'title'),
-            description: tk('roast', 'description'),
-        },
+        */
         {
             id: 'account',
             label: tk('account', 'label'),
@@ -55,6 +52,13 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
             icon: CreditCard,
             title: tk('billing', 'title'),
             description: tk('billing', 'description'),
+        },
+        {
+            id: 'roast',
+            label: tk('roast', 'label'),
+            icon: Flame,
+            title: tk('roast', 'title'),
+            description: tk('roast', 'description'),
         },
         {
             id: 'software',
