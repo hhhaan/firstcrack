@@ -69,7 +69,7 @@ class TestInit:
 
     def test_default_read_retries_rtu(self):
         a = ModbusAdapter(mode="rtu", modbus_registers={"BT": {"register": 0, "func": 3, "unit_id": 1}})
-        assert a._read_retries == 1
+        assert a._read_retries == 0
 
     def test_word_order_default_little(self):
         a = ModbusAdapter(modbus_registers={"BT": {"register": 0, "func": 3, "unit_id": 1}})
@@ -301,17 +301,17 @@ class TestReadChannel:
         val = await connected_adapter._read_channel(cfg)
         assert val == 185.3  # 18534 ÷ 100 = 185.34 → round(185.34, 1) = 185.3
 
-    async def test_retry_on_failure(self):
+    async def test_no_retry_on_failure(self):
         regs = {"BT": {"register": 100, "func": 3, "unit_id": 1,
                        "float": False, "div": 1, "mode": "C", "signed": False}}
         a = ModbusAdapter(mode="rtu", comport="/dev/ttyUSB0", modbus_registers=regs)
         client = AsyncMock()
         client.connected = True
         a._client = client
-        client.read_holding_registers = AsyncMock(side_effect=[IOError("timeout"), MockModbusResponse(registers=[1500])])
-        val = await a._read_channel(regs["BT"])
-        assert val == 150.0  # 1500 ÷ 10
-        assert client.read_holding_registers.call_count == 2
+        client.read_holding_registers = AsyncMock(side_effect=IOError("timeout"))
+        with pytest.raises(IOError):
+            await a._read_channel(regs["BT"])
+        assert client.read_holding_registers.call_count == 1
 
 
 # ---------------------------------------------------------------------------

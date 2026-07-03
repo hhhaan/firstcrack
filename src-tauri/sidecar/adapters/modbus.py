@@ -79,13 +79,11 @@ class ModbusAdapter:
         self._word_order = word_order.lower()  # "little" | "big"
         self._regs: dict[str, Any] = modbus_registers or {}
         self._client: Any = None
-        # Artisan 기본값: TCP readRetries=0, serial_readRetries=1.
-        # 우리도 동일하게 모드별 차등 — 500ms 폴링 사이클 안에 들어오도록.
-        # TODO(T36): RTU는 시리얼 응답이 본질적으로 느려서 500ms 폴링에는 빠듯함.
-        #   채널 3개 retry 한 번 들어가면 worst-case 1.8s → 폴링 cycle 누락 가능.
-        #   UI에서 RTU 머신 선택 시 pollIntervalMs를 자동으로 1000ms로 올리는 옵션 필요.
-        #   (artisan 권장도 RTU=1s 폴링)
-        self._read_retries: int = 0 if self._mode == "tcp" else 1
+        # Artisan: TCP readRetries=0, serial_readRetries=1.
+        # 우리는 모드 무관 read_retries=0. 500ms 폴링이 자연스러운 재시도 역할.
+        # RTU timeout도 0.15s로 낮춰 worst-case 3×0.15=0.45s < 500ms.
+        # ponytail: retries removed, timeout halved → no pollIntervalMs bump needed.
+        self._read_retries: int = 0
 
     async def connect(self) -> None:
         from pymodbus.client import AsyncModbusTcpClient, AsyncModbusSerialClient  # type: ignore[import]
@@ -113,7 +111,7 @@ class ModbusAdapter:
                 bytesize=self._bytesize,
                 parity=self._parity,
                 stopbits=self._stopbits,
-                timeout=config.MODBUS_RTU_TIMEOUT,
+                timeout=0.15,
             )
             _log.info(
                 "ModbusAdapter connecting: RTU port=%s baudrate=%d bytesize=%d parity=%s stopbits=%g timeout=%.1fs",
