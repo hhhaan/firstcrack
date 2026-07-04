@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { NumericFormat } from 'react-number-format';
 import {
     type PollIntervalMs,
     type RorSpanSec,
@@ -53,32 +55,51 @@ const NumberInput = ({
     onChange,
     min,
     max,
-    step = 1,
     suffix,
 }: {
     value: number;
     onChange: (v: number) => void;
     min?: number;
     max?: number;
-    step?: number;
     suffix?: string;
-}) => (
-    <div className={numberInputWrapCls}>
-        <input
-            type="number"
-            value={value}
-            min={min}
-            max={max}
-            step={step}
-            onChange={(e) => {
-                const v = parseFloat(e.target.value);
-                if (!isNaN(v)) onChange(v);
-            }}
-            className="w-14 bg-transparent text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5] text-right outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-        />
-        {suffix && <span className="text-[12px] text-[#6B7280] dark:text-[#999]">{suffix}</span>}
-    </div>
-);
+}) => {
+    const [local, setLocal] = useState(() => String(value));
+
+    useEffect(() => {
+        setLocal(String(value));
+    }, [value]);
+
+    const clamp = (n: number) => {
+        if (min !== undefined && n < min) return min;
+        if (max !== undefined && n > max) return max;
+        return n;
+    };
+
+    return (
+        <div className={numberInputWrapCls}>
+            <NumericFormat
+                value={local}
+                valueIsNumericString
+                allowNegative
+                onValueChange={(values) => {
+                    setLocal(values.value);
+                    if (values.floatValue !== undefined) {
+                        onChange(clamp(values.floatValue));
+                    }
+                }}
+                onBlur={() => {
+                    if (local === '') {
+                        const fallback = min ?? 0;
+                        setLocal(String(fallback));
+                        onChange(fallback);
+                    }
+                }}
+                className="w-14 bg-transparent text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5] text-right outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            {suffix && <span className="text-[12px] text-[#6B7280] dark:text-[#999]">{suffix}</span>}
+        </div>
+    );
+};
 
 const RangeRow = ({
     label,
