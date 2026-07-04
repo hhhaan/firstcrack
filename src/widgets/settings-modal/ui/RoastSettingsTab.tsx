@@ -1,5 +1,3 @@
-import { useEffect, useState } from 'react';
-import { NumericFormat } from 'react-number-format';
 import {
     type PollIntervalMs,
     type RorSpanSec,
@@ -8,6 +6,8 @@ import {
     useRoastSettings,
 } from '@features/active-roast';
 import { SectionCard } from '@shared/ui/SectionCard';
+import { useEffect, useState } from 'react';
+import { NumericFormat } from 'react-number-format';
 
 const temperatureOptions: TemperatureUnit[] = ['C', 'F'];
 const pollOptions: PollIntervalMs[] = [500, 1000];

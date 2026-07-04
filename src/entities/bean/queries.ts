@@ -44,7 +44,7 @@ export const useCreateBean = (userId: string) => {
         },
         onSuccess: (realBean, _vars, ctx) => {
             qc.setQueryData<Bean[]>(beanKeys.all(userId), (old = []) =>
-                old.map((b) => (b.id === ctx!.tempId ? realBean : b)),
+                old.map((b) => (b.id === ctx?.tempId ? realBean : b)),
             );
         },
     });
