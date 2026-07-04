@@ -46,6 +46,8 @@ export interface RoastEventMarker {
     timeSec: number;
     event: string;
     color: string;
+    timeStr: string;
+    temp: string;
 }
 
 interface ControlData {
@@ -247,7 +249,12 @@ export const RoastTempChart: React.FC<Props> = ({
                 opacity: 0.8,
             },
             label: {
-                show: false,
+                show: true,
+                position: 'start',
+                color: m.color,
+                fontSize: 12,
+                fontWeight: 700,
+                formatter: `${m.event} | ${m.timeStr} | ${m.temp}`,
             },
         }));
 
@@ -263,7 +270,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 label: {
                     show: true,
                     position: 'top',
-                    formatter: m.event,
+                    formatter: `${m.event} | ${m.timeStr} | ${m.temp}`,
                     fontSize: 10,
                     color: isLight ? '#0B0B0B' : CHART_COLORS.markerLabelColor,
                     backgroundColor: m.color,

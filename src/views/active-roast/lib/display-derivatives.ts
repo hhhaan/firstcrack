@@ -54,7 +54,7 @@ export const buildEventMarkers = (logEntries: LogEntry[]): RoastEventMarker[] =>
         .map((e) => {
             const [min, sec] = e.time.split(':').map(Number);
             const timeSec = Math.max(0, min * 60 + sec);
-            return { timeSec, event: e.event, color: getResolvedEventColor(e.event) };
+            return { timeSec, event: e.event, color: getResolvedEventColor(e.event), timeStr: e.time, temp: e.temp };
         });
 
 export interface RoastLogDisplayEntry extends LogEntry {
