@@ -1,3 +1,4 @@
+import { dashboardKeys } from '@shared/lib/query-keys';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { roastSessionApi } from './api';
@@ -6,6 +7,7 @@ export const roastSessionKeys = {
     all: (userId: string) => ['roast_sessions', userId] as const,
     byStatus: (userId: string, status: string) => ['roast_sessions', userId, status] as const,
     detail: (id: string) => ['roast_sessions', 'detail', id] as const,
+    paginated: (userId: string) => ['roast_sessions', 'paginated', userId] as const,
 };
 
 export const useRoastSessions = (userId: string, status?: RoastSession['status']) =>
@@ -37,7 +39,7 @@ export const useCreateRoastSession = (userId: string) => {
         retry: (failureCount, error) => !is4xx(error) && failureCount < 3,
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
-            qc.invalidateQueries({ queryKey: ['dashboard', userId] });
+            qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
         },
     });
 };
@@ -90,14 +92,12 @@ export const useDeleteRoastSession = (userId: string) => {
         mutationFn: roastSessionApi.delete,
         onMutate: async (id) => {
             await qc.cancelQueries({ queryKey: roastSessionKeys.all(userId) });
-            await qc.cancelQueries({ queryKey: ['roast_sessions', 'paginated', userId] });
+            await qc.cancelQueries({ queryKey: roastSessionKeys.paginated(userId) });
 
             const prevAll = qc.getQueryData<RoastSessionWithRelations[]>(roastSessionKeys.all(userId));
-            const prevPaginated = qc.getQueryData<{ data: RoastSessionWithRelations[]; total: number }>([
-                'roast_sessions',
-                'paginated',
-                userId,
-            ]);
+            const prevPaginated = qc.getQueryData<{ data: RoastSessionWithRelations[]; total: number }>(
+                roastSessionKeys.paginated(userId),
+            );
 
             if (prevAll) {
                 qc.setQueryData<RoastSessionWithRelations[]>(
@@ -107,7 +107,7 @@ export const useDeleteRoastSession = (userId: string) => {
             }
             if (prevPaginated) {
                 qc.setQueryData<{ data: RoastSessionWithRelations[]; total: number }>(
-                    ['roast_sessions', 'paginated', userId],
+                    roastSessionKeys.paginated(userId),
                     {
                         ...prevPaginated,
                         data: prevPaginated.data.filter((s) => s.id !== id),
@@ -120,11 +120,11 @@ export const useDeleteRoastSession = (userId: string) => {
         },
         onError: (_err, _id, context) => {
             if (context?.prevAll) qc.setQueryData(roastSessionKeys.all(userId), context.prevAll);
-            if (context?.prevPaginated) qc.setQueryData(['roast_sessions', 'paginated', userId], context.prevPaginated);
+            if (context?.prevPaginated) qc.setQueryData(roastSessionKeys.paginated(userId), context.prevPaginated);
         },
         onSettled: (_data, _err, id) => {
             qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
-            qc.invalidateQueries({ queryKey: ['roast_sessions', 'paginated', userId] });
+            qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
             qc.removeQueries({ queryKey: roastSessionKeys.detail(id) });
         },
     });

@@ -1,4 +1,5 @@
 import { beanStockEventApi } from '@entities/bean-stock-event';
+import { dashboardKeys } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { inventoryAlertApi } from './api';
 
@@ -31,7 +32,7 @@ export const useComputeInventoryAlerts = (userId: string) => {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: inventoryAlertKeys.list(userId) });
             qc.invalidateQueries({ queryKey: ['bean-stock-summaries'] });
-            qc.invalidateQueries({ queryKey: ['dashboard', userId] });
+            qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
         },
     });
 };

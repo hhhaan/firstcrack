@@ -2,6 +2,7 @@ import { beanStockEventApi } from '@entities/bean-stock-event';
 import { type InventoryAlert, inventoryAlertApi } from '@entities/inventory-alert';
 import { planBatchApi } from '@entities/plan';
 import { isBatchStockShort } from '@shared/lib/batch-stock';
+import { dashboardKeys } from '@shared/lib/query-keys';
 import { supabase } from '@shared/lib/supabase';
 import type { PlanBatchWithProgress, RoastSessionWithRelations } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
@@ -193,7 +194,7 @@ const EMPTY: Omit<DashboardData, 'loading' | 'error'> = {
 
 export const useDashboard = (userId: string): DashboardData => {
     const { data, isLoading, error } = useQuery({
-        queryKey: ['dashboard', userId],
+        queryKey: dashboardKeys.all(userId),
         queryFn: () => fetchDashboard(userId),
         enabled: !!userId,
         staleTime: 5 * 60 * 1000,
