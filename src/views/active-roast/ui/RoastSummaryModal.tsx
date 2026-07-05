@@ -1,4 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { computePhaseSegments } from '@features/active-roast/lib/phases';
+import { PhaseBar } from '@shared/ui/PhaseBar';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { Spinner } from '@shared/ui/Spinner';
 import { useEffect } from 'react';
@@ -76,6 +78,8 @@ export const RoastSummaryModal = ({
         return null;
     }
 
+    const phaseSegments = computePhaseSegments(summaryData.logEntries, summaryData.elapsedSec, true);
+
     return (
         <ModalShell
             onClose={onClose}
@@ -128,6 +132,13 @@ export const RoastSummaryModal = ({
                         <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">Humidity</div>
                         <div className="font-(--font-mono) text-sm text-primary">{ambientHumidity}%</div>
                     </div>
+                </div>
+            )}
+
+            {phaseSegments.length > 0 && (
+                <div className="mb-5">
+                    <div className="text-[11px] font-semibold text-muted uppercase tracking-[0.4px] mb-2.5">Phase</div>
+                    <PhaseBar segments={phaseSegments} />
                 </div>
             )}
 

@@ -11,6 +11,7 @@ export interface RoastSummaryData {
     totalTime: string;
     development: string;
     finalBt: string;
+    elapsedSec: number;
     logEntries: RoastLogEntry[];
 }
 

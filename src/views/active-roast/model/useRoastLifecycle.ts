@@ -1,3 +1,4 @@
+import { parseTimeSec } from '@features/active-roast/lib/time';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { sidecar } from '@shared/lib/sidecar';
@@ -122,6 +123,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             totalTime: timeStr,
             development: devTimeStr,
             finalBt: formatTemp(rawBT, unit),
+            elapsedSec: parseTimeSec(timeStr),
             logEntries: completedLogEntries,
         };
         storeEndRoast();
