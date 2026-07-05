@@ -223,7 +223,7 @@ export const useSidecarPolling = ({
                     ]);
                 }
             } catch (e) {
-                logger.capture(e, { context: 'sidecar polling' });
+                logger.debug(e, 'sidecar polling error');
                 const status = await sidecar.getStatus().catch(() => null);
                 useRoastingStore.getState().setError(status?.error ?? null);
                 useRoastingStore.getState().setReconnecting(false);
