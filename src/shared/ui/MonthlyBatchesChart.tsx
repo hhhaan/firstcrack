@@ -50,6 +50,7 @@ export const MonthlyBatchesChart = ({ data }: MonthlyBatchesChartProps) => {
         }
 
         data.forEach((d, i) => {
+            if (d.batches === 0) return;
             const x = padSide + gap * i + gap / 2 - barW / 2;
             const barH = (d.batches / maxVal) * plotH;
             const y = padT + plotH - barH;
