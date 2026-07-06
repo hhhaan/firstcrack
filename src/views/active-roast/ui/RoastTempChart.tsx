@@ -551,7 +551,7 @@ export const RoastTempChart: React.FC<Props> = ({
                       {
                           gridIndex: 0,
                           type: 'value',
-                          name: `Temperature (${unitLabel})`,
+                          // name: `Temperature (${unitLabel})`,
                           nameLocation: 'middle',
                           nameGap: Y_AXIS_NAME_GAP,
                           nameTextStyle: axisNameStyle,
@@ -567,7 +567,7 @@ export const RoastTempChart: React.FC<Props> = ({
                       {
                           gridIndex: 0,
                           type: 'value',
-                          name: `RoR (${rorUnit})`,
+                          // name: `RoR (${rorUnit})`,
                           nameLocation: 'middle',
                           nameGap: Y_AXIS_NAME_GAP,
                           nameTextStyle: axisNameStyle,
@@ -589,7 +589,7 @@ export const RoastTempChart: React.FC<Props> = ({
                       {
                           gridIndex: 2,
                           type: 'value',
-                          name: 'Drum (rpm)',
+                          // name: 'Drum (rpm)',
                           nameLocation: 'middle',
                           nameGap: Y_AXIS_NAME_GAP,
                           nameTextStyle: axisNameStyle,
@@ -603,7 +603,7 @@ export const RoastTempChart: React.FC<Props> = ({
                       {
                           gridIndex: 2,
                           type: 'value',
-                          name: 'Power / Speed (%)',
+                          // name: 'Power / Speed (%)',
                           nameLocation: 'middle',
                           nameGap: Y_AXIS_NAME_GAP,
                           nameTextStyle: axisNameStyle,
@@ -619,7 +619,7 @@ export const RoastTempChart: React.FC<Props> = ({
                       {
                           gridIndex: 0,
                           type: 'value',
-                          name: `Temperature (${unitLabel})`,
+                          // name: `Temperature (${unitLabel})`,
                           nameLocation: 'middle',
                           nameGap: Y_AXIS_NAME_GAP,
                           nameTextStyle: axisNameStyle,
@@ -635,7 +635,7 @@ export const RoastTempChart: React.FC<Props> = ({
                       {
                           gridIndex: 0,
                           type: 'value',
-                          name: `RoR (${rorUnit})`,
+                          // name: `RoR (${rorUnit})`,
                           nameLocation: 'middle',
                           nameGap: Y_AXIS_NAME_GAP,
                           nameTextStyle: axisNameStyle,
@@ -650,7 +650,7 @@ export const RoastTempChart: React.FC<Props> = ({
                       {
                           gridIndex: 1,
                           type: 'value',
-                          name: 'Drum (rpm)',
+                          // name: 'Drum (rpm)',
                           nameLocation: 'middle',
                           nameGap: Y_AXIS_NAME_GAP,
                           nameTextStyle: axisNameStyle,
@@ -664,7 +664,7 @@ export const RoastTempChart: React.FC<Props> = ({
                       {
                           gridIndex: 1,
                           type: 'value',
-                          name: 'Power / Speed (%)',
+                          // name: 'Power / Speed (%)',
                           nameLocation: 'middle',
                           nameGap: Y_AXIS_NAME_GAP,
                           nameTextStyle: axisNameStyle,
@@ -766,7 +766,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 {
                     gridIndex: 0,
                     type: 'value',
-                    name: hasPhaseBar ? undefined : 'Time (min)',
+                    // name: hasPhaseBar ? undefined : 'Time (min)',
                     nameLocation: 'middle',
                     nameGap: 16,
                     nameTextStyle: axisNameStyle,
@@ -801,7 +801,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 {
                     gridIndex: 0,
                     type: 'value',
-                    name: `Temperature (${unitLabel})`,
+                    // name: `Temperature (${unitLabel})`,
                     nameLocation: 'middle',
                     nameGap: Y_AXIS_NAME_GAP,
                     nameTextStyle: axisNameStyle,
@@ -815,7 +815,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 {
                     gridIndex: 0,
                     type: 'value',
-                    name: `RoR (${rorUnit})`,
+                    // name: `RoR (${rorUnit})`,
                     nameLocation: 'middle',
                     nameGap: Y_AXIS_NAME_GAP,
                     nameTextStyle: axisNameStyle,

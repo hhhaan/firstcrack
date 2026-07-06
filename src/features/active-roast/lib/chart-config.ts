@@ -1,9 +1,9 @@
 // ── Grid margins ─────────────────────────────────────────────────────────────
-export const CHART_GRID_LEFT = 55;
+export const CHART_GRID_LEFT = 38;
 export const CHART_GRID_TOP = 10;
-export const CHART_GRID_RIGHT = 12;
-export const CHART_GRID_RIGHT_WITH_ROR = 50;
-export const Y_AXIS_NAME_GAP = 16;
+export const CHART_GRID_RIGHT = 8;
+export const CHART_GRID_RIGHT_WITH_ROR = 32;
+export const Y_AXIS_NAME_GAP = 0;
 
 // ── Phase bar dimensions & text style ────────────────────────────────────────
 export const PHASE_BAR_HEIGHT = 26;
