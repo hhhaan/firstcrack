@@ -1,21 +1,25 @@
 import { SENSOR_COLORS } from '@features/active-roast/lib/colors';
 
-const BASE_LEGEND_ITEMS: { color: string; label: string; dashed?: boolean }[] = [
-    { color: SENSOR_COLORS.bt, label: 'BT' },
-    { color: SENSOR_COLORS.et, label: 'ET' },
-    { color: SENSOR_COLORS.ror, label: 'RoR' },
-];
-
 export const ChartLegend = ({
     showTarget = false,
     targetLabel = 'Target',
+    showET = true,
+    showRoR = true,
+    showRoRET = false,
 }: {
     showTarget?: boolean;
     targetLabel?: string;
+    showET?: boolean;
+    showRoR?: boolean;
+    showRoRET?: boolean;
 }) => {
-    const items = showTarget
-        ? [...BASE_LEGEND_ITEMS, { color: SENSOR_COLORS.btTarget, label: targetLabel, dashed: true }]
-        : BASE_LEGEND_ITEMS;
+    const items = [
+        { color: SENSOR_COLORS.bt, label: 'BT' },
+        ...(showET ? [{ color: SENSOR_COLORS.et, label: 'ET' }] : []),
+        ...(showRoR ? [{ color: SENSOR_COLORS.ror, label: 'RoR' }] : []),
+        ...(showRoRET ? [{ color: SENSOR_COLORS.et, label: 'ET RoR', dashed: true }] : []),
+        ...(showTarget ? [{ color: SENSOR_COLORS.btTarget, label: targetLabel, dashed: true }] : []),
+    ];
 
     return (
         <div className="absolute top-[-16px] right-14 z-10 flex items-center gap-4">

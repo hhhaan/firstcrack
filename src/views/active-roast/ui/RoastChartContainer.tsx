@@ -100,7 +100,13 @@ export const RoastChartContainer = ({
             role="region"
             aria-label="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
         >
-            <ChartLegend showTarget={showTargetCurve} targetLabel={targetProfileName} />
+            <ChartLegend
+                showTarget={showTargetCurve}
+                targetLabel={targetProfileName}
+                showET={showET}
+                showRoR={showRoR}
+                showRoRET={showRoRET}
+            />
 
             <RoastTempChart
                 xs={xs}

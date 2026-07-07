@@ -200,6 +200,8 @@ export const RoastTempChart: React.FC<Props> = ({
                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.etActual}"></div>Env Temp: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
                 if (p.seriesName === 'RoR' && showRoR && y != null)
                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.rorActual}"></div>RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
+                if (p.seriesName === 'ET RoR' && showRoRET && y != null)
+                    html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.etActual}"></div>ET RoR: <span>${y.toFixed(1)}${rorUnit}</span></div>`;
                 if (controlData && p.seriesName === 'Drum' && y != null)
                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlDrum}"></div>Drum: <span>${y} RPM</span></div>`;
                 if (controlData && p.seriesName === 'Heat' && y != null)
