@@ -7,7 +7,8 @@
         "disconnected": "未连接",
         "live": "实时",
         "offline": "离线",
-        "loading": "加载中…"
+        "loading": "加载中…",
+        "unavailable": "不可用"
     },
     "sidebar": {
         "roasteryDashboard": "烘焙工作台",
@@ -204,7 +205,8 @@
             "batchesThisMonth": "本月批次数",
             "beansRoasted": "烘焙量",
             "avgRoastTime": "平均烘焙时间",
-            "successRate": "成功率"
+            "successRate": "成功率",
+            "coffeeFutures": "Coffee C (ICE)"
         },
         "recentSessions": "最近记录",
         "viewAll": "查看全部",

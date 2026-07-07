@@ -6,7 +6,8 @@
         "connecting": "接続中...",
         "disconnected": "未接続",
         "live": "ライブ",
-        "offline": "オフライン"
+        "offline": "オフライン",
+        "unavailable": "利用不可"
     },
     "sidebar": {
         "roasteryDashboard": "ロースタリーダッシュボード",
@@ -203,7 +204,8 @@
             "batchesThisMonth": "今月のバッチ数",
             "beansRoasted": "ローストした豆の量",
             "avgRoastTime": "平均ロースト時間",
-            "successRate": "成功率"
+            "successRate": "成功率",
+            "coffeeFutures": "Coffee C (ICE)"
         },
         "recentSessions": "最近のセッション",
         "viewAll": "すべて表示",

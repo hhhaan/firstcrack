@@ -7,7 +7,8 @@
         "disconnected": "Disconnected",
         "live": "Live",
         "loading": "Loading…",
-        "offline": "Offline"
+        "offline": "Offline",
+        "unavailable": "Unavailable"
     },
     "sidebar": {
         "roasteryDashboard": "Roastery Dashboard",
@@ -204,7 +205,8 @@
             "batchesThisMonth": "Batches This Month",
             "beansRoasted": "Beans Roasted",
             "avgRoastTime": "Avg Roast Time",
-            "successRate": "Success Rate"
+            "successRate": "Success Rate",
+            "coffeeFutures": "Coffee C (ICE)"
         },
         "recentSessions": "Recent Sessions",
         "viewAll": "View all",

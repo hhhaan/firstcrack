@@ -1,7 +1,8 @@
 import { durationDiff, formatDuration, pctChange } from '@shared/lib/format';
-import { CheckCircle, Clock, Coffee, TrendingUp } from 'lucide-react';
+import { Clock, Coffee, TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { CoffeeFuturesData } from '../api/useCoffeeFutures';
 import { KpiCard } from './KpiCard';
 
 interface KpiSectionProps {
@@ -12,6 +13,10 @@ interface KpiSectionProps {
     avgDurationSeconds: number;
     avgDurationLastMonthSeconds: number;
     loading: boolean;
+    coffeeFutures: CoffeeFuturesData | null;
+    coffeeFuturesLoading: boolean;
+    coffeeFuturesRefreshing: boolean;
+    onRefreshCoffeeFutures: () => void;
 }
 
 const KPI_STATS = [
@@ -33,13 +38,14 @@ const KPI_STATS = [
         changeField: 'avgDurationLastMonthSeconds' as const,
         icon: Clock,
     },
-    {
-        label: 'dashboard.kpi.successRate',
-        field: null,
-        changeField: null,
-        icon: CheckCircle,
-    },
 ] as const;
+
+const formatCoffeePrice = (price: number): string => (Number.isFinite(price) ? price.toFixed(2) : '—');
+
+const computeCoffeeChange = (price: number, prev: number): string => {
+    if (!Number.isFinite(price) || !Number.isFinite(prev) || prev === 0) return '';
+    return pctChange(price, prev);
+};
 
 export const KpiSection = ({
     batchesThisMonth,
@@ -49,35 +55,53 @@ export const KpiSection = ({
     avgDurationSeconds,
     avgDurationLastMonthSeconds,
     loading,
+    coffeeFutures,
+    coffeeFuturesLoading,
+    coffeeFuturesRefreshing,
+    onRefreshCoffeeFutures,
 }: KpiSectionProps) => {
     const { t } = useTranslation();
+
+    const coffeeStat = useMemo(() => {
+        if (coffeeFuturesLoading) {
+            return { label: t('dashboard.kpi.coffeeFutures'), value: '—', change: '', icon: TrendingUp };
+        }
+        if (!coffeeFutures) {
+            return {
+                label: t('dashboard.kpi.coffeeFutures'),
+                value: t('common.unavailable'),
+                change: '',
+                icon: TrendingUp,
+            };
+        }
+        return {
+            label: t('dashboard.kpi.coffeeFutures'),
+            value: formatCoffeePrice(coffeeFutures.price),
+            change: computeCoffeeChange(coffeeFutures.price, coffeeFutures.previousClose),
+            icon: TrendingUp,
+        };
+    }, [coffeeFutures, coffeeFuturesLoading, t]);
 
     const stats = useMemo(
         () =>
             KPI_STATS.map((kpi) => ({
                 label: t(kpi.label),
-                value:
-                    kpi.field === null
-                        ? '96%'
-                        : loading
-                          ? '—'
-                          : String(
-                                kpi.field === 'batchesThisMonth'
-                                    ? batchesThisMonth
-                                    : kpi.field === 'kgRoastedThisMonth'
-                                      ? `${kgRoastedThisMonth.toFixed(1)}`
-                                      : formatDuration(avgDurationSeconds),
-                            ),
-                change:
-                    kpi.changeField === null
-                        ? '+2%'
-                        : loading
-                          ? ''
-                          : kpi.field === 'batchesThisMonth'
-                            ? pctChange(batchesThisMonth, batchesLastMonth)
-                            : kpi.field === 'kgRoastedThisMonth'
-                              ? pctChange(kgRoastedThisMonth, kgRoastedLastMonth)
-                              : durationDiff(avgDurationSeconds, avgDurationLastMonthSeconds),
+                value: loading
+                    ? '—'
+                    : String(
+                          kpi.field === 'batchesThisMonth'
+                              ? batchesThisMonth
+                              : kpi.field === 'kgRoastedThisMonth'
+                                ? `${kgRoastedThisMonth.toFixed(1)}`
+                                : formatDuration(avgDurationSeconds),
+                      ),
+                change: loading
+                    ? ''
+                    : kpi.field === 'batchesThisMonth'
+                      ? pctChange(batchesThisMonth, batchesLastMonth)
+                      : kpi.field === 'kgRoastedThisMonth'
+                        ? pctChange(kgRoastedThisMonth, kgRoastedLastMonth)
+                        : durationDiff(avgDurationSeconds, avgDurationLastMonthSeconds),
                 icon: kpi.icon,
             })),
         [
@@ -97,6 +121,7 @@ export const KpiSection = ({
             {stats.map((stat) => (
                 <KpiCard key={stat.label} {...stat} />
             ))}
+            <KpiCard {...coffeeStat} onRefresh={onRefreshCoffeeFutures} refreshing={coffeeFuturesRefreshing} />
         </div>
     );
 };

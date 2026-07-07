@@ -7,7 +7,8 @@
         "disconnected": "연결 안 됨",
         "live": "실시간",
         "loading": "불러오는 중…",
-        "offline": "오프라인"
+        "offline": "오프라인",
+        "unavailable": "불가"
     },
     "sidebar": {
         "roasteryDashboard": "로스터리 대시보드",
@@ -205,7 +206,8 @@
             "batchesThisMonth": "이번 달 배치",
             "beansRoasted": "로스팅된 생두량",
             "avgRoastTime": "평균 로스팅 시간",
-            "successRate": "성공률"
+            "successRate": "성공률",
+            "coffeeFutures": "Coffee C (ICE)"
         },
         "recentSessions": "최근 세션",
         "viewAll": "전체 보기",

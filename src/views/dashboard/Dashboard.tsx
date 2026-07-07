@@ -1,6 +1,7 @@
 import { useAuthStore } from '@shared/store/auth';
 import type { View } from '@shared/types/view';
 import { PageLayout } from '@shared/ui/PageLayout';
+import { useCoffeeFutures } from './api/useCoffeeFutures';
 import { useDashboard } from './api/useDashboard';
 import { DashboardHeader } from './components/DashboardHeader';
 import { InventoryAlerts } from './components/InventoryAlerts';
@@ -16,6 +17,7 @@ interface DashboardProps {
 export const Dashboard = ({ onNavigate }: DashboardProps) => {
     const userId = useAuthStore((s) => s.user?.id ?? '');
     const db = useDashboard(userId);
+    const coffee = useCoffeeFutures();
 
     return (
         <PageLayout>
@@ -29,6 +31,10 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
                 avgDurationSeconds={db.avgDurationSeconds}
                 avgDurationLastMonthSeconds={db.avgDurationLastMonthSeconds}
                 loading={db.loading}
+                coffeeFutures={coffee.data}
+                coffeeFuturesLoading={coffee.loading}
+                coffeeFuturesRefreshing={coffee.refreshing}
+                onRefreshCoffeeFutures={coffee.refetch}
             />
 
             <div className="grid grid-cols-[1fr_350px] gap-5 mb-5">

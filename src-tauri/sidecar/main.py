@@ -28,6 +28,7 @@ from sentry_sdk.integrations.aiohttp import AioHttpIntegration
 from aiohttp import web
 
 from manager import RoasterManager
+from market_data import handle_coffee_futures
 from protocol_trace import TRACE
 from roaster_registry import ROASTER_REGISTRY, PROTOCOL_FORM_FIELDS
 
@@ -179,6 +180,7 @@ async def handle_settings(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
 
 
+
 async def handle_shutdown(request: web.Request) -> web.Response:
     """Tauri Exit 핸들러에서 호출하는 graceful shutdown 엔드포인트."""
     import asyncio
@@ -321,6 +323,7 @@ def create_app() -> web.Application:
     app.router.add_get("/debug/trace", handle_debug_trace_get)
     app.router.add_post("/debug/trace", handle_debug_trace_post)
     app.router.add_get("/debug/probe", handle_debug_probe)
+    app.router.add_get("/coffee-futures", handle_coffee_futures)
     app.router.add_post("/shutdown", handle_shutdown)
     app.router.add_route("OPTIONS", "/{path_info:.*}", lambda r: web.Response())
     return app

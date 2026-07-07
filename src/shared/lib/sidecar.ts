@@ -1,11 +1,11 @@
 import type { RoastersResponse, SerialPort, SidecarStatus, TemperatureReading } from '@entities/machine';
 import { logger } from './logger';
 
-const BASE = 'http://127.0.0.1:9999';
+export const SIDECAR_BASE = 'http://127.0.0.1:9999';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
     try {
-        const res = await fetch(`${BASE}${path}`, {
+        const res = await fetch(`${SIDECAR_BASE}${path}`, {
             headers: { 'Content-Type': 'application/json' },
             ...init,
             signal: AbortSignal.timeout(5000),
