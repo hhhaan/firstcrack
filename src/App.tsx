@@ -7,6 +7,7 @@ import { useRoastSessionStore } from './shared/store/roastSession';
 import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
 import { Spinner } from '@shared/ui/Spinner';
+import { useTranslation } from 'react-i18next';
 import { useInventoryAlertSync } from './features/inventory-alert';
 import { useSidecarDeadListener } from './features/sidecar';
 import { useUpdateChecker } from './features/updater';
@@ -42,6 +43,7 @@ export const App = () => {
     useOAuthDeepLink();
 
     // Auto-updater: silent background download → system notification
+    const { t } = useTranslation();
     const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
     const { isDead: isSidecarDead } = useSidecarDeadListener();
 
@@ -233,8 +235,8 @@ export const App = () => {
 
                 {isSidecarDead && (
                     <div className="fixed bottom-6 left-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-lg bg-red-900/90 border border-red-700 text-red-100 text-sm shadow-lg">
-                        <span>하드웨어 연결 서비스가 응답하지 않습니다.</span>
-                        <span className="text-red-300">앱을 재시작해 주세요.</span>
+                        <span>{t('updater.sidecarDead')}</span>
+                        <span className="text-red-300">{t('updater.sidecarDeadRestart')}</span>
                     </div>
                 )}
 
@@ -258,7 +260,7 @@ export const App = () => {
                             boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
                         }}
                     >
-                        새 업데이트 (v{state.version}) 재시작
+                        {t('updater.ready', { version: state.version })}
                     </button>
                 )}
 
@@ -278,13 +280,13 @@ export const App = () => {
                             boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
                         }}
                     >
-                        재시작 중...
+                        {t('updater.applying')}
                     </div>
                 )}
 
                 {state.status === 'error' && state.error && (
                     <div className="fixed bottom-6 right-6 z-[9999] max-w-sm px-4 py-3 rounded-lg bg-red-900/90 border border-red-700 text-red-100 text-sm shadow-lg">
-                        {state.error}
+                        {t(state.error ?? '')}
                     </div>
                 )}
             </div>

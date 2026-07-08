@@ -10,6 +10,17 @@
         "offline": "Offline",
         "unavailable": "Unavailable"
     },
+    "updater": {
+        "checking": "Checking for update…",
+        "downloading": "Downloading update…",
+        "ready": "New update (v{{version}}) restart",
+        "applying": "Restarting…",
+        "checkError": "An error occurred while checking for updates.",
+        "relaunchError": "Failed to restart.",
+        "loopGuardError": "The update was not applied. Please reinstall the app from the dmg or manually download the latest version.",
+        "sidecarDead": "Hardware connection service is not responding.",
+        "sidecarDeadRestart": "Please restart the app."
+    },
     "sidebar": {
         "roasteryDashboard": "Roastery Dashboard",
         "expand": "Expand sidebar",

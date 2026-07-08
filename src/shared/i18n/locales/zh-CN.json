@@ -10,6 +10,17 @@
         "loading": "加载中…",
         "unavailable": "不可用"
     },
+    "updater": {
+        "checking": "正在检查更新…",
+        "downloading": "正在下载更新…",
+        "ready": "新更新 (v{{version}}) 重新启动",
+        "applying": "正在重新启动…",
+        "checkError": "检查更新时出错。",
+        "relaunchError": "重启失败。",
+        "loopGuardError": "更新未能应用。请通过 dmg 重新安装应用或手动下载最新版本。",
+        "sidecarDead": "硬件连接服务无响应。",
+        "sidecarDeadRestart": "请重新启动应用。"
+    },
     "sidebar": {
         "roasteryDashboard": "烘焙工作台",
         "expand": "展开侧边栏",

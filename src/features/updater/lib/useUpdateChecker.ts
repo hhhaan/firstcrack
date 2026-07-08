@@ -106,8 +106,7 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
 
                 const attempts = readRetryAttempts();
                 if (attempts >= MAX_RETRY_ATTEMPTS) {
-                    const msg =
-                        '업데이트가 적용되지 않았습니다. dmg에서 앱을 다시 설치하거나 최신 버전을 수동으로 받아 주세요.';
+                    const msg = 'updater.loopGuardError';
                     Sentry.captureMessage('[updater] loop-guard triggered', {
                         level: 'warning',
                         extra: { currentVersion: update.currentVersion, availableVersion: update.version, attempts },
@@ -171,7 +170,7 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             //     }
             // });
         } catch (error) {
-            const msg = error instanceof Error ? error.message : '업데이트 확인 중 오류가 발생했습니다.';
+            const msg = error instanceof Error ? error.message : 'updater.checkError';
             logger.capture(error, { context: 'updater' });
             setState({ status: 'error', version: null, progress: 0, error: msg });
         }
@@ -191,7 +190,7 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             }
         } catch (error) {
             clearLastDownloadedVersion();
-            const msg = error instanceof Error ? error.message : '재시작에 실패했습니다.';
+            const msg = error instanceof Error ? error.message : 'updater.relaunchError';
             Sentry.captureException(error, { extra: { context: 'relaunch_for_update' } });
             setState((prev) => ({ ...prev, status: 'error', error: msg }));
         }

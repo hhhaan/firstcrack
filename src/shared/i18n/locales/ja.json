@@ -9,6 +9,17 @@
         "offline": "オフライン",
         "unavailable": "利用不可"
     },
+    "updater": {
+        "checking": "アップデートを確認中…",
+        "downloading": "アップデートをダウンロード中…",
+        "ready": "新しいアップデート (v{{version}}) 再起動",
+        "applying": "再起動中…",
+        "checkError": "アップデートの確認中にエラーが発生しました。",
+        "relaunchError": "再起動に失敗しました。",
+        "loopGuardError": "アップデートが適用されませんでした。dmgからアプリを再インストールするか、最新バージョンを手動でダウンロードしてください。",
+        "sidecarDead": "ハードウェア接続サービスが応答していません。",
+        "sidecarDeadRestart": "アプリを再起動してください。"
+    },
     "sidebar": {
         "roasteryDashboard": "ロースタリーダッシュボード",
         "expand": "サイドバーを展開",

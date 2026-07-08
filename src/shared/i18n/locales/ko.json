@@ -10,6 +10,17 @@
         "offline": "오프라인",
         "unavailable": "불가"
     },
+    "updater": {
+        "checking": "업데이트 확인 중…",
+        "downloading": "업데이트 다운로드 중…",
+        "ready": "새 업데이트 (v{{version}}) 재시작",
+        "applying": "재시작 중…",
+        "checkError": "업데이트 확인 중 오류가 발생했습니다.",
+        "relaunchError": "재시작에 실패했습니다.",
+        "loopGuardError": "업데이트가 적용되지 않았습니다. dmg에서 앱을 다시 설치하거나 최신 버전을 수동으로 받아 주세요.",
+        "sidecarDead": "하드웨어 연결 서비스가 응답하지 않습니다.",
+        "sidecarDeadRestart": "앱을 재시작해 주세요."
+    },
     "sidebar": {
         "roasteryDashboard": "로스터리 대시보드",
         "expand": "사이드바 열기",
