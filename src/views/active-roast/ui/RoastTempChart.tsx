@@ -90,7 +90,7 @@ const fmtSec = (v: number) => {
     const sign = v < 0 ? '-' : '';
     const abs = Math.abs(v);
     const m = Math.floor(abs / 60);
-    const s = Math.round(abs % 60);
+    const s = Math.floor(abs % 60);
     return `${sign}${m}:${String(s).padStart(2, '0')}`;
 };
 
@@ -845,7 +845,7 @@ export const RoastTempChart: React.FC<Props> = ({
             dataZoom: [
                 {
                     type: 'inside',
-                    xAxisIndex: 0,
+                    xAxisIndex: hasPhaseBar ? [0, 1] : [0],
                     zoomOnMouseWheel: true,
                     moveOnMouseMove: false,
                     moveOnMouseWheel: true,

@@ -411,6 +411,7 @@
     "schedule": {
         "dateFormat": "MMM d, yyyy (eee)",
         "monthFormat": "MMMM yyyy",
+        "weekDateFormat": "M/d",
         "viewToggle": {
             "day": "Day",
             "week": "Week",
@@ -451,6 +452,12 @@
         },
         "reorderDisabledRecurring": "Recurring batches cannot be reordered",
         "stockShortRecurring": "Green stock may be insufficient for reservations (need {{needed}}kg / available {{available}}kg)",
+        "overdue": {
+            "title": "{{count}} overdue batches",
+            "badge": "Overdue",
+            "originalDate": "Original date: {{date}}",
+            "reorderDisabled": "Overdue batches cannot be reordered"
+        },
         "detail": {
             "target": "Target {{kg}} kg",
             "batch": "Batch {{kg}} kg",

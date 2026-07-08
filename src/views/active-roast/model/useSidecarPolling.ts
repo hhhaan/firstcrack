@@ -136,7 +136,7 @@ export const useSidecarPolling = ({
             try {
                 const data = await sidecar.getTemperatures();
                 // bt가 null이면 연결 끊김 가능성 → /status로 이중 확인
-                if (data.bt == null) {
+                if (data.bt === null || data.bt === undefined) {
                     const status = await sidecar.getStatus().catch(() => null);
                     if (!status?.connected) {
                         useRoastingStore.getState().setError(status?.error ?? null);
@@ -148,7 +148,7 @@ export const useSidecarPolling = ({
                 useRoastingStore.getState().setReconnecting(data.reconnecting ?? false);
                 setConnected(true);
                 const bt = data.bt;
-                if (bt == null) return;
+                if (bt === null || bt === undefined) return;
 
                 const currentPhase = useRoastingStore.getState().phase;
 

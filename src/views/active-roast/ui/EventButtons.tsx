@@ -25,10 +25,12 @@ export const EventButtons = ({
     const isSidebar = variant === 'sidebar';
     const isDark = useThemeStore((s) => s.resolvedTheme) === 'dark';
 
+    const registeredEvents = new Set(logEntries.map((entry) => entry.event));
+
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isSidebar ? 8 : 10 }}>
             {buttons.map(({ label, event, shortcut, pressKey, onClick, color }) => {
-                const registered = event ? logEntries.some((entry) => entry.event === event) : false;
+                const registered = event ? registeredEvents.has(event) : false;
                 const pressed = pressedButtons.has(pressKey);
                 const resolved = registered || pressed;
                 return (

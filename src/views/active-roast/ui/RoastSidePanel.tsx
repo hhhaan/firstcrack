@@ -16,7 +16,7 @@ interface RoastSidePanelProps {
     unit: TemperatureUnit;
     phase: string;
     charged: boolean;
-    raostEnded: boolean;
+    roastEnded: boolean;
     deltaBT: string | null;
     deltaET: string | null;
     dtrPct: number | null;
@@ -42,7 +42,7 @@ export const RoastSidePanel = ({
     unit,
     phase,
     charged,
-    raostEnded,
+    roastEnded,
     deltaBT,
     deltaET,
     dtrPct,
@@ -165,16 +165,16 @@ export const RoastSidePanel = ({
                 )}
                 <button
                     onClick={onEndRoast}
-                    disabled={raostEnded || !charged}
+                    disabled={roastEnded || !charged}
                     aria-label="End roast"
                     type="button"
                     className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
-                        raostEnded || !charged
+                        roastEnded || !charged
                             ? 'bg-surface dark:bg-surface-elevated text-muted cursor-default'
                             : 'cursor-pointer'
                     }`}
                     style={
-                        raostEnded || !charged
+                        roastEnded || !charged
                             ? undefined
                             : { background: PHASE_COLORS.dangerBg, color: PHASE_COLORS.danger }
                     }
@@ -226,7 +226,7 @@ export const RoastSidePanel = ({
                 value={noteInput}
                 onChange={(e) => onNoteChange(e.target.value)}
                 onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey && noteInput.trim()) {
+                    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && noteInput.trim()) {
                         e.preventDefault();
                         onNoteSubmit();
                     }

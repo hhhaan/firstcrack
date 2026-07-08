@@ -90,15 +90,24 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
 
     const handleStockDeductConfirm = useCallback(
         async (deductStock: boolean) => {
-            if (deductStock && flow.pendingStockDeduct) {
-                await deductRoastStock({
-                    deductionGrams: flow.pendingStockDeduct.deductionGrams,
-                    singleBeanId: flow.pendingStockDeduct.singleBeanId,
-                    blendId: flow.pendingStockDeduct.blendId,
-                    referenceId: flow.pendingStockDeduct.referenceId,
+            try {
+                if (deductStock && flow.pendingStockDeduct) {
+                    await deductRoastStock({
+                        deductionGrams: flow.pendingStockDeduct.deductionGrams,
+                        singleBeanId: flow.pendingStockDeduct.singleBeanId,
+                        blendId: flow.pendingStockDeduct.blendId,
+                        referenceId: flow.pendingStockDeduct.referenceId,
+                    });
+                }
+            } catch (err) {
+                logger.capture(err, { context: 'stockDeduct confirm' });
+                await message(`재고 차감에 실패했습니다.\n\n${err instanceof Error ? err.message : String(err)}`, {
+                    title: '재고 차감 실패',
+                    kind: 'error',
                 });
+            } finally {
+                flow.finishDeductFlow();
             }
-            flow.finishDeductFlow();
         },
         [flow.pendingStockDeduct, deductRoastStock, flow.finishDeductFlow],
     );

@@ -150,20 +150,23 @@ export const useScheduleDayView = ({
                         const plan = await dayPlanApi.getOrCreate(userId, batch.scheduled_date);
                         targetPlanId = plan.id;
                     }
-                    deleteSingleBatch.mutate({
-                        id: batch.id,
-                        meta: {
-                            recurrenceRuleId: batch.recurrence_rule_id,
-                            originalDate: batch.scheduled_date ?? dateKey,
-                            planId: targetPlanId ?? '',
+                    deleteSingleBatch.mutate(
+                        {
+                            id: batch.id,
+                            meta: {
+                                recurrenceRuleId: batch.recurrence_rule_id,
+                                originalDate: batch.scheduled_date ?? dateKey,
+                                planId: targetPlanId ?? '',
+                            },
                         },
-                    });
+                        { onError: (err) => console.error('Failed to delete batch:', err) },
+                    );
                 }
             } else if (scope === 'from_this') {
                 if (
                     window.confirm(
                         i18n.t('schedule.deleteConfirm.fromThis', {
-                            date: format(selectedDate, 'M월 d일', { locale: getDateFnsLocale() }),
+                            date: format(selectedDate, i18n.t('schedule.dateFormat'), { locale: getDateFnsLocale() }),
                         }),
                     )
                 ) {
@@ -201,7 +204,10 @@ export const useScheduleDayView = ({
                 setIsDeleteScopeModalOpen(true);
             } else {
                 if (window.confirm(i18n.t('schedule.deleteConfirm.batch', { name: batch.bean_name }))) {
-                    deleteSingleBatch.mutate({ id: batch.id });
+                    deleteSingleBatch.mutate(
+                        { id: batch.id },
+                        { onError: (err) => console.error('Failed to delete batch:', err) },
+                    );
                 }
             }
         },
@@ -391,6 +397,7 @@ export const useScheduleDayView = ({
 
     const handleMove = useCallback(
         (index: number, dir: 'up' | 'down') => {
+            if ((dir === 'up' && index === 0) || (dir === 'down' && index === batches.length - 1)) return;
             const batch = batches[index];
             if (batch?.recurrence_rule_id) return;
 
@@ -424,7 +431,9 @@ export const useScheduleDayView = ({
                     batchCount: batch.batch_count,
                     completedSessions: batch.completed_sessions,
                 });
-            } catch (_err) {}
+            } catch (err) {
+                console.error('Failed to start batch:', err);
+            }
         },
         [commitStatusTransition, onStartBatch],
     );

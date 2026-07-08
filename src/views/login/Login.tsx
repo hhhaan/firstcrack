@@ -5,7 +5,8 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 
-const OAUTH_REDIRECT = import.meta.env.PUBLIC_TAURI_REDIRECT;
+const OAUTH_REDIRECT = import.meta.env.PUBLIC_TAURI_REDIRECT ?? 'tauri://localhost/callback';
+const BUSINESS_URL = 'https://firstcrackiscoming.com';
 
 interface LoginProps {
     onLogin?: () => void;
@@ -35,13 +36,11 @@ export const Login = ({ onLogin }: LoginProps) => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [testimonialIndex] = useState(() => Math.floor(Math.random() * testimonials.length));
-
     const signInWithEmail = useAuthStore((s) => s.signInWithEmail);
     const startOAuth = useAuthStore((s) => s.startOAuth);
     const cancelOAuth = useAuthStore((s) => s.cancelOAuth);
     const oauthError = useAuthStore((s) => s.oauthError);
-    const testimonial = testimonials[testimonialIndex];
+    const [testimonial] = useState(() => testimonials[Math.floor(Math.random() * testimonials.length)]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -580,7 +579,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                         <button
                             type="button"
                             onClick={async () => {
-                                await openUrl('https://firstcrack.io');
+                                await openUrl(BUSINESS_URL);
                             }}
                             style={{
                                 background: 'none',

@@ -45,8 +45,8 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
                 <div className="flex gap-2">
                     <button
                         onClick={() => {
-                            onDismiss();
                             onPlanBatchComplete?.();
+                            onDismiss();
                         }}
                         className="flex-1 px-4 py-2.5 rounded-lg border border-border bg-surface text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors"
                     >

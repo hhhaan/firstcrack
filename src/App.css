@@ -252,9 +252,10 @@ html[lang="en"] {
         margin: 0;
     }
     html,
-    body {
-        height: auto !important;
-        overflow: visible !important;
+    body,
+    #root {
+        height: auto;
+        overflow: visible;
     }
     body > *:not(#print-root) {
         display: none !important;

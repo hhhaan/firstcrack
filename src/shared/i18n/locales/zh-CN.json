@@ -411,6 +411,7 @@
     "schedule": {
         "dateFormat": "yyyy年M月d日 (eee)",
         "monthFormat": "yyyy年 M月",
+        "weekDateFormat": "M/d",
         "viewToggle": {
             "day": "日",
             "week": "周",
@@ -451,6 +452,12 @@
         },
         "reorderDisabledRecurring": "重复日程批次无法调整顺序",
         "stockShortRecurring": "按预约库存计算生豆可能不足（需{{needed}}kg / 可用{{available}}kg）",
+        "overdue": {
+            "title": "{{count}} 个逾期批次",
+            "badge": "逾期",
+            "originalDate": "原定日期：{{date}}",
+            "reorderDisabled": "逾期批次无法调整顺序"
+        },
         "detail": {
             "target": "目标 {{kg}} kg",
             "batch": "批次 {{kg}} kg",

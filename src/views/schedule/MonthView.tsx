@@ -36,7 +36,8 @@ export const MonthView = ({
     const numWeeks = days.length / 7;
 
     const { t } = useTranslation();
-    const dayHeaders = t('schedule.monthDay.headers', { returnObjects: true }) as string[];
+    const rawHeaders = t('schedule.monthDay.headers', { returnObjects: true });
+    const dayHeaders: string[] = Array.isArray(rawHeaders) ? rawHeaders : [];
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden">

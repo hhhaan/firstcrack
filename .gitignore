@@ -76,3 +76,6 @@ repomix-output.xml
 # Agent/local tooling
 .commandcode/
 memory.jsonl
+
+# Code review output
+code_review.txt

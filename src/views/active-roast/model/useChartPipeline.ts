@@ -186,9 +186,9 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
             : livePoints;
         return {
             visibleControlXs: points.map((p) => p.time),
-            visibleDrumTemp: points.map((p) => p.drum as number | null),
-            visibleHeatPower: points.map((p) => p.heater as number | null),
-            visibleFanSpeed: points.map((p) => p.fan as number | null),
+            visibleDrumTemp: points.map((p) => p.drum),
+            visibleHeatPower: points.map((p) => p.heater),
+            visibleFanSpeed: points.map((p) => p.fan),
         };
     }, [livePoints, effectiveZoomRange]);
 

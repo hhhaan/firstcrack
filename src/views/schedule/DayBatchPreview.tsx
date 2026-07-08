@@ -2,11 +2,11 @@ import type { DayPlanBatchItem } from '@entities/plan';
 import { useTranslation } from 'react-i18next';
 
 export const DayBatchPreview = ({
-    batches,
+    batches = [],
     maxLines = 3,
     compact = false,
 }: {
-    batches: DayPlanBatchItem[];
+    batches?: DayPlanBatchItem[];
     maxLines?: number;
     compact?: boolean;
 }) => {

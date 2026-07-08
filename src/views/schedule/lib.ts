@@ -16,11 +16,13 @@ export const batchStatus = (b: PlanBatchWithProgress): BatchStatus => {
 
 export const getRecurrenceLabel = (rrule: string | null): string => {
     if (!rrule) return '';
-    if (rrule.includes('FREQ=DAILY')) return 'daily';
-    if (rrule.includes('FREQ=WEEKLY')) {
+    const match = rrule.match(/FREQ=([A-Z]+)/);
+    const freq = match?.[1];
+    if (freq === 'DAILY') return 'daily';
+    if (freq === 'WEEKLY') {
         if (rrule.includes('INTERVAL=2')) return 'biweekly';
         return 'weekly';
     }
-    if (rrule.includes('FREQ=MONTHLY')) return 'monthly';
+    if (freq === 'MONTHLY') return 'monthly';
     return 'repeat';
 };

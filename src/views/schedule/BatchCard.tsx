@@ -41,7 +41,7 @@ export const BatchCard = ({
     const isRecurring = !!batch.recurrence_rule_id;
     const canReorder = !isOverdue && !isRecurring;
     const reorderTitle = isOverdue
-        ? '밀린 배치는 순서를 변경할 수 없습니다'
+        ? t('schedule.overdue.reorderDisabled')
         : isRecurring
           ? t('schedule.reorderDisabledRecurring')
           : undefined;

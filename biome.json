@@ -21,7 +21,7 @@
             "complexity": {
                 "noForEach": "warn",
                 "useLiteralKeys": "error",
-                "noImportantStyles": "warn"
+                "noImportantStyles": "off"
             },
             "style": {
                 "noDefaultExport": "error",

@@ -17,6 +17,7 @@ const ViewToggle = ({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
                 return (
                     <button
                         key={v}
+                        type="button"
                         onClick={() => onChange(v)}
                         className={`text-[12px] font-medium px-3 py-1 rounded-md border-none cursor-pointer transition-colors duration-150 ${
                             view === v
@@ -47,6 +48,7 @@ export const Schedule = ({ onStartBatch }: ScheduleProps) => {
             <div className="shrink-0 border-b border-border-subtle dark:border-[#585d61] bg-main-bg px-6 py-3 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                     <button
+                        type="button"
                         onClick={() => handleNav(-1)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center border-none bg-surface dark:bg-surface-elevated text-muted cursor-pointer hover:text-primary transition-colors"
                     >
@@ -54,6 +56,7 @@ export const Schedule = ({ onStartBatch }: ScheduleProps) => {
                     </button>
                     <span className="text-[13px] font-semibold text-primary min-w-[160px] text-center">{navLabel}</span>
                     <button
+                        type="button"
                         onClick={() => handleNav(1)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center border-none bg-surface dark:bg-surface-elevated text-muted cursor-pointer hover:text-primary transition-colors"
                     >
@@ -61,6 +64,7 @@ export const Schedule = ({ onStartBatch }: ScheduleProps) => {
                     </button>
                     {!isTodaySelected && (
                         <button
+                            type="button"
                             onClick={goToday}
                             className="text-[11px] font-medium text-muted rounded-md px-2 py-0.5 bg-surface dark:bg-surface-elevated cursor-pointer hover:text-primary transition-colors"
                         >

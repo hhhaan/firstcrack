@@ -28,9 +28,10 @@ export const useScheduleNav = () => {
         if (view === 'week') {
             const ws = startOfWeek(selectedDate, { weekStartsOn: 1 });
             const we = endOfWeek(selectedDate, { weekStartsOn: 1 });
-            return `${format(ws, 'M/d')} – ${format(we, 'M/d')}`;
+            const fmt = i18n.t('schedule.weekDateFormat');
+            return `${format(ws, fmt)} – ${format(we, fmt)}`;
         }
-        return format(selectedDate, 'yyyy년 M월', { locale: getDateFnsLocale() });
+        return format(selectedDate, i18n.t('schedule.monthFormat'), { locale: getDateFnsLocale() });
     })();
 
     const isTodaySelected = isToday(selectedDate);

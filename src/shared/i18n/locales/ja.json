@@ -410,6 +410,7 @@
     "schedule": {
         "dateFormat": "yyyy年M月d日 (eee)",
         "monthFormat": "yyyy年 M月",
+        "weekDateFormat": "M/d",
         "viewToggle": {
             "day": "日",
             "week": "週",
@@ -450,6 +451,12 @@
         },
         "reorderDisabledRecurring": "繰り返し予定のバッチは順序を変更できません",
         "stockShortRecurring": "予約在庫基準で生豆が不足する可能性があります（必要{{needed}}kg / 利用可能{{available}}kg）",
+        "overdue": {
+            "title": "延滞バッチ {{count}}件",
+            "badge": "延滞",
+            "originalDate": "元の予定：{{date}}",
+            "reorderDisabled": "延滞バッチは順序を変更できません"
+        },
         "detail": {
             "target": "目標 {{kg}} kg",
             "batch": "Batch {{kg}} kg",
