@@ -79,3 +79,6 @@ memory.jsonl
 
 # Code review output
 code_review.txt
+
+
+.omo/*
