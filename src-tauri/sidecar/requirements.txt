@@ -30,5 +30,3 @@ aiohttp==3.13.5
 # Error tracking
 sentry-sdk[aiohttp]>=2.0.0
 
-# Market data (Coffee C futures)
-yfinance>=1.5
