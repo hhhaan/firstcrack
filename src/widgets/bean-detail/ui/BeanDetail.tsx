@@ -1,4 +1,4 @@
-import { getStatus, processColor, statusConfig } from '@entities/bean/lib';
+import { processColor } from '@entities/bean/lib';
 import { useBeanStockEvents, useBeanStockSummary } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
 import { Edit3, Trash2 } from 'lucide-react';
@@ -70,8 +70,6 @@ export const BeanDetail = ({
     const currentGrams = summary?.currentGrams ?? 0;
     const availableGrams = summary?.availableGrams ?? 0;
     const effectiveGrams = summary?.effectiveGrams ?? 0;
-    const status = getStatus(currentGrams, bean.low_stock_threshold_grams);
-    const cfg = statusConfig[status];
 
     return (
         <>
@@ -183,10 +181,9 @@ export const BeanDetail = ({
                     </div>
                     <div className="h-1.5 bg-surface rounded-full overflow-hidden">
                         <div
-                            className="h-full rounded-full transition-all duration-500"
+                            className="h-full rounded-full bg-palette-green transition-all duration-500"
                             style={{
                                 width: `${Math.min(100, (currentGrams / bean.capacity_grams) * 100)}%`,
-                                background: cfg.color,
                             }}
                         />
                     </div>
@@ -208,28 +205,7 @@ export const BeanDetail = ({
                 </div>
 
                 <div className="mt-6 space-y-3">
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                        <div className="bg-gray-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
-                            <p className="text-muted dark:text-muted">{t('beanDetail.stockCards.current')}</p>
-                            <p className="font-semibold text-primary dark:text-primary">
-                                {summary?.currentGrams ?? 0}g
-                            </p>
-                        </div>
-                        <div className="bg-yellow-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
-                            <p className="text-muted dark:text-muted">{t('beanDetail.stockCards.reserved')}</p>
-                            <p className="font-semibold text-palette-yellow">{summary?.reservedGrams ?? 0}g</p>
-                        </div>
-                        <div className="bg-green-50 dark:bg-surface-elevated dark:border dark:border-[#585d61] rounded-lg p-2">
-                            <p className="text-muted dark:text-muted">{t('beanDetail.stockCards.available')}</p>
-                            <p
-                                className={`font-semibold ${(summary?.effectiveGrams ?? 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-palette-green'}`}
-                            >
-                                {summary?.effectiveGrams ?? 0}g
-                            </p>
-                        </div>
-                    </div>
-
-                    <p className="text-xs font-medium text-gray-500 dark:text-[#e5e5e5] mt-4">
+                    <p className="text-xs font-medium text-gray-500 dark:text-[#e5e5e5]">
                         {t('beanDetail.stockHistory.title')}
                     </p>
                     {events.length === 0 && (
@@ -239,7 +215,7 @@ export const BeanDetail = ({
                     )}
                     {events.length > 0 && (
                         <div
-                            className={events.length > 5 ? 'max-h-[76px] overflow-y-auto space-y-3 pr-1' : 'space-y-3'}
+                            className={events.length > 3 ? 'max-h-[76px] overflow-y-auto space-y-3 pr-1' : 'space-y-3'}
                         >
                             {events.map((ev) => (
                                 <div key={ev.id} className="flex items-start gap-3 text-xs">

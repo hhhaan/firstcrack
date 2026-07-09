@@ -1,5 +1,6 @@
 import { useBeans, useDeleteBean } from '@entities/bean/queries';
 import { useBeanStockSummaries } from '@entities/bean-stock-event';
+import type { BlendWithComponents } from '@entities/blend';
 import { useBlends } from '@entities/blend';
 import { useRoastingStore } from '@features/active-roast';
 import { useAuthStore } from '@shared/store/auth';
@@ -10,6 +11,7 @@ import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
 import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
+import { AddBlendModal } from '@widgets/add-blend-modal';
 import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
 import { BeanList } from '@widgets/bean-list/ui/BeanList';
 import { BlendList } from '@widgets/blend-list/ui/BlendList';
@@ -24,6 +26,9 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
     const { data: blends = [] } = useBlends(userId);
     const { mutate: deleteBean } = useDeleteBean(userId);
+
+    const [isBlendAddOpen, setIsBlendAddOpen] = useState(false);
+    const [editingBlend, setEditingBlend] = useState<BlendWithComponents | null>(null);
 
     const [tab, setTab] = useState<'single' | 'blend'>('single');
     const [search, setSearch] = useState('');
@@ -69,13 +74,6 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
 
     const leftPanel = (
         <div className="flex flex-col gap-2">
-            <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-[#E5E5E5] dark:border-[#585d61] bg-transparent text-sm text-muted cursor-pointer hover:text-secondary hover:border-black/15 transition-colors tracking-[0.14px]"
-            >
-                <Plus size={14} strokeWidth={2} />
-                {t('beans.addBean')}
-            </button>
             <BeanList
                 beans={beans}
                 isLoading={isLoading}
@@ -123,9 +121,9 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
             <PageHeader
                 title={t('beans.title')}
                 actions={
-                    <PillButton onClick={() => setIsAddModalOpen(true)}>
+                    <PillButton onClick={() => (tab === 'blend' ? setIsBlendAddOpen(true) : setIsAddModalOpen(true))}>
                         <Plus size={15} strokeWidth={2.5} />
-                        {t('beans.addBeanLot')}
+                        {tab === 'blend' ? t('beans.blend.addBlend') : t('beans.addBeanLot')}
                     </PillButton>
                 }
             />
@@ -152,7 +150,23 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                     <MasterDetailLayout left={leftPanel} detail={detailPanel} />
                 ))}
 
-            {tab === 'blend' && <BlendList />}
+            {tab === 'blend' && (
+                <>
+                    <BlendList
+                        onAddOpen={() => setIsBlendAddOpen(true)}
+                        onEditOpen={(blend: any) => setEditingBlend(blend)}
+                    />
+                    <AddBlendModal
+                        key={editingBlend?.id ?? 'new'}
+                        open={isBlendAddOpen || !!editingBlend}
+                        onClose={() => {
+                            setIsBlendAddOpen(false);
+                            setEditingBlend(null);
+                        }}
+                        editing={editingBlend}
+                    />
+                </>
+            )}
         </PageLayout>
     );
 };

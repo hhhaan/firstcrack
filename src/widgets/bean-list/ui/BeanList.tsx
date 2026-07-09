@@ -41,7 +41,7 @@ export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, s
 
     return (
         <div>
-            <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-[9px] mb-2.5 border border-border">
+            <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-[9px] mb-2.5">
                 <Search size={14} strokeWidth={2} className="text-muted shrink-0" />
                 <input
                     value={search}
@@ -66,7 +66,7 @@ export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, s
                             <div
                                 key={bean.id}
                                 onClick={() => onSelect(bean.id)}
-                                className="bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer border border-border transition-all duration-150"
+                                className="bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150"
                             >
                                 <div className="flex items-start justify-between mb-2">
                                     <div>
@@ -87,15 +87,9 @@ export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, s
 
                                 <div className="h-1 bg-surface rounded-full overflow-hidden mb-1">
                                     <div
-                                        className="h-full rounded-full"
+                                        className="h-full rounded-full bg-palette-green"
                                         style={{
                                             width: `${pct}%`,
-                                            background:
-                                                status === 'Out'
-                                                    ? '#dc2626'
-                                                    : status === 'Low'
-                                                      ? '#d97706'
-                                                      : 'var(--color-primary)',
                                             transition: 'width 0.5s',
                                         }}
                                     />
