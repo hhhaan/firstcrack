@@ -27,7 +27,7 @@ export const formatDateShort = (iso: string | null): string => {
 };
 
 export const pctChange = (current: number, previous: number): string => {
-    if (previous === 0) return current > 0 ? '+∞%' : '0%';
+    if (previous === 0) return '—';
     const diff = ((current - previous) / previous) * 100;
     return `${diff >= 0 ? '+' : ''}${Math.round(diff)}%`;
 };

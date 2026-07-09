@@ -12,6 +12,7 @@ interface KpiCardProps {
 
 export const KpiCard = ({ label, value, change, icon: Icon, onRefresh, refreshing }: KpiCardProps) => {
     const isPositive = change.startsWith('+');
+    const isNegative = change.startsWith('-');
     const isNeutral = change === '';
 
     return (
@@ -25,7 +26,9 @@ export const KpiCard = ({ label, value, change, icon: Icon, onRefresh, refreshin
                         className={`text-xs font-medium px-2 py-0.5 rounded-full tracking-[0.14px] ${
                             isPositive
                                 ? 'text-palette-green bg-palette-green/15'
-                                : 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/15'
+                                : isNegative
+                                  ? 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/15'
+                                  : 'text-muted bg-surface dark:bg-surface-elevated'
                         }`}
                     >
                         {change}
