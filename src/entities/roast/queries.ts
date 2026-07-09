@@ -39,6 +39,7 @@ export const useCreateRoastSession = (userId: string) => {
         retry: (failureCount, error) => !is4xx(error) && failureCount < 3,
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
+            qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
             qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
         },
     });
@@ -50,6 +51,7 @@ export const useUpdateRoastSession = (userId: string) => {
         mutationFn: roastSessionApi.update,
         onSuccess: (updated) => {
             qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
+            qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
             qc.setQueryData<RoastSessionWithRelations>(roastSessionKeys.detail(updated.id), (prev) =>
                 prev ? { ...prev, ...updated } : undefined,
             );
