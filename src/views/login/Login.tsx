@@ -334,10 +334,17 @@ export const Login = ({ onLogin }: LoginProps) => {
                             fontWeight: 500,
                             cursor: 'pointer',
                             letterSpacing: '0.14px',
-                            boxShadow: 'var(--shadow-warm)',
+                            boxShadow: '0 4px 14px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
                             marginBottom: 20,
-                            transition: 'opacity 0.15s',
+                            transition: 'box-shadow 0.15s, opacity 0.15s',
                         }}
+                        onMouseEnter={(e) =>
+                            (e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.1), 0 3px 6px rgba(0,0,0,0.05)')
+                        }
+                        onMouseLeave={(e) =>
+                            (e.currentTarget.style.boxShadow =
+                                '0 4px 14px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)')
+                        }
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24">
                             <path
