@@ -169,7 +169,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                     <div
                         key={profile.id}
                         onClick={(e) => !atCapacity && handleProfileClick(profile.id, e.shiftKey)}
-                        className={`bg-main-bg rounded-lg p-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8 dark:border-[#585d61]' : 'border-[#E5E5E5] dark:border-[#585d61]'}`}
+                        className={`bg-main-bg rounded-lg px-4 pb-2 pt-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8 dark:border-[#585d61]' : 'border-[#E5E5E5] dark:border-[#585d61]'}`}
                     >
                         {compareMode && (
                             <div className="flex justify-end -mt-1 mb-1">
@@ -186,9 +186,9 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
 
                         <Sparkline data={syntheticCurve(profile)} color={sparkColor} />
 
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-start justify-between mt-3">
                             <div>
-                                <div className="flex items-center gap-1.25 mb-0.5">
+                                <div className="flex items-center gap-1.25 mb-px">
                                     <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
                                         {profile.name}
                                     </span>
