@@ -1,11 +1,16 @@
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import { useEffect, useRef } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
 import { useActiveRoastOnboardingStore } from './onboarding';
 
 export const useActiveRoastOnboarding = (isActive: boolean) => {
     const { fullscreenHintSeen, markFullscreenHintSeen } = useActiveRoastOnboardingStore();
     const driverRef = useRef<ReturnType<typeof driver> | null>(null);
+
+    useHotkeys('f', () => driverRef.current?.destroy(), {
+        enabled: isActive && !fullscreenHintSeen,
+    });
 
     useEffect(() => {
         if (!isActive || fullscreenHintSeen) return;
