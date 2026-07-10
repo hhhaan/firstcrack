@@ -5,6 +5,8 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 
+// fallback은 반드시 Tauri deep-link 스킴(firstcrack://)과 isOAuthCallbackUrl 조건(auth/callback)을
+// 동시에 만족해야 함. tauri://localhost/callback 같은 값은 두 조건을 모두 실패시켜 OAuth가 영원히 안 끝남.
 const OAUTH_REDIRECT = import.meta.env.PUBLIC_TAURI_REDIRECT ?? 'firstcrack://auth/callback';
 const BUSINESS_URL = 'https://firstcrackiscoming.com';
 
