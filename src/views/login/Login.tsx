@@ -5,7 +5,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 
-const OAUTH_REDIRECT = import.meta.env.PUBLIC_TAURI_REDIRECT ?? 'tauri://localhost/callback';
+const OAUTH_REDIRECT = import.meta.env.PUBLIC_TAURI_REDIRECT ?? 'firstcrack://auth/callback';
 const BUSINESS_URL = 'https://firstcrackiscoming.com';
 
 interface LoginProps {
