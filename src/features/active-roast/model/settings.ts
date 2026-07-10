@@ -8,6 +8,8 @@ const SAVE_DEBOUNCE_MS = 200;
 export type PollIntervalMs = 500 | 1000;
 export type RorSpanSec = 15 | 30 | 60;
 export type TemperatureUnit = 'C' | 'F';
+/** line = vertical markLine | point = curve markPoint + label box */
+export type EventMarkerStyle = 'line' | 'point';
 
 export type RoastSettings = {
     pollIntervalMs: PollIntervalMs;
@@ -19,6 +21,7 @@ export type RoastSettings = {
     showRoRET: boolean;
     showControlChart: boolean;
     showPhaseBar: boolean;
+    eventMarkerStyle: EventMarkerStyle;
     tempMinC: number;
     tempMaxC: number;
     rorYMin: number;
@@ -39,6 +42,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showRoRET: false,
     showControlChart: true,
     showPhaseBar: true,
+    eventMarkerStyle: 'point',
     tempMinC: 130,
     tempMaxC: 240,
     rorYMin: -5,
@@ -51,6 +55,8 @@ const DEFAULT_SETTINGS: RoastSettings = {
 
 const isPollIntervalMs = (value: unknown): value is PollIntervalMs => value === 500 || value === 1000;
 
+const isEventMarkerStyle = (value: unknown): value is EventMarkerStyle => value === 'line' || value === 'point';
+
 const migratePollIntervalMs = (ms: unknown): PollIntervalMs => {
     if (ms === 250) return 500;
     return isPollIntervalMs(ms) ? ms : DEFAULT_SETTINGS.pollIntervalMs;
@@ -61,6 +67,9 @@ const normalize = (raw: Partial<RoastSettings> | null | undefined): RoastSetting
     return {
         ...merged,
         pollIntervalMs: migratePollIntervalMs(merged.pollIntervalMs),
+        eventMarkerStyle: isEventMarkerStyle(merged.eventMarkerStyle)
+            ? merged.eventMarkerStyle
+            : DEFAULT_SETTINGS.eventMarkerStyle,
     };
 };
 

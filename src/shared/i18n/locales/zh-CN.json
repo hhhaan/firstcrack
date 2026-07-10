@@ -145,6 +145,16 @@
                 "description": "查看当前应用版本和软件详细信息。",
                 "version": "应用版本",
                 "versionDescription": "当前安装的应用程序版本。"
+            },
+            "support": {
+                "label": "支持",
+                "title": "帮助与支持",
+                "description": "获取帮助、联系团队或访问产品网站。",
+                "contactTitle": "联系支持",
+                "contactDescription": "如有产品、账单或技术问题，请通过邮件联系我们。",
+                "contactAction": "发送邮件",
+                "websiteTitle": "网站",
+                "websiteDescription": "查看产品更新、文档和公司信息。"
             }
         }
     },

@@ -11,6 +11,7 @@ import { BillingSettingsTab } from './BillingSettingsTab';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
 import { RoastSettingsTab } from './RoastSettingsTab';
 import { SoftwareSettingsTab } from './SoftwareSettingsTab';
+import { SupportSettingsTab } from './SupportSettingsTab';
 
 interface SettingsModalProps {
     open: boolean;
@@ -20,7 +21,7 @@ interface SettingsModalProps {
 
 export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps) => {
     const { t } = useTranslation();
-    const [activeTab, setActiveTab] = useState<SettingsTabId>(initialTab ?? 'account');
+    const [activeTab, setActiveTab] = useState<SettingsTabId>(initialTab ?? 'general');
     const tabs = useMemo(() => getTabs(t), [t]);
 
     useEffect(() => {
@@ -125,6 +126,7 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                         {activeTab === 'billing' && <BillingSettingsTab />}
                         {activeTab === 'general' && <GeneralSettingsTab />}
                         {activeTab === 'software' && <SoftwareSettingsTab />}
+                        {activeTab === 'support' && <SupportSettingsTab />}
                     </div>
                 </div>
             </div>

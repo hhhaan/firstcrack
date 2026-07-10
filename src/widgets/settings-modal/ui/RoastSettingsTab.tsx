@@ -1,4 +1,5 @@
 import {
+    type EventMarkerStyle,
     type PollIntervalMs,
     type RorSpanSec,
     type TemperatureUnit,
@@ -12,6 +13,22 @@ import { NumericFormat } from 'react-number-format';
 const temperatureOptions: TemperatureUnit[] = ['C', 'F'];
 const pollOptions: PollIntervalMs[] = [500, 1000];
 const rorOptions: RorSpanSec[] = [15, 30, 60];
+const eventMarkerStyleOptions: {
+    value: EventMarkerStyle;
+    label: string;
+    description: string;
+}[] = [
+    {
+        value: 'point',
+        label: 'Point on curve',
+        description: 'Dot on the BT curve with a label box (event, time, temp)',
+    },
+    {
+        value: 'line',
+        label: 'Vertical line',
+        description: 'Full-height vertical mark line with event, time, and temp',
+    },
+];
 
 const visibilityOptions = [
     { key: 'showET' as const, label: 'Env Temp (ET)', description: 'Blue dashed line on the temperature chart' },
@@ -209,6 +226,32 @@ export const RoastSettingsTab = () => {
                                 type="checkbox"
                                 checked={roastSettings[key]}
                                 onChange={(e) => updateRoastSettings({ [key]: e.target.checked })}
+                                className={`mt-0.5 shrink-0 ${checkboxCls}`}
+                            />
+                            <div>
+                                <div className={optionLabelCls}>{label}</div>
+                                <div className={optionDescCls}>{description}</div>
+                            </div>
+                        </label>
+                    ))}
+                </div>
+            </SectionCard>
+
+            <SectionCard>
+                <div className="mb-4">
+                    <h4 className={sectionTitleCls}>Event Markers</h4>
+                    <p className={sectionDescCls}>
+                        How Yellow, FC, Drop, and Turning Point are drawn on the temperature chart.
+                    </p>
+                </div>
+                <div className="grid gap-1.5">
+                    {eventMarkerStyleOptions.map(({ value, label, description }) => (
+                        <label key={value} className={`${optionRowCls} items-start`}>
+                            <input
+                                type="radio"
+                                name="eventMarkerStyle"
+                                checked={roastSettings.eventMarkerStyle === value}
+                                onChange={() => updateRoastSettings({ eventMarkerStyle: value })}
                                 className={`mt-0.5 shrink-0 ${checkboxCls}`}
                             />
                             <div>

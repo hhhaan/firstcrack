@@ -145,6 +145,16 @@
                 "description": "View the current app version and software details.",
                 "version": "App Version",
                 "versionDescription": "The currently installed version of the application."
+            },
+            "support": {
+                "label": "Support",
+                "title": "Help & Support",
+                "description": "Get help, contact the team, or visit the product website.",
+                "contactTitle": "Contact support",
+                "contactDescription": "Reach out for product questions, billing, or technical issues.",
+                "contactAction": "Send email",
+                "websiteTitle": "Website",
+                "websiteDescription": "Product updates, docs, and company information."
             }
         }
     },

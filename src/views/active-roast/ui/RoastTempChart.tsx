@@ -1,4 +1,4 @@
-import type { PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
+import type { EventMarkerStyle, PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import {
     AXIS_LABEL_FONT,
     CHART_COLORS,
@@ -63,6 +63,8 @@ interface Props {
     currentTimeSec: number;
     /** Charge 이후일 때만 t=0 Charge 가이드 라인 표시 */
     charged?: boolean;
+    /** line = 세로 markLine | point = 곡선 위 markPoint */
+    eventMarkerStyle?: EventMarkerStyle;
     eventMarkers: RoastEventMarker[];
     turningPoints?: TurningPoint[];
     temperatureUnit?: TemperatureUnit;
@@ -93,6 +95,22 @@ const fmtSec = (v: number) => {
     return `${sign}${m}:${String(s).padStart(2, '0')}`;
 };
 
+/** 시간축에서 가장 가까운 BT 표시값 조회 */
+const nearestBtAt = (xs: number[], btActual: (number | null)[], timeSec: number): number | null => {
+    if (!xs.length) return null;
+    let bestIdx = -1;
+    let bestDist = Infinity;
+    for (let i = 0; i < xs.length; i++) {
+        if (btActual[i] == null) continue;
+        const d = Math.abs(xs[i] - timeSec);
+        if (d < bestDist) {
+            bestDist = d;
+            bestIdx = i;
+        }
+    }
+    return bestIdx >= 0 ? (btActual[bestIdx] as number) : null;
+};
+
 export const RoastTempChart: React.FC<Props> = ({
     xs,
     btTarget,
@@ -101,6 +119,7 @@ export const RoastTempChart: React.FC<Props> = ({
     rorActual,
     currentTimeSec,
     charged = false,
+    eventMarkerStyle = 'point',
     eventMarkers,
     turningPoints = [],
     temperatureUnit = 'C',
@@ -215,50 +234,20 @@ export const RoastTempChart: React.FC<Props> = ({
             sampling: 'lttb' as const,
         });
 
+        // axis hover 시 찍히는 포인트 — 확대 없음
+        const hoverPoint = {
+            showSymbol: false,
+            symbol: 'circle' as const,
+            symbolSize: 6,
+            emphasis: { scale: false },
+        };
+
         const xMin = xs[0] ?? 0;
         const xMax = xs[xs.length - 1] ?? 1200;
 
-        // markLine only (TP / events / Charge / NOW) — no markPoint chips
-        // 라벨: 이벤트명 + 시간 + 온도
-        const tpMarkLines = turningPoints.map((tp) => ({
-            xAxis: tp.timeSec,
-            lineStyle: {
-                color: colors.tp,
-                width: 1.5,
-                type: 'solid' as const,
-                opacity: 1,
-            },
-            label: {
-                show: true,
-                position: 'start' as const,
-                formatter: `TP  ${fmtSec(tp.timeSec)}  ${toDisplayTemp(tp.temp, temperatureUnit).toFixed(1)}${unitLabel}`,
-                color: colors.tp,
-                fontSize: 11,
-                fontWeight: 700,
-            },
-        }));
-
-        // 이벤트도 TP와 동일한 markLine 스타일 (세로선 + start 라벨)
-        const eventMarkLines = eventMarkers.map((m) => ({
-            xAxis: m.timeSec,
-            lineStyle: {
-                color: m.color,
-                width: 1.5,
-                type: 'solid' as const,
-                opacity: 1,
-            },
-            label: {
-                show: true,
-                position: 'start' as const,
-                formatter: `${m.event}  ${m.timeStr}  ${m.temp}`,
-                color: m.color,
-                fontSize: 11,
-                fontWeight: 700,
-            },
-        }));
-
-        // Charge (t=0) + live NOW cursor
-        // control chart용은 라벨 없이 선만 (상단 temp chart 라벨과 중복 방지)
+        // Charge / NOW: 세로 markLine (가이드) — 항상
+        // 이벤트 / TP: eventMarkerStyle 에 따라 line | point
+        const usePointMarkers = eventMarkerStyle === 'point';
         const guideMarkLines: object[] = [];
         const controlGuideMarkLines: object[] = [];
         // Charge 라인은 실제 charge 이후에만 (pre-charge 구간에서는 숨김)
@@ -321,6 +310,104 @@ export const RoastTempChart: React.FC<Props> = ({
             });
         }
 
+        // ── line style: 세로 markLine + start 라벨 ──────────────────────────
+        const eventMarkLines = eventMarkers.map((m) => ({
+            xAxis: m.timeSec,
+            lineStyle: {
+                color: m.color,
+                width: 1.5,
+                type: 'solid' as const,
+                opacity: 1,
+            },
+            label: {
+                show: true,
+                position: 'start' as const,
+                formatter: `${m.event}  ${m.timeStr}  ${m.temp}`,
+                color: m.color,
+                fontSize: 11,
+                fontWeight: 700,
+            },
+        }));
+
+        const tpMarkLines = turningPoints.map((tp) => ({
+            xAxis: tp.timeSec,
+            lineStyle: {
+                color: colors.tp,
+                width: 1.5,
+                type: 'solid' as const,
+                opacity: 1,
+            },
+            label: {
+                show: true,
+                position: 'start' as const,
+                formatter: `TP  ${fmtSec(tp.timeSec)}  ${toDisplayTemp(tp.temp, temperatureUnit).toFixed(1)}${unitLabel}`,
+                color: colors.tp,
+                fontSize: 11,
+                fontWeight: 700,
+            },
+        }));
+
+        // ── point style: 작은 점 + 텍스트만 (박스/배경 없음) ────────────────
+        const buildPointLabel = (color: string, title: string, timeStr: string, tempStr: string) => ({
+            show: true,
+            position: 'top' as const,
+            distance: 5,
+            formatter: `${title}  ${timeStr}  ${tempStr}`,
+            fontSize: 10,
+            fontWeight: 600 as const,
+            fontFamily: 'monospace',
+            color,
+            backgroundColor: 'transparent',
+            borderWidth: 0,
+            padding: 0,
+        });
+
+        const markPointData = usePointMarkers
+            ? [
+                  ...eventMarkers
+                      .map((m) => {
+                          const y = nearestBtAt(xs, btActual, m.timeSec);
+                          if (y == null) return null;
+                          return {
+                              name: m.event,
+                              coord: [m.timeSec, y] as [number, number],
+                              symbol: 'circle' as const,
+                              symbolSize: 5,
+                              itemStyle: {
+                                  color: m.color,
+                                  borderColor: colors.markerLabelColor,
+                                  borderWidth: 1,
+                              },
+                              label: buildPointLabel(
+                                  m.color,
+                                  m.event,
+                                  m.timeStr,
+                                  m.temp || `${y.toFixed(1)}${unitLabel}`,
+                              ),
+                          };
+                      })
+                      .filter(Boolean),
+                  ...turningPoints.map((tp) => {
+                      const yDisp = nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit);
+                      const tempStr = `${toDisplayTemp(tp.temp, temperatureUnit).toFixed(1)}${unitLabel}`;
+                      return {
+                          name: 'TP',
+                          coord: [tp.timeSec, yDisp] as [number, number],
+                          symbol: 'circle' as const,
+                          symbolSize: 5,
+                          itemStyle: {
+                              color: colors.tp,
+                              borderColor: colors.markerLabelColor,
+                              borderWidth: 1,
+                          },
+                          label: buildPointLabel(colors.tp, 'TP', fmtSec(tp.timeSec), tempStr),
+                      };
+                  }),
+              ]
+            : [];
+
+        const allMarkLines = usePointMarkers ? guideMarkLines : [...guideMarkLines, ...eventMarkLines, ...tpMarkLines];
+
         const hasRightYAxis = showRoR || !!controlData;
         const rightMargin = hasRightYAxis ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
         const leftMargin = CHART_GRID_LEFT;
@@ -338,7 +425,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     data: targetXs.map((x, i) => [x, targetBt[i] ?? null]),
                     lineStyle: { color: colors.btTarget, width: 1.5, type: 'dashed', opacity: 0.55 },
                     areaStyle: { color: colors.btTarget, opacity: 0.06 },
-                    showSymbol: false,
+                    ...hoverPoint,
                     smooth: false,
                 },
             {
@@ -349,14 +436,25 @@ export const RoastTempChart: React.FC<Props> = ({
                 z: 2,
                 data: xs.map((x, i) => [x, btActual[i]]),
                 lineStyle: { color: colors.btActual, width: 2 },
-                showSymbol: false,
+                ...hoverPoint,
                 ...getSmoothConfig(0.4),
-                markLine: {
-                    silent: false,
-                    symbol: ['none', 'none'],
-                    symbolSize: 0,
-                    data: [...guideMarkLines, ...eventMarkLines, ...tpMarkLines],
-                },
+                markLine:
+                    allMarkLines.length > 0
+                        ? {
+                              silent: usePointMarkers,
+                              symbol: ['none', 'none'],
+                              symbolSize: 0,
+                              data: allMarkLines,
+                          }
+                        : undefined,
+                markPoint:
+                    markPointData.length > 0
+                        ? {
+                              silent: false,
+                              data: markPointData as object[],
+                              animation: false,
+                          }
+                        : undefined,
             },
             showET && {
                 name: 'ET Actual',
@@ -366,7 +464,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 z: 2,
                 data: xs.map((x, i) => [x, etActual[i]]),
                 lineStyle: { color: colors.etActual, width: 1.6 },
-                showSymbol: false,
+                ...hoverPoint,
                 ...getSmoothConfig(0.35),
             },
             showRoR && {
@@ -376,7 +474,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 yAxisIndex: 1,
                 data: xs.map((x, i) => [x, rorActual[i]]),
                 lineStyle: { color: colors.rorActual, width: 1.3 },
-                showSymbol: false,
+                ...hoverPoint,
                 ...getSmoothConfig(0.25),
             },
             showRoR &&
@@ -387,7 +485,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     yAxisIndex: 1,
                     data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
                     lineStyle: { color: colors.etActual, width: 1.0, type: 'dashed' },
-                    showSymbol: false,
+                    ...hoverPoint,
                     ...getSmoothConfig(0.25),
                 },
         ].filter(Boolean) as object[];
@@ -745,7 +843,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         yAxisIndex: hasPhaseBar ? 3 : 2,
                         data: cxs.map((x, i) => [x, drumTemp[i]]),
                         lineStyle: { color: colors.controlDrum, width: 1.5 },
-                        showSymbol: false,
+                        ...hoverPoint,
                         smooth: 0.3,
                         // NOW / Charge 선을 control grid에도 동일 x로 표시 (라벨은 temp chart만)
                         markLine:
@@ -766,7 +864,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         yAxisIndex: hasPhaseBar ? 4 : 3,
                         data: cxs.map((x, i) => [x, heatPower[i]]),
                         lineStyle: { color: colors.controlHeat, width: 1.5 },
-                        showSymbol: false,
+                        ...hoverPoint,
                         step: 'end',
                         smooth: false,
                     },
@@ -778,7 +876,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         yAxisIndex: hasPhaseBar ? 4 : 3,
                         data: cxs.map((x, i) => [x, fanSpeed[i]]),
                         lineStyle: { color: colors.controlFan, width: 1.5 },
-                        showSymbol: false,
+                        ...hoverPoint,
                         step: 'end',
                         smooth: false,
                     },
@@ -915,6 +1013,7 @@ export const RoastTempChart: React.FC<Props> = ({
         rorActual,
         currentTimeSec,
         charged,
+        eventMarkerStyle,
         eventMarkers,
         turningPoints,
         temperatureUnit,
@@ -932,10 +1031,11 @@ export const RoastTempChart: React.FC<Props> = ({
         rorYMax,
     ]);
 
-    // 옵션 적용 — controlData/phaseBar/target 유무가 바뀌면 grid/axis/series 구조가 달라지므로 notMerge로 완전 교체
+    // 옵션 적용 — controlData/phaseBar/target/eventMarkerStyle 이 바뀌면 notMerge로 완전 교체
     const prevHasControlData = useRef(!!controlData);
     const prevHasPhaseBar = useRef(phaseSegments.length > 0);
     const prevHasTargetData = useRef(!!(targetXs?.length && targetBt?.length));
+    const prevEventMarkerStyle = useRef(eventMarkerStyle);
     useEffect(() => {
         const chart = chartInstanceRef.current;
         if (!chart) return;
@@ -944,10 +1044,12 @@ export const RoastTempChart: React.FC<Props> = ({
         const structureChanged =
             prevHasControlData.current !== !!controlData ||
             prevHasPhaseBar.current !== hasPhaseBar ||
-            prevHasTargetData.current !== hasTargetData;
+            prevHasTargetData.current !== hasTargetData ||
+            prevEventMarkerStyle.current !== eventMarkerStyle;
         prevHasControlData.current = !!controlData;
         prevHasPhaseBar.current = hasPhaseBar;
         prevHasTargetData.current = hasTargetData;
+        prevEventMarkerStyle.current = eventMarkerStyle;
         chart.setOption(option, {
             notMerge: structureChanged,
             lazyUpdate: !structureChanged,

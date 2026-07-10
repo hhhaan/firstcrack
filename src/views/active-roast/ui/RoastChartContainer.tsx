@@ -1,5 +1,5 @@
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
-import type { TemperatureUnit } from '@features/active-roast/model/settings';
+import type { EventMarkerStyle, TemperatureUnit } from '@features/active-roast/model/settings';
 import type { RefObject } from 'react';
 import { ChartLegend } from './ChartLegend';
 import type { RoastEventMarker } from './RoastTempChart';
@@ -38,6 +38,7 @@ interface RoastChartContainerProps {
     rorYMax: number;
     elapsed: number;
     charged: boolean;
+    eventMarkerStyle: EventMarkerStyle;
     eventMarkers: RoastEventMarker[];
     turningPoints: { timeSec: number; temp: number }[];
     phaseSegments: PhaseSegment[];
@@ -75,6 +76,7 @@ export const RoastChartContainer = ({
     rorYMax,
     elapsed,
     charged,
+    eventMarkerStyle,
     eventMarkers,
     turningPoints,
     phaseSegments,
@@ -120,6 +122,7 @@ export const RoastChartContainer = ({
                 rorActual={rorActual}
                 currentTimeSec={elapsed}
                 charged={charged}
+                eventMarkerStyle={eventMarkerStyle}
                 eventMarkers={eventMarkers}
                 turningPoints={turningPoints}
                 height={mainChartHeight}

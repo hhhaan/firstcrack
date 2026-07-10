@@ -468,6 +468,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         rorYMax={roastSettings.rorYMax}
                         elapsed={elapsed}
                         charged={charged}
+                        eventMarkerStyle={roastSettings.eventMarkerStyle}
                         eventMarkers={eventMarkers}
                         turningPoints={turningPoints}
                         phaseSegments={phaseSegments}

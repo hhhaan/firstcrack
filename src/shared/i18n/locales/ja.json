@@ -144,6 +144,16 @@
                 "description": "現在のアプリバージョンとソフトウェア詳細を確認します。",
                 "version": "アプリバージョン",
                 "versionDescription": "現在インストールされているアプリケーションのバージョンです。"
+            },
+            "support": {
+                "label": "サポート",
+                "title": "ヘルプとサポート",
+                "description": "お問い合わせ、サポート、製品サイトを確認できます。",
+                "contactTitle": "サポートに連絡",
+                "contactDescription": "製品、請求、技術的な問題はメールでご連絡ください。",
+                "contactAction": "メールを送る",
+                "websiteTitle": "ウェブサイト",
+                "websiteDescription": "製品アップデート、ドキュメント、会社情報を確認します。"
             }
         }
     },
