@@ -9,6 +9,7 @@ import {
     RecentlyViewed,
     Settings,
     SidePanelClose,
+    SidePanelOpen,
 } from '@carbon/icons-react';
 import { useInventoryAlerts } from '@entities/inventory-alert';
 import { cn } from '@shared/lib/cn';
@@ -85,7 +86,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                     isHeaderHovered ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-90 invisible',
                                 )}
                             >
-                                <SidePanelClose size={18} />
+                                <SidePanelOpen size={18} />
                             </button>
                         </div>
                     ) : (
