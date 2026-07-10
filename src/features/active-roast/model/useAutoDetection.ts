@@ -2,6 +2,7 @@ import type { TurningPoint } from '@features/active-roast';
 import { detectTurningPoints } from '@features/active-roast';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { detectChargeOnset } from '../lib/chargeOnset';
 import { toDisplayTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
@@ -12,10 +13,12 @@ const AUTO_DROP_DROP_C = 8;
 const AUTO_DROP_WINDOW = 5;
 const AUTO_DROP_MIN_ELAPSED_S = 180;
 
+export type AutoDropOnset = { timeSec: number; bt: number };
+
 export const useAutoDetection = (
     livePoints: { time: number; bt: number }[],
-    onAutoCharge: (bt: number) => void,
-    onAutoDrop: () => void,
+    onAutoCharge: (bt: number, chargeTimeMs?: number) => void,
+    onAutoDrop: (onset?: AutoDropOnset) => void,
     onTurningPoint: (tp: TurningPoint) => void,
     autoChargeDropC: number = 5,
     yellowTempC: number = 150,
@@ -31,6 +34,9 @@ export const useAutoDetection = (
     const tpFiredRef = useRef(false);
     const yellowFiredRef = useRef(false);
     const fcStartFiredRef = useRef(false);
+    // livePoints는 effect 클로저 최신값 필요 — ref로 동기화
+    const livePointsRef = useRef(livePoints);
+    livePointsRef.current = livePoints;
 
     const [confirmedTP, setConfirmedTP] = useState<TurningPoint | null>(null);
 
@@ -39,7 +45,7 @@ export const useAutoDetection = (
     const liveData = useRoastingStore((s) => s.liveData);
     const bt = liveData?.bt ?? null;
 
-    // Auto Charge
+    // Auto Charge — 윈도우 낙차 트리거 후 livePoints lookback으로 onset 후처리
     useEffect(() => {
         if (phase !== 'standby' || bt == null || autoChargedRef.current) return;
 
@@ -50,12 +56,24 @@ export const useAutoDetection = (
             const last = btWindowRef.current[btWindowRef.current.length - 1];
             if (first - last >= autoChargeDropC) {
                 autoChargedRef.current = true;
-                onAutoCharge(bt);
+                const series = livePointsRef.current.map((p) => ({ timeSec: p.time, bt: p.bt }));
+                // 폴링 포인트에 현재 bt가 아직 없을 수 있어 끝점 보강
+                if (series.length === 0 || series[series.length - 1].bt !== bt) {
+                    const t = series.length > 0 ? series[series.length - 1].timeSec + 0.5 : 0;
+                    series.push({ timeSec: t, bt });
+                }
+                const onset = detectChargeOnset(series, {
+                    minDropC: Math.max(2, autoChargeDropC * 0.4),
+                });
+                const lastT = series[series.length - 1].timeSec;
+                const lagSec = onset != null ? Math.max(0, lastT - onset.timeSec) : 0;
+                const chargeTimeMs = Date.now() - lagSec * 1000;
+                onAutoCharge(onset?.bt ?? bt, chargeTimeMs);
             }
         }
     }, [phase, bt, onAutoCharge, autoChargeDropC]);
 
-    // Auto Drop
+    // Auto Drop — 윈도우 낙차 트리거 후 livePoints lookback으로 onset 후처리 (Charge와 동일 알고리즘)
     useEffect(() => {
         if (phase !== 'roasting' || bt == null || autoDroppedRef.current) return;
         if (elapsed < AUTO_DROP_MIN_ELAPSED_S) return;
@@ -67,7 +85,19 @@ export const useAutoDetection = (
             const last = dropWindowRef.current[dropWindowRef.current.length - 1];
             if (first - last >= AUTO_DROP_DROP_C) {
                 autoDroppedRef.current = true;
-                onAutoDrop();
+                const series = livePointsRef.current
+                    .filter((p) => p.time >= 0)
+                    .map((p) => ({ timeSec: p.time, bt: p.bt }));
+                if (series.length === 0 || series[series.length - 1].bt !== bt) {
+                    const t = series.length > 0 ? series[series.length - 1].timeSec + 0.5 : elapsed;
+                    series.push({ timeSec: t, bt });
+                }
+                const onset = detectChargeOnset(series, {
+                    minDropC: Math.max(2, AUTO_DROP_DROP_C * 0.4),
+                });
+                onAutoDrop(
+                    onset != null ? { timeSec: Math.max(0, onset.timeSec), bt: onset.bt } : { timeSec: elapsed, bt },
+                );
             }
         }
     }, [phase, bt, elapsed, onAutoDrop]);

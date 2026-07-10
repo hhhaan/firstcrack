@@ -187,7 +187,8 @@ export const RoastTempChart: React.FC<Props> = ({
         const axisNameStyle = { color: colors.axisLabel };
         const rightYAxisLabel = { ...axisLabelStyle, margin: 4 };
 
-        const unitLabel = temperatureUnit === 'C' ? '℃' : '℉';
+        // formatTemp와 동일: °+C/F (℃/℉ 단일 글리프는 monospace에서 깨짐)
+        const unitLabel = temperatureUnit === 'C' ? '°C' : '°F';
         const rorUnit = temperatureUnit === 'C' ? '℃/min' : '℉/min';
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -240,30 +241,14 @@ export const RoastTempChart: React.FC<Props> = ({
         const xMin = xs[0] ?? 0;
         const xMax = xs[xs.length - 1] ?? 1200;
 
-        // Charge / NOW: 세로 markLine (가이드) — 항상
+        // Charge: eventMarkers 경유 → eventMarkerStyle(point|line)과 동일 처리
+        // NOW: 세로 markLine 가이드 (항상)
         // 이벤트 / TP: eventMarkerStyle 에 따라 line | point
         const usePointMarkers = eventMarkerStyle === 'point';
         const guideMarkLines: object[] = [];
         const controlGuideMarkLines: object[] = [];
-        // Charge 라인은 실제 charge 이후에만 (pre-charge 구간에서는 숨김)
+        // Control chart 전용: charge 기준 t=0 무음 가이드 (라벨 없음)
         if (charged && xMin <= 0 && xMax >= 0) {
-            guideMarkLines.push({
-                xAxis: 0,
-                lineStyle: {
-                    color: colors.phaseLines,
-                    width: 1.5,
-                    type: 'solid' as const,
-                    opacity: 1,
-                },
-                label: {
-                    show: true,
-                    position: 'insideEndTop' as const,
-                    formatter: 'Charge',
-                    color: colors.axisLabel,
-                    fontSize: 10,
-                    fontWeight: 600,
-                },
-            });
             controlGuideMarkLines.push({
                 xAxis: 0,
                 lineStyle: {
@@ -275,7 +260,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 label: { show: false },
             });
         }
-        if (Number.isFinite(currentTimeSec) && currentTimeSec >= xMin && currentTimeSec <= xMax) {
+        if (charged && Number.isFinite(currentTimeSec) && currentTimeSec >= xMin && currentTimeSec <= xMax) {
             guideMarkLines.push({
                 xAxis: currentTimeSec,
                 lineStyle: {
@@ -306,6 +291,10 @@ export const RoastTempChart: React.FC<Props> = ({
         }
 
         // ── line style: 세로 markLine + start 라벨 ──────────────────────────
+        // Charge는 t=0 고정 → 시간 생략 (event + temp만)
+        const eventLabelText = (event: string, timeStr: string, temp: string) =>
+            event === 'Charge' ? `${event} ${temp}` : `${event} ${timeStr} ${temp}`;
+
         const eventMarkLines = eventMarkers.map((m) => ({
             xAxis: m.timeSec,
             lineStyle: {
@@ -317,7 +306,7 @@ export const RoastTempChart: React.FC<Props> = ({
             label: {
                 show: true,
                 position: 'start' as const,
-                formatter: `${m.event}  ${m.timeStr}  ${m.temp}`,
+                formatter: eventLabelText(m.event, m.timeStr, m.temp),
                 color: m.color,
                 fontSize: 11,
                 fontWeight: 700,
@@ -335,7 +324,7 @@ export const RoastTempChart: React.FC<Props> = ({
             label: {
                 show: true,
                 position: 'start' as const,
-                formatter: `TP  ${fmtSec(tp.timeSec)}  ${toDisplayTemp(tp.temp, temperatureUnit).toFixed(1)}${unitLabel}`,
+                formatter: `TP ${fmtSec(tp.timeSec)} ${toDisplayTemp(tp.temp, temperatureUnit).toFixed(1)}${unitLabel}`,
                 color: colors.tp,
                 fontSize: 11,
                 fontWeight: 700,
@@ -343,11 +332,11 @@ export const RoastTempChart: React.FC<Props> = ({
         }));
 
         // ── point style: 작은 점 + 텍스트만 (박스/배경 없음) ────────────────
-        const buildPointLabel = (color: string, title: string, timeStr: string, tempStr: string) => ({
+        const buildPointLabel = (color: string, text: string) => ({
             show: true,
             position: 'top' as const,
             distance: 5,
-            formatter: `${title}  ${timeStr}  ${tempStr}`,
+            formatter: text,
             fontSize: 10,
             fontWeight: 600 as const,
             fontFamily: 'monospace',
@@ -363,6 +352,7 @@ export const RoastTempChart: React.FC<Props> = ({
                       .map((m) => {
                           const y = nearestBtAt(xs, btActual, m.timeSec);
                           if (y == null) return null;
+                          const tempStr = m.temp || `${y.toFixed(1)}${unitLabel}`;
                           return {
                               name: m.event,
                               coord: [m.timeSec, y] as [number, number],
@@ -373,12 +363,7 @@ export const RoastTempChart: React.FC<Props> = ({
                                   borderColor: colors.markerLabelColor,
                                   borderWidth: 1,
                               },
-                              label: buildPointLabel(
-                                  m.color,
-                                  m.event,
-                                  m.timeStr,
-                                  m.temp || `${y.toFixed(1)}${unitLabel}`,
-                              ),
+                              label: buildPointLabel(m.color, eventLabelText(m.event, m.timeStr, tempStr)),
                           };
                       })
                       .filter(Boolean),
@@ -395,7 +380,7 @@ export const RoastTempChart: React.FC<Props> = ({
                               borderColor: colors.markerLabelColor,
                               borderWidth: 1,
                           },
-                          label: buildPointLabel(colors.tp, 'TP', fmtSec(tp.timeSec), tempStr),
+                          label: buildPointLabel(colors.tp, `TP ${fmtSec(tp.timeSec)} ${tempStr}`),
                       };
                   }),
               ]
@@ -918,6 +903,8 @@ export const RoastTempChart: React.FC<Props> = ({
             if (mx == null) return;
             const yMid = (chart.convertToPixel({ yAxisIndex: 0 }, 150) as number) ?? 200;
             for (const marker of eventMarkers) {
+                // Charge는 시간 원점(t=0) — 드래그로 옮기지 않음
+                if (marker.event === 'Charge') continue;
                 const pixel = chart.convertToPixel({ xAxisIndex: 0 }, [marker.timeSec, yMid]);
                 if (pixel == null) continue;
                 const px = Array.isArray(pixel) ? pixel[0] : pixel;

@@ -96,6 +96,7 @@
     --color-palette-lavender: #818cf8;
 
     /* Event marker colors (light) */
+    --color-event-charge: #ea580c;
     --color-event-yellow: #d97706;
     --color-event-fc-start: #2563eb;
     --color-event-fc-end: #7c3aed;
@@ -182,6 +183,7 @@ html.dark {
     --color-palette-lavender: #a6b0ff;
 
     /* Event marker colors (dark) */
+    --color-event-charge: #fb923c;
     --color-event-yellow: #ffff54;
     --color-event-fc-start: #44bffc;
     --color-event-fc-end: #756afc;

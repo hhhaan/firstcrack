@@ -28,7 +28,7 @@ export interface UseRoastLifecycleParams {
     setLivePoints: (points: LiveRoastPoint[]) => void;
     setZoomRange: (range: { start: number; end: number } | null) => void;
     setHoveredChartIndex: (index: number | null) => void;
-    triggerChargeRef: React.RefObject<(bt?: number | null) => void>;
+    triggerChargeRef: React.RefObject<(bt?: number | null, chargeTimeMs?: number) => void>;
     roastStartTimeRef: React.MutableRefObject<number>;
 }
 

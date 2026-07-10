@@ -1,5 +1,7 @@
 // model
 
+export type { ChargeOnset, ChargeSample } from './lib/chargeOnset';
+export { detectChargeOnset } from './lib/chargeOnset';
 export type { PhaseSegment } from './lib/phases';
 export { computePhaseSegments } from './lib/phases';
 // lib

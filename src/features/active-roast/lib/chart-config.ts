@@ -93,6 +93,7 @@ export const getResolvedChartColors = () => {
 /** Resolve a single event marker color to a raw hex/rgba value (for ECharts canvas) */
 export const getResolvedEventColor = (event: string): string => {
     const varMap: Record<string, string> = {
+        Charge: '--color-event-charge',
         Yellow: '--color-event-yellow',
         'FC Start': '--color-event-fc-start',
         'FC End': '--color-event-fc-end',
@@ -133,6 +134,7 @@ export const CONTROL_COLORS = {
 } as const;
 
 export const EVENT_MARKER_COLORS: Record<string, string> = {
+    Charge: 'var(--color-event-charge)',
     Yellow: 'var(--color-event-yellow)',
     'FC Start': 'var(--color-event-fc-start)',
     'FC End': 'var(--color-event-fc-end)',

@@ -159,7 +159,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // 라이프사이클과 하위 훅 사이 순환 의존성을 refs로 분리
     const resetAutoDetectionRef = useRef<() => void>(() => {});
     const disableAutoChargeRef = useRef<() => void>(() => {});
-    const triggerChargeRef = useRef<(bt?: number | null) => void>(() => {});
+    const triggerChargeRef = useRef<(bt?: number | null, chargeTimeMs?: number) => void>(() => {});
 
     const lifecycle = useRoastLifecycle({
         phase,
