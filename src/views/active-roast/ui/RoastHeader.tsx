@@ -115,12 +115,6 @@ export const RoastHeader = ({
         else localStorage.removeItem('fc_default_bean_id');
     };
 
-    // const statusText = (() => {
-    //     if (roastEnded) return 'Roast Complete';
-    //     if (!sidecarConnected) return charged ? 'Mock — Roast in Progress' : 'Disconnected';
-    //     return charged ? 'Live — Roast in Progress' : 'Machine Connected · Ready to Roast';
-    // })();
-
     const selectedBean = beans.find((b) => b.id === selectedBeanId);
     const beanSecondary = joinDisplay([selectedBean?.farm, selectedBean?.variety, selectedBean?.process]);
     const defaultProfileId = userProfile?.default_roast_profile_id;
@@ -135,12 +129,6 @@ export const RoastHeader = ({
     return (
         <div className="flex items-end justify-between">
             <div>
-                {/* <div className="flex items-center gap-2.5 mb-1.5">
-                    <div className="w-2 h-2 rounded-full" style={dotStyle} />
-                    <span className="text-xs font-normal tracking-[0.5px] uppercase" style={{ color: statusColor }}>
-                        {statusText}
-                    </span>
-                </div> */}
                 {!sidecarConnected && sidecarError && (
                     <p className="text-xs text-red-400 mb-1.5 max-w-xs">{sidecarError}</p>
                 )}

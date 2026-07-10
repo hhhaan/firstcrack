@@ -10,10 +10,19 @@ export interface PhaseSegment {
     color: string;
 }
 
-const PHASE_FILL_COLORS: Record<string, string> = {
-    Drying: 'rgba(234,179,8,0.22)',
-    Maillard: 'rgba(132,204,22,0.22)',
-    Development: 'rgba(249,115,22,0.22)',
+/** CSS phase fill tokens — resolved at call time for light/dark theme support. */
+const PHASE_FILL_CSS_VARS: Record<string, { varName: string; fallback: string }> = {
+    Drying: { varName: '--color-phase-drying-fill', fallback: 'rgba(212,160,23,0.22)' },
+    Maillard: { varName: '--color-phase-maillard-fill', fallback: 'rgba(25,118,210,0.2)' },
+    Development: { varName: '--color-phase-development-fill', fallback: 'rgba(92,79,212,0.2)' },
+};
+
+const resolvePhaseFill = (name: string): string => {
+    const entry = PHASE_FILL_CSS_VARS[name];
+    if (!entry) return 'rgba(0,0,0,0.1)';
+    if (typeof document === 'undefined') return entry.fallback;
+    const val = getComputedStyle(document.documentElement).getPropertyValue(entry.varName).trim();
+    return val || entry.fallback;
 };
 
 /**
@@ -49,7 +58,7 @@ export const computePhaseSegments = (logEntries: LogEntry[], elapsed: number, ch
                 endSec: end,
                 durationSec: dur,
                 pct: Math.round((dur / elapsed) * 100),
-                color: PHASE_FILL_COLORS[b.name],
+                color: resolvePhaseFill(b.name),
             };
         });
 };

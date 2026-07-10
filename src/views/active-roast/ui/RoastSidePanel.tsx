@@ -14,12 +14,17 @@ interface RoastSidePanelProps {
     displayRoR: string;
     timeStr: string;
     unit: TemperatureUnit;
+    /** machine lifecycle phase (preheating/standby/roasting/ended) — control buttons */
     phase: string;
+    /** roast chemistry phase display name (Drying/Maillard/Development/…) */
+    roastPhaseName: string;
+    roastPhaseColor: string;
     charged: boolean;
     roastEnded: boolean;
     deltaBT: string | null;
     deltaET: string | null;
     dtrPct: number | null;
+    devTimeStr: string;
     logEntries: LogEntry[];
     pressedButtons: Set<string>;
     roastLogDisplayEntries: RoastLogDisplayEntry[];
@@ -41,11 +46,14 @@ export const RoastSidePanel = ({
     timeStr,
     unit,
     phase,
+    roastPhaseName,
+    roastPhaseColor,
     charged,
     roastEnded,
     deltaBT,
     deltaET,
     dtrPct,
+    devTimeStr,
     logEntries,
     pressedButtons,
     roastLogDisplayEntries,
@@ -128,11 +136,27 @@ export const RoastSidePanel = ({
                 {timeStr}
             </div>
         </div>
-        {/* DTR */}
+        {/* Phase */}
         <div className="flex items-center justify-between border-t border-border-subtle pt-3">
+            <span className="text-xs text-muted font-semibold uppercase">Phase</span>
+            <span
+                className="font-mono text-lg font-medium leading-tight tracking-tight"
+                style={{ color: roastPhaseColor }}
+            >
+                {roastPhaseName}
+            </span>
+        </div>
+        {/* DTR + Dev */}
+        <div className="flex items-center justify-between">
             <span className="text-xs text-muted font-semibold uppercase">DTR</span>
             <span className="font-mono text-2xl font-medium leading-tight" style={{ color: PHASE_COLORS.development }}>
                 {dtrPct != null ? `${dtrPct}%` : '—'}
+            </span>
+        </div>
+        <div className="flex items-center justify-between">
+            <span className="text-xs text-muted font-semibold uppercase">Dev</span>
+            <span className="font-mono text-xl font-medium leading-tight" style={{ color: PHASE_COLORS.development }}>
+                {devTimeStr ?? '—'}
             </span>
         </div>
 

@@ -13,15 +13,12 @@ import {
     CONTROL_GRID_TOP_WITH_PHASE,
     getResolvedChartColors,
     PHASE_BAR_BOTTOM,
-    PHASE_BAR_DURATION_COLOR,
     PHASE_BAR_FONT_FAMILY,
     PHASE_BAR_FONT_SIZE,
     PHASE_BAR_FONT_SIZE_NARROW,
     PHASE_BAR_FONT_WEIGHT,
     PHASE_BAR_HEIGHT,
-    PHASE_BAR_NAME_COLOR,
     PHASE_BAR_NARROW_THRESHOLD,
-    PHASE_BAR_STROKE,
     PHASE_BAR_STROKE_WIDTH,
     PHASE_BAR_TEXT_INSET,
     PHASE_BAR_WIDE_THRESHOLD,
@@ -64,6 +61,8 @@ interface Props {
     etActual: (number | null)[];
     rorActual: (number | null)[];
     currentTimeSec: number;
+    /** Charge 이후일 때만 t=0 Charge 가이드 라인 표시 */
+    charged?: boolean;
     eventMarkers: RoastEventMarker[];
     turningPoints?: TurningPoint[];
     temperatureUnit?: TemperatureUnit;
@@ -94,22 +93,14 @@ const fmtSec = (v: number) => {
     return `${sign}${m}:${String(s).padStart(2, '0')}`;
 };
 
-/** Approximate perceived brightness of a hex color (0–255). */
-const luminance = (hex: string): number => {
-    const c = hex.replace('#', '');
-    if (c.length < 6) return 255;
-    const r = parseInt(c.substring(0, 2), 16);
-    const g = parseInt(c.substring(2, 4), 16);
-    const b = parseInt(c.substring(4, 6), 16);
-    return (r * 299 + g * 587 + b * 114) / 1000;
-};
-
 export const RoastTempChart: React.FC<Props> = ({
     xs,
     btTarget,
     btActual,
     etActual,
     rorActual,
+    currentTimeSec,
+    charged = false,
     eventMarkers,
     turningPoints = [],
     temperatureUnit = 'C',
@@ -213,9 +204,9 @@ export const RoastTempChart: React.FC<Props> = ({
         };
 
         // 커피 로스팅 차트에 최적화된 스무딩 설정
-        // - BT(Bean Temp): 0.42 → 자연스러운 곡선, 노이즈 최소화
-        // - ET(Environment Temp): 0.38 → BT보다 약간 덜 휘게 (안정적 표현)
-        // - RoR(Rate of Rise): 0.28 → 센서 노이즈 많아서 더 부드럽게
+        // - BT(Bean Temp): 0.4 → 실측 느낌 유지, 과한 곡선화 방지
+        // - ET(Environment Temp): 0.35 → BT보다 약간 덜 휘게
+        // - RoR(Rate of Rise): 0.25 → 센서 노이즈 많아서 상대적으로 더 부드럽게
         // - smoothMonotone 'x' → 시간축 방향으로만 스무딩 (역행 방지)
         // - sampling 'lttb' → Largest-Triangle-Three-Buckets 알고리즘 (성능 + 품질)
         const getSmoothConfig = (strength: number = 0.4) => ({
@@ -224,6 +215,11 @@ export const RoastTempChart: React.FC<Props> = ({
             sampling: 'lttb' as const,
         });
 
+        const xMin = xs[0] ?? 0;
+        const xMax = xs[xs.length - 1] ?? 1200;
+
+        // markLine only (TP / events / Charge / NOW) — no markPoint chips
+        // 라벨: 이벤트명 + 시간 + 온도
         const tpMarkLines = turningPoints.map((tp) => ({
             xAxis: tp.timeSec,
             lineStyle: {
@@ -234,55 +230,97 @@ export const RoastTempChart: React.FC<Props> = ({
             },
             label: {
                 show: true,
-                position: 'start',
-                formatter: 'TP',
+                position: 'start' as const,
+                formatter: `TP  ${fmtSec(tp.timeSec)}  ${toDisplayTemp(tp.temp, temperatureUnit).toFixed(1)}${unitLabel}`,
                 color: colors.tp,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 700,
             },
         }));
 
+        // 이벤트도 TP와 동일한 markLine 스타일 (세로선 + start 라벨)
         const eventMarkLines = eventMarkers.map((m) => ({
             xAxis: m.timeSec,
             lineStyle: {
                 color: m.color,
                 width: 1.5,
                 type: 'solid' as const,
-                opacity: 0.8,
+                opacity: 1,
             },
             label: {
                 show: true,
-                position: 'start',
+                position: 'start' as const,
+                formatter: `${m.event}  ${m.timeStr}  ${m.temp}`,
                 color: m.color,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 700,
-                formatter: `${m.event} | ${m.timeStr} | ${m.temp}`,
             },
         }));
 
-        const markPointData = eventMarkers.map((m) => {
-            const isLight = luminance(m.color) > 160;
-            return {
-                name: m.event,
-                value: [m.timeSec, null],
-                xAxis: m.timeSec,
-                symbol: 'circle',
-                symbolSize: 10,
-                itemStyle: { color: m.color, borderColor: CHART_COLORS.markerLabelColor, borderWidth: 2 },
+        // Charge (t=0) + live NOW cursor
+        // control chart용은 라벨 없이 선만 (상단 temp chart 라벨과 중복 방지)
+        const guideMarkLines: object[] = [];
+        const controlGuideMarkLines: object[] = [];
+        // Charge 라인은 실제 charge 이후에만 (pre-charge 구간에서는 숨김)
+        if (charged && xMin <= 0 && xMax >= 0) {
+            guideMarkLines.push({
+                xAxis: 0,
+                lineStyle: {
+                    color: colors.phaseLines,
+                    width: 1.5,
+                    type: 'solid' as const,
+                    opacity: 1,
+                },
                 label: {
                     show: true,
-                    position: 'top',
-                    formatter: `${m.event} | ${m.timeStr} | ${m.temp}`,
+                    position: 'insideEndTop' as const,
+                    formatter: 'Charge',
+                    color: colors.axisLabel,
                     fontSize: 10,
-                    color: isLight ? '#0B0B0B' : CHART_COLORS.markerLabelColor,
-                    backgroundColor: m.color,
-                    padding: [2, 4],
+                    fontWeight: 600,
                 },
-            };
-        });
+            });
+            controlGuideMarkLines.push({
+                xAxis: 0,
+                lineStyle: {
+                    color: colors.phaseLines,
+                    width: 1.5,
+                    type: 'solid' as const,
+                    opacity: 1,
+                },
+                label: { show: false },
+            });
+        }
+        if (Number.isFinite(currentTimeSec) && currentTimeSec >= xMin && currentTimeSec <= xMax) {
+            guideMarkLines.push({
+                xAxis: currentTimeSec,
+                lineStyle: {
+                    color: colors.currentTimeLine,
+                    width: 1.5,
+                    type: 'dashed' as const,
+                    opacity: 1,
+                },
+                label: {
+                    show: true,
+                    position: 'insideEndTop' as const,
+                    formatter: 'NOW',
+                    color: colors.nowLabel,
+                    fontSize: 10,
+                    fontWeight: 700,
+                },
+            });
+            controlGuideMarkLines.push({
+                xAxis: currentTimeSec,
+                lineStyle: {
+                    color: colors.currentTimeLine,
+                    width: 1.5,
+                    type: 'dashed' as const,
+                    opacity: 1,
+                },
+                label: { show: false },
+            });
+        }
 
-        const xMin = xs[0] ?? 0;
-        const xMax = xs[xs.length - 1] ?? 1200;
         const hasRightYAxis = showRoR || !!controlData;
         const rightMargin = hasRightYAxis ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
         const leftMargin = CHART_GRID_LEFT;
@@ -310,16 +348,15 @@ export const RoastTempChart: React.FC<Props> = ({
                 yAxisIndex: 0,
                 z: 2,
                 data: xs.map((x, i) => [x, btActual[i]]),
-                lineStyle: { color: colors.btActual, width: 1.8 },
+                lineStyle: { color: colors.btActual, width: 2 },
                 showSymbol: false,
-                ...getSmoothConfig(0.7),
+                ...getSmoothConfig(0.4),
                 markLine: {
                     silent: false,
-                    symbol: ['none', 'circle'],
-                    symbolSize: [0, 8],
-                    data: [...eventMarkLines, ...tpMarkLines],
+                    symbol: ['none', 'none'],
+                    symbolSize: 0,
+                    data: [...guideMarkLines, ...eventMarkLines, ...tpMarkLines],
                 },
-                markPoint: { data: markPointData },
             },
             showET && {
                 name: 'ET Actual',
@@ -328,9 +365,9 @@ export const RoastTempChart: React.FC<Props> = ({
                 yAxisIndex: 0,
                 z: 2,
                 data: xs.map((x, i) => [x, etActual[i]]),
-                lineStyle: { color: colors.etActual, width: 1.5 },
+                lineStyle: { color: colors.etActual, width: 1.6 },
                 showSymbol: false,
-                ...getSmoothConfig(0.65),
+                ...getSmoothConfig(0.35),
             },
             showRoR && {
                 name: 'RoR',
@@ -338,9 +375,9 @@ export const RoastTempChart: React.FC<Props> = ({
                 xAxisIndex: 0,
                 yAxisIndex: 1,
                 data: xs.map((x, i) => [x, rorActual[i]]),
-                lineStyle: { color: colors.rorActual, width: 1.2 },
+                lineStyle: { color: colors.rorActual, width: 1.3 },
                 showSymbol: false,
-                ...getSmoothConfig(0.28),
+                ...getSmoothConfig(0.25),
             },
             showRoR &&
                 showRoRET && {
@@ -351,7 +388,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
                     lineStyle: { color: colors.etActual, width: 1.0, type: 'dashed' },
                     showSymbol: false,
-                    ...getSmoothConfig(0.28),
+                    ...getSmoothConfig(0.25),
                 },
         ].filter(Boolean) as object[];
 
@@ -383,13 +420,17 @@ export const RoastTempChart: React.FC<Props> = ({
                 const durS = String(durSec % 60).padStart(2, '0');
                 const durLabel = `${durMin}:${durS}  ${pct}%`;
 
-                // 단계별 배경 박스 생성
+                // 단계별 배경 박스 생성 (phase bar 텍스트 색은 theme-resolved)
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const children: any[] = [
                     {
                         type: 'rect',
                         shape: { x: startPx, y, width, height: h },
-                        style: { fill: color, stroke: PHASE_BAR_STROKE, lineWidth: PHASE_BAR_STROKE_WIDTH },
+                        style: {
+                            fill: color,
+                            stroke: colors.phaseBarStroke,
+                            lineWidth: PHASE_BAR_STROKE_WIDTH,
+                        },
                         silent: true,
                     },
                 ];
@@ -408,7 +449,7 @@ export const RoastTempChart: React.FC<Props> = ({
                             fontSize: PHASE_BAR_FONT_SIZE,
                             fontFamily: PHASE_BAR_FONT_FAMILY,
                             fontWeight: PHASE_BAR_FONT_WEIGHT,
-                            fill: PHASE_BAR_NAME_COLOR,
+                            fill: colors.phaseBarName,
                             textVerticalAlign: 'middle',
                         },
                         silent: true,
@@ -421,7 +462,7 @@ export const RoastTempChart: React.FC<Props> = ({
                             y: y + h / 2,
                             fontSize: PHASE_BAR_FONT_SIZE,
                             fontFamily: PHASE_BAR_FONT_FAMILY,
-                            fill: PHASE_BAR_DURATION_COLOR,
+                            fill: colors.phaseBarDuration,
                             textAlign: 'right',
                             textVerticalAlign: 'middle',
                         },
@@ -436,7 +477,7 @@ export const RoastTempChart: React.FC<Props> = ({
                             y: y + h / 2,
                             fontSize: PHASE_BAR_FONT_SIZE_NARROW,
                             fontFamily: PHASE_BAR_FONT_FAMILY,
-                            fill: PHASE_BAR_DURATION_COLOR,
+                            fill: colors.phaseBarDuration,
                             textAlign: 'center',
                             textVerticalAlign: 'middle',
                         },
@@ -687,10 +728,11 @@ export const RoastTempChart: React.FC<Props> = ({
                 yAxis: yAxes as EChartsOption['yAxis'],
                 tooltip: {
                     trigger: 'axis',
+                    backgroundColor: colors.tooltipBg,
                     borderWidth: 1,
-                    borderColor: 'rgba(0,0,0,0.08)',
+                    borderColor: colors.tooltipBorder,
                     extraCssText: 'box-shadow: none;',
-                    axisPointer: { type: 'line', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
+                    axisPointer: { type: 'line', lineStyle: { color: colors.axisPointerLine, width: 1 } },
                     formatter: formatAxisTooltip,
                 },
                 series: [
@@ -705,6 +747,16 @@ export const RoastTempChart: React.FC<Props> = ({
                         lineStyle: { color: colors.controlDrum, width: 1.5 },
                         showSymbol: false,
                         smooth: 0.3,
+                        // NOW / Charge 선을 control grid에도 동일 x로 표시 (라벨은 temp chart만)
+                        markLine:
+                            controlGuideMarkLines.length > 0
+                                ? {
+                                      silent: true,
+                                      symbol: ['none', 'none'],
+                                      symbolSize: 0,
+                                      data: controlGuideMarkLines,
+                                  }
+                                : undefined,
                     },
                     {
                         name: 'Heat',
@@ -758,10 +810,11 @@ export const RoastTempChart: React.FC<Props> = ({
             ],
             tooltip: {
                 trigger: 'axis',
+                backgroundColor: colors.tooltipBg,
                 borderWidth: 1,
-                borderColor: 'rgba(0,0,0,0.08)',
+                borderColor: colors.tooltipBorder,
                 extraCssText: 'box-shadow: none;',
-                axisPointer: { type: 'cross', lineStyle: { color: CHART_COLORS.axisPointerLine, width: 1 } },
+                axisPointer: { type: 'cross', lineStyle: { color: colors.axisPointerLine, width: 1 } },
                 formatter: formatAxisTooltip,
             },
             xAxis: [
@@ -860,6 +913,8 @@ export const RoastTempChart: React.FC<Props> = ({
         btActual,
         etActual,
         rorActual,
+        currentTimeSec,
+        charged,
         eventMarkers,
         turningPoints,
         temperatureUnit,

@@ -17,6 +17,7 @@ import { formatElapsed } from '@shared/lib/format';
 import { sidecar } from '@shared/lib/sidecar';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
+import { useThemeStore } from '@shared/store/theme';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useWeather } from '@views/dashboard/api/useWeather';
@@ -300,10 +301,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // ── 단계 표시 및 파생값 ──────────────────────────────────────
     const roastPhaseName = getRoastPhaseName(charged, phase, elapsed, logEntries);
     const roastPhaseColor = getRoastPhaseColor(charged, roastPhaseName);
-    const eventMarkers = useMemo(() => buildEventMarkers(logEntries), [logEntries]);
+    const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+    const eventMarkers = useMemo(() => buildEventMarkers(logEntries), [logEntries, resolvedTheme]);
     const phaseSegments = useMemo(
         () => (roastSettings.showPhaseBar ? computePhaseSegments(logEntries, elapsed, charged) : []),
-        [roastSettings.showPhaseBar, logEntries, elapsed, charged],
+        [roastSettings.showPhaseBar, logEntries, elapsed, charged, resolvedTheme],
     );
     const displayRoR = toDisplayRoR(liveData?.ror ?? 0, unit).toFixed(1);
 
@@ -465,6 +467,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         rorYMin={roastSettings.rorYMin}
                         rorYMax={roastSettings.rorYMax}
                         elapsed={elapsed}
+                        charged={charged}
                         eventMarkers={eventMarkers}
                         turningPoints={turningPoints}
                         phaseSegments={phaseSegments}
@@ -481,11 +484,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         timeStr={timeStr}
                         unit={unit}
                         phase={phase}
+                        roastPhaseName={roastPhaseName}
+                        roastPhaseColor={roastPhaseColor}
                         charged={charged}
                         roastEnded={roastEnded}
                         deltaBT={deltaBT}
                         deltaET={deltaET}
                         dtrPct={dtrPct}
+                        devTimeStr={devTimeStr}
                         logEntries={logEntries}
                         pressedButtons={pressedButtons}
                         roastLogDisplayEntries={roastLogDisplayEntries}

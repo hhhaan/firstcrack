@@ -11,10 +11,13 @@ export const PHASE_BAR_BOTTOM = 40;
 export const PHASE_BAR_WIDE_THRESHOLD = 70;
 export const PHASE_BAR_NARROW_THRESHOLD = 30;
 export const PHASE_BAR_TEXT_INSET = 6;
-export const PHASE_BAR_STROKE = 'rgba(0,0,0,0.08)';
+/** @deprecated Prefer getResolvedChartColors().phaseBarStroke — kept for non-canvas fallbacks */
+export const PHASE_BAR_STROKE = 'var(--color-chart-phasebar-stroke)';
 export const PHASE_BAR_STROKE_WIDTH = 0.5;
-export const PHASE_BAR_NAME_COLOR = '#444';
-export const PHASE_BAR_DURATION_COLOR = '#555';
+/** @deprecated Prefer getResolvedChartColors().phaseBarName */
+export const PHASE_BAR_NAME_COLOR = 'var(--color-chart-phasebar-name)';
+/** @deprecated Prefer getResolvedChartColors().phaseBarDuration */
+export const PHASE_BAR_DURATION_COLOR = 'var(--color-chart-phasebar-duration)';
 export const PHASE_BAR_FONT_SIZE = 10;
 export const PHASE_BAR_FONT_SIZE_NARROW = 9;
 export const PHASE_BAR_FONT_FAMILY = 'monospace';
@@ -66,7 +69,14 @@ export const getResolvedChartColors = () => {
         axisLabel: gv('--color-chart-axis-label', '#666'),
         axisPointerLine: gv('--color-chart-axis-pointer', '#64748b'),
         tooltipTimeColor: gv('--color-chart-tooltip-time', '#9ca3af'),
+        tooltipBg: gv('--color-chart-tooltip-bg', '#fff'),
+        tooltipBorder: gv('--color-chart-tooltip-border', 'rgba(0,0,0,0.08)'),
         markerLabelColor: gv('--color-chart-marker-label', '#fff'),
+
+        // Phase bar (canvas — CSS vars do not resolve on canvas)
+        phaseBarStroke: gv('--color-chart-phasebar-stroke', 'rgba(0,0,0,0.08)'),
+        phaseBarName: gv('--color-chart-phasebar-name', '#444'),
+        phaseBarDuration: gv('--color-chart-phasebar-duration', '#555'),
 
         // Control chart colors
         controlDrum: gv('--color-control-drum', '#72EBBC'),

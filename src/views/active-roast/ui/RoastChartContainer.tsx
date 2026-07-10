@@ -37,6 +37,7 @@ interface RoastChartContainerProps {
     rorYMin: number;
     rorYMax: number;
     elapsed: number;
+    charged: boolean;
     eventMarkers: RoastEventMarker[];
     turningPoints: { timeSec: number; temp: number }[];
     phaseSegments: PhaseSegment[];
@@ -73,6 +74,7 @@ export const RoastChartContainer = ({
     rorYMin,
     rorYMax,
     elapsed,
+    charged,
     eventMarkers,
     turningPoints,
     phaseSegments,
@@ -117,6 +119,7 @@ export const RoastChartContainer = ({
                 etActual={etActual}
                 rorActual={rorActual}
                 currentTimeSec={elapsed}
+                charged={charged}
                 eventMarkers={eventMarkers}
                 turningPoints={turningPoints}
                 height={mainChartHeight}
