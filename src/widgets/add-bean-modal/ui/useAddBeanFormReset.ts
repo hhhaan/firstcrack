@@ -15,6 +15,7 @@ type Params = {
     setTab: (tab: BeanModalTab) => void;
     setSelectedBeanId: (id: string | null) => void;
     setRestockAmount: (v: string) => void;
+    setRestockCost: (v: string) => void;
     setExpectedAmount: (v: string) => void;
     setExpectedNote: (v: string) => void;
     setAdjustType: (v: 'adjustment' | 'write_off') => void;
@@ -35,6 +36,7 @@ export const useAddBeanFormReset = ({
     setTab,
     setSelectedBeanId,
     setRestockAmount,
+    setRestockCost,
     setExpectedAmount,
     setExpectedNote,
     setAdjustType,
@@ -49,6 +51,7 @@ export const useAddBeanFormReset = ({
         setTab(initialTab);
         setSelectedBeanId(initialBeanId);
         setRestockAmount('');
+        setRestockCost('');
         setExpectedAmount('');
         setExpectedNote('');
         setAdjustType('adjustment');
@@ -85,6 +88,7 @@ export const useAddBeanFormReset = ({
         setTab,
         setSelectedBeanId,
         setRestockAmount,
+        setRestockCost,
         setExpectedAmount,
         setExpectedNote,
         setAdjustType,

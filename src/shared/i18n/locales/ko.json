@@ -735,7 +735,7 @@
         "restockTitle": "기존 생두 재입고",
         "expectedTitle": "입고 예정",
         "adjustTitle": "재고 조정",
-        "newTab": "새 로트",
+        "newTab": "새 생두",
         "restockTab": "재입고",
         "expectedTab": "입고 예정",
         "adjustTab": "조정",
@@ -788,6 +788,7 @@
         },
         "restock": {
             "weight": "추가 중량 (kg)",
+            "cost": "원가 (원/kg)",
             "clear": "초기화"
         }
     },
@@ -872,6 +873,7 @@
             "expectedInbound": "입고 예정",
             "roast": "로스팅",
             "adjustment": "조정",
+            "writeOff": "폐기 처리",
             "showMore": "더보기",
             "showLess": "접기"
         }

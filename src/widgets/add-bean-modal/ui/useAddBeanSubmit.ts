@@ -10,6 +10,7 @@ interface UseAddBeanSubmitParams {
     tab: BeanModalTab;
     selectedBeanId: string | null;
     restockAmount: string;
+    restockCost: string;
     expectedAmount: string;
     expectedNote: string;
     adjustType: 'adjustment' | 'write_off';
@@ -27,6 +28,7 @@ export const useAddBeanSubmit = ({
     tab,
     selectedBeanId,
     restockAmount,
+    restockCost,
     expectedAmount,
     expectedNote,
     adjustType,
@@ -97,6 +99,16 @@ export const useAddBeanSubmit = ({
                     delta_grams: amount,
                     event_type: 'purchase',
                 });
+                if (restockCost && currentBean) {
+                    const newCost = parseFloat(restockCost);
+                    if (Number.isFinite(newCost) && newCost !== currentBean.cost_per_kg) {
+                        // beanApi.update does a partial (PATCH) update — only changed fields needed.
+                        await updateBean.mutateAsync({
+                            id: selectedBeanId,
+                            cost_per_kg: newCost,
+                        });
+                    }
+                }
                 onSuccess?.(currentBean ?? null);
             } else if (tab === 'expected' && selectedBeanId && expectedAmount) {
                 const amount = Math.round(parseFloat(expectedAmount) * 1000);

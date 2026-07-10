@@ -16,7 +16,7 @@ import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
 import { BeanList } from '@widgets/bean-list/ui/BeanList';
 import { BlendList } from '@widgets/blend-list/ui/BlendList';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
@@ -51,9 +51,15 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
 
     const selected = beans.find((b) => b.id === selectedId) ?? beans[0] ?? null;
 
-    const affectedBlendNames = selected
-        ? blends.filter((blend) => blend.blend_components.some((c) => c.bean_id === selected.id)).map((b) => b.name)
-        : [];
+    const affectedBlendNames = useMemo(
+        () =>
+            selected
+                ? blends
+                      .filter((blend) => blend.blend_components.some((c) => c.bean_id === selected.id))
+                      .map((b) => b.name)
+                : [],
+        [selected, blends],
+    );
 
     const emptyState = (
         <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
@@ -63,7 +69,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 {t('beans.empty.description')}
             </div>
             <button
-                onClick={() => setIsAddModalOpen(true)}
+                onClick={() => openModal('new')}
                 className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
             >
                 <Plus size={14} strokeWidth={2} />
@@ -121,7 +127,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
             <PageHeader
                 title={t('beans.title')}
                 actions={
-                    <PillButton onClick={() => (tab === 'blend' ? setIsBlendAddOpen(true) : setIsAddModalOpen(true))}>
+                    <PillButton onClick={() => (tab === 'blend' ? setIsBlendAddOpen(true) : openModal('new'))}>
                         <Plus size={15} strokeWidth={2.5} />
                         {tab === 'blend' ? t('beans.blend.addBlend') : t('beans.addBeanLot')}
                     </PillButton>
@@ -154,7 +160,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 <>
                     <BlendList
                         onAddOpen={() => setIsBlendAddOpen(true)}
-                        onEditOpen={(blend: any) => setEditingBlend(blend)}
+                        onEditOpen={(blend: BlendWithComponents) => setEditingBlend(blend)}
                     />
                     <AddBlendModal
                         key={editingBlend?.id ?? 'new'}

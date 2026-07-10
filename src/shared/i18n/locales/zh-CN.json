@@ -789,6 +789,7 @@
         },
         "restock": {
             "weight": "添加重量 (kg)",
+            "cost": "成本 (韩元/kg)",
             "clear": "清除"
         }
     },
@@ -821,6 +822,7 @@
             "expectedInbound": "预计入库",
             "roast": "烘焙",
             "adjustment": "调整",
+            "writeOff": "报废处理",
             "showMore": "查看更多",
             "showLess": "收起"
         }

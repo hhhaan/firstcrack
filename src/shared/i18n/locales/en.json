@@ -789,6 +789,7 @@
         },
         "restock": {
             "weight": "Weight to Add (kg)",
+            "cost": "Cost (KRW/kg)",
             "clear": "Clear"
         }
     },
@@ -821,6 +822,7 @@
             "expectedInbound": "Expected Inbound",
             "roast": "Roast",
             "adjustment": "Adjustment",
+            "writeOff": "Write-off",
             "showMore": "Show more",
             "showLess": "Show less"
         }

@@ -788,6 +788,7 @@
         },
         "restock": {
             "weight": "追加数量 (kg)",
+            "cost": "原価 (ウォン/kg)",
             "clear": "クリア"
         }
     },
@@ -820,6 +821,7 @@
             "expectedInbound": "入荷予定",
             "roast": "ロースト",
             "adjustment": "調整",
+            "writeOff": "廃棄処理",
             "showMore": "もっと見る",
             "showLess": "折りたたむ"
         }

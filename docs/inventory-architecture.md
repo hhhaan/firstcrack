@@ -1,7 +1,7 @@
 # Inventory Architecture — 진단 & 전환 보고서
 
-> 최종 검증: 2026-06-19
-> 상태: 이벤트 소싱 기반 단일 시스템으로 전환 완료 (dead code 정리 남음)
+> 최종 검증: 2026-07-10
+> 상태: 이벤트 소싱 기반 단일 시스템으로 전환 완료 (dead code 정리 완료)
 
 ---
 
@@ -117,54 +117,37 @@ BeanList와 Dashboard에서 N+1 쿼리를 방지한다.
 
 ## 3. 잔존 문제 (Remaining Issues)
 
-### 3.1 `bean_inventory_logs` — 완전한 dead code
+> **정리 완료**: `bean_inventory_logs` 테이블 + `beans.stock_grams` 컬럼은
+> 마이그레이션 `20260619000001`에서 DB 제거 완료, 코드 및 타입 잔재 없음.
 
-디렉토리와 모든 코드 (`entities/bean-inventory/`)가 그대로 존재하지만,
-`src/` 내 그 어떤 파일도 `from '@entities/bean-inventory'`를 import하지 않는다.
-
-- `entities/bean-inventory/api.ts` — list/create/update/delete
-- `entities/bean-inventory/queries.ts` — useBeanInventoryLogs, useCreateBeanInventoryLog, useUpdateBeanInventoryLog, useDeleteBeanInventoryLog
-- `entities/bean-inventory/index.ts` — barrel export
-
-**→ 제거 대상**
-
-### 3.2 `beans.stock_grams` 컬럼 — dead column
-
-- DB와 `database.types.ts` 타입에만 존재
-- **쓰기**: `useAddBeanSubmit.ts:61` — Bean 생성 시 `stock_grams: 0` 하드코딩 (유일한 쓰기 위치)
-- **읽기**: 모든 UI에서 `effectiveGrams`로 대체됨 (0건)
-- Bean 편집 시에도 더 이상 `stock_grams`를 update payload에 포함하지 않음
-
-**→ DB 마이그레이션으로 제거 대상**
-
-### 3.3 Adjustment(조정) 기능 미구현
+### 3.1 Adjustment(조정) 기능 미구현
 
 - DB CHECK 제약에 `event_type IN ('purchase', 'roast', 'adjustment')`로 정의되어 있으나 (`migrations/20260611065045_add_blends_and_stock_tables.sql:40`)
 - adjustment를 생성하는 UI / API 호출 없음
 
 **→ 신규 기능 구현 필요**
 
-### 3.4 Write-off(폐기) 이벤트 타입 없음
+### 3.2 Write-off(폐기) 이벤트 타입 없음
 
 - DB CHECK 제약에 `'write_off'` 미포함
 - 실무에서 생두 폐기/손실을 기록할 방법 없음
 
 **→ 마이그레이션 + UI 구현 필요**
 
-### 3.5 원자성 없는 차감 (미해결)
+### 3.3 원자성 없는 차감 (미해결)
 
 블렌드 로스팅 완료 시 복수의 `beanStockEventApi.insert()`가 `Promise.all`로 실행됨.
 일부 성공 후 일부 실패하면 재고가 부분 차감된 채로 남는다.
 DB 레벨 트랜잭션 없이는 완전 해결 불가 — Supabase PostgreSQL 함수(RPC)로 단일 트랜잭션 처리 필요.
 
-### 3.6 멱등성 없는 차감 (미해결)
+### 3.4 멱등성 없는 차감 (미해결)
 
 로스팅 저장 실패 후 재시도 시 `beanStockEventApi.insert()`가 중복 실행될 수 있다.
 `reference_id`(roast_session_id)는 기록되나 DB unique constraint 없음 → 이중 차감 가능.
 
 **→ `bean_stock_events(reference_id)` unique constraint 추가 필요**
 
-### 3.7 블렌드 ratio 반올림 오차
+### 3.5 블렌드 ratio 반올림 오차
 
 컴포넌트별 `Math.round(chargeGrams * ratio_pct / 100)` 독립 반올림.
 합산이 `chargeGrams`와 불일치할 수 있어 이벤트마다 수g 오차 누적.
@@ -234,15 +217,15 @@ completed_sessions = COUNT(roast_sessions WHERE plan_batch_id = batch.id)
 
 ## 5. 정리 로드맵
 
-| 순서 | 작업 | 파일/대상 | 영향 |
-|---|---|---|---|
-| P0-1 | `bean_inventory_logs` 코드 제거 | `entities/bean-inventory/` 전체 + `database.types.ts` aliases | dead code 삭제 |
-| P0-2 | `bean_inventory_logs` 테이블 제거 | DB 마이그레이션 | DB 클린업 |
-| P1 | `beans.stock_grams` 컬럼 제거 | DB 마이그레이션 + 타입 재생성 | DB 스키마 정리 |
-| P2 | `bean_stock_events(reference_id)` unique constraint | DB 마이그레이션 | 이중 차감 방지 |
-| P3 | 블렌드 차감 원자성 | Supabase RPC (PostgreSQL 함수) | 부분 차감 방지 |
-| P4 | Adjustment UI 구현 | 신규 feature/widget | 재고 조정 기능 |
-| P5 | Write-off 이벤트 타입 추가 + UI | DB 마이그레이션 + feature | 폐기 기록 |
+| 순서 | 작업 | 파일/대상 | 영향 | 상태 |
+|---|---|---|---|---|
+| P0-1 | `bean_inventory_logs` 코드 제거 | `entities/bean-inventory/` 전체 + `database.types.ts` aliases | dead code 삭제 | ✅ 완료 |
+| P0-2 | `bean_inventory_logs` 테이블 제거 | DB 마이그레이션 | DB 클린업 | ✅ 완료 |
+| P1 | `beans.stock_grams` 컬럼 제거 | DB 마이그레이션 + 타입 재생성 | DB 스키마 정리 | ✅ 완료 |
+| P2 | `bean_stock_events(reference_id)` unique constraint | DB 마이그레이션 | 이중 차감 방지 | ⏳ 미해결 |
+| P3 | 블렌드 차감 원자성 | Supabase RPC (PostgreSQL 함수) | 부분 차감 방지 | ⏳ 미해결 |
+| P4 | Adjustment UI 구현 | 신규 feature/widget | 재고 조정 기능 | ⏳ 미해결 |
+| P5 | Write-off 이벤트 타입 추가 + UI | DB 마이그레이션 + feature | 폐기 기록 | ⏳ 미해결 |
 
 ---
 
@@ -255,7 +238,7 @@ completed_sessions = COUNT(roast_sessions WHERE plan_batch_id = batch.id)
 | **entities** | `bean/lib.ts` | `getStatus()` (effectiveGrams 기반) + `statusConfig`, `processColor` |
 | **entities** | `bean/api.ts` | `beans` 테이블 CRUD (stock_grams 제외) |
 | **entities** | `bean/queries.ts` | `useBeans`/`useBean`/`useCreateBean`/`useUpdateBean`/`useDeleteBean` |
-| **entities** | ~~`bean-inventory/*`~~ | **DEAD CODE** — import하는 곳 없음 |
+
 | **features** | `active-roast/model/` | 로스팅 세션 상태 (차감 트리거) |
 | **widgets** | `add-bean-modal/ui/useAddBeanSubmit.ts` | Bean 생성/편집/재입고 제출 로직 (stock_events 기록) |
 | **widgets** | `bean-list/ui/BeanList.tsx` | Bean 목록 (stockSummaries prop) |
@@ -264,5 +247,5 @@ completed_sessions = COUNT(roast_sessions WHERE plan_batch_id = batch.id)
 | **views** | `bean/index.tsx` | Bean Inventory 페이지 (useBeanStockSummaries) |
 | **views** | `active-roast/ActiveRoast.tsx` | 로스팅 완료 → `beanStockEventApi.insert` 차감 (lines 1064-1116) |
 | **views** | `dashboard/useDashboard.ts` | `fetchDashboard()` → `getStockSummariesByUser()` (line 73) |
-| **shared** | `types/database.types.ts` | 모든 DB 타입 (bean_inventory_logs, bean_stock_events, beans, roast_plan_batches) |
+| **shared** | `types/database.types.ts` | 모든 DB 타입 (bean_stock_events, beans, roast_plan_batches) |
 | **DB** | `migrations/20260611065045_add_blends_and_stock_tables.sql` | bean_stock_events 테이블 + 기존 stock_grams → event 마이그레이션 |

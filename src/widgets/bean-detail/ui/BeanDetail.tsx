@@ -6,6 +6,13 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DeleteBeanModal } from './DeleteBeanModal';
 
+const EVENT_TYPE_LABEL_KEY: Record<string, string> = {
+    purchase: 'beanDetail.stockHistory.purchase',
+    expected_inbound: 'beanDetail.stockHistory.expectedInbound',
+    roast: 'beanDetail.stockHistory.roast',
+    write_off: 'beanDetail.stockHistory.writeOff',
+};
+
 interface BeanDetailProps {
     bean: Bean | null;
     isLoading: boolean;
@@ -229,13 +236,10 @@ export const BeanDetail = ({
                                             {ev.delta_grams > 0 ? `+${ev.delta_grams}g` : `${ev.delta_grams}g`}
                                         </span>
                                         <span className="text-gray-400 dark:text-[#e5e5e5] ml-1">
-                                            {ev.event_type === 'purchase'
-                                                ? t('beanDetail.stockHistory.purchase')
-                                                : ev.event_type === 'expected_inbound'
-                                                  ? t('beanDetail.stockHistory.expectedInbound')
-                                                  : ev.event_type === 'roast'
-                                                    ? t('beanDetail.stockHistory.roast')
-                                                    : t('beanDetail.stockHistory.adjustment')}
+                                            {t(
+                                                EVENT_TYPE_LABEL_KEY[ev.event_type] ??
+                                                    'beanDetail.stockHistory.adjustment',
+                                            )}
                                         </span>
                                         {ev.note && (
                                             <span className="text-gray-400 dark:text-[#e5e5e5] ml-1">— {ev.note}</span>

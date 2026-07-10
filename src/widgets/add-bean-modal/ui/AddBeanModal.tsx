@@ -42,6 +42,7 @@ export const AddBeanModal = ({
     const [tab, setTab] = useState<BeanModalTab>(initialTab);
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(initialBeanId);
     const [restockAmount, setRestockAmount] = useState('');
+    const [restockCost, setRestockCost] = useState('');
     const [expectedAmount, setExpectedAmount] = useState('');
     const [expectedNote, setExpectedNote] = useState('');
     const [adjustType, setAdjustType] = useState<'adjustment' | 'write_off'>('adjustment');
@@ -71,6 +72,7 @@ export const AddBeanModal = ({
         tab,
         selectedBeanId,
         restockAmount,
+        restockCost,
         expectedAmount,
         expectedNote,
         adjustType,
@@ -95,6 +97,7 @@ export const AddBeanModal = ({
         setTab,
         setSelectedBeanId,
         setRestockAmount,
+        setRestockCost,
         setExpectedAmount,
         setExpectedNote,
         setAdjustType,
@@ -226,6 +229,8 @@ export const AddBeanModal = ({
                         selectedBeanId={selectedBeanId}
                         restockAmount={restockAmount}
                         onRestockAmountChange={setRestockAmount}
+                        restockCost={restockCost}
+                        onRestockCostChange={setRestockCost}
                     />
                 )}
             </div>

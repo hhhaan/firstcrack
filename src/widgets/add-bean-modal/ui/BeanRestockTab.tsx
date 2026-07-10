@@ -1,4 +1,5 @@
 import { Scale } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NUMERIC_INPUT_PROPS } from '../lib/numeric-input';
 import { inputCls, labelCls } from '../lib/styles';
@@ -6,13 +7,43 @@ import type { BeanPickerProps } from '../lib/types';
 import { BeanSelector } from './BeanSelector';
 import { WarmActionPanel } from './WarmActionPanel';
 
+// ponytail: local helper; extract to numeric-input.ts if 3+ callers need it.
+const sanitizeDecimal = (value: string): string => {
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    const dot = cleaned.indexOf('.');
+    return dot === -1 ? cleaned : cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '');
+};
+
 type Props = BeanPickerProps & {
     restockAmount: string;
     onRestockAmountChange: (amount: string) => void;
+    restockCost: string;
+    onRestockCostChange: (cost: string) => void;
 };
 
-export const BeanRestockTab = ({ selectedBeanId, restockAmount, onRestockAmountChange, ...pickerProps }: Props) => {
+export const BeanRestockTab = ({
+    selectedBeanId,
+    restockAmount,
+    onRestockAmountChange,
+    restockCost,
+    onRestockCostChange,
+    ...pickerProps
+}: Props) => {
     const { t } = useTranslation();
+    const lastFilledBeanId = useRef<string | null | undefined>(undefined);
+
+    // Auto-fill cost from selected bean's cost_per_kg, but only when the bean actually changes.
+    useEffect(() => {
+        if (!selectedBeanId) {
+            onRestockCostChange('');
+            lastFilledBeanId.current = undefined;
+            return;
+        }
+        if (lastFilledBeanId.current === selectedBeanId) return;
+        lastFilledBeanId.current = selectedBeanId;
+        const bean = pickerProps.visibleBeans.find((b) => b.id === selectedBeanId);
+        onRestockCostChange(bean?.cost_per_kg != null ? bean.cost_per_kg.toString() : '');
+    }, [selectedBeanId, pickerProps.visibleBeans, onRestockCostChange]);
 
     return (
         <div className="flex flex-col gap-6">
@@ -32,10 +63,21 @@ export const BeanRestockTab = ({ selectedBeanId, restockAmount, onRestockAmountC
                         className={`${inputCls} text-2xl font-semibold p-4`}
                         placeholder="0"
                         value={restockAmount}
-                        onChange={(e) => onRestockAmountChange(e.target.value.replace(/[^0-9.]/g, ''))}
+                        onChange={(e) => onRestockAmountChange(sanitizeDecimal(e.target.value))}
                     />
                     <div className="text-lg font-medium text-muted">kg</div>
                 </div>
+
+                <label className={`${labelCls} mt-4`}>
+                    <Scale size={14} /> {t('addBeanModal.form.cost')}
+                </label>
+                <input
+                    {...NUMERIC_INPUT_PROPS}
+                    className={inputCls}
+                    placeholder={t('addBeanModal.form.costPlaceholder')}
+                    value={restockCost}
+                    onChange={(e) => onRestockCostChange(sanitizeDecimal(e.target.value))}
+                />
 
                 <div className="flex gap-2 mt-4">
                     {[
