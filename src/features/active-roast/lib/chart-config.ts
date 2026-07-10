@@ -5,9 +5,8 @@ export const CHART_GRID_RIGHT = 8;
 export const CHART_GRID_RIGHT_WITH_ROR = 32;
 export const Y_AXIS_NAME_GAP = 0;
 
-// ── Phase bar dimensions & text style ────────────────────────────────────────
+// ── Phase bar dimensions & text style (temp-grid overlay strip) ──────────────
 export const PHASE_BAR_HEIGHT = 26;
-export const PHASE_BAR_BOTTOM = 40;
 export const PHASE_BAR_WIDE_THRESHOLD = 70;
 export const PHASE_BAR_NARROW_THRESHOLD = 30;
 export const PHASE_BAR_TEXT_INSET = 6;
@@ -33,12 +32,8 @@ export const TEMP_Y_MAX_C = 250;
 export const TEMP_Y_INTERVAL = 20;
 
 // ── Multi-grid layout proportions (controlData mode) ────────────────────────
-export const TEMP_GRID_HEIGHT_WITH_PHASE = '48%';
-export const CONTROL_GRID_TOP_WITH_PHASE = '52%';
-export const PHASE_GRID_TOP = '58%';
 export const TEMP_GRID_HEIGHT = '65%';
 export const CONTROL_GRID_TOP = '68%';
-export const CONTROL_GRID_BOTTOM_GAP = 6;
 export const CONTROL_GRID_BOTTOM = 40;
 
 // ── Single-grid layout (no controlData) ─────────────────────────────────────
