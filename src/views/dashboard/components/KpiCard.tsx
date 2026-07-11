@@ -1,4 +1,4 @@
-import { Badge } from '@shared/ui/Badge';
+import { Badge, type BadgeTone } from '@shared/ui/Badge';
 import type { LucideIcon } from 'lucide-react';
 import { RefreshCw } from 'lucide-react';
 
@@ -16,6 +16,10 @@ export const KpiCard = ({ label, value, change, icon: Icon, onRefresh, refreshin
     const isNegative = change.startsWith('-');
     const isNeutral = change === '';
 
+    let changeTone: BadgeTone = 'neutral';
+    if (isPositive) changeTone = 'good';
+    else if (isNegative) changeTone = 'bad';
+
     return (
         <div className="bg-main-bg rounded-lg px-5 pt-5 pb-4.5 dark:border dark:border-border">
             <div className="flex items-start justify-between mb-3.5">
@@ -23,7 +27,7 @@ export const KpiCard = ({ label, value, change, icon: Icon, onRefresh, refreshin
                     <Icon size={16} strokeWidth={1.5} className="text-secondary" />
                 </div>
                 {!isNeutral && (
-                    <Badge tone={isPositive ? 'good' : isNegative ? 'bad' : 'neutral'} className="text-xs">
+                    <Badge tone={changeTone} className="text-xs">
                         {change}
                     </Badge>
                 )}

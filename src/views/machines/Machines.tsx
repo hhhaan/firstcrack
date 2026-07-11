@@ -231,7 +231,7 @@ export const Machines = ({
                                                     size="sm"
                                                     uppercase
                                                     tone={isConnected ? 'good' : 'bad'}
-                                                    className="px-1.75 font-semibold"
+                                                    className="px-1.75"
                                                 >
                                                     {isConnected ? t('common.live') : t('common.offline')}
                                                 </Badge>

@@ -61,7 +61,7 @@ function PlanCard({
                         <Badge
                             size="sm"
                             tone="lavenderSoft"
-                            className="text-[9px] font-bold px-1.5"
+                            className="text-[9px] font-bold"
                             icon={<Star size={10} fill="currentColor" />}
                             aria-label="Current plan"
                         />
