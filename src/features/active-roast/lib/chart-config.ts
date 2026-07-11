@@ -33,7 +33,7 @@ export const TEMP_Y_INTERVAL = 20;
 
 // ── Multi-grid layout proportions (controlData mode) ────────────────────────
 export const TEMP_GRID_HEIGHT = '65%';
-export const CONTROL_GRID_TOP = '68%';
+export const CONTROL_GRID_TOP = '68.5%'; // gap ≈ 3.5% under temp grid
 export const CONTROL_GRID_BOTTOM = 40;
 
 // ── Single-grid layout (no controlData) ─────────────────────────────────────
