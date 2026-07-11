@@ -144,7 +144,7 @@ export const App = () => {
                                 fontFamily: 'var(--font-body)',
                             }}
                         >
-                            {t('common.cancel')}
+                            Cancel
                         </button>
                     </>
                 )}

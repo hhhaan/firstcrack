@@ -9,12 +9,10 @@ export const mapAuthError = (error: unknown): AuthErrorCode => {
     if (!error) return 'generic';
 
     const code = isRecord(error) && typeof error.code === 'string' ? error.code : '';
-    const message =
-        error instanceof Error
-            ? error.message
-            : isRecord(error) && typeof error.message === 'string'
-              ? error.message
-              : String(error);
+    let message: string;
+    if (error instanceof Error) message = error.message;
+    else if (isRecord(error) && typeof error.message === 'string') message = error.message;
+    else message = String(error);
     const lower = message.toLowerCase();
 
     if (

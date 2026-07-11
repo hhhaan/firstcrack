@@ -12,16 +12,21 @@ export async function postSlack(payload: SlackPayload): Promise<boolean> {
         return false;
     }
 
-    const res = await fetch(SLACK_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-    });
+    try {
+        const res = await fetch(SLACK_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
 
-    if (!res.ok) {
-        console.error('[slack] webhook failed', res.status, await res.text());
+        if (!res.ok) {
+            console.error('[slack] webhook failed', res.status, await res.text());
+            return false;
+        }
+
+        return true;
+    } catch (err) {
+        console.error('[slack] request failed', err);
         return false;
     }
-
-    return true;
 }

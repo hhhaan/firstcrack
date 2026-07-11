@@ -39,15 +39,19 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, skipped: true });
     }
 
+    // Strip CR/LF/backticks so user-controlled fields can't inject Slack markdown lines.
+    const sanitize = (s: string) => s.replace(/[\r\n`]/g, ' ').trim();
+
     const record = payload.record ?? {};
-    const email = record.email ?? '(no email)';
-    const userId = record.id ?? 'unknown';
-    const createdAt = record.created_at ?? new Date().toISOString();
+    const email = sanitize(record.email ?? '(no email)');
+    const userId = sanitize(record.id ?? 'unknown');
+    const createdAt = sanitize(record.created_at ?? new Date().toISOString());
     const meta = record.raw_user_meta_data;
-    const name =
+    const nameRaw =
         (typeof meta?.full_name === 'string' && meta.full_name) ||
         (typeof meta?.name === 'string' && meta.name) ||
         null;
+    const name = nameRaw ? sanitize(nameRaw) : null;
 
     const lines = [
         '*New signup*',

@@ -9,18 +9,29 @@ SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
 BEGIN
-  PERFORM net.http_post(
-    url := 'https://vjdgdolfxvnxushxrmff.supabase.co/functions/v1/notify-signup',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json'
-    ),
-    body := jsonb_build_object(
-      'type', 'INSERT',
-      'table', TG_TABLE_NAME,
-      'schema', TG_TABLE_SCHEMA,
-      'record', to_jsonb(NEW)
-    )
-  );
+  BEGIN
+    -- Only the fields notify-signup needs — never full auth.users (encrypted_password, tokens, …).
+    PERFORM net.http_post(
+      url := 'https://vjdgdolfxvnxushxrmff.supabase.co/functions/v1/notify-signup',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json'
+      ),
+      body := jsonb_build_object(
+        'type', 'INSERT',
+        'table', TG_TABLE_NAME,
+        'schema', TG_TABLE_SCHEMA,
+        'record', jsonb_build_object(
+          'id', NEW.id,
+          'email', NEW.email,
+          'created_at', NEW.created_at,
+          'raw_user_meta_data', NEW.raw_user_meta_data
+        )
+      )
+    );
+  EXCEPTION WHEN OTHERS THEN
+    -- Never block signups if Slack enqueue fails.
+    RAISE WARNING 'notify_signup_slack failed: %', SQLERRM;
+  END;
 
   RETURN NEW;
 END;
