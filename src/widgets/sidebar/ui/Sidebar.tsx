@@ -16,6 +16,7 @@ import { cn } from '@shared/lib/cn';
 import { useAuthStore } from '@shared/store/auth';
 import { useThemeStore } from '@shared/store/theme';
 import type { View } from '@shared/types/view';
+import { Badge } from '@shared/ui/Badge';
 import { type ComponentType, type CSSProperties, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../entities/profile';
@@ -188,9 +189,9 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                         {label}
                                     </span>
                                     {showBadge && !collapsed && (
-                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-700 dark:text-amber-300">
+                                        <Badge size="sm" tone="amber" className="font-semibold">
                                             {alertCount}
-                                        </span>
+                                        </Badge>
                                     )}
                                 </div>
                             </button>

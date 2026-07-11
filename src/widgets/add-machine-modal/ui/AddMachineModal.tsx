@@ -10,6 +10,7 @@ import {
 import { cn } from '@shared/lib/cn';
 import { sidecar } from '@shared/lib/sidecar';
 import { useFormEscape } from '@shared/lib/useFormEscape';
+import { Badge } from '@shared/ui/Badge';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { ChevronDown, Cpu, Info, Loader, Radio, ShieldCheck, Wifi, WifiOff, X } from 'lucide-react';
@@ -30,8 +31,6 @@ const inputCls =
     'w-full px-3.5 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20 dark:focus:border-[#585d61]';
 const selectCls = `${inputCls} appearance-none pr-9 cursor-pointer`;
 const labelCls = 'block text-[11px] font-semibold text-muted mb-1.5 tracking-[0.05em] uppercase';
-const badgeCls =
-    'text-[11px] font-semibold text-secondary bg-white/80 dark:bg-surface-elevated px-2.5 py-0.5 rounded-full shadow-(--shadow-inset)';
 const secondaryBtnCls =
     'px-4 py-2.5 rounded-xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-[13px] font-medium cursor-pointer shadow-(--shadow-inset) transition-colors';
 const primaryConnectBtnCls =
@@ -298,16 +297,18 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                 {selectedDef && (
                     <div className="bg-surface-warm-solid rounded-[14px] p-3.5 shadow-(--shadow-warm) flex gap-4 flex-wrap">
                         <div className="flex gap-1.5 flex-wrap">
-                            <span className={badgeCls}>{selectedDef.protocol.toUpperCase()}</span>
+                            <Badge tone="soft" className="px-2.5 font-semibold">
+                                {selectedDef.protocol.toUpperCase()}
+                            </Badge>
                             {selectedDef.capabilities.map((cap) => (
-                                <span key={cap} className={badgeCls}>
+                                <Badge key={cap} tone="soft" className="px-2.5 font-semibold">
                                     {cap}
-                                </span>
+                                </Badge>
                             ))}
                             {selectedDef.pid && (
-                                <span className={badgeCls}>
+                                <Badge tone="soft" className="px-2.5 font-semibold">
                                     PID Kp={selectedDef.pid.Kp} Ki={selectedDef.pid.Ki} Kd={selectedDef.pid.Kd}
-                                </span>
+                                </Badge>
                             )}
                         </div>
                         {selectedDef.models.length > 0 && (

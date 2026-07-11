@@ -1,3 +1,4 @@
+import { Badge } from '@shared/ui/Badge';
 import { Coffee } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { DashboardInventoryAlert } from '../api/useDashboard';
@@ -63,12 +64,9 @@ export const InventoryAlerts = ({ data, loading }: InventoryAlertsProps) => {
                                     )}
                                 </div>
                             </div>
-                            <span
-                                className="text-[11px] font-medium px-2 py-0.75 rounded-full tracking-[0.14px] whitespace-nowrap"
-                                style={{ color, background: bg }}
-                            >
+                            <Badge color={color} bg={bg}>
                                 {status}
-                            </span>
+                            </Badge>
                         </div>
                     );
                 })

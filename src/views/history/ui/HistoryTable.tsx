@@ -1,6 +1,7 @@
 import { useHistoryChart } from '@entities/roast';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { Badge } from '@shared/ui/Badge';
 import { RoastTempChart } from '@views/active-roast/ui/RoastTempChart';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
@@ -71,15 +72,12 @@ const columns: Column[] = [
         sortable: true,
         render: (s) =>
             s.roast_level ? (
-                <span
-                    className="text-[11px] font-medium px-2 py-0.75 rounded-full whitespace-nowrap tracking-[0.14px]"
-                    style={{
-                        color: levelColor[s.roast_level] || 'var(--color-muted)',
-                        background: levelBg[s.roast_level] || 'var(--color-surface)',
-                    }}
+                <Badge
+                    color={levelColor[s.roast_level] || 'var(--color-muted)'}
+                    bg={levelBg[s.roast_level] || 'var(--color-surface)'}
                 >
                     {s.roast_level}
-                </span>
+                </Badge>
             ) : (
                 <span className="text-muted">—</span>
             ),

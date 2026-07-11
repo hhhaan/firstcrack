@@ -5,6 +5,7 @@ import { logger } from '@shared/lib/logger';
 import { sendOsNotification } from '@shared/lib/osNotification';
 import { sidecar } from '@shared/lib/sidecar';
 import type { View } from '@shared/types/view';
+import { Badge } from '@shared/ui/Badge';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
@@ -226,11 +227,14 @@ export const Machines = ({
                                                     </div>
                                                     <div className="text-[12px] text-muted)">{machine.displayName}</div>
                                                 </div>
-                                                <span
-                                                    className={`text-[10px] font-semibold px-1.75 py-0.5 rounded-full uppercase tracking-[0.4px] shrink-0 ${isConnected ? 'text-palette-green bg-palette-green/15' : 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/15'}`}
+                                                <Badge
+                                                    size="sm"
+                                                    uppercase
+                                                    tone={isConnected ? 'good' : 'bad'}
+                                                    className="px-1.75 font-semibold"
                                                 >
                                                     {isConnected ? t('common.live') : t('common.offline')}
-                                                </span>
+                                                </Badge>
                                             </div>
                                             <div className="flex gap-2.5">
                                                 <span className="text-[11px] text-muted flex items-center gap-0.75">
@@ -258,12 +262,9 @@ export const Machines = ({
                                                 selected.protocol.toUpperCase(),
                                                 ...selected.capabilities,
                                             ].map((tag) => (
-                                                <span
-                                                    key={tag}
-                                                    className="text-[11px] font-semibold text-secondary bg-surface dark:bg-surface-elevated px-2.25 py-0.75 rounded-full"
-                                                >
+                                                <Badge key={tag} tone="neutral" className="px-2.25 font-semibold">
                                                     {tag}
-                                                </span>
+                                                </Badge>
                                             ))}
                                         </div>
                                     </div>

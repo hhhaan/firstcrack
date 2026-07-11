@@ -2,6 +2,7 @@ import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { useProfileBeanHistory } from '@entities/roast-profile';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import type { View } from '@shared/types/view';
+import { Badge } from '@shared/ui/Badge';
 import { ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { AlertCircle, Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -147,12 +148,14 @@ export const ProfileDetail = ({
                         {t('profiles.detail.profileCurve')}
                     </div>
                     {!selectedHasReal && (
-                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-palette-yellow/15">
-                            <AlertCircle size={10} strokeWidth={2} className="text-palette-yellow" />
-                            <span className="text-[10px] font-medium text-palette-yellow tracking-[0.2px]">
-                                {t('profiles.detail.noRecordedData')}
-                            </span>
-                        </div>
+                        <Badge
+                            size="sm"
+                            tone="yellow"
+                            icon={<AlertCircle size={10} strokeWidth={2} />}
+                            className="tracking-[0.2px]"
+                        >
+                            {t('profiles.detail.noRecordedData')}
+                        </Badge>
                     )}
                 </div>
                 <ProfileCurveChart

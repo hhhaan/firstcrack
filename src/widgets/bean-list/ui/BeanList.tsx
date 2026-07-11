@@ -1,6 +1,7 @@
 import { getStatus, statusConfig } from '@entities/bean/lib';
 import type { StockSummary } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
+import { Badge } from '@shared/ui/Badge';
 import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -77,12 +78,9 @@ export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, s
                                             {bean.origin ?? '—'} · {bean.process ?? '—'}
                                         </div>
                                     </div>
-                                    <span
-                                        className="text-[11px] font-medium px-[7px] py-0.5 rounded-full shrink-0 ml-2"
-                                        style={{ color: cfg.color, background: cfg.bg }}
-                                    >
+                                    <Badge color={cfg.color} bg={cfg.bg} className="ml-2 px-[7px]">
                                         {cfg.label}
-                                    </span>
+                                    </Badge>
                                 </div>
 
                                 <div className="h-1 bg-surface rounded-full overflow-hidden mb-1">

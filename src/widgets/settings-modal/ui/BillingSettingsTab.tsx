@@ -2,6 +2,7 @@ import { useProfile } from '@entities/profile';
 import { logger } from '@shared/lib/logger';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
+import { Badge } from '@shared/ui/Badge';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { CreditCard, Settings, Star } from 'lucide-react';
 import { useState } from 'react';
@@ -57,9 +58,13 @@ function PlanCard({
                         {badgeLabel}
                     </div>
                     {isCurrent && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-palette-lavender/15 text-palette-lavender">
-                            <Star size={10} fill="currentColor" />
-                        </span>
+                        <Badge
+                            size="sm"
+                            tone="lavenderSoft"
+                            className="text-[9px] font-bold px-1.5"
+                            icon={<Star size={10} fill="currentColor" />}
+                            aria-label="Current plan"
+                        />
                     )}
                 </div>
                 <div className="flex items-baseline gap-1.5 mb-1">

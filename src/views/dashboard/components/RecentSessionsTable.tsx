@@ -1,6 +1,7 @@
 import { formatDuration } from '@shared/lib/format';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
+import { Badge } from '@shared/ui/Badge';
 import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { levelBg, levelColor } from '../lib/constants';
@@ -87,15 +88,12 @@ export const RecentSessionsTable = ({ data, loading, onNavigate }: RecentSession
                                     </td>
                                     <td className="px-6 py-3">
                                         {level && (
-                                            <span
-                                                className="text-[11px] font-medium px-2 py-0.75 rounded-full tracking-[0.14px] whitespace-nowrap"
-                                                style={{
-                                                    color: levelColor[level] || 'var(--color-muted)',
-                                                    background: levelBg[level] || 'var(--color-surface)',
-                                                }}
+                                            <Badge
+                                                color={levelColor[level] || 'var(--color-muted)'}
+                                                bg={levelBg[level] || 'var(--color-surface)'}
                                             >
                                                 {level}
-                                            </span>
+                                            </Badge>
                                         )}
                                     </td>
                                 </tr>

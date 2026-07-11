@@ -1,6 +1,7 @@
 import { processColor } from '@entities/bean/lib';
 import { useBeanStockEvents, useBeanStockSummary } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
+import { Badge } from '@shared/ui/Badge';
 import { Edit3, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -112,20 +113,18 @@ export const BeanDetail = ({
                     </h2>
                     <div className="flex gap-1.5">
                         {bean.process && (
-                            <span
-                                className="text-xs font-medium px-2.25 py-0.75 rounded-full tracking-[0.14px]"
-                                style={{
-                                    color: processColor[bean.process]?.color ?? 'var(--color-secondary)',
-                                    background: processColor[bean.process]?.bg ?? 'var(--color-surface)',
-                                }}
+                            <Badge
+                                className="text-xs px-2.25"
+                                color={processColor[bean.process]?.color ?? 'var(--color-secondary)'}
+                                bg={processColor[bean.process]?.bg ?? 'var(--color-surface)'}
                             >
                                 {bean.process}
-                            </span>
+                            </Badge>
                         )}
                         {bean.variety && (
-                            <span className="text-xs font-medium text-secondary bg-surface px-2.25 py-0.75 rounded-full">
+                            <Badge tone="neutral" className="text-xs px-2.25">
                                 {bean.variety}
-                            </span>
+                            </Badge>
                         )}
                     </div>
                 </div>
@@ -166,12 +165,9 @@ export const BeanDetail = ({
                         </div>
                         <div className="flex gap-1.5 flex-wrap">
                             {bean.tasting_notes.split(', ').map((note) => (
-                                <span
-                                    key={note}
-                                    className="text-xs font-medium text-secondary bg-white/70 px-2.5 py-1 rounded-full tracking-[0.14px]"
-                                >
+                                <Badge key={note} tone="soft" className="text-xs px-2.5 py-1">
                                     {note}
-                                </span>
+                                </Badge>
                             ))}
                         </div>
                     </div>

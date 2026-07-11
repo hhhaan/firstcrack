@@ -1,13 +1,14 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
+import { Badge, type BadgeTone } from '@shared/ui/Badge';
 import { AlertTriangle, Check, ChevronDown, ChevronUp, Clock, Package, Pencil, Play, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { batchStatus, getRecurrenceLabel } from './lib';
 
-const statusStyles: Record<string, string> = {
-    pending: 'bg-palette-lavender/10 text-palette-lavender',
-    'in-progress': 'bg-palette-blue/12 text-palette-blue border border-palette-blue/20',
-    done: 'bg-palette-green/12 text-palette-green border border-palette-green/20',
-    skipped: 'text-palette-lavender bg-palette-lavender/10 line-through',
+const statusTone: Record<string, BadgeTone> = {
+    pending: 'muted',
+    'in-progress': 'blue',
+    done: 'green',
+    skipped: 'muted',
 };
 
 export const BatchCard = ({
@@ -53,25 +54,27 @@ export const BatchCard = ({
                     <Package size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 mt-[1px]" />
                     <span className="text-[14px] font-semibold text-primary">{batch.bean_name}</span>
                     {isOverdue && (
-                        <span className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/25">
-                            <Clock size={9} strokeWidth={2.5} />
+                        <Badge size="sm" tone="warn" icon={<Clock size={9} strokeWidth={2.5} />}>
                             {t('schedule.overdue.badge')}
-                        </span>
+                        </Badge>
                     )}
                     {isRecurring && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-palette-lavender/15 text-palette-lavender border border-palette-lavender/25">
+                        <Badge size="sm" tone="lavender">
                             {t(`schedule.recurrence.${getRecurrenceLabel(batch.rrule)}`)}
-                        </span>
+                        </Badge>
                     )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-md ${statusStyles[status]}`}>
+                    <Badge
+                        tone={statusTone[status] ?? 'neutral'}
+                        className={`px-1.5 rounded-md${status === 'skipped' ? ' line-through' : ''}`}
+                    >
                         {status === 'in-progress'
                             ? t('schedule.status.inProgressWith', {
                                   progress: `${batch.completed_sessions}/${batch.batch_count}`,
                               })
                             : t(`schedule.status.${status}`)}
-                    </span>
+                    </Badge>
                     {isActive && (
                         <button
                             onClick={onStart}

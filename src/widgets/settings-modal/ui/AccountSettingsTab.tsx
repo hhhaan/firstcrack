@@ -3,6 +3,7 @@ import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { logger } from '@shared/lib/logger';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
+import { Badge } from '@shared/ui/Badge';
 import { SectionCard } from '@shared/ui/SectionCard';
 import { useQueryClient } from '@tanstack/react-query';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -250,9 +251,9 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                 >
                     <User size={14} strokeWidth={2} />
                     Invite members
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-palette-lavender/12 text-palette-lavender ml-auto">
+                    <Badge size="sm" tone="lavenderSoft" className="ml-auto font-semibold">
                         Coming soon
-                    </span>
+                    </Badge>
                 </button>
             </SectionCard>
 

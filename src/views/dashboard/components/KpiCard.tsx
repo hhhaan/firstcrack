@@ -1,3 +1,4 @@
+import { Badge } from '@shared/ui/Badge';
 import type { LucideIcon } from 'lucide-react';
 import { RefreshCw } from 'lucide-react';
 
@@ -22,17 +23,9 @@ export const KpiCard = ({ label, value, change, icon: Icon, onRefresh, refreshin
                     <Icon size={16} strokeWidth={1.5} className="text-secondary" />
                 </div>
                 {!isNeutral && (
-                    <span
-                        className={`text-xs font-medium px-2 py-0.5 rounded-full tracking-[0.14px] ${
-                            isPositive
-                                ? 'text-palette-green bg-palette-green/15'
-                                : isNegative
-                                  ? 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/15'
-                                  : 'text-muted bg-surface dark:bg-surface-elevated'
-                        }`}
-                    >
+                    <Badge tone={isPositive ? 'good' : isNegative ? 'bad' : 'neutral'} className="text-xs">
                         {change}
-                    </span>
+                    </Badge>
                 )}
             </div>
             <div className="text-[26px] font-semibold text-primary leading-[1.2] mb-1 tracking-[-0.5px]">{value}</div>
