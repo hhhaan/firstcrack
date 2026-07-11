@@ -39,10 +39,10 @@ const visibilityOptions = [
     },
     {
         key: 'showRoRChart' as const,
-        label: 'RoR Chart',
-        description: 'Rate of Rise sub-chart below the temperature curve',
+        label: 'BT RoR',
+        description: 'BT RoR sub-chart below the temperature curve',
     },
-    { key: 'showRoRET' as const, label: 'ET Rate of Rise', description: 'ET RoR line in the RoR sub-chart' },
+    { key: 'showRoRET' as const, label: 'ET RoR', description: 'ET RoR sub-chart below the temperature curve' },
     {
         key: 'showControlChart' as const,
         label: 'Control Chart',
