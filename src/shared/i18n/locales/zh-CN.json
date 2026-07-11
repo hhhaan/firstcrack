@@ -10,6 +10,15 @@
         "loading": "加载中…",
         "unavailable": "不可用"
     },
+    "auth": {
+        "oauthCompleting": "正在完成登录…",
+        "errors": {
+            "invalid_credentials": "邮箱或密码不正确，请重试。",
+            "network": "网络错误，请检查连接后重试。",
+            "oauth_failed": "无法完成登录，请重试。",
+            "generic": "登录失败，请重试。"
+        }
+    },
     "updater": {
         "checking": "正在检查更新…",
         "downloading": "正在下载更新…",

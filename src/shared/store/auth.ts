@@ -3,6 +3,9 @@ import { create } from 'zustand';
 import { logger } from '../lib/logger';
 import { supabase } from '../lib/supabase';
 
+/** Stable auth UI error codes — no raw Supabase strings in UI. */
+export type AuthErrorCode = 'invalid_credentials' | 'network' | 'oauth_failed' | 'generic';
+
 type Plan = 'free' | 'pro' | 'team';
 
 const OAUTH_TIMEOUT_MS = 90_000;
@@ -20,7 +23,7 @@ interface AuthState {
     plan: Plan;
     loading: boolean;
     oauthPending: boolean;
-    oauthError: string | null;
+    oauthError: AuthErrorCode | null;
 }
 
 interface AuthActions {
@@ -30,8 +33,8 @@ interface AuthActions {
     signInWithEmail: (email: string, password: string) => Promise<void>;
     /** Google OAuth 시작 — 브라우저 리다이렉트 대기 상태로 전환 */
     startOAuth: () => void;
-    /** OAuth 실패/타임아웃 시 대기 상태 해제 */
-    cancelOAuth: (error?: string) => void;
+    /** OAuth 실패/타임아웃 시 대기 상태 해제. 인자 없으면 조용히 취소(Cancel). */
+    cancelOAuth: (error?: AuthErrorCode) => void;
     /** 로그아웃 */
     signOut: () => Promise<void>;
 }
@@ -121,9 +124,10 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         set({ oauthPending: true, oauthError: null });
         oauthTimeoutId = setTimeout(() => {
             if (get().oauthPending) {
+                // User abandoned browser flow — expected, no Sentry
                 set({
                     oauthPending: false,
-                    oauthError: 'Sign-in timed out. Please try again.',
+                    oauthError: 'oauth_failed',
                 });
             }
         }, OAUTH_TIMEOUT_MS);

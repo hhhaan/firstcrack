@@ -16,9 +16,11 @@ export const useOAuthDeepLink = () => {
             const result = await exchangeOAuthCallbackUrl(url, source);
             if (!result.ok) {
                 inFlight.current.delete(url);
-                if (result.error === 'Not an OAuth callback URL') return;
-                cancelOAuth(result.error);
+                if (result.skip) return;
+                cancelOAuth(result.code);
+                return;
             }
+            inFlight.current.delete(url);
         };
 
         const handleUrls = (urls: string[], source: string) => {

@@ -10,6 +10,15 @@
         "offline": "Offline",
         "unavailable": "Unavailable"
     },
+    "auth": {
+        "oauthCompleting": "Completing sign-in…",
+        "errors": {
+            "invalid_credentials": "Incorrect email or password. Please try again.",
+            "network": "Network error. Check your connection and try again.",
+            "oauth_failed": "Sign-in could not be completed. Please try again.",
+            "generic": "Sign-in failed. Please try again."
+        }
+    },
     "updater": {
         "checking": "Checking for update…",
         "downloading": "Downloading update…",

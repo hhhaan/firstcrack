@@ -34,6 +34,7 @@ export const App = () => {
     useInventoryAlertSync(user?.id);
     const loading = useAuthStore((s) => s.loading);
     const oauthPending = useAuthStore((s) => s.oauthPending);
+    const cancelOAuth = useAuthStore((s) => s.cancelOAuth);
     const init = useAuthStore((s) => s.init);
     const theme = useThemeStore((s) => s.theme);
     const initTheme = useThemeStore((s) => s.initTheme);
@@ -122,9 +123,30 @@ export const App = () => {
             >
                 <Spinner size={24} />
                 {oauthPending && (
-                    <p style={{ fontSize: 13, color: 'var(--color-secondary)', letterSpacing: '0.14px' }}>
-                        Completing sign-in…
-                    </p>
+                    <>
+                        <p style={{ fontSize: 13, color: 'var(--color-secondary)', letterSpacing: '0.14px' }}>
+                            Completing sign-in…
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => cancelOAuth()}
+                            style={{
+                                marginTop: 4,
+                                padding: '8px 16px',
+                                borderRadius: 9999,
+                                border: 'none',
+                                background: 'var(--bg-warm)',
+                                color: 'var(--color-primary)',
+                                fontSize: 13,
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                letterSpacing: '0.14px',
+                                fontFamily: 'var(--font-body)',
+                            }}
+                        >
+                            {t('common.cancel')}
+                        </button>
+                    </>
                 )}
             </div>
         );
