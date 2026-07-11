@@ -2,30 +2,61 @@ import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import { useEffect, useRef } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useTranslation } from 'react-i18next';
 import { useActiveRoastOnboardingStore } from './onboarding';
 
 export const useActiveRoastOnboarding = (isActive: boolean) => {
-    const { fullscreenHintSeen, markFullscreenHintSeen } = useActiveRoastOnboardingStore();
+    const { t, i18n } = useTranslation();
+    const fullscreenHintSeen = useActiveRoastOnboardingStore((s) => s.fullscreenHintSeen);
+    const sessionDismissed = useActiveRoastOnboardingStore((s) => s.sessionDismissed);
+    const markFullscreenHintSeen = useActiveRoastOnboardingStore((s) => s.markFullscreenHintSeen);
+    const dismissForSession = useActiveRoastOnboardingStore((s) => s.dismissForSession);
     const driverRef = useRef<ReturnType<typeof driver> | null>(null);
+    const skipSessionDismissRef = useRef(false);
+    const shouldShow = isActive && !fullscreenHintSeen && !sessionDismissed;
 
-    useHotkeys('f', () => driverRef.current?.destroy(), {
-        enabled: isActive && !fullscreenHintSeen,
-    });
+    useHotkeys(
+        'f',
+        () => {
+            driverRef.current?.destroy();
+        },
+        { enabled: shouldShow },
+    );
 
     useEffect(() => {
-        if (!isActive || fullscreenHintSeen) return;
+        if (!shouldShow) return;
 
         const target = document.querySelector('[data-tour="active-roast-chart"]');
         if (!target) return;
 
-        const timeoutId = setTimeout(() => {
+        const timeoutId = window.setTimeout(() => {
             const driverObj = driver({
                 overlayOpacity: 0.6,
                 stagePadding: 6,
                 stageRadius: 8,
                 popoverClass: 'fc-driver-theme',
+                showButtons: ['next'],
+                nextBtnText: t('activeRoast.fullscreenHint.dismiss'),
+                onNextClick: (_el, _step, { driver: d }) => {
+                    d.destroy();
+                },
+                onPopoverRender: (popover) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'driver-popover-prev-btn';
+                    btn.textContent = t('activeRoast.fullscreenHint.dontShowAgain');
+                    btn.setAttribute('aria-label', t('activeRoast.fullscreenHint.dontShowAgain'));
+                    btn.addEventListener('click', () => {
+                        markFullscreenHintSeen();
+                        driverObj.destroy();
+                    });
+                    popover.footerButtons.prepend(btn);
+                },
                 onDestroyed: () => {
-                    markFullscreenHintSeen();
+                    if (!skipSessionDismissRef.current) {
+                        dismissForSession();
+                    }
+                    skipSessionDismissRef.current = false;
                     driverRef.current = null;
                 },
             });
@@ -36,17 +67,19 @@ export const useActiveRoastOnboarding = (isActive: boolean) => {
                 popover: {
                     side: 'bottom',
                     align: 'start',
-                    title: '전체 화면 단축키',
-                    description: '로스트 중에는 F 키를 눌러 차트를 전체 화면으로 볼 수 있어요. Esc로 종료합니다.',
+                    title: t('activeRoast.fullscreenHint.title'),
+                    description: t('activeRoast.fullscreenHint.description'),
                 },
             });
         }, 600);
 
         return () => {
-            clearTimeout(timeoutId);
+            window.clearTimeout(timeoutId);
             if (driverRef.current) {
+                skipSessionDismissRef.current = true;
                 driverRef.current.destroy();
             }
         };
-    }, [isActive, fullscreenHintSeen, markFullscreenHintSeen]);
+        // i18n.language — stable across renders; re-run only on locale change
+    }, [shouldShow, i18n.language, markFullscreenHintSeen, dismissForSession]);
 };

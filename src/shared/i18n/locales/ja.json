@@ -426,6 +426,12 @@
             "skip": "差し引かない",
             "confirm": "確認"
         },
+        "fullscreenHint": {
+            "title": "全画面ショートカット",
+            "description": "ロースト中は F キーでチャートを全画面表示できます。Esc で終了します。",
+            "dismiss": "了解",
+            "dontShowAgain": "次回から表示しない"
+        },
         "dialogs": {
             "roastInProgressTitle": "ロースト中",
             "roastInProgressMsg": "ローストが進行中です。本当に終了しますか？",

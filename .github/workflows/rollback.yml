@@ -1,0 +1,263 @@
+name: Rollback release (R2 pointer)
+
+# Emergency: point latest.json + releases/latest/* back at an already-published version.
+# Does NOT rebuild or re-sign. Binaries must already exist under releases/{version}/.
+#
+# Effect:
+#   - Users who have NOT upgraded: stop receiving the bad version ✅
+#   - Users already on a newer version: Tauri will NOT auto-downgrade ❌
+#     → ship a higher-version hotfix when possible
+#
+# Usage (Actions → Rollback release → Run workflow):
+#   target_version: 1.0.1
+#   confirm:        1.0.1   (must match target_version)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_version:
+        description: 'Version to roll back TO (must already exist on R2, e.g. 1.0.1)'
+        required: true
+        type: string
+      confirm:
+        description: 'Type the same version again to confirm (safety gate)'
+        required: true
+        type: string
+
+concurrency:
+  group: rollback-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Safety checks
+        env:
+          TARGET: ${{ inputs.target_version }}
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          set -e
+          if [ -z "$TARGET" ] || [ "$TARGET" != "$CONFIRM" ]; then
+            echo "::error::confirm must exactly match target_version (got target='$TARGET' confirm='$CONFIRM')"
+            exit 1
+          fi
+          if ! [[ "$TARGET" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.]+)?$ ]]; then
+            echo "::error::target_version must look like semver (e.g. 1.0.1), got: $TARGET"
+            exit 1
+          fi
+          echo "Rollback target: v$TARGET"
+
+      - name: Validate target artifacts on R2
+        id: validate
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_PUBLISH_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_PUBLISH_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://${{ secrets.R2_PUBLISH_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_PUBLISH_BUCKET_NAME }}
+          VERSION: ${{ inputs.target_version }}
+        run: |
+          set -e
+          PREFIX="s3://${R2_BUCKET}/releases/${VERSION}"
+          echo "Listing ${PREFIX}/"
+          aws s3 ls "${PREFIX}/" --endpoint-url "$R2_ENDPOINT" --region auto
+
+          require() {
+            local key="$1"
+            if ! aws s3 ls "s3://${R2_BUCKET}/${key}" --endpoint-url "$R2_ENDPOINT" --region auto >/dev/null 2>&1; then
+              echo "::error::Missing required object: s3://${R2_BUCKET}/${key}"
+              exit 1
+            fi
+            echo "  OK: $key"
+          }
+
+          require "releases/${VERSION}/First-Crack-${VERSION}-aarch64.app.tar.gz"
+          require "releases/${VERSION}/First-Crack-${VERSION}-aarch64.app.tar.gz.sig"
+          require "releases/${VERSION}/First-Crack-${VERSION}-x86_64.app.tar.gz"
+          require "releases/${VERSION}/First-Crack-${VERSION}-x86_64.app.tar.gz.sig"
+          require "releases/${VERSION}/First-Crack-${VERSION}-x86_64.msi"
+          require "releases/${VERSION}/First-Crack-${VERSION}-x86_64.msi.sig"
+
+          # Landing aliases — warn if missing but don't hard-fail (updater still works)
+          for f in \
+            "First-Crack-${VERSION}-aarch64.dmg" \
+            "First-Crack-${VERSION}-x86_64.dmg"
+          do
+            if aws s3 ls "s3://${R2_BUCKET}/releases/${VERSION}/${f}" \
+                --endpoint-url "$R2_ENDPOINT" --region auto >/dev/null 2>&1; then
+              echo "  OK (landing): $f"
+            else
+              echo "::warning::Optional landing asset missing: releases/${VERSION}/${f}"
+            fi
+          done
+
+      - name: Backup current latest.json
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_PUBLISH_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_PUBLISH_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://${{ secrets.R2_PUBLISH_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_PUBLISH_BUCKET_NAME }}
+          VERSION: ${{ inputs.target_version }}
+        run: |
+          set -e
+          TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          BACKUP_KEY="releases/latest.json.rollback-to-${VERSION}.${TIMESTAMP}.bak"
+          if aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
+              "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+              --endpoint-url "$R2_ENDPOINT" --region auto \
+              --content-type "application/json"; then
+            echo "Backed up current latest.json → ${BACKUP_KEY}"
+            echo "BACKUP_KEY=${BACKUP_KEY}" >> "$GITHUB_ENV"
+            aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" current-before.json \
+              --endpoint-url "$R2_ENDPOINT" --region auto
+            echo "Before:"
+            cat current-before.json
+          else
+            echo "::warning::No existing latest.json to backup"
+          fi
+
+      - name: Build latest.json + restore pointer and landing aliases
+        id: restore
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_PUBLISH_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_PUBLISH_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://${{ secrets.R2_PUBLISH_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_PUBLISH_BUCKET_NAME }}
+          R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+          VERSION: ${{ inputs.target_version }}
+        run: |
+          set -e
+          S3="aws s3 cp --endpoint-url $R2_ENDPOINT --region auto"
+          DEST="releases/${VERSION}"
+
+          mkdir -p sigs
+          $S3 "s3://${R2_BUCKET}/${DEST}/First-Crack-${VERSION}-aarch64.app.tar.gz.sig" sigs/aarch64.sig
+          $S3 "s3://${R2_BUCKET}/${DEST}/First-Crack-${VERSION}-x86_64.app.tar.gz.sig" sigs/x64.sig
+          $S3 "s3://${R2_BUCKET}/${DEST}/First-Crack-${VERSION}-x86_64.msi.sig" sigs/win.sig
+
+          AARCH64_TAR_R2="First-Crack-${VERSION}-aarch64.app.tar.gz"
+          X64_TAR_R2="First-Crack-${VERSION}-x86_64.app.tar.gz"
+          WIN_MSI_R2="First-Crack-${VERSION}-x86_64.msi"
+          AARCH64_DMG_R2="First-Crack-${VERSION}-aarch64.dmg"
+          X64_DMG_R2="First-Crack-${VERSION}-x86_64.dmg"
+
+          jq --null-input \
+            --arg version   "$VERSION" \
+            --arg pub_date  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg aarch64_sig "$(cat sigs/aarch64.sig)" \
+            --arg aarch64_url "$R2_PUBLIC_URL/releases/$VERSION/$AARCH64_TAR_R2" \
+            --arg x64_sig   "$(cat sigs/x64.sig)" \
+            --arg x64_url   "$R2_PUBLIC_URL/releases/$VERSION/$X64_TAR_R2" \
+            --arg win_sig   "$(cat sigs/win.sig)" \
+            --arg win_url   "$R2_PUBLIC_URL/releases/$VERSION/$WIN_MSI_R2" \
+            '{version:$version,notes:"rollback",pub_date:$pub_date,platforms:{"darwin-aarch64":{signature:$aarch64_sig,url:$aarch64_url},"darwin-x86_64":{signature:$x64_sig,url:$x64_url},"windows-x86_64":{signature:$win_sig,url:$win_url}}}' \
+            > latest.json
+
+          if grep -q ' "url": ".* .*"' latest.json; then
+            echo "::error::latest.json contains a URL with unencoded spaces"
+            cat latest.json
+            exit 1
+          fi
+
+          echo "New latest.json:"
+          cat latest.json
+
+          # Pointer first (updater)
+          $S3 latest.json "s3://${R2_BUCKET}/releases/latest.json" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "application/json"
+
+          # Landing aliases (server-side copy — no re-download of large binaries to runner)
+          copy_obj() {
+            local src="$1" dst="$2"
+            aws s3 cp "s3://${R2_BUCKET}/${src}" "s3://${R2_BUCKET}/${dst}" \
+              --endpoint-url "$R2_ENDPOINT" --region auto
+          }
+
+          pids=""
+          fail=0
+          if aws s3 ls "s3://${R2_BUCKET}/${DEST}/${AARCH64_DMG_R2}" \
+              --endpoint-url "$R2_ENDPOINT" --region auto >/dev/null 2>&1; then
+            copy_obj "${DEST}/${AARCH64_DMG_R2}" "releases/latest/First-Crack-arm64.dmg" & pids="$pids $!"
+          fi
+          if aws s3 ls "s3://${R2_BUCKET}/${DEST}/${X64_DMG_R2}" \
+              --endpoint-url "$R2_ENDPOINT" --region auto >/dev/null 2>&1; then
+            copy_obj "${DEST}/${X64_DMG_R2}" "releases/latest/First-Crack-x64.dmg" & pids="$pids $!"
+          fi
+          copy_obj "${DEST}/${WIN_MSI_R2}" "releases/latest/First-Crack-Windows.msi" & pids="$pids $!"
+
+          for pid in $pids; do wait $pid || fail=1; done
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::One or more landing alias copies failed"
+            exit 1
+          fi
+
+          echo "ROLLBACK_VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Purge Cloudflare cache for latest.json
+        continue-on-error: true
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+        run: |
+          if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ZONE_ID" ]; then
+            echo "CLOUDFLARE_API_TOKEN or CLOUDFLARE_ZONE_ID not set — skipping (r2.dev uses no-cache headers)"
+            exit 0
+          fi
+          if ! RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "{\"files\":[\"${R2_PUBLIC_URL}/releases/latest.json\"]}"); then
+            echo "::warning::Cloudflare cache purge request failed — continuing"
+            exit 0
+          fi
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+          echo "Cloudflare response (HTTP $HTTP_CODE): $BODY"
+          if ! [[ "$HTTP_CODE" =~ ^[0-9]+$ ]] || [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::warning::Cloudflare cache purge failed with HTTP ${HTTP_CODE:-unknown} — continuing"
+          fi
+
+      - name: Verify public latest.json
+        env:
+          R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+          VERSION: ${{ inputs.target_version }}
+        run: |
+          set -e
+          # brief settle for eventual consistency
+          sleep 2
+          curl -fsSL "${R2_PUBLIC_URL}/releases/latest.json" -o verified.json
+          echo "Public latest.json:"
+          cat verified.json
+          GOT=$(jq -r .version verified.json)
+          if [ "$GOT" != "$VERSION" ]; then
+            echo "::error::Public latest.json version is '$GOT', expected '$VERSION'"
+            exit 1
+          fi
+          echo "✅ Public pointer is v${VERSION}"
+
+      - name: Notify Slack
+        if: always()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
+          VERSION: ${{ inputs.target_version }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ "${{ job.status }}" = "success" ]; then
+            TEXT=":rewind: *Release ROLLED BACK* — pointer → v${VERSION} by @${ACTOR} | <${RUN_URL}|View run>\n_(already-upgraded clients will NOT auto-downgrade)_"
+          else
+            TEXT=":x: *Release rollback FAILED* — target v${VERSION} by @${ACTOR} | <${RUN_URL}|View run>"
+          fi
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+              --data "$(jq -n --arg t "$TEXT" '{text:$t}')"
+          else
+            echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
+          fi

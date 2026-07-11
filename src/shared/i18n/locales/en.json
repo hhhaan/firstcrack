@@ -427,6 +427,12 @@
             "skip": "Skip",
             "confirm": "Confirm"
         },
+        "fullscreenHint": {
+            "title": "Fullscreen shortcut",
+            "description": "During a roast, press F to view the chart fullscreen. Press Esc to exit.",
+            "dismiss": "Got it",
+            "dontShowAgain": "Don't show again"
+        },
         "dialogs": {
             "roastInProgressTitle": "Roast in Progress",
             "roastInProgressMsg": "A roast is in progress. Are you sure you want to end it?",

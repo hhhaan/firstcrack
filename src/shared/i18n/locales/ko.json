@@ -648,6 +648,12 @@
             "deductStockDisabled": "연결된 원두가 없어 재고를 차감할 수 없습니다.",
             "skip": "차감 안 함",
             "confirm": "확인"
+        },
+        "fullscreenHint": {
+            "title": "전체 화면 단축키",
+            "description": "로스트 중에는 F 키를 눌러 차트를 전체 화면으로 볼 수 있어요. Esc로 종료합니다.",
+            "dismiss": "확인",
+            "dontShowAgain": "다시 보지 않기"
         }
     },
     "profiles": {

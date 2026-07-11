@@ -55,7 +55,6 @@ export interface UseChartPipelineReturn {
     maxTime: number;
     minTime: number;
     hoveredChartIndexRef: React.RefObject<number | null>;
-    handleChartWheel: (event: React.WheelEvent<HTMLDivElement>) => void;
     handleChartPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
     handleChartPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
     endChartDrag: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -130,11 +129,10 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         isChartDragging,
         mainChartHeight,
         chartAreaRef,
-        handleChartWheel,
         handleChartPointerDown,
         handleChartPointerMove,
         endChartDrag,
-    } = useChartZoom(maxTime, minTime, chartRightGridPad);
+    } = useChartZoom(maxTime, minTime, chartRightGridPad, !isFullscreen);
 
     useEffect(() => {
         if (isFullscreen) setZoomRange(null);
@@ -214,7 +212,6 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         maxTime,
         minTime,
         hoveredChartIndexRef,
-        handleChartWheel,
         handleChartPointerDown,
         handleChartPointerMove,
         endChartDrag,

@@ -427,6 +427,12 @@
             "skip": "不扣减",
             "confirm": "确认"
         },
+        "fullscreenHint": {
+            "title": "全屏快捷键",
+            "description": "烘焙过程中按 F 键可将图表全屏显示，按 Esc 退出。",
+            "dismiss": "知道了",
+            "dontShowAgain": "不再显示"
+        },
         "dialogs": {
             "roastInProgressTitle": "烘焙进行中",
             "roastInProgressMsg": "烘焙正在进行中。确定要结束吗？",

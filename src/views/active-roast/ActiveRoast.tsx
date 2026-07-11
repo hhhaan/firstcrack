@@ -424,18 +424,17 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             <div
                 className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
                     isFullscreen
-                        ? 'fixed inset-0 z-9999 h-screen w-screen py-10 px-5'
-                        : 'rounded relative z-1 px-6 pb-4 pt-[30px] flex-1 dark:border dark:border-[#585d61]'
+                        ? 'fixed inset-0 z-9999 h-screen w-screen py-[30px] pl-2.5 pr-5'
+                        : 'rounded relative z-1 pl-2.5 pr-6 py-[30px] flex-1 dark:border dark:border-[#585d61]'
                 }`}
             >
-                <div className="flex gap-6 flex-1 min-h-0 flex-row">
+                <div className="flex gap-0 flex-1 min-h-0 flex-row">
                     <RoastChartContainer
                         chartAreaRef={chart.chartAreaRef}
                         mainChartHeight={chart.mainChartHeight}
                         effectiveZoomRange={chart.effectiveZoomRange}
                         isChartDragging={chart.isChartDragging}
                         isFullscreen={isFullscreen}
-                        handleChartWheel={chart.handleChartWheel}
                         handleChartPointerDown={chart.handleChartPointerDown}
                         handleChartPointerMove={chart.handleChartPointerMove}
                         endChartDrag={chart.endChartDrag}

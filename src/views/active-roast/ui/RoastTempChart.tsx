@@ -1,6 +1,7 @@
 import type { EventMarkerStyle, PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import {
     AXIS_LABEL_FONT,
+    AXIS_MINOR_SPLIT_NUMBER,
     CHART_COLORS,
     CHART_GRID_LEFT,
     CHART_GRID_RIGHT,
@@ -24,8 +25,10 @@ import {
     SINGLE_GRID_BOTTOM,
     TEMP_GRID_HEIGHT,
     TEMP_Y_INTERVAL,
+    TEMP_Y_LABEL_INTERVAL,
     TEMP_Y_MAX_C,
     TEMP_Y_MIN_C,
+    TIME_X_INTERVAL_SEC,
     Y_AXIS_NAME_GAP,
 } from '@features/active-roast/lib/chart-config';
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
@@ -80,6 +83,9 @@ interface Props {
     tempMaxC?: number;
     rorYMin?: number;
     rorYMax?: number;
+    /** Explicit x-axis window while zoomed (pan). Falls back to data extent. */
+    xViewMin?: number;
+    xViewMax?: number;
 }
 
 const fmtSec = (v: number) => {
@@ -134,6 +140,8 @@ export const RoastTempChart: React.FC<Props> = ({
     tempMaxC = TEMP_Y_MAX_C,
     rorYMin = ROR_Y_MIN,
     rorYMax = ROR_Y_MAX,
+    xViewMin,
+    xViewMax,
 }) => {
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
@@ -186,6 +194,16 @@ export const RoastTempChart: React.FC<Props> = ({
         const axisLabelStyle = { ...AXIS_LABEL_FONT, color: colors.axisLabel };
         const axisNameStyle = { color: colors.axisLabel };
         const rightYAxisLabel = { ...axisLabelStyle, margin: 4 };
+        // Labels only at 0, 50, 100… — not from axis min (e.g. 20→300 → 50…300)
+        const formatTempYLabel = (v: number) => {
+            const n = Math.round(Number(v));
+            return n % TEMP_Y_LABEL_INTERVAL === 0 ? String(n) : '';
+        };
+        // Align scale to grid step so ticks hit multiples of 10 (and thus 50)
+        const tempYMinRaw = toDisplayTemp(tempMinC, temperatureUnit);
+        const tempYMaxRaw = toDisplayTemp(tempMaxC, temperatureUnit);
+        const tempYMin = Math.floor(tempYMinRaw / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL;
+        const tempYMax = Math.ceil(tempYMaxRaw / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL;
 
         // formatTemp와 동일: °+C/F (℃/℉ 단일 글리프는 monospace에서 깨짐)
         const unitLabel = temperatureUnit === 'C' ? '°C' : '°F';
@@ -238,8 +256,8 @@ export const RoastTempChart: React.FC<Props> = ({
             emphasis: { scale: false },
         };
 
-        const xMin = xs[0] ?? 0;
-        const xMax = xs[xs.length - 1] ?? 1200;
+        const xMin = xViewMin ?? xs[0] ?? 0;
+        const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
 
         // Charge: eventMarkers 경유 → eventMarkerStyle(point|line)과 동일 처리
         // NOW: 세로 markLine 가이드 (항상)
@@ -387,6 +405,16 @@ export const RoastTempChart: React.FC<Props> = ({
             : [];
 
         const allMarkLines = usePointMarkers ? guideMarkLines : [...guideMarkLines, ...eventMarkLines, ...tpMarkLines];
+        // dual-grid: bottom edge of temp plot (axisLine is unreliable on value xAxis)
+        const tempBottomBorderLine = controlData
+            ? {
+                  yAxis: tempYMin,
+                  silent: true,
+                  symbol: 'none' as const,
+                  lineStyle: { color: colors.axisLabel, width: 1, type: 'solid' as const },
+                  label: { show: false },
+              }
+            : null;
 
         const hasRightYAxis = showRoR || !!controlData;
         const rightMargin = hasRightYAxis ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
@@ -418,12 +446,12 @@ export const RoastTempChart: React.FC<Props> = ({
                 ...hoverPoint,
                 ...getSmoothConfig(0.4),
                 markLine:
-                    allMarkLines.length > 0
+                    allMarkLines.length > 0 || tempBottomBorderLine
                         ? {
                               silent: usePointMarkers,
                               symbol: ['none', 'none'],
                               symbolSize: 0,
-                              data: allMarkLines,
+                              data: tempBottomBorderLine ? [tempBottomBorderLine, ...allMarkLines] : allMarkLines,
                           }
                         : undefined,
                 markPoint:
@@ -596,8 +624,13 @@ export const RoastTempChart: React.FC<Props> = ({
                         axisLabel: { show: false },
                         axisTick: { show: false },
                         axisLine: { show: false },
+                        // dual grid: cross pointer would paint x labels on both axes — keep only bottom
+                        axisPointer: { label: { show: false } },
                         splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
-                        interval: 60,
+                        // labels 60s; minor lines → 30s grid
+                        interval: TIME_X_INTERVAL_SEC,
+                        minorTick: { show: false, splitNumber: AXIS_MINOR_SPLIT_NUMBER },
+                        minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
                         splitNumber: 15,
                     },
                     {
@@ -607,7 +640,14 @@ export const RoastTempChart: React.FC<Props> = ({
                         max: xMax,
                         axisLabel: { formatter: fmtSec, ...axisLabelStyle },
                         axisTick: { show: false },
-                        interval: 60,
+                        axisPointer: {
+                            label: {
+                                formatter: (p: { value: number | string }) => fmtSec(Number(p.value)),
+                            },
+                        },
+                        interval: TIME_X_INTERVAL_SEC,
+                        minorTick: { show: false, splitNumber: AXIS_MINOR_SPLIT_NUMBER },
+                        minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
                         splitNumber: 15,
                         splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
                     },
@@ -621,12 +661,12 @@ export const RoastTempChart: React.FC<Props> = ({
                         nameTextStyle: axisNameStyle,
                         axisLine: { onZero: false },
                         axisTick: { show: false },
-                        axisLabel: axisLabelStyle,
+                        axisLabel: { ...axisLabelStyle, formatter: formatTempYLabel },
                         splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
                         minorTick: { show: false },
-                        minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
-                        min: toDisplayTemp(tempMinC, temperatureUnit),
-                        max: toDisplayTemp(tempMaxC, temperatureUnit),
+                        minorSplitLine: { show: false },
+                        min: tempYMin,
+                        max: tempYMax,
                         interval: TEMP_Y_INTERVAL,
                     },
                     {
@@ -653,7 +693,7 @@ export const RoastTempChart: React.FC<Props> = ({
                         position: 'left',
                         axisLine: { onZero: false },
                         axisTick: { show: false },
-                        axisLabel: rightYAxisLabel,
+                        axisLabel: { show: false },
                         splitLine: { show: true, lineStyle: { color: colors.gridLine } },
                         min: 0,
                         max: 100,
@@ -679,7 +719,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     borderWidth: 1,
                     borderColor: colors.tooltipBorder,
                     extraCssText: 'box-shadow: none;',
-                    axisPointer: { type: 'line', lineStyle: { color: colors.axisPointerLine, width: 1 } },
+                    axisPointer: { type: 'cross', lineStyle: { color: colors.axisPointerLine, width: 1 } },
                     formatter: formatAxisTooltip,
                 },
                 series: [
@@ -730,15 +770,8 @@ export const RoastTempChart: React.FC<Props> = ({
                     },
                     ...(hasPhaseBar ? [buildPhaseSeries()] : []),
                 ],
-                dataZoom: [
-                    {
-                        type: 'inside',
-                        xAxisIndex: [0, 1],
-                        zoomOnMouseWheel: true,
-                        moveOnMouseMove: false,
-                        moveOnMouseWheel: true,
-                    },
-                ],
+                // Zoom/pan owned by useChartZoom — ECharts dataZoom would steal drag/wheel
+                dataZoom: [],
             };
         }
 
@@ -755,6 +788,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 axisPointer: { type: 'cross', lineStyle: { color: colors.axisPointerLine, width: 1 } },
                 formatter: formatAxisTooltip,
             },
+            dataZoom: [],
             xAxis: [
                 {
                     gridIndex: 0,
@@ -765,7 +799,9 @@ export const RoastTempChart: React.FC<Props> = ({
                     min: xMin,
                     max: xMax,
                     axisLabel: { formatter: (v: number) => fmtSec(v), ...axisLabelStyle },
-                    interval: 60,
+                    interval: TIME_X_INTERVAL_SEC,
+                    minorTick: { show: false, splitNumber: AXIS_MINOR_SPLIT_NUMBER },
+                    minorSplitLine: { show: true, lineStyle: { color: colors.gridLineMinor, width: 0.5 } },
                     splitNumber: 15,
                     splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 1 } },
                 },
@@ -779,11 +815,13 @@ export const RoastTempChart: React.FC<Props> = ({
                     nameTextStyle: axisNameStyle,
                     axisLine: { onZero: false },
                     axisTick: { show: false },
-                    axisLabel: axisLabelStyle,
+                    axisLabel: { ...axisLabelStyle, formatter: formatTempYLabel },
                     splitLine: { show: true, lineStyle: { color: colors.gridLine } },
-                    min: toDisplayTemp(tempMinC, temperatureUnit),
-                    max: toDisplayTemp(tempMaxC, temperatureUnit),
-                    interval: 20,
+                    minorTick: { show: false },
+                    minorSplitLine: { show: false },
+                    min: tempYMin,
+                    max: tempYMax,
+                    interval: TEMP_Y_INTERVAL,
                 },
                 {
                     gridIndex: 0,
@@ -802,15 +840,6 @@ export const RoastTempChart: React.FC<Props> = ({
                 },
             ],
             series: [...tempSeries, ...(hasPhaseBar ? [buildPhaseSeries()] : [])],
-            dataZoom: [
-                {
-                    type: 'inside',
-                    xAxisIndex: [0],
-                    zoomOnMouseWheel: true,
-                    moveOnMouseMove: false,
-                    moveOnMouseWheel: true,
-                },
-            ],
         };
     }, [
         xs,
@@ -838,6 +867,8 @@ export const RoastTempChart: React.FC<Props> = ({
         tempMaxC,
         rorYMin,
         rorYMax,
+        xViewMin,
+        xViewMax,
     ]);
 
     // 옵션 적용 — controlData/phaseBar/target/eventMarkerStyle 이 바뀌면 notMerge로 완전 교체
@@ -965,7 +996,7 @@ export const RoastTempChart: React.FC<Props> = ({
         <div style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}>
             <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
             {controlData && (
-                <div className="absolute flex items-center gap-4" style={{ bottom: -5, left: 25 }}>
+                <div className="absolute flex items-center gap-4" style={{ bottom: -15, left: 25 }}>
                     {[
                         { color: CONTROL_COLORS.drum, label: 'Drum' },
                         { color: CONTROL_COLORS.heat, label: 'Heat' },

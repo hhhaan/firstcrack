@@ -29,12 +29,21 @@ export const AXIS_LABEL_FONT_SM = { fontSize: 10, fontFamily: 'monospace' as con
 // ── Temperature axis range ───────────────────────────────────────────────────
 export const TEMP_Y_MIN_C = 50;
 export const TEMP_Y_MAX_C = 250;
-export const TEMP_Y_INTERVAL = 20;
+/** Temp Y grid line step (display unit). Labels use TEMP_Y_LABEL_INTERVAL only. */
+export const TEMP_Y_INTERVAL = 10;
+/** Temp Y axis labels only at multiples of this (e.g. 50, 100, … not axis min). */
+export const TEMP_Y_LABEL_INTERVAL = 50;
+/** Major tick / axis label step (sec). Grid lines also draw at half-step via minorSplitLine. */
+export const TIME_X_INTERVAL_SEC = 60;
+/** Half-steps between time majors → time grid every 30s. */
+export const AXIS_MINOR_SPLIT_NUMBER = 2;
 
 // ── Multi-grid layout proportions (controlData mode) ────────────────────────
-export const TEMP_GRID_HEIGHT = '65%';
-export const CONTROL_GRID_TOP = '68.5%'; // gap ≈ 3.5% under temp grid
-export const CONTROL_GRID_BOTTOM = 40;
+// Control band was ~31.5% of height (top 68.5% → bottom); shrink 20% → ~25.2%.
+// Freed space goes to temp; gap under temp stays ~3.5%.
+export const TEMP_GRID_HEIGHT = '71.3%';
+export const CONTROL_GRID_TOP = '74.3%'; // gap vs temp grid: 3%
+export const CONTROL_GRID_BOTTOM = 30;
 
 // ── Single-grid layout (no controlData) ─────────────────────────────────────
 export const SINGLE_GRID_BOTTOM = 65;

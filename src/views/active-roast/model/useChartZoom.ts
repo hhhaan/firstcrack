@@ -10,7 +10,7 @@ const getChartDataWidth = (rect: DOMRect, rightPad: number) => Math.max(1, rect.
 export interface ChartZoom {
     zoomRange: { start: number; end: number } | null;
     setZoomRange: React.Dispatch<React.SetStateAction<{ start: number; end: number } | null>>;
-    /** zoomRange를 [0, MAX_TIME] 범위로 클램핑한 값. null이면 전체 범위 표시 */
+    /** zoomRange를 [minTime, MAX_TIME] 범위로 클램핑한 값. null이면 전체 범위 표시 */
     effectiveZoomRange: { start: number; end: number } | null;
     /** 키보드 줌 중심 — 호버마다 리렌더하지 않도록 ref로 유지 */
     hoveredChartIndexRef: RefObject<number | null>;
@@ -18,7 +18,6 @@ export interface ChartZoom {
     isChartDragging: boolean;
     mainChartHeight: number;
     chartAreaRef: RefObject<HTMLDivElement | null>;
-    handleChartWheel: (event: React.WheelEvent<HTMLDivElement>) => void;
     handleChartPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
     handleChartPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
     endChartDrag: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -27,21 +26,15 @@ export interface ChartZoom {
 /**
  * 온도 차트의 줌·패닝·드래그 상태와 인터랙션 핸들러를 관리한다.
  *
- * - 휠: 마우스 위치를 기준으로 줌 인/아웃
- * - 드래그: 줌된 상태에서 좌우 패닝
- * - ResizeObserver: chartAreaRef 크기 변화에 따라 mainChartHeight 갱신
- *
- * `zoomChart` / `panChart` / `handleChartKeyDown`은 visibleChartData에 의존해
- * 이 훅에서 분리할 수 없으므로 컴포넌트에 유지한다.
- *
- * @param MAX_TIME 현재 chartData의 마지막 시간(초). 줌 범위 클램핑에 사용.
- * @param minTime x축 최솟값(초). pre-charge 구간이 있을 때 음수. 기본값 0.
- * @param rightGridPad ECharts grid.right(px). 오른쪽 보조 Y축 있을 때 CHART_GRID_RIGHT_WITH_ROR.
+ * - 휠: native non-passive listener (ECharts canvas가 bubble wheel을 막음)
+ * - 드래그: 줌된 상태에서 X축 좌우 패닝만 (Y 구간은 설정값 고정)
  */
 export const useChartZoom = (
     MAX_TIME: number,
     minTime: number = 0,
     rightGridPad: number = CHART_GRID_RIGHT,
+    /** false면 휠 줌 비활성 (fullscreen 등) */
+    wheelEnabled: boolean = true,
 ): ChartZoom => {
     const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);
     const hoveredChartIndexRef = useRef<number | null>(null);
@@ -58,14 +51,22 @@ export const useChartZoom = (
         startRange: { start: number; end: number };
     } | null>(null);
 
+    // Latest values for native wheel listener (avoid re-bind every render)
+    const zoomRef = useRef({
+        MAX_TIME,
+        minTime,
+        rightGridPad,
+        zoomRange,
+        wheelEnabled,
+    });
+    zoomRef.current = { MAX_TIME, minTime, rightGridPad, zoomRange, wheelEnabled };
+
     const effectiveZoomRange = useMemo(
         () =>
             zoomRange ? { start: Math.max(minTime, zoomRange.start), end: Math.min(MAX_TIME, zoomRange.end) } : null,
         [zoomRange, minTime, MAX_TIME],
     );
 
-    // ECharts는 명시적 height(px)가 필요하므로 ResizeObserver로 chartAreaRef 높이를 그대로 반영한다.
-    // ChartLegend는 absolute라 플로우 높이에 포함되지 않는다.
     useEffect(() => {
         const el = chartAreaRef.current;
         if (!el) return;
@@ -80,73 +81,108 @@ export const useChartZoom = (
         return () => obs.disconnect();
     }, []);
 
-    const handleChartWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-        if (MAX_TIME <= 0) return;
-        event.preventDefault();
-        const currentStart = effectiveZoomRange?.start ?? 0;
-        const currentEnd = effectiveZoomRange?.end ?? MAX_TIME;
-        const currentDuration = currentEnd - currentStart;
-        if (event.deltaY < 0 && currentDuration <= MIN_VISIBLE_SECS) return;
-        if (event.deltaY > 0 && currentStart === minTime && currentEnd === MAX_TIME) return;
-        const rect = event.currentTarget.getBoundingClientRect();
-        const dataWidth = getChartDataWidth(rect, rightGridPad);
-        const mouseX = event.clientX - rect.left - CHART_GRID_LEFT;
-        const pointerRatio = dataWidth > 0 ? Math.max(0, Math.min(1, mouseX / dataWidth)) : 0.5;
-        const focusTime = currentStart + pointerRatio * currentDuration;
-        const zoomFactor = event.deltaY < 0 ? 0.8 : 1.25;
-        const nextDuration = Math.max(MIN_VISIBLE_SECS, Math.min(MAX_TIME, currentDuration * zoomFactor));
-        if (nextDuration >= MAX_TIME) {
-            setZoomRange(null);
-            return;
-        }
-        let nextStart = focusTime - pointerRatio * nextDuration;
-        let nextEnd = nextStart + nextDuration;
-        if (nextStart < minTime) {
-            nextStart = minTime;
-            nextEnd = minTime + nextDuration;
-        }
-        if (nextEnd > MAX_TIME) {
-            nextEnd = MAX_TIME;
-            nextStart = MAX_TIME - nextDuration;
-        }
-        setZoomRange({ start: nextStart, end: nextEnd });
-    };
+    // Native wheel — capture + passive:false so preventDefault works and ECharts can't swallow it.
+    // Re-bind when height settles (ref is attached after first layout).
+    useEffect(() => {
+        const el = chartAreaRef.current;
+        if (!el) return;
 
-    const handleChartPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-        if (!effectiveZoomRange || event.button !== 0) return;
-        chartDragRef.current = {
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            startRange: effectiveZoomRange,
+        const onWheel = (event: WheelEvent) => {
+            const {
+                MAX_TIME: maxT,
+                minTime: minT,
+                rightGridPad: pad,
+                zoomRange: zr,
+                wheelEnabled: enabled,
+            } = zoomRef.current;
+            if (!enabled || maxT <= minT) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const currentStart = zr ? Math.max(minT, zr.start) : minT;
+            const currentEnd = zr ? Math.min(maxT, zr.end) : maxT;
+            const currentDuration = currentEnd - currentStart;
+            if (currentDuration <= 0) return;
+
+            // zoom in (deltaY < 0) / out (deltaY > 0)
+            if (event.deltaY < 0 && currentDuration <= MIN_VISIBLE_SECS) return;
+            if (event.deltaY > 0 && !zr) return; // already full range
+
+            const rect = el.getBoundingClientRect();
+            const dataWidth = getChartDataWidth(rect, pad);
+            const mouseX = event.clientX - rect.left - CHART_GRID_LEFT;
+            const pointerRatio = dataWidth > 0 ? Math.max(0, Math.min(1, mouseX / dataWidth)) : 0.5;
+            const focusTime = currentStart + pointerRatio * currentDuration;
+            const zoomFactor = event.deltaY < 0 ? 0.8 : 1.25;
+            const fullSpan = maxT - minT;
+            const nextDuration = Math.max(MIN_VISIBLE_SECS, Math.min(fullSpan, currentDuration * zoomFactor));
+
+            if (nextDuration >= fullSpan - 1e-6) {
+                setZoomRange(null);
+                return;
+            }
+
+            let nextStart = focusTime - pointerRatio * nextDuration;
+            let nextEnd = nextStart + nextDuration;
+            if (nextStart < minT) {
+                nextStart = minT;
+                nextEnd = minT + nextDuration;
+            }
+            if (nextEnd > maxT) {
+                nextEnd = maxT;
+                nextStart = maxT - nextDuration;
+            }
+            setZoomRange({ start: nextStart, end: nextEnd });
         };
-        event.currentTarget.setPointerCapture(event.pointerId);
-        event.currentTarget.focus();
-        setIsChartDragging(true);
-        event.preventDefault();
-    };
 
-    const handleChartPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+        el.addEventListener('wheel', onWheel, { passive: false, capture: true });
+        return () => el.removeEventListener('wheel', onWheel, { capture: true });
+    }, [mainChartHeight]);
+
+    const handleChartPointerDown = useCallback(
+        (event: React.PointerEvent<HTMLDivElement>) => {
+            if (!effectiveZoomRange || event.button !== 0) return;
+            if (chartDragRef.current) return;
+            chartDragRef.current = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startRange: effectiveZoomRange,
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+            event.currentTarget.focus();
+            setIsChartDragging(true);
+            event.preventDefault();
+        },
+        [effectiveZoomRange],
+    );
+
+    const handleChartPointerMove = useCallback(
+        (event: React.PointerEvent<HTMLDivElement>) => {
+            const drag = chartDragRef.current;
+            if (!drag || drag.pointerId !== event.pointerId) return;
+            const duration = drag.startRange.end - drag.startRange.start;
+            if (duration <= 0) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            const dataWidth = getChartDataWidth(rect, rightGridPad);
+            const deltaPx = event.clientX - drag.startX;
+            const deltaTime = -(deltaPx / dataWidth) * duration;
+            const nextStart = Math.max(minTime, Math.min(MAX_TIME - duration, drag.startRange.start + deltaTime));
+            setZoomRange({ start: nextStart, end: nextStart + duration });
+            event.preventDefault();
+        },
+        [MAX_TIME, minTime, rightGridPad],
+    );
+
+    const endChartDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
         const drag = chartDragRef.current;
         if (!drag || drag.pointerId !== event.pointerId) return;
-        const duration = drag.startRange.end - drag.startRange.start;
-        if (duration <= 0) return;
-        const rect = event.currentTarget.getBoundingClientRect();
-        const dataWidth = getChartDataWidth(rect, rightGridPad);
-        const deltaPx = event.clientX - drag.startX;
-        const deltaTime = -(deltaPx / dataWidth) * duration;
-        const nextStart = Math.max(minTime, Math.min(MAX_TIME - duration, drag.startRange.start + deltaTime));
-        setZoomRange({ start: nextStart, end: nextStart + duration });
-        event.preventDefault();
-    };
-
-    const endChartDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-        const drag = chartDragRef.current;
-        if (!drag || drag.pointerId !== event.pointerId) return;
-        if (event.currentTarget.hasPointerCapture(event.pointerId))
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
             event.currentTarget.releasePointerCapture(event.pointerId);
+        }
         chartDragRef.current = null;
         setIsChartDragging(false);
-    };
+    }, []);
 
     return {
         zoomRange,
@@ -157,7 +193,6 @@ export const useChartZoom = (
         isChartDragging,
         mainChartHeight,
         chartAreaRef,
-        handleChartWheel,
         handleChartPointerDown,
         handleChartPointerMove,
         endChartDrag,

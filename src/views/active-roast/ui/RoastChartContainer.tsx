@@ -11,7 +11,6 @@ interface RoastChartContainerProps {
     effectiveZoomRange: { start: number; end: number } | null;
     isChartDragging: boolean;
     isFullscreen: boolean;
-    handleChartWheel: (event: React.WheelEvent<HTMLDivElement>) => void;
     handleChartPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
     handleChartPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
     endChartDrag: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -54,7 +53,6 @@ export const RoastChartContainer = ({
     effectiveZoomRange,
     isChartDragging,
     isFullscreen,
-    handleChartWheel,
     handleChartPointerDown,
     handleChartPointerMove,
     endChartDrag,
@@ -96,11 +94,12 @@ export const RoastChartContainer = ({
                         : 'cursor-grab touch-none'
                     : 'cursor-default'
             }`}
-            onWheel={isFullscreen ? undefined : handleChartWheel}
-            onPointerDown={isFullscreen ? undefined : handleChartPointerDown}
-            onPointerMove={isFullscreen ? undefined : handleChartPointerMove}
-            onPointerUp={isFullscreen ? undefined : endChartDrag}
-            onPointerCancel={isFullscreen ? undefined : endChartDrag}
+            // wheel: native listener on chartAreaRef (useChartZoom) — ECharts steals bubble wheel
+            // pointer capture: ECharts canvas stops bubble
+            onPointerDownCapture={isFullscreen ? undefined : handleChartPointerDown}
+            onPointerMoveCapture={isFullscreen ? undefined : handleChartPointerMove}
+            onPointerUpCapture={isFullscreen ? undefined : endChartDrag}
+            onPointerCancelCapture={isFullscreen ? undefined : endChartDrag}
             role="region"
             aria-label="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
         >
@@ -134,6 +133,8 @@ export const RoastChartContainer = ({
                 showRoRET={showRoRET}
                 rorEtActual={rorEtActual}
                 temperatureUnit={unit}
+                xViewMin={effectiveZoomRange?.start}
+                xViewMax={effectiveZoomRange?.end}
                 controlData={controlData}
                 phaseSegments={phaseSegments}
                 tempMinC={tempMinC}
