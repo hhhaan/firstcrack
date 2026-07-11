@@ -427,11 +427,21 @@
             "skip": "Skip",
             "confirm": "Confirm"
         },
-        "fullscreenHint": {
-            "title": "Fullscreen shortcut",
-            "description": "During a roast, press F to view the chart fullscreen. Press Esc to exit.",
-            "dismiss": "Got it",
-            "dontShowAgain": "Don't show again"
+        "onboarding": {
+            "next": "Next",
+            "done": "Got it",
+            "dontShowAgain": "Don't show again",
+            "progress": "{{current}} / {{total}}",
+            "steps": {
+                "fullscreen": {
+                    "title": "Fullscreen shortcut",
+                    "description": "During a roast, press F to view the chart fullscreen. Press Esc to exit."
+                },
+                "settings": {
+                    "title": "Roast settings",
+                    "description": "Open roast settings for display, detection, chart ranges, and many other roast-time options in one place."
+                }
+            }
         },
         "dialogs": {
             "roastInProgressTitle": "Roast in Progress",

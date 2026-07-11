@@ -22,7 +22,7 @@ export const ChartLegend = ({
     ];
 
     return (
-        <div className="absolute top-[-13px] right-6 z-10 flex items-center gap-4">
+        <div className="absolute top-[-18px] right-6 z-10 flex items-center gap-4">
             {items.map(({ color, label, dashed }) => (
                 <div key={label} className="flex items-center gap-1.5">
                     <div

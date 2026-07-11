@@ -68,32 +68,8 @@ export const RoastSidePanel = ({
     onEndRoast,
 }: RoastSidePanelProps) => (
     <div className="w-48 flex flex-col gap-2.5 px-3 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        {/* BT */}
-        <div className="text-right">
-            <div className="text-sm text-muted font-semibold uppercase mb-1">BT</div>
-            <div
-                className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                style={{ color: SENSOR_COLORS.bt }}
-            >
-                {formatTemp(rawBT, unit)}
-            </div>
-        </div>
-        {/* ΔBT */}
-        <div className="flex items-center justify-between">
-            <span className="text-xs text-muted font-semibold uppercase">ΔBT (30s)</span>
-            <span className="font-mono text-xl font-medium leading-tight" style={{ color: SENSOR_COLORS.bt }}>
-                {deltaBT != null ? (
-                    <>
-                        <span className="mr-1">{Number(deltaBT) >= 0 ? '+' : '−'}</span>
-                        <span>{Math.abs(Number(deltaBT)).toFixed(1)}°</span>
-                    </>
-                ) : (
-                    '—'
-                )}
-            </span>
-        </div>
         {/* ET */}
-        <div className="text-right border-t border-border-subtle pt-3">
+        <div className="text-right">
             <div className="text-sm text-muted font-semibold uppercase mb-1">ET</div>
             <div
                 className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
@@ -110,6 +86,30 @@ export const RoastSidePanel = ({
                     <>
                         <span className="mr-1">{Number(deltaET) >= 0 ? '+' : '−'}</span>
                         <span>{Math.abs(Number(deltaET)).toFixed(1)}°</span>
+                    </>
+                ) : (
+                    '—'
+                )}
+            </span>
+        </div>
+        {/* BT */}
+        <div className="text-right border-t border-border-subtle pt-3">
+            <div className="text-sm text-muted font-semibold uppercase mb-1">BT</div>
+            <div
+                className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                style={{ color: SENSOR_COLORS.bt }}
+            >
+                {formatTemp(rawBT, unit)}
+            </div>
+        </div>
+        {/* ΔBT */}
+        <div className="flex items-center justify-between">
+            <span className="text-xs text-muted font-semibold uppercase">ΔBT (30s)</span>
+            <span className="font-mono text-xl font-medium leading-tight" style={{ color: SENSOR_COLORS.bt }}>
+                {deltaBT != null ? (
+                    <>
+                        <span className="mr-1">{Number(deltaBT) >= 0 ? '+' : '−'}</span>
+                        <span>{Math.abs(Number(deltaBT)).toFixed(1)}°</span>
                     </>
                 ) : (
                     '—'

@@ -185,6 +185,8 @@ export const RoastHeader = ({
             <div className="flex items-start gap-3">
                 {onOpenRoastSettings && (
                     <button
+                        type="button"
+                        data-tour="active-roast-settings"
                         onClick={onOpenRoastSettings}
                         aria-label="Open roast settings"
                         title="Roast settings"

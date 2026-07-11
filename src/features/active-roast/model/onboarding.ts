@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 interface ActiveRoastOnboardingState {
-    /** Persisted — only set when user clicks "Don't show again". */
+    /** Persisted — tour permanently hidden ("Don't show again"). */
     fullscreenHintSeen: boolean;
     /** In-memory only — resets on app restart. */
     sessionDismissed: boolean;

@@ -426,11 +426,21 @@
             "skip": "差し引かない",
             "confirm": "確認"
         },
-        "fullscreenHint": {
-            "title": "全画面ショートカット",
-            "description": "ロースト中は F キーでチャートを全画面表示できます。Esc で終了します。",
-            "dismiss": "了解",
-            "dontShowAgain": "次回から表示しない"
+        "onboarding": {
+            "next": "次へ",
+            "done": "了解",
+            "dontShowAgain": "次回から表示しない",
+            "progress": "{{current}} / {{total}}",
+            "steps": {
+                "fullscreen": {
+                    "title": "全画面ショートカット",
+                    "description": "ロースト中は F キーでチャートを全画面表示できます。Esc で終了します。"
+                },
+                "settings": {
+                    "title": "ロースト設定",
+                    "description": "表示・検知・チャート範囲など、ロースト中に使える設定がここにまとまっています。"
+                }
+            }
         },
         "dialogs": {
             "roastInProgressTitle": "ロースト中",

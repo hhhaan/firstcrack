@@ -993,7 +993,10 @@ export const RoastTempChart: React.FC<Props> = ({
     }, [eventMarkers, onEventMarkerDrag]);
 
     return (
-        <div style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}>
+        <div
+            data-tour="active-roast-chart"
+            style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}
+        >
             <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
             {controlData && (
                 <div className="absolute flex items-center gap-4" style={{ bottom: -15, left: 25 }}>

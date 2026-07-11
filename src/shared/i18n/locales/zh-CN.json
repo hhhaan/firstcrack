@@ -427,11 +427,21 @@
             "skip": "不扣减",
             "confirm": "确认"
         },
-        "fullscreenHint": {
-            "title": "全屏快捷键",
-            "description": "烘焙过程中按 F 键可将图表全屏显示，按 Esc 退出。",
-            "dismiss": "知道了",
-            "dontShowAgain": "不再显示"
+        "onboarding": {
+            "next": "下一步",
+            "done": "知道了",
+            "dontShowAgain": "不再显示",
+            "progress": "{{current}} / {{total}}",
+            "steps": {
+                "fullscreen": {
+                    "title": "全屏快捷键",
+                    "description": "烘焙过程中按 F 键可将图表全屏显示，按 Esc 退出。"
+                },
+                "settings": {
+                    "title": "烘焙设置",
+                    "description": "显示、检测、图表范围等烘焙中可调选项都集中在这里。"
+                }
+            }
         },
         "dialogs": {
             "roastInProgressTitle": "烘焙进行中",
