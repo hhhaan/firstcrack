@@ -36,7 +36,9 @@ export const useAutoDetection = (
     const fcStartFiredRef = useRef(false);
     // livePoints는 effect 클로저 최신값 필요 — ref로 동기화
     const livePointsRef = useRef(livePoints);
-    livePointsRef.current = livePoints;
+    useEffect(() => {
+        livePointsRef.current = livePoints;
+    }, [livePoints]);
 
     const [confirmedTP, setConfirmedTP] = useState<TurningPoint | null>(null);
 
