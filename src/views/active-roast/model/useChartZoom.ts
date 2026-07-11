@@ -59,7 +59,9 @@ export const useChartZoom = (
         zoomRange,
         wheelEnabled,
     });
-    zoomRef.current = { MAX_TIME, minTime, rightGridPad, zoomRange, wheelEnabled };
+    useEffect(() => {
+        zoomRef.current = { MAX_TIME, minTime, rightGridPad, zoomRange, wheelEnabled };
+    }, [MAX_TIME, minTime, rightGridPad, zoomRange, wheelEnabled]);
 
     const effectiveZoomRange = useMemo(
         () =>
