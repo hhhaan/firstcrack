@@ -1,0 +1,105 @@
+name: Deploy Edge Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+  workflow_dispatch:
+    inputs:
+      function:
+        description: 'Specific function to deploy (empty = deploy all changed)'
+        required: false
+
+concurrency:
+  group: deploy-functions-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # pin: supabase/setup-cli@v1.7.1
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1
+        with:
+          version: 2.24.3
+
+      - name: Resolve changed functions
+        id: changed
+        env:
+          FUNCTION_INPUT: ${{ inputs.function }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          PROJECT_REF="vjdgdolfxvnxushxrmff"
+
+          if [ -n "$FUNCTION_INPUT" ]; then
+            echo "Deploying manually specified function: $FUNCTION_INPUT"
+            echo "functions=[\"$FUNCTION_INPUT\"]" >> "$GITHUB_OUTPUT"
+            echo "project_ref=$PROJECT_REF" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Detect changed function directories vs main (PR/local) or full push range on main
+          CHANGED=$(git diff --name-only origin/main...HEAD -- supabase/functions/ || true)
+          if [ -z "$CHANGED" ]; then
+            # On main push: diff entire push (all commits), not only HEAD~1
+            if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+              CHANGED=$(git diff --name-only "${BEFORE_SHA}...HEAD" -- supabase/functions/ || true)
+            else
+              CHANGED=$(git diff --name-only HEAD~1 -- supabase/functions/ || true)
+            fi
+          fi
+
+          if [ -z "$CHANGED" ]; then
+            echo "No function changes detected"
+            echo "functions=[]" >> "$GITHUB_OUTPUT"
+            echo "project_ref=$PROJECT_REF" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Extract unique function directory names (excluding _shared)
+          DIRS=$(echo "$CHANGED" | grep -oP '(?<=supabase/functions/)[^/]+' | grep -v '^_shared$' | sort -u)
+
+          if [ -z "$DIRS" ]; then
+            echo "Only _shared changes — deploying all functions"
+            ALL=$(find supabase/functions -mindepth 1 -maxdepth 1 -type d ! -name '_shared' -exec basename {} \; | sort)
+            DIRS="$ALL"
+          fi
+
+          FUNCTIONS=$(echo "$DIRS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "Deploying functions: $FUNCTIONS"
+          echo "functions=$FUNCTIONS" >> "$GITHUB_OUTPUT"
+          echo "project_ref=$PROJECT_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy functions
+        if: steps.changed.outputs.functions != '[]'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          FUNCTIONS_JSON: ${{ steps.changed.outputs.functions }}
+          PROJECT_REF: ${{ steps.changed.outputs.project_ref }}
+        run: |
+          echo "$FUNCTIONS_JSON" | jq -r '.[]' | while read fn; do
+            echo "▶ Deploying $fn..."
+            supabase functions deploy "$fn" \
+              --project-ref "$PROJECT_REF" \
+              || { echo "::error::Deploy failed for $fn"; exit 1; }
+          done
+          echo "✅ All functions deployed"
+
+      - name: Notify failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+              --data "{\"text\":\":x: *Edge Function deploy FAILED* — <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
+          fi

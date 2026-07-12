@@ -47,7 +47,7 @@ export const useInsertStockEvent = () => {
     return useMutation({
         mutationFn: beanStockEventApi.insert,
         onMutate: async (newEvent: BeanStockEventInsert) => {
-            const beanId = newEvent.bean_id!;
+            const beanId = newEvent.bean_id;
             await qc.cancelQueries({ queryKey: stockEventKeys.summary(beanId) });
             await qc.cancelQueries({ queryKey: ['bean-stock-summaries'] });
 
@@ -68,14 +68,14 @@ export const useInsertStockEvent = () => {
             return { prevSummary, prevSummaries };
         },
         onError: (_err, newEvent, ctx) => {
-            const beanId = newEvent.bean_id!;
+            const beanId = newEvent.bean_id;
             if (ctx?.prevSummary) qc.setQueryData(stockEventKeys.summary(beanId), ctx.prevSummary);
             if (ctx?.prevSummaries) {
                 for (const [queryKey, data] of ctx.prevSummaries) qc.setQueryData(queryKey, data);
             }
         },
         onSettled: async (_data, _err, newEvent: BeanStockEventInsert) => {
-            const beanId = newEvent.bean_id!;
+            const beanId = newEvent.bean_id;
             qc.invalidateQueries({ queryKey: stockEventKeys.byBean(beanId) });
             qc.invalidateQueries({ queryKey: stockEventKeys.summary(beanId) });
             qc.invalidateQueries({ queryKey: ['bean-stock-summaries'] });

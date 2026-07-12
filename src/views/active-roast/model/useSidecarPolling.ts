@@ -109,6 +109,7 @@ export const useSidecarPolling = ({
     }, [phase, roastStartTimeRef, preChargeDisplaySec]);
 
     // 뷰가 활성화될 때 연결 상태를 확인하고 idle 상태면 예열 단계로 진입한다.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
         if (!isActive) return;
         sidecar
@@ -124,11 +125,11 @@ export const useSidecarPolling = ({
                 }
             })
             .catch(() => setConnected(false));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isActive]);
 
     // 예열·대기·로스팅 단계에서 주기적으로 온도를 폴링한다.
     // idle / ended 단계에서는 폴링을 중단해 불필요한 IPC 호출을 막는다.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
         if (phase === 'idle' || phase === 'ended') return;
 
@@ -234,7 +235,6 @@ export const useSidecarPolling = ({
         poll();
         const id = setInterval(poll, pollIntervalMs);
         return () => clearInterval(id);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [phase, pollIntervalMs]);
 
     return { livePoints, setLivePoints };

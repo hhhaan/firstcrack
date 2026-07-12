@@ -1,0 +1,57 @@
+name: Supabase CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  migration-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # pin: supabase/setup-cli@v1.7.1
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1
+        with:
+          version: 2.24.3
+
+      - name: Lint migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase db lint --project-ref vjdgdolfxvnxushxrmff || {
+            echo "::warning::Migration linting found issues — review before merging"
+            exit 1
+          }
+
+  rls-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for missing RLS policies
+        run: |
+          missing=0
+          for f in supabase/migrations/*.sql; do
+            if grep -qi 'create table' "$f" && ! grep -qi 'alter table.*enable row level security' "$f" && ! grep -qi 'create policy' "$f"; then
+              echo "::warning::$f: CREATE TABLE without ENABLE ROW LEVEL SECURITY or CREATE POLICY"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::One or more migrations create tables without RLS. Add 'ALTER TABLE ... ENABLE ROW LEVEL SECURITY' and policies."
+            exit 1
+          fi
+          echo "✅ All migrations have RLS coverage"

@@ -94,6 +94,7 @@ export const SpotlightTour = ({
         return () => window.removeEventListener('resize', onResize);
     }, []);
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useLayoutEffect(() => {
         const el = cardRef.current;
         if (!el) return;
@@ -111,6 +112,7 @@ export const SpotlightTour = ({
         return () => window.removeEventListener('keydown', onKey);
     }, [onDismiss]);
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
         cardRef.current?.focus({ preventScroll: true });
     }, [stepIndex]);
@@ -200,7 +202,7 @@ export const SpotlightTour = ({
             >
                 {showProgress && (
                     <p className="mb-2.5 text-[11px] font-medium tracking-[0.14px] text-muted dark:text-white/45">
-                        {stepProgressLabel ?? `${stepIndex! + 1} / ${stepCount}`}
+                        {stepProgressLabel ?? `${(stepIndex ?? 0) + 1} / ${stepCount}`}
                     </p>
                 )}
 

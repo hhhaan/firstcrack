@@ -23,6 +23,7 @@ export const ProfileCurveChart = ({ series }: ProfileCurveChartProps) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const plotRef = useRef<uPlot | null>(null);
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
         const el = containerRef.current;
         if (!el || series.length === 0) return;
@@ -126,7 +127,7 @@ export const ProfileCurveChart = ({ series }: ProfileCurveChartProps) => {
             plugins: [tooltipPlugin],
         };
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // biome-ignore lint/suspicious/noExplicitAny: uPlot data array has dynamic shape per series count
         plotRef.current = new uPlot(opts, [xs, ...ysArrays] as any, el);
 
         const obs = new ResizeObserver(() => {
