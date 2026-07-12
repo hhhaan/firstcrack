@@ -271,6 +271,7 @@ export const RoastTempChart: React.FC<Props> = ({
             lineStyle: crossLineStyle,
             crossStyle: crossLineStyle,
         };
+        // ECharts LabelFormatterParams.value = ScaleDataValue (number | string | Date)
         const xAxisPointer = {
             show: true,
             type: 'line' as const,
@@ -278,7 +279,7 @@ export const RoastTempChart: React.FC<Props> = ({
             snap: false,
             label: {
                 show: true,
-                formatter: (p: { value: number | string }) => fmtSec(Number(p.value)),
+                formatter: (p: { value: unknown }) => fmtSec(Number(p.value)),
             },
             lineStyle: crossLineStyle,
         };
@@ -288,7 +289,7 @@ export const RoastTempChart: React.FC<Props> = ({
             animation: false,
             label: {
                 show: true,
-                formatter: (p: { value: number | string }) => {
+                formatter: (p: { value: unknown }) => {
                     const n = Number(p.value);
                     return Number.isFinite(n) ? n.toFixed(1) : '';
                 },
