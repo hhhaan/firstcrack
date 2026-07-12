@@ -422,8 +422,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             <div
                 className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
                     isFullscreen
-                        ? 'fixed inset-0 z-9999 h-screen w-screen py-[30px] pl-2.5 pr-5'
-                        : 'rounded relative z-1 pl-2.5 pr-6 py-[30px] flex-1 dark:border dark:border-[#585d61]'
+                        ? 'fixed inset-0 z-9999 h-screen w-screen py-[30px] pl-2.5 pr-2.5'
+                        : 'rounded relative z-1 pl-2.5 pr-2.5 py-[30px] flex-1 dark:border dark:border-[#585d61]'
                 }`}
             >
                 <div className="flex gap-0 flex-1 min-h-0 flex-row">
