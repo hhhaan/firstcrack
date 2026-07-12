@@ -30,6 +30,12 @@ interface RoastChartContainerProps {
         heatPower: (number | null)[];
         fanSpeed: (number | null)[];
     };
+    showControlDrum?: boolean;
+    showControlHeat?: boolean;
+    showControlFan?: boolean;
+    controlChartHeightPct?: number;
+    controlYMin?: number;
+    controlYMax?: number;
     tempMinC: number;
     tempMaxC: number;
     rorYMin: number;
@@ -66,6 +72,12 @@ export const RoastChartContainer = ({
     showRoR,
     showRoRET,
     controlData,
+    showControlDrum = true,
+    showControlHeat = true,
+    showControlFan = true,
+    controlChartHeightPct = 21,
+    controlYMin = 0,
+    controlYMax = 100,
     tempMinC,
     tempMaxC,
     rorYMin,
@@ -133,6 +145,12 @@ export const RoastChartContainer = ({
                 xViewMin={effectiveZoomRange?.start}
                 xViewMax={effectiveZoomRange?.end}
                 controlData={controlData}
+                showControlDrum={showControlDrum}
+                showControlHeat={showControlHeat}
+                showControlFan={showControlFan}
+                controlChartHeightPct={controlChartHeightPct}
+                controlYMin={controlYMin}
+                controlYMax={controlYMax}
                 phaseSegments={phaseSegments}
                 tempMinC={tempMinC}
                 tempMaxC={tempMaxC}

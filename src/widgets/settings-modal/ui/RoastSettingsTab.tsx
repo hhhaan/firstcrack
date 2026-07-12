@@ -8,62 +8,83 @@ import {
 } from '@features/active-roast';
 import { SectionCard } from '@shared/ui/SectionCard';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
+import {
+    SettingsCheckRow,
+    SettingsOptionRow,
+    settingsOptionDescCls,
+    settingsOptionLabelCls,
+} from './SettingsOptionRow';
 
 const temperatureOptions: TemperatureUnit[] = ['C', 'F'];
 const pollOptions: PollIntervalMs[] = [500, 1000];
 const rorOptions: RorSpanSec[] = [15, 30, 60];
-const eventMarkerStyleOptions: {
-    value: EventMarkerStyle;
-    label: string;
-    description: string;
-}[] = [
+
+const eventMarkerStyleOptions: { value: EventMarkerStyle; labelKey: string; descKey: string }[] = [
     {
         value: 'point',
-        label: 'Point on curve',
-        description: 'Dot on the BT curve with a label box (event, time, temp)',
+        labelKey: 'settings.tabs.roast.eventMarkerPoint',
+        descKey: 'settings.tabs.roast.eventMarkerPointDescription',
     },
     {
         value: 'line',
-        label: 'Vertical line',
-        description: 'Full-height vertical mark line with event, time, and temp',
+        labelKey: 'settings.tabs.roast.eventMarkerLine',
+        descKey: 'settings.tabs.roast.eventMarkerLineDescription',
     },
 ];
 
 const visibilityOptions = [
-    { key: 'showET' as const, label: 'Env Temp (ET)', description: 'Blue dashed line on the temperature chart' },
+    {
+        key: 'showET' as const,
+        labelKey: 'settings.tabs.roast.showET',
+        descKey: 'settings.tabs.roast.showETDescription',
+    },
     {
         key: 'showTargetCurve' as const,
-        label: 'Target Curve',
-        description: 'Faded reference line for the target BT profile',
+        labelKey: 'settings.tabs.roast.showTargetCurve',
+        descKey: 'settings.tabs.roast.showTargetCurveDescription',
     },
     {
         key: 'showRoRChart' as const,
-        label: 'BT RoR',
-        description: 'BT RoR sub-chart below the temperature curve',
+        labelKey: 'settings.tabs.roast.showRoRChart',
+        descKey: 'settings.tabs.roast.showRoRChartDescription',
     },
-    { key: 'showRoRET' as const, label: 'ET RoR', description: 'ET RoR sub-chart below the temperature curve' },
+    {
+        key: 'showRoRET' as const,
+        labelKey: 'settings.tabs.roast.showRoRET',
+        descKey: 'settings.tabs.roast.showRoRETDescription',
+    },
     {
         key: 'showControlChart' as const,
-        label: 'Control Chart',
-        description: 'Drum / Heat / Fan bottom chart (fullscreen only)',
+        labelKey: 'settings.tabs.roast.showControlChart',
+        descKey: 'settings.tabs.roast.showControlChartDescription',
     },
     {
         key: 'showPhaseBar' as const,
-        label: 'Phase Bar',
-        description: 'Bottom strip showing Drying / Maillard / Development with duration and percentage',
+        labelKey: 'settings.tabs.roast.showPhaseBar',
+        descKey: 'settings.tabs.roast.showPhaseBarDescription',
     },
 ];
 
-const sectionTitleCls = 'text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-0.5';
-const sectionDescCls = 'text-[13px] text-[#6B7280] dark:text-[#999] m-0';
-const optionRowCls =
-    'flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] cursor-pointer';
-const optionRowStaticCls =
-    'flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21]';
-const checkboxCls = 'w-4 h-4 accent-[#111827] dark:accent-[#F2F2F2]';
-const optionLabelCls = 'text-[14px] font-medium text-[#111827] dark:text-[#e5e5e5]';
-const optionDescCls = 'text-[12px] text-[#6B7280] dark:text-[#999] mt-0.5';
+const controlSeriesOptions = [
+    {
+        key: 'showControlDrum' as const,
+        labelKey: 'settings.tabs.roast.controlDrum',
+        descKey: 'settings.tabs.roast.controlDrumDescription',
+    },
+    {
+        key: 'showControlHeat' as const,
+        labelKey: 'settings.tabs.roast.controlHeat',
+        descKey: 'settings.tabs.roast.controlHeatDescription',
+    },
+    {
+        key: 'showControlFan' as const,
+        labelKey: 'settings.tabs.roast.controlFan',
+        descKey: 'settings.tabs.roast.controlFanDescription',
+    },
+];
+
 const numberInputWrapCls =
     'flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#262b31]';
 
@@ -147,130 +168,92 @@ const RangeRow = ({
     </div>
 );
 
-const CheckboxRow = ({ checked, label, onChange }: { checked: boolean; label: string; onChange: () => void }) => (
-    <label className={optionRowCls}>
-        <input type="checkbox" checked={checked} onChange={onChange} className={checkboxCls} />
-        <span className={optionLabelCls}>{label}</span>
-    </label>
-);
-
 export const RoastSettingsTab = () => {
+    const { t } = useTranslation();
     const roastSettings = useRoastSettings();
+    const tk = (key: string) => t(`settings.tabs.roast.${key}`);
 
     return (
-        <>
+        <div className="grid gap-4">
             <SectionCard>
-                <div className="mb-4">
-                    <h4 className={sectionTitleCls}>Temperature Unit</h4>
-                    <p className={sectionDescCls}>Display temperatures in Celsius or Fahrenheit.</p>
-                </div>
-                <div className="grid gap-1.5">
+                <SectionCard.Header title={tk('temperatureUnit')} description={tk('temperatureUnitDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
                     {temperatureOptions.map((u) => (
-                        <CheckboxRow
+                        <SettingsCheckRow
                             key={u}
                             checked={roastSettings.temperatureUnit === u}
                             label={`°${u}`}
                             onChange={() => updateRoastSettings({ temperatureUnit: u })}
                         />
                     ))}
-                </div>
+                </SectionCard.Body>
             </SectionCard>
 
             <SectionCard>
-                <div className="mb-4">
-                    <h4 className={sectionTitleCls}>Update Rate</h4>
-                    <p className={sectionDescCls}>
-                        How often to poll the machine for temperature data during a live session.
-                    </p>
-                </div>
-                <div className="grid gap-1.5">
+                <SectionCard.Header title={tk('updateRate')} description={tk('updateRateDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
                     {pollOptions.map((ms) => (
-                        <CheckboxRow
+                        <SettingsCheckRow
                             key={ms}
                             checked={roastSettings.pollIntervalMs === ms}
                             label={ms < 1000 ? `${ms}ms` : `${ms / 1000}s`}
                             onChange={() => updateRoastSettings({ pollIntervalMs: ms })}
                         />
                     ))}
-                </div>
+                </SectionCard.Body>
             </SectionCard>
 
             <SectionCard>
-                <div className="mb-4">
-                    <h4 className={sectionTitleCls}>RoR Span</h4>
-                    <p className={sectionDescCls}>
-                        Time window for Rate of Rise calculation. Shorter spans react faster; longer spans are smoother.
-                    </p>
-                </div>
-                <div className="grid gap-1.5">
+                <SectionCard.Header title={tk('rorSpan')} description={tk('rorSpanDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
                     {rorOptions.map((sec) => (
-                        <CheckboxRow
+                        <SettingsCheckRow
                             key={sec}
                             checked={roastSettings.rorSpanSec === sec}
                             label={`${sec}s`}
                             onChange={() => updateRoastSettings({ rorSpanSec: sec })}
                         />
                     ))}
-                </div>
+                </SectionCard.Body>
             </SectionCard>
 
             <SectionCard>
-                <div className="mb-4">
-                    <h4 className={sectionTitleCls}>Data Visibility</h4>
-                    <p className={sectionDescCls}>Choose which data series are displayed on the roasting chart.</p>
-                </div>
-                <div className="grid gap-1.5">
-                    {visibilityOptions.map(({ key, label, description }) => (
-                        <label key={key} className={`${optionRowCls} items-start`}>
-                            <input
-                                type="checkbox"
-                                checked={roastSettings[key]}
-                                onChange={(e) => updateRoastSettings({ [key]: e.target.checked })}
-                                className={`mt-0.5 shrink-0 ${checkboxCls}`}
-                            />
-                            <div>
-                                <div className={optionLabelCls}>{label}</div>
-                                <div className={optionDescCls}>{description}</div>
-                            </div>
-                        </label>
+                <SectionCard.Header title={tk('dataVisibility')} description={tk('dataVisibilityDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
+                    {visibilityOptions.map(({ key, labelKey, descKey }) => (
+                        <SettingsCheckRow
+                            key={key}
+                            checked={roastSettings[key]}
+                            label={t(labelKey)}
+                            description={t(descKey)}
+                            onChange={() => updateRoastSettings({ [key]: !roastSettings[key] })}
+                        />
                     ))}
-                </div>
+                </SectionCard.Body>
             </SectionCard>
 
             <SectionCard>
-                <div className="mb-4">
-                    <h4 className={sectionTitleCls}>Event Markers</h4>
-                    <p className={sectionDescCls}>
-                        How Yellow, FC, Drop, and Turning Point are drawn on the temperature chart.
-                    </p>
-                </div>
-                <div className="grid gap-1.5">
-                    {eventMarkerStyleOptions.map(({ value, label, description }) => (
-                        <label key={value} className={`${optionRowCls} items-start`}>
-                            <input
-                                type="radio"
-                                name="eventMarkerStyle"
-                                checked={roastSettings.eventMarkerStyle === value}
-                                onChange={() => updateRoastSettings({ eventMarkerStyle: value })}
-                                className={`mt-0.5 shrink-0 ${checkboxCls}`}
-                            />
-                            <div>
-                                <div className={optionLabelCls}>{label}</div>
-                                <div className={optionDescCls}>{description}</div>
-                            </div>
-                        </label>
+                <SectionCard.Header title={tk('eventMarkers')} description={tk('eventMarkersDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
+                    {eventMarkerStyleOptions.map(({ value, labelKey, descKey }) => (
+                        <SettingsCheckRow
+                            key={value}
+                            type="radio"
+                            name="eventMarkerStyle"
+                            checked={roastSettings.eventMarkerStyle === value}
+                            label={t(labelKey)}
+                            description={t(descKey)}
+                            onChange={() => updateRoastSettings({ eventMarkerStyle: value })}
+                        />
                     ))}
-                </div>
+                </SectionCard.Body>
             </SectionCard>
 
             <SectionCard>
-                <div className="mb-4">
-                    <h4 className={sectionTitleCls}>Axis Range</h4>
-                    <p className={sectionDescCls}>Set the visible range for the temperature and RoR axes.</p>
-                </div>
-                <div className="grid gap-1.5">
+                <SectionCard.Header title={tk('axisRange')} description={tk('axisRangeDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
                     <RangeRow
-                        label="Temp"
+                        label={tk('axisTemp')}
                         minVal={roastSettings.tempMinC}
                         maxVal={roastSettings.tempMaxC}
                         onMinChange={(v) => updateRoastSettings({ tempMinC: v })}
@@ -280,7 +263,7 @@ export const RoastSettingsTab = () => {
                         suffix="°C"
                     />
                     <RangeRow
-                        label="RoR"
+                        label={tk('axisRoR')}
                         minVal={roastSettings.rorYMin}
                         maxVal={roastSettings.rorYMax}
                         onMinChange={(v) => updateRoastSettings({ rorYMin: v })}
@@ -289,31 +272,69 @@ export const RoastSettingsTab = () => {
                         max={100}
                         suffix="°/min"
                     />
-                </div>
+                </SectionCard.Body>
             </SectionCard>
 
             <SectionCard>
-                <div className="mb-4">
-                    <h4 className={sectionTitleCls}>Phase Temperatures</h4>
-                    <p className={sectionDescCls}>BT thresholds for automatic event marking on the chart.</p>
-                </div>
-                <div className="grid gap-1.5">
-                    {[
-                        {
-                            label: 'Yellow Point',
-                            key: 'yellowTempC' as const,
-                            description: 'BT at which Yellow is auto-marked',
-                        },
-                        {
-                            label: 'FC Start',
-                            key: 'fcStartTempC' as const,
-                            description: 'BT at which First Crack is auto-marked',
-                        },
-                    ].map(({ label, key, description }) => (
-                        <div key={key} className={optionRowStaticCls}>
+                <SectionCard.Header title={tk('controlChart')} description={tk('controlChartDescription')} />
+                <SectionCard.Body className="grid gap-3">
+                    <div className="grid gap-1.5">
+                        {controlSeriesOptions.map(({ key, labelKey, descKey }) => (
+                            <SettingsCheckRow
+                                key={key}
+                                checked={roastSettings[key]}
+                                label={t(labelKey)}
+                                description={t(descKey)}
+                                onChange={() => updateRoastSettings({ [key]: !roastSettings[key] })}
+                            />
+                        ))}
+                    </div>
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('controlBandHeight')}</div>
+                            <div className={settingsOptionDescCls}>{tk('controlBandHeightDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.controlChartHeightPct}
+                            onChange={(v) => updateRoastSettings({ controlChartHeightPct: v })}
+                            min={12}
+                            max={40}
+                            suffix="%"
+                        />
+                    </SettingsOptionRow>
+                    <RangeRow
+                        label={tk('controlY')}
+                        minVal={roastSettings.controlYMin}
+                        maxVal={roastSettings.controlYMax}
+                        onMinChange={(v) => updateRoastSettings({ controlYMin: v })}
+                        onMaxChange={(v) => updateRoastSettings({ controlYMax: v })}
+                        min={-50}
+                        max={500}
+                    />
+                </SectionCard.Body>
+            </SectionCard>
+
+            <SectionCard>
+                <SectionCard.Header title={tk('phaseTemperatures')} description={tk('phaseTemperaturesDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
+                    {(
+                        [
+                            {
+                                labelKey: 'yellowPoint',
+                                descKey: 'yellowPointDescription',
+                                key: 'yellowTempC' as const,
+                            },
+                            {
+                                labelKey: 'fcStart',
+                                descKey: 'fcStartDescription',
+                                key: 'fcStartTempC' as const,
+                            },
+                        ] as const
+                    ).map(({ labelKey, descKey, key }) => (
+                        <SettingsOptionRow key={key} justify="between">
                             <div>
-                                <div className={optionLabelCls}>{label}</div>
-                                <div className={optionDescCls}>{description}</div>
+                                <div className={settingsOptionLabelCls}>{tk(labelKey)}</div>
+                                <div className={settingsOptionDescCls}>{tk(descKey)}</div>
                             </div>
                             <NumberInput
                                 value={roastSettings[key]}
@@ -322,32 +343,29 @@ export const RoastSettingsTab = () => {
                                 max={300}
                                 suffix="°C"
                             />
-                        </div>
+                        </SettingsOptionRow>
                     ))}
-                </div>
+                </SectionCard.Body>
             </SectionCard>
 
             <SectionCard>
-                <div className="mb-4">
-                    <h4 className={sectionTitleCls}>Auto Charge Detection</h4>
-                    <p className={sectionDescCls}>
-                        Charge is triggered when BT drops by this amount within the detection window.
-                    </p>
-                </div>
-                <div className={optionRowStaticCls}>
-                    <div>
-                        <div className={optionLabelCls}>Drop Threshold</div>
-                        <div className={optionDescCls}>Minimum BT drop to detect bean charge</div>
-                    </div>
-                    <NumberInput
-                        value={roastSettings.autoChargeDropC}
-                        onChange={(v) => updateRoastSettings({ autoChargeDropC: v })}
-                        min={1}
-                        max={30}
-                        suffix="°C"
-                    />
-                </div>
+                <SectionCard.Header title={tk('autoCharge')} description={tk('autoChargeDescription')} />
+                <SectionCard.Body>
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('dropThreshold')}</div>
+                            <div className={settingsOptionDescCls}>{tk('dropThresholdDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.autoChargeDropC}
+                            onChange={(v) => updateRoastSettings({ autoChargeDropC: v })}
+                            min={1}
+                            max={30}
+                            suffix="°C"
+                        />
+                    </SettingsOptionRow>
+                </SectionCard.Body>
             </SectionCard>
-        </>
+        </div>
     );
 };

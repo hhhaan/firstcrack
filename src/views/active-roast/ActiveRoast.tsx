@@ -447,7 +447,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         showRoR={roastSettings.showRoRChart}
                         showRoRET={roastSettings.showRoRET}
                         controlData={
-                            roastSettings.showControlChart
+                            roastSettings.showControlChart &&
+                            (roastSettings.showControlDrum ||
+                                roastSettings.showControlHeat ||
+                                roastSettings.showControlFan)
                                 ? {
                                       xs: chart.visibleControlXs,
                                       drumTemp: chart.visibleDrumTemp,
@@ -456,6 +459,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                                   }
                                 : undefined
                         }
+                        showControlDrum={roastSettings.showControlDrum}
+                        showControlHeat={roastSettings.showControlHeat}
+                        showControlFan={roastSettings.showControlFan}
+                        controlChartHeightPct={roastSettings.controlChartHeightPct}
+                        controlYMin={roastSettings.controlYMin}
+                        controlYMax={roastSettings.controlYMax}
                         tempMinC={roastSettings.tempMinC}
                         tempMaxC={roastSettings.tempMaxC}
                         rorYMin={roastSettings.rorYMin}

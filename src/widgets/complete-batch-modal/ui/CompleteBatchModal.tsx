@@ -1,6 +1,7 @@
 import { batchGreenNeededGramsFromBatch } from '@shared/lib/batch-stock';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Check } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -37,7 +38,7 @@ export const CompleteBatchModal = ({ open, batch, onClose, onConfirm }: Complete
             onClose={handleClose}
             labelledBy="complete-batch-title"
             overlayClassName="z-[10000]"
-            contentClassName="max-w-[420px] w-full bg-main-bg dark:bg-[#181d21] dark:[&_*]:!text-white rounded-[16px] p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px] border border-transparent dark:border-[#585d61]"
+            contentClassName={modalPanel.sm}
         >
             <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-palette-green/12 text-palette-green flex items-center justify-center shrink-0">

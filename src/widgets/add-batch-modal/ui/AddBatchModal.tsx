@@ -10,9 +10,10 @@ import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { useAuthStore } from '@shared/store/auth';
 import type { Bean, PlanBatchWithProgress, RoastProfile } from '@shared/types/database.types';
+import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
+import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { format } from 'date-fns';
-import { X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { deriveBatchQuantities } from '../lib/batch-quantities';
@@ -208,28 +209,23 @@ export const AddBatchModal = ({
             labelledBy="add-batch-modal-title"
             contentClassName="max-w-[600px] w-full max-h-[min(840px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.97)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.22)] border border-white dark:border-[#585d61] overflow-hidden"
         >
-            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm border-b border-black/4 dark:border-[#585d61] px-8 pt-6 pb-5 flex items-center justify-between">
-                <div>
-                    <h2
-                        id="add-batch-modal-title"
-                        className="font-(--font-display) text-[22px] text-primary tracking-[-0.02em] m-0"
-                    >
-                        {isEdit ? t('addBatchModal.editBatch') : t('addBatchModal.addBatch')}
-                    </h2>
-                    {isEdit && editingBatch && (
-                        <p className="text-[12px] text-muted mt-0.5 m-0">{editingBatch.bean_name}</p>
-                    )}
-                </div>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all hover:text-primary"
-                >
-                    <X size={17} strokeWidth={2.5} />
-                </button>
+            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm border-b border-black/4 dark:border-[#585d61]">
+                <ModalHeader
+                    titleId="add-batch-modal-title"
+                    title={isEdit ? t('addBatchModal.editBatch') : t('addBatchModal.addBatch')}
+                    onClose={onClose}
+                    closeLabel={t('common.close')}
+                    className="px-8 pt-6 pb-5"
+                    titleClassName="font-(--font-display) text-[22px] text-primary tracking-[-0.02em] m-0"
+                    subtitle={
+                        isEdit && editingBatch ? (
+                            <p className="text-[12px] text-muted mt-0.5 m-0">{editingBatch.bean_name}</p>
+                        ) : undefined
+                    }
+                />
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-6">
+            <ModalScrollBody contentClassName="p-8 space-y-6">
                 <BatchFormHeader
                     date={date}
                     calendarOpen={calendarOpen}
@@ -300,7 +296,7 @@ export const AddBatchModal = ({
                         onChange={(e) => setNotes(e.target.value)}
                     />
                 </div>
-            </div>
+            </ModalScrollBody>
 
             <div className="shrink-0 border-t border-black/4 dark:border-[#585d61] bg-white/60 dark:bg-[#1a1e23] px-8 py-4 flex items-center justify-between gap-3">
                 {dateChanged && newDateKey && (

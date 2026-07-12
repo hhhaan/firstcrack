@@ -2,8 +2,9 @@ import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import type { Bean } from '@shared/types/database.types';
+import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
+import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
-import { X } from 'lucide-react';
 import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -152,21 +153,13 @@ export const AddBeanModal = ({
             contentClassName="max-w-[640px] w-full max-h-[min(860px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.97)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white dark:border-[#585d61] overflow-hidden"
         >
             <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
-                <div className="flex items-center justify-between px-8 pt-6 pb-4">
-                    <h2
-                        id="add-bean-modal-title"
-                        className="font-(--font-display) text-2xl text-primary tracking-[-0.02em] m-0"
-                    >
-                        {t(titleKey)}
-                    </h2>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:text-primary"
-                    >
-                        <X size={18} strokeWidth={2.5} />
-                    </button>
-                </div>
+                <ModalHeader
+                    titleId="add-bean-modal-title"
+                    title={t(titleKey)}
+                    onClose={onClose}
+                    closeLabel={t('common.close')}
+                    className="px-8 pt-6 pb-4"
+                />
 
                 {tab !== 'edit' && (
                     <div className="px-8 pb-5">
@@ -186,7 +179,7 @@ export const AddBeanModal = ({
                 )}
             </div>
 
-            <div className="p-8 overflow-y-auto flex-1">
+            <ModalScrollBody contentClassName="p-8">
                 {tab === 'adjust' ? (
                     <BeanAdjustTab
                         {...pickerProps}
@@ -233,7 +226,7 @@ export const AddBeanModal = ({
                         onRestockCostChange={setRestockCost}
                     />
                 )}
-            </div>
+            </ModalScrollBody>
 
             <div className="px-8 pt-5 pb-8 bg-white/80 dark:bg-[#1a1e23] backdrop-blur-sm border-t border-black/4 dark:border-[#585d61] shrink-0">
                 <div className="flex gap-3">

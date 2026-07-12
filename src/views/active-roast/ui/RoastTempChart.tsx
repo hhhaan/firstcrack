@@ -9,7 +9,7 @@ import {
     CHART_GRID_TOP,
     CONTROL_COLORS,
     CONTROL_GRID_BOTTOM,
-    CONTROL_GRID_TOP,
+    getControlGridLayout,
     getResolvedChartColors,
     PHASE_BAR_FONT_FAMILY,
     PHASE_BAR_FONT_SIZE,
@@ -23,7 +23,6 @@ import {
     ROR_Y_MAX,
     ROR_Y_MIN,
     SINGLE_GRID_BOTTOM,
-    TEMP_GRID_HEIGHT,
     TEMP_Y_INTERVAL,
     TEMP_Y_LABEL_INTERVAL,
     TEMP_Y_MAX_C,
@@ -78,6 +77,12 @@ interface Props {
     showRoRET?: boolean;
     rorEtActual?: (number | null)[];
     controlData?: ControlData;
+    showControlDrum?: boolean;
+    showControlHeat?: boolean;
+    showControlFan?: boolean;
+    controlChartHeightPct?: number;
+    controlYMin?: number;
+    controlYMax?: number;
     phaseSegments?: PhaseSegment[];
     tempMinC?: number;
     tempMaxC?: number;
@@ -135,6 +140,12 @@ export const RoastTempChart: React.FC<Props> = ({
     showRoRET = false,
     rorEtActual = [],
     controlData,
+    showControlDrum = true,
+    showControlHeat = true,
+    showControlFan = true,
+    controlChartHeightPct = 21,
+    controlYMin = 0,
+    controlYMax = 100,
     phaseSegments = [],
     tempMinC = TEMP_Y_MIN_C,
     tempMaxC = TEMP_Y_MAX_C,
@@ -443,8 +454,9 @@ export const RoastTempChart: React.FC<Props> = ({
             : [];
 
         const allMarkLines = usePointMarkers ? guideMarkLines : [...guideMarkLines, ...eventMarkLines, ...tpMarkLines];
+        const hasControlSeries = !!controlData && (showControlDrum || showControlHeat || showControlFan);
         // dual-grid: bottom edge of temp plot (axisLine is unreliable on value xAxis)
-        const tempBottomBorderLine = controlData
+        const tempBottomBorderLine = hasControlSeries
             ? {
                   yAxis: tempYMin,
                   silent: true,
@@ -454,7 +466,7 @@ export const RoastTempChart: React.FC<Props> = ({
               }
             : null;
 
-        const hasRightYAxis = showRoR || !!controlData;
+        const hasRightYAxis = showRoR || hasControlSeries;
         const rightMargin = hasRightYAxis ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
         const leftMargin = CHART_GRID_LEFT;
         const topMargin = CHART_GRID_TOP;
@@ -642,8 +654,9 @@ export const RoastTempChart: React.FC<Props> = ({
             silent: true,
         });
 
-        if (controlData) {
+        if (hasControlSeries && controlData) {
             const { xs: cxs, drumTemp, heatPower, fanSpeed } = controlData;
+            const { tempGridHeight, controlGridTop } = getControlGridLayout(controlChartHeightPct);
             // Grid: [0] Temp/RoR (+ phase overlay) · [1] Drum/Heat/Fan
             return {
                 backgroundColor: 'transparent',
@@ -654,8 +667,8 @@ export const RoastTempChart: React.FC<Props> = ({
                     lineStyle: crossLineStyle,
                 },
                 grid: [
-                    { left: leftMargin, right: rightMargin, top: topMargin, height: TEMP_GRID_HEIGHT },
-                    { left: leftMargin, right: rightMargin, top: CONTROL_GRID_TOP, bottom: CONTROL_GRID_BOTTOM },
+                    { left: leftMargin, right: rightMargin, top: topMargin, height: tempGridHeight },
+                    { left: leftMargin, right: rightMargin, top: controlGridTop, bottom: CONTROL_GRID_BOTTOM },
                 ],
                 xAxis: [
                     {
@@ -736,8 +749,8 @@ export const RoastTempChart: React.FC<Props> = ({
                         axisLabel: { show: false },
                         axisPointer: yAxisPointer,
                         splitLine: { show: true, lineStyle: { color: colors.gridLine } },
-                        min: 0,
-                        max: 100,
+                        min: controlYMin,
+                        max: controlYMax,
                     },
                     {
                         gridIndex: 1,
@@ -751,8 +764,8 @@ export const RoastTempChart: React.FC<Props> = ({
                         axisLabel: { show: false },
                         axisPointer: yAxisPointerOff,
                         splitLine: { show: false },
-                        min: 0,
-                        max: 100,
+                        min: controlYMin,
+                        max: controlYMax,
                     },
                 ] as EChartsOption['yAxis'],
                 tooltip: {
@@ -766,50 +779,62 @@ export const RoastTempChart: React.FC<Props> = ({
                 },
                 series: [
                     ...tempSeries,
-                    {
-                        name: 'Drum',
-                        type: 'line',
-                        color: colors.controlDrum,
-                        xAxisIndex: 1,
-                        yAxisIndex: 2,
-                        data: cxs.map((x, i) => [x, drumTemp[i]]),
-                        lineStyle: { color: colors.controlDrum, width: 1.5 },
-                        ...hoverPoint,
-                        smooth: 0.3,
-                        markLine:
-                            controlGuideMarkLines.length > 0
-                                ? {
-                                      silent: true,
-                                      symbol: ['none', 'none'],
-                                      symbolSize: 0,
-                                      data: controlGuideMarkLines,
-                                  }
-                                : undefined,
-                    },
-                    {
-                        name: 'Heat',
-                        type: 'line',
-                        color: colors.controlHeat,
-                        xAxisIndex: 1,
-                        yAxisIndex: 3,
-                        data: cxs.map((x, i) => [x, heatPower[i]]),
-                        lineStyle: { color: colors.controlHeat, width: 1.5 },
-                        ...hoverPoint,
-                        step: 'end',
-                        smooth: false,
-                    },
-                    {
-                        name: 'Fan',
-                        type: 'line',
-                        color: colors.controlFan,
-                        xAxisIndex: 1,
-                        yAxisIndex: 3,
-                        data: cxs.map((x, i) => [x, fanSpeed[i]]),
-                        lineStyle: { color: colors.controlFan, width: 1.5 },
-                        ...hoverPoint,
-                        step: 'end',
-                        smooth: false,
-                    },
+                    ...(showControlDrum
+                        ? [
+                              {
+                                  name: 'Drum',
+                                  type: 'line' as const,
+                                  color: colors.controlDrum,
+                                  xAxisIndex: 1,
+                                  yAxisIndex: 2,
+                                  data: cxs.map((x, i) => [x, drumTemp[i]]),
+                                  lineStyle: { color: colors.controlDrum, width: 1.5 },
+                                  ...hoverPoint,
+                                  smooth: 0.3,
+                                  markLine:
+                                      controlGuideMarkLines.length > 0
+                                          ? {
+                                                silent: true,
+                                                symbol: ['none', 'none'] as [string, string],
+                                                symbolSize: 0,
+                                                data: controlGuideMarkLines,
+                                            }
+                                          : undefined,
+                              },
+                          ]
+                        : []),
+                    ...(showControlHeat
+                        ? [
+                              {
+                                  name: 'Heat',
+                                  type: 'line' as const,
+                                  color: colors.controlHeat,
+                                  xAxisIndex: 1,
+                                  yAxisIndex: 3,
+                                  data: cxs.map((x, i) => [x, heatPower[i]]),
+                                  lineStyle: { color: colors.controlHeat, width: 1.5 },
+                                  ...hoverPoint,
+                                  step: 'end' as const,
+                                  smooth: false,
+                              },
+                          ]
+                        : []),
+                    ...(showControlFan
+                        ? [
+                              {
+                                  name: 'Fan',
+                                  type: 'line' as const,
+                                  color: colors.controlFan,
+                                  xAxisIndex: 1,
+                                  yAxisIndex: 3,
+                                  data: cxs.map((x, i) => [x, fanSpeed[i]]),
+                                  lineStyle: { color: colors.controlFan, width: 1.5 },
+                                  ...hoverPoint,
+                                  step: 'end' as const,
+                                  smooth: false,
+                              },
+                          ]
+                        : []),
                     ...(hasPhaseBar ? [buildPhaseSeries()] : []),
                 ],
                 // Zoom/pan owned by useChartZoom — ECharts dataZoom would steal drag/wheel
@@ -906,6 +931,12 @@ export const RoastTempChart: React.FC<Props> = ({
         showRoRET,
         rorEtActual,
         controlData,
+        showControlDrum,
+        showControlHeat,
+        showControlFan,
+        controlChartHeightPct,
+        controlYMin,
+        controlYMax,
         phaseSegments,
         resolvedTheme,
         tempMinC,
@@ -1043,16 +1074,16 @@ export const RoastTempChart: React.FC<Props> = ({
             style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}
         >
             <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
-            {controlData && (
+            {controlData && (showControlDrum || showControlHeat || showControlFan) && (
                 <div className="absolute flex items-center gap-4" style={{ bottom: -15, left: 25 }}>
                     {[
-                        { color: CONTROL_COLORS.drum, label: 'Drum' },
-                        { color: CONTROL_COLORS.heat, label: 'Heat' },
-                        { color: CONTROL_COLORS.fan, label: 'Fan' },
-                    ].map(({ color, label }) => (
-                        <div key={label} className="flex items-center gap-1.5">
-                            <div style={{ width: 16, height: 2, background: color }} />
-                            <span className="text-[11px] text-muted tracking-[0.14px]">{label}</span>
+                        ...(showControlDrum ? [{ color: CONTROL_COLORS.drum, label: 'Drum' }] : []),
+                        ...(showControlHeat ? [{ color: CONTROL_COLORS.heat, label: 'Heat' }] : []),
+                        ...(showControlFan ? [{ color: CONTROL_COLORS.fan, label: 'Fan' }] : []),
+                    ].map((item) => (
+                        <div key={item.label} className="flex items-center gap-1.5">
+                            <div style={{ width: 16, height: 2, background: item.color }} />
+                            <span className="text-[11px] text-muted tracking-[0.14px]">{item.label}</span>
                         </div>
                     ))}
                 </div>

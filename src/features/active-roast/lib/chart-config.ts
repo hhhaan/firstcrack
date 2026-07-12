@@ -39,11 +39,23 @@ export const TIME_X_INTERVAL_SEC = 60;
 export const AXIS_MINOR_SPLIT_NUMBER = 2;
 
 // ── Multi-grid layout proportions (controlData mode) ────────────────────────
-// Control band was ~31.5% of height (top 68.5% → bottom); shrink 20% → ~25.2%.
-// Freed space goes to temp; gap under temp stays ~3.5%.
-export const TEMP_GRID_HEIGHT = '71.3%';
-export const CONTROL_GRID_TOP = '74.3%'; // gap vs temp grid: 3%
+// Defaults match controlChartHeightPct=21 (control ~21%, gap 3% under temp).
+export const CONTROL_GRID_GAP_PCT = 3;
 export const CONTROL_GRID_BOTTOM = 30;
+
+/** Map control band height % → temp/control grid tops. */
+export function getControlGridLayout(heightPct: number): {
+    tempGridHeight: string;
+    controlGridTop: string;
+} {
+    const h = Math.min(40, Math.max(12, heightPct));
+    const controlTop = 100 - h;
+    const tempHeight = Math.max(40, controlTop - CONTROL_GRID_GAP_PCT);
+    return {
+        tempGridHeight: `${tempHeight}%`,
+        controlGridTop: `${controlTop}%`,
+    };
+}
 
 // ── Single-grid layout (no controlData) ─────────────────────────────────────
 export const SINGLE_GRID_BOTTOM = 65;

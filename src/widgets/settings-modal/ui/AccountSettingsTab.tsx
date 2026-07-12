@@ -9,6 +9,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Link, LogOut, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { SettingsOptionRow } from './SettingsOptionRow';
 
 type AccountSettingsTabProps = {
     onClose: () => void;
@@ -84,6 +86,8 @@ function GoogleIcon() {
 }
 
 export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
+    const { t } = useTranslation();
+    const tk = (key: string) => t(`settings.tabs.account.${key}`);
     const qc = useQueryClient();
     const user = useAuthStore((s) => s.user);
     const { data: profile } = useProfile(user?.id ?? '');
@@ -142,133 +146,145 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
     };
 
     const avatarInitial = (displayName || user?.email || '').charAt(0).toUpperCase();
+    const empty = '—';
 
     return (
         <div className="grid gap-4">
             <SectionCard>
-                <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-4">Profile</h4>
-                <div className="flex items-center gap-4 mb-5">
-                    <div className="relative shrink-0">
-                        <div className="w-16 h-16 rounded-full bg-[#111827] dark:bg-[#262B31] flex items-center justify-center text-2xl font-semibold text-white select-none">
-                            {avatarInitial}
+                <SectionCard.Header title={tk('profile')} />
+                <SectionCard.Body className="flex flex-col gap-5">
+                    <div className="flex items-center gap-4">
+                        <div className="relative shrink-0">
+                            <div className="w-16 h-16 rounded-full bg-[#111827] dark:bg-[#262B31] flex items-center justify-center text-2xl font-semibold text-white select-none">
+                                {avatarInitial}
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5]">
+                                {displayName || empty}
+                            </div>
+                            <div className="text-[13px] text-[#6B7280] dark:text-[#999] mt-1">
+                                {user?.email || empty}
+                            </div>
                         </div>
                     </div>
-                    <div>
-                        <div className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5]">
-                            {displayName || '—'}
-                        </div>
-                        <div className="text-[13px] text-[#6B7280] dark:text-[#999] mt-1">{user?.email || '—'}</div>
+
+                    <div className="grid gap-3">
+                        <InputField
+                            label={tk('displayName')}
+                            value={displayName}
+                            onValueChange={setDisplayName}
+                            placeholder={tk('displayNamePlaceholder')}
+                        />
+                        <InputField
+                            label={tk('businessName')}
+                            value={businessName}
+                            onValueChange={setBusinessName}
+                            placeholder={tk('businessNamePlaceholder')}
+                        />
+                        <InputField
+                            label={tk('businessRegNumber')}
+                            value={businessRegNumber}
+                            onValueChange={setBusinessRegNumber}
+                            placeholder={tk('businessRegNumberPlaceholder')}
+                        />
+                        <InputField label={tk('email')} value={user?.email ?? ''} readOnly type="email" />
+                        <InputField
+                            label={tk('location')}
+                            value={location}
+                            onValueChange={setLocation}
+                            placeholder={tk('locationPlaceholder')}
+                            right={
+                                <button
+                                    type="button"
+                                    onClick={() => openUrl('https://maps.google.com')}
+                                    className="ml-1.5 text-[11px] font-normal text-[#6B7280] dark:text-[#999] underline underline-offset-2 hover:text-[#111827] dark:hover:text-[#e5e5e5] transition-colors cursor-pointer"
+                                >
+                                    {tk('copyFromGoogleMaps')}
+                                </button>
+                            }
+                        />
                     </div>
-                </div>
 
-                <div className="grid gap-3">
-                    <InputField
-                        label="Display name"
-                        value={displayName}
-                        onValueChange={setDisplayName}
-                        placeholder="Your name"
-                    />
-                    <InputField
-                        label="Business name"
-                        value={businessName}
-                        onValueChange={setBusinessName}
-                        placeholder="Your business name"
-                    />
-                    <InputField
-                        label="Business registration number"
-                        value={businessRegNumber}
-                        onValueChange={setBusinessRegNumber}
-                        placeholder="000-00-00000"
-                    />
-                    <InputField label="Email" value={user?.email ?? ''} readOnly type="email" />
-                    <InputField
-                        label="Location"
-                        value={location}
-                        onValueChange={setLocation}
-                        placeholder="36.632661, 127.464867"
-                        right={
-                            <button
-                                type="button"
-                                onClick={() => openUrl('https://maps.google.com')}
-                                className="ml-1.5 text-[11px] font-normal text-[#6B7280] dark:text-[#999] underline underline-offset-2 hover:text-[#111827] dark:hover:text-[#e5e5e5] transition-colors cursor-pointer"
-                            >
-                                Google Maps에서 복사
-                            </button>
-                        }
-                    />
-                </div>
-
-                <div className="flex items-center gap-3 mt-4">
-                    <button onClick={handleSaveProfile} disabled={updateProfile.isPending} className={primaryBtnCls}>
-                        {updateProfile.isPending ? 'Saving…' : 'Save changes'}
-                    </button>
-                    {profileSaveStatus === 'saved' && (
-                        <span className="text-[13px] text-green-600 dark:text-green-400 font-medium">Saved</span>
-                    )}
-                    {profileSaveStatus === 'error' && (
-                        <span className="text-[13px] text-red-600 dark:text-red-400 font-medium">Failed to save</span>
-                    )}
-                </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={handleSaveProfile}
+                            disabled={updateProfile.isPending}
+                            className={primaryBtnCls}
+                        >
+                            {updateProfile.isPending ? tk('saving') : tk('saveChanges')}
+                        </button>
+                        {profileSaveStatus === 'saved' && (
+                            <span className="text-[13px] text-green-600 dark:text-green-400 font-medium">
+                                {tk('saved')}
+                            </span>
+                        )}
+                        {profileSaveStatus === 'error' && (
+                            <span className="text-[13px] text-red-600 dark:text-red-400 font-medium">
+                                {tk('saveFailed')}
+                            </span>
+                        )}
+                    </div>
+                </SectionCard.Body>
             </SectionCard>
 
             {user && (
                 <SectionCard>
-                    <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-1">
-                        Connected account
-                    </h4>
-                    <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0 mb-4">
-                        This workspace is linked to your account.
-                    </p>
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#262B31]">
-                        <div className="w-8 h-8 rounded-full bg-[#111827] dark:bg-[#181d21] flex items-center justify-center text-sm font-semibold text-white shrink-0">
-                            {(profile?.display_name || user.email || '').charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5]">
-                                {profile?.business_name || profile?.display_name || 'User'}
+                    <SectionCard.Header
+                        title={tk('connectedAccount')}
+                        description={tk('connectedAccountDescription')}
+                    />
+                    <SectionCard.Body>
+                        <SettingsOptionRow className="dark:bg-[#262B31]">
+                            <div className="w-8 h-8 rounded-full bg-[#111827] dark:bg-[#181d21] flex items-center justify-center text-sm font-semibold text-white shrink-0">
+                                {(profile?.display_name || user.email || '').charAt(0).toUpperCase()}
                             </div>
-                            <div className="text-[12px] text-[#6B7280] dark:text-[#999] truncate">{user.email}</div>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[12px] text-green-600 dark:text-green-400 font-medium shrink-0">
-                            <GoogleIcon />
-                            <Link size={13} strokeWidth={2} />
-                            Connected
-                        </div>
-                    </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5]">
+                                    {profile?.business_name || profile?.display_name || tk('userFallback')}
+                                </div>
+                                <div className="text-[12px] text-[#6B7280] dark:text-[#999] truncate">{user.email}</div>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[12px] text-green-600 dark:text-green-400 font-medium shrink-0">
+                                <GoogleIcon />
+                                <Link size={13} strokeWidth={2} />
+                                {tk('connected')}
+                            </div>
+                        </SettingsOptionRow>
+                    </SectionCard.Body>
                 </SectionCard>
             )}
 
             <SectionCard>
-                <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-1">
-                    Team workspace
-                </h4>
-                <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0 mb-4">
-                    Invite team members to collaborate on roasts, beans, and profiles.
-                </p>
-                <button
-                    disabled
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#262B31] text-[13px] font-medium text-[#9CA3AF] dark:text-[#666] cursor-not-allowed"
-                >
-                    <User size={14} strokeWidth={2} />
-                    Invite members
-                    <Badge size="sm" tone="lavenderSoft" className="ml-auto font-semibold">
-                        Coming soon
-                    </Badge>
-                </button>
+                <SectionCard.Header title={tk('teamWorkspace')} description={tk('teamWorkspaceDescription')} />
+                <SectionCard.Body>
+                    <button
+                        type="button"
+                        disabled
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#262B31] text-[13px] font-medium text-[#9CA3AF] dark:text-[#666] cursor-not-allowed"
+                    >
+                        <User size={14} strokeWidth={2} />
+                        {tk('inviteMembers')}
+                        <Badge size="sm" tone="lavenderSoft" className="ml-auto font-semibold">
+                            {tk('comingSoon')}
+                        </Badge>
+                    </button>
+                </SectionCard.Body>
             </SectionCard>
 
             <SectionCard>
-                <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-1">Session</h4>
-                <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0 mb-4">
-                    Sign out of your account on this device.
-                </p>
-                <button
-                    onClick={() => supabase.auth.signOut().then(() => onClose())}
-                    className="flex items-center gap-2 px-4.5 py-2 rounded-lg border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-[13px] font-semibold hover:bg-red-100 dark:hover:bg-red-500/15 active:bg-red-200 dark:active:bg-red-500/20 transition-all"
-                >
-                    <LogOut size={14} strokeWidth={2} />
-                    Sign out
-                </button>
+                <SectionCard.Header title={tk('session')} description={tk('sessionDescription')} />
+                <SectionCard.Body>
+                    <button
+                        type="button"
+                        onClick={() => supabase.auth.signOut().then(() => onClose())}
+                        className="flex items-center gap-2 px-4.5 py-2.5 rounded-lg border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-[13px] font-semibold hover:bg-red-100 dark:hover:bg-red-500/15 active:bg-red-200 dark:active:bg-red-500/20 transition-all"
+                    >
+                        <LogOut size={14} strokeWidth={2} />
+                        {tk('signOut')}
+                    </button>
+                </SectionCard.Body>
             </SectionCard>
         </div>
     );

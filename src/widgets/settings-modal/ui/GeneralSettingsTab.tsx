@@ -2,9 +2,11 @@ import { setLanguage, supportedLanguages } from '@shared/i18n';
 import { inventoryStore } from '@shared/lib/inventoryStore';
 import { STOCK_HORIZON_DAYS } from '@shared/lib/stock-calc';
 import { type Theme, useThemeStore } from '@shared/store/theme';
+import { SectionCard } from '@shared/ui/SectionCard';
 import { Languages, Moon, Package, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SettingsCheckRow } from './SettingsOptionRow';
 
 const themeOptions: { value: Theme; icon: typeof Sun; labelKey: string; descKey: string }[] = [
     {
@@ -19,15 +21,7 @@ const themeOptions: { value: Theme; icon: typeof Sun; labelKey: string; descKey:
         labelKey: 'settings.tabs.general.themeDark',
         descKey: 'settings.tabs.general.themeDarkDescription',
     },
-    // {
-    //     value: 'system',
-    //     icon: Monitor,
-    //     labelKey: 'settings.tabs.general.themeSystem',
-    //     descKey: 'settings.tabs.general.themeSystemDescription',
-    // },
 ];
-
-const sectionCls = 'bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5';
 
 export const GeneralSettingsTab = () => {
     const { t, i18n } = useTranslation();
@@ -48,20 +42,13 @@ export const GeneralSettingsTab = () => {
 
     return (
         <div className="grid gap-4">
-            <section className={sectionCls}>
-                <div className="mb-4">
-                    <div className="flex items-center gap-2 mb-0.5">
-                        <Sun size={16} strokeWidth={1.8} className="text-[#6B7280] dark:text-[#999] shrink-0" />
-                        <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0">
-                            {t('settings.tabs.general.theme')}
-                        </h4>
-                    </div>
-                    <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0">
-                        {t('settings.tabs.general.themeDescription')}
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+            <SectionCard>
+                <SectionCard.Header
+                    icon={<Sun size={16} strokeWidth={1.8} />}
+                    title={t('settings.tabs.general.theme')}
+                    description={t('settings.tabs.general.themeDescription')}
+                />
+                <SectionCard.Body className="grid grid-cols-2 gap-3">
                     {themeOptions.map(({ value, icon: Icon, labelKey, descKey }) => {
                         const active = activeTheme === value;
 
@@ -102,70 +89,45 @@ export const GeneralSettingsTab = () => {
                             </button>
                         );
                     })}
-                </div>
-            </section>
+                </SectionCard.Body>
+            </SectionCard>
 
-            <section className={sectionCls}>
-                <div className="mb-4">
-                    <div className="flex items-center gap-2 mb-0.5">
-                        <Languages size={16} strokeWidth={1.8} className="text-[#6B7280] dark:text-[#999] shrink-0" />
-                        <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0">
-                            {t('settings.tabs.general.language')}
-                        </h4>
-                    </div>
-                    <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0">
-                        {t('settings.tabs.general.languageDescription')}
-                    </p>
-                </div>
+            <SectionCard>
+                <SectionCard.Header
+                    icon={<Languages size={16} strokeWidth={1.8} />}
+                    title={t('settings.tabs.general.language')}
+                    description={t('settings.tabs.general.languageDescription')}
+                />
+                <SectionCard.Body className="grid gap-1.5">
+                    {supportedLanguages.map((language) => (
+                        <SettingsCheckRow
+                            key={language}
+                            checked={i18n.resolvedLanguage === language}
+                            label={t(`language.${language}`)}
+                            onChange={() => void setLanguage(language)}
+                        />
+                    ))}
+                </SectionCard.Body>
+            </SectionCard>
 
-                <div className="grid gap-1.5">
-                    {supportedLanguages.map((language) => {
-                        const active = i18n.resolvedLanguage === language;
-
-                        return (
-                            <label
-                                key={language}
-                                className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] cursor-pointer"
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={active}
-                                    onChange={() => void setLanguage(language)}
-                                    className="w-4 h-4 accent-[#111827] dark:accent-[#F2F2F2]"
-                                />
-                                <span className="text-[14px] font-medium text-[#111827] dark:text-[#e5e5e5]">
-                                    {t(`language.${language}`)}
-                                </span>
-                            </label>
-                        );
-                    })}
-                </div>
-            </section>
-
-            <section className={sectionCls}>
-                <div className="mb-4">
-                    <div className="flex items-center gap-2 mb-0.5">
-                        <Package size={16} strokeWidth={1.8} className="text-[#6B7280] dark:text-[#999] shrink-0" />
-                        <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0">
-                            Stock alert horizon
-                        </h4>
-                    </div>
-                    <p className="text-[13px] text-[#6B7280] dark:text-[#999] m-0">
-                        Days ahead to reserve planned roasts when checking for bean shortages (default 28).
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
+            <SectionCard>
+                <SectionCard.Header
+                    icon={<Package size={16} strokeWidth={1.8} />}
+                    title="Stock alert horizon"
+                    description="Days ahead to reserve planned roasts when checking for bean shortages (default 28)."
+                />
+                <SectionCard.Body className="flex items-center gap-3">
                     <input
                         type="number"
                         min={1}
                         max={365}
                         value={horizonDays}
                         onChange={(e) => void saveHorizon(Number(e.target.value))}
-                        className="w-24 px-3 py-2 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] text-sm"
+                        className="w-24 px-3 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#181d21] text-sm"
                     />
                     <span className="text-sm text-[#6B7280] dark:text-[#999]">days</span>
-                </div>
-            </section>
+                </SectionCard.Body>
+            </SectionCard>
         </div>
     );
 };

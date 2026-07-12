@@ -11,6 +11,7 @@ import { cn } from '@shared/lib/cn';
 import { sidecar } from '@shared/lib/sidecar';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { Badge } from '@shared/ui/Badge';
+import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { ChevronDown, Cpu, Info, Loader, Radio, ShieldCheck, Wifi, WifiOff, X } from 'lucide-react';
@@ -263,8 +264,8 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                 </button>
             </div>
 
-            {/* Body */}
-            <div className="px-7 py-6 overflow-y-auto flex-1 flex flex-col gap-5">
+            {/* Body — padding on content, not overflow viewport */}
+            <ModalScrollBody contentClassName="px-7 py-6 flex flex-col gap-5">
                 <div>
                     <label className={labelCls}>{t('addMachine.roasterModel')}</label>
                     <div className="relative">
@@ -395,7 +396,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                         {error}
                     </div>
                 )}
-            </div>
+            </ModalScrollBody>
 
             {/* Footer */}
             <div className="border-t border-black/4 dark:border-[#585d61] bg-white/60 dark:bg-[#1a1e23]">

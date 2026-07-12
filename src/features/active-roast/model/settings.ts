@@ -20,6 +20,15 @@ export type RoastSettings = {
     showRoRChart: boolean;
     showRoRET: boolean;
     showControlChart: boolean;
+    /** Drum / Heat / Fan series on the control band */
+    showControlDrum: boolean;
+    showControlHeat: boolean;
+    showControlFan: boolean;
+    /** Control band height as % of total chart height (12–40). */
+    controlChartHeightPct: number;
+    /** Shared control Y-axis range (Drum RPM / Heat% / Fan%). */
+    controlYMin: number;
+    controlYMax: number;
     showPhaseBar: boolean;
     eventMarkerStyle: EventMarkerStyle;
     tempMinC: number;
@@ -41,6 +50,12 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showRoRChart: true,
     showRoRET: false,
     showControlChart: true,
+    showControlDrum: true,
+    showControlHeat: true,
+    showControlFan: true,
+    controlChartHeightPct: 21,
+    controlYMin: 0,
+    controlYMax: 100,
     showPhaseBar: true,
     eventMarkerStyle: 'point',
     tempMinC: 130,
@@ -53,6 +68,13 @@ const DEFAULT_SETTINGS: RoastSettings = {
     preChargeDisplaySec: 60,
 };
 
+const clampNum = (value: unknown, min: number, max: number, fallback: number) => {
+    const n = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+    return Math.min(max, Math.max(min, n));
+};
+
+const asBool = (value: unknown, fallback: boolean) => (typeof value === 'boolean' ? value : fallback);
+
 const isPollIntervalMs = (value: unknown): value is PollIntervalMs => value === 500 || value === 1000;
 
 const isEventMarkerStyle = (value: unknown): value is EventMarkerStyle => value === 'line' || value === 'point';
@@ -64,12 +86,25 @@ const migratePollIntervalMs = (ms: unknown): PollIntervalMs => {
 
 const normalize = (raw: Partial<RoastSettings> | null | undefined): RoastSettings => {
     const merged = { ...DEFAULT_SETTINGS, ...(raw ?? {}) };
+    let controlYMin = clampNum(merged.controlYMin, -50, 500, DEFAULT_SETTINGS.controlYMin);
+    let controlYMax = clampNum(merged.controlYMax, -50, 500, DEFAULT_SETTINGS.controlYMax);
+    if (controlYMax <= controlYMin) {
+        controlYMax = Math.min(500, controlYMin + 1);
+        controlYMin = Math.max(-50, controlYMax - 1);
+    }
+
     return {
         ...merged,
         pollIntervalMs: migratePollIntervalMs(merged.pollIntervalMs),
         eventMarkerStyle: isEventMarkerStyle(merged.eventMarkerStyle)
             ? merged.eventMarkerStyle
             : DEFAULT_SETTINGS.eventMarkerStyle,
+        showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),
+        showControlHeat: asBool(merged.showControlHeat, DEFAULT_SETTINGS.showControlHeat),
+        showControlFan: asBool(merged.showControlFan, DEFAULT_SETTINGS.showControlFan),
+        controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
+        controlYMin,
+        controlYMax,
     };
 };
 

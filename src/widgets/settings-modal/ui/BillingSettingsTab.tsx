@@ -3,6 +3,7 @@ import { logger } from '@shared/lib/logger';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
 import { Badge } from '@shared/ui/Badge';
+import { SectionCard } from '@shared/ui/SectionCard';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { CreditCard, Settings, Star } from 'lucide-react';
 import { useState } from 'react';
@@ -126,11 +127,9 @@ export function BillingSettingsTab() {
     const currentPlan = (profile?.plan ?? 'free') as string;
 
     return (
-        <section className="self-start bg-white dark:bg-[#181d21] border border-[#E5E7EB] dark:border-[#585d61] rounded-xl p-5">
-            <h4 className="text-[15px] font-semibold text-[#111827] dark:text-[#e5e5e5] m-0 mb-4">
-                {t('settings.tabs.billing.currentPlan')}
-            </h4>
-            <div className="grid grid-cols-3 gap-3 items-stretch">
+        <SectionCard className="self-start">
+            <SectionCard.Header title={t('settings.tabs.billing.currentPlan')} />
+            <SectionCard.Body className="grid grid-cols-3 gap-3 items-stretch">
                 {PLANS.map((plan) => (
                     <PlanCard
                         key={plan.key}
@@ -140,7 +139,7 @@ export function BillingSettingsTab() {
                         onUpgrade={handleUpgrade}
                     />
                 ))}
-            </div>
-        </section>
+            </SectionCard.Body>
+        </SectionCard>
     );
 }

@@ -1,4 +1,5 @@
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { ArrowRight, Layers, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -67,7 +68,7 @@ export const RecurringEditScopeModal = ({
             onClose={onClose}
             labelledBy="recurring-edit-scope-title"
             overlayClassName="z-[10000]"
-            contentClassName="max-w-[420px] w-full bg-main-bg rounded-[16px] p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px] border border-transparent dark:border-border"
+            contentClassName={modalPanel.sm}
         >
             {/* Header */}
             <div className="flex items-center gap-3 mb-4">
