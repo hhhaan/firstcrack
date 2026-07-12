@@ -10,7 +10,6 @@ interface RoastChartContainerProps {
     mainChartHeight: number;
     effectiveZoomRange: { start: number; end: number } | null;
     isChartDragging: boolean;
-    isFullscreen: boolean;
     handleChartPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
     handleChartPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
     endChartDrag: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -52,7 +51,6 @@ export const RoastChartContainer = ({
     mainChartHeight,
     effectiveZoomRange,
     isChartDragging,
-    isFullscreen,
     handleChartPointerDown,
     handleChartPointerMove,
     endChartDrag,
@@ -95,10 +93,10 @@ export const RoastChartContainer = ({
             }`}
             // wheel: native listener on chartAreaRef (useChartZoom) — ECharts steals bubble wheel
             // pointer capture: ECharts canvas stops bubble
-            onPointerDownCapture={isFullscreen ? undefined : handleChartPointerDown}
-            onPointerMoveCapture={isFullscreen ? undefined : handleChartPointerMove}
-            onPointerUpCapture={isFullscreen ? undefined : endChartDrag}
-            onPointerCancelCapture={isFullscreen ? undefined : endChartDrag}
+            onPointerDownCapture={handleChartPointerDown}
+            onPointerMoveCapture={handleChartPointerMove}
+            onPointerUpCapture={endChartDrag}
+            onPointerCancelCapture={endChartDrag}
             role="region"
             aria-label="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
         >

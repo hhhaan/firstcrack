@@ -33,7 +33,7 @@ export const useChartZoom = (
     MAX_TIME: number,
     minTime: number = 0,
     rightGridPad: number = CHART_GRID_RIGHT,
-    /** false면 휠 줌 비활성 (fullscreen 등) */
+    /** false면 휠 줌 비활성 */
     wheelEnabled: boolean = true,
 ): ChartZoom => {
     const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);

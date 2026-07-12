@@ -3,7 +3,7 @@ import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperat
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { interpolateProfileBT } from '@shared/data/roast-profiles';
 import type { TsvPoint } from '@shared/lib/tsv';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useChartZoom } from './useChartZoom';
 import type { LiveRoastPoint } from './useSidecarPolling';
 
@@ -16,7 +16,6 @@ export interface UseChartPipelineParams {
     showRoR: boolean;
     showControlChart: boolean;
     unit: TemperatureUnit;
-    isFullscreen: boolean;
 }
 
 export interface UseChartPipelineReturn {
@@ -63,8 +62,7 @@ export interface UseChartPipelineReturn {
 }
 
 export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipelineReturn => {
-    const { livePoints, targetCurvePoints, preChargeDisplaySec, showRoR, showControlChart, unit, isFullscreen } =
-        params;
+    const { livePoints, targetCurvePoints, preChargeDisplaySec, showRoR, showControlChart, unit } = params;
 
     const { chartData, targetSeries } = useMemo(() => {
         const hasTarget = targetCurvePoints.length > 0;
@@ -132,11 +130,7 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         handleChartPointerDown,
         handleChartPointerMove,
         endChartDrag,
-    } = useChartZoom(maxTime, minTime, chartRightGridPad, !isFullscreen);
-
-    useEffect(() => {
-        if (isFullscreen) setZoomRange(null);
-    }, [isFullscreen, setZoomRange]);
+    } = useChartZoom(maxTime, minTime, chartRightGridPad);
 
     const visibleChartData = useMemo(
         () =>

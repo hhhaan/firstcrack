@@ -1,0 +1,15 @@
+import { platform } from '@tauri-apps/plugin-os';
+
+/** Apple platforms use ⌘; Windows/Linux use Ctrl. */
+export const isAppleOs = (): boolean => {
+    try {
+        const p = platform();
+        return p === 'macos' || p === 'ios';
+    } catch {
+        if (typeof navigator === 'undefined') return false;
+        return /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent);
+    }
+};
+
+/** Display string fallback (non-UI). Prefer renderModShortcut for UI. */
+export const formatModShortcut = (key: string): string => (isAppleOs() ? `⌘${key}` : `Ctrl+${key}`);

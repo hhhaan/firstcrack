@@ -1,10 +1,12 @@
+import { isAppleOs } from '@shared/lib/mod-key';
 import { useThemeStore } from '@shared/store/theme';
 import type { LogEntry } from '@shared/types/roast';
 
 export type EventButtonDef = {
     label: string;
     event: string | null;
-    shortcut: string;
+    /** Key only, e.g. `1` / `D` — mod glyph rendered per OS */
+    shortcutKey: string;
     pressKey: string;
     onClick: () => void;
     /** 이벤트 고유 색상 (sidebar variant에서 미등록 상태 배경/테두리로 사용) */
@@ -24,12 +26,13 @@ export const EventButtons = ({
 }) => {
     const isSidebar = variant === 'sidebar';
     const isDark = useThemeStore((s) => s.resolvedTheme) === 'dark';
+    const apple = isAppleOs();
 
     const registeredEvents = new Set(logEntries.map((entry) => entry.event));
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isSidebar ? 8 : 10 }}>
-            {buttons.map(({ label, event, shortcut, pressKey, onClick, color }) => {
+            {buttons.map(({ label, event, shortcutKey, pressKey, onClick, color }) => {
                 const registered = event ? registeredEvents.has(event) : false;
                 const pressed = pressedButtons.has(pressKey);
                 const resolved = registered || pressed;
@@ -37,7 +40,7 @@ export const EventButtons = ({
                     <button
                         key={label}
                         onClick={onClick}
-                        aria-keyshortcuts={`Meta+${shortcut.replace('⌘', '')} Control+${shortcut.replace('⌘', '')}`}
+                        aria-keyshortcuts={`Meta+${shortcutKey} Control+${shortcutKey}`}
                         style={{
                             display: 'flex',
                             flexDirection: isSidebar ? 'column' : 'row',
@@ -55,10 +58,10 @@ export const EventButtons = ({
                                     ? 'var(--color-surface-elevated)'
                                     : '#F2F2F2',
                             color: resolved ? 'white' : isSidebar && color ? color : 'var(--color-secondary)',
-                            fontSize: isSidebar ? 13 : 13,
+                            fontSize: isSidebar ? 12 : 13,
                             fontWeight: resolved ? 600 : 500,
                             cursor: 'pointer',
-                            letterSpacing: isSidebar ? 'normal' : '0.14px',
+                            letterSpacing: isSidebar ? '-0.025em' : '0.14px',
                             transition: 'background 0.1s ease, color 0.1s ease, border-color 0.1s ease',
                             boxShadow: isSidebar && !resolved && color ? `inset 0 0 0 1px ${color}55` : 'none',
                         }}
@@ -78,13 +81,20 @@ export const EventButtons = ({
                         <span>{label}</span>
                         <span
                             style={{
-                                fontSize: isSidebar ? 10 : 11,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                fontSize: isSidebar ? 11 : 11,
                                 color: resolved ? 'rgba(255,255,255,0.6)' : 'var(--color-muted)',
                                 fontFamily: 'var(--font-mono)',
+                                letterSpacing: 'normal',
                                 transition: 'color 0.15s',
                             }}
                         >
-                            {shortcut}
+                            <span style={apple ? { fontSize: '1.3em', lineHeight: 1 } : undefined}>
+                                {apple ? '⌘' : 'Ctrl'}
+                            </span>
+                            <span>{apple ? shortcutKey : `+${shortcutKey}`}</span>
                         </span>
                     </button>
                 );

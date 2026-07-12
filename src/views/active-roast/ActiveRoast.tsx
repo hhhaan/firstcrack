@@ -137,7 +137,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         showRoR: roastSettings.showRoRChart,
         showControlChart: roastSettings.showControlChart,
         unit,
-        isFullscreen,
     });
 
     // ── 도메인 훅 ─────────────────────────────────────────────────
@@ -324,7 +323,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     useChartKeyboard({
         isActive,
-        isFullscreen,
         showEndRoastModal: saveFlow.flow.endRoastModal,
         showSummaryModal: saveFlow.flow.summaryModal,
         minTime: chart.minTime,
@@ -432,7 +430,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         mainChartHeight={chart.mainChartHeight}
                         effectiveZoomRange={chart.effectiveZoomRange}
                         isChartDragging={chart.isChartDragging}
-                        isFullscreen={isFullscreen}
                         handleChartPointerDown={chart.handleChartPointerDown}
                         handleChartPointerMove={chart.handleChartPointerMove}
                         endChartDrag={chart.endChartDrag}

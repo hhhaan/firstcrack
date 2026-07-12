@@ -4,7 +4,6 @@ import { MIN_VISIBLE_SECS } from './useChartZoom';
 
 interface UseChartKeyboardParams {
     isActive: boolean;
-    isFullscreen: boolean;
     showEndRoastModal: boolean;
     showSummaryModal: boolean;
     minTime: number;
@@ -19,7 +18,6 @@ interface UseChartKeyboardParams {
 
 export const useChartKeyboard = ({
     isActive,
-    isFullscreen,
     showEndRoastModal,
     showSummaryModal,
     minTime,
@@ -29,7 +27,7 @@ export const useChartKeyboard = ({
     visibleChartData,
     hoveredChartIndexRef,
 }: UseChartKeyboardParams) => {
-    const chartKeysEnabled = isActive && !showEndRoastModal && !showSummaryModal && !isFullscreen;
+    const chartKeysEnabled = isActive && !showEndRoastModal && !showSummaryModal;
 
     const zoomChart = (zoomFactor: number) => {
         if (maxTime <= 0) return;

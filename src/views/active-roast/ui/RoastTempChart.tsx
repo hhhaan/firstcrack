@@ -321,14 +321,15 @@ export const RoastTempChart: React.FC<Props> = ({
             });
         }
         if (charged && Number.isFinite(currentTimeSec) && currentTimeSec >= xMin && currentTimeSec <= xMax) {
+            const nowLineStyle = {
+                color: colors.currentTimeLine,
+                width: 1,
+                type: [3, 3] as number[],
+                opacity: 1,
+            };
             guideMarkLines.push({
                 xAxis: currentTimeSec,
-                lineStyle: {
-                    color: colors.currentTimeLine,
-                    width: 1.5,
-                    type: 'dashed' as const,
-                    opacity: 1,
-                },
+                lineStyle: nowLineStyle,
                 label: {
                     show: true,
                     position: 'insideEndTop' as const,
@@ -340,12 +341,7 @@ export const RoastTempChart: React.FC<Props> = ({
             });
             controlGuideMarkLines.push({
                 xAxis: currentTimeSec,
-                lineStyle: {
-                    color: colors.currentTimeLine,
-                    width: 1.5,
-                    type: 'dashed' as const,
-                    opacity: 1,
-                },
+                lineStyle: nowLineStyle,
                 label: { show: false },
             });
         }
