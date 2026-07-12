@@ -5,11 +5,23 @@ import { useAuthStore } from '@shared/store/auth';
 import { Badge } from '@shared/ui/Badge';
 import { SectionCard } from '@shared/ui/SectionCard';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { CreditCard, Settings, Star } from 'lucide-react';
+import { CreditCard, Mail, Settings, Star } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const PLANS = [
+const CONTACT_EMAIL = 'contact@firstcrackiscoming.com';
+
+type Plan = {
+    key: string;
+    name: string;
+    price?: string;
+    interval?: string;
+    priceId?: string;
+    contact?: boolean;
+    descKey: string;
+};
+
+const PLANS: Plan[] = [
     { key: 'free', name: 'Free', price: '$0', interval: '/mo', descKey: 'settings.tabs.billing.freeDesc' },
     {
         key: 'pro',
@@ -22,9 +34,7 @@ const PLANS = [
     {
         key: 'enterprise',
         name: 'Enterprise',
-        price: '$89',
-        interval: '/mo',
-        priceId: 'POLAR_ENTERPRISE_PRODUCT_ID',
+        contact: true,
         descKey: 'settings.tabs.billing.enterpriseDesc',
     },
 ];
@@ -35,7 +45,7 @@ function PlanCard({
     checkoutLoading,
     onUpgrade,
 }: {
-    plan: { key: string; name: string; price: string; interval: string; priceId?: string; descKey: string };
+    plan: Plan;
     isCurrent: boolean;
     checkoutLoading: boolean;
     onUpgrade: (priceId: string) => void;
@@ -46,10 +56,19 @@ function PlanCard({
         : plan.key === 'free'
           ? t('settings.tabs.billing.free')
           : t('settings.tabs.billing.available');
-    const canUpgrade = !isCurrent && plan.priceId;
+    const canUpgrade = !isCurrent && !!plan.priceId;
+    const canContact = !isCurrent && !!plan.contact;
     const cardBorder = isCurrent
-        ? 'border-palette-lavender/40 bg-palette-lavender/[0.06] dark:bg-palette-lavender/[0.08]'
+        ? 'border-palette-teal/35 bg-palette-teal/[0.07] dark:bg-palette-teal/[0.1]'
         : 'border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#262b31]';
+
+    const handleContact = async () => {
+        try {
+            await openUrl(`mailto:${CONTACT_EMAIL}?subject=Enterprise%20plan`);
+        } catch (err) {
+            logger.capture(err, { context: 'billing contact enterprise' });
+        }
+    };
 
     return (
         <div className={`flex flex-col rounded-xl p-4 border ${cardBorder}`}>
@@ -61,8 +80,7 @@ function PlanCard({
                     {isCurrent && (
                         <Badge
                             size="sm"
-                            tone="lavenderSoft"
-                            className="text-[9px] font-bold"
+                            className="text-[9px] font-bold text-palette-teal bg-palette-teal/15"
                             icon={<Star size={10} fill="currentColor" />}
                             aria-label="Current plan"
                         />
@@ -70,10 +88,12 @@ function PlanCard({
                 </div>
                 <div className="flex items-baseline gap-1.5 mb-1">
                     <span className="text-[18px] font-bold text-[#111827] dark:text-[#e5e5e5]">{plan.name}</span>
-                    <span className="text-[13px] text-[#6B7280] dark:text-[#999]">
-                        {plan.price}
-                        {plan.interval}
-                    </span>
+                    {plan.price != null && (
+                        <span className="text-[13px] text-[#6B7280] dark:text-[#999]">
+                            {plan.price}
+                            {plan.interval}
+                        </span>
+                    )}
                 </div>
                 <div className="text-[12px] text-[#6B7280] dark:text-[#999] mb-3">{t(plan.descKey)}</div>
             </div>
@@ -92,10 +112,19 @@ function PlanCard({
                         type="button"
                         onClick={() => onUpgrade(plan.priceId ?? '')}
                         disabled={checkoutLoading}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-palette-lavender text-white text-[12px] font-semibold hover:opacity-90 active:opacity-80 disabled:opacity-50 transition-all cursor-pointer"
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-palette-teal/15 text-palette-teal border border-palette-teal/30 text-[12px] font-semibold hover:bg-palette-teal/25 active:bg-palette-teal/30 disabled:opacity-50 transition-all cursor-pointer"
                     >
                         <CreditCard size={12} strokeWidth={2} />
                         {checkoutLoading ? t('settings.tabs.billing.redirecting') : t('settings.tabs.billing.upgrade')}
+                    </button>
+                ) : canContact ? (
+                    <button
+                        type="button"
+                        onClick={() => void handleContact()}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-palette-teal/15 text-palette-teal border border-palette-teal/30 text-[12px] font-semibold hover:bg-palette-teal/25 active:bg-palette-teal/30 transition-all cursor-pointer"
+                    >
+                        <Mail size={12} strokeWidth={2} />
+                        {t('settings.tabs.billing.contact')}
                     </button>
                 ) : null}
             </div>
