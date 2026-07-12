@@ -712,6 +712,7 @@ export type Database = {
                     created_at: string;
                     drop_temp_celsius: number | null;
                     duration_seconds: number | null;
+                    events: Json;
                     id: string;
                     notes: string | null;
                     plan_batch_id: string | null;
@@ -732,6 +733,7 @@ export type Database = {
                     created_at?: string;
                     drop_temp_celsius?: number | null;
                     duration_seconds?: number | null;
+                    events?: Json;
                     id?: string;
                     notes?: string | null;
                     plan_batch_id?: string | null;
@@ -752,6 +754,7 @@ export type Database = {
                     created_at?: string;
                     drop_temp_celsius?: number | null;
                     duration_seconds?: number | null;
+                    events?: Json;
                     id?: string;
                     notes?: string | null;
                     plan_batch_id?: string | null;

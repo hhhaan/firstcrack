@@ -1,17 +1,11 @@
+import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useReducer } from 'react';
-
-export interface RoastLogEntry {
-    time: string;
-    event: string;
-    temp: string;
-    note: string;
-}
 
 export interface RoastSummaryData {
     totalTime: string;
     development: string;
     finalBt: string;
-    logEntries: RoastLogEntry[];
+    logEntries: LogEntry[];
 }
 
 export interface PendingStockDeduct {

@@ -1,10 +1,11 @@
 import { useHistoryChart } from '@entities/roast';
+import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { RoastTempChart } from '@views/active-roast/ui/RoastTempChart';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from 'lucide-react';
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 // ── Constants ──
@@ -119,6 +120,7 @@ type ExpandedRowProps = {
 function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
     const { t } = useTranslation();
     const { xs, btActual, etActual, rorActual, isLoading, isError } = useHistoryChart(session.tsv_path ?? null);
+    const eventMarkers = useMemo(() => storedEventsToMarkers(parseStoredRoastEvents(session.events)), [session.events]);
 
     return (
         <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)] dark:bg-[rgba(38,43,48,0.3)]">
@@ -169,7 +171,7 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                                 rorActual={rorActual}
                                 btTarget={[]}
                                 currentTimeSec={0}
-                                eventMarkers={[]}
+                                eventMarkers={eventMarkers}
                                 showTargetCurve={false}
                                 showRoRET={false}
                                 height={550}

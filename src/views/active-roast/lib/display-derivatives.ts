@@ -1,6 +1,6 @@
-import { EVENT_MARKER_COLORS, getResolvedEventColor } from '@features/active-roast/lib/chart-config';
+import { getResolvedEventColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
+import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
-import { parseTimeSec } from '@features/active-roast/lib/time';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import type { LogEntry } from '@shared/types/roast';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
@@ -14,7 +14,7 @@ export interface DevTimeResult {
 /** Development 시간 및 DTR 비율 계산 */
 export const calcDevTime = (fcStartEntry: LogEntry | undefined, elapsed: number): DevTimeResult => {
     if (!fcStartEntry || elapsed === 0) return { devTimeStr: '—', dtrPct: null };
-    const devSec = elapsed - parseTimeSec(fcStartEntry.time);
+    const devSec = elapsed - logEntryTimeSec(fcStartEntry);
     if (devSec <= 0) return { devTimeStr: '—', dtrPct: null };
     const pct = Math.round((devSec / elapsed) * 100);
     return {
@@ -50,10 +50,9 @@ export const calcDelta = (livePoints: LiveRoastPoint[], unit: TemperatureUnit): 
 /** 이벤트 로그를 ECharts 마커 배열로 변환 */
 export const buildEventMarkers = (logEntries: LogEntry[]): RoastEventMarker[] =>
     logEntries
-        .filter((e) => EVENT_MARKER_COLORS[e.event] && e.event !== 'TP' && e.event !== 'Note')
+        .filter((e) => isChartEventMarker(e.event))
         .map((e) => {
-            const [min, sec] = e.time.split(':').map(Number);
-            const timeSec = Math.max(0, min * 60 + sec);
+            const timeSec = Math.max(0, logEntryTimeSec(e));
             return { timeSec, event: e.event, color: getResolvedEventColor(e.event), timeStr: e.time, temp: e.temp };
         });
 
@@ -71,7 +70,7 @@ export const buildRoastLogDisplayEntries = (
     roastPhaseName: string,
     unit: TemperatureUnit,
 ): RoastLogDisplayEntry[] => {
-    const sorted = [...logEntries].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
+    const sorted = [...logEntries].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
     return [
         ...sorted,
         ...(!roastEnded && charged

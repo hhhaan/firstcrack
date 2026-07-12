@@ -59,6 +59,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     planBatchHandoff,
                     sessionId,
                     handoffBeanName,
+                    logEntries: flow.summaryData?.logEntries ?? [],
                 });
                 flow.onSaveSuccess({ deductionPlan, shouldOpenContinue });
                 onResetActiveRoast();
@@ -83,6 +84,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             planBatchHandoff,
             sessionId,
             handoffBeanName,
+            flow.summaryData,
             flow.onSaveSuccess,
             onResetActiveRoast,
         ],

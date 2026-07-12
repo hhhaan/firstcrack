@@ -148,7 +148,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const { logEntries, pressedButtons, markEvent, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(
         unit,
         rawBT,
-        timeStr,
+        elapsed,
     );
 
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
@@ -376,7 +376,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         (event: string, newTimeSec: number) => {
             const newTimeStr = formatElapsed(newTimeSec);
             setLogEntries((prev) =>
-                prev.map((entry) => (entry.event === event ? { ...entry, time: newTimeStr } : entry)),
+                prev.map((entry) =>
+                    entry.event === event ? { ...entry, time: newTimeStr, timeSec: newTimeSec } : entry,
+                ),
             );
         },
         [setLogEntries],

@@ -165,6 +165,12 @@ export const EVENT_MARKER_COLORS: Record<string, string> = {
     Drop: 'var(--color-event-drop)',
 };
 
+/** Logged but not drawn as chart markLines (TP is separate series; Note is free text). */
+export const MARKER_EXCLUDED_EVENTS = new Set(['TP', 'Note']);
+
+export const isChartEventMarker = (event: string): boolean =>
+    Boolean(EVENT_MARKER_COLORS[event]) && !MARKER_EXCLUDED_EVENTS.has(event);
+
 export const PHASE_SECS = [180, 300, 630] as const;
 export const ROR_Y_MIN = -5;
 export const ROR_Y_MAX = 20;

@@ -1,8 +1,9 @@
+import { formatElapsed } from '@shared/lib/format';
 import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback } from 'react';
+import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { formatTemp } from '../lib/temperature';
-import { parseTimeSec } from '../lib/time';
 import type { TurningPoint } from '../lib/turningPoints';
 import type { TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
@@ -46,8 +47,18 @@ export const useRoastActions = ({
                 useRoastingStore.setState({ elapsed: Math.floor((now - origin) / 1000) });
             }
             setIsRunning(true);
-            const temp = btAtCharge != null ? formatTemp(btAtCharge, unit) : formatTemp(rawBT, unit);
-            setLogEntries([{ time: '0:00', event: 'Charge', temp, note: 'Bean drop detected' }]);
+            const btVal = btAtCharge ?? rawBT;
+            setLogEntries([
+                {
+                    id: crypto.randomUUID(),
+                    time: '0:00',
+                    timeSec: 0,
+                    event: 'Charge',
+                    temp: formatTemp(btVal, unit),
+                    tempC: btVal,
+                    note: 'Bean drop detected',
+                },
+            ]);
         },
         [unit, rawBT, setLogEntries, setIsRunning, storeStartCharge, roastStartTimeRef],
     );
@@ -56,19 +67,20 @@ export const useRoastActions = ({
         (onset?: { timeSec: number; bt: number }) => {
             setLogEntries((prev) => {
                 if (prev.some((e) => e.event === 'Drop')) return prev;
-                const timeSec = Math.max(0, Math.floor(onset?.timeSec ?? useRoastingStore.getState().elapsed));
-                const min2 = Math.floor(timeSec / 60);
-                const sec2 = timeSec % 60;
+                const timeSec = Math.max(0, onset?.timeSec ?? useRoastingStore.getState().elapsed);
                 const btVal = onset?.bt ?? rawBT;
                 return [
                     ...prev,
                     {
-                        time: `${min2}:${String(sec2).padStart(2, '0')}`,
+                        id: crypto.randomUUID(),
+                        time: formatElapsed(timeSec),
+                        timeSec,
                         event: 'Drop',
                         temp: formatTemp(btVal, unit),
+                        tempC: btVal,
                         note: 'Bean drop detected',
                     },
-                ].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
+                ].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
             });
             setShowEndRoastModal();
         },
@@ -77,18 +89,18 @@ export const useRoastActions = ({
 
     const handleTurningPoint = useCallback(
         (tp: TurningPoint) => {
-            const timeMin = Math.floor(tp.timeSec / 60);
-            const tpSec = Math.floor(tp.timeSec % 60);
-            const tpTimeStr = `${timeMin}:${String(tpSec).padStart(2, '0')}`;
             setLogEntries((prev) => {
                 if (prev.some((e) => e.event === 'TP')) return prev;
-                const newEntry = {
-                    time: tpTimeStr,
+                const newEntry: LogEntry = {
+                    id: crypto.randomUUID(),
+                    time: formatElapsed(tp.timeSec),
+                    timeSec: tp.timeSec,
                     event: 'TP',
                     temp: formatTemp(tp.temp, unit),
+                    tempC: tp.temp,
                     note: 'Turning Point detected',
                 };
-                return [...prev, newEntry].sort((a, b) => parseTimeSec(a.time) - parseTimeSec(b.time));
+                return [...prev, newEntry].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
             });
         },
         [unit, setLogEntries],

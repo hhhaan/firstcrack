@@ -1,5 +1,6 @@
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
 import { message } from '@tauri-apps/plugin-dialog';
@@ -114,9 +115,18 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
     ]);
 
     const confirmEndRoast = useCallback((): RoastSummaryData => {
-        const completedLogEntries = [
+        const endTimeSec = useRoastingStore.getState().elapsed;
+        const completedLogEntries: LogEntry[] = [
             ...logEntries,
-            { time: timeStr, event: 'End', temp: formatTemp(rawBT, unit), note: 'Roast complete' },
+            {
+                id: crypto.randomUUID(),
+                time: timeStr,
+                timeSec: endTimeSec,
+                event: 'End',
+                temp: formatTemp(rawBT, unit),
+                tempC: rawBT,
+                note: 'Roast complete',
+            },
         ];
         const summaryData: RoastSummaryData = {
             totalTime: timeStr,

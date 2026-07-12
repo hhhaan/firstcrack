@@ -1,5 +1,5 @@
 import { PHASE_COLORS } from '@features/active-roast/lib/colors';
-import { parseTimeSec } from '@features/active-roast/lib/time';
+import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import type { LogEntry } from '@shared/types/roast';
 
 /**
@@ -20,8 +20,8 @@ export const getRoastPhaseName = (charged: boolean, phase: string, elapsed: numb
     }
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
     const yellowEntry = logEntries.find((e) => e.event === 'Yellow');
-    if (fcStartEntry && elapsed >= parseTimeSec(fcStartEntry.time)) return 'Development';
-    if (yellowEntry && elapsed >= parseTimeSec(yellowEntry.time)) return 'Maillard';
+    if (fcStartEntry && elapsed >= logEntryTimeSec(fcStartEntry)) return 'Development';
+    if (yellowEntry && elapsed >= logEntryTimeSec(yellowEntry)) return 'Maillard';
     return 'Drying';
 };
 

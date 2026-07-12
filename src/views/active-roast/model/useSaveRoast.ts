@@ -1,10 +1,12 @@
 import { useUpdatePlanBatch } from '@entities/plan';
 import { type RoastSessionInsert, useCreateRoastSession } from '@entities/roast';
+import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
-import type { PlanBatchHandoff } from '@shared/types/database.types';
+import type { Json, PlanBatchHandoff } from '@shared/types/database.types';
+import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useMemo } from 'react';
 import { determineStockDeduction } from '../lib/determine-stock-deduction';
 import type { RoastSummaryForm } from '../ui/RoastSummaryModal';
@@ -22,6 +24,7 @@ export interface SaveRoastParams {
     selectedBeanId: string | null;
     targetProfileId: string | null;
     planBatchHandoff: PlanBatchHandoff | null;
+    logEntries: LogEntry[];
 }
 
 export interface SaveRoastResult {
@@ -70,6 +73,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 profile_id: payloadParams.targetProfileId,
                 tsv_path: null,
                 plan_batch_id: payloadParams.planBatchHandoff?.planBatchId ?? null,
+                events: serializeRoastEvents(payloadParams.logEntries) as Json,
             };
 
             const savedSession = await saveRoastSession(payload);
