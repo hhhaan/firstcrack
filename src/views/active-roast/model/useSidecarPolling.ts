@@ -1,7 +1,7 @@
+import { enqueueTsvRow, initSessionTsv } from '@features/active-roast/lib/tsv-writer';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
-import { BaseDirectory, writeTextFile } from '@tauri-apps/plugin-fs';
 import type { MutableRefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -17,9 +17,6 @@ export interface LiveRoastPoint {
     fan: number;
     drum: number;
 }
-
-const TAURI = '__TAURI_INTERNALS__' in window;
-const TSV_HEADER = 'time\tbt\tet\tror\theater\tfan\tdrum\n';
 
 interface Params {
     /** 뷰가 화면에 노출되어 있는지 여부 (CSS hide → show 전환 감지) */
@@ -58,7 +55,7 @@ export const useSidecarPolling = ({
     preChargeDisplaySec,
 }: Params) => {
     const [livePoints, setLivePoints] = useState<LiveRoastPoint[]>([]);
-    // TSV 파일 헤더가 작성됐는지 추적 — sessionId가 바뀌면 다시 false로 리셋된다.
+    // TSV writer ready — sessionId 변경 시 재초기화
     const tsvInitializedRef = useRef(false);
     // pre-charge 버퍼: absTime으로 누적 (charge 시 음수 상대 시간으로 변환에 사용)
     const preChargeBufferRef = useRef<(Omit<LiveRoastPoint, 'time' | 'label'> & { absTime: number })[]>([]);
@@ -68,9 +65,9 @@ export const useSidecarPolling = ({
 
     // sessionId가 새로 설정되면 TSV 파일을 헤더로 초기화한다.
     useEffect(() => {
-        if (!sessionId || !TAURI) return;
+        if (!sessionId) return;
         tsvInitializedRef.current = false;
-        writeTextFile(`session_${sessionId}.tsv`, TSV_HEADER, { baseDir: BaseDirectory.AppLocalData })
+        void initSessionTsv(sessionId)
             .then(() => {
                 tsvInitializedRef.current = true;
             })
@@ -173,14 +170,11 @@ export const useSidecarPolling = ({
                             drum: data.drum ?? 0,
                         };
 
-                        // TSV에 데이터 포인트 추가
+                        // TSV에 데이터 포인트 추가 (serial write queue)
                         const currentSessionId = useRoastingStore.getState().sessionId;
-                        if (TAURI && tsvInitializedRef.current && currentSessionId) {
+                        if (tsvInitializedRef.current && currentSessionId) {
                             const row = `${t.toFixed(2)}\t${bt}\t${data.et ?? ''}\t${data.ror ?? ''}\t${data.heater ?? 0}\t${data.fan ?? 0}\t${data.drum ?? 0}\n`;
-                            writeTextFile(`session_${currentSessionId}.tsv`, row, {
-                                baseDir: BaseDirectory.AppLocalData,
-                                append: true,
-                            }).catch(() => {});
+                            enqueueTsvRow(currentSessionId, row);
                         }
 
                         return [...prev, point];

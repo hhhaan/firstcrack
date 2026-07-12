@@ -9,6 +9,7 @@ import {
     useRoastSettings,
 } from '@features/active-roast';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
+import { flushTsv } from '@features/active-roast/lib/tsv-writer';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
@@ -266,6 +267,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 cancelLabel: '취소',
             });
             if (ok) {
+                const sid = useRoastingStore.getState().sessionId;
+                if (sid) {
+                    try {
+                        await flushTsv(sid);
+                    } catch {
+                        // flush failure must not block window close
+                    }
+                }
                 unlisten?.();
                 win.close();
             }

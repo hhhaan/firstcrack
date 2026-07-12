@@ -2,8 +2,6 @@ import { profileKeyForUser, requestUploadUrl } from '@shared/lib/r2';
 import { BaseDirectory, readTextFile } from '@tauri-apps/plugin-fs';
 
 export const uploadRoastProfile = async (sessionId: string, userId: string): Promise<string | null> => {
-    if (!('__TAURI_INTERNALS__' in window)) return null;
-
     let tsvContent: string;
     try {
         tsvContent = await readTextFile(`session_${sessionId}.tsv`, {

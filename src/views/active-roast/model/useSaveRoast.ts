@@ -1,11 +1,10 @@
 import { useUpdatePlanBatch } from '@entities/plan';
-import { type RoastSessionInsert, useCreateRoastSession, useUpdateRoastSession } from '@entities/roast';
+import { type RoastSessionInsert, useCreateRoastSession } from '@entities/roast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
-import { BaseDirectory, remove } from '@tauri-apps/plugin-fs';
 import { useCallback, useMemo } from 'react';
 import { determineStockDeduction } from '../lib/determine-stock-deduction';
 import type { RoastSummaryForm } from '../ui/RoastSummaryModal';
@@ -36,8 +35,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
     const userId = user?.id ?? '';
 
     const { mutateAsync: saveRoastSession, isPending: isSaving } = useCreateRoastSession(userId);
-    const { mutateAsync: updateSessionTsv } = useUpdateRoastSession(userId);
-    const uploadRoastProfileTsv = useUploadRoastProfile();
+    const { mutateAsync: syncRoastCurve } = useUploadRoastProfile();
     const { mutateAsync: updatePlanBatch } = useUpdatePlanBatch(planBatchHandoff?.planId ?? '');
     const incrementCompletedSession = useRoastSessionStore((s) => s.incrementCompletedSession);
 
@@ -76,27 +74,10 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
 
             const savedSession = await saveRoastSession(payload);
 
+            // Meta returns immediately; curve sync background. Local TSV kept if sync fails.
             if (sessionId) {
-                const uploadWithRetry = async () => {
-                    for (let attempt = 0; attempt < 3; attempt++) {
-                        try {
-                            const tsvPath = await uploadRoastProfileTsv(sessionId);
-                            if (tsvPath) {
-                                await updateSessionTsv({ id: savedSession.id, tsv_path: tsvPath });
-                            }
-                            return;
-                        } catch {
-                            if (attempt < 2) {
-                                await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-                            }
-                        }
-                    }
-                    logger.capture(new Error('TSV upload failed after 3 retries'), { context: 'saveRoast tsv' });
-                };
-                uploadWithRetry().finally(() => {
-                    if ('__TAURI_INTERNALS__' in window) {
-                        remove(`session_${sessionId}.tsv`, { baseDir: BaseDirectory.AppLocalData }).catch(() => {});
-                    }
+                void syncRoastCurve({ sessionId, roastSessionId: savedSession.id }).catch((err) => {
+                    logger.capture(err, { context: 'saveRoast tsv' });
                 });
             }
 
@@ -125,15 +106,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 shouldOpenContinue: planBatchHandoff != null,
             };
         },
-        [
-            user,
-            uploadRoastProfileTsv,
-            saveRoastSession,
-            planBatchHandoff,
-            incrementCompletedSession,
-            updatePlanBatch,
-            updateSessionTsv,
-        ],
+        [user, syncRoastCurve, saveRoastSession, planBatchHandoff, incrementCompletedSession, updatePlanBatch],
     );
 
     return useMemo(
