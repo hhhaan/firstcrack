@@ -34,6 +34,7 @@ export const BlendDetail = ({ blend, roastable, onEdit, onDelete }: BlendDetailP
                 </div>
                 <div className="flex gap-2">
                     <button
+                        type="button"
                         onClick={() => onEdit(blend)}
                         className="w-9 h-9 rounded-[10px] border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer"
                         title={t('beans.blend.edit')}
@@ -41,6 +42,7 @@ export const BlendDetail = ({ blend, roastable, onEdit, onDelete }: BlendDetailP
                         <Pencil size={14} strokeWidth={2} />
                     </button>
                     <button
+                        type="button"
                         onClick={() => onDelete(blend.id)}
                         className="w-9 h-9 rounded-[10px] border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer text-red-600"
                         title={t('beans.blend.delete')}

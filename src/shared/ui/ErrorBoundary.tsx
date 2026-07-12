@@ -41,6 +41,7 @@ const DefaultErrorFallback = ({ error, reset }: { error: Error; reset: () => voi
     <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
         <p className="text-sm text-red-400">{error.message || '알 수 없는 오류가 발생했습니다.'}</p>
         <button
+            type="button"
             onClick={reset}
             className="px-4 py-2 text-sm rounded-md bg-stone-700 hover:bg-stone-600 text-stone-100 transition-colors"
         >

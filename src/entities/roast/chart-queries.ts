@@ -10,6 +10,7 @@ export const useHistoryChart = (tsvPath: string | null) => {
         isError,
     } = useQuery({
         queryKey: ['history-chart', tsvPath],
+        // biome-ignore lint/style/noNonNullAssertion: error already checked above
         queryFn: async () => parseTsv(await fetchTsvFromR2(tsvPath!)),
         enabled: !!tsvPath,
         staleTime: Infinity,

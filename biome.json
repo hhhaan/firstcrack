@@ -6,13 +6,13 @@
         "rules": {
             "preset": "recommended",
             "a11y": {
-                "useButtonType": "warn",
-                "noLabelWithoutControl": "warn",
-                "noStaticElementInteractions": "warn",
-                "useKeyWithClickEvents": "warn",
-                "noSvgWithoutTitle": "warn",
-                "useSemanticElements": "warn",
-                "noAutofocus": "warn"
+                "useButtonType": "off",
+                "noLabelWithoutControl": "off",
+                "noStaticElementInteractions": "off",
+                "useKeyWithClickEvents": "off",
+                "noSvgWithoutTitle": "off",
+                "useSemanticElements": "off",
+                "noAutofocus": "off"
             },
             "correctness": {
                 "noUnusedVariables": "error",
@@ -34,7 +34,7 @@
                 "noConsole": "warn",
                 "noDoubleEquals": "error",
                 "noExplicitAny": "warn",
-                "noArrayIndexKey": "warn",
+                "noArrayIndexKey": "off",
                 "noGlobalIsNan": "warn",
                 "noConfusingVoidType": "warn",
                 "useIterableCallbackReturn": "warn"

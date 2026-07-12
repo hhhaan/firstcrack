@@ -89,12 +89,12 @@ export const History = () => {
         const set = new Set<string>();
         const now = new Date();
         set.add(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
-        rawSessions.forEach((s) => {
+        for (const s of rawSessions) {
             if (s.roasted_at) {
                 const d = new Date(s.roasted_at);
                 set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
             }
-        });
+        }
         return [...set].sort();
     }, [rawSessions]);
 
@@ -201,6 +201,7 @@ export const History = () => {
                 actions={
                     <div className="flex items-center gap-2">
                         <button
+                            type="button"
                             onClick={handleOpenReport}
                             className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent bg-main-bg dark:bg-[#262b31] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary dark:text-[#e5e5e5] transition hover:-translate-y-px hover:text-primary"
                         >
@@ -259,6 +260,7 @@ export const History = () => {
                 <ModalShell onClose={handleCloseReport} labelledBy="monthly-report-title">
                     <div className="relative max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
                         <button
+                            type="button"
                             onClick={handleCloseReport}
                             className="fixed top-6 right-6 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 shadow-md backdrop-blur-sm hover:bg-white"
                         >

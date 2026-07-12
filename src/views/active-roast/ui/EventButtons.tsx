@@ -38,6 +38,7 @@ export const EventButtons = ({
                 const resolved = registered || pressed;
                 return (
                     <button
+                        type="button"
                         key={label}
                         onClick={onClick}
                         aria-keyshortcuts={`Meta+${shortcutKey} Control+${shortcutKey}`}

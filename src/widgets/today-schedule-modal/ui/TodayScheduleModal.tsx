@@ -78,12 +78,14 @@ export const TodayScheduleModal = ({ open, batches, onStart, onSkip }: TodaySche
 
             <div className="flex flex-col gap-2">
                 <button
+                    type="button"
                     onClick={() => onStart(firstBatch)}
                     className="w-full py-3 rounded-xl border-none bg-primary text-white text-[13px] font-semibold cursor-pointer tracking-[0.1px] hover:opacity-90 transition-opacity"
                 >
                     일정대로 시작
                 </button>
                 <button
+                    type="button"
                     onClick={onSkip}
                     className="w-full py-2.5 rounded-xl border-none bg-surface text-secondary text-[13px] font-medium cursor-pointer shadow-(--shadow-inset) hover:bg-surface-raised transition-colors"
                 >

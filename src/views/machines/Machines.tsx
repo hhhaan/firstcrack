@@ -78,6 +78,7 @@ export const Machines = ({
     }, [isActive, sidecarStatus?.connected, modalOpen]);
 
     // 연결 상태가 바뀔 때만 자동 select — 사용자가 수동으로 다른 카드를 클릭할 수 있음
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
         if (!sidecarStatus?.connected) return;
         const connectedId = machines.find((m) => m.roasterKey === sidecarStatus.roaster)?.id;
@@ -191,6 +192,7 @@ export const Machines = ({
                     <Cpu size={32} strokeWidth={1.2} color="var(--color-muted)" className="mb-4 mx-auto" />
                     <p className="text-[15px] text-muted mb-5">{t('machines.empty')}</p>
                     <button
+                        type="button"
                         onClick={openAddModal}
                         className="px-5 py-2.5 rounded-[10px] border-none bg-primary dark:bg-[#0d0d0d] text-white text-[13px] font-medium cursor-pointer"
                     >
@@ -272,6 +274,7 @@ export const Machines = ({
                                         {selected.id !== VIRTUAL_ID && (
                                             <>
                                                 <button
+                                                    type="button"
                                                     onClick={() => openEditModal(selected)}
                                                     className="w-9 h-9 rounded-[10px] border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer"
                                                     title={t('machines.editMachine')}
@@ -279,6 +282,7 @@ export const Machines = ({
                                                     <Pencil size={15} strokeWidth={2} />
                                                 </button>
                                                 <button
+                                                    type="button"
                                                     onClick={() => removeMachine(selected.id)}
                                                     className="w-9 h-9 rounded-[10px] border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer"
                                                     title={t('machines.removeMachine')}
@@ -357,6 +361,7 @@ export const Machines = ({
                                 <div className="flex gap-2.5">
                                     {isSelectedConnected ? (
                                         <button
+                                            type="button"
                                             onClick={handleDisconnect}
                                             className="py-3 px-5 rounded-lg border-none bg-surface dark:bg-surface-elevated text-secondary text-sm font-medium cursor-pointer flex items-center justify-center gap-2"
                                         >
@@ -365,6 +370,7 @@ export const Machines = ({
                                         </button>
                                     ) : (
                                         <button
+                                            type="button"
                                             onClick={() => handleConnect(selected)}
                                             disabled={connecting}
                                             className={`flex-1 py-3 rounded-lg border-none bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium flex items-center justify-center gap-2 ${connecting ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
@@ -382,6 +388,7 @@ export const Machines = ({
                                     )}
                                     {isSelectedConnected && onNavigate && (
                                         <button
+                                            type="button"
                                             onClick={() => onNavigate('roast')}
                                             className="flex-1 py-3 rounded-lg border-none bg-primary dark:bg-[#0d0d0d] text-white text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
                                         >

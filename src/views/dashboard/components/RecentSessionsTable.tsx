@@ -23,6 +23,7 @@ export const RecentSessionsTable = ({ data, loading, onNavigate }: RecentSession
                     {t('dashboard.recentSessions')}
                 </h2>
                 <button
+                    type="button"
                     onClick={() => onNavigate('history')}
                     className="flex items-center gap-1 text-[13px] font-medium text-muted bg-transparent border-0 cursor-pointer tracking-[0.14px]"
                 >

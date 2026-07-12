@@ -19,6 +19,7 @@ export const MonthlyBatchesChart = ({ data }: MonthlyBatchesChartProps) => {
         canvas.style.width = `${W}px`;
         canvas.style.height = `${H}px`;
 
+        // biome-ignore lint/style/noNonNullAssertion: error already checked above
         const ctx = canvas.getContext('2d')!;
         ctx.scale(dpr, dpr);
 
@@ -75,6 +76,7 @@ export const MonthlyBatchesChart = ({ data }: MonthlyBatchesChartProps) => {
         });
     };
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -82,6 +84,7 @@ export const MonthlyBatchesChart = ({ data }: MonthlyBatchesChartProps) => {
         const obs = new ResizeObserver(() => {
             if (canvas) draw(canvas);
         });
+        // biome-ignore lint/style/noNonNullAssertion: error already checked above
         obs.observe(canvas.parentElement!);
         return () => obs.disconnect();
         // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -119,6 +119,7 @@ export const RoastLog = ({
                         {canRemove && (
                             <button
                                 type="button"
+                                // biome-ignore lint/style/noNonNullAssertion: error already checked above
                                 onClick={() => onRemoveEntry(entry.id!)}
                                 aria-label="Delete note"
                                 className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"

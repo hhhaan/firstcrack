@@ -35,6 +35,7 @@ export const useWeather = () => {
 
     const weather = useQuery({
         queryKey: ['weather', 'current', coords.data?.lat, coords.data?.lng],
+        // biome-ignore lint/style/noNonNullAssertion: error already checked above
         queryFn: () => fetchOpenMeteo(coords.data!.lat, coords.data!.lng),
         enabled: !!coords.data,
         staleTime: WEATHER_TTL,

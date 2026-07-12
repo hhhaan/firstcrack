@@ -596,6 +596,7 @@ export const MonthlyProductionReport = ({
             {/* 저장 버튼 */}
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
                 <button
+                    type="button"
                     onClick={handlePrint}
                     style={{
                         padding: '10px 24px',

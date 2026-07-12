@@ -42,6 +42,7 @@ const DefaultBadge = ({
     }
     return (
         <button
+            type="button"
             onClick={() => onSetDefault(id)}
             title={t('profiles.detail.setDefault')}
             className="flex items-center gap-1 px-2.5 py-1 rounded-full border-none bg-surface dark:bg-surface-elevated cursor-pointer  hover:bg-palette-teal/12 transition-colors"
@@ -136,6 +137,7 @@ export const ProfileCompare = ({
                 <div className="flex gap-1.5 items-center">
                     <DefaultBadge id={primaryId} defaultId={defaultId} onSetDefault={onSetDefault} />
                     <button
+                        type="button"
                         disabled
                         title={t('profiles.detail.editDisabledMulti')}
                         className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated/50 flex items-center justify-center cursor-not-allowed opacity-35 "
@@ -143,6 +145,7 @@ export const ProfileCompare = ({
                         <Pencil size={14} strokeWidth={1.5} color="var(--color-secondary)" />
                     </button>
                     <button
+                        type="button"
                         title={t('profiles.detail.more')}
                         className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer "
                     >

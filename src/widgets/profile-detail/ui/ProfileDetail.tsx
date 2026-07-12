@@ -43,6 +43,7 @@ const DefaultBadge = ({
     }
     return (
         <button
+            type="button"
             onClick={() => onSetDefault(id)}
             title={t('profiles.detail.setDefault')}
             className="flex items-center gap-1 px-2.5 py-1 rounded-full border-none bg-surface dark:bg-surface-elevated cursor-pointer  hover:bg-palette-teal/12 transition-colors"
@@ -131,6 +132,7 @@ export const ProfileDetail = ({
                         { icon: MoreHorizontal, labelKey: 'profiles.detail.more' },
                     ].map(({ icon: Icon, labelKey, onClick }) => (
                         <button
+                            type="button"
                             key={labelKey}
                             title={t(labelKey)}
                             onClick={onClick}
@@ -210,12 +212,14 @@ export const ProfileDetail = ({
 
             <div className="flex gap-2.5">
                 <button
+                    type="button"
                     onClick={() => onNavigate('roast')}
                     className="flex-1 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium cursor-pointer tracking-[0.14px] "
                 >
                     {t('profiles.detail.startWith')}
                 </button>
                 <button
+                    type="button"
                     onClick={() => onDelete(selected.id)}
                     className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border-none bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400 text-sm font-medium cursor-pointer tracking-[0.14px]"
                 >

@@ -39,9 +39,11 @@ export const blendApi = {
 
         const { error: compErr } = await supabase
             .from('blend_components')
+            // biome-ignore lint/style/noNonNullAssertion: error already checked above
             .insert(components.map((c) => ({ ...c, blend_id: newBlend!.id })));
         if (compErr) throw compErr;
 
+        // biome-ignore lint/style/noNonNullAssertion: error already checked above
         return blendApi.get(newBlend!.id);
     },
 

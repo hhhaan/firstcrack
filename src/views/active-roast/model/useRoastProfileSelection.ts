@@ -35,6 +35,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
 
     // 로그인 후 DB에서 기본 프로파일 ID를 가져와서 targetProfileId에 세팅.
     // charged 상태(로스팅 진행 중)에서는 절대 덮어쓰면 안 됨.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
         if (chargedRef.current || userSelectedTargetRef.current) return;
         if (userProfile !== undefined) {

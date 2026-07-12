@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react';
+import { logger } from '@shared/lib/logger';
 import { supabase } from '@shared/lib/supabase';
 import { useCallback, useEffect, useState } from 'react';
 import { useRoastingStore } from './features/active-roast';
@@ -73,12 +74,12 @@ export const App = () => {
         if (code) {
             window.history.replaceState({}, '', '/');
             supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-                if (error) console.error('[auth] dev exchangeCode failed:', error);
+                if (error) logger.error('[auth] dev exchangeCode failed:', error);
             });
         } else if (accessToken && refreshToken) {
             window.history.replaceState({}, '', '/');
             supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
-                if (error) console.error('[auth] dev setSession failed:', error);
+                if (error) logger.error('[auth] dev setSession failed:', error);
             });
         }
     }, []);
@@ -158,6 +159,7 @@ export const App = () => {
                 {error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'}
             </p>
             <button
+                type="button"
                 onClick={resetError}
                 className="px-4 py-2 text-sm rounded-md bg-stone-700 hover:bg-stone-600 text-stone-100 transition-colors"
             >

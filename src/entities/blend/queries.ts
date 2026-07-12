@@ -64,6 +64,7 @@ export const useDeleteBlend = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: blendApi.delete,
+        // biome-ignore lint/suspicious/noConfusingVoidType: matches mutation return type
         onSuccess: (_data: void, id: string) => {
             qc.removeQueries({ queryKey: blendKeys.detail(id) });
             qc.invalidateQueries({ queryKey: blendKeys.all(userId) });

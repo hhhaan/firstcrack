@@ -55,7 +55,9 @@ export const useDeductRoastStock = () => {
 
             qc.invalidateQueries({ queryKey: ['bean-stock-summaries'] });
             for (const e of events) {
+                // biome-ignore lint/style/noNonNullAssertion: error already checked above
                 qc.invalidateQueries({ queryKey: stockEventKeys.summary(e.bean_id!) });
+                // biome-ignore lint/style/noNonNullAssertion: error already checked above
                 qc.invalidateQueries({ queryKey: stockEventKeys.byBean(e.bean_id!) });
             }
         },

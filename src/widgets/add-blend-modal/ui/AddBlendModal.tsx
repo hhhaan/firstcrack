@@ -133,7 +133,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
 
                     <div>
                         <div className="flex items-center justify-between mb-3">
-                            <label className={labelCls + ' mb-0'}>{t('beans.blend.modal.componentsLabel')}</label>
+                            <label className={`${labelCls} mb-0`}>{t('beans.blend.modal.componentsLabel')}</label>
                             <span
                                 className={`text-xs font-semibold ${totalRatio === 100 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}
                             >

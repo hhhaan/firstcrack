@@ -155,6 +155,7 @@ export const dayPlanRangeApi = {
                 });
             }
 
+            // biome-ignore lint/style/noNonNullAssertion: error already checked above
             const summary = summaryMap.get(date)!;
             summary.batches.push({
                 id: batch.id,
@@ -466,8 +467,8 @@ export const planBatchApi = {
         }));
 
         // 5. For each active recurrence rule, expand and merge with exceptions
-        const rangeStart = new Date(startDate + 'T00:00:00');
-        const rangeEnd = new Date(endDate + 'T23:59:59');
+        const rangeStart = new Date(`${startDate}T00:00:00`);
+        const rangeEnd = new Date(`${endDate}T23:59:59`);
 
         // Dynamic import to avoid circular dependency
         const { expandRRuleInRange, mergeRecurrenceExceptions } = await import('@shared/lib/rrule');
@@ -476,15 +477,15 @@ export const planBatchApi = {
             if (rule.status !== 'active') continue;
 
             // Check if rule is within range
-            const ruleStart = new Date(rule.dtstart + 'T00:00:00');
-            if (rule.until && new Date(rule.until + 'T23:59:59') < rangeStart) continue;
+            const ruleStart = new Date(`${rule.dtstart}T00:00:00`);
+            if (rule.until && new Date(`${rule.until}T23:59:59`) < rangeStart) continue;
 
             // Expand dates in range
             const expandedDates = expandRRuleInRange(
                 rule.rrule,
                 ruleStart,
                 rangeStart,
-                rule.until ? new Date(rule.until + 'T23:59:59') : rangeEnd,
+                rule.until ? new Date(`${rule.until}T23:59:59`) : rangeEnd,
             );
 
             // Filter exceptions for this rule

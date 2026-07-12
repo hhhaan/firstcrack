@@ -77,6 +77,7 @@ export const BatchCard = ({
                     </Badge>
                     {isActive && (
                         <button
+                            type="button"
                             onClick={onStart}
                             className="flex items-center gap-1 text-[12px] font-medium text-white bg-primary dark:bg-[#0d0d0d] px-2.5 py-1 rounded-lg border-none cursor-pointer hover:opacity-90 transition-opacity"
                         >
@@ -86,6 +87,7 @@ export const BatchCard = ({
                     )}
                     {isActive && (
                         <button
+                            type="button"
                             onClick={onComplete}
                             className="flex items-center gap-1 text-[12px] font-medium text-secondary bg-surface dark:bg-surface-elevated px-2.5 py-1 rounded-full border border-border-subtle cursor-pointer hover:text-primary transition-colors"
                         >
@@ -94,12 +96,14 @@ export const BatchCard = ({
                         </button>
                     )}
                     <button
+                        type="button"
                         onClick={onEdit}
                         className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-transparent text-muted cursor-pointer hover:text-primary transition-colors"
                     >
                         <Pencil size={12} strokeWidth={1.5} />
                     </button>
                     <button
+                        type="button"
                         onClick={onDelete}
                         className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-transparent text-muted cursor-pointer hover:text-red-500 transition-colors"
                     >

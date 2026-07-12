@@ -69,6 +69,7 @@ export const MonthView = ({
 
                     return (
                         <button
+                            type="button"
                             key={key}
                             onClick={() => onSelectDay(day)}
                             className={`

@@ -299,7 +299,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const roastPhaseName = getRoastPhaseName(charged, phase, elapsed, logEntries);
     const roastPhaseColor = getRoastPhaseColor(charged, roastPhaseName);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     const eventMarkers = useMemo(() => buildEventMarkers(logEntries), [logEntries, resolvedTheme]);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     const phaseSegments = useMemo(
         () => (roastSettings.showPhaseBar ? computePhaseSegments(logEntries, elapsed, charged) : []),
         [roastSettings.showPhaseBar, logEntries, elapsed, charged, resolvedTheme],

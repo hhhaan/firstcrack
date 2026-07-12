@@ -69,6 +69,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 {t('beans.empty.description')}
             </div>
             <button
+                type="button"
                 onClick={() => openModal('new')}
                 className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
             >
@@ -136,12 +137,14 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
 
             <div className="flex border-b border-(--color-border) dark:border-[#585d61] mb-4">
                 <button
+                    type="button"
                     className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'single' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
                     onClick={() => setTab('single')}
                 >
                     {t('beans.tab.single')}
                 </button>
                 <button
+                    type="button"
                     className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'blend' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
                     onClick={() => setTab('blend')}
                 >

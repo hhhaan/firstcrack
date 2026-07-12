@@ -18,6 +18,7 @@ import {
 import { useDeductRoastStock } from '@features/active-roast';
 import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { batchGreenNeededGramsFromBatch, isBatchStockShort } from '@shared/lib/batch-stock';
+import { logger } from '@shared/lib/logger';
 import { buildRRule } from '@shared/lib/rrule';
 import type { PlanBatchHandoff, PlanBatchInsert, PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQueryClient } from '@tanstack/react-query';
@@ -159,7 +160,7 @@ export const useScheduleDayView = ({
                                 planId: targetPlanId ?? '',
                             },
                         },
-                        { onError: (err) => console.error('Failed to delete batch:', err) },
+                        { onError: (err) => logger.error('Failed to delete batch:', err) },
                     );
                 }
             } else if (scope === 'from_this') {
@@ -206,7 +207,7 @@ export const useScheduleDayView = ({
                 if (window.confirm(i18n.t('schedule.deleteConfirm.batch', { name: batch.bean_name }))) {
                     deleteSingleBatch.mutate(
                         { id: batch.id },
-                        { onError: (err) => console.error('Failed to delete batch:', err) },
+                        { onError: (err) => logger.error('Failed to delete batch:', err) },
                     );
                 }
             }
@@ -388,7 +389,7 @@ export const useScheduleDayView = ({
                     : data.recurringInterval
                       ? 'schedule.error.createRecurring'
                       : 'schedule.error.createBatch';
-                alert(i18n.t(key) + ` ${err instanceof Error ? err.message : String(err)}`);
+                alert(`${i18n.t(key)} ${err instanceof Error ? err.message : String(err)}`);
                 throw err;
             }
         },
@@ -432,7 +433,7 @@ export const useScheduleDayView = ({
                     completedSessions: batch.completed_sessions,
                 });
             } catch (err) {
-                console.error('Failed to start batch:', err);
+                logger.error('Failed to start batch:', err);
             }
         },
         [commitStatusTransition, onStartBatch],

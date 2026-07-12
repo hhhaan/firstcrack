@@ -76,7 +76,7 @@ const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
 
 /** Convert an array of RoastSessionWithRelations to a CSV string with BOM. */
 export const sessionsToCsv = (sessions: RoastSessionWithRelations[]): string => {
-    const header = HEADERS.map((h) => HEADER_LABELS[h]).join(',') + '\n';
+    const header = `${HEADERS.map((h) => HEADER_LABELS[h]).join(',')}\n`;
 
     const rows = sessions
         .map((s) => {

@@ -79,6 +79,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 <img src={logoSrc} alt="First Crack" className="w-8 h-8 shrink-0" />
                             </div>
                             <button
+                                type="button"
                                 onClick={onToggleCollapse}
                                 aria-label={t('sidebar.expand')}
                                 title={t('sidebar.expand')}
@@ -106,6 +107,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 <img src={logoSrc} alt="First Crack" className="w-8 h-8 shrink-0" />
                             </div>
                             <button
+                                type="button"
                                 onClick={onToggleCollapse}
                                 aria-label={t('sidebar.collapse')}
                                 title={t('sidebar.collapse')}
@@ -121,6 +123,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             {/* Workspace selector */}
             <div className="px-4 pt-3 pb-2">
                 <button
+                    type="button"
                     onClick={() => onOpenSettings('account')}
                     aria-label={t('sidebar.workspaceSelector')}
                     title={collapsed ? t('sidebar.workspace') : undefined}
@@ -162,6 +165,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                         const showBadge = id === 'beans' && alertCount > 0;
                         return (
                             <button
+                                type="button"
                                 key={id}
                                 onClick={() => onNavigate(id)}
                                 aria-label={label}
@@ -203,6 +207,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
             {/* Footer */}
             <div className="px-4 py-2.5 border-t border-border-subtle dark:border-[#585d61]">
                 <button
+                    type="button"
                     onClick={() => onOpenSettings()}
                     aria-label={t('sidebar.settings')}
                     title={collapsed ? t('sidebar.settings') : undefined}

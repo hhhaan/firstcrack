@@ -204,6 +204,7 @@ export const RoastSummaryModal = ({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <button
+                    type="button"
                     onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
                     disabled={isSaving}
                     className="w-full py-3 rounded-lg border-none bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
@@ -212,6 +213,7 @@ export const RoastSummaryModal = ({
                     저장
                 </button>
                 <button
+                    type="button"
                     onClick={onDiscard}
                     className="w-full py-3 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border"
                 >

@@ -200,6 +200,7 @@ export const RoastTempChart: React.FC<Props> = ({
         };
     }, []);
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     const option = useMemo((): EChartsOption => {
         const colors = getResolvedChartColors();
         const axisLabelStyle = { ...AXIS_LABEL_FONT, color: colors.axisLabel };
@@ -221,11 +222,13 @@ export const RoastTempChart: React.FC<Props> = ({
         const rorUnit = temperatureUnit === 'C' ? '℃/min' : '℉/min';
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
         const formatAxisTooltip = (params: any) => {
             const timeSec = params[0]?.axisValue ?? 0;
             let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            params.forEach((p: any) => {
+            // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
+            for (const p of params as any[]) {
                 const y = p.value?.[1];
                 if (p.seriesName === 'BT Target' && y != null)
                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${CHART_COLORS.btTarget}"></div>Target BT: <span>${y.toFixed(1)}${unitLabel}</span></div>`;
@@ -243,7 +246,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlHeat}"></div>Heat: <span>${y}%</span></div>`;
                 if (controlData && p.seriesName === 'Fan' && y != null)
                     html += `<div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;background:${colors.controlFan}"></div>Fan: <span>${y}%</span></div>`;
-            });
+            }
             return html;
         };
 
@@ -559,6 +562,7 @@ export const RoastTempChart: React.FC<Props> = ({
             xAxisIndex: 0,
             yAxisIndex: 0,
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
             renderItem: (params: any, api: any) => {
                 const startPx = api.coord([api.value(0), phaseCoordY])[0] as number;
                 const endPx = api.coord([api.value(1), phaseCoordY])[0] as number;
@@ -586,6 +590,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 const textY = y + h / 2;
 
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
                 const children: any[] = [
                     {
                         type: 'rect',
@@ -953,6 +958,7 @@ export const RoastTempChart: React.FC<Props> = ({
     const prevHasPhaseBar = useRef(phaseSegments.length > 0);
     const prevHasTargetData = useRef(!!(targetXs?.length && targetBt?.length));
     const prevEventMarkerStyle = useRef(eventMarkerStyle);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
         const chart = chartInstanceRef.current;
         if (!chart) return;
@@ -980,6 +986,7 @@ export const RoastTempChart: React.FC<Props> = ({
         if (!chart || !onCursorIdx) return;
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
         const handleMouseMove = (e: any) => {
             const pixel: [number, number] = [e.offsetX, e.offsetY];
             const point = chart.convertFromPixel({ xAxisIndex: 0 }, pixel);
@@ -1036,7 +1043,7 @@ export const RoastTempChart: React.FC<Props> = ({
 
         const handleZrPointerMove = (e: Record<string, unknown>) => {
             const ds = dragStateRef.current;
-            if (!ds || !ds.active || !chart) return;
+            if (!ds?.active || !chart) return;
             const evt = e.event as MouseEvent | undefined;
             const mx = evt?.offsetX ?? (e.offsetX as number);
             const my = evt?.offsetY ?? (e.offsetY as number);

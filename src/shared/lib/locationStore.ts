@@ -12,7 +12,7 @@ export const parseLocationString = (str: string): RoasteryLocation | null => {
     const [rawLat, rawLng] = str.split(',');
     const lat = parseFloat(rawLat?.trim());
     const lng = parseFloat(rawLng?.trim());
-    return !isNaN(lat) && !isNaN(lng) ? { lat, lng } : null;
+    return !Number.isNaN(lat) && !Number.isNaN(lng) ? { lat, lng } : null;
 };
 
 export const locationStore = {

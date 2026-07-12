@@ -349,6 +349,7 @@ export const HistoryTable = ({
                                 </span>
                             ) : (
                                 <button
+                                    type="button"
                                     key={item}
                                     onClick={() => onPageChange(item as number)}
                                     className={`h-6 min-w-6 rounded px-1.5 text-xs font-medium transition ${
@@ -363,6 +364,7 @@ export const HistoryTable = ({
                         )}
 
                     <button
+                        type="button"
                         onClick={() => onPageChange(page + 1)}
                         disabled={page === totalPages || totalPages === 0}
                         className="flex h-6 w-6 items-center justify-center rounded text-muted transition hover:bg-surface hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"

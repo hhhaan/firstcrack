@@ -49,12 +49,14 @@ export const DeleteBeanModal = ({ open, beanName, affectedBlendNames, onClose, o
 
             <div className="grid grid-cols-2 gap-2">
                 <button
+                    type="button"
                     onClick={onClose}
                     className="w-full py-3 rounded-lg border-none bg-surface text-secondary text-sm font-(--font-mono) cursor-pointer tracking-[0.14px] shadow-(--shadow-inset)"
                 >
                     {t('deleteBeanModal.cancel')}
                 </button>
                 <button
+                    type="button"
                     onClick={onConfirm}
                     className="w-full py-3 rounded-lg border-none bg-[rgba(254,226,226,0.8)] text-[#dc2626] text-sm font-(--font-mono) cursor-pointer tracking-[0.14px] shadow-(--shadow-card)"
                 >

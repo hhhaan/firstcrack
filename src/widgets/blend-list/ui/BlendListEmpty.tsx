@@ -12,6 +12,7 @@ export const BlendListEmpty = ({ onAdd }: { onAdd: () => void }) => {
                 {t('beans.blend.addBlendFirst')}
             </div>
             <button
+                type="button"
                 onClick={onAdd}
                 className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
             >

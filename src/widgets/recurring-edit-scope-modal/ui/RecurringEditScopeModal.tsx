@@ -116,6 +116,7 @@ export const RecurringEditScopeModal = ({
             {/* Cancel */}
             <div>
                 <button
+                    type="button"
                     onClick={onClose}
                     className="w-full py-2.5 rounded-xl border border-border bg-surface dark:bg-surface-elevated text-secondary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
                 >

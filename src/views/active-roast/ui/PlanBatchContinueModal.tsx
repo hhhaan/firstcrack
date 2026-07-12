@@ -44,6 +44,7 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
                 </div>
                 <div className="flex gap-2">
                     <button
+                        type="button"
                         onClick={() => {
                             onPlanBatchComplete?.();
                             onDismiss();
@@ -54,6 +55,7 @@ export const PlanBatchContinueModal: FC<PlanBatchContinueModalProps> = ({
                     </button>
                     {!batchDone && (
                         <button
+                            type="button"
                             onClick={onDismiss}
                             className="flex-1 px-4 py-2.5 rounded-lg border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
                         >

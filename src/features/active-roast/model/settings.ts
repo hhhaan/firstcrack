@@ -125,7 +125,9 @@ const _subscribe = (listener: () => void) => {
 
 const _getSnapshot = () => _settings;
 
-const _emit = () => _listeners.forEach((l) => l());
+const _emit = () => {
+    for (const l of _listeners) l();
+};
 
 const _consumeLegacyLocalStorage = (): Partial<RoastSettings> | null => {
     try {

@@ -44,6 +44,7 @@ export const CounterInput = ({
         }, 300);
     };
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => stop, []);
 
     return (

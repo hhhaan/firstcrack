@@ -19,6 +19,7 @@ export const UpcomingBatches = ({ data, loading, onNavigate }: UpcomingBatchesPr
                     {t('dashboard.upcomingBatches')}
                 </h2>
                 <button
+                    type="button"
                     onClick={() => onNavigate('schedule')}
                     className="flex items-center justify-center border-none bg-transparent text-muted cursor-pointer hover:text-primary transition-colors p-0"
                 >

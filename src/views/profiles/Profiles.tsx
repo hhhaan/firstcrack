@@ -52,6 +52,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const [showNewModal, setShowNewModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
         if (profiles.length > 0 && !selectedId) {
             setSelectedId(profiles[0].id);
@@ -59,6 +60,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profiles.length, selectedId]);
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
         if (userProfile !== undefined) {
             setDefaultId(userProfile?.default_roast_profile_id ?? null);
@@ -234,6 +236,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                     <div className="flex gap-2 items-center">
                         {profiles.length > 1 && (
                             <button
+                                type="button"
                                 onClick={compareMode ? exitCompareMode : enterCompareMode}
                                 className={`flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none text-sm font-medium cursor-pointer tracking-[0.14px] transition hover:-translate-y-px ${
                                     compareMode
@@ -246,6 +249,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                             </button>
                         )}
                         <button
+                            type="button"
                             onClick={() => setShowNewModal(true)}
                             className="flex items-center gap-2 px-4.5 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium cursor-pointer tracking-[0.14px] transition hover:-translate-y-px"
                         >

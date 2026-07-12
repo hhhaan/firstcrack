@@ -85,6 +85,7 @@ export const useChartZoom = (
 
     // Native wheel — capture + passive:false so preventDefault works and ECharts can't swallow it.
     // Re-bind when height settles (ref is attached after first layout).
+    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
         const el = chartAreaRef.current;
         if (!el) return;

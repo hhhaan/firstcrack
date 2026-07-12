@@ -41,6 +41,7 @@ export const FilterDropdown = ({ label, value, options, onSelect }: FilterDropdo
             {open && (
                 <div className="absolute top-full left-0 z-50 mt-1 min-w-35 rounded-lg bg-main-bg dark:bg-surface-elevated py-1 shadow-lg">
                     <button
+                        type="button"
                         onClick={() => {
                             onSelect('all');
                             setOpen(false);
@@ -51,6 +52,7 @@ export const FilterDropdown = ({ label, value, options, onSelect }: FilterDropdo
                     </button>
                     {options.map((opt) => (
                         <button
+                            type="button"
                             key={opt}
                             onClick={() => {
                                 onSelect(opt);

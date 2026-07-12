@@ -37,6 +37,7 @@ export const ScheduleDayView = ({
         <>
             <div className="shrink-0 border-b border-border-subtle dark:border-[#585d61] bg-main-bg px-8 py-2.5 flex items-center gap-2">
                 <button
+                    type="button"
                     onClick={() => hooks.setIsAddModalOpen(true)}
                     disabled={hooks.isLoading}
                     className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-3 py-1.5 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
@@ -91,6 +92,7 @@ export const ScheduleDayView = ({
                             {t('schedule.emptyState.title')}
                         </div>
                         <button
+                            type="button"
                             onClick={() => hooks.setIsAddModalOpen(true)}
                             className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
                         >

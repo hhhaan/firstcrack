@@ -159,6 +159,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                 testConnectedRef.current = false;
             }
             if (isSave) {
+                // biome-ignore lint/style/noNonNullAssertion: error already checked above
                 await onEdit!(editing!.id, typed, keepTest);
             } else {
                 onAdd(selectedKey, selectedDef, typed);

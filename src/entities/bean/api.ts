@@ -18,18 +18,21 @@ export const beanApi = {
     get: async (id: string): Promise<Bean> => {
         const { data, error } = await supabase.from('beans').select('*').eq('id', id).single();
         if (error) throw error;
+        // biome-ignore lint/style/noNonNullAssertion: error already checked above
         return data!;
     },
 
     create: async (bean: BeanInsert): Promise<Bean> => {
         const { data, error } = await supabase.from('beans').insert(bean).select().single();
         if (error) throw error;
+        // biome-ignore lint/style/noNonNullAssertion: error already checked above
         return data!;
     },
 
     update: async ({ id, ...patch }: BeanUpdate): Promise<Bean> => {
         const { data, error } = await supabase.from('beans').update(patch).eq('id', id).select().single();
         if (error) throw error;
+        // biome-ignore lint/style/noNonNullAssertion: error already checked above
         return data!;
     },
 

@@ -94,7 +94,7 @@ export const DateRangeFilter = ({
     const triggerLabel = (() => {
         if (preset === 'custom' && (fromYM || toYM)) return `${fmtLabel(fromYM)} – ${fmtLabel(toYM)}`;
         const presetLabel = DATE_PRESETS.find((p) => p.value === preset)?.value ?? '';
-        return presetLabel ? t('history.datePresets.' + presetLabel) : t('history.datePresets.period');
+        return presetLabel ? t(`history.datePresets.${presetLabel}`) : t('history.datePresets.period');
     })();
 
     const handlePresetClick = (p: DatePreset) => {
@@ -120,6 +120,7 @@ export const DateRangeFilter = ({
     return (
         <div ref={ref} className="relative">
             <button
+                type="button"
                 onClick={() => setOpen((o) => !o)}
                 className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
                     isActive
@@ -150,13 +151,14 @@ export const DateRangeFilter = ({
                     <div className="flex shrink-0 flex-col gap-0.5 py-2 px-2 w-36">
                         {DATE_PRESETS.map((p) => (
                             <button
+                                type="button"
                                 key={p.value}
                                 onClick={() => handlePresetClick(p.value)}
                                 className={`w-full rounded-md px-2.5 py-1.5 text-left text-[13px] tracking-[0.14px] transition hover:bg-surface cursor-pointer border-none bg-transparent ${
                                     preset === p.value ? 'font-semibold text-primary' : 'text-secondary'
                                 }`}
                             >
-                                {t('history.datePresets.' + p.value)}
+                                {t(`history.datePresets.${p.value}`)}
                             </button>
                         ))}
                     </div>
@@ -206,6 +208,7 @@ export const DateRangeFilter = ({
                             })}
                             <div className="flex justify-end">
                                 <button
+                                    type="button"
                                     onClick={handleApply}
                                     disabled={!draftFrom || !draftTo}
                                     className="mt-1 ml-auto rounded-lg border border-[#111] dark:border-[#585d61] bg-[#111] px-4 py-1.5 text-[13px] font-medium text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"

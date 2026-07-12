@@ -104,6 +104,7 @@ export const RecurringDeleteScopeModal = ({
             {/* Cancel */}
             <div>
                 <button
+                    type="button"
                     onClick={onClose}
                     className="w-full py-2.5 rounded-xl border border-border dark:border-[#585d61] bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
                 >

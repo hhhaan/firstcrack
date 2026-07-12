@@ -43,7 +43,7 @@ export const ThemeSelectModal = () => {
 
             <div className="flex gap-4">
                 {themeOptions.map(({ value, icon: Icon, label, desc }) => (
-                    <button key={value} onClick={() => handleSelect(value)} className={cardCls(false)}>
+                    <button type="button" key={value} onClick={() => handleSelect(value)} className={cardCls(false)}>
                         <Icon size={28} strokeWidth={1.5} className="text-[#111827] dark:text-[#e5e5e5]" />
                         <div className="text-center">
                             <div className="text-[14px] font-semibold text-[#111827] dark:text-[#e5e5e5]">{label}</div>
