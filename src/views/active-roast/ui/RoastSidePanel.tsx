@@ -2,11 +2,11 @@ import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
+import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
 import type { RoastLogDisplayEntry } from '../lib/display-derivatives';
 import { EventButtons } from './EventButtons';
-import { RoastLog } from './RoastLog';
 
 interface RoastSidePanelProps {
     rawBT: number | null;
