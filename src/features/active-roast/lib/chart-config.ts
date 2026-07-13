@@ -71,15 +71,15 @@ export const getResolvedChartColors = () => {
     };
 
     return {
-        btTarget: gv('--color-sensor-bt-target', 'rgba(40,180,130,0.65)'),
-        btTargetTooltip: gv('--color-sensor-bt-target-hover', 'rgba(40,180,130,0.75)'),
-        btActual: gv('--color-sensor-bt', '#22a85a'),
-        etActual: gv('--color-sensor-et', '#4a85c5'),
-        rorActual: gv('--color-sensor-ror', '#e8a828'),
-        tp: gv('--color-event-tp', '#81FBA5'),
+        btTarget: gv('--color-sensor-bt-target', 'rgba(0,157,76,0.55)'),
+        btTargetTooltip: gv('--color-sensor-bt-target-hover', 'rgba(0,157,76,0.75)'),
+        btActual: gv('--color-sensor-bt', '#009d4c'),
+        etActual: gv('--color-sensor-et', '#0091cb'),
+        rorActual: gv('--color-sensor-ror', '#e7ae00'),
+        tp: gv('--color-event-tp', '#009d4c'),
         phaseLines: gv('--color-chart-phaseline', 'rgba(0,0,0,0.07)'),
         currentTimeLine: gv('--color-chart-current-line', 'rgba(0,0,0,0.3)'),
-        nowLabel: gv('--color-event-tp', '#81FBA5'),
+        nowLabel: gv('--color-event-tp', '#009d4c'),
         gridLine: gv('--color-chart-grid-stroke', 'rgba(0,0,0,0.05)'),
         gridLineMinor: gv('--color-chart-grid', 'rgba(0,0,0,0.05)'),
         axisLabel: gv('--color-chart-axis-label', '#666'),
@@ -95,19 +95,19 @@ export const getResolvedChartColors = () => {
         phaseBarDuration: gv('--color-chart-phasebar-duration', '#555'),
 
         // Control chart colors
-        controlDrum: gv('--color-control-drum', '#72EBBC'),
-        controlHeat: gv('--color-control-heat', '#FFFF54'),
-        controlHeatArea: gv('--color-control-heat-area', 'rgba(255,255,84,0.15)'),
-        controlFan: gv('--color-control-fan', '#44BFFC'),
-        controlFanArea: gv('--color-control-fan-area', 'rgba(68,191,252,0.15)'),
+        controlDrum: gv('--color-control-drum', '#00a36d'),
+        controlHeat: gv('--color-control-heat', '#e7ae00'),
+        controlHeatArea: gv('--color-control-heat-area', 'rgba(231,174,0,0.22)'),
+        controlFan: gv('--color-control-fan', '#0091cb'),
+        controlFanArea: gv('--color-control-fan-area', 'rgba(0,145,203,0.22)'),
 
         // Event marker colors (resolved for canvas)
-        eventYellow: gv('--color-event-yellow', '#FFFF54'),
-        eventFcStart: gv('--color-event-fc-start', '#44BFFC'),
-        eventFcEnd: gv('--color-event-fc-end', '#756AFC'),
-        eventEnd: gv('--color-event-end', '#8080F0'),
-        eventNote: gv('--color-event-note', '#72EBBC'),
-        eventDrop: gv('--color-event-drop', '#A6B0FF'),
+        eventYellow: gv('--color-event-yellow', '#e7ae00'),
+        eventFcStart: gv('--color-event-fc-start', '#0091cb'),
+        eventFcEnd: gv('--color-event-fc-end', '#6967e1'),
+        eventEnd: gv('--color-event-end', '#626fd2'),
+        eventNote: gv('--color-event-note', '#00a36d'),
+        eventDrop: gv('--color-event-drop', '#7483e0'),
     };
 };
 

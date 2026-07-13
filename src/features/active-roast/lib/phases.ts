@@ -12,9 +12,9 @@ export interface PhaseSegment {
 
 /** CSS phase fill tokens — resolved at call time for light/dark theme support. */
 const PHASE_FILL_CSS_VARS: Record<string, { varName: string; fallback: string }> = {
-    Drying: { varName: '--color-phase-drying-fill', fallback: 'rgba(212,160,23,0.22)' },
-    Maillard: { varName: '--color-phase-maillard-fill', fallback: 'rgba(25,118,210,0.2)' },
-    Development: { varName: '--color-phase-development-fill', fallback: 'rgba(92,79,212,0.2)' },
+    Drying: { varName: '--color-phase-drying-fill', fallback: 'rgba(231,174,0,0.26)' },
+    Maillard: { varName: '--color-phase-maillard-fill', fallback: 'rgba(0,145,203,0.26)' },
+    Development: { varName: '--color-phase-development-fill', fallback: 'rgba(105,103,225,0.26)' },
 };
 
 const resolvePhaseFill = (name: string): string => {

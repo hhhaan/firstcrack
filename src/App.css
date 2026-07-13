@@ -57,10 +57,10 @@
 
 /* ── Sensor & chart tokens (light) ──────────────────────────── */
 :root {
-    --color-sensor-bt: #22a85a;
-    --color-sensor-bt-target: rgba(40, 180, 130, 0.65);
-    --color-sensor-et: #4a85c5;
-    --color-sensor-ror: #f1c21b;
+    --color-sensor-bt: oklch(0.6 0.18 155);
+    --color-sensor-bt-target: oklch(0.6 0.18 155 / 0.55);
+    --color-sensor-et: oklch(0.6 0.17 225);
+    --color-sensor-ror: oklch(0.78 0.18 88);
     --color-chart-grid: rgba(0, 0, 0, 0.08);
     --color-chart-grid-stroke: rgba(0, 0, 0, 0.1);
     --color-chart-axis-label: #666;
@@ -74,43 +74,43 @@
     --color-scrollbar-thumb: rgba(0, 0, 0, 0.1);
     --color-scrollbar-thumb-hover: rgba(0, 0, 0, 0.16);
 
-    --color-phase-ready: #22a85a;
-    --color-phase-ready-bg: rgba(34, 168, 90, 0.1);
-    --color-phase-drying: #d4a017;
-    --color-phase-drying-fill: rgba(212, 160, 23, 0.22);
-    --color-phase-maillard: #1976d2;
-    --color-phase-maillard-fill: rgba(25, 118, 210, 0.2);
-    --color-phase-development: #5c4fd4;
-    --color-phase-development-fill: rgba(92, 79, 212, 0.2);
+    --color-phase-ready: oklch(0.6 0.18 155);
+    --color-phase-ready-bg: oklch(0.6 0.18 155 / 0.16);
+    --color-phase-drying: oklch(0.78 0.18 88);
+    --color-phase-drying-fill: oklch(0.78 0.18 88 / 0.26);
+    --color-phase-maillard: oklch(0.6 0.17 225);
+    --color-phase-maillard-fill: oklch(0.6 0.17 225 / 0.26);
+    --color-phase-development: oklch(0.58 0.18 280);
+    --color-phase-development-fill: oklch(0.58 0.18 280 / 0.26);
     --color-phase-danger: #dc2626;
     --color-phase-danger-bg: rgba(220, 38, 38, 0.1);
 
     /* Palette (light) */
-    --color-palette-yellow: #d97706;
-    --color-palette-green: #059669;
-    --color-palette-teal: #0d9488;
-    --color-palette-blue: #2563eb;
-    --color-palette-indigo: #4338ca;
-    --color-palette-purple: #6d28d9;
-    --color-palette-violet: #7c3aed;
-    --color-palette-lavender: #818cf8;
+    --color-palette-yellow: oklch(0.78 0.18 88);
+    --color-palette-green: oklch(0.6 0.18 155);
+    --color-palette-teal: oklch(0.62 0.16 165);
+    --color-palette-blue: oklch(0.6 0.17 225);
+    --color-palette-indigo: oklch(0.58 0.18 280);
+    --color-palette-purple: oklch(0.58 0.18 280);
+    --color-palette-violet: oklch(0.58 0.15 275);
+    --color-palette-lavender: oklch(0.64 0.14 275);
 
     /* Event marker colors (light) */
-    --color-event-charge: #ea580c;
-    --color-event-yellow: #d97706;
-    --color-event-fc-start: #2563eb;
-    --color-event-fc-end: #7c3aed;
-    --color-event-end: #6366f1;
-    --color-event-note: #059669;
-    --color-event-tp: #059669;
-    --color-event-drop: #4f46e5;
+    --color-event-charge: oklch(0.65 0.19 45);
+    --color-event-yellow: oklch(0.78 0.18 88);
+    --color-event-fc-start: oklch(0.6 0.17 225);
+    --color-event-fc-end: oklch(0.58 0.18 280);
+    --color-event-end: oklch(0.58 0.15 275);
+    --color-event-note: oklch(0.62 0.16 165);
+    --color-event-tp: oklch(0.6 0.18 155);
+    --color-event-drop: oklch(0.64 0.14 275);
 
     /* Control chart colors (light) */
-    --color-control-drum: #059669;
-    --color-control-heat: #d97706;
-    --color-control-heat-area: rgba(217, 119, 6, 0.15);
-    --color-control-fan: #2563eb;
-    --color-control-fan-area: rgba(37, 99, 235, 0.15);
+    --color-control-drum: oklch(0.62 0.16 165);
+    --color-control-heat: oklch(0.78 0.18 88);
+    --color-control-heat-area: oklch(0.78 0.18 88 / 0.22);
+    --color-control-fan: oklch(0.6 0.17 225);
+    --color-control-fan-area: oklch(0.6 0.17 225 / 0.22);
 
     /* Chart misc (light) */
     --color-chart-axis-pointer: #64748b;
