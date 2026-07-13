@@ -262,12 +262,9 @@ export const RoastTempChart: React.FC<Props> = ({
             sampling: 'lttb' as const,
         });
 
-        // axis hover 시 찍히는 포인트 — 확대 없음
-        const hoverPoint = {
+        const lineSeriesBase = {
             showSymbol: false,
-            symbol: 'circle' as const,
-            symbolSize: 6,
-            emphasis: { scale: false },
+            emphasis: { disabled: true },
         };
 
         // cross: base(x) → lineStyle (세로선), other(y) → crossStyle (가로선)
@@ -485,7 +482,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     z: 1,
                     data: targetXs.map((x, i) => [x, targetBt[i] ?? null]),
                     lineStyle: { color: colors.btTarget, width: 1.5, type: 'dashed', opacity: 0.55 },
-                    ...hoverPoint,
+                    ...lineSeriesBase,
                     smooth: false,
                 },
             {
@@ -496,7 +493,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 z: 2,
                 data: xs.map((x, i) => [x, btActual[i]]),
                 lineStyle: { color: colors.btActual, width: 2 },
-                ...hoverPoint,
+                ...lineSeriesBase,
                 ...getSmoothConfig(0.4),
                 markLine:
                     allMarkLines.length > 0 || tempBottomBorderLine
@@ -524,7 +521,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 z: 2,
                 data: xs.map((x, i) => [x, etActual[i]]),
                 lineStyle: { color: colors.etActual, width: 1.6 },
-                ...hoverPoint,
+                ...lineSeriesBase,
                 ...getSmoothConfig(0.35),
             },
             showRoR && {
@@ -534,7 +531,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 yAxisIndex: 1,
                 data: xs.map((x, i) => [x, rorActual[i]]),
                 lineStyle: { color: colors.rorActual, width: 1.3 },
-                ...hoverPoint,
+                ...lineSeriesBase,
                 ...getSmoothConfig(0.25),
             },
             showRoR &&
@@ -545,7 +542,7 @@ export const RoastTempChart: React.FC<Props> = ({
                     yAxisIndex: 1,
                     data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
                     lineStyle: { color: colors.etActual, width: 1.0, type: 'dashed' },
-                    ...hoverPoint,
+                    ...lineSeriesBase,
                     ...getSmoothConfig(0.25),
                 },
         ].filter(Boolean) as object[];
@@ -794,7 +791,7 @@ export const RoastTempChart: React.FC<Props> = ({
                                   yAxisIndex: 2,
                                   data: cxs.map((x, i) => [x, drumTemp[i]]),
                                   lineStyle: { color: colors.controlDrum, width: 1.5 },
-                                  ...hoverPoint,
+                                  ...lineSeriesBase,
                                   smooth: 0.3,
                                   markLine:
                                       controlGuideMarkLines.length > 0
@@ -818,7 +815,7 @@ export const RoastTempChart: React.FC<Props> = ({
                                   yAxisIndex: 3,
                                   data: cxs.map((x, i) => [x, heatPower[i]]),
                                   lineStyle: { color: colors.controlHeat, width: 1.5 },
-                                  ...hoverPoint,
+                                  ...lineSeriesBase,
                                   step: 'end' as const,
                                   smooth: false,
                               },
@@ -834,7 +831,7 @@ export const RoastTempChart: React.FC<Props> = ({
                                   yAxisIndex: 3,
                                   data: cxs.map((x, i) => [x, fanSpeed[i]]),
                                   lineStyle: { color: colors.controlFan, width: 1.5 },
-                                  ...hoverPoint,
+                                  ...lineSeriesBase,
                                   step: 'end' as const,
                                   smooth: false,
                               },
