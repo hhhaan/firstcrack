@@ -1,6 +1,7 @@
 import { resolveColor } from '@shared/ui/Sparkline';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import uPlot from 'uplot';
+import { buildProfileCurvePlotData } from '../lib/buildPlotData';
 
 export const COMPARE_COLORS = [
     'var(--color-palette-green)',
@@ -23,7 +24,18 @@ export const ProfileCurveChart = ({ series }: ProfileCurveChartProps) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const plotRef = useRef<uPlot | null>(null);
 
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
+    const plotDataKey = useMemo(
+        () =>
+            series
+                .map((s) => {
+                    const last = s.curve[s.curve.length - 1];
+                    return `${s.curve.length}:${s.curve[0]?.t ?? ''}:${last?.t ?? ''}:${s.curve[0]?.bt ?? ''}:${last?.bt ?? ''}`;
+                })
+                .join('|'),
+        [series],
+    );
+
+    // biome-ignore lint/correctness/useExhaustiveDependencies: series fingerprinted via plotDataKey to avoid parent inline-array churn
     useEffect(() => {
         const el = containerRef.current;
         if (!el || series.length === 0) return;
@@ -31,14 +43,7 @@ export const ProfileCurveChart = ({ series }: ProfileCurveChartProps) => {
         const cs = getComputedStyle(document.documentElement);
         const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#9ca3af';
 
-        const maxT = Math.max(...series.map((s) => s.curve[s.curve.length - 1]?.t ?? 0));
-        const xs: number[] = [];
-        for (let t = 0; t <= maxT; t += 30) xs.push(t);
-
-        const ysArrays = series.map((s) => {
-            const map = new Map(s.curve.map((pt) => [pt.t, pt.bt]));
-            return xs.map((t) => map.get(t) ?? null);
-        });
+        const { xs, ysArrays, yRange } = buildProfileCurvePlotData(series.map((s) => s.curve));
 
         const isMulti = series.length > 1;
         const resolvedColors = series.map((s) => resolveColor(s.color));
@@ -122,7 +127,7 @@ export const ProfileCurveChart = ({ series }: ProfileCurveChartProps) => {
                     values: (_, vals) => vals.map((v) => `${v}°`),
                 },
             ],
-            scales: { x: { time: false }, y: { range: [140, 230] } },
+            scales: { x: { time: false }, y: { range: yRange } },
             series: [{}, ...resolvedColors.map((c) => ({ stroke: c, width: 2, points: { show: false } }))],
             plugins: [tooltipPlugin],
         };
@@ -140,8 +145,7 @@ export const ProfileCurveChart = ({ series }: ProfileCurveChartProps) => {
             plotRef.current?.destroy();
             plotRef.current = null;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [plotDataKey]);
 
     return <div ref={containerRef} className="w-full" />;
 };
