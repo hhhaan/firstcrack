@@ -4,6 +4,7 @@ import {
     logEntryTimeSec,
     parseStoredRoastEvents,
     serializeRoastEvents,
+    storedEventsToLogEntries,
     storedEventsToMarkers,
 } from './serialize-roast-events';
 
@@ -79,6 +80,46 @@ describe('parseStoredRoastEvents', () => {
                 { type: 'X', time_sec: 'bad' },
             ]),
         ).toEqual([{ id: '1', type: 'FC Start', time_sec: 100, temp_c: undefined, note: undefined }]);
+    });
+});
+
+describe('storedEventsToLogEntries', () => {
+    it('maps stored events to read-only log rows', () => {
+        expect(
+            storedEventsToLogEntries([
+                { id: '2', type: 'Yellow', time_sec: 120, temp_c: 165.2 },
+                { id: '1', type: 'Charge', time_sec: 0, temp_c: 200, note: 'start' },
+                { id: '3', type: 'Note', time_sec: 300, note: 'check aroma' },
+            ]),
+        ).toEqual([
+            {
+                id: '1',
+                time: '0:00',
+                timeSec: 0,
+                event: 'Charge',
+                temp: '200°C',
+                tempC: 200,
+                note: 'start',
+            },
+            {
+                id: '2',
+                time: '2:00',
+                timeSec: 120,
+                event: 'Yellow',
+                temp: '165°C',
+                tempC: 165.2,
+                note: '',
+            },
+            {
+                id: '3',
+                time: '5:00',
+                timeSec: 300,
+                event: 'Note',
+                temp: '—',
+                tempC: null,
+                note: 'check aroma',
+            },
+        ]);
     });
 });
 

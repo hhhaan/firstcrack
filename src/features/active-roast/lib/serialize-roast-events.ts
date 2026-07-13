@@ -3,6 +3,9 @@ import { parseTimeSec } from '@features/active-roast/lib/time';
 import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry, StoredRoastEvent } from '@shared/types/roast';
 
+const formatStoredEventTemp = (tempC: number | null | undefined): string =>
+    tempC != null && Number.isFinite(tempC) ? `${Math.round(tempC)}°C` : '—';
+
 /** Prefer stored timeSec; fall back to display "m:ss". */
 export const logEntryTimeSec = (entry: Pick<LogEntry, 'time' | 'timeSec'>): number =>
     entry.timeSec ?? parseTimeSec(entry.time);
@@ -60,6 +63,20 @@ export type HistoryEventMarker = {
     timeStr: string;
     temp: string;
 };
+
+/** Stored events → read-only log rows for profile/history UI. */
+export const storedEventsToLogEntries = (events: StoredRoastEvent[]): LogEntry[] =>
+    [...events]
+        .sort((a, b) => a.time_sec - b.time_sec)
+        .map((e) => ({
+            id: e.id,
+            time: formatElapsed(e.time_sec),
+            timeSec: e.time_sec,
+            event: e.type,
+            temp: formatStoredEventTemp(e.temp_c),
+            tempC: e.temp_c ?? null,
+            note: e.note ?? '',
+        }));
 
 /** Stored events → chart markers (same filter as live buildEventMarkers). */
 export const storedEventsToMarkers = (events: StoredRoastEvent[]): HistoryEventMarker[] =>
