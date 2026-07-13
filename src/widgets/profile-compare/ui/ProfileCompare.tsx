@@ -1,5 +1,5 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
-import { useRoastProfileCurves } from '@entities/roast-profile';
+import { resolveSourceSession, useRoastProfileCurves } from '@entities/roast-profile';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import type { SeriesData } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { COMPARE_COLORS, ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
@@ -103,7 +103,7 @@ export const ProfileCompare = ({
     const { t } = useTranslation();
     const TABLE_ROWS = useTableRows();
     const compareQueries = useRoastProfileCurves(
-        compareProfiles.map((p) => p.source_session?.tsv_path),
+        compareProfiles.map((p) => resolveSourceSession(p.source_session)?.tsv_path),
         compareProfiles.map((p) => p.id),
     );
 

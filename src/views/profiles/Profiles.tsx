@@ -1,6 +1,7 @@
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import {
     type RoastProfileWithSource,
+    resolveSourceSession,
     useCreateRoastProfile,
     useDeleteRoastProfile,
     useRoastProfileCurve,
@@ -80,7 +81,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const syntheticCurve = (p: RoastProfileWithSource) =>
         generateProfileCurve(p.drop_temp_celsius ?? 200, p.duration_sec ?? 720);
 
-    const selectedTsvPath = selected?.source_session?.tsv_path ?? null;
+    const selectedTsvPath = selected ? (resolveSourceSession(selected.source_session)?.tsv_path ?? null) : null;
     const { data: selectedRealCurve = [] } = useRoastProfileCurve(selectedTsvPath);
     const selectedHasReal = selectedRealCurve.length > 0;
 
@@ -142,7 +143,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         : [];
 
     const chartKey = compareMode
-        ? `${compareIds.join(',')}|${compareProfiles.map((p) => p.source_session?.tsv_path ?? '').join(',')}`
+        ? `${compareIds.join(',')}|${compareProfiles.map((p) => resolveSourceSession(p.source_session)?.tsv_path ?? '').join(',')}`
         : `${selectedId ?? ''}|${selectedRealCurve.length}`;
 
     const profileList = (

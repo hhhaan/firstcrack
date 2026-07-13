@@ -782,7 +782,8 @@
             "curveOverlay": "곡선 오버레이",
             "selectToCompare": "좌측 리스트에서 프로파일을 선택하세요",
             "compareMode": "비교 모드 · {{count}}개 선택됨",
-            "editDisabledMulti": "다중 선택 시 편집 불가"
+            "editDisabledMulti": "다중 선택 시 편집 불가",
+            "roastLog": "로스팅 로그"
         }
     },
     "newProfileModal": {

@@ -6,15 +6,12 @@ import type { RoastProfile } from '@shared/types/database.types';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { type RoastProfileWithSource, roastProfileApi } from './api';
+import { resolveSourceSession } from './lib/resolve-source-session';
 
 export type ProfileCurveSource = 'session' | 'synthetic' | 'none';
 
-const resolveTsvPath = (profile: RoastProfileWithSource | null): string | null => {
-    if (!profile?.source_session) return null;
-    const session = profile.source_session as { tsv_path: string | null } | { tsv_path: string | null }[];
-    if (Array.isArray(session)) return session[0]?.tsv_path ?? null;
-    return session.tsv_path ?? null;
-};
+const resolveTsvPath = (profile: RoastProfileWithSource | null): string | null =>
+    resolveSourceSession(profile?.source_session)?.tsv_path ?? null;
 
 export const roastProfileKeys = {
     all: (userId: string) => ['roast_profiles', userId] as const,

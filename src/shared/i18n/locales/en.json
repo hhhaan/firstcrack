@@ -783,7 +783,8 @@
             "curveOverlay": "Curve Overlay",
             "selectToCompare": "Select profiles from the list to compare",
             "compareMode": "Compare mode · {{count}} selected",
-            "editDisabledMulti": "Cannot edit when multiple selected"
+            "editDisabledMulti": "Cannot edit when multiple selected",
+            "roastLog": "Roast Log"
         }
     },
     "newProfileModal": {

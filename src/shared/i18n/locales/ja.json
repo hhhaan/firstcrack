@@ -782,7 +782,8 @@
             "curveOverlay": "カーブオーバーレイ",
             "selectToCompare": "リストから比較するプロファイルを選択してください",
             "compareMode": "比較モード · {{count}}件選択中",
-            "editDisabledMulti": "複数選択時は編集できません"
+            "editDisabledMulti": "複数選択時は編集できません",
+            "roastLog": "ローストログ"
         }
     },
     "newProfileModal": {

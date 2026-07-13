@@ -1,10 +1,14 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
-import { useProfileBeanHistory } from '@entities/roast-profile';
+import { resolveSourceSession, useProfileBeanHistory } from '@entities/roast-profile';
+import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
+import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
+import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import { ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { AlertCircle, Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const fmtDuration = (sec: number | null): string => {
@@ -110,6 +114,10 @@ export const ProfileDetail = ({
     const { t } = useTranslation();
     const { data: beanHistory = [] } = useProfileBeanHistory(selected.id ?? '');
     const TABLE_ROWS = useTableRows();
+    const roastLogEntries = useMemo(() => {
+        const sourceSession = resolveSourceSession(selected.source_session);
+        return storedEventsToLogEntries(parseStoredRoastEvents(sourceSession?.events));
+    }, [selected.source_session]);
 
     return (
         <div className="bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
@@ -186,6 +194,15 @@ export const ProfileDetail = ({
                     </div>
                 ))}
             </div>
+
+            {roastLogEntries.length > 0 && (
+                <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 py-3 mb-5">
+                    <p className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
+                        {t('profiles.detail.roastLog')}
+                    </p>
+                    <RoastLog entries={roastLogEntries} eventMarkerColor={EVENT_MARKER_COLORS} variant="main" />
+                </div>
+            )}
 
             {beanHistory.length > 0 && (
                 <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 py-3 mb-5">
