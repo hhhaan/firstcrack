@@ -332,6 +332,7 @@ export type Database = {
                     avatar_url: string | null;
                     business_name: string | null;
                     business_registration_number: string | null;
+                    country_code: string | null;
                     created_at: string;
                     default_roast_profile_id: string | null;
                     display_name: string | null;
@@ -344,6 +345,7 @@ export type Database = {
                     avatar_url?: string | null;
                     business_name?: string | null;
                     business_registration_number?: string | null;
+                    country_code?: string | null;
                     created_at?: string;
                     default_roast_profile_id?: string | null;
                     display_name?: string | null;
@@ -356,6 +358,7 @@ export type Database = {
                     avatar_url?: string | null;
                     business_name?: string | null;
                     business_registration_number?: string | null;
+                    country_code?: string | null;
                     created_at?: string;
                     default_roast_profile_id?: string | null;
                     display_name?: string | null;
