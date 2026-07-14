@@ -14,7 +14,7 @@ interface UseRoastActionsParams {
     setLogEntries: React.Dispatch<React.SetStateAction<LogEntry[]>>;
     setIsRunning: React.Dispatch<React.SetStateAction<boolean>>;
     setShowEndRoastModal: () => void;
-    storeStartCharge: () => void;
+    storeStartCharge: (originMs?: number) => void;
     roastStartTimeRef: React.MutableRefObject<number>;
 }
 
@@ -40,12 +40,9 @@ export const useRoastActions = ({
             sidecar.startRoast().catch(() => {});
             const now = Date.now();
             const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;
+            // Same origin for livePoints.time (ref) and elapsed (store roastStartMs)
             roastStartTimeRef.current = origin;
-            storeStartCharge();
-            // onset이 과거면 elapsed를 lag만큼 시드 (차트 t=0과 타이머 정합)
-            if (origin < now) {
-                useRoastingStore.setState({ elapsed: Math.floor((now - origin) / 1000) });
-            }
+            storeStartCharge(origin);
             setIsRunning(true);
             const btVal = btAtCharge ?? rawBT;
             setLogEntries([

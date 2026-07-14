@@ -151,8 +151,13 @@ export const useSidecarPolling = ({
                 const currentPhase = useRoastingStore.getState().phase;
 
                 if (currentPhase === 'roasting' && roastStartTimeRef.current !== 0) {
-                    // post-charge: 기존 livePoints 기록 로직
+                    // post-charge: same origin as store.roastStartMs / elapsed
                     const t = (Date.now() - roastStartTimeRef.current) / 1000;
+                    // Keep elapsed on wall-clock even if UI tick interval is throttled
+                    const elapsedSec = Math.floor(t);
+                    if (useRoastingStore.getState().elapsed !== elapsedSec) {
+                        useRoastingStore.setState({ elapsed: elapsedSec });
+                    }
                     setLivePoints((prev) => {
                         // 폴링 주기보다 짧은 간격은 무시해 중복 포인트를 방지한다.
                         if (prev.length > 0 && t - prev[prev.length - 1].time < 0.4) return prev;
