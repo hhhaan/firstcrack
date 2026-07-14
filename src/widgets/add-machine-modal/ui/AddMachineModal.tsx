@@ -314,7 +314,9 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                             )}
                         </div>
                         {selectedDef.models.length > 0 && (
-                            <div className="text-xs text-muted w-full">{selectedDef.models.join(' · ')}</div>
+                            <div className="text-xs text-muted w-full">
+                                {[...selectedDef.models].sort((a, b) => a.localeCompare(b)).join(' · ')}
+                            </div>
                         )}
                     </div>
                 )}

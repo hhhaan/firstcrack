@@ -57,6 +57,9 @@ export const groupRoastersByBrand = (
         if (!brands[def.brand]) brands[def.brand] = [];
         brands[def.brand].push({ key, def });
     }
+    for (const items of Object.values(brands)) {
+        items.sort((a, b) => a.def.display_name.localeCompare(b.def.display_name));
+    }
     return brands;
 };
 
