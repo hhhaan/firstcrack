@@ -18,23 +18,24 @@ interface LoginProps {
     onLogin?: () => void;
 }
 
-const testimonials = [
-    {
-        quote: 'First Crack cut our batch logging time in half. The temperature curves alone are worth it.',
-        author: 'Mia Tanaka',
-        role: 'Head Roaster, Silo Coffee',
-    },
-    {
-        quote: 'Finally a roastery tool built for specialty. The profile library is exactly what we needed.',
-        author: 'David Osei',
-        role: 'Owner, Kintu Roasters',
-    },
-    {
-        quote: 'The live ROR tracking changed how we approach development time. Incredibly accurate.',
-        author: 'Sarah Moreau',
-        role: 'Q Grader, Bloom Roastery',
-    },
-];
+// Placeholder testimonials — re-enable when real quotes exist.
+// const testimonials = [
+//     {
+//         quote: 'First Crack cut our batch logging time in half. The temperature curves alone are worth it.',
+//         author: 'Mia Tanaka',
+//         role: 'Head Roaster, Silo Coffee',
+//     },
+//     {
+//         quote: 'Finally a roastery tool built for specialty. The profile library is exactly what we needed.',
+//         author: 'David Osei',
+//         role: 'Owner, Kintu Roasters',
+//     },
+//     {
+//         quote: 'The live ROR tracking changed how we approach development time. Incredibly accurate.',
+//         author: 'Sarah Moreau',
+//         role: 'Q Grader, Bloom Roastery',
+//     },
+// ];
 
 export const Login = ({ onLogin }: LoginProps) => {
     const { t } = useTranslation();
@@ -47,7 +48,6 @@ export const Login = ({ onLogin }: LoginProps) => {
     const startOAuth = useAuthStore((s) => s.startOAuth);
     const cancelOAuth = useAuthStore((s) => s.cancelOAuth);
     const oauthError = useAuthStore((s) => s.oauthError);
-    const [testimonial] = useState(() => testimonials[Math.floor(Math.random() * testimonials.length)]);
 
     const displayError = error ?? oauthError;
     const errorMessage = displayError ? t(`auth.errors.${displayError}`) : null;
@@ -166,11 +166,11 @@ export const Login = ({ onLogin }: LoginProps) => {
                         specialty coffee.
                     </p>
 
-                    {/* Stats row */}
+                    {/* Stats row — placeholder until real metrics; scale ~50 roasters */}
                     <div style={{ display: 'flex', gap: 32 }}>
                         {[
-                            { value: '2,400+', label: 'Roasters' },
-                            { value: '1.2M', label: 'Batches logged' },
+                            { value: '50+', label: 'Roasters' },
+                            { value: '~3K', label: 'Batches logged' },
                             { value: '99.9%', label: 'Uptime' },
                         ].map(({ value, label }) => (
                             <div key={label}>
@@ -200,7 +200,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                     </div>
                 </div>
 
-                {/* Testimonial */}
+                {/* Testimonials — empty until real quotes
                 <div style={{ position: 'relative' }}>
                     <div
                         style={{
@@ -259,6 +259,8 @@ export const Login = ({ onLogin }: LoginProps) => {
                         </div>
                     </div>
                 </div>
+                */}
+                <div style={{ position: 'relative' }} />
             </div>
 
             {/* Right panel — form */}
@@ -626,47 +628,6 @@ export const Login = ({ onLogin }: LoginProps) => {
                             Start free trial
                         </button>
                     </p>
-
-                    {/* Trust badges */}
-                    <div
-                        style={{
-                            marginTop: 36,
-                            paddingTop: 24,
-                            borderTop: '1px solid var(--color-border-subtle)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 20,
-                        }}
-                    >
-                        {['SOC 2', 'GDPR', 'ISO 27001'].map((badge) => (
-                            <div
-                                key={badge}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 5,
-                                    fontSize: 11,
-                                    color: 'var(--color-muted)',
-                                    letterSpacing: '0.3px',
-                                }}
-                            >
-                                <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                >
-                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                </svg>
-                                {badge}
-                            </div>
-                        ))}
-                    </div>
                 </div>
             </div>
         </div>
