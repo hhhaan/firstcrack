@@ -35,7 +35,7 @@ const STOPBITS_OPTIONS = [
     { value: '2', label: '2' },
 ];
 
-const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
+export const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
     s7: [
         { key: 'host', label: 'PLC IP Address', type: 'text', required: true, placeholder: '192.168.1.100' },
         { key: 'port', label: 'Port', type: 'number', required: false, placeholder: '102' },

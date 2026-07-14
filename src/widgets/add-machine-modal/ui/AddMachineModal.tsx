@@ -1,9 +1,13 @@
 import type { Machine, RoasterDef, SerialPort } from '@entities/machine';
 import {
+    buildProtocolRoasterDef,
     buildTypedConnectionParams,
     groupRoastersByBrand,
     initRoasterFormParams,
     isRoasterFieldVisible,
+    listProtocols,
+    listTemplatesByProtocol,
+    PROTOCOLS_REQUIRING_TEMPLATE,
     ROASTER_REGISTRY,
     validateRoasterFormFields,
 } from '@entities/machine';
@@ -19,11 +23,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type CommitAction = 'add' | 'addAndConnect' | 'save' | 'saveAndConnect';
+type MachineModalTab = 'supported' | 'custom';
 
 interface AddMachineModalProps {
     open: boolean;
     onClose: () => void;
-    onAdd: (roasterKey: string, def: RoasterDef, params: Record<string, unknown>) => void;
+    onAdd: (
+        roasterKey: string,
+        def: RoasterDef,
+        params: Record<string, unknown>,
+        meta?: { name?: string; brand?: string },
+    ) => void;
     editing?: Machine | null;
     onEdit?: (id: string, params: Record<string, unknown>, keepConnection?: boolean) => Promise<void>;
 }
@@ -36,10 +46,17 @@ const secondaryBtnCls =
     'px-4 py-2.5 rounded-xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-[13px] font-medium cursor-pointer shadow-(--shadow-inset) transition-colors';
 const primaryConnectBtnCls =
     'flex items-center gap-1.5 px-5 py-2.5 rounded-xl border-none bg-green-600 dark:bg-green-700 text-white text-[13px] font-semibold shadow-[0_2px_8px_rgba(22,163,74,0.35)] transition-opacity';
+const tabCls = (active: boolean) =>
+    `flex-1 py-3 rounded-xl border-none text-sm cursor-pointer transition-all duration-200 ${
+        active
+            ? 'bg-white dark:bg-surface-elevated font-semibold text-primary dark:text-[#e5e5e5] shadow-[0_4px_12px_rgba(0,0,0,0.08)]'
+            : 'bg-transparent font-medium text-muted dark:text-[#e5e5e5] hover:text-secondary dark:hover:text-white/70'
+    }`;
 
 const ROASTERS_BY_BRAND = groupRoastersByBrand(ROASTER_REGISTRY);
+const PROTOCOLS = listProtocols(ROASTER_REGISTRY);
 
-const ComportSelect = ({
+const ComportField = ({
     value,
     onChange,
     ports,
@@ -51,28 +68,29 @@ const ComportSelect = ({
     registryDefault: string;
 }) => {
     const { t } = useTranslation();
+    const listId = 'serial-port-options';
     const detectedDevices = ports.map((p) => p.device);
     const showRegistryDefault = registryDefault && !detectedDevices.includes(registryDefault);
+
     return (
-        <div className="relative">
-            <select className={selectCls} value={value} onChange={(e) => onChange(e.target.value)}>
-                <option value="">{t('addMachine.selectPort')}</option>
-                {showRegistryDefault && (
-                    <option value={registryDefault}>
-                        {registryDefault} ({t('addMachine.defaultPort')})
-                    </option>
-                )}
+        <div>
+            <input
+                className={inputCls}
+                type="text"
+                list={listId}
+                placeholder={t('addMachine.selectPort')}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                autoComplete="off"
+            />
+            <datalist id={listId}>
+                {showRegistryDefault && <option value={registryDefault} />}
                 {ports.map((p) => (
                     <option key={p.device} value={p.device}>
-                        {p.device}
-                        {p.description !== p.device ? ` — ${p.description}` : ''}
+                        {p.description !== p.device ? p.description : undefined}
                     </option>
                 ))}
-            </select>
-            <ChevronDown
-                size={13}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:!text-[#8a8580] pointer-events-none"
-            />
+            </datalist>
         </div>
     );
 };
@@ -81,10 +99,17 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
     const isEdit = !!editing;
     const editingId = editing?.id;
     const { t } = useTranslation();
+    const [tab, setTab] = useState<MachineModalTab>('supported');
     const [selectedKey, setSelectedKey] = useState('');
     const [params, setParams] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+
+    // Custom machine fields
+    const [customName, setCustomName] = useState('');
+    const [customBrand, setCustomBrand] = useState('');
+    const [customProtocol, setCustomProtocol] = useState('');
+    const [templateKey, setTemplateKey] = useState('');
 
     type TestState = 'idle' | 'testing' | 'success' | 'failed';
     const [testState, setTestState] = useState<TestState>('idle');
@@ -93,7 +118,43 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
 
     const [serialPorts, setSerialPorts] = useState<SerialPort[]>([]);
 
-    const selectedDef = selectedKey ? ROASTER_REGISTRY[selectedKey] : null;
+    const isCustom = !isEdit && tab === 'custom';
+
+    const switchTab = (next: MachineModalTab) => {
+        if (next === tab) return;
+        setTab(next);
+        setError('');
+        setTestState('idle');
+        setTestMessage('');
+        setParams({});
+        if (next === 'supported') {
+            setSelectedKey('');
+            setCustomName('');
+            setCustomBrand('');
+            setCustomProtocol('');
+            setTemplateKey('');
+        } else {
+            setSelectedKey('');
+        }
+    };
+
+    const templates = useMemo(
+        () => (customProtocol ? listTemplatesByProtocol(ROASTER_REGISTRY, customProtocol) : []),
+        [customProtocol],
+    );
+
+    const templateDef = templateKey ? (ROASTER_REGISTRY[templateKey] ?? null) : null;
+
+    const selectedDef: RoasterDef | null = useMemo(() => {
+        if (isCustom) {
+            if (!customProtocol) return null;
+            return buildProtocolRoasterDef(customProtocol, templateDef);
+        }
+        return selectedKey ? (ROASTER_REGISTRY[selectedKey] ?? null) : null;
+    }, [isCustom, customProtocol, templateDef, selectedKey]);
+
+    /** Key actually sent to sidecar connect */
+    const connectKey = isCustom ? templateKey : selectedKey;
 
     const handleClose = useCallback(async () => {
         if (testConnectedRef.current) {
@@ -122,23 +183,62 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
     useEffect(() => {
         if (!open) return;
         if (editingId && editing) {
+            setTab('supported');
             setSelectedKey(editing.roasterKey);
+            setCustomName('');
+            setCustomBrand('');
+            setCustomProtocol('');
+            setTemplateKey('');
             const def = ROASTER_REGISTRY[editing.roasterKey];
             if (def) setParams(initRoasterFormParams(def, editing.connectionParams));
             return;
         }
+        setTab('supported');
         setSelectedKey('');
         setParams({});
+        setCustomName('');
+        setCustomBrand('');
+        setCustomProtocol('');
+        setTemplateKey('');
     }, [open, editingId, editing]);
 
+    // Known model: init params when key changes
     useEffect(() => {
-        if (!open || editingId || !selectedKey) return;
+        if (!open || editingId || !selectedKey || isCustom) return;
         const def = ROASTER_REGISTRY[selectedKey];
         if (def) setParams(initRoasterFormParams(def));
-    }, [open, editingId, selectedKey]);
+    }, [open, editingId, selectedKey, isCustom]);
+
+    // Custom: when protocol changes, auto-pick first template
+    useEffect(() => {
+        if (!open || !isCustom || !customProtocol) return;
+        const list = listTemplatesByProtocol(ROASTER_REGISTRY, customProtocol);
+        setTemplateKey(list[0]?.key ?? '');
+    }, [open, isCustom, customProtocol]);
+
+    // Custom: init params from template/protocol
+    useEffect(() => {
+        if (!open || editingId || !isCustom || !customProtocol) return;
+        const def = buildProtocolRoasterDef(customProtocol, templateKey ? ROASTER_REGISTRY[templateKey] : null);
+        setParams(initRoasterFormParams(def));
+    }, [open, editingId, isCustom, customProtocol, templateKey]);
+
+    const canCommit = isCustom
+        ? Boolean(customName.trim() && customProtocol && templateKey && selectedDef)
+        : Boolean(selectedKey && selectedDef);
 
     const commit = async (action: CommitAction) => {
-        if (!selectedDef || !selectedKey) return;
+        if (!selectedDef || !connectKey) return;
+
+        if (isCustom && !customName.trim()) {
+            setError(t('addMachine.fieldRequired', { field: t('addMachine.customName') }));
+            return;
+        }
+        if (isCustom && !templateKey) {
+            setError(t('addMachine.fieldRequired', { field: t('addMachine.driverTemplate') }));
+            return;
+        }
+
         const missing = validateRoasterFormFields(selectedDef, params);
         if (missing) {
             setError(t('addMachine.fieldRequired', { field: missing }));
@@ -162,7 +262,12 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                 // biome-ignore lint/style/noNonNullAssertion: error already checked above
                 await onEdit!(editing!.id, typed, keepTest);
             } else {
-                onAdd(selectedKey, selectedDef, typed);
+                onAdd(
+                    connectKey,
+                    selectedDef,
+                    typed,
+                    isCustom ? { name: customName.trim(), brand: customBrand.trim() || 'Custom' } : undefined,
+                );
                 if (action === 'addAndConnect') testConnectedRef.current = false;
             }
             if (!keepTest) onClose();
@@ -174,7 +279,12 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
     };
 
     const handleTestConnection = async () => {
-        if (!selectedKey || !selectedDef) return;
+        if (!connectKey || !selectedDef) return;
+
+        if (isCustom && !templateKey) {
+            setError(t('addMachine.fieldRequired', { field: t('addMachine.driverTemplate') }));
+            return;
+        }
 
         if (testConnectedRef.current) {
             await sidecar.disconnect().catch(() => null);
@@ -188,7 +298,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
         const typedParams = buildTypedConnectionParams(selectedDef, params);
 
         try {
-            const status = await sidecar.connect(selectedKey, typedParams);
+            const status = await sidecar.connect(connectKey, typedParams);
             if (status.connected) {
                 const temps = await sidecar.getTemperatures().catch(() => null);
                 setTestState('success');
@@ -265,38 +375,150 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                 </button>
             </div>
 
-            {/* Body — padding on content, not overflow viewport */}
+            {/* Body */}
             <ModalScrollBody contentClassName="px-7 py-6 flex flex-col gap-5">
-                <div>
-                    <label className={labelCls}>{t('addMachine.roasterModel')}</label>
-                    <div className="relative">
-                        <select
-                            className={cn(selectCls, isEdit && 'opacity-70 cursor-default')}
-                            value={selectedKey}
-                            onChange={(e) => setSelectedKey(e.target.value)}
-                            disabled={isEdit}
+                {!isEdit && (
+                    <div className="flex bg-surface p-1 rounded-2xl shadow-(--shadow-inset)">
+                        <button
+                            type="button"
+                            onClick={() => switchTab('supported')}
+                            className={tabCls(tab === 'supported')}
                         >
-                            <option value="">{t('addMachine.selectRoaster')}</option>
-                            {Object.entries(ROASTERS_BY_BRAND)
-                                .sort(([a], [b]) => a.localeCompare(b))
-                                .map(([brand, items]) => (
-                                    <optgroup key={brand} label={brand}>
-                                        {items.map(({ key, def }) => (
+                            {t('addMachine.tabSupported')}
+                        </button>
+                        <button type="button" onClick={() => switchTab('custom')} className={tabCls(tab === 'custom')}>
+                            {t('addMachine.tabCustom')}
+                        </button>
+                    </div>
+                )}
+
+                {!isCustom && (
+                    <div>
+                        <label className={labelCls}>{t('addMachine.roasterModel')}</label>
+                        <div className="relative">
+                            <select
+                                className={cn(selectCls, isEdit && 'opacity-70 cursor-default')}
+                                value={selectedKey}
+                                onChange={(e) => {
+                                    setSelectedKey(e.target.value);
+                                    setTestState('idle');
+                                    setTestMessage('');
+                                    setError('');
+                                }}
+                                disabled={isEdit}
+                            >
+                                <option value="">{t('addMachine.selectRoaster')}</option>
+                                {Object.entries(ROASTERS_BY_BRAND)
+                                    .sort(([a], [b]) => a.localeCompare(b))
+                                    .map(([brand, items]) => (
+                                        <optgroup key={brand} label={brand}>
+                                            {items.map(({ key, def }) => (
+                                                <option key={key} value={key}>
+                                                    {def.display_name}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    ))}
+                            </select>
+                            <ChevronDown
+                                size={14}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:!text-[#8a8580] pointer-events-none"
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {isCustom && (
+                    <div className="rounded-2xl p-5 border border-black/6 dark:border-[#585d61] bg-surface/50 dark:bg-surface-elevated grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                            <label className={labelCls}>
+                                {t('addMachine.customName')}
+                                <span className="text-red-500"> *</span>
+                            </label>
+                            <input
+                                className={inputCls}
+                                type="text"
+                                value={customName}
+                                onChange={(e) => setCustomName(e.target.value)}
+                                placeholder={t('addMachine.customNamePlaceholder')}
+                            />
+                        </div>
+                        <div>
+                            <label className={labelCls}>{t('addMachine.customBrand')}</label>
+                            <input
+                                className={inputCls}
+                                type="text"
+                                value={customBrand}
+                                onChange={(e) => setCustomBrand(e.target.value)}
+                                placeholder={t('addMachine.customBrandPlaceholder')}
+                            />
+                        </div>
+                        <div>
+                            <label className={labelCls}>
+                                {t('addMachine.protocol')}
+                                <span className="text-red-500"> *</span>
+                            </label>
+                            <div className="relative">
+                                <select
+                                    className={selectCls}
+                                    value={customProtocol}
+                                    onChange={(e) => {
+                                        setCustomProtocol(e.target.value);
+                                        setTestState('idle');
+                                        setError('');
+                                    }}
+                                >
+                                    <option value="">{t('addMachine.selectProtocol')}</option>
+                                    {PROTOCOLS.map((p) => (
+                                        <option key={p} value={p}>
+                                            {p.toUpperCase()}
+                                        </option>
+                                    ))}
+                                </select>
+                                <ChevronDown
+                                    size={13}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:!text-[#8a8580] pointer-events-none"
+                                />
+                            </div>
+                        </div>
+                        {customProtocol && templates.length > 0 && (
+                            <div className="col-span-2">
+                                <label className={labelCls}>
+                                    {t('addMachine.driverTemplate')}
+                                    {(PROTOCOLS_REQUIRING_TEMPLATE.has(customProtocol) || templates.length > 0) && (
+                                        <span className="text-red-500"> *</span>
+                                    )}
+                                </label>
+                                <div className="relative">
+                                    <select
+                                        className={selectCls}
+                                        value={templateKey}
+                                        onChange={(e) => {
+                                            setTemplateKey(e.target.value);
+                                            setTestState('idle');
+                                            setError('');
+                                        }}
+                                    >
+                                        {templates.map(({ key, def }) => (
                                             <option key={key} value={key}>
                                                 {def.display_name}
                                             </option>
                                         ))}
-                                    </optgroup>
-                                ))}
-                        </select>
-                        <ChevronDown
-                            size={14}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:!text-[#8a8580] pointer-events-none"
-                        />
+                                    </select>
+                                    <ChevronDown
+                                        size={13}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:!text-[#8a8580] pointer-events-none"
+                                    />
+                                </div>
+                                <p className="mt-1.5 text-[11px] text-muted leading-relaxed">
+                                    {t('addMachine.driverTemplateHint')}
+                                </p>
+                            </div>
+                        )}
                     </div>
-                </div>
+                )}
 
-                {selectedDef && (
+                {selectedDef && !isCustom && (
                     <div className="bg-surface-warm-solid rounded-[14px] p-3.5 shadow-(--shadow-warm) flex gap-4 flex-wrap">
                         <div className="flex gap-1.5 flex-wrap">
                             <Badge tone="soft" className="px-2.5 font-semibold">
@@ -318,6 +540,19 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                                 {[...selectedDef.models].sort((a, b) => a.localeCompare(b)).join(' · ')}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {selectedDef && isCustom && (
+                    <div className="bg-surface-warm-solid rounded-[14px] p-3.5 shadow-(--shadow-warm) flex gap-1.5 flex-wrap">
+                        <Badge tone="soft" className="px-2.5 font-semibold">
+                            {selectedDef.protocol.toUpperCase()}
+                        </Badge>
+                        {selectedDef.capabilities.map((cap) => (
+                            <Badge key={cap} tone="soft" className="px-2.5 font-semibold">
+                                {cap}
+                            </Badge>
+                        ))}
                     </div>
                 )}
 
@@ -353,7 +588,14 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                                         {field.label}
                                         {field.required && <span className="text-red-500"> *</span>}
                                     </label>
-                                    {field.options ? (
+                                    {field.key === 'comport' ? (
+                                        <ComportField
+                                            value={params[field.key] ?? ''}
+                                            onChange={(v) => setParams((p) => ({ ...p, [field.key]: v }))}
+                                            ports={serialPorts}
+                                            registryDefault={(selectedDef?.default_params[field.key] as string) ?? ''}
+                                        />
+                                    ) : field.options ? (
                                         <div className="relative">
                                             <select
                                                 className={selectCls}
@@ -373,13 +615,6 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:!text-[#8a8580] pointer-events-none"
                                             />
                                         </div>
-                                    ) : field.key === 'comport' && serialPorts.length > 0 ? (
-                                        <ComportSelect
-                                            value={params[field.key] ?? ''}
-                                            onChange={(v) => setParams((p) => ({ ...p, [field.key]: v }))}
-                                            ports={serialPorts}
-                                            registryDefault={(selectedDef?.default_params[field.key] as string) ?? ''}
-                                        />
                                     ) : (
                                         <input
                                             className={inputCls}
@@ -429,11 +664,11 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                     <button
                         type="button"
                         onClick={handleTestConnection}
-                        disabled={!selectedKey || testState === 'testing'}
+                        disabled={!canCommit || testState === 'testing'}
                         className={cn(
                             secondaryBtnCls,
                             'flex items-center gap-1.5',
-                            (!selectedKey || testState === 'testing') && 'text-muted cursor-default',
+                            (!canCommit || testState === 'testing') && 'text-muted cursor-default',
                             testState === 'testing' && 'opacity-60',
                         )}
                     >
@@ -473,10 +708,10 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                             <button
                                 type="button"
                                 onClick={() => void commit(isEdit ? 'save' : 'add')}
-                                disabled={!selectedKey || saving}
+                                disabled={!canCommit || saving}
                                 className={cn(
                                     'px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-opacity',
-                                    !selectedKey
+                                    !canCommit
                                         ? 'border-none bg-surface dark:bg-surface-elevated text-muted cursor-default shadow-(--shadow-inset)'
                                         : 'border border-transparent bg-primary dark:bg-black text-white cursor-pointer shadow-(--shadow-card)',
                                     saving && 'opacity-70',

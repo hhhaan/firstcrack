@@ -20,13 +20,20 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
     );
 
     const handleAdd = useCallback(
-        (roasterKey: string, def: RoasterDef, params: Record<string, unknown>) => {
+        (
+            roasterKey: string,
+            def: RoasterDef,
+            params: Record<string, unknown>,
+            meta?: { name?: string; brand?: string },
+        ) => {
+            const name = meta?.name?.trim() || def.display_name;
+            const brand = meta?.brand?.trim() || def.brand;
             addMachine({
-                name: def.display_name,
+                name,
                 roasterKey,
-                displayName: def.display_name,
-                brand: def.brand,
-                models: def.models,
+                displayName: name,
+                brand,
+                models: meta?.name?.trim() ? [name] : def.models,
                 protocol: def.protocol,
                 connectionParams: params,
                 capabilities: def.capabilities,

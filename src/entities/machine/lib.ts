@@ -1,4 +1,10 @@
+import { PROTOCOL_FORM_FIELDS } from './roasterRegistry';
 import type { RoasterDef, SidecarStatus } from './types';
+
+export const CUSTOM_ROASTER_KEY = '__custom__';
+
+/** Protocols that need a registry template for address maps (modbus registers / S7 channels). */
+export const PROTOCOLS_REQUIRING_TEMPLATE = new Set(['s7', 'modbus']);
 
 export const TCP_ONLY_FIELDS = new Set(['host', 'port']);
 export const RTU_ONLY_FIELDS = new Set(['comport', 'baudrate', 'bytesize', 'parity', 'stopbits']);
@@ -61,6 +67,52 @@ export const groupRoastersByBrand = (
         items.sort((a, b) => a.def.display_name.localeCompare(b.def.display_name));
     }
     return brands;
+};
+
+/** Unique non-internal protocols present in the registry, sorted. */
+export const listProtocols = (registry: Record<string, RoasterDef>): string[] => {
+    const set = new Set<string>();
+    for (const def of Object.values(registry)) {
+        if (def.brand === 'Internal') continue;
+        set.add(def.protocol);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+};
+
+/** Registry entries that can drive a given protocol (templates for custom machines). */
+export const listTemplatesByProtocol = (
+    registry: Record<string, RoasterDef>,
+    protocol: string,
+): { key: string; def: RoasterDef }[] => {
+    const items: { key: string; def: RoasterDef }[] = [];
+    for (const [key, def] of Object.entries(registry)) {
+        if (def.brand === 'Internal') continue;
+        if (def.protocol !== protocol) continue;
+        items.push({ key, def });
+    }
+    items.sort((a, b) => a.def.display_name.localeCompare(b.def.display_name));
+    return items;
+};
+
+/** Synthetic RoasterDef for custom mode: protocol form fields + template defaults. */
+export const buildProtocolRoasterDef = (protocol: string, template?: RoasterDef | null): RoasterDef => {
+    const form_fields = PROTOCOL_FORM_FIELDS[protocol] ?? [];
+    if (template) {
+        return {
+            ...template,
+            form_fields: form_fields.length > 0 ? form_fields : template.form_fields,
+        };
+    }
+    return {
+        display_name: 'Custom',
+        brand: 'Custom',
+        models: [],
+        protocol,
+        capabilities: [],
+        pid: null,
+        form_fields,
+        default_params: {},
+    };
 };
 
 export const isSameSidecarStatus = (prev: SidecarStatus | null, next: SidecarStatus): boolean =>
