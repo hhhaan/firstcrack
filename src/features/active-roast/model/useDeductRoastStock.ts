@@ -21,6 +21,11 @@ export const useDeductRoastStock = () => {
         async ({ deductionGrams, singleBeanId, blendId, referenceId }: DeductRoastStockParams) => {
             if (!user || deductionGrams <= 0) return;
 
+            // Stock events require a bean target (single bean or blend components).
+            if (!singleBeanId && !blendId) {
+                throw new Error('No bean linked — stock cannot be deducted.');
+            }
+
             const events: Parameters<typeof beanStockEventApi.insertMany>[0] = [];
 
             if (singleBeanId && !blendId) {
@@ -49,7 +54,9 @@ export const useDeductRoastStock = () => {
                 }
             }
 
-            if (!events.length) return;
+            if (!events.length) {
+                throw new Error('No bean linked — stock cannot be deducted.');
+            }
 
             await beanStockEventApi.insertMany(events);
 

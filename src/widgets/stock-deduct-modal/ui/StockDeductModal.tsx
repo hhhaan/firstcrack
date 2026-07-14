@@ -102,7 +102,8 @@ export const StockDeductModal = ({
                 <button
                     type="button"
                     onClick={handleConfirm}
-                    className="flex-1 px-4 py-2.5 rounded-full border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
+                    disabled={deductStock && !canDeduct}
+                    className="flex-1 px-4 py-2.5 rounded-full border-none bg-primary text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {t('activeRoast.stockDeduct.confirm')}
                 </button>
