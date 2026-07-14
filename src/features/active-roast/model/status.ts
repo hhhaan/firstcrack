@@ -22,7 +22,9 @@ export interface RoastingState {
     sidecarError: string | null;
     machineCapabilities: string[];
     liveData: LiveData | null;
+    /** Inventory/other entry → active roast bean handoff (consumed once when roast view activates). */
     pendingBeanId: string | null;
+    pendingBeanName: string | null;
     sessionId: string | null;
     reconnecting: boolean;
 
@@ -40,7 +42,7 @@ export interface RoastingState {
     setError: (error: string | null) => void;
     setReconnecting: (reconnecting: boolean) => void;
     updateLiveData: (data: LiveData) => void;
-    setPendingBean: (beanId: string | null) => void;
+    setPendingBean: (beanId: string | null, beanName?: string | null) => void;
     reset: () => void;
 }
 
@@ -53,6 +55,7 @@ const initialState = {
     machineCapabilities: [] as string[],
     liveData: null as LiveData | null,
     pendingBeanId: null as string | null,
+    pendingBeanName: null as string | null,
     sessionId: null as string | null,
     reconnecting: false,
     isRoasting: false,
@@ -112,8 +115,8 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
 
     setReconnecting: (reconnecting) => set({ reconnecting }),
 
-    setPendingBean: (beanId) => {
-        set({ pendingBeanId: beanId });
+    setPendingBean: (beanId, beanName = null) => {
+        set({ pendingBeanId: beanId, pendingBeanName: beanId ? (beanName ?? null) : null });
     },
 
     updateLiveData: (data) => {

@@ -1,6 +1,7 @@
 import { useBeans } from '@entities/bean/queries';
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useRoastProfiles } from '@entities/roast-profile';
+import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
 import { ChevronDown, Settings2 } from 'lucide-react';
@@ -111,12 +112,18 @@ export const RoastHeader = ({
     const handleBeanChange = (id: string | null) => {
         onBeanChange(id);
         // 원두 기본값은 기기별 취향이라 localStorage에만 저장 (프로파일과 달리 DB 동기화 불필요)
-        if (id) localStorage.setItem('fc_default_bean_id', id);
-        else localStorage.removeItem('fc_default_bean_id');
+        if (id) localStorage.setItem(DEFAULT_BEAN_KEY, id);
+        else localStorage.removeItem(DEFAULT_BEAN_KEY);
     };
 
     const selectedBean = beans.find((b) => b.id === selectedBeanId);
-    const beanSecondary = joinDisplay([selectedBean?.farm, selectedBean?.variety, selectedBean?.process]);
+    const beanTitle = selectedBean
+        ? joinDisplay([selectedBean.origin, selectedBean.region], ' ') || selectedBean.name
+        : (fallbackBeanName ?? 'No Bean Selected');
+    const beanSecondary = selectedBean
+        ? joinDisplay([selectedBean.farm, selectedBean.variety, selectedBean.process]) ||
+          (selectedBean.name !== beanTitle ? selectedBean.name : '')
+        : '';
     const defaultProfileId = userProfile?.default_roast_profile_id;
     const sortedProfiles = [...dbProfiles].sort((a, b) => {
         if (!defaultProfileId) return 0;
@@ -135,9 +142,7 @@ export const RoastHeader = ({
 
                 <div className="relative inline-flex items-center mb-1 min-w-0">
                     <span className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] pointer-events-none pr-7">
-                        {selectedBean
-                            ? joinDisplay([selectedBean.origin, selectedBean.region], ' ')
-                            : (fallbackBeanName ?? 'No Bean Selected')}
+                        {beanTitle}
                     </span>
 
                     <select
