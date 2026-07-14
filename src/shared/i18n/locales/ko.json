@@ -706,6 +706,11 @@
             "development": "발달",
             "humidity": "습도",
             "temperature": "온도",
+            "bean": "생두",
+            "beanHint": "저장 시 재고 차감하려면 생두를 선택하세요.",
+            "beanPlaceholder": "생두 선택",
+            "beanSelected": "이 로스팅에 선택된 생두",
+            "beanRequired": "저장하려면 생두를 선택하세요.",
             "roastLevel": "로스팅 레벨",
             "levels": {
                 "light": "라이트",

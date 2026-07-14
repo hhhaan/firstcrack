@@ -538,6 +538,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 isSaving={saveFlow.isSaving}
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
+                selectedBeanId={selectedBeanId}
+                hasBlendHandoff={Boolean(planBatchHandoff?.blendId)}
+                fallbackBeanName={handoffBeanName}
                 onClose={saveFlow.flow.closeSummary}
                 onDiscard={() => {
                     saveFlow.flow.discardSummary();
@@ -550,7 +553,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 open={saveFlow.flow.deductModal}
                 beanName={saveFlow.flow.pendingStockDeduct?.beanName ?? undefined}
                 deductionKg={((saveFlow.flow.pendingStockDeduct?.deductionGrams ?? 0) / 1000).toFixed(1)}
-                canDeduct={Boolean(saveFlow.flow.pendingStockDeduct)}
+                canDeduct={Boolean(
+                    saveFlow.flow.pendingStockDeduct &&
+                        (saveFlow.flow.pendingStockDeduct.singleBeanId || saveFlow.flow.pendingStockDeduct.blendId),
+                )}
                 onClose={saveFlow.flow.finishDeductFlow}
                 onConfirm={saveFlow.handleStockDeductConfirm}
             />

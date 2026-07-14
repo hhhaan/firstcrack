@@ -1,3 +1,4 @@
+import { beanKeys } from '@entities/bean/queries';
 import { useUpdatePlanBatch } from '@entities/plan';
 import { type RoastSessionInsert, useCreateRoastSession } from '@entities/roast';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
@@ -5,8 +6,9 @@ import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
-import type { Json, PlanBatchHandoff } from '@shared/types/database.types';
+import type { Bean, Json, PlanBatchHandoff } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { determineStockDeduction } from '../lib/determine-stock-deduction';
 import type { RoastSummaryForm } from '../ui/RoastSummaryModal';
@@ -36,6 +38,7 @@ export interface SaveRoastResult {
 export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
     const user = useAuthStore((s) => s.user);
     const userId = user?.id ?? '';
+    const qc = useQueryClient();
 
     const { mutateAsync: saveRoastSession, isPending: isSaving } = useCreateRoastSession(userId);
     const { mutateAsync: syncRoastCurve } = useUploadRoastProfile();
@@ -51,6 +54,14 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
             const { formData, handoffBeanName, sessionId, ...payloadParams } = params;
 
             const weightGrams = Math.round(formData.weightGrams * 1000);
+            // Summary modal can fill bean when roast ran without one
+            const resolvedBeanId = formData.beanId ?? payloadParams.selectedBeanId;
+            const blendId = planBatchHandoff?.blendId ?? null;
+
+            // Stock deduct / session bean link: require single bean or blend
+            if (!resolvedBeanId && !blendId) {
+                throw new Error('Select a green bean before saving.');
+            }
 
             const roastedAt =
                 payloadParams.roastStartTimeRef.current > 0
@@ -69,7 +80,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 notes: formData.notes || null,
                 ambient_temp_celsius: payloadParams.ambientTemperature ?? null,
                 ambient_humidity_pct: payloadParams.ambientHumidity ?? null,
-                bean_id: payloadParams.selectedBeanId,
+                bean_id: resolvedBeanId,
                 profile_id: payloadParams.targetProfileId,
                 tsv_path: null,
                 plan_batch_id: payloadParams.planBatchHandoff?.planBatchId ?? null,
@@ -96,12 +107,17 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 );
             }
 
+            const cachedBeans = user ? qc.getQueryData<Bean[]>(beanKeys.all(user.id)) : undefined;
+            const resolvedBeanName =
+                handoffBeanName ??
+                (resolvedBeanId ? (cachedBeans?.find((b) => b.id === resolvedBeanId)?.name ?? null) : null);
+
             const deductionPlan = determineStockDeduction({
                 planBatchHandoff,
                 saveWeight: weightGrams,
-                selectedBeanId: payloadParams.selectedBeanId,
+                selectedBeanId: resolvedBeanId,
                 referenceId: savedSession.id,
-                handoffBeanName,
+                handoffBeanName: resolvedBeanName,
             });
 
             return {
@@ -110,7 +126,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 shouldOpenContinue: planBatchHandoff != null,
             };
         },
-        [user, syncRoastCurve, saveRoastSession, planBatchHandoff, incrementCompletedSession, updatePlanBatch],
+        [user, qc, syncRoastCurve, saveRoastSession, planBatchHandoff, incrementCompletedSession, updatePlanBatch],
     );
 
     return useMemo(
