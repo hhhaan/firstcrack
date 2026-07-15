@@ -1069,6 +1069,12 @@
         "copyLink": "Copy link",
         "copied": "Copied",
         "openLink": "Open",
-        "revoke": "Revoke"
+        "revoke": "Revoke",
+        "locked": {
+            "subtitle": "Pro feature",
+            "title": "Cupping is included with Pro",
+            "description": "Record SCA scores for whole cupping tables (15+ samples), share QR forms with cuppers, and link samples to roast history.",
+            "cta": "View billing plans"
+        }
     }
 }

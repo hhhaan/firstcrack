@@ -11,19 +11,25 @@ import {
     useRevokeCuppingInvite,
 } from '@entities/cupping';
 import { useRoastSessions } from '@entities/roast';
+import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatDateShort } from '@shared/lib/format';
 import { useAuthStore } from '@shared/store/auth';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
-import { Check, ChevronLeft, Copy, Link2, Plus, QrCode, Trash2 } from 'lucide-react';
+import { Check, ChevronLeft, Copy, Link2, Lock, Plus, QrCode, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export const Cupping = () => {
+type CuppingProps = {
+    onUpgrade?: () => void;
+};
+
+export const Cupping = ({ onUpgrade }: CuppingProps) => {
     const { t } = useTranslation();
+    const canCupping = useFeature(FEATURE.cupping);
     const userId = useAuthStore((s) => s.user?.id ?? '');
-    const { data: events = [], isLoading, isError, error, refetch } = useCuppingEvents(userId);
+    const { data: events = [], isLoading, isError, error, refetch } = useCuppingEvents(userId, canCupping);
     const createEvent = useCreateCuppingEvent(userId);
     const deleteEvent = useDeleteCuppingEvent(userId);
 
@@ -47,6 +53,34 @@ export const Cupping = () => {
             setCreateError(e instanceof Error ? e.message : 'Failed');
         }
     };
+
+    if (!canCupping) {
+        return (
+            <PageLayout>
+                <PageHeader title={t('cupping.title')} subtitle={t('cupping.locked.subtitle')} />
+                <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-20 text-center dark:border-[#585d61]">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface">
+                        <Lock size={22} className="text-muted" />
+                    </div>
+                    <div>
+                        <p className="text-[15px] font-medium text-primary">{t('cupping.locked.title')}</p>
+                        <p className="mt-2 max-w-md text-[13px] leading-relaxed text-muted">
+                            {t('cupping.locked.description')}
+                        </p>
+                    </div>
+                    {onUpgrade ? (
+                        <button
+                            type="button"
+                            onClick={onUpgrade}
+                            className="rounded-full bg-primary px-5 py-2 text-xs font-medium text-white"
+                        >
+                            {t('cupping.locked.cta')}
+                        </button>
+                    ) : null}
+                </div>
+            </PageLayout>
+        );
+    }
 
     if (selectedEventId) {
         return (

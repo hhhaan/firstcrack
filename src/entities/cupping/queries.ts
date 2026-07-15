@@ -8,12 +8,12 @@ export const cuppingKeys = {
     scores: (sampleId: string) => ['cuppings', 'sample', sampleId] as const,
 };
 
-export const useCuppingEvents = (userId: string) =>
+export const useCuppingEvents = (userId: string, enabled = true) =>
     useQuery({
         queryKey: cuppingKeys.events(userId),
         queryFn: () => cuppingApi.listEvents(userId),
         staleTime: Infinity,
-        enabled: !!userId,
+        enabled: !!userId && enabled,
         throwOnError: false,
     });
 

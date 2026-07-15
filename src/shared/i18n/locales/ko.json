@@ -1095,6 +1095,12 @@
         "copyLink": "링크 복사",
         "copied": "복사됨",
         "openLink": "열기",
-        "revoke": "무효화"
+        "revoke": "무효화",
+        "locked": {
+            "subtitle": "Pro 기능",
+            "title": "커핑은 Pro에서 사용할 수 있습니다",
+            "description": "15개 이상 샘플 테이블, QR 커핑 폼, 로스팅 히스토리 연결까지 Pro에서 이용하세요.",
+            "cta": "요금제 보기"
+        }
     }
 }

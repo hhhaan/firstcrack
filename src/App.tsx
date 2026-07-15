@@ -232,7 +232,7 @@ export const App = () => {
                         )}
                         {view === 'cupping' && (
                             <ViewErrorBoundary>
-                                <Cupping />
+                                <Cupping onUpgrade={() => openSettings('billing')} />
                             </ViewErrorBoundary>
                         )}
                         {view === 'beans' && (
