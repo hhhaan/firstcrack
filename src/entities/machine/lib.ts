@@ -1,10 +1,26 @@
+import {
+    addressDefaultsForProtocol,
+    CUSTOM_CONNECT_KEYS,
+    flattenAddressMaps,
+    nestAddressMaps,
+    PROTOCOLS_WITH_ADDRESS_MAP,
+    validateAddressMaps,
+} from './addressMap';
 import { PROTOCOL_FORM_FIELDS } from './roasterRegistry';
 import type { RoasterDef, SidecarStatus } from './types';
 
-export const CUSTOM_ROASTER_KEY = '__custom__';
+export {
+    addressDefaultsForProtocol,
+    addressFormFieldsForProtocol,
+    CUSTOM_CONNECT_KEYS,
+    flattenAddressMaps,
+    isCustomConnectKey,
+    nestAddressMaps,
+    PROTOCOLS_WITH_ADDRESS_MAP,
+    validateAddressMaps,
+} from './addressMap';
 
-/** Protocols that need a registry template for address maps (modbus registers / S7 channels). */
-export const PROTOCOLS_REQUIRING_TEMPLATE = new Set(['s7', 'modbus']);
+export const CUSTOM_ROASTER_KEY = '__custom__';
 
 export const TCP_ONLY_FIELDS = new Set(['host', 'port']);
 export const RTU_ONLY_FIELDS = new Set(['comport', 'baudrate', 'bytesize', 'parity', 'stopbits']);
@@ -19,11 +35,22 @@ export const isRoasterFieldVisible = (fieldKey: string, mode: string | undefined
     return true;
 };
 
-export const initRoasterFormParams = (def: RoasterDef, existing?: Record<string, unknown>): Record<string, string> => {
+export const initRoasterFormParams = (
+    def: RoasterDef,
+    existing?: Record<string, unknown>,
+    options?: { includeAddressMap?: boolean },
+): Record<string, string> => {
     const initial: Record<string, string> = {};
     for (const field of def.form_fields) {
         const val = existing?.[field.key] ?? def.default_params[field.key];
         initial[field.key] = val != null ? String(val) : '';
+    }
+    if (options?.includeAddressMap && PROTOCOLS_WITH_ADDRESS_MAP.has(def.protocol)) {
+        Object.assign(initial, flattenAddressMaps(def.protocol, existing));
+        // Defaults when no stored map yet
+        if (!existing?.modbus_registers && !existing?.channels) {
+            Object.assign(initial, addressDefaultsForProtocol(def.protocol));
+        }
     }
     return initial;
 };
@@ -31,6 +58,7 @@ export const initRoasterFormParams = (def: RoasterDef, existing?: Record<string,
 export const buildTypedConnectionParams = (
     def: RoasterDef,
     stringParams: Record<string, string>,
+    options?: { includeAddressMap?: boolean },
 ): Record<string, unknown> => {
     const mode = stringParams.mode;
     const result: Record<string, unknown> = {};
@@ -40,16 +68,26 @@ export const buildTypedConnectionParams = (
         if (raw === '' || raw == null) continue;
         result[field.key] = field.type === 'number' ? Number(raw) : raw;
     }
+    if (options?.includeAddressMap && PROTOCOLS_WITH_ADDRESS_MAP.has(def.protocol)) {
+        Object.assign(result, nestAddressMaps(def.protocol, stringParams));
+    }
     return result;
 };
 
-export const validateRoasterFormFields = (def: RoasterDef, stringParams: Record<string, string>): string | null => {
+export const validateRoasterFormFields = (
+    def: RoasterDef,
+    stringParams: Record<string, string>,
+    options?: { includeAddressMap?: boolean },
+): string | null => {
     const mode = stringParams.mode;
     for (const field of def.form_fields) {
         if (!isRoasterFieldVisible(field.key, mode)) continue;
         if (field.required && !stringParams[field.key]?.trim()) {
             return field.label;
         }
+    }
+    if (options?.includeAddressMap && PROTOCOLS_WITH_ADDRESS_MAP.has(def.protocol)) {
+        return validateAddressMaps(def.protocol, stringParams);
     }
     return null;
 };
@@ -60,6 +98,7 @@ export const groupRoastersByBrand = (
     const brands: Record<string, { key: string; def: RoasterDef }[]> = {};
     for (const [key, def] of Object.entries(registry)) {
         if (def.brand === 'Internal') continue;
+        if (key.startsWith('custom_')) continue;
         if (!brands[def.brand]) brands[def.brand] = [];
         brands[def.brand].push({ key, def });
     }
@@ -72,48 +111,27 @@ export const groupRoastersByBrand = (
 /** Unique non-internal protocols present in the registry, sorted. */
 export const listProtocols = (registry: Record<string, RoasterDef>): string[] => {
     const set = new Set<string>();
-    for (const def of Object.values(registry)) {
+    for (const [key, def] of Object.entries(registry)) {
         if (def.brand === 'Internal') continue;
+        if (key.startsWith('custom_')) continue;
         set.add(def.protocol);
     }
     return [...set].sort((a, b) => a.localeCompare(b));
 };
 
-/** Registry entries that can drive a given protocol (templates for custom machines). */
-export const listTemplatesByProtocol = (
-    registry: Record<string, RoasterDef>,
-    protocol: string,
-): { key: string; def: RoasterDef }[] => {
-    const items: { key: string; def: RoasterDef }[] = [];
-    for (const [key, def] of Object.entries(registry)) {
-        if (def.brand === 'Internal') continue;
-        if (def.protocol !== protocol) continue;
-        items.push({ key, def });
-    }
-    items.sort((a, b) => a.def.display_name.localeCompare(b.def.display_name));
-    return items;
-};
+/** Synthetic RoasterDef for custom mode: connection form fields only. */
+export const buildProtocolRoasterDef = (protocol: string): RoasterDef => ({
+    display_name: 'Custom',
+    brand: 'Custom',
+    models: [],
+    protocol,
+    capabilities: [],
+    pid: null,
+    form_fields: PROTOCOL_FORM_FIELDS[protocol] ?? [],
+    default_params: {},
+});
 
-/** Synthetic RoasterDef for custom mode: protocol form fields + template defaults. */
-export const buildProtocolRoasterDef = (protocol: string, template?: RoasterDef | null): RoasterDef => {
-    const form_fields = PROTOCOL_FORM_FIELDS[protocol] ?? [];
-    if (template) {
-        return {
-            ...template,
-            form_fields: form_fields.length > 0 ? form_fields : template.form_fields,
-        };
-    }
-    return {
-        display_name: 'Custom',
-        brand: 'Custom',
-        models: [],
-        protocol,
-        capabilities: [],
-        pid: null,
-        form_fields,
-        default_params: {},
-    };
-};
+export const resolveCustomConnectKey = (protocol: string): string | null => CUSTOM_CONNECT_KEYS[protocol] ?? null;
 
 export const isSameSidecarStatus = (prev: SidecarStatus | null, next: SidecarStatus): boolean =>
     prev?.connected === next.connected &&

@@ -1,14 +1,20 @@
 export {
+    addressFormFieldsForProtocol,
     buildProtocolRoasterDef,
     buildTypedConnectionParams,
+    CUSTOM_CONNECT_KEYS,
     CUSTOM_ROASTER_KEY,
+    flattenAddressMaps,
     groupRoastersByBrand,
     initRoasterFormParams,
+    isCustomConnectKey,
     isRoasterFieldVisible,
     isSameSidecarStatus,
     listProtocols,
-    listTemplatesByProtocol,
-    PROTOCOLS_REQUIRING_TEMPLATE,
+    nestAddressMaps,
+    PROTOCOLS_WITH_ADDRESS_MAP,
+    resolveCustomConnectKey,
+    validateAddressMaps,
     validateRoasterFormFields,
 } from './lib';
 export { useMachines, VIRTUAL_ID } from './model';
