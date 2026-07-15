@@ -47,7 +47,7 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 - When implementing/editing code: NO chat/greetings/summaries — output ONLY precise code diffs (modified lines only). (Reviews, evaluations, questions, and planning are exempt — answer normally.)
 - repomix-output.xml: regenerate at session start and after large/structural changes (not every edit) via `pnpm repomix`.
 - ALWAYS prefix all bash/shell commands with `rtk ` (e.g., `rtk ls`, `rtk git`, `rtk npm`).
-- Commit: `git add` → `rtk gen-cmt` (no manual commit messages).
+- Commit: `git add` → `bash scripts/ai-commit.sh` (non-interactive gen-cmt wrapper; no manual commit messages). Never `git commit -m`.
 - [Exception] Omit `rtk ` prefix ONLY if output compression breaks error debugging.
 
 ## Tauri v2
