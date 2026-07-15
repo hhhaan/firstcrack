@@ -39,7 +39,10 @@ export const BeanCombobox = ({
     const [open, setOpen] = useState(false);
     const prevSelectedIdRef = useRef(selectedId);
     const itemsRef = useRef(items);
-    itemsRef.current = items;
+
+    useEffect(() => {
+        itemsRef.current = items;
+    }, [items]);
 
     // Sync display only when selectedId changes (not when items refetches).
     useEffect(() => {
