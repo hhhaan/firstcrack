@@ -1,5 +1,7 @@
 import {
+    Activity,
     Book,
+    Calculator,
     Calendar,
     ChevronDown,
     Chip,
@@ -8,15 +10,18 @@ import {
     Fire,
     RecentlyViewed,
     Settings,
+    ShoppingCart,
     SidePanelClose,
     SidePanelOpen,
 } from '@carbon/icons-react';
 import { useInventoryAlerts } from '@entities/inventory-alert';
 import { cn } from '@shared/lib/cn';
+import { FEATURE, useFeature } from '@shared/lib/features';
 import { useAuthStore } from '@shared/store/auth';
 import { useThemeStore } from '@shared/store/theme';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
+import { Lock } from 'lucide-react';
 import { type ComponentType, type CSSProperties, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../entities/profile';
@@ -36,7 +41,10 @@ const navItems: { id: View; labelKey: string; icon: SidebarIcon }[] = [
     { id: 'schedule', labelKey: 'sidebar.nav.schedule', icon: Calendar },
     { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Fire },
     { id: 'history', labelKey: 'sidebar.nav.history', icon: RecentlyViewed },
+    { id: 'cupping', labelKey: 'sidebar.nav.cupping', icon: Activity },
+    { id: 'orders', labelKey: 'sidebar.nav.orders', icon: ShoppingCart },
     { id: 'beans', labelKey: 'sidebar.nav.beans', icon: CropGrowth },
+    { id: 'pricing', labelKey: 'sidebar.nav.pricing', icon: Calculator },
     { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: Book },
     { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Chip },
 ];
@@ -50,6 +58,8 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
     const { data: profile } = useProfile(user?.id ?? '');
     const { data: inventoryAlerts = [] } = useInventoryAlerts(user?.id ?? '');
     const alertCount = inventoryAlerts.length;
+    const canCupping = useFeature(FEATURE.cupping);
+    const canOrders = useFeature(FEATURE.orderIntegration);
     const workspaceName = profile?.business_name || 'My Roastery';
     const workspaceInitial = workspaceName.charAt(0).toUpperCase();
 
@@ -163,6 +173,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                         const isActive = activeView === id;
                         const label = t(labelKey);
                         const showBadge = id === 'beans' && alertCount > 0;
+                        const locked = (id === 'cupping' && !canCupping) || (id === 'orders' && !canOrders);
                         return (
                             <button
                                 type="button"
@@ -176,6 +187,11 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                     <Icon size={18} className={isActive ? 'text-primary' : 'text-muted'} />
                                     {showBadge && collapsed && (
                                         <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" />
+                                    )}
+                                    {locked && collapsed && (
+                                        <span className="absolute bottom-1 right-1 text-muted">
+                                            <Lock size={10} />
+                                        </span>
                                     )}
                                 </div>
                                 <div
@@ -192,6 +208,9 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                     >
                                         {label}
                                     </span>
+                                    {locked && !collapsed && (
+                                        <Lock size={12} className="shrink-0 text-muted" aria-hidden />
+                                    )}
                                     {showBadge && !collapsed && (
                                         <Badge size="sm" tone="amber" className="font-semibold">
                                             {alertCount}

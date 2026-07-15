@@ -213,6 +213,97 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "capabilities": ["heater", "fan", "drum"],
     },
     # -----------------------------------------------------------------------
+    # Custom — address maps (modbus_registers / channels) from client params
+    # -----------------------------------------------------------------------
+    "custom_modbus": {
+        "display_name": "Custom Modbus",
+        "brand": "Internal",
+        "models": ["Custom"],
+        "protocol": "modbus",
+        "default_params": {
+            "mode": "tcp",
+            "host": "127.0.0.1",
+            "port": 502,
+            "comport": "",
+            "baudrate": 9600,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
+            # Client must supply modbus_registers on connect
+            "modbus_registers": {},
+        },
+        "pid": None,
+        "capabilities": [],
+    },
+    "custom_s7": {
+        "display_name": "Custom S7",
+        "brand": "Internal",
+        "models": ["Custom"],
+        "protocol": "s7",
+        "default_params": {
+            "host": "192.168.1.100",
+            "port": 102,
+            "rack": 0,
+            "slot": 0,
+            # Client must supply channels on connect
+            "channels": [],
+        },
+        "pid": None,
+        "capabilities": [],
+    },
+    "custom_phidget": {
+        "display_name": "Custom Phidget",
+        "brand": "Internal",
+        "models": ["Custom"],
+        "protocol": "phidget",
+        "default_params": {
+            "device_type": "TMP1101",
+            "channel_bt": 0,
+            "channel_et": 1,
+        },
+        "pid": None,
+        "capabilities": [],
+    },
+    "custom_kaleido": {
+        "display_name": "Custom Kaleido",
+        "brand": "Internal",
+        "models": ["Custom"],
+        "protocol": "kaleido",
+        "default_params": {
+            "mode": "TCP",
+            "host": "127.0.0.1",
+            "port": 80,
+            "path": "ws",
+            "comport": "",
+            "baudrate": 57600,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
+        },
+        "pid": {"Kp": 15, "Ki": 0.07, "Kd": 0.06},
+        "capabilities": ["heater", "fan", "drum"],
+    },
+    "custom_probat_ws": {
+        "display_name": "Custom Probat WS",
+        "brand": "Internal",
+        "models": ["Custom"],
+        "protocol": "probat_ws",
+        "default_params": {
+            "host": "127.0.0.1",
+            "port": 80,
+            # Standard Probat WS node names (override via connect params if needed)
+            "channel_nodes": {
+                "BT": "beanTemp",
+                "ET": "exhaustAirTemp",
+                "heater": "burner",
+            },
+        },
+        "pid": None,
+        "capabilities": ["heater", "fan", "drum"],
+    },
+    # -----------------------------------------------------------------------
     # Giesen — S7 (8개 항목)
     # 출처: Giesen/*.aset
     # 공통: port=102, rack=0, slot=0, div=0, PID Kp=20/Ki=0.01/Kd=3

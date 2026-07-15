@@ -28,6 +28,7 @@ const resolvePhaseFill = (name: string): string => {
 /**
  * logEntries + elapsed로 현재까지의 위상 구간 배열을 반환한다.
  * charged(Charge 이후)가 아니면 빈 배열.
+ * elapsed: wall-clock seconds since charge (store roastStartMs) — same origin as livePoints.time.
  */
 export const computePhaseSegments = (logEntries: LogEntry[], elapsed: number, charged: boolean): PhaseSegment[] => {
     if (!charged || elapsed === 0) return [];

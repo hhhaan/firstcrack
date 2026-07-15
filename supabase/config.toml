@@ -282,6 +282,12 @@ verify_jwt = false
 [functions.coffee-futures]
 verify_jwt = false
 
+[functions.get-cupping-session]
+verify_jwt = false
+
+[functions.submit-cupping]
+verify_jwt = false
+
 # [functions.MY_FUNCTION_NAME]
 # enabled = true
 # verify_jwt = true

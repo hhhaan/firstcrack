@@ -4,6 +4,7 @@ import type { BlendWithComponents } from '@entities/blend';
 import { useBlends } from '@entities/blend';
 import { useRoastingStore } from '@features/active-roast';
 import { useAuthStore } from '@shared/store/auth';
+import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
@@ -101,7 +102,11 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
             onEdit={(bean) => openModal('edit', bean.id, bean)}
             onRestock={(id) => openModal('restock', id)}
             onStartRoast={() => {
-                if (selected?.id) useRoastingStore.getState().setPendingBean(selected.id);
+                // Free roast from inventory must not keep a leftover schedule batch handoff.
+                useRoastSessionStore.getState().completeBatch();
+                if (selected?.id) {
+                    useRoastingStore.getState().setPendingBean(selected.id, selected.name);
+                }
                 onNavigate?.('roast');
             }}
             onDelete={(id) => {

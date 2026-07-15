@@ -1,6 +1,6 @@
 import { supabase } from '@shared/lib/supabase';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
-import { addMonths, format, parse } from 'date-fns';
+import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 
 const SELECT_WITH_RELATIONS = '*, beans(name, origin), roast_profiles!profile_id(name, target_level)';
 
@@ -58,6 +58,21 @@ export const roastSessionApi = {
         if (error) throw error;
         // biome-ignore lint/style/noNonNullAssertion: error already checked above
         return data!;
+    },
+
+    /** Completed sessions in local calendar month (batch quota). */
+    countCompletedThisMonth: async (userId: string, now = new Date()): Promise<number> => {
+        const from = startOfMonth(now).toISOString();
+        const to = endOfMonth(now).toISOString();
+        const { count, error } = await supabase
+            .from('roast_sessions')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('status', 'completed')
+            .gte('roasted_at', from)
+            .lte('roasted_at', to);
+        if (error) throw error;
+        return count ?? 0;
     },
 
     update: async ({ id, ...patch }: RoastSessionUpdate): Promise<RoastSession> => {

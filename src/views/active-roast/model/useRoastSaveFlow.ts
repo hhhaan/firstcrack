@@ -94,11 +94,19 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         async (deductStock: boolean) => {
             try {
                 if (deductStock && flow.pendingStockDeduct) {
+                    const { singleBeanId, blendId, deductionGrams, referenceId } = flow.pendingStockDeduct;
+                    if (!singleBeanId && !blendId) {
+                        await message('연결된 원두가 없어 재고를 차감할 수 없습니다.', {
+                            title: '재고 차감 불가',
+                            kind: 'warning',
+                        });
+                        return;
+                    }
                     await deductRoastStock({
-                        deductionGrams: flow.pendingStockDeduct.deductionGrams,
-                        singleBeanId: flow.pendingStockDeduct.singleBeanId,
-                        blendId: flow.pendingStockDeduct.blendId,
-                        referenceId: flow.pendingStockDeduct.referenceId,
+                        deductionGrams,
+                        singleBeanId,
+                        blendId,
+                        referenceId,
                     });
                 }
             } catch (err) {

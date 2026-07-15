@@ -35,7 +35,7 @@ const STOPBITS_OPTIONS = [
     { value: '2', label: '2' },
 ];
 
-const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
+export const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
     s7: [
         { key: 'host', label: 'PLC IP Address', type: 'text', required: true, placeholder: '192.168.1.100' },
         { key: 'port', label: 'Port', type: 'number', required: false, placeholder: '102' },
@@ -117,6 +117,71 @@ const REGISTRY: Record<string, RegistryEntry> = {
         capabilities: ['heater', 'fan', 'drum'],
         pid: null,
         default_params: { mode: 'C' },
+    },
+    // ── Custom (address maps supplied by client connectionParams) ─────────────
+    custom_modbus: {
+        display_name: 'Custom Modbus',
+        brand: 'Internal',
+        models: ['Custom'],
+        protocol: 'modbus',
+        capabilities: [],
+        pid: null,
+        default_params: {
+            mode: 'tcp',
+            host: '127.0.0.1',
+            port: 502,
+            baudrate: 9600,
+            bytesize: 8,
+            parity: 'N',
+            stopbits: 1,
+            interval: 1,
+        },
+    },
+    custom_s7: {
+        display_name: 'Custom S7',
+        brand: 'Internal',
+        models: ['Custom'],
+        protocol: 's7',
+        capabilities: [],
+        pid: null,
+        default_params: { host: '192.168.1.100', port: 102, rack: 0, slot: 0 },
+    },
+    custom_phidget: {
+        display_name: 'Custom Phidget',
+        brand: 'Internal',
+        models: ['Custom'],
+        protocol: 'phidget',
+        capabilities: [],
+        pid: null,
+        default_params: { device_type: 'TMP1101', channel_bt: 0, channel_et: 1 },
+    },
+    custom_kaleido: {
+        display_name: 'Custom Kaleido',
+        brand: 'Internal',
+        models: ['Custom'],
+        protocol: 'kaleido',
+        capabilities: ['heater', 'fan', 'drum'],
+        pid: { Kp: 15, Ki: 0.07, Kd: 0.06 },
+        default_params: {
+            mode: 'TCP',
+            host: '127.0.0.1',
+            port: 80,
+            comport: '',
+            baudrate: 57600,
+            bytesize: 8,
+            parity: 'N',
+            stopbits: 1,
+            interval: 1,
+        },
+    },
+    custom_probat_ws: {
+        display_name: 'Custom Probat WS',
+        brand: 'Internal',
+        models: ['Custom'],
+        protocol: 'probat_ws',
+        capabilities: ['heater', 'fan', 'drum'],
+        pid: null,
+        default_params: { host: '127.0.0.1', port: 80 },
     },
     // ── Giesen ────────────────────────────────────────────────────────────────
     giesen_w1: {

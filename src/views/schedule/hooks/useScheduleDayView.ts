@@ -459,7 +459,9 @@ export const useScheduleDayView = ({
 
                 if (deductStock) {
                     const deductionGrams = batchGreenNeededGramsFromBatch(batch);
-                    if (deductionGrams > 0 && (batch.bean_id || batch.blend_id)) {
+                    if (!batch.bean_id && !batch.blend_id) {
+                        alert(i18n.t('schedule.completeBatch.deductStockDisabled'));
+                    } else if (deductionGrams > 0) {
                         await deductRoastStock({
                             deductionGrams,
                             singleBeanId: batch.bean_id ?? null,

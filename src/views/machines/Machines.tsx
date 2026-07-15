@@ -7,6 +7,7 @@ import { sidecar } from '@shared/lib/sidecar';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
+import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
@@ -43,6 +44,11 @@ export const Machines = ({
         handleAdd,
         handleEdit,
         isThisMachineConnected,
+        allowAddMachine,
+        maxMachines,
+        realMachineCount,
+        limitBlocked,
+        dismissLimitBlocked,
     } = useMachinesPageState({ sidecarStatus, setSidecarStatus, setTemps });
 
     // 마운트 시 & 모달 닫힐 때 status fetch — "Add & Connect" 흐름에서 연결 상태 즉시 반영
@@ -186,6 +192,34 @@ export const Machines = ({
                     </PillButton>
                 }
             />
+
+            {!allowAddMachine && maxMachines != null ? (
+                <div className="mb-3 rounded-lg border border-border-subtle bg-surface/60 px-4 py-2.5 text-[12px] text-secondary dark:border-[#585d61]">
+                    {t('machines.limit.banner', { max: maxMachines, used: realMachineCount })}
+                </div>
+            ) : null}
+
+            {limitBlocked ? (
+                <ModalShell onClose={dismissLimitBlocked} labelledBy="machine-limit-title">
+                    <div className="w-full max-w-md rounded-xl bg-main-bg p-6 shadow-lg dark:border dark:border-[#585d61]">
+                        <h2 id="machine-limit-title" className="mb-2 text-base font-semibold text-primary">
+                            {t('machines.limit.title')}
+                        </h2>
+                        <p className="mb-4 text-[13px] leading-relaxed text-muted">
+                            {t('machines.limit.description', { max: maxMachines ?? 1 })}
+                        </p>
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={dismissLimitBlocked}
+                                className="rounded-full border border-border-subtle px-4 py-2 text-xs dark:border-[#585d61]"
+                            >
+                                {t('common.close', { defaultValue: 'Close' })}
+                            </button>
+                        </div>
+                    </div>
+                </ModalShell>
+            ) : null}
 
             {machines.length === 0 ? (
                 <div className="bg-main-bg rounded-lg py-16 px-8 text-center dark:border dark:border-[#585d61]">

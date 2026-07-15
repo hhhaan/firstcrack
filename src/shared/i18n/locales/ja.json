@@ -44,7 +44,9 @@
             "beans": "豆在庫",
             "profiles": "プロファイル",
             "machines": "マシン",
-            "schedule": "ロースト予定"
+            "schedule": "ロースト予定",
+            "pricing": "原価・販売価格",
+            "cupping": "カッピング"
         }
     },
     "settings": {
@@ -272,7 +274,12 @@
         "disconnect": "切断",
         "connect": "接続",
         "startRoasting": "ローストを開始",
-        "selectMachine": "マシンを選択してください"
+        "selectMachine": "マシンを選択してください",
+        "limit": {
+            "banner": "Machine limit: {{used}}/{{max}}. Upgrade to Pro+ for unlimited machines.",
+            "title": "Machine limit reached",
+            "description": "Plans below Pro+ can register {{max}} machine. Upgrade to Pro+ to connect more roasters."
+        }
     },
     "addMachine": {
         "onboarding": "マシンオンボーディング",
@@ -283,6 +290,16 @@
         "selectPort": "ポートを選択...",
         "defaultPort": "既定値",
         "selectRoaster": "ロースターを選択...",
+        "tabSupported": "対応モデル",
+        "tabCustom": "その他 / 直接入力",
+        "customName": "マシン名",
+        "customNamePlaceholder": "例: 店舗サンプルロースター",
+        "customBrand": "ブランド",
+        "customBrandPlaceholder": "任意",
+        "protocol": "プロトコル",
+        "selectProtocol": "プロトコルを選択...",
+        "addressMap": "BT / ET アドレスマップ",
+        "addressMapHint": "機器マニュアルまたはArtisan設定に従いレジスタ/チャネルを直接入力してください。ETは空欄で無効です。",
         "connectionSettings": "接続設定",
         "fieldRequired": "{{field}} は必須です",
         "failedToAdd": "マシンの追加に失敗しました",
@@ -473,6 +490,11 @@
             "temperature": "温度",
             "humidity": "湿度",
             "log": "ログ",
+            "bean": "生豆",
+            "beanHint": "保存時に在庫を差し引くには生豆を選択してください。",
+            "beanPlaceholder": "生豆を選択",
+            "beanSelected": "このローストで選択中",
+            "beanRequired": "保存するには生豆を選択してください。",
             "batchWeight": "バッチ重量",
             "weightUnit": "g",
             "roastLevel": "ロースト度",
@@ -938,6 +960,125 @@
             "writeOff": "廃棄処理",
             "showMore": "もっと見る",
             "showLess": "折りたたむ"
+        }
+    },
+    "pricing": {
+        "title": "原価・販売価格",
+        "subtitle": "焙煎後の原価を計算し、マージンで販売価格を決めます",
+        "source": {
+            "title": "ソース",
+            "mode": {
+                "single": "シングルオリジン",
+                "blend": "ブレンド"
+            },
+            "bean": "生豆",
+            "selectBean": "検索または直接入力",
+            "greenCost": "生豆原価 (円/kg)",
+            "greenCostPlaceholder": "例: 32000円",
+            "missingCost": "この豆に原価が登録されていません。",
+            "goToBeans": "在庫へ移動",
+            "emptyBeans": "豆がありません。在庫で追加してください。",
+            "emptyBlends": "ブレンドがありません。在庫で作成してください。",
+            "ratioSum": "比率の合計は {{sum}}% です（原価計算時は正規化）。",
+            "blend": "ブレンド",
+            "selectBlend": "ブレンドを選択",
+            "blendSource": {
+                "saved": "保存済みブレンド",
+                "custom": "カスタム"
+            },
+            "components": "構成",
+            "ratioHeader": "比率",
+            "costShort": "円/kg",
+            "addComponent": "構成を追加",
+            "toggleList": "一覧を開く"
+        },
+        "cost": {
+            "title": "原価内訳",
+            "greenCost": "生豆原価",
+            "blendGreenCost": "ブレンド生豆原価",
+            "yield": "焙煎歩留まり",
+            "roastedCost": "焙煎後原価",
+            "overhead": "間接費 (円/kg)",
+            "totalCost": "総原価 (間接費込)",
+            "fixedOverhead": "固定間接費",
+            "fixedOverheadHint": "変更するまで他の豆の計算にも同じ金額が適用されます。",
+            "itemName": "項目",
+            "itemAmount": "円/kg",
+            "itemNamePlaceholder": "例: 袋代、送料",
+            "addItem": "項目を追加",
+            "removeItem": "項目を削除",
+            "overheadSum": "間接費合計",
+            "itemAmountPlaceholder": "例: 500円"
+        },
+        "selling": {
+            "title": "販売価格",
+            "hint": "販売価格に対する粗利益率 — 40%マージンは販売価格の40%が利益です。",
+            "margin": "粗利益率",
+            "price": "販売価格 (円/kg)",
+            "priceEdit": "販売価格を直接入力",
+            "costBasis": "原価基準",
+            "profit": "利益",
+            "pricePlaceholder": "例: 45000円",
+            "unit": "/ kg"
+        },
+        "flow": {
+            "green": "生豆",
+            "yield": "歩留",
+            "roasted": "焙煎後",
+            "overhead": "間接費",
+            "sell": "販売"
+        }
+    },
+    "cupping": {
+        "title": "Cupping",
+        "subtitle": "{{count}} events",
+        "subtitleLoading": "Loading...",
+        "loading": "Loading...",
+        "loadError": "Could not load cupping events",
+        "retry": "Retry",
+        "newEvent": "New cupping table",
+        "defaultTitle": "Cupping table",
+        "eventTitle": "Title",
+        "create": "Create",
+        "creating": "Creating…",
+        "cancel": "Cancel",
+        "back": "All tables",
+        "empty": {
+            "title": "No cupping tables yet.",
+            "description": "Create a table and add 15+ samples for the session."
+        },
+        "colTitle": "Title",
+        "colDate": "Date",
+        "colSamples": "Samples",
+        "colAvg": "Avg score",
+        "colLabel": "Sample",
+        "colRoast": "Roast link",
+        "colScores": "Scores",
+        "colActions": "Actions",
+        "eventSubtitle": "{{date}} · {{samples}} samples · {{scores}} scores",
+        "addSamples": "Add samples",
+        "addSamplesHint": "Pick roast history rows and/or add a free label (no roast).",
+        "addSamplesEmpty": "Select at least one roast or enter a label.",
+        "freeLabel": "Custom sample label",
+        "freeLabelPlaceholder": "e.g. Blind A, Competition lot…",
+        "noRoasts": "No completed roasts yet.",
+        "noSamples": "No samples. Add roasts or custom labels.",
+        "noRoastLink": "—",
+        "add": "Add",
+        "adding": "Adding…",
+        "deleteEvent": "Delete table",
+        "deleteEventConfirm": "Delete this cupping table and all samples?",
+        "deleteSampleConfirm": "Remove this sample?",
+        "qrHint": "Scan or open link on the cupping table phone.",
+        "copyLink": "Copy link",
+        "copied": "Copied",
+        "openLink": "Open",
+        "revoke": "Revoke",
+        "locked": {
+            "subtitle": "Pro feature",
+            "title": "Cupping is included with Pro",
+            "description": "Record SCA scores for whole cupping tables (15+ samples), share QR forms with cuppers, and link samples to roast history.",
+            "cta": "View billing plans"
         }
     }
 }

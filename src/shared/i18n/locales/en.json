@@ -8,7 +8,11 @@
         "live": "Live",
         "loading": "Loading…",
         "offline": "Offline",
-        "unavailable": "Unavailable"
+        "unavailable": "Unavailable",
+        "save": "Save",
+        "add": "Add",
+        "edit": "Edit",
+        "delete": "Delete"
     },
     "auth": {
         "oauthCompleting": "Completing sign-in…",
@@ -45,7 +49,10 @@
             "beans": "Bean Inventory",
             "profiles": "Profiles",
             "machines": "Machines",
-            "schedule": "Roast Schedule"
+            "schedule": "Roast Schedule",
+            "pricing": "Pricing",
+            "cupping": "Cupping",
+            "orders": "Orders"
         }
     },
     "settings": {
@@ -273,7 +280,12 @@
         "disconnect": "Disconnect",
         "connect": "Connect",
         "startRoasting": "Start Roasting",
-        "selectMachine": "Select a machine"
+        "selectMachine": "Select a machine",
+        "limit": {
+            "banner": "Machine limit: {{used}}/{{max}}. Upgrade to Pro+ for unlimited machines.",
+            "title": "Machine limit reached",
+            "description": "Plans below Pro+ can register {{max}} machine. Upgrade to Pro+ to connect more roasters."
+        }
     },
     "addMachine": {
         "onboarding": "Machine onboarding",
@@ -284,6 +296,16 @@
         "selectPort": "Select a port...",
         "defaultPort": "default",
         "selectRoaster": "Select a roaster...",
+        "tabSupported": "Supported",
+        "tabCustom": "Other / Custom",
+        "customName": "Machine name",
+        "customNamePlaceholder": "e.g. Shop sample roaster",
+        "customBrand": "Brand",
+        "customBrandPlaceholder": "Optional",
+        "protocol": "Protocol",
+        "selectProtocol": "Select a protocol...",
+        "addressMap": "BT / ET address map",
+        "addressMapHint": "Enter register/channel addresses from the device manual or Artisan config. Leave ET empty to disable.",
         "connectionSettings": "Connection settings",
         "fieldRequired": "{{field}} is required",
         "failedToAdd": "Failed to add machine",
@@ -474,6 +496,11 @@
             "temperature": "Temperature",
             "humidity": "Humidity",
             "log": "Log",
+            "bean": "Green Bean",
+            "beanHint": "Select a green bean to enable stock deduction on save.",
+            "beanPlaceholder": "Select green bean",
+            "beanSelected": "Selected for this roast",
+            "beanRequired": "Select a green bean to save.",
             "batchWeight": "Batch Weight",
             "weightUnit": "g",
             "roastLevel": "Roast Level",
@@ -722,6 +749,34 @@
             "chartLoading": "Loading chart…",
             "chartUnavailable": "Chart unavailable"
         },
+        "cupping": {
+            "title": "Cupping",
+            "avgScore": "Avg {{score}} · {{count}} scores",
+            "none": "No scores yet",
+            "emptyList": "Submit a score or open a QR session for cuppers.",
+            "addScore": "Add score",
+            "cancelForm": "Cancel",
+            "createSession": "Create cupping session",
+            "creating": "Creating…",
+            "createError": "Could not create cupping session. Apply the cupping migration if needed.",
+            "activeLink": "Active public link",
+            "inviteMeta": "{{used}}/{{max}} used · expires {{expires}}",
+            "copyLink": "Copy link",
+            "copied": "Copied",
+            "openLink": "Open",
+            "revoke": "Revoke",
+            "newLink": "New link",
+            "defects": "Defects",
+            "cuppedBy": "Cupped by",
+            "notes": "Notes",
+            "total": "Total",
+            "saveScore": "Save score",
+            "saving": "Saving…",
+            "colWhen": "When",
+            "colBy": "By",
+            "colScore": "Score",
+            "colSource": "Source"
+        },
         "table": {
             "date": "Date",
             "bean": "Bean",
@@ -939,6 +994,198 @@
             "writeOff": "Write-off",
             "showMore": "Show more",
             "showLess": "Show less"
+        }
+    },
+    "pricing": {
+        "title": "Pricing",
+        "subtitle": "Calculate roasted cost and set selling price by margin",
+        "source": {
+            "title": "Source",
+            "mode": {
+                "single": "Single Origin",
+                "blend": "Blend"
+            },
+            "bean": "Green Bean",
+            "selectBean": "Search or type a name",
+            "greenCost": "Green Cost (KRW/kg)",
+            "greenCostPlaceholder": "e.g. 32000 KRW",
+            "missingCost": "No cost recorded for this bean.",
+            "goToBeans": "Go to Inventory",
+            "emptyBeans": "No beans yet. Add one in Inventory.",
+            "emptyBlends": "No blends yet. Create one in Inventory.",
+            "ratioSum": "Ratios sum to {{sum}}% (normalized for cost).",
+            "blend": "Blend",
+            "selectBlend": "Select a blend",
+            "blendSource": {
+                "saved": "Saved Blend",
+                "custom": "Custom"
+            },
+            "components": "Components",
+            "ratioHeader": "Ratio",
+            "costShort": "KRW/kg",
+            "addComponent": "Add component",
+            "toggleList": "Toggle list"
+        },
+        "cost": {
+            "title": "Cost Breakdown",
+            "greenCost": "Green Cost",
+            "blendGreenCost": "Blend Green Cost",
+            "yield": "Roast Yield",
+            "roastedCost": "Roasted Cost",
+            "overhead": "Overhead (KRW/kg)",
+            "totalCost": "Total Cost (incl. overhead)",
+            "fixedOverhead": "Fixed overhead",
+            "fixedOverheadHint": "Applied to every bean calculation until you change it.",
+            "itemName": "Item",
+            "itemAmount": "KRW/kg",
+            "itemNamePlaceholder": "e.g. Bag, shipping",
+            "addItem": "Add item",
+            "removeItem": "Remove item",
+            "overheadSum": "Overhead total",
+            "itemAmountPlaceholder": "e.g. 500 KRW"
+        },
+        "selling": {
+            "title": "Selling Price",
+            "hint": "Gross margin on selling price — 40% margin means 40% of the price is profit.",
+            "margin": "Gross Margin",
+            "price": "Selling Price (KRW/kg)",
+            "priceEdit": "Adjust selling price",
+            "costBasis": "Cost Basis",
+            "profit": "Profit",
+            "pricePlaceholder": "e.g. 45000 KRW",
+            "unit": "/ kg"
+        },
+        "flow": {
+            "green": "Green",
+            "yield": "Yield",
+            "roasted": "Roasted",
+            "overhead": "Overhead",
+            "sell": "Sell"
+        }
+    },
+    "cupping": {
+        "title": "Cupping",
+        "subtitle": "{{count}} events",
+        "subtitleLoading": "Loading...",
+        "loading": "Loading...",
+        "loadError": "Could not load cupping events",
+        "retry": "Retry",
+        "newEvent": "New cupping table",
+        "defaultTitle": "Cupping table",
+        "eventTitle": "Title",
+        "create": "Create",
+        "creating": "Creating…",
+        "cancel": "Cancel",
+        "back": "All tables",
+        "empty": {
+            "title": "No cupping tables yet.",
+            "description": "Create a table and add 15+ samples for the session."
+        },
+        "colTitle": "Title",
+        "colDate": "Date",
+        "colSamples": "Samples",
+        "colAvg": "Avg score",
+        "colLabel": "Sample",
+        "colRoast": "Roast link",
+        "colScores": "Scores",
+        "colActions": "Actions",
+        "eventSubtitle": "{{date}} · {{samples}} samples · {{scores}} scores",
+        "addSamples": "Add samples",
+        "addSamplesHint": "Pick roast history rows and/or add a free label (no roast).",
+        "addSamplesEmpty": "Select at least one roast or enter a label.",
+        "freeLabel": "Custom sample label",
+        "freeLabelPlaceholder": "e.g. Blind A, Competition lot…",
+        "noRoasts": "No completed roasts yet.",
+        "noSamples": "No samples. Add roasts or custom labels.",
+        "noRoastLink": "—",
+        "add": "Add",
+        "adding": "Adding…",
+        "deleteEvent": "Delete table",
+        "deleteEventConfirm": "Delete this cupping table and all samples?",
+        "deleteSampleConfirm": "Remove this sample?",
+        "qrHint": "Scan or open link on the cupping table phone.",
+        "copyLink": "Copy link",
+        "copied": "Copied",
+        "openLink": "Open",
+        "revoke": "Revoke",
+        "locked": {
+            "subtitle": "Pro feature",
+            "title": "Cupping is included with Pro",
+            "description": "Record SCA scores for whole cupping tables (15+ samples), share QR forms with cuppers, and link samples to roast history.",
+            "cta": "View billing plans"
+        }
+    },
+    "orders": {
+        "title": "Orders",
+        "subtitle": "Collect store orders, see roasting needs, and manage finished-goods stock.",
+        "loading": "Loading…",
+        "locked": {
+            "subtitle": "E-commerce order integration",
+            "title": "Available on the Enterprise plan",
+            "description": "Connect Naver SmartStore, Cafe24, and Shopify to pull orders, calculate roasting needs, and deduct finished-goods stock automatically.",
+            "cta": "Upgrade plan"
+        },
+        "tab": {
+            "orders": "Orders",
+            "products": "Products"
+        },
+        "requirements": {
+            "title": "Roasting needs",
+            "loading": "Calculating…",
+            "empty": "No unfulfilled orders — nothing to roast.",
+            "bean": "Bean",
+            "green": "Green needed",
+            "available": "Available"
+        },
+        "order": {
+            "newTitle": "New order",
+            "empty": "No orders yet.",
+            "buyer": "Buyer",
+            "lines": "Items",
+            "selectProduct": "Select product",
+            "addLine": "+ Add item",
+            "fulfill": "Fulfill",
+            "fulfilled": "Fulfilled",
+            "col": {
+                "date": "Date",
+                "buyer": "Buyer",
+                "items": "Items",
+                "status": "Status",
+                "action": ""
+            }
+        },
+        "status": {
+            "pending": "Pending",
+            "paid": "Paid",
+            "preparing": "Preparing",
+            "shipped": "Shipped",
+            "delivered": "Delivered",
+            "cancelled": "Cancelled",
+            "refunded": "Refunded"
+        },
+        "product": {
+            "editTitle": "Edit product",
+            "newTitle": "New product",
+            "name": "Name",
+            "netWeight": "Net (g)",
+            "yield": "Yield %",
+            "source": "Bean / Blend",
+            "sourceNone": "None (non-coffee)",
+            "beanGroup": "Single origin",
+            "blendGroup": "Blends",
+            "profile": "Roast profile",
+            "profileNone": "None",
+            "empty": "No products yet. Map a sellable SKU to a bean or blend.",
+            "inbound": "Stock in",
+            "inboundPrompt": "How many units of “{{name}}” to add?",
+            "deleteConfirm": "Delete this product?",
+            "col": {
+                "name": "Name",
+                "sku": "SKU",
+                "weight": "Net",
+                "stock": "In stock",
+                "action": ""
+            }
         }
     }
 }

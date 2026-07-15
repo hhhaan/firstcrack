@@ -18,10 +18,13 @@ import type { View } from './shared/types/view';
 import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
 import { ActiveRoast } from './views/active-roast/ActiveRoast';
 import { Beans } from './views/bean/Beans';
+import { Cupping } from './views/cupping/Cupping';
 import { Dashboard } from './views/dashboard/Dashboard';
 import { History } from './views/history/History';
 import { Login } from './views/login/Login';
 import { Machines } from './views/machines/Machines';
+import { Orders } from './views/orders/Orders';
+import { Pricing } from './views/pricing/Pricing';
 import { Profiles } from './views/profiles/Profiles';
 import { Schedule } from './views/schedule/Schedule';
 // import { BottomToolbar } from './widgets/bottom-toolbar';
@@ -228,9 +231,24 @@ export const App = () => {
                                 <History />
                             </ViewErrorBoundary>
                         )}
+                        {view === 'cupping' && (
+                            <ViewErrorBoundary>
+                                <Cupping onUpgrade={() => openSettings('billing')} />
+                            </ViewErrorBoundary>
+                        )}
+                        {view === 'orders' && (
+                            <ViewErrorBoundary>
+                                <Orders onUpgrade={() => openSettings('billing')} />
+                            </ViewErrorBoundary>
+                        )}
                         {view === 'beans' && (
                             <ViewErrorBoundary>
                                 <Beans onNavigate={setView} />
+                            </ViewErrorBoundary>
+                        )}
+                        {view === 'pricing' && (
+                            <ViewErrorBoundary>
+                                <Pricing onNavigate={setView} />
                             </ViewErrorBoundary>
                         )}
                         {view === 'profiles' && (

@@ -8,7 +8,11 @@
         "live": "실시간",
         "loading": "불러오는 중…",
         "offline": "오프라인",
-        "unavailable": "불가"
+        "unavailable": "불가",
+        "save": "저장",
+        "add": "추가",
+        "edit": "수정",
+        "delete": "삭제"
     },
     "auth": {
         "oauthCompleting": "로그인 완료 중…",
@@ -46,7 +50,9 @@
             "pricing": "원가·판매가",
             "profiles": "프로파일",
             "machines": "머신",
-            "schedule": "로스팅 일정"
+            "schedule": "로스팅 일정",
+            "cupping": "커핑",
+            "orders": "주문"
         }
     },
     "settings": {
@@ -274,7 +280,12 @@
         "disconnect": "연결 해제",
         "connect": "연결",
         "startRoasting": "로스팅 시작",
-        "selectMachine": "머신을 선택하세요"
+        "selectMachine": "머신을 선택하세요",
+        "limit": {
+            "banner": "머신 한도 {{used}}/{{max}}. Pro+에서 무제한 연동.",
+            "title": "머신 등록 한도",
+            "description": "Pro 이하 플랜은 머신을 {{max}}대만 등록할 수 있습니다. 추가 연동은 Pro+로 업그레이드하세요."
+        }
     },
     "addMachine": {
         "onboarding": "머신 온보딩",
@@ -285,6 +296,16 @@
         "selectPort": "포트 선택...",
         "defaultPort": "기본값",
         "selectRoaster": "로스터 선택...",
+        "tabSupported": "지원 모델",
+        "tabCustom": "기타 / 직접 입력",
+        "customName": "머신 이름",
+        "customNamePlaceholder": "예: 매장 샘플 로스터",
+        "customBrand": "브랜드",
+        "customBrandPlaceholder": "선택 사항",
+        "protocol": "프로토콜",
+        "selectProtocol": "프로토콜 선택...",
+        "addressMap": "BT / ET 주소맵",
+        "addressMapHint": "장비 매뉴얼 또는 Artisan 설정 기준으로 레지스터/채널 주소를 직접 입력하세요. ET는 비워 두면 비활성입니다.",
         "connectionSettings": "연결 설정",
         "fieldRequired": "{{field}}은(는) 필수입니다",
         "failedToAdd": "머신 추가에 실패했습니다",
@@ -536,6 +557,34 @@
             "chartLoading": "차트 불러오는 중…",
             "chartUnavailable": "차트를 불러올 수 없습니다"
         },
+        "cupping": {
+            "title": "커핑",
+            "avgScore": "평균 {{score}} · {{count}}건",
+            "none": "점수 없음",
+            "emptyList": "점수를 추가하거나 QR 커핑 세션을 열어보세요.",
+            "addScore": "점수 추가",
+            "cancelForm": "취소",
+            "createSession": "커핑 세션 만들기",
+            "creating": "생성 중…",
+            "createError": "커핑 세션을 만들지 못했습니다. DB 마이그레이션 적용 여부를 확인하세요.",
+            "activeLink": "활성 공개 링크",
+            "inviteMeta": "{{used}}/{{max}} 사용 · 만료 {{expires}}",
+            "copyLink": "링크 복사",
+            "copied": "복사됨",
+            "openLink": "열기",
+            "revoke": "무효화",
+            "newLink": "새 링크",
+            "defects": "결점",
+            "cuppedBy": "커퍼",
+            "notes": "노트",
+            "total": "합계",
+            "saveScore": "점수 저장",
+            "saving": "저장 중…",
+            "colWhen": "일시",
+            "colBy": "커퍼",
+            "colScore": "점수",
+            "colSource": "경로"
+        },
         "table": {
             "date": "날짜",
             "bean": "생두",
@@ -696,6 +745,11 @@
             "development": "발달",
             "humidity": "습도",
             "temperature": "온도",
+            "bean": "생두",
+            "beanHint": "저장 시 재고 차감하려면 생두를 선택하세요.",
+            "beanPlaceholder": "생두 선택",
+            "beanSelected": "이 로스팅에 선택된 생두",
+            "beanRequired": "저장하려면 생두를 선택하세요.",
             "roastLevel": "로스팅 레벨",
             "levels": {
                 "light": "라이트",
@@ -916,9 +970,9 @@
                 "blend": "블렌드"
             },
             "bean": "생두",
-            "selectBean": "원두 선택",
+            "selectBean": "검색 또는 직접 입력",
             "greenCost": "생두 원가 (원/kg)",
-            "greenCostPlaceholder": "예: 32000",
+            "greenCostPlaceholder": "예: 32000원",
             "missingCost": "이 원두에 원가가 등록되어 있지 않습니다.",
             "goToBeans": "재고로 이동",
             "blend": "블렌드",
@@ -930,7 +984,11 @@
             "components": "구성",
             "ratioHeader": "비율",
             "costShort": "원/kg",
-            "addComponent": "구성 추가"
+            "addComponent": "구성 추가",
+            "emptyBeans": "등록된 생두가 없습니다. 재고에서 추가하세요.",
+            "emptyBlends": "등록된 블렌드가 없습니다. 재고에서 만드세요.",
+            "ratioSum": "비율 합계가 {{sum}}%입니다 (원가 계산 시 정규화).",
+            "toggleList": "목록 열기"
         },
         "cost": {
             "title": "원가 내역",
@@ -939,7 +997,16 @@
             "yield": "로스팅 수율",
             "roastedCost": "로스팅 후 원가",
             "overhead": "부대비용 (원/kg)",
-            "totalCost": "총 원가 (부대비용 포함)"
+            "totalCost": "총 원가 (부대비용 포함)",
+            "fixedOverhead": "부대비용 (고정)",
+            "fixedOverheadHint": "다른 원두 계산에도 동일하게 적용됩니다.",
+            "itemName": "항목",
+            "itemAmount": "원/kg",
+            "itemNamePlaceholder": "예: 봉투값, 택배비",
+            "addItem": "항목 추가",
+            "removeItem": "항목 삭제",
+            "overheadSum": "부대비용 합계",
+            "itemAmountPlaceholder": "예: 500원"
         },
         "selling": {
             "title": "판매가",
@@ -948,7 +1015,9 @@
             "price": "판매가 (원/kg)",
             "priceEdit": "판매가 직접 입력",
             "costBasis": "원가 기준",
-            "profit": "이익"
+            "profit": "이익",
+            "pricePlaceholder": "예: 45000원",
+            "unit": "/ kg"
         },
         "flow": {
             "green": "생두",
@@ -990,6 +1059,131 @@
             "writeOff": "폐기 처리",
             "showMore": "더보기",
             "showLess": "접기"
+        }
+    },
+    "cupping": {
+        "title": "커핑",
+        "subtitle": "테이블 {{count}}개",
+        "subtitleLoading": "불러오는 중...",
+        "loading": "불러오는 중...",
+        "loadError": "커핑 목록을 불러오지 못했습니다",
+        "retry": "다시 시도",
+        "newEvent": "커핑 테이블 만들기",
+        "defaultTitle": "커핑 테이블",
+        "eventTitle": "제목",
+        "create": "만들기",
+        "creating": "생성 중…",
+        "cancel": "취소",
+        "back": "목록",
+        "empty": {
+            "title": "커핑 테이블이 없습니다.",
+            "description": "테이블을 만들고 샘플 15개 이상을 넣어보세요."
+        },
+        "colTitle": "제목",
+        "colDate": "날짜",
+        "colSamples": "샘플",
+        "colAvg": "평균",
+        "colLabel": "샘플",
+        "colRoast": "로스트 연결",
+        "colScores": "점수 수",
+        "colActions": "작업",
+        "eventSubtitle": "{{date}} · 샘플 {{samples}} · 점수 {{scores}}",
+        "addSamples": "샘플 추가",
+        "addSamplesHint": "로스팅 히스토리를 선택하거나, 로스트 없는 라벨을 추가합니다.",
+        "addSamplesEmpty": "로스트를 고르거나 라벨을 입력하세요.",
+        "freeLabel": "직접 라벨",
+        "freeLabelPlaceholder": "예: Blind A, 대회 랏…",
+        "noRoasts": "완료된 로스트가 없습니다.",
+        "noSamples": "샘플이 없습니다. 로스트나 라벨을 추가하세요.",
+        "noRoastLink": "—",
+        "add": "추가",
+        "adding": "추가 중…",
+        "deleteEvent": "테이블 삭제",
+        "deleteEventConfirm": "이 커핑 테이블과 샘플을 모두 삭제할까요?",
+        "deleteSampleConfirm": "이 샘플을 삭제할까요?",
+        "qrHint": "커핑 테이블 폰에서 스캔하거나 링크를 여세요.",
+        "copyLink": "링크 복사",
+        "copied": "복사됨",
+        "openLink": "열기",
+        "revoke": "무효화",
+        "locked": {
+            "subtitle": "Pro 기능",
+            "title": "커핑은 Pro에서 사용할 수 있습니다",
+            "description": "15개 이상 샘플 테이블, QR 커핑 폼, 로스팅 히스토리 연결까지 Pro에서 이용하세요.",
+            "cta": "요금제 보기"
+        }
+    },
+    "orders": {
+        "title": "주문",
+        "subtitle": "쇼핑몰 주문을 수집하고, 로스팅 필요량을 확인하고, 완제품 재고를 관리하세요.",
+        "loading": "불러오는 중…",
+        "locked": {
+            "subtitle": "이커머스 주문 연동",
+            "title": "엔터프라이즈 플랜 전용 기능",
+            "description": "네이버 스마트스토어·카페24·쇼피파이를 연결해 주문을 수집하고, 로스팅 필요량을 계산하고, 완제품 재고를 자동 차감하세요.",
+            "cta": "플랜 업그레이드"
+        },
+        "tab": {
+            "orders": "주문",
+            "products": "상품"
+        },
+        "requirements": {
+            "title": "로스팅 필요량",
+            "loading": "계산 중…",
+            "empty": "미출고 주문이 없어 로스팅할 물량이 없습니다.",
+            "bean": "원두",
+            "green": "필요 생두",
+            "available": "보유"
+        },
+        "order": {
+            "newTitle": "새 주문",
+            "empty": "주문이 없습니다.",
+            "buyer": "주문자",
+            "lines": "품목",
+            "selectProduct": "상품 선택",
+            "addLine": "+ 품목 추가",
+            "fulfill": "출고",
+            "fulfilled": "출고 완료",
+            "col": {
+                "date": "일자",
+                "buyer": "주문자",
+                "items": "수량",
+                "status": "상태",
+                "action": ""
+            }
+        },
+        "status": {
+            "pending": "대기",
+            "paid": "결제완료",
+            "preparing": "준비중",
+            "shipped": "배송중",
+            "delivered": "배송완료",
+            "cancelled": "취소",
+            "refunded": "환불"
+        },
+        "product": {
+            "editTitle": "상품 수정",
+            "newTitle": "새 상품",
+            "name": "상품명",
+            "netWeight": "중량(g)",
+            "yield": "수율 %",
+            "source": "원두 / 블렌드",
+            "sourceNone": "없음 (비커피)",
+            "beanGroup": "싱글 오리진",
+            "blendGroup": "블렌드",
+            "profile": "로스팅 프로파일",
+            "profileNone": "없음",
+            "empty": "상품이 없습니다. 판매 SKU를 원두나 블렌드에 연결하세요.",
+            "inbound": "입고",
+            "inboundPrompt": "“{{name}}” 몇 개를 입고할까요?",
+            "deleteConfirm": "이 상품을 삭제할까요?",
+            "col": {
+                "name": "상품명",
+                "sku": "SKU",
+                "weight": "중량",
+                "stock": "재고",
+                "action": ""
+            }
         }
     }
 }

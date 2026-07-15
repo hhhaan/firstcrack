@@ -14,12 +14,17 @@ type LiveData = {
 
 export interface RoastingState {
     phase: RoastPhase;
+    /** Whole seconds since charge; wall-clock from roastStartMs (not a +1 counter). */
     elapsed: number;
+    /** Charge origin (ms since epoch). 0 = not charged. Shared with livePoints.time. */
+    roastStartMs: number;
     sidecarConnected: boolean;
     sidecarError: string | null;
     machineCapabilities: string[];
     liveData: LiveData | null;
+    /** Inventory/other entry → active roast bean handoff (consumed once when roast view activates). */
     pendingBeanId: string | null;
+    pendingBeanName: string | null;
     sessionId: string | null;
     reconnecting: boolean;
 
@@ -29,25 +34,28 @@ export interface RoastingState {
 
     enterPreheating: (capabilities?: string[]) => void;
     enterStandby: () => void;
-    startCharge: () => void;
+    /** originMs: charge wall time (auto-charge onset). Defaults to Date.now(). */
+    startCharge: (originMs?: number) => void;
     endRoast: () => void;
     tick: () => void;
     setConnected: (connected: boolean, capabilities?: string[]) => void;
     setError: (error: string | null) => void;
     setReconnecting: (reconnecting: boolean) => void;
     updateLiveData: (data: LiveData) => void;
-    setPendingBean: (beanId: string | null) => void;
+    setPendingBean: (beanId: string | null, beanName?: string | null) => void;
     reset: () => void;
 }
 
 const initialState = {
     phase: 'idle' as RoastPhase,
     elapsed: 0,
+    roastStartMs: 0,
     sidecarConnected: false,
     sidecarError: null as string | null,
     machineCapabilities: [] as string[],
     liveData: null as LiveData | null,
     pendingBeanId: null as string | null,
+    pendingBeanName: null as string | null,
     sessionId: null as string | null,
     reconnecting: false,
     isRoasting: false,
@@ -71,16 +79,27 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         set({ phase: 'standby' });
     },
 
-    startCharge: () => {
-        set({ phase: 'roasting', charged: true, isRoasting: true, sessionId: crypto.randomUUID() });
+    startCharge: (originMs?: number) => {
+        const now = Date.now();
+        const origin = originMs != null && originMs > 0 && originMs <= now ? originMs : now;
+        set({
+            phase: 'roasting',
+            charged: true,
+            isRoasting: true,
+            sessionId: crypto.randomUUID(),
+            roastStartMs: origin,
+            elapsed: Math.floor((now - origin) / 1000),
+        });
     },
 
     endRoast: () => {
-        set({ phase: 'ended', isRoasting: false });
+        set({ phase: 'ended', isRoasting: false, roastStartMs: 0 });
     },
 
     tick: () => {
-        set((state) => (state.isRoasting ? { elapsed: state.elapsed + 1 } : state));
+        const { isRoasting, roastStartMs } = get();
+        if (!isRoasting || roastStartMs <= 0) return;
+        set({ elapsed: Math.floor((Date.now() - roastStartMs) / 1000) });
     },
 
     setConnected: (connected: boolean, capabilities?: string[]) => {
@@ -96,8 +115,8 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
 
     setReconnecting: (reconnecting) => set({ reconnecting }),
 
-    setPendingBean: (beanId) => {
-        set({ pendingBeanId: beanId });
+    setPendingBean: (beanId, beanName = null) => {
+        set({ pendingBeanId: beanId, pendingBeanName: beanId ? (beanName ?? null) : null });
     },
 
     updateLiveData: (data) => {
