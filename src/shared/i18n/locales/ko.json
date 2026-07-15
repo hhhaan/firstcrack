@@ -275,7 +275,12 @@
         "disconnect": "연결 해제",
         "connect": "연결",
         "startRoasting": "로스팅 시작",
-        "selectMachine": "머신을 선택하세요"
+        "selectMachine": "머신을 선택하세요",
+        "limit": {
+            "banner": "머신 한도 {{used}}/{{max}}. Pro+에서 무제한 연동.",
+            "title": "머신 등록 한도",
+            "description": "Pro 이하 플랜은 머신을 {{max}}대만 등록할 수 있습니다. 추가 연동은 Pro+로 업그레이드하세요."
+        }
     },
     "addMachine": {
         "onboarding": "머신 온보딩",

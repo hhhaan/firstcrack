@@ -275,7 +275,12 @@
         "disconnect": "Disconnect",
         "connect": "Connect",
         "startRoasting": "Start Roasting",
-        "selectMachine": "Select a machine"
+        "selectMachine": "Select a machine",
+        "limit": {
+            "banner": "Machine limit: {{used}}/{{max}}. Upgrade to Pro+ for unlimited machines.",
+            "title": "Machine limit reached",
+            "description": "Plans below Pro+ can register {{max}} machine. Upgrade to Pro+ to connect more roasters."
+        }
     },
     "addMachine": {
         "onboarding": "Machine onboarding",

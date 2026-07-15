@@ -274,7 +274,12 @@
         "disconnect": "切断",
         "connect": "接続",
         "startRoasting": "ローストを開始",
-        "selectMachine": "マシンを選択してください"
+        "selectMachine": "マシンを選択してください",
+        "limit": {
+            "banner": "Machine limit: {{used}}/{{max}}. Upgrade to Pro+ for unlimited machines.",
+            "title": "Machine limit reached",
+            "description": "Plans below Pro+ can register {{max}} machine. Upgrade to Pro+ to connect more roasters."
+        }
     },
     "addMachine": {
         "onboarding": "マシンオンボーディング",

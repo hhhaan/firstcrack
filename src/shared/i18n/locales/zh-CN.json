@@ -275,7 +275,12 @@
         "disconnect": "断开连接",
         "connect": "连接",
         "startRoasting": "开始烘焙",
-        "selectMachine": "请选择设备"
+        "selectMachine": "请选择设备",
+        "limit": {
+            "banner": "Machine limit: {{used}}/{{max}}. Upgrade to Pro+ for unlimited machines.",
+            "title": "Machine limit reached",
+            "description": "Plans below Pro+ can register {{max}} machine. Upgrade to Pro+ to connect more roasters."
+        }
     },
     "addMachine": {
         "onboarding": "设备引导",

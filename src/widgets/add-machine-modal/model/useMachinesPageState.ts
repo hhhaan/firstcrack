@@ -1,7 +1,9 @@
 import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
-import { useMachines } from '@entities/machine';
+import { useMachines, VIRTUAL_ID } from '@entities/machine';
+import { canAddMachine, planMaxMachines } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
-import { type Dispatch, type SetStateAction, useCallback, useState } from 'react';
+import { useAuthStore } from '@shared/store/auth';
+import { type Dispatch, type SetStateAction, useCallback, useMemo, useState } from 'react';
 
 type Args = {
     sidecarStatus: SidecarStatus | null;
@@ -11,8 +13,14 @@ type Args = {
 
 export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps }: Args) => {
     const { addMachine, updateMachine, machines } = useMachines();
+    const plan = useAuthStore((s) => s.plan);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
+    const [limitBlocked, setLimitBlocked] = useState(false);
+
+    const realMachineCount = useMemo(() => machines.filter((m) => m.id !== VIRTUAL_ID).length, [machines]);
+    const maxMachines = planMaxMachines(plan);
+    const allowAddMachine = canAddMachine(plan, realMachineCount);
 
     const isThisMachineConnected = useCallback(
         (m: Machine) => Boolean(sidecarStatus?.connected && sidecarStatus.roaster === m.roasterKey),
@@ -26,6 +34,10 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
             params: Record<string, unknown>,
             meta?: { name?: string; brand?: string },
         ) => {
+            if (!canAddMachine(plan, realMachineCount)) {
+                setLimitBlocked(true);
+                return;
+            }
             const name = meta?.name?.trim() || def.display_name;
             const brand = meta?.brand?.trim() || def.brand;
             addMachine({
@@ -40,7 +52,7 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
                 pid: def.pid,
             });
         },
-        [addMachine],
+        [addMachine, plan, realMachineCount],
     );
 
     const handleEdit = useCallback(
@@ -61,9 +73,16 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
     );
 
     const openAddModal = useCallback(() => {
+        if (!canAddMachine(plan, realMachineCount)) {
+            setLimitBlocked(true);
+            return;
+        }
+        setLimitBlocked(false);
         setEditingMachine(null);
         setModalOpen(true);
-    }, []);
+    }, [plan, realMachineCount]);
+
+    const dismissLimitBlocked = useCallback(() => setLimitBlocked(false), []);
 
     const openEditModal = useCallback((machine: Machine) => {
         setEditingMachine(machine);
@@ -84,5 +103,10 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
         handleAdd,
         handleEdit,
         isThisMachineConnected,
+        allowAddMachine,
+        maxMachines,
+        realMachineCount,
+        limitBlocked,
+        dismissLimitBlocked,
     };
 };

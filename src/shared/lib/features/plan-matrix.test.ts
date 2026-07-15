@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FEATURE } from './keys';
-import { isPaidPlan, planHasFeature } from './plan-matrix';
+import { canAddMachine, isPaidPlan, planHasFeature, planMaxMachines } from './plan-matrix';
 import { resolveFeature } from './resolve';
 
 describe('planHasFeature cupping', () => {
@@ -37,5 +37,25 @@ describe('isPaidPlan', () => {
     it('classifies plans', () => {
         expect(isPaidPlan('pro')).toBe(true);
         expect(isPaidPlan('free')).toBe(false);
+    });
+});
+
+describe('planMaxMachines', () => {
+    it('limits plans below Pro+ to 1', () => {
+        expect(planMaxMachines('free')).toBe(1);
+        expect(planMaxMachines('pro')).toBe(1);
+        expect(planMaxMachines('trial')).toBe(1);
+    });
+
+    it('unlimited for Pro+ / enterprise / legacy team', () => {
+        expect(planMaxMachines('pro_plus')).toBeNull();
+        expect(planMaxMachines('enterprise')).toBeNull();
+        expect(planMaxMachines('team')).toBeNull();
+    });
+
+    it('canAddMachine respects count', () => {
+        expect(canAddMachine('pro', 0)).toBe(true);
+        expect(canAddMachine('pro', 1)).toBe(false);
+        expect(canAddMachine('pro_plus', 5)).toBe(true);
     });
 });
