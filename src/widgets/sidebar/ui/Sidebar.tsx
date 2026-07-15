@@ -1,5 +1,6 @@
 import {
     Book,
+    Calculator,
     Calendar,
     ChevronDown,
     Chip,
@@ -37,6 +38,7 @@ const navItems: { id: View; labelKey: string; icon: SidebarIcon }[] = [
     { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Fire },
     { id: 'history', labelKey: 'sidebar.nav.history', icon: RecentlyViewed },
     { id: 'beans', labelKey: 'sidebar.nav.beans', icon: CropGrowth },
+    { id: 'pricing', labelKey: 'sidebar.nav.pricing', icon: Calculator },
     { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: Book },
     { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Chip },
 ];

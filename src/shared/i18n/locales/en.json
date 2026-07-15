@@ -45,7 +45,8 @@
             "beans": "Bean Inventory",
             "profiles": "Profiles",
             "machines": "Machines",
-            "schedule": "Roast Schedule"
+            "schedule": "Roast Schedule",
+            "pricing": "Pricing"
         }
     },
     "settings": {
@@ -954,6 +955,71 @@
             "writeOff": "Write-off",
             "showMore": "Show more",
             "showLess": "Show less"
+        }
+    },
+    "pricing": {
+        "title": "Pricing",
+        "subtitle": "Calculate roasted cost and set selling price by margin",
+        "source": {
+            "title": "Source",
+            "mode": {
+                "single": "Single Origin",
+                "blend": "Blend"
+            },
+            "bean": "Green Bean",
+            "selectBean": "Search or type a name",
+            "greenCost": "Green Cost (KRW/kg)",
+            "greenCostPlaceholder": "e.g. 32000 KRW",
+            "missingCost": "No cost recorded for this bean.",
+            "goToBeans": "Go to Inventory",
+            "emptyBeans": "No beans yet. Add one in Inventory.",
+            "emptyBlends": "No blends yet. Create one in Inventory.",
+            "ratioSum": "Ratios sum to {{sum}}% (normalized for cost).",
+            "blend": "Blend",
+            "selectBlend": "Select a blend",
+            "blendSource": {
+                "saved": "Saved Blend",
+                "custom": "Custom"
+            },
+            "components": "Components",
+            "ratioHeader": "Ratio",
+            "costShort": "KRW/kg",
+            "addComponent": "Add component"
+        },
+        "cost": {
+            "title": "Cost Breakdown",
+            "greenCost": "Green Cost",
+            "blendGreenCost": "Blend Green Cost",
+            "yield": "Roast Yield",
+            "roastedCost": "Roasted Cost",
+            "overhead": "Overhead (KRW/kg)",
+            "totalCost": "Total Cost (incl. overhead)",
+            "fixedOverhead": "Fixed overhead",
+            "fixedOverheadHint": "Applied to every bean calculation until you change it.",
+            "itemName": "Item",
+            "itemAmount": "KRW/kg",
+            "itemNamePlaceholder": "e.g. Bag, shipping",
+            "addItem": "Add item",
+            "removeItem": "Remove item",
+            "overheadSum": "Overhead total",
+            "itemAmountPlaceholder": "e.g. 500 KRW"
+        },
+        "selling": {
+            "title": "Selling Price",
+            "hint": "Gross margin on selling price — 40% margin means 40% of the price is profit.",
+            "margin": "Gross Margin",
+            "price": "Selling Price (KRW/kg)",
+            "priceEdit": "Adjust selling price",
+            "costBasis": "Cost Basis",
+            "profit": "Profit",
+            "pricePlaceholder": "e.g. 45000 KRW"
+        },
+        "flow": {
+            "green": "Green",
+            "yield": "Yield",
+            "roasted": "Roasted",
+            "overhead": "Overhead",
+            "sell": "Sell"
         }
     }
 }

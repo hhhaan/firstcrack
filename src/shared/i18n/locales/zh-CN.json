@@ -45,7 +45,8 @@
             "beans": "生豆库存",
             "profiles": "曲线",
             "machines": "设备",
-            "schedule": "烘焙计划"
+            "schedule": "烘焙计划",
+            "pricing": "成本与售价"
         }
     },
     "settings": {
@@ -954,6 +955,71 @@
             "writeOff": "报废处理",
             "showMore": "查看更多",
             "showLess": "收起"
+        }
+    },
+    "pricing": {
+        "title": "成本与售价",
+        "subtitle": "计算烘焙后成本，并按毛利率设定售价",
+        "source": {
+            "title": "来源",
+            "mode": {
+                "single": "单品",
+                "blend": "拼配"
+            },
+            "bean": "生豆",
+            "selectBean": "搜索或直接输入",
+            "greenCost": "生豆成本 (元/kg)",
+            "greenCostPlaceholder": "例如：32000元",
+            "missingCost": "该生豆未录入成本。",
+            "goToBeans": "前往库存",
+            "emptyBeans": "还没有生豆。请在库存中添加。",
+            "emptyBlends": "还没有拼配。请在库存中创建。",
+            "ratioSum": "比例合计为 {{sum}}%（成本计算时会归一化）。",
+            "blend": "拼配",
+            "selectBlend": "选择拼配",
+            "blendSource": {
+                "saved": "已保存拼配",
+                "custom": "自定义"
+            },
+            "components": "成分",
+            "ratioHeader": "比例",
+            "costShort": "元/kg",
+            "addComponent": "添加成分"
+        },
+        "cost": {
+            "title": "成本明细",
+            "greenCost": "生豆成本",
+            "blendGreenCost": "拼配生豆成本",
+            "yield": "烘焙得率",
+            "roastedCost": "烘焙后成本",
+            "overhead": "间接费用 (元/kg)",
+            "totalCost": "总成本 (含间接费用)",
+            "fixedOverhead": "固定间接费用",
+            "fixedOverheadHint": "修改前会应用到所有生豆的成本计算。",
+            "itemName": "项目",
+            "itemAmount": "元/kg",
+            "itemNamePlaceholder": "例如：袋费、快递费",
+            "addItem": "添加项目",
+            "removeItem": "删除项目",
+            "overheadSum": "间接费用合计",
+            "itemAmountPlaceholder": "例如：500元"
+        },
+        "selling": {
+            "title": "售价",
+            "hint": "售价毛利率 — 40% 毛利表示售价的 40% 为利润。",
+            "margin": "毛利率",
+            "price": "售价 (元/kg)",
+            "priceEdit": "直接调整售价",
+            "costBasis": "成本基准",
+            "profit": "利润",
+            "pricePlaceholder": "例如：45000元"
+        },
+        "flow": {
+            "green": "生豆",
+            "yield": "得率",
+            "roasted": "烘焙后",
+            "overhead": "间接费",
+            "sell": "售价"
         }
     }
 }

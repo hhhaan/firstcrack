@@ -44,7 +44,8 @@
             "beans": "豆在庫",
             "profiles": "プロファイル",
             "machines": "マシン",
-            "schedule": "ロースト予定"
+            "schedule": "ロースト予定",
+            "pricing": "原価・販売価格"
         }
     },
     "settings": {
@@ -953,6 +954,71 @@
             "writeOff": "廃棄処理",
             "showMore": "もっと見る",
             "showLess": "折りたたむ"
+        }
+    },
+    "pricing": {
+        "title": "原価・販売価格",
+        "subtitle": "焙煎後の原価を計算し、マージンで販売価格を決めます",
+        "source": {
+            "title": "ソース",
+            "mode": {
+                "single": "シングルオリジン",
+                "blend": "ブレンド"
+            },
+            "bean": "生豆",
+            "selectBean": "検索または直接入力",
+            "greenCost": "生豆原価 (円/kg)",
+            "greenCostPlaceholder": "例: 32000円",
+            "missingCost": "この豆に原価が登録されていません。",
+            "goToBeans": "在庫へ移動",
+            "emptyBeans": "豆がありません。在庫で追加してください。",
+            "emptyBlends": "ブレンドがありません。在庫で作成してください。",
+            "ratioSum": "比率の合計は {{sum}}% です（原価計算時は正規化）。",
+            "blend": "ブレンド",
+            "selectBlend": "ブレンドを選択",
+            "blendSource": {
+                "saved": "保存済みブレンド",
+                "custom": "カスタム"
+            },
+            "components": "構成",
+            "ratioHeader": "比率",
+            "costShort": "円/kg",
+            "addComponent": "構成を追加"
+        },
+        "cost": {
+            "title": "原価内訳",
+            "greenCost": "生豆原価",
+            "blendGreenCost": "ブレンド生豆原価",
+            "yield": "焙煎歩留まり",
+            "roastedCost": "焙煎後原価",
+            "overhead": "間接費 (円/kg)",
+            "totalCost": "総原価 (間接費込)",
+            "fixedOverhead": "固定間接費",
+            "fixedOverheadHint": "変更するまで他の豆の計算にも同じ金額が適用されます。",
+            "itemName": "項目",
+            "itemAmount": "円/kg",
+            "itemNamePlaceholder": "例: 袋代、送料",
+            "addItem": "項目を追加",
+            "removeItem": "項目を削除",
+            "overheadSum": "間接費合計",
+            "itemAmountPlaceholder": "例: 500円"
+        },
+        "selling": {
+            "title": "販売価格",
+            "hint": "販売価格に対する粗利益率 — 40%マージンは販売価格の40%が利益です。",
+            "margin": "粗利益率",
+            "price": "販売価格 (円/kg)",
+            "priceEdit": "販売価格を直接入力",
+            "costBasis": "原価基準",
+            "profit": "利益",
+            "pricePlaceholder": "例: 45000円"
+        },
+        "flow": {
+            "green": "生豆",
+            "yield": "歩留",
+            "roasted": "焙煎後",
+            "overhead": "間接費",
+            "sell": "販売"
         }
     }
 }

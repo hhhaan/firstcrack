@@ -22,6 +22,7 @@ import { Dashboard } from './views/dashboard/Dashboard';
 import { History } from './views/history/History';
 import { Login } from './views/login/Login';
 import { Machines } from './views/machines/Machines';
+import { Pricing } from './views/pricing/Pricing';
 import { Profiles } from './views/profiles/Profiles';
 import { Schedule } from './views/schedule/Schedule';
 // import { BottomToolbar } from './widgets/bottom-toolbar';
@@ -231,6 +232,11 @@ export const App = () => {
                         {view === 'beans' && (
                             <ViewErrorBoundary>
                                 <Beans onNavigate={setView} />
+                            </ViewErrorBoundary>
+                        )}
+                        {view === 'pricing' && (
+                            <ViewErrorBoundary>
+                                <Pricing onNavigate={setView} />
                             </ViewErrorBoundary>
                         )}
                         {view === 'profiles' && (

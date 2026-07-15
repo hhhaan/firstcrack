@@ -1,1 +1,1 @@
-export type View = 'dashboard' | 'roast' | 'history' | 'beans' | 'profiles' | 'machines' | 'schedule';
+export type View = 'dashboard' | 'roast' | 'history' | 'beans' | 'pricing' | 'profiles' | 'machines' | 'schedule';

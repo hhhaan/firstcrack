@@ -931,9 +931,9 @@
                 "blend": "블렌드"
             },
             "bean": "생두",
-            "selectBean": "원두 선택",
+            "selectBean": "검색 또는 직접 입력",
             "greenCost": "생두 원가 (원/kg)",
-            "greenCostPlaceholder": "예: 32000",
+            "greenCostPlaceholder": "예: 32000원",
             "missingCost": "이 원두에 원가가 등록되어 있지 않습니다.",
             "goToBeans": "재고로 이동",
             "blend": "블렌드",
@@ -945,7 +945,10 @@
             "components": "구성",
             "ratioHeader": "비율",
             "costShort": "원/kg",
-            "addComponent": "구성 추가"
+            "addComponent": "구성 추가",
+            "emptyBeans": "등록된 생두가 없습니다. 재고에서 추가하세요.",
+            "emptyBlends": "등록된 블렌드가 없습니다. 재고에서 만드세요.",
+            "ratioSum": "비율 합계가 {{sum}}%입니다 (원가 계산 시 정규화)."
         },
         "cost": {
             "title": "원가 내역",
@@ -954,7 +957,16 @@
             "yield": "로스팅 수율",
             "roastedCost": "로스팅 후 원가",
             "overhead": "부대비용 (원/kg)",
-            "totalCost": "총 원가 (부대비용 포함)"
+            "totalCost": "총 원가 (부대비용 포함)",
+            "fixedOverhead": "부대비용 (고정)",
+            "fixedOverheadHint": "다른 원두 계산에도 동일하게 적용됩니다.",
+            "itemName": "항목",
+            "itemAmount": "원/kg",
+            "itemNamePlaceholder": "예: 봉투값, 택배비",
+            "addItem": "항목 추가",
+            "removeItem": "항목 삭제",
+            "overheadSum": "부대비용 합계",
+            "itemAmountPlaceholder": "예: 500원"
         },
         "selling": {
             "title": "판매가",
@@ -963,7 +975,8 @@
             "price": "판매가 (원/kg)",
             "priceEdit": "판매가 직접 입력",
             "costBasis": "원가 기준",
-            "profit": "이익"
+            "profit": "이익",
+            "pricePlaceholder": "예: 45000원"
         },
         "flow": {
             "green": "생두",
