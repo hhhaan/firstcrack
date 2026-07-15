@@ -93,7 +93,6 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                     <label className={labelCls}>{t('orders.order.lines')}</label>
                     <div className="space-y-2">
                         {lines.map((l, idx) => (
-                            // biome-ignore lint/suspicious/noArrayIndexKey: draft rows have no stable id
                             <div key={idx} className="flex gap-2">
                                 <select
                                     value={l.productId}
