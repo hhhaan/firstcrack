@@ -46,7 +46,8 @@
             "profiles": "Profiles",
             "machines": "Machines",
             "schedule": "Roast Schedule",
-            "pricing": "Pricing"
+            "pricing": "Pricing",
+            "cupping": "Cupping"
         }
     },
     "settings": {
@@ -738,6 +739,34 @@
             "chartLoading": "Loading chart…",
             "chartUnavailable": "Chart unavailable"
         },
+        "cupping": {
+            "title": "Cupping",
+            "avgScore": "Avg {{score}} · {{count}} scores",
+            "none": "No scores yet",
+            "emptyList": "Submit a score or open a QR session for cuppers.",
+            "addScore": "Add score",
+            "cancelForm": "Cancel",
+            "createSession": "Create cupping session",
+            "creating": "Creating…",
+            "createError": "Could not create cupping session. Apply the cupping migration if needed.",
+            "activeLink": "Active public link",
+            "inviteMeta": "{{used}}/{{max}} used · expires {{expires}}",
+            "copyLink": "Copy link",
+            "copied": "Copied",
+            "openLink": "Open",
+            "revoke": "Revoke",
+            "newLink": "New link",
+            "defects": "Defects",
+            "cuppedBy": "Cupped by",
+            "notes": "Notes",
+            "total": "Total",
+            "saveScore": "Save score",
+            "saving": "Saving…",
+            "colWhen": "When",
+            "colBy": "By",
+            "colScore": "Score",
+            "colSource": "Source"
+        },
         "table": {
             "date": "Date",
             "bean": "Bean",
@@ -1023,5 +1052,51 @@
             "overhead": "Overhead",
             "sell": "Sell"
         }
+    },
+    "cupping": {
+        "title": "Cupping",
+        "subtitle": "{{count}} events",
+        "subtitleLoading": "Loading...",
+        "loading": "Loading...",
+        "loadError": "Could not load cupping events",
+        "retry": "Retry",
+        "newEvent": "New cupping table",
+        "defaultTitle": "Cupping table",
+        "eventTitle": "Title",
+        "create": "Create",
+        "creating": "Creating…",
+        "cancel": "Cancel",
+        "back": "All tables",
+        "empty": {
+            "title": "No cupping tables yet.",
+            "description": "Create a table and add 15+ samples for the session."
+        },
+        "colTitle": "Title",
+        "colDate": "Date",
+        "colSamples": "Samples",
+        "colAvg": "Avg score",
+        "colLabel": "Sample",
+        "colRoast": "Roast link",
+        "colScores": "Scores",
+        "colActions": "Actions",
+        "eventSubtitle": "{{date}} · {{samples}} samples · {{scores}} scores",
+        "addSamples": "Add samples",
+        "addSamplesHint": "Pick roast history rows and/or add a free label (no roast).",
+        "addSamplesEmpty": "Select at least one roast or enter a label.",
+        "freeLabel": "Custom sample label",
+        "freeLabelPlaceholder": "e.g. Blind A, Competition lot…",
+        "noRoasts": "No completed roasts yet.",
+        "noSamples": "No samples. Add roasts or custom labels.",
+        "noRoastLink": "—",
+        "add": "Add",
+        "adding": "Adding…",
+        "deleteEvent": "Delete table",
+        "deleteEventConfirm": "Delete this cupping table and all samples?",
+        "deleteSampleConfirm": "Remove this sample?",
+        "qrHint": "Scan or open link on the cupping table phone.",
+        "copyLink": "Copy link",
+        "copied": "Copied",
+        "openLink": "Open",
+        "revoke": "Revoke"
     }
 }

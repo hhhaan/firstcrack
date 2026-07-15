@@ -14,6 +14,19 @@ fn save_pdf(path: String, data: Vec<u8>) -> Result<(), String> {
     std::fs::write(&path, data).map_err(|e| e.to_string())
 }
 
+/// Primary non-loopback IPv4 for LAN links (e.g. cupping QR for phones).
+#[tauri::command]
+fn local_lan_ip() -> Option<String> {
+    let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+    // No packets sent — OS picks the interface used for outbound routes.
+    socket.connect("8.8.8.8:80").ok()?;
+    let ip = socket.local_addr().ok()?.ip();
+    if ip.is_loopback() {
+        return None;
+    }
+    Some(ip.to_string())
+}
+
 #[tauri::command]
 fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
     window.print().map_err(|e| e.to_string())
@@ -289,7 +302,12 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![save_pdf, print_window, relaunch_for_update])
+        .invoke_handler(tauri::generate_handler![
+            save_pdf,
+            print_window,
+            relaunch_for_update,
+            local_lan_ip
+        ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application");
 

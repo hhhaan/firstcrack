@@ -205,6 +205,256 @@ export type Database = {
                 };
                 Relationships: [];
             };
+            cupping_events: {
+                Row: {
+                    created_at: string;
+                    held_at: string;
+                    id: string;
+                    notes: string | null;
+                    title: string;
+                    updated_at: string;
+                    user_id: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    held_at?: string;
+                    id?: string;
+                    notes?: string | null;
+                    title: string;
+                    updated_at?: string;
+                    user_id: string;
+                };
+                Update: {
+                    created_at?: string;
+                    held_at?: string;
+                    id?: string;
+                    notes?: string | null;
+                    title?: string;
+                    updated_at?: string;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'cupping_events_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            cupping_invites: {
+                Row: {
+                    created_at: string;
+                    expires_at: string;
+                    id: string;
+                    label: string | null;
+                    max_uses: number;
+                    revoked_at: string | null;
+                    roast_session_id: string | null;
+                    sample_id: string | null;
+                    token: string;
+                    used_count: number;
+                    user_id: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    expires_at: string;
+                    id?: string;
+                    label?: string | null;
+                    max_uses?: number;
+                    revoked_at?: string | null;
+                    roast_session_id?: string | null;
+                    sample_id?: string | null;
+                    token: string;
+                    used_count?: number;
+                    user_id: string;
+                };
+                Update: {
+                    created_at?: string;
+                    expires_at?: string;
+                    id?: string;
+                    label?: string | null;
+                    max_uses?: number;
+                    revoked_at?: string | null;
+                    roast_session_id?: string | null;
+                    sample_id?: string | null;
+                    token?: string;
+                    used_count?: number;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'cupping_invites_roast_session_id_fkey';
+                        columns: ['roast_session_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'roast_sessions';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'cupping_invites_sample_id_fkey';
+                        columns: ['sample_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'cupping_samples';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'cupping_invites_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            cupping_samples: {
+                Row: {
+                    created_at: string;
+                    event_id: string;
+                    id: string;
+                    label: string;
+                    roast_session_id: string | null;
+                    sort_order: number;
+                    user_id: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    event_id: string;
+                    id?: string;
+                    label: string;
+                    roast_session_id?: string | null;
+                    sort_order?: number;
+                    user_id: string;
+                };
+                Update: {
+                    created_at?: string;
+                    event_id?: string;
+                    id?: string;
+                    label?: string;
+                    roast_session_id?: string | null;
+                    sort_order?: number;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'cupping_samples_event_id_fkey';
+                        columns: ['event_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'cupping_events';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'cupping_samples_roast_session_id_fkey';
+                        columns: ['roast_session_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'roast_sessions';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'cupping_samples_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            cuppings: {
+                Row: {
+                    created_at: string;
+                    cupped_at: string;
+                    cupped_by: string | null;
+                    defects: number;
+                    descriptors: string[];
+                    form_version: string;
+                    id: string;
+                    invite_id: string | null;
+                    notes: string | null;
+                    roast_profile_id: string | null;
+                    roast_session_id: string | null;
+                    sample_id: string | null;
+                    scores: Json;
+                    source: string;
+                    total_score: number;
+                    updated_at: string;
+                    user_id: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    cupped_at?: string;
+                    cupped_by?: string | null;
+                    defects?: number;
+                    descriptors?: string[];
+                    form_version?: string;
+                    id?: string;
+                    invite_id?: string | null;
+                    notes?: string | null;
+                    roast_profile_id?: string | null;
+                    roast_session_id?: string | null;
+                    sample_id?: string | null;
+                    scores: Json;
+                    source?: string;
+                    total_score: number;
+                    updated_at?: string;
+                    user_id: string;
+                };
+                Update: {
+                    created_at?: string;
+                    cupped_at?: string;
+                    cupped_by?: string | null;
+                    defects?: number;
+                    descriptors?: string[];
+                    form_version?: string;
+                    id?: string;
+                    invite_id?: string | null;
+                    notes?: string | null;
+                    roast_profile_id?: string | null;
+                    roast_session_id?: string | null;
+                    sample_id?: string | null;
+                    scores?: Json;
+                    source?: string;
+                    total_score?: number;
+                    updated_at?: string;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'cuppings_invite_id_fkey';
+                        columns: ['invite_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'cupping_invites';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'cuppings_roast_profile_id_fkey';
+                        columns: ['roast_profile_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'roast_profiles';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'cuppings_roast_session_id_fkey';
+                        columns: ['roast_session_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'roast_sessions';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'cuppings_sample_id_fkey';
+                        columns: ['sample_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'cupping_samples';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'cuppings_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             inventory_alert_runs: {
                 Row: {
                     error_message: string | null;
@@ -1140,6 +1390,11 @@ export type RoastSessionWithRelations = RoastSession & {
     beans: Pick<Bean, 'name' | 'origin'> | null;
     roast_profiles: Pick<RoastProfile, 'name' | 'target_level'> | null;
 };
+
+export type Cupping = Database['public']['Tables']['cuppings']['Row'];
+export type CuppingInvite = Database['public']['Tables']['cupping_invites']['Row'];
+export type CuppingEvent = Database['public']['Tables']['cupping_events']['Row'];
+export type CuppingSample = Database['public']['Tables']['cupping_samples']['Row'];
 
 export type DayPlan = Database['public']['Tables']['roast_day_plans']['Row'];
 

@@ -17,6 +17,11 @@ export type RoastSessionWithRelations = RoastSession & {
   roast_profiles: Pick<RoastProfile, 'name' | 'target_level'> | null
 }
 
+export type Cupping = Database['public']['Tables']['cuppings']['Row']
+export type CuppingInvite = Database['public']['Tables']['cupping_invites']['Row']
+export type CuppingEvent = Database['public']['Tables']['cupping_events']['Row']
+export type CuppingSample = Database['public']['Tables']['cupping_samples']['Row']
+
 
 export type DayPlan = Database['public']['Tables']['roast_day_plans']['Row']
 

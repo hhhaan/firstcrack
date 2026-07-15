@@ -18,6 +18,7 @@ import type { View } from './shared/types/view';
 import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
 import { ActiveRoast } from './views/active-roast/ActiveRoast';
 import { Beans } from './views/bean/Beans';
+import { Cupping } from './views/cupping/Cupping';
 import { Dashboard } from './views/dashboard/Dashboard';
 import { History } from './views/history/History';
 import { Login } from './views/login/Login';
@@ -227,6 +228,11 @@ export const App = () => {
                         {view === 'history' && (
                             <ViewErrorBoundary>
                                 <History />
+                            </ViewErrorBoundary>
+                        )}
+                        {view === 'cupping' && (
+                            <ViewErrorBoundary>
+                                <Cupping />
                             </ViewErrorBoundary>
                         )}
                         {view === 'beans' && (

@@ -46,7 +46,8 @@
             "pricing": "원가·판매가",
             "profiles": "프로파일",
             "machines": "머신",
-            "schedule": "로스팅 일정"
+            "schedule": "로스팅 일정",
+            "cupping": "커핑"
         }
     },
     "settings": {
@@ -546,6 +547,34 @@
             "chartLoading": "차트 불러오는 중…",
             "chartUnavailable": "차트를 불러올 수 없습니다"
         },
+        "cupping": {
+            "title": "커핑",
+            "avgScore": "평균 {{score}} · {{count}}건",
+            "none": "점수 없음",
+            "emptyList": "점수를 추가하거나 QR 커핑 세션을 열어보세요.",
+            "addScore": "점수 추가",
+            "cancelForm": "취소",
+            "createSession": "커핑 세션 만들기",
+            "creating": "생성 중…",
+            "createError": "커핑 세션을 만들지 못했습니다. DB 마이그레이션 적용 여부를 확인하세요.",
+            "activeLink": "활성 공개 링크",
+            "inviteMeta": "{{used}}/{{max}} 사용 · 만료 {{expires}}",
+            "copyLink": "링크 복사",
+            "copied": "복사됨",
+            "openLink": "열기",
+            "revoke": "무효화",
+            "newLink": "새 링크",
+            "defects": "결점",
+            "cuppedBy": "커퍼",
+            "notes": "노트",
+            "total": "합계",
+            "saveScore": "점수 저장",
+            "saving": "저장 중…",
+            "colWhen": "일시",
+            "colBy": "커퍼",
+            "colScore": "점수",
+            "colSource": "경로"
+        },
         "table": {
             "date": "날짜",
             "bean": "생두",
@@ -1021,5 +1050,51 @@
             "showMore": "더보기",
             "showLess": "접기"
         }
+    },
+    "cupping": {
+        "title": "커핑",
+        "subtitle": "테이블 {{count}}개",
+        "subtitleLoading": "불러오는 중...",
+        "loading": "불러오는 중...",
+        "loadError": "커핑 목록을 불러오지 못했습니다",
+        "retry": "다시 시도",
+        "newEvent": "커핑 테이블 만들기",
+        "defaultTitle": "커핑 테이블",
+        "eventTitle": "제목",
+        "create": "만들기",
+        "creating": "생성 중…",
+        "cancel": "취소",
+        "back": "목록",
+        "empty": {
+            "title": "커핑 테이블이 없습니다.",
+            "description": "테이블을 만들고 샘플 15개 이상을 넣어보세요."
+        },
+        "colTitle": "제목",
+        "colDate": "날짜",
+        "colSamples": "샘플",
+        "colAvg": "평균",
+        "colLabel": "샘플",
+        "colRoast": "로스트 연결",
+        "colScores": "점수 수",
+        "colActions": "작업",
+        "eventSubtitle": "{{date}} · 샘플 {{samples}} · 점수 {{scores}}",
+        "addSamples": "샘플 추가",
+        "addSamplesHint": "로스팅 히스토리를 선택하거나, 로스트 없는 라벨을 추가합니다.",
+        "addSamplesEmpty": "로스트를 고르거나 라벨을 입력하세요.",
+        "freeLabel": "직접 라벨",
+        "freeLabelPlaceholder": "예: Blind A, 대회 랏…",
+        "noRoasts": "완료된 로스트가 없습니다.",
+        "noSamples": "샘플이 없습니다. 로스트나 라벨을 추가하세요.",
+        "noRoastLink": "—",
+        "add": "추가",
+        "adding": "추가 중…",
+        "deleteEvent": "테이블 삭제",
+        "deleteEventConfirm": "이 커핑 테이블과 샘플을 모두 삭제할까요?",
+        "deleteSampleConfirm": "이 샘플을 삭제할까요?",
+        "qrHint": "커핑 테이블 폰에서 스캔하거나 링크를 여세요.",
+        "copyLink": "링크 복사",
+        "copied": "복사됨",
+        "openLink": "열기",
+        "revoke": "무효화"
     }
 }

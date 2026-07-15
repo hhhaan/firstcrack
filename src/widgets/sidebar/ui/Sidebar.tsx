@@ -1,4 +1,5 @@
 import {
+    Activity,
     Book,
     Calculator,
     Calendar,
@@ -37,6 +38,7 @@ const navItems: { id: View; labelKey: string; icon: SidebarIcon }[] = [
     { id: 'schedule', labelKey: 'sidebar.nav.schedule', icon: Calendar },
     { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Fire },
     { id: 'history', labelKey: 'sidebar.nav.history', icon: RecentlyViewed },
+    { id: 'cupping', labelKey: 'sidebar.nav.cupping', icon: Activity },
     { id: 'beans', labelKey: 'sidebar.nav.beans', icon: CropGrowth },
     { id: 'pricing', labelKey: 'sidebar.nav.pricing', icon: Calculator },
     { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: Book },
