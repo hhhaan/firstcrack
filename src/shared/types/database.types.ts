@@ -577,6 +577,297 @@ export type Database = {
                 };
                 Relationships: [];
             };
+            order_lines: {
+                Row: {
+                    created_at: string;
+                    id: string;
+                    order_id: string;
+                    platform_line_id: string;
+                    platform_product_id: string | null;
+                    platform_variant_id: string | null;
+                    product_id: string | null;
+                    quantity: number;
+                    status: string;
+                    title: string;
+                    unit_price: number | null;
+                    user_id: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    id?: string;
+                    order_id: string;
+                    platform_line_id: string;
+                    platform_product_id?: string | null;
+                    platform_variant_id?: string | null;
+                    product_id?: string | null;
+                    quantity: number;
+                    status?: string;
+                    title: string;
+                    unit_price?: number | null;
+                    user_id: string;
+                };
+                Update: {
+                    created_at?: string;
+                    id?: string;
+                    order_id?: string;
+                    platform_line_id?: string;
+                    platform_product_id?: string | null;
+                    platform_variant_id?: string | null;
+                    product_id?: string | null;
+                    quantity?: number;
+                    status?: string;
+                    title?: string;
+                    unit_price?: number | null;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'order_lines_order_id_fkey';
+                        columns: ['order_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'orders';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'order_lines_product_id_fkey';
+                        columns: ['product_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'products';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            orders: {
+                Row: {
+                    buyer_name: string | null;
+                    connection_id: string | null;
+                    created_at: string;
+                    currency: string | null;
+                    fulfilled_at: string | null;
+                    id: string;
+                    ordered_at: string;
+                    platform: string;
+                    platform_order_id: string;
+                    raw: Json | null;
+                    status: string;
+                    synced_at: string | null;
+                    total_amount: number | null;
+                    updated_at: string;
+                    user_id: string;
+                };
+                Insert: {
+                    buyer_name?: string | null;
+                    connection_id?: string | null;
+                    created_at?: string;
+                    currency?: string | null;
+                    fulfilled_at?: string | null;
+                    id?: string;
+                    ordered_at: string;
+                    platform: string;
+                    platform_order_id: string;
+                    raw?: Json | null;
+                    status: string;
+                    synced_at?: string | null;
+                    total_amount?: number | null;
+                    updated_at?: string;
+                    user_id: string;
+                };
+                Update: {
+                    buyer_name?: string | null;
+                    connection_id?: string | null;
+                    created_at?: string;
+                    currency?: string | null;
+                    fulfilled_at?: string | null;
+                    id?: string;
+                    ordered_at?: string;
+                    platform?: string;
+                    platform_order_id?: string;
+                    raw?: Json | null;
+                    status?: string;
+                    synced_at?: string | null;
+                    total_amount?: number | null;
+                    updated_at?: string;
+                    user_id?: string;
+                };
+                Relationships: [];
+            };
+            polar_coupons: {
+                Row: {
+                    amount_cents: number | null;
+                    basis_points: number | null;
+                    batch_id: string | null;
+                    code: string;
+                    created_at: string;
+                    currency: string | null;
+                    disabled_at: string | null;
+                    duration: string;
+                    duration_in_months: number | null;
+                    id: string;
+                    issued_at: string | null;
+                    max_redemptions: number;
+                    name: string;
+                    note: string | null;
+                    polar_discount_id: string;
+                    redeemed_at: string | null;
+                    redemptions_count: number;
+                    status: string;
+                    type: string;
+                    updated_at: string;
+                };
+                Insert: {
+                    amount_cents?: number | null;
+                    basis_points?: number | null;
+                    batch_id?: string | null;
+                    code: string;
+                    created_at?: string;
+                    currency?: string | null;
+                    disabled_at?: string | null;
+                    duration: string;
+                    duration_in_months?: number | null;
+                    id?: string;
+                    issued_at?: string | null;
+                    max_redemptions?: number;
+                    name: string;
+                    note?: string | null;
+                    polar_discount_id: string;
+                    redeemed_at?: string | null;
+                    redemptions_count?: number;
+                    status?: string;
+                    type: string;
+                    updated_at?: string;
+                };
+                Update: {
+                    amount_cents?: number | null;
+                    basis_points?: number | null;
+                    batch_id?: string | null;
+                    code?: string;
+                    created_at?: string;
+                    currency?: string | null;
+                    disabled_at?: string | null;
+                    duration?: string;
+                    duration_in_months?: number | null;
+                    id?: string;
+                    issued_at?: string | null;
+                    max_redemptions?: number;
+                    name?: string;
+                    note?: string | null;
+                    polar_discount_id?: string;
+                    redeemed_at?: string | null;
+                    redemptions_count?: number;
+                    status?: string;
+                    type?: string;
+                    updated_at?: string;
+                };
+                Relationships: [];
+            };
+            product_stock_events: {
+                Row: {
+                    created_at: string;
+                    delta_units: number;
+                    event_type: string;
+                    id: string;
+                    note: string | null;
+                    product_id: string;
+                    reference_id: string | null;
+                    user_id: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    delta_units: number;
+                    event_type: string;
+                    id?: string;
+                    note?: string | null;
+                    product_id: string;
+                    reference_id?: string | null;
+                    user_id: string;
+                };
+                Update: {
+                    created_at?: string;
+                    delta_units?: number;
+                    event_type?: string;
+                    id?: string;
+                    note?: string | null;
+                    product_id?: string;
+                    reference_id?: string | null;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'product_stock_events_product_id_fkey';
+                        columns: ['product_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'products';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            products: {
+                Row: {
+                    bean_id: string | null;
+                    blend_id: string | null;
+                    created_at: string;
+                    id: string;
+                    is_active: boolean;
+                    name: string;
+                    net_weight_grams: number;
+                    roast_profile_id: string | null;
+                    sku: string | null;
+                    updated_at: string;
+                    user_id: string;
+                    yield_pct: number;
+                };
+                Insert: {
+                    bean_id?: string | null;
+                    blend_id?: string | null;
+                    created_at?: string;
+                    id?: string;
+                    is_active?: boolean;
+                    name: string;
+                    net_weight_grams: number;
+                    roast_profile_id?: string | null;
+                    sku?: string | null;
+                    updated_at?: string;
+                    user_id: string;
+                    yield_pct?: number;
+                };
+                Update: {
+                    bean_id?: string | null;
+                    blend_id?: string | null;
+                    created_at?: string;
+                    id?: string;
+                    is_active?: boolean;
+                    name?: string;
+                    net_weight_grams?: number;
+                    roast_profile_id?: string | null;
+                    sku?: string | null;
+                    updated_at?: string;
+                    user_id?: string;
+                    yield_pct?: number;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'products_bean_id_fkey';
+                        columns: ['bean_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'beans';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'products_blend_id_fkey';
+                        columns: ['blend_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'blends';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'products_roast_profile_id_fkey';
+                        columns: ['roast_profile_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'roast_profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             profiles: {
                 Row: {
                     avatar_url: string | null;
@@ -1198,6 +1489,39 @@ export type Database = {
             };
         };
         Functions: {
+            admin_auth_session_ips: {
+                Args: never;
+                Returns: {
+                    ip: string;
+                    last_seen: string;
+                    session_count: number;
+                    user_count: number;
+                }[];
+            };
+            admin_auth_user_activity: {
+                Args: never;
+                Returns: {
+                    last_ip: string;
+                    last_seen: string;
+                    session_count: number;
+                    user_id: string;
+                }[];
+            };
+            admin_user_roster: {
+                Args: never;
+                Returns: {
+                    business_name: string;
+                    created_at: string;
+                    display_name: string;
+                    email: string;
+                    id: string;
+                    last_sign_in_at: string;
+                    plan: string;
+                    polar_customer_id: string;
+                    provider: string;
+                    roast_count: number;
+                }[];
+            };
             calc_plan_batch_count: {
                 Args: {
                     p_batch_count?: number;
@@ -1225,6 +1549,7 @@ export type Database = {
                 };
                 Returns: string[];
             };
+            fulfill_order: { Args: { p_order_id: string }; Returns: undefined };
             get_bean_available_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_current_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_effective_stock: {
@@ -1239,9 +1564,19 @@ export type Database = {
                 Args: { p_bean_id: string; p_horizon_days?: number };
                 Returns: Json;
             };
+            get_product_current_stock: {
+                Args: { p_product_id: string };
+                Returns: number;
+            };
+            get_roasting_requirements: { Args: { p_user_id: string }; Returns: Json };
+            get_user_product_stock: { Args: { p_user_id: string }; Returns: Json };
             get_user_stock_summaries: {
                 Args: { p_horizon_days?: number; p_user_id: string };
                 Returns: Json;
+            };
+            insert_product_stock_events_batch: {
+                Args: { p_events: Json };
+                Returns: undefined;
             };
             insert_stock_events_batch: {
                 Args: { p_events: Json };

@@ -8,7 +8,11 @@
         "live": "실시간",
         "loading": "불러오는 중…",
         "offline": "오프라인",
-        "unavailable": "불가"
+        "unavailable": "불가",
+        "save": "저장",
+        "add": "추가",
+        "edit": "수정",
+        "delete": "삭제"
     },
     "auth": {
         "oauthCompleting": "로그인 완료 중…",
@@ -47,7 +51,8 @@
             "profiles": "프로파일",
             "machines": "머신",
             "schedule": "로스팅 일정",
-            "cupping": "커핑"
+            "cupping": "커핑",
+            "orders": "주문"
         }
     },
     "settings": {
@@ -1106,6 +1111,79 @@
             "title": "커핑은 Pro에서 사용할 수 있습니다",
             "description": "15개 이상 샘플 테이블, QR 커핑 폼, 로스팅 히스토리 연결까지 Pro에서 이용하세요.",
             "cta": "요금제 보기"
+        }
+    },
+    "orders": {
+        "title": "주문",
+        "subtitle": "쇼핑몰 주문을 수집하고, 로스팅 필요량을 확인하고, 완제품 재고를 관리하세요.",
+        "loading": "불러오는 중…",
+        "locked": {
+            "subtitle": "이커머스 주문 연동",
+            "title": "엔터프라이즈 플랜 전용 기능",
+            "description": "네이버 스마트스토어·카페24·쇼피파이를 연결해 주문을 수집하고, 로스팅 필요량을 계산하고, 완제품 재고를 자동 차감하세요.",
+            "cta": "플랜 업그레이드"
+        },
+        "tab": {
+            "orders": "주문",
+            "products": "상품"
+        },
+        "requirements": {
+            "title": "로스팅 필요량",
+            "loading": "계산 중…",
+            "empty": "미출고 주문이 없어 로스팅할 물량이 없습니다.",
+            "bean": "원두",
+            "green": "필요 생두",
+            "available": "보유"
+        },
+        "order": {
+            "newTitle": "새 주문",
+            "empty": "주문이 없습니다.",
+            "buyer": "주문자",
+            "lines": "품목",
+            "selectProduct": "상품 선택",
+            "addLine": "+ 품목 추가",
+            "fulfill": "출고",
+            "fulfilled": "출고 완료",
+            "col": {
+                "date": "일자",
+                "buyer": "주문자",
+                "items": "수량",
+                "status": "상태",
+                "action": ""
+            }
+        },
+        "status": {
+            "pending": "대기",
+            "paid": "결제완료",
+            "preparing": "준비중",
+            "shipped": "배송중",
+            "delivered": "배송완료",
+            "cancelled": "취소",
+            "refunded": "환불"
+        },
+        "product": {
+            "editTitle": "상품 수정",
+            "newTitle": "새 상품",
+            "name": "상품명",
+            "netWeight": "중량(g)",
+            "yield": "수율 %",
+            "source": "원두 / 블렌드",
+            "sourceNone": "없음 (비커피)",
+            "beanGroup": "싱글 오리진",
+            "blendGroup": "블렌드",
+            "profile": "로스팅 프로파일",
+            "profileNone": "없음",
+            "empty": "상품이 없습니다. 판매 SKU를 원두나 블렌드에 연결하세요.",
+            "inbound": "입고",
+            "inboundPrompt": "“{{name}}” 몇 개를 입고할까요?",
+            "deleteConfirm": "이 상품을 삭제할까요?",
+            "col": {
+                "name": "상품명",
+                "sku": "SKU",
+                "weight": "중량",
+                "stock": "재고",
+                "action": ""
+            }
         }
     }
 }

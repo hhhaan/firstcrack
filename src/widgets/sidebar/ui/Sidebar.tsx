@@ -10,6 +10,7 @@ import {
     Fire,
     RecentlyViewed,
     Settings,
+    ShoppingCart,
     SidePanelClose,
     SidePanelOpen,
 } from '@carbon/icons-react';
@@ -41,6 +42,7 @@ const navItems: { id: View; labelKey: string; icon: SidebarIcon }[] = [
     { id: 'roast', labelKey: 'sidebar.nav.roast', icon: Fire },
     { id: 'history', labelKey: 'sidebar.nav.history', icon: RecentlyViewed },
     { id: 'cupping', labelKey: 'sidebar.nav.cupping', icon: Activity },
+    { id: 'orders', labelKey: 'sidebar.nav.orders', icon: ShoppingCart },
     { id: 'beans', labelKey: 'sidebar.nav.beans', icon: CropGrowth },
     { id: 'pricing', labelKey: 'sidebar.nav.pricing', icon: Calculator },
     { id: 'profiles', labelKey: 'sidebar.nav.profiles', icon: Book },
@@ -57,6 +59,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
     const { data: inventoryAlerts = [] } = useInventoryAlerts(user?.id ?? '');
     const alertCount = inventoryAlerts.length;
     const canCupping = useFeature(FEATURE.cupping);
+    const canOrders = useFeature(FEATURE.orderIntegration);
     const workspaceName = profile?.business_name || 'My Roastery';
     const workspaceInitial = workspaceName.charAt(0).toUpperCase();
 
@@ -170,7 +173,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                         const isActive = activeView === id;
                         const label = t(labelKey);
                         const showBadge = id === 'beans' && alertCount > 0;
-                        const locked = id === 'cupping' && !canCupping;
+                        const locked = (id === 'cupping' && !canCupping) || (id === 'orders' && !canOrders);
                         return (
                             <button
                                 type="button"

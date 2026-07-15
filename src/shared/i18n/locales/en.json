@@ -8,7 +8,11 @@
         "live": "Live",
         "loading": "Loading…",
         "offline": "Offline",
-        "unavailable": "Unavailable"
+        "unavailable": "Unavailable",
+        "save": "Save",
+        "add": "Add",
+        "edit": "Edit",
+        "delete": "Delete"
     },
     "auth": {
         "oauthCompleting": "Completing sign-in…",
@@ -47,7 +51,8 @@
             "machines": "Machines",
             "schedule": "Roast Schedule",
             "pricing": "Pricing",
-            "cupping": "Cupping"
+            "cupping": "Cupping",
+            "orders": "Orders"
         }
     },
     "settings": {
@@ -1108,6 +1113,79 @@
             "title": "Cupping is included with Pro",
             "description": "Record SCA scores for whole cupping tables (15+ samples), share QR forms with cuppers, and link samples to roast history.",
             "cta": "View billing plans"
+        }
+    },
+    "orders": {
+        "title": "Orders",
+        "subtitle": "Collect store orders, see roasting needs, and manage finished-goods stock.",
+        "loading": "Loading…",
+        "locked": {
+            "subtitle": "E-commerce order integration",
+            "title": "Available on the Enterprise plan",
+            "description": "Connect Naver SmartStore, Cafe24, and Shopify to pull orders, calculate roasting needs, and deduct finished-goods stock automatically.",
+            "cta": "Upgrade plan"
+        },
+        "tab": {
+            "orders": "Orders",
+            "products": "Products"
+        },
+        "requirements": {
+            "title": "Roasting needs",
+            "loading": "Calculating…",
+            "empty": "No unfulfilled orders — nothing to roast.",
+            "bean": "Bean",
+            "green": "Green needed",
+            "available": "Available"
+        },
+        "order": {
+            "newTitle": "New order",
+            "empty": "No orders yet.",
+            "buyer": "Buyer",
+            "lines": "Items",
+            "selectProduct": "Select product",
+            "addLine": "+ Add item",
+            "fulfill": "Fulfill",
+            "fulfilled": "Fulfilled",
+            "col": {
+                "date": "Date",
+                "buyer": "Buyer",
+                "items": "Items",
+                "status": "Status",
+                "action": ""
+            }
+        },
+        "status": {
+            "pending": "Pending",
+            "paid": "Paid",
+            "preparing": "Preparing",
+            "shipped": "Shipped",
+            "delivered": "Delivered",
+            "cancelled": "Cancelled",
+            "refunded": "Refunded"
+        },
+        "product": {
+            "editTitle": "Edit product",
+            "newTitle": "New product",
+            "name": "Name",
+            "netWeight": "Net (g)",
+            "yield": "Yield %",
+            "source": "Bean / Blend",
+            "sourceNone": "None (non-coffee)",
+            "beanGroup": "Single origin",
+            "blendGroup": "Blends",
+            "profile": "Roast profile",
+            "profileNone": "None",
+            "empty": "No products yet. Map a sellable SKU to a bean or blend.",
+            "inbound": "Stock in",
+            "inboundPrompt": "How many units of “{{name}}” to add?",
+            "deleteConfirm": "Delete this product?",
+            "col": {
+                "name": "Name",
+                "sku": "SKU",
+                "weight": "Net",
+                "stock": "In stock",
+                "action": ""
+            }
         }
     }
 }

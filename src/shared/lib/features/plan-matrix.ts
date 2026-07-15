@@ -6,6 +6,9 @@ const PAID_PLANS = new Set(['pro', 'team', 'pro_plus', 'enterprise']);
 /** Multi-machine (2+): Pro+ and above. Legacy `team` maps to enterprise-class. */
 const MULTI_MACHINE_PLANS = new Set(['pro_plus', 'enterprise', 'team']);
 
+/** E-commerce order integration: enterprise-class only (legacy `team` included). */
+const ORDER_INTEGRATION_PLANS = new Set(['enterprise', 'team']);
+
 export function isPaidPlan(plan: string): boolean {
     return PAID_PLANS.has(plan);
 }
@@ -15,6 +18,8 @@ export function planHasFeature(plan: string, key: FeatureKey): boolean {
     switch (key) {
         case FEATURE.cupping:
             return isPaidPlan(plan);
+        case FEATURE.orderIntegration:
+            return ORDER_INTEGRATION_PLANS.has(plan);
         default:
             return false;
     }

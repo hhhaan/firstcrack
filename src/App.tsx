@@ -23,6 +23,7 @@ import { Dashboard } from './views/dashboard/Dashboard';
 import { History } from './views/history/History';
 import { Login } from './views/login/Login';
 import { Machines } from './views/machines/Machines';
+import { Orders } from './views/orders/Orders';
 import { Pricing } from './views/pricing/Pricing';
 import { Profiles } from './views/profiles/Profiles';
 import { Schedule } from './views/schedule/Schedule';
@@ -233,6 +234,11 @@ export const App = () => {
                         {view === 'cupping' && (
                             <ViewErrorBoundary>
                                 <Cupping onUpgrade={() => openSettings('billing')} />
+                            </ViewErrorBoundary>
+                        )}
+                        {view === 'orders' && (
+                            <ViewErrorBoundary>
+                                <Orders onUpgrade={() => openSettings('billing')} />
                             </ViewErrorBoundary>
                         )}
                         {view === 'beans' && (

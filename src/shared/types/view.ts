@@ -3,6 +3,7 @@ export type View =
     | 'roast'
     | 'history'
     | 'cupping'
+    | 'orders'
     | 'beans'
     | 'pricing'
     | 'profiles'
