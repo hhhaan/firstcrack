@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { FEATURE } from './keys';
-import { canAddMachine, isPaidPlan, planHasFeature, planMaxMachines } from './plan-matrix';
+import {
+    canAddMachine,
+    canCompleteBatch,
+    isPaidPlan,
+    PRO_MONTHLY_BATCH_CAP,
+    planHasFeature,
+    planMaxBatchesPerMonth,
+    planMaxMachines,
+} from './plan-matrix';
 import { resolveFeature } from './resolve';
 
 describe('planHasFeature cupping', () => {
@@ -57,5 +65,23 @@ describe('planMaxMachines', () => {
         expect(canAddMachine('pro', 0)).toBe(true);
         expect(canAddMachine('pro', 1)).toBe(false);
         expect(canAddMachine('pro_plus', 5)).toBe(true);
+    });
+});
+
+describe('planMaxBatchesPerMonth', () => {
+    it('caps free/pro at 200', () => {
+        expect(planMaxBatchesPerMonth('free')).toBe(PRO_MONTHLY_BATCH_CAP);
+        expect(planMaxBatchesPerMonth('pro')).toBe(200);
+    });
+
+    it('unlimited for Pro+', () => {
+        expect(planMaxBatchesPerMonth('pro_plus')).toBeNull();
+        expect(planMaxBatchesPerMonth('enterprise')).toBeNull();
+    });
+
+    it('canCompleteBatch', () => {
+        expect(canCompleteBatch('pro', 199)).toBe(true);
+        expect(canCompleteBatch('pro', 200)).toBe(false);
+        expect(canCompleteBatch('pro_plus', 500)).toBe(true);
     });
 });

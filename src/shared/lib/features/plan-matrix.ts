@@ -35,3 +35,29 @@ export function canAddMachine(plan: string, realMachineCount: number): boolean {
     if (max == null) return true;
     return realMachineCount < max;
 }
+
+/** Completed roast sessions per calendar month. `null` = unlimited. Pro = 200; Pro+ = unlimited. */
+export const PRO_MONTHLY_BATCH_CAP = 200;
+
+export function planMaxBatchesPerMonth(plan: string): number | null {
+    if (MULTI_MACHINE_PLANS.has(plan)) return null;
+    return PRO_MONTHLY_BATCH_CAP;
+}
+
+export function canCompleteBatch(plan: string, completedThisMonth: number): boolean {
+    const max = planMaxBatchesPerMonth(plan);
+    if (max == null) return true;
+    return completedThisMonth < max;
+}
+
+export class BatchLimitError extends Error {
+    readonly used: number;
+    readonly max: number;
+
+    constructor(used: number, max: number) {
+        super(`Monthly batch limit reached (${used}/${max}). Upgrade to Pro+ for unlimited batches.`);
+        this.name = 'BatchLimitError';
+        this.used = used;
+        this.max = max;
+    }
+}

@@ -1,8 +1,9 @@
 import { beanKeys } from '@entities/bean/queries';
 import { useUpdatePlanBatch } from '@entities/plan';
-import { type RoastSessionInsert, useCreateRoastSession } from '@entities/roast';
+import { type RoastSessionInsert, roastSessionApi, useCreateRoastSession } from '@entities/roast';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
+import { BatchLimitError, canCompleteBatch, planMaxBatchesPerMonth } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
@@ -37,6 +38,7 @@ export interface SaveRoastResult {
 
 export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
     const user = useAuthStore((s) => s.user);
+    const plan = useAuthStore((s) => s.plan);
     const userId = user?.id ?? '';
     const qc = useQueryClient();
 
@@ -49,6 +51,14 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
         async (params: SaveRoastParams): Promise<SaveRoastResult> => {
             if (!user) {
                 throw new Error('Not authenticated');
+            }
+
+            const monthCap = planMaxBatchesPerMonth(plan);
+            if (monthCap != null) {
+                const used = await roastSessionApi.countCompletedThisMonth(user.id);
+                if (!canCompleteBatch(plan, used)) {
+                    throw new BatchLimitError(used, monthCap);
+                }
             }
 
             const { formData, handoffBeanName, sessionId, ...payloadParams } = params;
@@ -126,7 +136,16 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 shouldOpenContinue: planBatchHandoff != null,
             };
         },
-        [user, qc, syncRoastCurve, saveRoastSession, planBatchHandoff, incrementCompletedSession, updatePlanBatch],
+        [
+            user,
+            plan,
+            qc,
+            syncRoastCurve,
+            saveRoastSession,
+            planBatchHandoff,
+            incrementCompletedSession,
+            updatePlanBatch,
+        ],
     );
 
     return useMemo(
