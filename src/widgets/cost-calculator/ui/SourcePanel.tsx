@@ -3,7 +3,15 @@ import { BlendCompositionBar, coloredSegmentsFromSources } from '@widgets/blend-
 import { AlertTriangle, ChevronDown, Plus, X } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatPctValue, inputCls, labelCls, normalizePct, parseNumericInput, parsePctInput } from '../lib/format';
+import {
+    formatAmount,
+    formatPctValue,
+    inputCls,
+    labelCls,
+    normalizePct,
+    parseNumericInput,
+    parsePctInput,
+} from '../lib/format';
 import type { BlendComponentCost, BlendSourceMode, SourceMode } from '../lib/types';
 import { BeanCombobox } from './BeanCombobox';
 import { PricingSection } from './PricingSection';
@@ -124,7 +132,7 @@ export const SourcePanel = ({
                             inputMode="numeric"
                             className={inputCls}
                             placeholder={t('pricing.source.greenCostPlaceholder')}
-                            value={greenCostPerKg > 0 ? greenCostPerKg.toLocaleString() : ''}
+                            value={greenCostPerKg > 0 ? formatAmount(greenCostPerKg, lang) : ''}
                             onChange={(e) => onGreenCostChange(parseNumericInput(e.target.value))}
                         />
                     </div>
@@ -167,8 +175,7 @@ export const SourcePanel = ({
                                     id="pricing-blend-select"
                                     value={selectedBlendId ?? ''}
                                     onChange={(e) => onBlendSelect(e.target.value)}
-                                    className={`${inputCls} appearance-none cursor-pointer`}
-                                    style={{ paddingRight: '2rem' }}
+                                    className={`${inputCls} appearance-none cursor-pointer pr-8`}
                                 >
                                     <option value="">{t('pricing.source.selectBlend')}</option>
                                     {blends.map((b) => (
@@ -219,6 +226,7 @@ export const SourcePanel = ({
                                         onBlendComponentChange(row.id, {
                                             beanId: '',
                                             name,
+                                            ...(name === '' ? { costPerKg: null } : {}),
                                         })
                                     }
                                     placeholder={t('pricing.source.selectBean')}
@@ -243,10 +251,10 @@ export const SourcePanel = ({
                                     inputMode="numeric"
                                     className={`${inputCls} text-right text-[13px] py-2`}
                                     placeholder={t('pricing.source.greenCostPlaceholder')}
-                                    value={row.costPerKg ? row.costPerKg.toLocaleString() : ''}
+                                    value={row.costPerKg != null ? formatAmount(row.costPerKg, lang) : ''}
                                     onChange={(e) =>
                                         onBlendComponentChange(row.id, {
-                                            costPerKg: parseNumericInput(e.target.value) || null,
+                                            costPerKg: e.target.value === '' ? null : parseNumericInput(e.target.value),
                                         })
                                     }
                                 />

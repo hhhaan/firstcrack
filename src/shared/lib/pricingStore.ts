@@ -53,7 +53,8 @@ export const pricingStore = {
         try {
             const val = await store.get<unknown>(PRICING_FIXED_OVERHEADS_KEY);
             const items = normalize(val);
-            if (items.length > 0 || val != null) return items;
+            // Empty array may be a first-run store miss — fall through to localStorage.
+            if (items.length > 0) return items;
         } catch {
             /* Tauri unavailable */
         }
@@ -62,7 +63,11 @@ export const pricingStore = {
 
     setFixedOverheads: async (items: StoredFixedOverhead[]): Promise<void> => {
         const safe = normalize(items);
-        writeLocal(safe);
+        try {
+            writeLocal(safe);
+        } catch {
+            /* quota / private mode */
+        }
         try {
             await store.set(PRICING_FIXED_OVERHEADS_KEY, safe);
             await store.save();

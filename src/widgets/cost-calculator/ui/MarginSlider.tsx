@@ -62,7 +62,6 @@ export const MarginSlider = ({ id, label, value, min = 0, max = 80, step = 0.01,
                     max={max}
                     step={step}
                     value={value}
-                    onInput={(e) => handleChange(e.currentTarget.value)}
                     onChange={(e) => handleChange(e.target.value)}
                     className={`relative z-10 w-full h-8 ${thumbCls}`}
                     aria-valuemin={min}

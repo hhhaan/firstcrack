@@ -983,7 +983,8 @@
             "components": "構成",
             "ratioHeader": "比率",
             "costShort": "円/kg",
-            "addComponent": "構成を追加"
+            "addComponent": "構成を追加",
+            "toggleList": "一覧を開く"
         },
         "cost": {
             "title": "原価内訳",
@@ -1011,7 +1012,8 @@
             "priceEdit": "販売価格を直接入力",
             "costBasis": "原価基準",
             "profit": "利益",
-            "pricePlaceholder": "例: 45000円"
+            "pricePlaceholder": "例: 45000円",
+            "unit": "/ kg"
         },
         "flow": {
             "green": "生豆",

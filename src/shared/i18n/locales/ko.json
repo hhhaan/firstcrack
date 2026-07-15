@@ -948,7 +948,8 @@
             "addComponent": "구성 추가",
             "emptyBeans": "등록된 생두가 없습니다. 재고에서 추가하세요.",
             "emptyBlends": "등록된 블렌드가 없습니다. 재고에서 만드세요.",
-            "ratioSum": "비율 합계가 {{sum}}%입니다 (원가 계산 시 정규화)."
+            "ratioSum": "비율 합계가 {{sum}}%입니다 (원가 계산 시 정규화).",
+            "toggleList": "목록 열기"
         },
         "cost": {
             "title": "원가 내역",
@@ -976,7 +977,8 @@
             "priceEdit": "판매가 직접 입력",
             "costBasis": "원가 기준",
             "profit": "이익",
-            "pricePlaceholder": "예: 45000원"
+            "pricePlaceholder": "예: 45000원",
+            "unit": "/ kg"
         },
         "flow": {
             "green": "생두",

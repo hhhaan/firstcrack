@@ -1,5 +1,6 @@
 import { Check, ChevronDown } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { inputCls } from '../lib/format';
 
 type BeanOption = { id: string; name: string };
@@ -30,16 +31,24 @@ export const BeanCombobox = ({
     emptyLabel = '',
     compact = false,
 }: BeanComboboxProps) => {
+    const { t } = useTranslation();
     const listId = useId();
     const rootRef = useRef<HTMLDivElement>(null);
     const selected = items.find((i) => i.id === selectedId);
     const [query, setQuery] = useState(selected?.name ?? '');
     const [open, setOpen] = useState(false);
+    const prevSelectedIdRef = useRef(selectedId);
+    const itemsRef = useRef(items);
+    itemsRef.current = items;
 
+    // Sync display only when selectedId changes (not when items refetches).
     useEffect(() => {
-        const name = items.find((i) => i.id === selectedId)?.name;
+        if (selectedId === prevSelectedIdRef.current) return;
+        prevSelectedIdRef.current = selectedId;
+        const name = itemsRef.current.find((i) => i.id === selectedId)?.name;
         if (name != null) setQuery(name);
-    }, [selectedId, items]);
+        else if (!selectedId) setQuery('');
+    }, [selectedId]);
 
     useEffect(() => {
         if (!open) return;
@@ -98,8 +107,8 @@ export const BeanCombobox = ({
                         const next = e.target.value;
                         setQuery(next);
                         setOpen(true);
-                        if (selected && next !== selected.name) onSelect('');
-                        if (!items.some((i) => i.name === next)) onFreeText?.(next);
+                        if (selected && next.toLowerCase() !== selected.name.toLowerCase()) onSelect('');
+                        if (!items.some((i) => i.name.toLowerCase() === next.toLowerCase())) onFreeText?.(next);
                     }}
                     onKeyDown={(e) => {
                         if (e.key === 'Escape') {
@@ -131,7 +140,7 @@ export const BeanCombobox = ({
                     type="button"
                     tabIndex={-1}
                     disabled={disabled}
-                    aria-label="Toggle list"
+                    aria-label={t('pricing.source.toggleList')}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 border-none bg-transparent text-muted cursor-pointer disabled:cursor-not-allowed"
                     onMouseDown={(e) => {
                         e.preventDefault();

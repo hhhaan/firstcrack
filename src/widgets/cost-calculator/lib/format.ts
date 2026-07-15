@@ -6,9 +6,15 @@ export const labelCls = 'text-[11px] font-medium uppercase tracking-[0.5px] text
 /** Percentage precision (margin, yield, blend ratio) — all locales. */
 export const PCT_DECIMALS = 2;
 
-export const formatKrw = (value: number): string => {
+export const formatAmount = (value: number, lang?: string): string => {
+    if (!Number.isFinite(value)) return '';
+    const locale = lang?.split('-')[0] || undefined;
+    return Math.round(value).toLocaleString(locale);
+};
+
+export const formatKrw = (value: number, lang?: string): string => {
     if (!Number.isFinite(value) || value <= 0) return '—';
-    return `₩${Math.round(value).toLocaleString()}`;
+    return `₩${formatAmount(value, lang)}`;
 };
 
 export const normalizePct = (value: number, _lang?: string): number => {

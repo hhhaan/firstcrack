@@ -984,7 +984,8 @@
             "components": "成分",
             "ratioHeader": "比例",
             "costShort": "元/kg",
-            "addComponent": "添加成分"
+            "addComponent": "添加成分",
+            "toggleList": "打开列表"
         },
         "cost": {
             "title": "成本明细",
@@ -1012,7 +1013,8 @@
             "priceEdit": "直接调整售价",
             "costBasis": "成本基准",
             "profit": "利润",
-            "pricePlaceholder": "例如：45000元"
+            "pricePlaceholder": "例如：45000元",
+            "unit": "/ kg"
         },
         "flow": {
             "green": "生豆",

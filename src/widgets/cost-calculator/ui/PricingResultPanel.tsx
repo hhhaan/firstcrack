@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { formatKrw, inputCls, labelCls, parseNumericInput } from '../lib/format';
+import { formatAmount, formatKrw, inputCls, labelCls, parseNumericInput } from '../lib/format';
 import { CostFlowStrip } from './CostFlowStrip';
 import { MarginSlider } from './MarginSlider';
 import { PricingSection } from './PricingSection';
@@ -29,7 +29,9 @@ export const PricingResultPanel = ({
     roastedCostPerKg,
     overheadPerKg,
 }: PricingResultPanelProps) => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
+    const lang = i18n.language;
+    const perKg = t('pricing.selling.unit');
 
     return (
         <PricingSection title={t('pricing.selling.title')}>
@@ -39,9 +41,9 @@ export const PricingResultPanel = ({
                         {t('pricing.selling.price')}
                     </span>
                     <div className="font-mono font-semibold text-[36px] text-primary tracking-[-0.5px] tabular-nums leading-[1.1]">
-                        {formatKrw(sellingPricePerKg)}
+                        {formatKrw(sellingPricePerKg, lang)}
                     </div>
-                    <span className="text-[13px] text-muted tracking-[0.14px]">/ kg</span>
+                    <span className="text-[13px] text-muted tracking-[0.14px]">{perKg}</span>
                 </div>
 
                 <div className="mb-2">
@@ -66,7 +68,7 @@ export const PricingResultPanel = ({
                         inputMode="numeric"
                         className={inputCls}
                         placeholder={t('pricing.selling.pricePlaceholder')}
-                        value={sellingPricePerKg > 0 ? sellingPricePerKg.toLocaleString() : ''}
+                        value={sellingPricePerKg > 0 ? formatAmount(sellingPricePerKg, lang) : ''}
                         onChange={(e) => onSellingPriceChange(parseNumericInput(e.target.value))}
                     />
                 </div>
@@ -79,8 +81,8 @@ export const PricingResultPanel = ({
                             {t('pricing.selling.costBasis')}
                         </span>
                         <span className="font-mono text-[15px] font-medium text-secondary tabular-nums">
-                            {formatKrw(totalCostPerKg)}
-                            <span className="text-muted font-normal text-[13px] ml-1">/ kg</span>
+                            {formatKrw(totalCostPerKg, lang)}
+                            <span className="text-muted font-normal text-[13px] ml-1">{perKg}</span>
                         </span>
                     </div>
                     <div className="flex items-center justify-between rounded-xl bg-surface-warm-solid px-4 py-3">
@@ -88,8 +90,8 @@ export const PricingResultPanel = ({
                             {t('pricing.selling.profit')}
                         </span>
                         <span className="font-mono text-[17px] font-semibold text-palette-green tabular-nums tracking-[-0.3px]">
-                            {formatKrw(profitPerKg)}
-                            <span className="text-muted font-normal text-[13px] ml-1">/ kg</span>
+                            {formatKrw(profitPerKg, lang)}
+                            <span className="text-muted font-normal text-[13px] ml-1">{perKg}</span>
                         </span>
                     </div>
                 </div>

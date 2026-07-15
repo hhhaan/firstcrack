@@ -984,7 +984,8 @@
             "components": "Components",
             "ratioHeader": "Ratio",
             "costShort": "KRW/kg",
-            "addComponent": "Add component"
+            "addComponent": "Add component",
+            "toggleList": "Toggle list"
         },
         "cost": {
             "title": "Cost Breakdown",
@@ -1012,7 +1013,8 @@
             "priceEdit": "Adjust selling price",
             "costBasis": "Cost Basis",
             "profit": "Profit",
-            "pricePlaceholder": "e.g. 45000 KRW"
+            "pricePlaceholder": "e.g. 45000 KRW",
+            "unit": "/ kg"
         },
         "flow": {
             "green": "Green",

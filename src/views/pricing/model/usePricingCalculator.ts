@@ -11,6 +11,7 @@ import {
     sumOverheadPerKg,
     totalCostPerKg,
 } from '@shared/lib/cost-calc';
+import { logger } from '@shared/lib/logger';
 import { pricingStore } from '@shared/lib/pricingStore';
 import { useAuthStore } from '@shared/store/auth';
 import { normalizePct } from '@widgets/cost-calculator/lib/format';
@@ -89,7 +90,9 @@ export const usePricingCalculator = () => {
     const persistOverheads = useCallback((items: FixedOverheadItem[]) => {
         if (saveTimer.current) clearTimeout(saveTimer.current);
         saveTimer.current = setTimeout(() => {
-            void pricingStore.setFixedOverheads(items);
+            pricingStore.setFixedOverheads(items).catch((err) => {
+                logger.capture(err, { context: 'pricing.fixedOverheads.persist' });
+            });
         }, SAVE_DEBOUNCE_MS);
     }, []);
 
@@ -164,6 +167,7 @@ export const usePricingCalculator = () => {
 
     const handleBlendComponentBeanSelect = (id: string, beanId: string) => {
         if (!beanId) {
+            // Free-text path keeps name/cost; full clear goes through onFreeText('').
             handleBlendComponentChange(id, { beanId: '' });
             return;
         }
@@ -238,11 +242,13 @@ export const usePricingCalculator = () => {
         setSellingPriceOverride(value);
         setPriceDriven(true);
         if (value > 0 && totalCost > 0) {
-            setMarginPct(Math.min(80, normalizePct(marginFromSellingPrice(totalCost, value), lang)));
+            setMarginPct(Math.min(80, Math.max(0, normalizePct(marginFromSellingPrice(totalCost, value), lang))));
         }
     };
 
-    const missingBeanCost = mode === 'single' && !!selectedBeanId && greenCostPerKg <= 0;
+    // Warn when inventory bean has no registered cost and display cost is still empty.
+    const missingBeanCost =
+        mode === 'single' && !!selectedBeanId && selectedBean?.cost_per_kg == null && greenCostPerKg <= 0;
 
     return {
         beans,

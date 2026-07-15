@@ -2,7 +2,15 @@ import type { LucideIcon } from 'lucide-react';
 import { Flame, Leaf, Package, Plus, Receipt, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatKrw, formatPctValue, inputCls, labelCls, parseNumericInput, parsePctInput } from '../lib/format';
+import {
+    formatAmount,
+    formatKrw,
+    formatPctValue,
+    inputCls,
+    labelCls,
+    parseNumericInput,
+    parsePctInput,
+} from '../lib/format';
 import type { FixedOverheadItem } from '../lib/types';
 import { PricingSection } from './PricingSection';
 
@@ -23,12 +31,14 @@ type CostBreakdownProps = {
 const MetricTile = ({
     label,
     value,
+    unit,
     icon: Icon,
     emphasized = false,
     children,
 }: {
     label: string;
     value?: string;
+    unit?: string;
     icon: LucideIcon;
     emphasized?: boolean;
     children?: ReactNode;
@@ -47,7 +57,7 @@ const MetricTile = ({
         {children ?? (
             <div className="font-mono text-[17px] font-semibold text-primary tabular-nums tracking-[-0.3px]">
                 {value}
-                <span className="text-sm text-muted font-normal ml-1">/ kg</span>
+                {unit ? <span className="text-sm text-muted font-normal ml-1">{unit}</span> : null}
             </div>
         )}
     </div>
@@ -68,13 +78,15 @@ export const CostBreakdown = ({
 }: CostBreakdownProps) => {
     const { t, i18n } = useTranslation();
     const lang = i18n.language;
+    const perKg = t('pricing.selling.unit');
 
     return (
         <PricingSection step="02" title={t('pricing.cost.title')}>
             <div className="grid grid-cols-2 gap-3 mb-5">
                 <MetricTile
                     label={isBlend ? t('pricing.cost.blendGreenCost') : t('pricing.cost.greenCost')}
-                    value={formatKrw(greenCostPerKg)}
+                    value={formatKrw(greenCostPerKg, lang)}
+                    unit={perKg}
                     icon={Leaf}
                 />
                 <MetricTile label={t('pricing.cost.yield')} icon={Flame}>
@@ -92,11 +104,17 @@ export const CostBreakdown = ({
                 </MetricTile>
                 <MetricTile
                     label={t('pricing.cost.roastedCost')}
-                    value={formatKrw(roastedCostPerKg)}
+                    value={formatKrw(roastedCostPerKg, lang)}
+                    unit={perKg}
                     icon={Package}
                     emphasized
                 />
-                <MetricTile label={t('pricing.cost.overheadSum')} value={formatKrw(overheadPerKg)} icon={Receipt} />
+                <MetricTile
+                    label={t('pricing.cost.overheadSum')}
+                    value={formatKrw(overheadPerKg, lang)}
+                    unit={perKg}
+                    icon={Receipt}
+                />
             </div>
 
             <div className="mb-5">
@@ -133,7 +151,7 @@ export const CostBreakdown = ({
                                 inputMode="numeric"
                                 className={`${inputCls} text-right text-[13px] py-2 font-mono`}
                                 placeholder={t('pricing.cost.itemAmountPlaceholder')}
-                                value={row.amountPerKg > 0 ? row.amountPerKg.toLocaleString() : ''}
+                                value={row.amountPerKg > 0 ? formatAmount(row.amountPerKg, lang) : ''}
                                 onChange={(e) =>
                                     onOverheadItemChange(row.id, {
                                         amountPerKg: parseNumericInput(e.target.value),
@@ -168,8 +186,8 @@ export const CostBreakdown = ({
                         {t('pricing.cost.totalCost')}
                     </span>
                     <div className="font-mono text-xl font-semibold text-primary tabular-nums tracking-[-0.3px]">
-                        {formatKrw(totalCostPerKg)}
-                        <span className="text-sm text-muted font-normal ml-1">/ kg</span>
+                        {formatKrw(totalCostPerKg, lang)}
+                        <span className="text-sm text-muted font-normal ml-1">{perKg}</span>
                     </div>
                 </div>
             </div>
