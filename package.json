@@ -4,7 +4,8 @@
     "version": "1.1.8",
     "type": "module",
     "scripts": {
-        "predev": "lsof -ti:9999 | xargs kill -9 2>/dev/null || true",
+        "setup": "bash scripts/setup.sh",
+        "predev": "bash scripts/ensure-sidecar-venv.sh && (lsof -ti:9999 | xargs kill -9 2>/dev/null || true)",
         "dev": "concurrently --names \"vite,sidecar\" --prefix-colors \"cyan,yellow\" \"vite\" \"src-tauri/sidecar/.venv/bin/python src-tauri/sidecar/main.py\"",
         "build": "tsc && vite build",
         "typecheck": "tsc --noEmit",

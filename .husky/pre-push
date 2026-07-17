@@ -1,1 +1,7 @@
+# Full local gate ≈ CI. Bypass only when intentional (see AGENTS.md Automation).
+if [ -n "${SKIP_VERIFY:-}" ]; then
+    echo "SKIP_VERIFY set — skipping pnpm verify:all (CI will still run on remote)." >&2
+    exit 0
+fi
+
 pnpm verify:all

@@ -10,7 +10,6 @@ if [[ -x .venv/bin/python ]]; then
 fi
 
 echo "error: sidecar .venv missing."
-echo "  cd src-tauri/sidecar"
-echo "  python3 -m venv .venv"
-echo "  .venv/bin/pip install -r requirements-dev.txt"
+echo "  fix:  pnpm setup"
+echo "  or:   cd src-tauri/sidecar && python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt"
 exit 1

@@ -7,7 +7,9 @@ alwaysApply: true
 Roastery management desktop app (like Cropster): roast profile logging, roast history tracking, green bean inventory management.
 
 ## Commands
-- dev: `pnpm tauri dev` (desktop; vite:1420 + sidecar) | web-only `pnpm dev`
+- setup: `pnpm setup` (pnpm install + sidecar venv + optional types:gen) — first clone / fresh machine
+- package manager: **pnpm only** (`packageManager` field). Do not use npm/yarn; `package-lock.json` is gitignored.
+- dev: `pnpm tauri dev` (desktop; vite:1420 + sidecar) | web-only `pnpm dev` (needs sidecar `.venv` — run `pnpm setup` if missing)
 - build: `pnpm build` (frontend) | release `pnpm build:sidecar && pnpm tauri build` | local debug (macOS) `pnpm build:debug`
 - test: `pnpm test` (vitest) | sidecar `pnpm verify:sidecar`
 - lint: `pnpm check` (biome; CI gate) | `pnpm lint` (eslint, react-refresh)
@@ -32,6 +34,17 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 | `git push` | `pnpm verify:all` | no |
 | CI | typecheck, lint (biome), eslint, test, i18n keys, secretlint, sidecar | no |
 | repomix | manual — `pnpm repomix` at session start or after large/structural change | — |
+
+### Hook bypass (use sparingly)
+CI still runs on remote — local skip is **not** a quality pass.
+
+| Hook | Allowed bypass | When OK | Not OK |
+|------|----------------|---------|--------|
+| pre-commit types guard | `SKIP_TYPES_GEN=1 git commit` | RLS/GRANT-only migration (no schema types change) | schema migration without `pnpm types:gen` |
+| pre-push verify | `SKIP_VERIFY=1 git push` | emergency hotfix push; known-green WIP while CI is the gate | habit; untested main; to avoid fixing failing tests |
+| any hook | `git commit/push --no-verify` | last resort only (broken hook env) | default workflow |
+
+Prefer `SKIP_VERIFY=1` over `--no-verify` (keeps other hooks; explicit intent in shell history).
 
 ## External Services
 - Supabase: BaaS — auth, DB (roast records, inventory), Edge Functions (R2 presigned URL issuer)
