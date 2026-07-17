@@ -35,15 +35,23 @@ export const planKeys = {
         [...planQueryRoots.monthSummary, userId, start, end] as const,
 };
 
-const invalidateScheduledBatchQueries = (qc: QueryClient) => {
-    qc.invalidateQueries({ queryKey: planKeys.dayBatchesRoot });
-    qc.invalidateQueries({ queryKey: planKeys.rangeBatchesRoot });
-    qc.invalidateQueries({ queryKey: planKeys.rangeSummaryRoot });
-    qc.invalidateQueries({ queryKey: planKeys.weekSummaryRoot });
-    qc.invalidateQueries({ queryKey: planKeys.monthSummaryRoot });
+/** Keys invalidated after plan batch mutations (staleTime Infinity → must not omit). */
+export const scheduledBatchInvalidationKeys = () =>
+    [
+        planKeys.dayBatchesRoot,
+        planKeys.rangeBatchesRoot,
+        planKeys.rangeSummaryRoot,
+        planKeys.weekSummaryRoot,
+        planKeys.monthSummaryRoot,
+    ] as const;
+
+export const invalidateScheduledBatchQueries = (qc: QueryClient) => {
+    for (const queryKey of scheduledBatchInvalidationKeys()) {
+        qc.invalidateQueries({ queryKey });
+    }
 };
 
-const invalidatePlanScope = (qc: QueryClient, userId?: string) => {
+export const invalidatePlanScope = (qc: QueryClient, userId?: string) => {
     qc.invalidateQueries({ queryKey: planKeys.batchesRoot });
     qc.invalidateQueries({ queryKey: userId ? [...planQueryRoots.day, userId] : planKeys.dayRoot });
     qc.invalidateQueries({
@@ -52,6 +60,12 @@ const invalidatePlanScope = (qc: QueryClient, userId?: string) => {
     qc.invalidateQueries({
         queryKey: userId ? planKeys.recurrenceRules(userId) : planKeys.recurrenceRulesRoot,
     });
+    invalidateScheduledBatchQueries(qc);
+};
+
+/** Mirrors useCreatePlanBatch onSettled invalidation (for regression tests). */
+export const invalidateAfterCreatePlanBatch = (qc: QueryClient, planId: string) => {
+    qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
     invalidateScheduledBatchQueries(qc);
 };
 

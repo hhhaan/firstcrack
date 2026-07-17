@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { deriveBatchQuantities } from '../lib/batch-quantities';
+import { buildNewBatchPayload } from '../lib/build-new-batch-payload';
 import { inputCls, labelCls } from '../lib/styles';
 import type { BatchType, EditScope, NewBatchData } from '../lib/types';
 import { DEFAULT_BATCH_SIZE } from '../lib/types';
@@ -161,25 +162,27 @@ export const AddBatchModal = ({
 
         setSaving(true);
         try {
-            await saveHandler({
-                date,
-                machineId,
-                machineName: selectedMachine?.name ?? selectedMachine?.displayName ?? machineId,
-                batchType,
-                profileId: profileId || null,
-                profileName: selectedProfile?.name ?? '',
-                beanId: isBlendType ? null : beanId || null,
-                blendId: isBlendType ? blendId || null : null,
-                beanName: isBlendType ? (selectedBlend?.name ?? '') : (selectedBean?.name ?? ''),
-                targetRoasted: targetNum,
-                batchSize: batchSizeNum,
-                yieldPct: yieldNum,
-                batchCount,
-                greenNeeded: greenNeededKg,
-                greenLot: selectedBean ? `${selectedBean.name} (${effectiveStockKg.toFixed(0)}kg)` : '',
-                notes,
-                recurringInterval: recurringInterval ?? undefined,
-            });
+            await saveHandler(
+                buildNewBatchPayload({
+                    date,
+                    machineId,
+                    machineName: selectedMachine?.name ?? selectedMachine?.displayName ?? machineId,
+                    batchType,
+                    profileId: profileId || null,
+                    profileName: selectedProfile?.name ?? '',
+                    beanId: beanId || null,
+                    blendId: blendId || null,
+                    beanName: isBlendType ? (selectedBlend?.name ?? '') : (selectedBean?.name ?? ''),
+                    targetRoasted: targetNum,
+                    batchSize: batchSizeNum,
+                    yieldPct: yieldNum,
+                    batchCount,
+                    greenNeeded: greenNeededKg,
+                    greenLot: selectedBean ? `${selectedBean.name} (${effectiveStockKg.toFixed(0)}kg)` : '',
+                    notes,
+                    recurringInterval: recurringInterval ?? undefined,
+                }),
+            );
             onSaved?.();
             onClose();
         } finally {
