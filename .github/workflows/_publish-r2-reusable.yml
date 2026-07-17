@@ -20,6 +20,7 @@ permissions:
 jobs:
   publish-r2:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Download artifacts
@@ -182,6 +183,29 @@ jobs:
             echo "::warning::Cloudflare cache purge failed with HTTP $HTTP_CODE — continuing (r2.dev uses no-cache headers)"
             exit 0
           fi
+
+      - name: Verify public release
+        env:
+          R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -e
+          # brief settle for eventual consistency
+          sleep 2
+          curl -fsSL "${R2_PUBLIC_URL}/releases/latest.json" -o verified.json
+          echo "Public latest.json:"
+          cat verified.json
+          GOT=$(jq -r .version verified.json)
+          if [ "$GOT" != "$VERSION" ]; then
+            echo "::error::Public latest.json version is '$GOT', expected '$VERSION'"
+            exit 1
+          fi
+          # Every platform binary URL must be reachable
+          for url in $(jq -r '.platforms[].url' verified.json); do
+            curl -fsSIL -o /dev/null "$url" || { echo "::error::Unreachable: $url"; exit 1; }
+            echo "  OK: $url"
+          done
+          echo "✅ Public release v${VERSION} verified"
 
       - name: Rollback latest.json on failure
         if: failure() && steps.upload-r2.outcome == 'failure' && env.BACKUP_KEY != ''

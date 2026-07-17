@@ -15,9 +15,14 @@ permissions:
   actions: write
   checks: read
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   setup:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -38,6 +43,7 @@ jobs:
   build:
     needs: setup
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -62,14 +68,14 @@ jobs:
         run: |
           echo "Checking CI status for commit ${GITHUB_SHA}..."
 
-          # Retry up to 3 minutes (6×30s) to wait for CI to start
-          for i in 1 2 3 4 5 6; do
+          # Retry up to 10 minutes (20×30s) to wait for CI to start/finish
+          for i in $(seq 1 20); do
             RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
               --jq '[.check_runs[] | select(.name == "typecheck" or .name == "lint" or .name == "eslint" or .name == "test" or .name == "sidecar")]')
             TOTAL=$(echo "$RESPONSE" | jq 'length')
 
             if [ "$TOTAL" -eq 0 ]; then
-              echo "::warning::No CI checks found yet (attempt $i/6). Waiting 30s..."
+              echo "::warning::No CI checks found yet (attempt $i/20). Waiting 30s..."
               sleep 30
               continue
             fi
@@ -91,15 +97,16 @@ jobs:
               exit 0
             fi
 
-            if [ "$i" -lt 6 ]; then
-              echo "⏳ $PENDING check(s) still running — waiting 30s (attempt $i/6)..."
+            if [ "$i" -lt 20 ]; then
+              echo "⏳ $PENDING check(s) still running — waiting 30s (attempt $i/20)..."
               sleep 30
             fi
           done
 
-          # After all retries — if only pending/skipped/neutral remain, proceed
-          echo "::warning::CI checks still pending after 3 min — proceeding anyway."
-          exit 0
+          # After all retries — either checks are still pending, or none ever
+          # appeared. Both are unsafe to release on: fail hard.
+          echo "::error::CI checks still pending after 10 min — aborting release. Re-run once CI completes."
+          exit 1
 
       - name: Validate required secrets
         env:
@@ -217,7 +224,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          PUBLIC_SITE_URL: https://your-domain.com
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           PUBLIC_TAURI_REDIRECT: firstcrack://auth/callback
           CARGO_INCREMENTAL: "0"
           RUSTFLAGS: "-C debuginfo=0"
@@ -269,6 +276,7 @@ jobs:
     needs: [setup, build]
     if: success()
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Notify build success
         env:
@@ -296,6 +304,7 @@ jobs:
     needs: [publish-r2]
     if: success()
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       actions: write
     steps:

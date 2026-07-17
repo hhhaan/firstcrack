@@ -1,0 +1,77 @@
+name: Updater healthcheck
+
+# Weekly probe of the public updater manifest + download URLs.
+# Sunday 21:00 UTC = Monday 06:00 KST.
+
+on:
+  schedule:
+    - cron: '0 21 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+    steps:
+      - name: Fetch and validate latest.json
+        run: |
+          set -e
+          curl -fsSL "${R2_PUBLIC_URL}/releases/latest.json" -o latest.json
+          echo "Public latest.json:"
+          cat latest.json
+
+          VERSION=$(jq -r .version latest.json)
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.]+)?$ ]]; then
+            echo "::error::latest.json version is not valid semver: '$VERSION'"
+            exit 1
+          fi
+          echo "Version: $VERSION"
+
+          # Each platform must expose a non-empty url + signature
+          for key in "darwin-aarch64" "darwin-x86_64" "windows-x86_64"; do
+            URL=$(jq -r --arg k "$key" '.platforms[$k].url // ""' latest.json)
+            SIG=$(jq -r --arg k "$key" '.platforms[$k].signature // ""' latest.json)
+            if [ -z "$URL" ]; then
+              echo "::error::platforms['$key'].url is empty"
+              exit 1
+            fi
+            if [ -z "$SIG" ]; then
+              echo "::error::platforms['$key'].signature is empty"
+              exit 1
+            fi
+            echo "  OK (manifest): $key"
+          done
+
+          # HEAD-check every platform binary URL
+          for URL in $(jq -r '.platforms[].url' latest.json); do
+            curl -fsSIL -o /dev/null "$URL" || { echo "::error::Unreachable platform URL: $URL"; exit 1; }
+            echo "  OK (reachable): $URL"
+          done
+
+          # HEAD-check the three landing aliases
+          for ALIAS in \
+            "releases/latest/First-Crack-arm64.dmg" \
+            "releases/latest/First-Crack-x64.dmg" \
+            "releases/latest/First-Crack-Windows.msi"; do
+            curl -fsSIL -o /dev/null "${R2_PUBLIC_URL}/${ALIAS}" || { echo "::error::Unreachable landing alias: ${ALIAS}"; exit 1; }
+            echo "  OK (landing): $ALIAS"
+          done
+
+          echo "✅ Updater healthcheck passed for v${VERSION}"
+
+      - name: Notify healthcheck failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+              --data "{\"text\":\":x: *Updater healthcheck FAILED* — public latest.json or a download URL is broken | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
+          else
+            echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
+          fi
