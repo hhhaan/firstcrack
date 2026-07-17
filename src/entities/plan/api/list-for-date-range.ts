@@ -1,0 +1,161 @@
+import { calcPlanBatchCount } from '@shared/lib/stock-calc';
+import { supabase } from '@shared/lib/supabase';
+import type { PlanBatchWithProgress } from '@shared/types/database.types';
+import { recurrenceRuleApi } from './recurrence-rule';
+
+/**
+ * List batches for a date range, merging recurrence rules with exception rows.
+ * This is the rendering-time entry point — computes instances on the fly.
+ */
+export async function listForDateRange(
+    userId: string,
+    startDate: string,
+    endDate: string,
+): Promise<PlanBatchWithProgress[]> {
+    // 1. Get active recurrence rules
+    const rules = await recurrenceRuleApi.listActive(userId);
+
+    // 2. Get one-off batches in the range
+    const { data: plans, error: plansError } = await supabase
+        .from('roast_day_plans')
+        .select('id, date')
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lte('date', endDate);
+    if (plansError) throw plansError;
+
+    const dateToPlanId = new Map((plans ?? []).map((p) => [p.date, p.id]));
+    const planIds = (plans ?? []).map((p) => p.id);
+
+    // Get sessions for progress
+    const { data: sessions, error: sessionsError } = await supabase
+        .from('roast_sessions')
+        .select('plan_batch_id')
+        .not('plan_batch_id', 'is', null);
+    if (sessionsError) throw sessionsError;
+
+    const sessionCountMap = new Map<string, number>();
+    for (const s of sessions ?? []) {
+        if (s.plan_batch_id) {
+            sessionCountMap.set(s.plan_batch_id, (sessionCountMap.get(s.plan_batch_id) ?? 0) + 1);
+        }
+    }
+
+    // 3. Get exception rows for recurrence rules in the date range
+    const { data: exceptions, error: exceptionsError } = await supabase
+        .from('roast_plan_batches')
+        .select('*')
+        .not('recurrence_rule_id', 'is', null)
+        .gte('scheduled_date', startDate)
+        .lte('scheduled_date', endDate);
+    if (exceptionsError) throw exceptionsError;
+
+    // 4. Get one-off batches (no recurrence_rule_id)
+    const { data: oneOffBatches, error: oneOffError } = await supabase
+        .from('roast_plan_batches')
+        .select('*')
+        .is('recurrence_rule_id', null)
+        .in('plan_id', planIds);
+    if (oneOffError) throw oneOffError;
+
+    // Build result from one-off batches
+    const result: PlanBatchWithProgress[] = (oneOffBatches ?? []).map((row) => ({
+        ...row,
+        completed_sessions: sessionCountMap.get(row.id) ?? 0,
+    }));
+
+    // 5. For each active recurrence rule, expand and merge with exceptions
+    const rangeStart = new Date(`${startDate}T00:00:00`);
+    const rangeEnd = new Date(`${endDate}T23:59:59`);
+
+    // Dynamic import to avoid circular dependency
+    const { expandRRuleInRange, mergeRecurrenceExceptions } = await import('@shared/lib/rrule');
+
+    for (const rule of rules) {
+        if (rule.status !== 'active') continue;
+
+        // Check if rule is within range
+        const ruleStart = new Date(`${rule.dtstart}T00:00:00`);
+        if (rule.until && new Date(`${rule.until}T23:59:59`) < rangeStart) continue;
+
+        // Expand dates in range
+        const expandedDates = expandRRuleInRange(
+            rule.rrule,
+            ruleStart,
+            rangeStart,
+            rule.until ? new Date(`${rule.until}T23:59:59`) : rangeEnd,
+        );
+
+        // Filter exceptions for this rule
+        const ruleExceptions = (exceptions ?? [])
+            .filter((ex) => ex.recurrence_rule_id === rule.id)
+            .map((ex) => ({
+                original_date: ex.original_date ?? '',
+                scheduled_date: ex.scheduled_date ?? '',
+                exception_type: ex.exception_type as 'modified' | 'cancelled',
+                batch_size_kg: ex.batch_size_kg,
+                target_roasted_kg: ex.target_roasted_kg,
+                bean_id: ex.bean_id,
+                bean_name: ex.bean_name,
+                machine_id: ex.machine_id,
+                roast_profile_id: ex.roast_profile_id,
+                notes: ex.notes,
+                status: ex.status,
+            }));
+
+        // Merge
+        const instances = mergeRecurrenceExceptions(expandedDates, ruleExceptions);
+
+        // For each instance, get or create the day plan and produce a batch-like row
+        for (const instance of instances) {
+            if (instance.exceptionType === 'cancelled') continue;
+
+            if (instance.exceptionType === 'modified' && instance.exception) {
+                // Use exception data
+                const exBatch = exceptions?.find((e) => e.original_date === instance.originalDate);
+                if (exBatch) {
+                    result.push({
+                        ...exBatch,
+                        completed_sessions: sessionCountMap.get(exBatch.id) ?? 0,
+                    });
+                }
+            } else if (instance.exceptionType === 'normal') {
+                const planId = dateToPlanId.get(instance.date) ?? '';
+
+                const batchSize = Number(rule.batch_size_kg) || 0;
+                const targetKg = Number(rule.target_roasted_kg) || 0;
+                const batchCount = calcPlanBatchCount(targetKg, batchSize, Number(rule.yield_pct) || 1);
+
+                result.push({
+                    id: `${rule.id}:${instance.originalDate}`,
+                    plan_id: planId,
+                    bean_name: rule.bean_name,
+                    bean_id: rule.bean_id,
+                    blend_id: rule.blend_id ?? null,
+                    batch_type: rule.batch_type,
+                    batch_size_kg: rule.batch_size_kg,
+                    target_roasted_kg: rule.target_roasted_kg,
+                    batch_count: batchCount,
+                    yield_pct: rule.yield_pct,
+                    order_index: 0,
+                    machine_id: rule.machine_id,
+                    roast_profile_id: rule.roast_profile_id,
+                    rrule: rule.rrule,
+                    recurrence_group_id: null,
+                    recurrence_rule_id: rule.id,
+                    scheduled_date: instance.date,
+                    original_date: instance.originalDate,
+                    exception_type: null,
+                    notes: rule.notes,
+                    green_lot: rule.green_lot,
+                    status: 'pending',
+                    created_at: rule.created_at,
+                    updated_at: rule.updated_at,
+                    completed_sessions: 0,
+                });
+            }
+        }
+    }
+
+    return result.sort((a, b) => a.order_index - b.order_index || a.bean_name.localeCompare(b.bean_name));
+}
