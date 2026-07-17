@@ -1119,6 +1119,13 @@
         "copied": "Copied",
         "openLink": "Open",
         "revoke": "Revoke",
+        "expandScores": "Show scores",
+        "collapseScores": "Hide scores",
+        "scoreDetail": "Submitted scores",
+        "scoresLoading": "Loading scores…",
+        "scoresLoadError": "Could not load scores",
+        "scoresEmpty": "No scores yet for this sample.",
+        "anonymous": "Anonymous",
         "locked": {
             "subtitle": "Pro feature",
             "title": "Cupping is included with Pro",

@@ -1119,6 +1119,13 @@
         "copied": "已复制",
         "openLink": "打开",
         "revoke": "作废",
+        "expandScores": "显示评分",
+        "collapseScores": "收起评分",
+        "scoreDetail": "已提交评分",
+        "scoresLoading": "正在加载评分…",
+        "scoresLoadError": "无法加载评分",
+        "scoresEmpty": "该样品尚无评分。",
+        "anonymous": "匿名",
         "locked": {
             "subtitle": "Pro 功能",
             "title": "杯测包含在 Pro 中",

@@ -48,3 +48,19 @@ export function parseScaV1Scores(input: unknown): ScaV1Scores {
 export function defaultScaV1Scores(fill = 6): ScaV1Scores {
     return Object.fromEntries(SCA_V1_KEYS.map((k) => [k, fill])) as ScaV1Scores;
 }
+
+/** Match edge submit-cupping: lowercase, ≤40 chars, max 20 unique tags. */
+export function normalizeDescriptors(raw: unknown): string[] {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const x of raw) {
+        if (typeof x !== 'string') continue;
+        const tag = x.trim().toLowerCase().slice(0, 40);
+        if (!tag || seen.has(tag)) continue;
+        seen.add(tag);
+        out.push(tag);
+        if (out.length >= 20) break;
+    }
+    return out;
+}

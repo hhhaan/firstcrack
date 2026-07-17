@@ -1119,6 +1119,13 @@
         "copied": "コピー済み",
         "openLink": "開く",
         "revoke": "無効化",
+        "expandScores": "スコアを表示",
+        "collapseScores": "スコアを隠す",
+        "scoreDetail": "送信済みスコア",
+        "scoresLoading": "スコアを読み込み中…",
+        "scoresLoadError": "スコアを読み込めませんでした",
+        "scoresEmpty": "このサンプルにはまだスコアがありません。",
+        "anonymous": "匿名",
         "locked": {
             "subtitle": "Pro機能",
             "title": "カッピングはProで利用できます",

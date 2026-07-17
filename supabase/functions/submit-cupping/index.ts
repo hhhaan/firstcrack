@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
-import { parseScaV1Scores, totalScoreScaV1 } from '../_shared/cupping-score.ts';
+import { normalizeDescriptors, parseScaV1Scores, totalScoreScaV1 } from '../_shared/cupping-score.ts';
 
 const serviceClient = () =>
     createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
@@ -15,15 +15,6 @@ type Body = {
     notes?: string | null;
     descriptors?: string[];
     source?: 'desktop' | 'web' | 'invite';
-};
-
-const normalizeDescriptors = (raw: unknown): string[] => {
-    if (!Array.isArray(raw)) return [];
-    return raw
-        .filter((x): x is string => typeof x === 'string')
-        .map((s) => s.trim().toLowerCase().slice(0, 40))
-        .filter(Boolean)
-        .slice(0, 20);
 };
 
 Deno.serve(async (req) => {

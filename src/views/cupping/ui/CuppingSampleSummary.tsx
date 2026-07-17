@@ -1,8 +1,10 @@
 import { type CuppingSampleWithMeta, formatBeanCuppingMeta, useDeleteCuppingSample } from '@entities/cupping';
 import { formatDateShort } from '@shared/lib/format';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
-import { Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CuppingScoreList } from './CuppingScoreList';
 import { CuppingSampleListSkeleton } from './CuppingSkeleton';
 
 type CuppingSampleSummaryProps = {
@@ -22,6 +24,7 @@ export const CuppingSampleSummary = ({
 }: CuppingSampleSummaryProps) => {
     const { t } = useTranslation();
     const deleteSample = useDeleteCuppingSample(userId, eventId);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
 
     if (isLoading) {
         return <CuppingSampleListSkeleton />;
@@ -45,6 +48,7 @@ export const CuppingSampleSummary = ({
             <table className="w-full min-w-[640px] border-collapse text-left">
                 <thead>
                     <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                        <th className="w-8 px-2 py-3" aria-hidden />
                         <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">#</th>
                         <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                             {t('cupping.colLabel')}
@@ -67,54 +71,81 @@ export const CuppingSampleSummary = ({
                     </tr>
                 </thead>
                 <tbody>
-                    {samples.map((s: CuppingSampleWithMeta, i: number) => {
+                    {samples.map((s, i) => {
                         const bean = s.roast_sessions?.beans ?? null;
                         const beanMeta = formatBeanCuppingMeta(bean);
+                        const open = expandedId === s.id;
                         return (
-                            <tr
-                                key={s.id}
-                                className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61]"
-                            >
-                                <td className="px-4 py-3 font-mono text-[12px] text-muted">{i + 1}</td>
-                                <td className="px-4 py-3 text-[13px] font-medium text-primary">{s.label}</td>
-                                <td className="px-4 py-3">
-                                    {bean ? (
-                                        <div>
-                                            <div className="text-[13px] font-medium text-primary">{bean.name}</div>
-                                            {beanMeta ? (
-                                                <div className="mt-0.5 text-[11px] leading-snug text-muted">
-                                                    {beanMeta}
+                            <Fragment key={s.id}>
+                                <tr className="border-b border-border-subtle transition-colors last:border-0 hover:bg-surface/50 dark:border-[#585d61]">
+                                    <td className="px-2 py-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setExpandedId(open ? null : s.id)}
+                                            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-surface hover:text-primary"
+                                            aria-expanded={open}
+                                            aria-label={open ? t('cupping.collapseScores') : t('cupping.expandScores')}
+                                        >
+                                            {open ? (
+                                                <ChevronDown size={14} strokeWidth={2} />
+                                            ) : (
+                                                <ChevronRight size={14} strokeWidth={2} />
+                                            )}
+                                        </button>
+                                    </td>
+                                    <td className="px-4 py-3 font-mono text-[12px] text-muted">{i + 1}</td>
+                                    <td className="px-4 py-3 text-[13px] font-medium text-primary">{s.label}</td>
+                                    <td className="px-4 py-3">
+                                        {bean ? (
+                                            <div>
+                                                <div className="text-[13px] font-medium text-primary">{bean.name}</div>
+                                                {beanMeta ? (
+                                                    <div className="mt-0.5 text-[11px] leading-snug text-muted">
+                                                        {beanMeta}
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ) : (
+                                            <span className="text-[12px] text-muted">{t('cupping.noRoastLink')}</span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 text-[12px] text-secondary">
+                                        {s.roast_sessions
+                                            ? formatDateShort(s.roast_sessions.roasted_at)
+                                            : t('cupping.noRoastLink')}
+                                    </td>
+                                    <td className="px-4 py-3 font-mono text-[13px] text-secondary">{s.score_count}</td>
+                                    <td className="px-4 py-3 font-mono text-[13px] text-secondary">
+                                        {s.avg_score != null ? s.avg_score.toFixed(2) : '—'}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (window.confirm(t('cupping.deleteSampleConfirm'))) {
+                                                    void deleteSample.mutateAsync(s.id);
+                                                }
+                                            }}
+                                            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500"
+                                            aria-label={t('common.delete')}
+                                        >
+                                            <Trash2 size={13} strokeWidth={1.75} />
+                                        </button>
+                                    </td>
+                                </tr>
+                                {open ? (
+                                    <tr className="border-b border-border-subtle bg-surface/30 dark:border-[#585d61] dark:bg-[#1c1f22]">
+                                        <td colSpan={8} className="p-0">
+                                            <div className="border-t border-border-subtle dark:border-[#585d61]">
+                                                <div className="px-4 pt-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                                                    {t('cupping.scoreDetail')}
                                                 </div>
-                                            ) : null}
-                                        </div>
-                                    ) : (
-                                        <span className="text-[12px] text-muted">{t('cupping.noRoastLink')}</span>
-                                    )}
-                                </td>
-                                <td className="px-4 py-3 text-[12px] text-secondary">
-                                    {s.roast_sessions
-                                        ? formatDateShort(s.roast_sessions.roasted_at)
-                                        : t('cupping.noRoastLink')}
-                                </td>
-                                <td className="px-4 py-3 font-mono text-[13px] text-secondary">{s.score_count}</td>
-                                <td className="px-4 py-3 font-mono text-[13px] text-secondary">
-                                    {s.avg_score != null ? s.avg_score.toFixed(2) : '—'}
-                                </td>
-                                <td className="px-4 py-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (window.confirm(t('cupping.deleteSampleConfirm'))) {
-                                                void deleteSample.mutateAsync(s.id);
-                                            }
-                                        }}
-                                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 cursor-pointer"
-                                        aria-label={t('common.delete')}
-                                    >
-                                        <Trash2 size={13} strokeWidth={1.75} />
-                                    </button>
-                                </td>
-                            </tr>
+                                                <CuppingScoreList sampleId={s.id} />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) : null}
+                            </Fragment>
                         );
                     })}
                 </tbody>

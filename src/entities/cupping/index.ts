@@ -13,6 +13,7 @@ export {
     DEFECT_WEIGHT,
     defaultScaV1Scores,
     isValidScoreStep,
+    normalizeDescriptors,
     parseScaV1Scores,
     SCA_V1_BASE,
     SCA_V1_KEYS,
