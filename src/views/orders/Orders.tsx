@@ -258,6 +258,7 @@ function OrderRow({
     onDispatch: () => void;
 }) {
     const { t } = useTranslation();
+    const [nowMs] = useState(() => Date.now());
     const itemCount = order.order_lines.filter((l) => l.status === 'active').reduce((n, l) => n + l.quantity, 0);
     const fulfilled = !!order.fulfilled_at;
     const canFulfill = !fulfilled && (order.status === 'paid' || order.status === 'preparing');
@@ -269,7 +270,7 @@ function OrderRow({
     const sentDelayed =
         dispatch?.status === 'sent' &&
         !!dispatch.sent_at &&
-        Date.now() - new Date(dispatch.sent_at).getTime() > 30 * 60 * 1000;
+        nowMs - new Date(dispatch.sent_at).getTime() > 30 * 60 * 1000;
     const statusLabel = fulfilled
         ? t('orders.order.fulfilled')
         : t(`orders.status.${order.status}`, { defaultValue: order.status });
