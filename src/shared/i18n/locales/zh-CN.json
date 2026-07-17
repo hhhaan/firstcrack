@@ -8,7 +8,11 @@
         "live": "实时",
         "offline": "离线",
         "loading": "加载中…",
-        "unavailable": "不可用"
+        "unavailable": "不可用",
+        "save": "保存",
+        "add": "添加",
+        "edit": "编辑",
+        "delete": "删除"
     },
     "auth": {
         "oauthCompleting": "正在完成登录…",
@@ -47,7 +51,8 @@
             "machines": "设备",
             "schedule": "烘焙计划",
             "pricing": "成本与售价",
-            "cupping": "杯测"
+            "cupping": "杯测",
+            "orders": "订单"
         }
     },
     "settings": {
@@ -765,7 +770,35 @@
         "exportNoSessions": "没有可导出的会话。",
         "exportTitle": "First Crack",
         "exportOkLabel": "导出",
-        "exportCancelLabel": "取消"
+        "exportCancelLabel": "取消",
+        "cupping": {
+            "title": "杯测",
+            "avgScore": "平均 {{score}} · {{count}} 个评分",
+            "none": "暂无评分",
+            "emptyList": "提交评分或为杯测师开启二维码会话。",
+            "addScore": "添加评分",
+            "cancelForm": "取消",
+            "createSession": "创建杯测会话",
+            "creating": "创建中…",
+            "createError": "无法创建杯测会话。如有需要请先应用杯测数据库迁移。",
+            "activeLink": "有效的公开链接",
+            "inviteMeta": "已使用 {{used}}/{{max}} · 过期时间 {{expires}}",
+            "copyLink": "复制链接",
+            "copied": "已复制",
+            "openLink": "打开",
+            "revoke": "撤销",
+            "newLink": "新链接",
+            "defects": "瑕疵",
+            "cuppedBy": "杯测人",
+            "notes": "备注",
+            "total": "总分",
+            "saveScore": "保存评分",
+            "saving": "保存中…",
+            "colWhen": "时间",
+            "colBy": "杯测人",
+            "colScore": "评分",
+            "colSource": "来源"
+        }
     },
     "beanList": {
         "searchPlaceholder": "搜索生豆...",
@@ -1071,6 +1104,8 @@
         "deleteEventConfirm": "Delete this cupping table and all samples?",
         "deleteSampleConfirm": "Remove this sample?",
         "qrHint": "Scan or open link on the cupping table phone.",
+        "sessionQr": "Session QR",
+        "sessionQrHint": "One QR for this whole table. Cuppers pick a sample on their phone.",
         "copyLink": "Copy link",
         "copied": "Copied",
         "openLink": "Open",
@@ -1080,6 +1115,120 @@
             "title": "Cupping is included with Pro",
             "description": "Record SCA scores for whole cupping tables (15+ samples), share QR forms with cuppers, and link samples to roast history.",
             "cta": "View billing plans"
+        }
+    },
+    "orders": {
+        "title": "订单",
+        "subtitle": "汇总店铺订单、查看烘焙需求并管理成品库存。",
+        "loading": "加载中…",
+        "locked": {
+            "subtitle": "电商订单集成",
+            "title": "Enterprise 套餐可用",
+            "description": "连接 Naver 智能店铺、Cafe24 和 Shopify，自动拉取订单、计算烘焙需求并扣减成品库存。",
+            "cta": "升级套餐"
+        },
+        "tab": {
+            "orders": "订单",
+            "products": "商品",
+            "channels": "渠道"
+        },
+        "requirements": {
+            "title": "烘焙需求",
+            "loading": "计算中…",
+            "empty": "没有未完成的订单 — 无需烘焙。",
+            "bean": "咖啡豆",
+            "green": "所需生豆",
+            "available": "可用库存"
+        },
+        "order": {
+            "newTitle": "新建订单",
+            "empty": "暂无订单。",
+            "buyer": "买家",
+            "lines": "商品明细",
+            "selectProduct": "选择商品",
+            "addLine": "+ 添加商品",
+            "fulfill": "发货",
+            "fulfilled": "已发货",
+            "col": {
+                "date": "日期",
+                "buyer": "买家",
+                "items": "商品",
+                "status": "状态",
+                "action": "",
+                "platform": "渠道"
+            },
+            "manual": "手动"
+        },
+        "status": {
+            "pending": "待处理",
+            "paid": "已付款",
+            "preparing": "备货中",
+            "shipped": "已发货",
+            "delivered": "已送达",
+            "cancelled": "已取消",
+            "refunded": "已退款"
+        },
+        "product": {
+            "editTitle": "编辑商品",
+            "newTitle": "新建商品",
+            "name": "名称",
+            "netWeight": "净含量 (g)",
+            "yield": "出品率 %",
+            "source": "咖啡豆 / 拼配",
+            "sourceNone": "无（非咖啡）",
+            "beanGroup": "单品豆",
+            "blendGroup": "拼配",
+            "profile": "烘焙曲线",
+            "profileNone": "无",
+            "empty": "暂无商品。请将可售 SKU 关联到咖啡豆或拼配。",
+            "inbound": "入库",
+            "inboundPrompt": "要为“{{name}}”入库多少件？",
+            "deleteConfirm": "删除此商品？",
+            "col": {
+                "name": "名称",
+                "sku": "SKU",
+                "weight": "净含量",
+                "stock": "库存",
+                "action": ""
+            }
+        },
+        "channel": {
+            "intro": "使用 API 密钥连接店铺。凭证仅存储在服务器端，保存后不会再发送到桌面应用。",
+            "empty": "暂无已连接的渠道。",
+            "connectCta": "连接",
+            "connecting": "验证中…",
+            "sync": "立即同步",
+            "syncAll": "全部同步",
+            "syncOk": "已同步 {{n}} 个订单。",
+            "syncPartial": "已同步 {{n}} 个订单。错误：{{err}}",
+            "disconnect": "断开连接",
+            "disconnectConfirm": "断开此渠道？现有订单将保留在列表中。",
+            "displayName": "显示名称（可选）",
+            "displayNamePh": "我的店铺",
+            "shopDomain": "店铺域名",
+            "errRequired": "请填写所有必填项。",
+            "lastSync": "上次同步 {{at}}",
+            "connect": {
+                "naver": "连接 Naver 智能店铺",
+                "cafe24": "连接 Cafe24",
+                "shopify": "连接 Shopify"
+            },
+            "help": {
+                "naver": "Commerce API Center → 应用 → 复制 Client ID 和 Client Secret（SELF 类型）。",
+                "cafe24": "Cafe24 developers → OAuth 应用 → 粘贴 Mall ID 和访问令牌。",
+                "shopify": "Shopify 后台 → 开发应用 → 安装具有 read_orders、read_products 权限的自定义应用 → 粘贴店铺域名和 Admin API 访问令牌。"
+            },
+            "platform": {
+                "naver": "Naver",
+                "cafe24": "Cafe24",
+                "shopify": "Shopify"
+            },
+            "status": {
+                "pending": "待处理",
+                "active": "已连接",
+                "error": "错误",
+                "disabled": "已禁用"
+            }
         }
     }
 }

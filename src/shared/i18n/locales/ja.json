@@ -7,7 +7,12 @@
         "disconnected": "未接続",
         "live": "ライブ",
         "offline": "オフライン",
-        "unavailable": "利用不可"
+        "unavailable": "利用不可",
+        "loading": "読み込み中…",
+        "save": "保存",
+        "add": "追加",
+        "edit": "編集",
+        "delete": "削除"
     },
     "auth": {
         "oauthCompleting": "サインインを完了しています…",
@@ -46,7 +51,8 @@
             "machines": "マシン",
             "schedule": "ロースト予定",
             "pricing": "原価・販売価格",
-            "cupping": "カッピング"
+            "cupping": "カッピング",
+            "orders": "注文"
         }
     },
     "settings": {
@@ -764,7 +770,35 @@
         "exportNoSessions": "エクスポートするセッションがありません。",
         "exportTitle": "First Crack",
         "exportOkLabel": "エクスポート",
-        "exportCancelLabel": "キャンセル"
+        "exportCancelLabel": "キャンセル",
+        "cupping": {
+            "title": "カッピング",
+            "avgScore": "平均 {{score}} · {{count}}件",
+            "none": "スコアはまだありません",
+            "emptyList": "スコアを送信するか、カッパー向けにQRセッションを開いてください。",
+            "addScore": "スコアを追加",
+            "cancelForm": "キャンセル",
+            "createSession": "カッピングセッションを作成",
+            "creating": "作成中…",
+            "createError": "カッピングセッションを作成できませんでした。必要に応じてカッピングのマイグレーションを適用してください。",
+            "activeLink": "有効な公開リンク",
+            "inviteMeta": "{{used}}/{{max}} 使用 · 有効期限 {{expires}}",
+            "copyLink": "リンクをコピー",
+            "copied": "コピーしました",
+            "openLink": "開く",
+            "revoke": "無効化",
+            "newLink": "新しいリンク",
+            "defects": "欠点",
+            "cuppedBy": "カッピング担当",
+            "notes": "メモ",
+            "total": "合計",
+            "saveScore": "スコアを保存",
+            "saving": "保存中…",
+            "colWhen": "日時",
+            "colBy": "担当",
+            "colScore": "スコア",
+            "colSource": "ソース"
+        }
     },
     "profiles": {
         "title": "ローストプロファイル",
@@ -1070,6 +1104,8 @@
         "deleteEventConfirm": "Delete this cupping table and all samples?",
         "deleteSampleConfirm": "Remove this sample?",
         "qrHint": "Scan or open link on the cupping table phone.",
+        "sessionQr": "Session QR",
+        "sessionQrHint": "One QR for this whole table. Cuppers pick a sample on their phone.",
         "copyLink": "Copy link",
         "copied": "Copied",
         "openLink": "Open",
@@ -1079,6 +1115,120 @@
             "title": "Cupping is included with Pro",
             "description": "Record SCA scores for whole cupping tables (15+ samples), share QR forms with cuppers, and link samples to roast history.",
             "cta": "View billing plans"
+        }
+    },
+    "orders": {
+        "title": "注文",
+        "subtitle": "ストアの注文を集約し、焙煎必要量を確認し、完成品在庫を管理します。",
+        "loading": "読み込み中…",
+        "locked": {
+            "subtitle": "ECサイト注文連携",
+            "title": "Enterpriseプランで利用可能",
+            "description": "Naverスマートストア、Cafe24、Shopifyを接続して注文を取得し、焙煎必要量を計算、完成品在庫を自動で差し引きます。",
+            "cta": "プランをアップグレード"
+        },
+        "tab": {
+            "orders": "注文",
+            "products": "商品",
+            "channels": "チャネル"
+        },
+        "requirements": {
+            "title": "焙煎必要量",
+            "loading": "計算中…",
+            "empty": "未処理の注文はありません — 焙煎の必要はありません。",
+            "bean": "豆",
+            "green": "必要な生豆",
+            "available": "在庫"
+        },
+        "order": {
+            "newTitle": "新規注文",
+            "empty": "注文はまだありません。",
+            "buyer": "購入者",
+            "lines": "商品",
+            "selectProduct": "商品を選択",
+            "addLine": "+ 商品を追加",
+            "fulfill": "出荷処理",
+            "fulfilled": "出荷済み",
+            "col": {
+                "date": "日付",
+                "buyer": "購入者",
+                "items": "商品",
+                "status": "ステータス",
+                "action": "",
+                "platform": "チャネル"
+            },
+            "manual": "手動"
+        },
+        "status": {
+            "pending": "保留中",
+            "paid": "支払い済み",
+            "preparing": "準備中",
+            "shipped": "発送済み",
+            "delivered": "配達済み",
+            "cancelled": "キャンセル",
+            "refunded": "返金済み"
+        },
+        "product": {
+            "editTitle": "商品を編集",
+            "newTitle": "新規商品",
+            "name": "名前",
+            "netWeight": "内容量 (g)",
+            "yield": "歩留まり %",
+            "source": "豆 / ブレンド",
+            "sourceNone": "なし（コーヒー以外）",
+            "beanGroup": "シングルオリジン",
+            "blendGroup": "ブレンド",
+            "profile": "焙煎プロファイル",
+            "profileNone": "なし",
+            "empty": "商品はまだありません。販売SKUを豆またはブレンドに紐付けてください。",
+            "inbound": "入庫",
+            "inboundPrompt": "「{{name}}」を何個追加しますか？",
+            "deleteConfirm": "この商品を削除しますか？",
+            "col": {
+                "name": "名前",
+                "sku": "SKU",
+                "weight": "内容量",
+                "stock": "在庫",
+                "action": ""
+            }
+        },
+        "channel": {
+            "intro": "APIキーでストアを接続します。認証情報はサーバー側にのみ保存され、保存後にデスクトップアプリへ送信されることはありません。",
+            "empty": "接続済みのチャネルはまだありません。",
+            "connectCta": "接続",
+            "connecting": "確認中…",
+            "sync": "今すぐ同期",
+            "syncAll": "すべて同期",
+            "syncOk": "{{n}}件の注文を同期しました。",
+            "syncPartial": "{{n}}件の注文を同期しました。エラー: {{err}}",
+            "disconnect": "接続解除",
+            "disconnectConfirm": "このチャネルを接続解除しますか？既存の注文はリストに残ります。",
+            "displayName": "表示名（任意）",
+            "displayNamePh": "マイストア",
+            "shopDomain": "ショップドメイン",
+            "errRequired": "必須項目をすべて入力してください。",
+            "lastSync": "最終同期 {{at}}",
+            "connect": {
+                "naver": "Naverスマートストアを接続",
+                "cafe24": "Cafe24を接続",
+                "shopify": "Shopifyを接続"
+            },
+            "help": {
+                "naver": "コマースAPIセンター → アプリケーション → Client IDとClient Secretをコピー（SELFタイプ）。",
+                "cafe24": "Cafe24 developers → OAuthアプリ → Mall IDとアクセストークンを貼り付け。",
+                "shopify": "Shopify管理画面 → アプリ開発 → read_orders・read_products権限のカスタムアプリをインストール → ショップドメインとAdmin APIアクセストークンを貼り付け。"
+            },
+            "platform": {
+                "naver": "Naver",
+                "cafe24": "Cafe24",
+                "shopify": "Shopify"
+            },
+            "status": {
+                "pending": "保留中",
+                "active": "有効",
+                "error": "エラー",
+                "disabled": "無効"
+            }
         }
     }
 }

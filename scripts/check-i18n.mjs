@@ -1,9 +1,8 @@
 // i18n 키 동기화 검사: en 기준 누락 키 검출. STRICT 로케일은 exit 1.
 import { readFileSync } from 'node:fs';
 
-const STRICT = ['ko'];
-// ponytail: ja/zh-CN은 번역 착수 전(각 ~118키 누락)이라 warn-only. 번역 완료 시 STRICT로 이동.
-const WARN = ['ja', 'zh-CN'];
+const STRICT = ['ko', 'ja', 'zh-CN'];
+const WARN = [];
 
 const flat = (obj, prefix = '') =>
     Object.entries(obj).flatMap(([k, v]) =>
