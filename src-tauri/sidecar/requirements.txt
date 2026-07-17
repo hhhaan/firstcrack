@@ -21,7 +21,7 @@ websockets==16.0
 Phidget22==1.25.20260408
 
 # USB HID (aillio_r1.py, aillio_r2.py) — 현재 미사용, 의존성만 유지
-libusb-package>=1.0.0
+libusb-package>=1.0.30.0
 pyusb==1.3.1
 
 # Sidecar HTTP server
