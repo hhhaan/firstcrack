@@ -1,0 +1,103 @@
+# Dependabot — weekly dependency update PRs
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+updates:
+  # Frontend (pnpm via packageManager + pnpm-lock.yaml)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 8
+    labels:
+      - dependencies
+      - npm
+    groups:
+      frontend-prod:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      frontend-dev:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Major bumps need deliberate review (React/Tauri/Vite ecosystem)
+      - dependency-name: react
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react-dom
+        update-types: ["version-update:semver-major"]
+      - dependency-name: vite
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@tauri-apps/*"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # Sidecar Python
+  - package-ecosystem: pip
+    directory: /src-tauri/sidecar
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+    groups:
+      sidecar-python:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  # Tauri / Rust
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - rust
+    groups:
+      tauri-plugins:
+        patterns:
+          - "tauri*"
+        update-types:
+          - minor
+          - patch
+      rust-misc:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "tauri*"
+        update-types:
+          - minor
+          - patch
