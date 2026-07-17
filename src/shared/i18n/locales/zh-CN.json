@@ -1147,8 +1147,8 @@
             "lines": "商品明细",
             "selectProduct": "选择商品",
             "addLine": "+ 添加商品",
-            "fulfill": "发货",
-            "fulfilled": "已发货",
+            "fulfill": "完成",
+            "fulfilled": "已完成",
             "col": {
                 "date": "日期",
                 "buyer": "买家",

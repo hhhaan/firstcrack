@@ -678,7 +678,7 @@
         "type": "バッチタイプ",
         "date": "日付",
         "machine": "マシン",
-        "roastProfile": "ロストプロファイル",
+        "roastProfile": "ローストプロファイル",
         "profilePlaceholder": "プロファイル選択...",
         "greenCoffeeLot": "Green Coffee Lot",
         "lotPlaceholder": "Lot選択...",
@@ -1138,7 +1138,7 @@
             "empty": "未処理の注文はありません — 焙煎の必要はありません。",
             "bean": "豆",
             "green": "必要な生豆",
-            "available": "在庫"
+            "available": "利用可能"
         },
         "order": {
             "newTitle": "新規注文",
@@ -1165,7 +1165,7 @@
             "preparing": "準備中",
             "shipped": "発送済み",
             "delivered": "配達済み",
-            "cancelled": "キャンセル",
+            "cancelled": "キャンセル済み",
             "refunded": "返金済み"
         },
         "product": {
@@ -1178,7 +1178,7 @@
             "sourceNone": "なし（コーヒー以外）",
             "beanGroup": "シングルオリジン",
             "blendGroup": "ブレンド",
-            "profile": "焙煎プロファイル",
+            "profile": "ローストプロファイル",
             "profileNone": "なし",
             "empty": "商品はまだありません。販売SKUを豆またはブレンドに紐付けてください。",
             "inbound": "入庫",
@@ -1214,7 +1214,7 @@
                 "shopify": "Shopifyを接続"
             },
             "help": {
-                "naver": "コマースAPIセンター → アプリケーション → Client IDとClient Secretをコピー（SELFタイプ）。",
+                "naver": "Commerce API Center → アプリケーション → Client IDとClient Secretをコピー（SELFタイプ）。",
                 "cafe24": "Cafe24 developers → OAuthアプリ → Mall IDとアクセストークンを貼り付け。",
                 "shopify": "Shopify管理画面 → アプリ開発 → read_orders・read_products権限のカスタムアプリをインストール → ショップドメインとAdmin APIアクセストークンを貼り付け。"
             },
