@@ -47,7 +47,7 @@
             "roast": "진행 중인 로스팅",
             "history": "로스팅 기록",
             "beans": "재고",
-            "pricing": "원가·판매가",
+            "pricing": "Pricing",
             "profiles": "프로파일",
             "machines": "머신",
             "schedule": "로스팅 일정",
@@ -961,7 +961,7 @@
         }
     },
     "pricing": {
-        "title": "원가·판매가",
+        "title": "Pricing",
         "subtitle": "로스팅 후 원가를 계산하고 마진으로 판매가를 정합니다",
         "source": {
             "title": "원두 선택",
