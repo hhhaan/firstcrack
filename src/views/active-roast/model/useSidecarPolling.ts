@@ -1,3 +1,4 @@
+import { createBtFilter } from '@features/active-roast/lib/btFilter';
 import { enqueueTsvRow, initSessionTsv } from '@features/active-roast/lib/tsv-writer';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
@@ -62,6 +63,8 @@ export const useSidecarPolling = ({
     // preheating 첫 폴링 시각 — livePoints 실시간 표시용 세션 기준점
     const preChargeStartRef = useRef<number>(0);
     const prevPhaseRef = useRef(phase);
+    // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
+    const btFilterRef = useRef(createBtFilter());
 
     // sessionId가 새로 설정되면 TSV 파일을 헤더로 초기화한다.
     useEffect(() => {
@@ -142,11 +145,18 @@ export const useSidecarPolling = ({
                         return;
                     }
                 }
-                useRoastingStore.getState().updateLiveData(data);
+                // 글리치(스파이크·0값·단선) 샘플은 이 폴링 tick 전체를 스킵 — 자동감지 오발화 방지
+                const bt = data.bt == null ? null : btFilterRef.current(data.bt, Date.now());
+                if (data.bt != null && bt === null) {
+                    // 거부된 글리치: 표시값 깜빡임 방지 위해 store 갱신도 스킵
+                    useRoastingStore.getState().setReconnecting(data.reconnecting ?? false);
+                    setConnected(true);
+                    return;
+                }
+                useRoastingStore.getState().updateLiveData({ ...data, bt });
                 useRoastingStore.getState().setReconnecting(data.reconnecting ?? false);
                 setConnected(true);
-                const bt = data.bt;
-                if (bt === null || bt === undefined) return;
+                if (bt === null) return;
 
                 const currentPhase = useRoastingStore.getState().phase;
 

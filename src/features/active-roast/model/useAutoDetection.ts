@@ -118,6 +118,7 @@ export const useAutoDetection = (
         ) {
             yellowFiredRef.current = true;
             markEvent('Yellow', 'Auto-marked by temperature');
+            return; // 한 tick당 자동 이벤트 1개 — Yellow·FC Start 동시 마킹 방지
         }
         if (
             !fcStartFiredRef.current &&

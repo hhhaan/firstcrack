@@ -1,4 +1,4 @@
-import type { BlendComponent } from '@entities/blend';
+export type BlendRatioSource = { bean_id: string; ratio_pct: number };
 
 export type BlendDeduction = { beanId: string; grams: number };
 
@@ -6,7 +6,7 @@ export type BlendDeduction = { beanId: string; grams: number };
  * Distributes chargeGrams across blend components by ratio_pct.
  * Last component absorbs rounding remainder so total always equals chargeGrams.
  */
-export const buildBlendDeductions = (chargeGrams: number, components: BlendComponent[]): BlendDeduction[] => {
+export const buildBlendDeductions = (chargeGrams: number, components: BlendRatioSource[]): BlendDeduction[] => {
     if (!components.length) return [];
     let allocated = 0;
     return components.map((comp, i) => {
