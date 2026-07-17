@@ -1,7 +1,7 @@
 import { Badge } from '@shared/ui/Badge';
+import type { DashboardInventoryAlert } from '@widgets/dashboard-summary/api/useDashboard';
 import { Coffee } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { DashboardInventoryAlert } from '../api/useDashboard';
 import { alertBg, alertColor } from '../lib/constants';
 
 interface InventoryAlertsProps {

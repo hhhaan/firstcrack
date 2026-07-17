@@ -1,6 +1,7 @@
 import { beanKeys } from '@entities/bean/queries';
 import { useUpdatePlanBatch } from '@entities/plan';
 import { type RoastSessionInsert, roastSessionApi, useCreateRoastSession } from '@entities/roast';
+import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { BatchLimitError, canCompleteBatch, planMaxBatchesPerMonth } from '@shared/lib/features';
@@ -11,11 +12,17 @@ import type { Bean, Json, PlanBatchHandoff } from '@shared/types/database.types'
 import type { LogEntry } from '@shared/types/roast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import { determineStockDeduction } from '../lib/determine-stock-deduction';
-import type { RoastSummaryForm } from '../ui/RoastSummaryModal';
+
+/** Form fields required to persist a completed roast (matches summary modal). */
+export type SaveRoastFormData = {
+    notes: string;
+    weightGrams: number;
+    roastLevel: string | null;
+    beanId: string | null;
+};
 
 export interface SaveRoastParams {
-    formData: RoastSummaryForm;
+    formData: SaveRoastFormData;
     handoffBeanName: string | null;
     sessionId: string | null;
     userId: string;

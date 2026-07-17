@@ -1,8 +1,8 @@
+import { useCoffeeFutures } from '@shared/api/coffee-futures';
 import { useAuthStore } from '@shared/store/auth';
 import type { View } from '@shared/types/view';
 import { PageLayout } from '@shared/ui/PageLayout';
-import { useCoffeeFutures } from './api/useCoffeeFutures';
-import { useDashboard } from './api/useDashboard';
+import { useDashboard } from '@widgets/dashboard-summary/api/useDashboard';
 import { DashboardHeader } from './components/DashboardHeader';
 import { InventoryAlerts } from './components/InventoryAlerts';
 import { KpiSection } from './components/KpiSection';

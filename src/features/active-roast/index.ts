@@ -22,3 +22,5 @@ export type { DeductRoastStockParams } from './model/useDeductRoastStock';
 export { useDeductRoastStock } from './model/useDeductRoastStock';
 export { useRoastActions } from './model/useRoastActions';
 export { useRoastKeyboardShortcuts } from './model/useRoastKeyboardShortcuts';
+export type { SaveRoastFormData, SaveRoastParams, SaveRoastResult } from './model/useSaveRoast';
+export { useSaveRoast } from './model/useSaveRoast';

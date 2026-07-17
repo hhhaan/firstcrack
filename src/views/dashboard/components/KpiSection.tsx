@@ -1,8 +1,8 @@
+import type { CoffeeFuturesData } from '@shared/api/coffee-futures';
 import { durationDiff, formatDuration, pctChange } from '@shared/lib/format';
 import { Clock, Coffee, TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { CoffeeFuturesData } from '../api/useCoffeeFutures';
 import { KpiCard } from './KpiCard';
 
 interface KpiSectionProps {

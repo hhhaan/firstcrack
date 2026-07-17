@@ -1,8 +1,8 @@
 import { MonthlyBatchesChart } from '@shared/ui/MonthlyBatchesChart';
+import type { MonthlyBatch } from '@widgets/dashboard-summary/api/useDashboard';
 import { Calendar } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { MonthlyBatch } from '../api/useDashboard';
 import { formatMonth } from '../lib/format';
 
 interface MonthlyChartSectionProps {

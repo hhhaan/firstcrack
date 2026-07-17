@@ -1,9 +1,9 @@
 import { useRoastingStore } from '@features/active-roast';
+import { useWeather } from '@shared/api/weather';
 import type { View } from '@shared/types/view';
 import { PillButton } from '@shared/ui/PillButton';
 import { ArrowRight, Droplets, Thermometer } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useWeather } from '../api/useWeather';
 import { getGreeting, localeForDate } from '../lib/format';
 
 interface DashboardHeaderProps {
