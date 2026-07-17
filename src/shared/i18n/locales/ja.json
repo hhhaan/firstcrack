@@ -750,6 +750,11 @@
             "chartLoading": "チャート読み込み中...",
             "chartUnavailable": "チャート利用不可"
         },
+        "scorecard": {
+            "title": "vs {{name}}",
+            "devTime": "デベロップ時間",
+            "devPct": "デベロップ率"
+        },
         "table": {
             "date": "日付",
             "bean": "豆",

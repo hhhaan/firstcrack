@@ -7,6 +7,7 @@ import { RoastTempChart } from '@views/active-roast/ui/RoastTempChart';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from 'lucide-react';
 import { Fragment, type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SessionScorecard } from './SessionScorecard';
 
 // ── Constants ──
 
@@ -152,6 +153,8 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                         </div>
                     </div>
                 </div>
+
+                <SessionScorecard session={session} />
 
                 {session.tsv_path && (
                     <div className="mt-4">

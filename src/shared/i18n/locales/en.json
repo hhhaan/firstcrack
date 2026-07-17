@@ -750,6 +750,11 @@
             "chartLoading": "Loading chart…",
             "chartUnavailable": "Chart unavailable"
         },
+        "scorecard": {
+            "title": "vs {{name}}",
+            "devTime": "Dev Time",
+            "devPct": "Dev Ratio"
+        },
         "cupping": {
             "title": "Cupping",
             "avgScore": "Avg {{score}} · {{count}} scores",

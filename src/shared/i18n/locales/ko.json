@@ -557,6 +557,11 @@
             "chartLoading": "차트 불러오는 중…",
             "chartUnavailable": "차트를 불러올 수 없습니다"
         },
+        "scorecard": {
+            "title": "vs {{name}}",
+            "devTime": "발현 시간",
+            "devPct": "발현 비율"
+        },
         "cupping": {
             "title": "커핑",
             "avgScore": "평균 {{score}} · {{count}}건",
