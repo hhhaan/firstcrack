@@ -755,6 +755,16 @@
             "devTime": "Dev Time",
             "devPct": "Dev Ratio"
         },
+        "compare": {
+            "button": "Compare",
+            "cancel": "Exit compare",
+            "open": "Compare ({{count}})",
+            "title": "Compare Sessions ({{count}})",
+            "close": "Close",
+            "curveOverlay": "Curve Overlay",
+            "noCurves": "No curve data in selected sessions",
+            "noCurveData": "No curve data"
+        },
         "cupping": {
             "title": "Cupping",
             "avgScore": "Avg {{score}} · {{count}} scores",

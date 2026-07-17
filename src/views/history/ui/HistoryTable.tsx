@@ -4,7 +4,8 @@ import { formatDateShort, formatDuration } from '@shared/lib/format';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { RoastTempChart } from '@views/active-roast/ui/RoastTempChart';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from 'lucide-react';
+import { COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from 'lucide-react';
 import { Fragment, type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SessionScorecard } from './SessionScorecard';
@@ -194,6 +195,8 @@ interface HistoryTableProps {
     total: number;
     filteredTotal: number;
     expandedId: string | null;
+    compareMode: boolean;
+    compareIds: string[];
     onRowClick: (id: string) => void;
     onDeleteClick: (id: string) => void;
     sortKey: SortKey;
@@ -210,6 +213,8 @@ export const HistoryTable = ({
     total,
     filteredTotal,
     expandedId,
+    compareMode,
+    compareIds,
     onRowClick,
     onDeleteClick,
     sortKey,
@@ -250,6 +255,7 @@ export const HistoryTable = ({
             <table className="min-w-250 w-full table-fixed border-collapse md:min-w-200 lg:min-w-250">
                 <thead>
                     <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                        {compareMode && <th style={{ width: '40px' }} />}
                         {columns.map((col, colIdx) => {
                             const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
                             return (
@@ -272,13 +278,33 @@ export const HistoryTable = ({
                 </thead>
                 <tbody>
                     {sessions.map((session) => {
-                        const isExpanded = expandedId === session.id;
+                        const isExpanded = !compareMode && expandedId === session.id;
+                        const compareIdx = compareIds.indexOf(session.id);
                         return (
                             <Fragment key={session.id}>
                                 <tr
                                     onClick={() => onRowClick(session.id)}
                                     className={`group cursor-pointer border-b border-border-subtle dark:border-[#585d61] transition ${isExpanded ? 'bg-[rgba(245,245,245,0.5)] dark:bg-[rgba(38,43,48,0.5)]' : 'hover:bg-[rgba(245,242,239,0.45)] dark:hover:bg-[rgba(38,43,48,0.45)]'}`}
                                 >
+                                    {compareMode && (
+                                        <td className="px-3 py-3" style={{ width: '40px' }}>
+                                            <div
+                                                className="flex h-4 w-4 items-center justify-center rounded border transition"
+                                                style={
+                                                    compareIdx >= 0
+                                                        ? {
+                                                              backgroundColor:
+                                                                  COMPARE_COLORS[compareIdx % COMPARE_COLORS.length],
+                                                              borderColor:
+                                                                  COMPARE_COLORS[compareIdx % COMPARE_COLORS.length],
+                                                          }
+                                                        : { borderColor: 'var(--color-muted)' }
+                                                }
+                                            >
+                                                {compareIdx >= 0 && <Check size={11} strokeWidth={3} color="#fff" />}
+                                            </div>
+                                        </td>
+                                    )}
                                     {columns.map((col, idx) => {
                                         const isActions = col.key === null;
                                         const cellClass = isActions

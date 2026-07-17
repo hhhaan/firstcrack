@@ -755,6 +755,16 @@
             "devTime": "デベロップ時間",
             "devPct": "デベロップ率"
         },
+        "compare": {
+            "button": "比較",
+            "cancel": "比較を終了",
+            "open": "比較する ({{count}})",
+            "title": "セッション比較 ({{count}})",
+            "close": "閉じる",
+            "curveOverlay": "カーブオーバーレイ",
+            "noCurves": "選択したセッションにカーブデータがありません",
+            "noCurveData": "カーブデータなし"
+        },
         "table": {
             "date": "日付",
             "bean": "豆",

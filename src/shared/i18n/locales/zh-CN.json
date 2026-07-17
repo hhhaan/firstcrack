@@ -755,6 +755,16 @@
             "devTime": "发展时间",
             "devPct": "发展率"
         },
+        "compare": {
+            "button": "对比",
+            "cancel": "退出对比",
+            "open": "对比 ({{count}})",
+            "title": "烘焙记录对比 ({{count}})",
+            "close": "关闭",
+            "curveOverlay": "曲线叠加",
+            "noCurves": "所选记录没有曲线数据",
+            "noCurveData": "无曲线数据"
+        },
         "table": {
             "date": "日期",
             "bean": "生豆",

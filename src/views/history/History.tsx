@@ -10,7 +10,7 @@ import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
 import { DateRangeFilter } from '@widgets/date-range-filter';
-import { Download, FileText, Search, X } from 'lucide-react';
+import { Download, FileText, GitCompare, Search, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHistoryFilters } from './hooks/useHistoryFilters';
@@ -18,6 +18,9 @@ import { buildReportData } from './lib/buildReportData';
 import { DeleteSessionModal } from './ui/DeleteSessionModal';
 import { HistorySkeleton } from './ui/HistorySkeleton';
 import { HistoryTable } from './ui/HistoryTable';
+import { SessionCompareModal } from './ui/SessionCompareModal';
+
+const MAX_COMPARE = 4;
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 
@@ -28,6 +31,9 @@ export const History = () => {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [showReport, setShowReport] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [compareMode, setCompareMode] = useState(false);
+    const [compareIds, setCompareIds] = useState<string[]>([]);
+    const [showCompare, setShowCompare] = useState(false);
 
     const {
         search,
@@ -143,8 +149,36 @@ export const History = () => {
     // ── Handlers ──
 
     const handleRowClick = (id: string): void => {
+        if (compareMode) {
+            setCompareIds((prev) =>
+                prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= MAX_COMPARE ? prev : [...prev, id],
+            );
+            return;
+        }
         setExpandedId(expandedId === id ? null : id);
     };
+
+    const handleToggleCompareMode = useCallback(() => {
+        setCompareMode((prev) => {
+            if (prev) {
+                setCompareIds([]);
+                return false;
+            }
+            setExpandedId((open) => {
+                setCompareIds(open ? [open] : []);
+                return null;
+            });
+            return true;
+        });
+    }, []);
+
+    const compareSessions = useMemo(
+        () =>
+            compareIds
+                .map((id) => rawSessions.find((s) => s.id === id))
+                .filter((s): s is NonNullable<typeof s> => s != null),
+        [compareIds, rawSessions],
+    );
 
     const handleOpenReport = useCallback(() => setShowReport(true), []);
     const handleCloseReport = useCallback(() => setShowReport(false), []);
@@ -179,6 +213,8 @@ export const History = () => {
                 total={totalSessions}
                 filteredTotal={displayTotal}
                 expandedId={expandedId}
+                compareMode={compareMode}
+                compareIds={compareIds}
                 onRowClick={handleRowClick}
                 onDeleteClick={handleDeleteClick}
                 sortKey={sortKey}
@@ -200,6 +236,26 @@ export const History = () => {
                 className="flex-col gap-4 md:flex-row"
                 actions={
                     <div className="flex items-center gap-2">
+                        {totalSessions > 1 && (
+                            <button
+                                type="button"
+                                onClick={handleToggleCompareMode}
+                                className={`inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] transition hover:-translate-y-px ${compareMode ? 'bg-primary text-white dark:bg-[#0d0d0d]' : 'bg-main-bg text-secondary hover:text-primary dark:bg-[#262b31] dark:text-[#e5e5e5]'}`}
+                            >
+                                <GitCompare size={14} strokeWidth={2} />
+                                {compareMode ? t('history.compare.cancel') : t('history.compare.button')}
+                            </button>
+                        )}
+                        {compareMode && (
+                            <button
+                                type="button"
+                                onClick={() => setShowCompare(true)}
+                                disabled={compareSessions.length < 2}
+                                className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                {t('history.compare.open', { count: compareSessions.length })}
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={handleOpenReport}
@@ -256,6 +312,9 @@ export const History = () => {
             </div>
 
             {renderContent()}
+            {showCompare && compareSessions.length >= 2 && (
+                <SessionCompareModal sessions={compareSessions} onClose={() => setShowCompare(false)} />
+            )}
             {showReport && (
                 <ModalShell onClose={handleCloseReport} labelledBy="monthly-report-title">
                     <div className="relative max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
