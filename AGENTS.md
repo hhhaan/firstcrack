@@ -1,8 +1,3 @@
----
-description: 
-alwaysApply: true
----
-
 ## Project
 Roastery management desktop app (like Cropster): roast profile logging, roast history tracking, green bean inventory management.
 
@@ -18,7 +13,7 @@ Roastery management desktop app (like Cropster): roast profile logging, roast hi
 - fix: `pnpm check:fix` | `types:gen` after DB schema migration
 
 ## Versioning
-SSoT: `tauri.conf.json > version`. Bump all 3 atomically (`package.json`, `tauri.conf.json`, `Cargo.toml`):
+SSoT: `version` field in `tauri.conf.json`. Bump all 3 atomically (`package.json`, `tauri.conf.json`, `Cargo.toml`):
 ```bash
 pnpm release <major.minor.patch>
 ```
@@ -56,11 +51,11 @@ Prefer `SKIP_VERIFY=1` over `--no-verify` (keeps other hooks; explicit intent in
 - R2/S3 from frontend: NO direct credentials → presigned URL only (issued by Edge Function)
 - presigned URL: ≤5min expiry, scoped to single key, validate user ownership
 
-# AGENT RULES
+## Agent Rules
 - Respond briefly and directly, fewest words possible. Core point only — no elaboration, no follow-up questions.
 - When implementing/editing code: NO chat/greetings/summaries — output ONLY precise code diffs (modified lines only). (Reviews, evaluations, questions, and planning are exempt — answer normally.)
 - repomix-output.xml: regenerate at session start and after large/structural changes (not every edit) via `pnpm repomix`.
-- ALWAYS prefix all bash/shell commands with `rtk ` (e.g., `rtk ls`, `rtk git`, `rtk npm`).
+- ALWAYS prefix all bash/shell commands with `rtk ` (e.g., `rtk ls`, `rtk git`, `rtk npm`). If `rtk` is not installed (CI, fresh machine), run the command without the prefix.
 - Commit: `git add` → `bash scripts/ai-commit.sh` (non-interactive gen-cmt wrapper; no manual commit messages). Never `git commit -m`.
 - [Exception] Omit `rtk ` prefix ONLY if output compression breaks error debugging.
 
@@ -107,7 +102,7 @@ mismatch→move to correct segment
 
 ## Architecture priority
 Readability and maintainability matter more than reducing file count or line count. Do not sacrifice clear separation of concerns for a smaller diff.
-When ponytail's "shortest working diff wins" conflicts with separation of concerns, SRP, or layer rules — architecture wins. Split files over squashing them.
+When "smallest possible diff" conflicts with separation of concerns, SRP, or layer rules — architecture wins. Split files over squashing them.
 
 ## SRP — all files (.ts/.tsx/.rs/.py)
 check: count reasons-to-change → 1=OK, >1=split
@@ -123,7 +118,7 @@ violations→split:
 
 split naming: name=reason-to-change, NO utils.ts/helpers.ts
 
-- extraction threshold (ladder rung 2 says reuse what exists; this is when NEW shared code is justified):
+- extraction threshold (always reuse existing code first; this is when NEW shared code is justified):
   - extract only if: 3+ occurrences + same reason-to-change + none of below
   - bad-abstraction signals (1+ → don't extract/revert):
     type-branching grows w/ callers | one caller's change leaks to others | boolean flag param (isX/mode) forks behavior | generic name (handleData/process/util) | can't explain "why same" in 1 sentence
