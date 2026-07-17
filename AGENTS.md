@@ -28,8 +28,9 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 | When | What runs | Auto-fix? |
 |------|-----------|-----------|
 | `git commit` | lint-staged → `biome check --write` on **staged files only** + secretlint | yes; lint-staged re-stages fixed files |
-| `git push` | `pnpm verify:all` + `pnpm doctor:fast` | no |
-| CI | typecheck, lint (biome), eslint, test, sidecar | no |
+| `git commit` (2) | migration staged w/o `database.types.ts` → block (bypass `SKIP_TYPES_GEN=1`) | no |
+| `git push` | `pnpm verify:all` | no |
+| CI | typecheck, lint (biome), eslint, test, i18n keys, secretlint, sidecar | no |
 | repomix | manual — `pnpm repomix` at session start or after large/structural change | — |
 
 ## External Services

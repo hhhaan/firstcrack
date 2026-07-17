@@ -1,5 +1,16 @@
 # block commits where release files would desync versions (reads git index)
 node scripts/check-version-sync.mjs
 
+# migration staged without regenerated types → block (bypass: SKIP_TYPES_GEN=1 git commit)
+# ponytail: staged-file heuristic, not a real diff check — RLS-only migrations false-positive, use bypass
+if git diff --cached --name-only | grep -q '^supabase/migrations/' &&
+    ! git diff --cached --name-only | grep -q '^src/shared/types/database.types.ts$'; then
+    if [ -z "$SKIP_TYPES_GEN" ]; then
+        echo "migration staged but database.types.ts not regenerated — run: pnpm types:gen && git add src/shared/types/database.types.ts" >&2
+        echo "(RLS/GRANT-only migration? bypass: SKIP_TYPES_GEN=1 git commit ...)" >&2
+        exit 1
+    fi
+fi
+
 # biome check --write on staged files only; lint-staged re-stages auto-fixed files
 pnpm exec lint-staged

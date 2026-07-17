@@ -672,3 +672,408 @@ Guatemala A.    50kg   ₩380,000   13.8%     ₩8,796/kg      10kg       ₩87,
 - **자동 감지 기능:**
     - **투입 감지:** BT가 설정값(예: 7°C) 이상 급격히 하락 시 자동 기록 시작.
     - **배출 감지:** BT가 설정값(예: 3°C) 이상 하락 시 자동 기록 종료.
+
+---
+
+## AUDIT 2026-07-16 — 개선 · 자동화
+
+코드베이스 · CI · husky · 대화 이력 감사. **Track A2(TSV durability) 제외.**
+
+SSoT 상세: `docs/superpowers/specs/roast-data-integrity-tracks.md` (A 트랙).
+
+### 기존 항목 교차참조 (이미 위에 있음)
+
+| ID | 요약 |
+|----|------|
+| Q1 | staleTime Infinity + invalidation 필수 |
+| Q2 | Pro 플랜 enforcement (클라 vs 서버 RLS) |
+| Q3 | 팀 공유 RLS 마이그레이션 |
+| Q4 | vitest 잔여 테스트 |
+| T15 | 마지막 머신 자동 재연결 |
+| T16 | 시리얼 포트 Refresh |
+| T17 | 네트워크 기기 자동 탐색 |
+| T31 | Charge 전 bean/profile 강제 선택 모달 |
+| T32 | Machines 연결 시 타이틀바 온도 |
+| T38 | OAuth 완료 후 브라우저 탭 자동 닫기 |
+
+---
+
+## AUTOMATION — 게이트 · CI · 훅
+
+### [AUTO1] i18n missing key CI — ✅ DONE (2026-07-17)
+
+`scripts/check-i18n.mjs` 추가. ko=strict(fail), ja/zh-CN=warn-only(번역 착수 전). `pnpm check:i18n`이 `verify`(pre-push)와 CI lint job에 포함됨. 번역 완료 시 스크립트의 STRICT 배열로 이동.
+
+**What:** `en`/`ko` 대비 `ja`/`zh-CN` 누락 키를 CI·pre-push에서 fail.
+
+**Why:** 2026-07-16 기준 ja ~118, zh-CN ~117 키 누락. 번역 회귀가 조용히 쌓임.
+
+**How:**
+
+1. `scripts/check-i18n.mjs` — 로케일 flatten 후 `en - locale` 차집합 출력, exit 1 if missing
+2. `package.json`: `"check:i18n": "node scripts/check-i18n.mjs"`
+3. `ci.yml` job 또는 `verify`에 포함
+4. (선택) 누락 키 일괄 채우기: en 값 복사 + `// TODO translate` 마킹은 제품 정책에 따름
+
+**Depends on:** 없음  
+**Priority:** HIGH (하루 미만)
+
+---
+
+### [AUTO2] migration → types:gen 게이트 — ✅ DONE (2026-07-17)
+
+`.husky/pre-commit`: migration 스테이징 + `database.types.ts` 미스테이징이면 커밋 차단. RLS/GRANT-only 마이그레이션은 `SKIP_TYPES_GEN=1`로 우회.
+
+**What:** `supabase/migrations/**` 변경 시 `database.types.ts` 재생성 여부 검사.
+
+**Why:** 마이그레이션만 올리고 `pnpm types:gen` 빠뜨리면 타입/런타임 불일치. 에이전트·수동 모두 빈번.
+
+**How:**
+
+1. pre-commit 또는 CI: staged/diff에 migration 있으면 types gen dry-run 후 `git diff --exit-code src/shared/types/database.types.ts`
+2. 또는 husky: migration 스테이징 시 `pnpm types:gen` 자동 실행 후 re-stage
+3. `append-db-aliases.mjs` 경로 유지
+
+**Depends on:** linked Supabase (로컬) / CI에 service role 또는 committed types only 정책  
+**Priority:** HIGH
+
+---
+
+### [AUTO3] AGENTS.md ↔ husky 불일치 정리 — ✅ DONE (2026-07-17)
+
+B안 채택: AGENTS.md Automation 표를 실제 훅에 맞게 수정 (push=`verify:all`만, doctor:fast 제거, AUTO1/2/5 게이트 반영).
+
+**What:** 문서와 실제 훅 동기화.
+
+**Current:**
+
+| 문서 (AGENTS) | 실제 |
+|---------------|------|
+| push: `verify:all` + `doctor:fast` | `.husky/pre-push` = `pnpm verify:all` only |
+| commit: lint-staged + secretlint | pre-commit = version-sync + lint-staged (secretlint는 lint-staged 경유) |
+
+**How (택1):**
+
+- A: pre-push에 `pnpm doctor:fast` 추가
+- B: AGENTS 표를 실제에 맞게 수정
+
+**Priority:** LOW (문서/신뢰 부채)
+
+---
+
+### [AUTO4] migration GRANT 검사 (supabase-ci)
+
+**What:** `CREATE TABLE` 마이그레이션에 `GRANT … TO authenticated` (및 필요 시 `service_role`) 누락 시 fail.
+
+**Why:** 기억/실무: SQL로 만든 테이블 GRANT 누락 → 403 반복. RLS enable만 검사 중.
+
+**How:**
+
+1. `.github/workflows/supabase-ci.yml` `rls-check` 옆 또는 동일 job에:
+   - `create table` 있으면 같은 파일(또는 후속 migration)에 `grant` + `authenticated` 있는지 휴리스틱
+2. false positive 가능 → 테이블 화이트리스트 또는 주석 예외 `skip-grant-check`
+
+**Depends on:** 없음  
+**Priority:** MEDIUM
+
+---
+
+### [AUTO5] secretlint를 CI에도 — ✅ DONE (2026-07-17)
+
+`ci.yml`에 `secrets` job 추가 (`pnpm scan:secrets`).
+
+**What:** lint-staged만이 아니라 `ci.yml`에서 `pnpm scan:secrets` 실행.
+
+**Why:** 훅 우회 push·GitHub UI 수정 시 시크릿 누수 가능.
+
+**How:** CI job 1개 추가 (ubuntu, pnpm install 후 scan). 대용량 바이너리 경로는 secretlint ignore 유지.
+
+**Priority:** MEDIUM
+
+---
+
+### [AUTO6] CI pnpm install 중복 제거 — ✅ DONE (2026-07-17)
+
+`.github/actions/setup/action.yml` composite action 생성, ci.yml 5개 node job이 공용 사용.
+
+**What:** typecheck / lint / eslint / test 가 각각 `pnpm install` — composite action 또는 단일 verify job으로 통합.
+
+**Why:** 대화 이력: CI/CD 빌드 시간·비용 불만. 캐시 hit여도 setup 중복.
+
+**How:**
+
+1. `.github/actions/setup-node-pnpm` composite (checkout 이후 공용)
+2. 또는 monorepo 아닌 monojob: `pnpm verify` 한 번에 (병렬성 트레이드오프)
+
+**Priority:** LOW–MEDIUM
+
+---
+
+### [AUTO7] Windows sidecar 스모크 (release 매트릭스)
+
+**What:** Windows 빌드 경로에서 sidecar 바이너리 존재·기동 스모크.
+
+**Why:** AGENTS: Windows sidecar CI 없음 / release-time only. path·serial 가정 버그 놓침.
+
+**How:**
+
+1. `release.yml` windows job: `build:sidecar` 후 `sidecar-x86_64-pc-windows-msvc.exe` 존재 확인
+2. (선택) headless `GET /health` 1회 (Windows runner + pyinstaller 산출물)
+
+**Depends on:** PyInstaller Windows 경로 안정화  
+**Priority:** MEDIUM (sidecar/path PR 전 필수 수준)
+
+---
+
+### [AUTO8] main 머지 시 migration apply 정책
+
+**What:** supabase-ci는 lint/RLS만 — remote DB apply 자동화 여부 결정·문서화.
+
+**Why:** migration 파일만 main에 쌓이고 프로덕 DB와 드리프트 가능.
+
+**How (결정 필요):**
+
+- A: main push `supabase/migrations/**` → `supabase db push` (권한·리뷰 게이트 필수)
+- B: 수동 apply only + RELEASE/DEPLOY 체크리스트에 명시
+- C: staging 자동 / prod 수동
+
+**Priority:** OPEN (정책 결정)
+
+---
+
+### [AUTO9] ESLint job 유지 여부
+
+**What:** biome + eslint(react-refresh) 이중. 의도 재확인.
+
+**Why:** 과거 CI 개선 대화에서 “ESLint 제거?” 논의. 현재 eslint는 react-refresh 규칙 위주.
+
+**How:** react-refresh를 biome로 대체 가능하면 eslint job 삭제; 아니면 AGENTS에 “왜 둘 다” 한 줄.
+
+**Priority:** LOW
+
+---
+
+### [AUTO10] invalidation 커버리지 검사 (Q1 실행)
+
+**What:** `useMutation` / features write 훅마다 관련 `invalidateQueries` 존재 여부를 테스트 또는 정적 목록으로 관리.
+
+**Why:** `staleTime: Infinity` — invalidation 누락 = stale UI. mutation 수 대비 invalidate 경로 적음.
+
+**How:**
+
+1. `docs` 또는 `src/**/invalidation.md` 표: mutation → query keys
+2. vitest: 주요 write 경로 mock queryClient 후 invalidate 호출 assert
+3. (선택) eslint custom / script: features/*/use*.ts에 mutation 있으면 invalidate 문자열 검색
+
+**Depends on:** Q1 A안 채택 시  
+**Priority:** HIGH (데이터 정합성 UX)
+
+---
+
+## DATA INTEGRITY — Track A (A2 제외)
+
+스펙: `docs/superpowers/specs/roast-data-integrity-tracks.md`  
+플랜: `docs/superpowers/plans/2026-07-12-track-a-data-integrity.md`
+
+### [A1] Disconnect grace
+
+**What:** 로스팅 중 센서 disconnect 시 세션 자동 wipe 금지. last-good 유지 + 배너.
+
+**Why:** 짧은 단선(10s)에 곡선·이벤트 날아가면 유료 SaaS 신뢰 붕괴.
+
+**Acceptance:** 8분 로스트 중 센서 10s down → 세션·데이터 유지, 최소 배너.
+
+**Priority:** HIGH (ship gate)
+
+---
+
+### [A3] Events persist + history replay
+
+**What:** FC/Drop/TP 등 이벤트를 세션과 함께 저장. 히스토리 재오픈 시 마커·페이즈 일치.
+
+**Why:** 곡선만 있고 이벤트 없으면 재현 불가.
+
+**Depends on:** A4 권장 (time_sec SSoT 먼저)  
+**Priority:** HIGH
+
+---
+
+### [A4] Time base (charge-relative monotonic SSoT)
+
+**What:** samples · events · phase% · DTR이 동일 charge-relative 시계.
+
+**Why:** 이벤트 시각과 샘플 축 어긋나면 히스토리 마커 거짓말.
+
+**Priority:** HIGH (A3 전에 권장)
+
+---
+
+### [A5] Crash journal / draft resume
+
+**What:** 앱 kill 중 로스트 → 재실행 시 draft 복구 제안 (curve + events + phase).
+
+**Why:** 강제 종료 = 실무에서 흔함. “Never lose a roast”.
+
+**Acceptance:** force-quit mid-roast → relaunch offers restore.  
+**Priority:** HIGH
+
+---
+
+> **제외:** [A2] TSV durability / save 실패 시 로컬 보존 — 본 감사 범위에서 의도적 제외.
+
+---
+
+## PRODUCT / BACKEND
+
+### [PLAN1] 서버 권위 plan 한도 (월 배치 등)
+
+**What:** Free/Pro 한도(예: 월 200 배치)를 클라이언트만이 아니라 Supabase RLS/RPC/Edge에서 강제.
+
+**Why:** Q2 미결. 클라 `selectIsPro` 우회 가능. 대화에서 월 200 제한 요청 이력.
+
+**How:**
+
+1. `docs/pricing/06-enforcement-map.md`와 코드 경로 매핑
+2. write RPC / trigger: plan + period count 검사
+3. 초과 시 4xx + 클라 업그레이드 UX
+
+**Depends on:** Q2 결정, Polar/profiles.plan 모델  
+**Priority:** HIGH (과금)
+
+---
+
+### [ORD2] 주문 연동 Phase 2/3
+
+**What:** 네이버·카페24·쇼피파이 — Phase 1(수동주문·완제품재고·필요량 RPC) 이후 자동 동기·아웃바운드.
+
+**Why:** enterprise 로스터리 연동 대화 반복. `docs/sales-channel-integration.md`, `docs/order-status-sync.md`.
+
+**How:** 스펙 문서 Phase 표 따름. channel-connect / order-sync Edge 확장.
+
+**Depends on:** Phase 1 안정화, 채널 OAuth 시크릿  
+**Priority:** MEDIUM–HIGH ( ent. )
+
+---
+
+### [SID1] sidecar 복구 실패 토스트
+
+**What:** 자동 재시작 3회 실패 후 프론트에 토스트/배너 emit.
+
+**Why:** 백그라운드 재시도만 하면 사용자는 “기계 죽음”을 모름. (memory: project_sidecar_dead_toast_todo)
+
+**How:**
+
+1. sidecar 또는 Tauri 레이어: recovery exhausted 이벤트
+2. 프론트 listen → toast + Machines 뷰 CTA
+
+**Priority:** MEDIUM
+
+---
+
+### [SEC1] R2 자격증명 번들 감사 — ✅ CLOSED (2026-07-17)
+
+검증 완료: `VITE_R2` 문자열이 `src/`·`supabase/` 어디에도 없음. presign-only 경로 확인. AUTO5(secretlint CI)가 회귀 방지.
+
+**What:** `VITE_R2_*` 등 시크릿이 클라이언트 번들에 없는지 재검증. presign-only 경로 고정.
+
+**Why:** 구 memory에 client 노출 TODO. 현재 코드는 `get-upload-url` / `get-download-url` presign 경로로 보임 — **한 번 스캔으로 확정**.
+
+**How:**
+
+1. `rg VITE_R2` + production `dist` 문자열 스캔
+2. 빌드 secrets vs runtime: Edge only
+3. 발견 시 즉시 rotate (AGENTS 규칙)
+
+**Priority:** HIGH if still present, else close
+
+---
+
+### [DOC1] Phidget 시스템 드라이버 설치 안내
+
+**What:** Nextra/연동 가이드에 Phidget22 드라이버 설치 절 추가.
+
+**Why:** 하드웨어 연동 onboarding. (memory: project_phidget_docs)
+
+**Depends on:** fc-landing-docs / 연동 가이드 위치  
+**Priority:** LOW–MEDIUM
+
+---
+
+## CODE QUALITY / FSD
+
+### [CQ1] 대형 파일 SRP 분할
+
+**What:** 이유-to-change > 1 인 거대 파일 분할.
+
+**후보 (2026-07-16 LOC):**
+
+| 파일 | ~LOC |
+|------|------|
+| `src/views/active-roast/ui/RoastTempChart.tsx` | 1097 |
+| `src/widgets/add-machine-modal/ui/AddMachineModal.tsx` | 754 |
+| `src/views/profiles/NewProfileModal.tsx` | 678 |
+| `src/views/login/Login.tsx` | 635 |
+| `src/views/reports/MonthlyProductionReport.tsx` | 614 |
+| `src/views/cupping/Cupping.tsx` | 584 |
+| `src/views/active-roast/ActiveRoast.tsx` | 576 |
+
+**Rule:** AGENTS SRP — size>300 = re-check trigger. 한 번에 전부가 아니라 터치하는 파일만 분할.
+
+**Priority:** MEDIUM (점진)
+
+---
+
+### [CQ2] views 직접 fetch → entities/features
+
+**What:** views에서 `useQuery`/`useMutation`/axios 직접 호출 제거.
+
+**현재 예:**
+
+- `src/views/dashboard/api/useDashboard.ts` 등
+- `src/views/active-roast/model/useSaveRoast.ts`
+- `src/views/schedule/hooks/useScheduleDayView.ts`
+
+**Why:** FSD: views = orchestration only.
+
+**Priority:** MEDIUM
+
+---
+
+### [CQ3] 테스트 확대 (Q4 연장)
+
+**What:** 순수 계산 + integrity + invalidation 우선. 현재 ~16 test / ~327 ts(x).
+
+**우선 후보:**
+
+- save/upload 실패 경로 (A 트랙 연동 시)
+- stock/reserved 집계
+- plan rrule / batch quantities (일부 있음)
+- AUTO10 invalidation 표 대응 테스트
+
+**React Testing Library:** 선택 (Q4).
+
+**Priority:** MEDIUM
+
+---
+
+## UX 빠른 승리 (구현 스펙은 상단 T* 참고)
+
+| 우선 | ID | 한 줄 |
+|------|-----|--------|
+| 1 | T32 | Machines connect → `enterPreheating` 1줄 |
+| 2 | T15 | last machine auto-reconnect |
+| 3 | T31 | Charge 전 bean 강제 선택 |
+| 4 | T38 | OAuth 중간 콜백 페이지 |
+| 5 | T16 / T17 | 포트 refresh / 네트워크 스캔 |
+
+---
+
+## 권장 착수 순서 (A2 제외)
+
+1. ~~AUTO1 i18n CI~~ ✅  
+2. ~~AUTO2 types:gen 게이트~~ ✅ (AUTO3·5·6, SEC1도 완료)  
+3. A1 → A4 → A3 → A5 (data integrity, A2 제외)  
+4. PLAN1 서버 plan 한도  
+5. T32 + T15 (체감 UX)  
+6. AUTO4  
+7. ORD2 · CQ* 점진
