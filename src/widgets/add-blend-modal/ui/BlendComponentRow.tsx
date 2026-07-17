@@ -1,11 +1,9 @@
 import type { Bean } from '@shared/types/database.types';
+import { inputCls } from '@shared/ui/form-styles';
 import { ChevronDown, X } from 'lucide-react';
 import type { UseFormRegister } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import type { BlendForm } from '../lib/schema';
-
-const inputCls =
-    'w-full px-3 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all';
 
 type BlendComponentRowProps = {
     index: number;

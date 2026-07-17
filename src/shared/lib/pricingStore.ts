@@ -1,6 +1,4 @@
-import { LazyStore } from '@tauri-apps/plugin-store';
-
-const store = new LazyStore('settings.json');
+import { settingsGet, settingsSet } from './settings-store';
 
 export const PRICING_FIXED_OVERHEADS_KEY = 'pricing.fixedOverheads';
 
@@ -50,14 +48,10 @@ const writeLocal = (items: StoredFixedOverhead[]) => {
 
 export const pricingStore = {
     getFixedOverheads: async (): Promise<StoredFixedOverhead[]> => {
-        try {
-            const val = await store.get<unknown>(PRICING_FIXED_OVERHEADS_KEY);
-            const items = normalize(val);
-            // Empty array may be a first-run store miss — fall through to localStorage.
-            if (items.length > 0) return items;
-        } catch {
-            /* Tauri unavailable */
-        }
+        const val = await settingsGet<unknown>(PRICING_FIXED_OVERHEADS_KEY);
+        const items = normalize(val);
+        // Empty array may be a first-run store miss — fall through to localStorage.
+        if (items.length > 0) return items;
         return readLocal();
     },
 
@@ -68,11 +62,6 @@ export const pricingStore = {
         } catch {
             /* quota / private mode */
         }
-        try {
-            await store.set(PRICING_FIXED_OVERHEADS_KEY, safe);
-            await store.save();
-        } catch {
-            /* Tauri unavailable */
-        }
+        await settingsSet(PRICING_FIXED_OVERHEADS_KEY, safe);
     },
 };

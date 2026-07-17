@@ -1,7 +1,5 @@
-import { LazyStore } from '@tauri-apps/plugin-store';
+import { settingsGet, settingsSet } from './settings-store';
 import { STOCK_HORIZON_DAYS } from './stock-calc';
-
-const store = new LazyStore('settings.json');
 
 const HORIZON_KEY = 'inventory.alertHorizonDays';
 
@@ -26,23 +24,14 @@ const writeLocal = (days: number) => {
 
 export const inventoryStore = {
     getHorizonDays: async (): Promise<number> => {
-        try {
-            const val = await store.get<number>(HORIZON_KEY);
-            if (typeof val === 'number' && val > 0) return val;
-        } catch {
-            /* Tauri unavailable */
-        }
+        const val = await settingsGet<number>(HORIZON_KEY);
+        if (typeof val === 'number' && val > 0) return val;
         return readLocal() ?? STOCK_HORIZON_DAYS;
     },
 
     setHorizonDays: async (days: number): Promise<void> => {
         const safe = Math.max(1, Math.min(365, Math.round(days)));
         writeLocal(safe);
-        try {
-            await store.set(HORIZON_KEY, safe);
-            await store.save();
-        } catch {
-            /* Tauri unavailable */
-        }
+        await settingsSet(HORIZON_KEY, safe);
     },
 };

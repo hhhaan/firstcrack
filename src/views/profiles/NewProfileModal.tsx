@@ -4,26 +4,16 @@ import { useRoastSessions } from '@entities/roast';
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { useAuthStore } from '@shared/store/auth';
 import type { RoastProfile } from '@shared/types/database.types';
+import { chipCls, inputCls, labelCls } from '@shared/ui/form-styles';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Check, ChevronDown, ChevronRight, History, Pencil, Plus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 
-// ── 공통 입력 필드 ───────────────────────────────────────────
-
-const inputCls =
-    'w-full px-3.5 py-3 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20 dark:focus:border-[#585d61]';
 const selectCls = `${inputCls} appearance-none cursor-pointer`;
-const labelCls = 'flex items-center gap-1.5 text-xs font-semibold text-muted mb-2 tracking-[0.02em] uppercase';
-
-const chipCls = (selected: boolean) =>
-    `px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all duration-150 border ${
-        selected
-            ? 'border-primary bg-primary text-white dark:bg-transparent dark:text-secondary dark:border-[#585d61]'
-            : 'border-black/10 dark:border-[#585d61] bg-white/70 dark:bg-surface-elevated text-secondary'
-    }`;
 
 const NUMERIC_INPUT_PROPS = {
     type: 'text' as const,
@@ -665,11 +655,7 @@ export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUp
     );
 
     return (
-        <ModalShell
-            onClose={onClose}
-            labelledBy="new-profile-modal-title"
-            contentClassName="max-w-[640px] w-full max-h-[min(860px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.97)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white dark:border-[#585d61] overflow-hidden"
-        >
+        <ModalShell onClose={onClose} labelledBy="new-profile-modal-title" contentClassName={modalPanel.formLg}>
             {mode === 'pick' && !editingProfile && renderPicker()}
             {mode === 'session-list' && !editingProfile && renderSessionPicker()}
             {(mode === 'manual' || mode === 'from-session') && renderForm()}

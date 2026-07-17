@@ -5,6 +5,7 @@ import type { Bean } from '@shared/types/database.types';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -147,11 +148,7 @@ export const AddBeanModal = ({
     if (!open) return null;
 
     return (
-        <ModalShell
-            onClose={onClose}
-            labelledBy="add-bean-modal-title"
-            contentClassName="max-w-[640px] w-full max-h-[min(860px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.97)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white dark:border-[#585d61] overflow-hidden"
-        >
+        <ModalShell onClose={onClose} labelledBy="add-bean-modal-title" contentClassName={modalPanel.formLg}>
             <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
                 <ModalHeader
                     titleId="add-bean-modal-title"

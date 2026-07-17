@@ -2,6 +2,7 @@ import { useBeans } from '@entities/bean/queries';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuthStore } from '@shared/store/auth';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Spinner } from '@shared/ui/Spinner';
 import { Check, Coffee } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
@@ -156,7 +157,7 @@ export const RoastSummaryModal = ({
             onClose={onClose}
             labelledBy="roast-summary-modal-title"
             overlayClassName="z-[10000]"
-            contentClassName="max-w-[420px] w-full bg-main-bg rounded p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px]"
+            contentClassName={modalPanel.sm}
         >
             <div className="w-11 h-11 rounded-md bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] flex items-center justify-center mb-4.5">
                 <Check size={18} strokeWidth={2.5} />

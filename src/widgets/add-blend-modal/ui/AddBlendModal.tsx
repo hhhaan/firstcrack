@@ -5,9 +5,11 @@ import { blendTotalRatio } from '@entities/blend/lib';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { useAuthStore } from '@shared/store/auth';
+import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { BlendComponentRow } from '@widgets/add-blend-modal/ui/BlendComponentRow';
 import { useEffect } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -19,11 +21,6 @@ type Props = {
     onClose: () => void;
     editing?: BlendWithComponents | null;
 };
-
-const inputCls =
-    'w-full px-3.5 py-3 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all';
-
-const labelCls = 'flex items-center gap-1.5 text-xs font-semibold text-muted mb-2 tracking-[0.02em] uppercase';
 
 export const AddBlendModal = ({ open, onClose, editing }: Props) => {
     const { t } = useTranslation();
@@ -95,11 +92,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
     };
 
     return (
-        <ModalShell
-            onClose={onClose}
-            labelledBy="add-blend-modal-title"
-            contentClassName="max-w-[560px] w-full max-h-[min(720px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.96)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white dark:border-[#585d61] overflow-hidden"
-        >
+        <ModalShell onClose={onClose} labelledBy="add-blend-modal-title" contentClassName={modalPanel.formMd}>
             <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
                 <ModalHeader
                     titleId="add-blend-modal-title"

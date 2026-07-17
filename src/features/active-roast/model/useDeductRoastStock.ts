@@ -1,5 +1,6 @@
 import { beanStockEventApi, stockEventKeys } from '@entities/bean-stock-event';
 import { blendApi } from '@entities/blend';
+import { inventoryQueryRoots } from '@shared/lib/query-keys';
 import { useAuthStore } from '@shared/store/auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
@@ -60,7 +61,7 @@ export const useDeductRoastStock = () => {
 
             await beanStockEventApi.insertMany(events);
 
-            qc.invalidateQueries({ queryKey: ['bean-stock-summaries'] });
+            qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
             for (const e of events) {
                 // biome-ignore lint/style/noNonNullAssertion: error already checked above
                 qc.invalidateQueries({ queryKey: stockEventKeys.summary(e.bean_id!) });

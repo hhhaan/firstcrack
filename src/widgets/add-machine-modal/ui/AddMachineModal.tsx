@@ -17,8 +17,10 @@ import { cn } from '@shared/lib/cn';
 import { sidecar } from '@shared/lib/sidecar';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { Badge } from '@shared/ui/Badge';
+import { inputCls, labelCls, tabCls } from '@shared/ui/form-styles';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { ChevronDown, Cpu, Info, Loader, MapPin, Radio, ShieldCheck, Wifi, WifiOff, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -40,20 +42,12 @@ interface AddMachineModalProps {
     onEdit?: (id: string, params: Record<string, unknown>, keepConnection?: boolean) => Promise<void>;
 }
 
-const inputCls =
-    'w-full px-3.5 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all focus:border-black/20 dark:focus:border-[#585d61]';
-const selectCls = `${inputCls} appearance-none pr-9 cursor-pointer`;
-const labelCls = 'block text-[11px] font-semibold text-muted mb-1.5 tracking-[0.05em] uppercase';
+const selectCls = `${inputCls} appearance-none cursor-pointer`;
+
 const secondaryBtnCls =
     'px-4 py-2.5 rounded-xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-[13px] font-medium cursor-pointer shadow-(--shadow-inset) transition-colors';
 const primaryConnectBtnCls =
     'flex items-center gap-1.5 px-5 py-2.5 rounded-xl border-none bg-green-600 dark:bg-green-700 text-white text-[13px] font-semibold shadow-[0_2px_8px_rgba(22,163,74,0.35)] transition-opacity';
-const tabCls = (active: boolean) =>
-    `flex-1 py-3 rounded-xl border-none text-sm cursor-pointer transition-all duration-200 ${
-        active
-            ? 'bg-white dark:bg-surface-elevated font-semibold text-primary dark:text-[#e5e5e5] shadow-[0_4px_12px_rgba(0,0,0,0.08)]'
-            : 'bg-transparent font-medium text-muted dark:text-[#e5e5e5] hover:text-secondary dark:hover:text-white/70'
-    }`;
 
 const ROASTERS_BY_BRAND = groupRoastersByBrand(ROASTER_REGISTRY);
 const PROTOCOLS = listProtocols(ROASTER_REGISTRY);
@@ -400,11 +394,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
     if (!open) return null;
 
     return (
-        <ModalShell
-            onClose={handleClose}
-            labelledBy="add-machine-modal-title"
-            contentClassName="max-w-[680px] w-full max-h-[min(820px,calc(100vh-56px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.97)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.22)] border border-white dark:border-[#585d61] overflow-hidden"
-        >
+        <ModalShell onClose={handleClose} labelledBy="add-machine-modal-title" contentClassName={modalPanel.formLg}>
             {/* Header */}
             <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm border-b border-black/4 dark:border-[#585d61] px-7 pt-5.5 pb-4.5 flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3.5">

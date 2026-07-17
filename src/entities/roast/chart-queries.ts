@@ -1,3 +1,4 @@
+import { roastChartKeys } from '@shared/lib/query-keys';
 import { fetchTsvFromR2 } from '@shared/lib/r2';
 import { parseTsv } from '@shared/lib/tsv';
 import { useQuery } from '@tanstack/react-query';
@@ -9,7 +10,7 @@ export const useHistoryChart = (tsvPath: string | null) => {
         isLoading,
         isError,
     } = useQuery({
-        queryKey: ['history-chart', tsvPath],
+        queryKey: roastChartKeys.history(tsvPath),
         // biome-ignore lint/style/noNonNullAssertion: error already checked above
         queryFn: async () => parseTsv(await fetchTsvFromR2(tsvPath!)),
         enabled: !!tsvPath,

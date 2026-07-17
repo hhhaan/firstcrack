@@ -1,6 +1,5 @@
-import { LazyStore } from '@tauri-apps/plugin-store';
+import { settingsGet, settingsSet } from './settings-store';
 
-const store = new LazyStore('settings.json');
 const KEY = 'roastery.location';
 
 export interface RoasteryLocation {
@@ -16,9 +15,8 @@ export const parseLocationString = (str: string): RoasteryLocation | null => {
 };
 
 export const locationStore = {
-    get: () => store.get<RoasteryLocation>(KEY),
+    get: () => settingsGet<RoasteryLocation>(KEY),
     set: async (loc: RoasteryLocation) => {
-        await store.set(KEY, loc);
-        await store.save();
+        await settingsSet(KEY, loc);
     },
 };

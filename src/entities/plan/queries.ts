@@ -1,3 +1,4 @@
+import { planQueryRoots } from '@shared/lib/query-keys';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { buildRRule } from '@shared/lib/rrule';
 import { calcPlanBatchCount } from '@shared/lib/stock-calc';
@@ -9,25 +10,49 @@ import { dayPlanApi, dayPlanRangeApi, planBatchApi, type RecurrenceRuleMasterPat
 // ── Query keys ────────────────────────────────────────────────────────────────
 
 export const planKeys = {
-    day: (userId: string, date: string) => ['day_plan', userId, date] as const,
-    batches: (planId: string) => ['plan_batches', planId] as const,
+    dayRoot: planQueryRoots.day,
+    batchesRoot: planQueryRoots.batches,
+    dayBatchesRoot: planQueryRoots.dayBatches,
+    rangeBatchesRoot: planQueryRoots.rangeBatches,
+    rangeSummaryRoot: planQueryRoots.rangeSummary,
+    recurrenceRulesRoot: planQueryRoots.recurrenceRules,
+    weekSummaryRoot: planQueryRoots.weekSummary,
+    monthSummaryRoot: planQueryRoots.monthSummary,
+    day: (userId: string, date: string) => [...planQueryRoots.day, userId, date] as const,
+    batches: (planId: string) => [...planQueryRoots.batches, planId] as const,
     dayBatches: (userId: string, date: string, lookbackDays?: number) =>
         lookbackDays && lookbackDays > 0
-            ? (['day_batches', userId, date, lookbackDays] as const)
-            : (['day_batches', userId, date] as const),
-    rangeBatches: (userId: string, start: string, end: string) => ['range_batches', userId, start, end] as const,
-    rangeSummary: (userId: string, start: string, end: string) => ['day_plan_range', userId, start, end] as const,
-    recurrenceRules: (userId: string) => ['recurrence_rules', userId] as const,
-    weekSummary: (userId: string, start: string, end: string) => ['week_summary', userId, start, end] as const,
-    monthSummary: (userId: string, start: string, end: string) => ['month_summary', userId, start, end] as const,
+            ? ([...planQueryRoots.dayBatches, userId, date, lookbackDays] as const)
+            : ([...planQueryRoots.dayBatches, userId, date] as const),
+    rangeBatches: (userId: string, start: string, end: string) =>
+        [...planQueryRoots.rangeBatches, userId, start, end] as const,
+    rangeSummary: (userId: string, start: string, end: string) =>
+        [...planQueryRoots.rangeSummary, userId, start, end] as const,
+    recurrenceRules: (userId: string) => [...planQueryRoots.recurrenceRules, userId] as const,
+    weekSummary: (userId: string, start: string, end: string) =>
+        [...planQueryRoots.weekSummary, userId, start, end] as const,
+    monthSummary: (userId: string, start: string, end: string) =>
+        [...planQueryRoots.monthSummary, userId, start, end] as const,
 };
 
 const invalidateScheduledBatchQueries = (qc: QueryClient) => {
-    qc.invalidateQueries({ queryKey: ['day_batches'] });
-    qc.invalidateQueries({ queryKey: ['range_batches'] });
-    qc.invalidateQueries({ queryKey: ['day_plan_range'] });
-    qc.invalidateQueries({ queryKey: ['week_summary'] });
-    qc.invalidateQueries({ queryKey: ['month_summary'] });
+    qc.invalidateQueries({ queryKey: planKeys.dayBatchesRoot });
+    qc.invalidateQueries({ queryKey: planKeys.rangeBatchesRoot });
+    qc.invalidateQueries({ queryKey: planKeys.rangeSummaryRoot });
+    qc.invalidateQueries({ queryKey: planKeys.weekSummaryRoot });
+    qc.invalidateQueries({ queryKey: planKeys.monthSummaryRoot });
+};
+
+const invalidatePlanScope = (qc: QueryClient, userId?: string) => {
+    qc.invalidateQueries({ queryKey: planKeys.batchesRoot });
+    qc.invalidateQueries({ queryKey: userId ? [...planQueryRoots.day, userId] : planKeys.dayRoot });
+    qc.invalidateQueries({
+        queryKey: userId ? [...planQueryRoots.rangeSummary, userId] : planKeys.rangeSummaryRoot,
+    });
+    qc.invalidateQueries({
+        queryKey: userId ? planKeys.recurrenceRules(userId) : planKeys.recurrenceRulesRoot,
+    });
+    invalidateScheduledBatchQueries(qc);
 };
 
 const patchDayBatchesCache = (
@@ -301,11 +326,7 @@ export const useCreateRecurringBatches = (userId: string, currentPlanId?: string
             }
         },
         onSettled: () => {
-            qc.invalidateQueries({ queryKey: ['plan_batches'] });
-            qc.invalidateQueries({ queryKey: ['day_plan', userId] });
-            qc.invalidateQueries({ queryKey: ['day_plan_range', userId] });
-            qc.invalidateQueries({ queryKey: ['recurrence_rules', userId] });
-            invalidateScheduledBatchQueries(qc);
+            invalidatePlanScope(qc, userId);
         },
     });
 };
@@ -340,10 +361,7 @@ export const useDeleteSingleBatch = (scheduleContext?: { userId: string; date: s
             }
         },
         onSettled: () => {
-            qc.invalidateQueries({ queryKey: ['plan_batches'] });
-            qc.invalidateQueries({ queryKey: ['day_plan_range'] });
-            qc.invalidateQueries({ queryKey: ['recurrence_rules'] });
-            invalidateScheduledBatchQueries(qc);
+            invalidatePlanScope(qc);
         },
     });
 };
@@ -354,9 +372,7 @@ export const useDeleteFromThis = () => {
         mutationFn: ({ ruleId, fromDate }: { ruleId: string; fromDate: string }) =>
             planBatchApi.deleteFromThis(ruleId, fromDate),
         onSettled: () => {
-            qc.invalidateQueries({ queryKey: ['recurrence_rules'] });
-            qc.invalidateQueries({ queryKey: ['day_plan_range'] });
-            invalidateScheduledBatchQueries(qc);
+            invalidatePlanScope(qc);
         },
     });
 };
@@ -366,9 +382,7 @@ export const useDeleteAllBatches = () => {
     return useMutation({
         mutationFn: (ruleId: string) => planBatchApi.deleteAll(ruleId),
         onSettled: () => {
-            qc.invalidateQueries({ queryKey: ['recurrence_rules'] });
-            qc.invalidateQueries({ queryKey: ['day_plan_range'] });
-            invalidateScheduledBatchQueries(qc);
+            invalidatePlanScope(qc);
         },
     });
 };
@@ -387,7 +401,7 @@ export const useUpdateSingleBatch = () => {
         }) => planBatchApi.updateSingle(id, patch, meta),
         onMutate: async ({ id, patch, meta }) => {
             if (meta?.recurrenceRuleId) return; // recurring exception → complex, skip optimistic
-            await qc.cancelQueries({ queryKey: ['plan_batches'] });
+            await qc.cancelQueries({ queryKey: planKeys.batchesRoot });
             const previousBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.batches(patch.plan_id ?? ''));
             if (previousBatches) {
                 qc.setQueryData(
@@ -403,13 +417,10 @@ export const useUpdateSingleBatch = () => {
             }
         },
         onSettled: (_data, _error, vars) => {
-            // Invalidate the specific day plan if possible, otherwise range
             if (vars.patch.plan_id) {
                 qc.invalidateQueries({ queryKey: planKeys.batches(vars.patch.plan_id) });
             }
-            qc.invalidateQueries({ queryKey: ['day_plan_range'] });
-            qc.invalidateQueries({ queryKey: ['recurrence_rules'] });
-            invalidateScheduledBatchQueries(qc);
+            invalidatePlanScope(qc);
         },
     });
 };
@@ -427,9 +438,7 @@ export const useUpdateFromThis = () => {
             patch: RecurrenceRuleMasterPatch & { userId: string };
         }) => planBatchApi.updateFromThis(ruleId, fromDate, patch),
         onSettled: () => {
-            qc.invalidateQueries({ queryKey: ['recurrence_rules'] });
-            qc.invalidateQueries({ queryKey: ['day_plan_range'] });
-            invalidateScheduledBatchQueries(qc);
+            invalidatePlanScope(qc);
         },
     });
 };
@@ -440,9 +449,7 @@ export const useUpdateAllBatches = () => {
         mutationFn: ({ ruleId, patch }: { ruleId: string; patch: RecurrenceRuleMasterPatch }) =>
             planBatchApi.updateAll(ruleId, patch),
         onSettled: () => {
-            qc.invalidateQueries({ queryKey: ['recurrence_rules'] });
-            qc.invalidateQueries({ queryKey: ['day_plan_range'] });
-            invalidateScheduledBatchQueries(qc);
+            invalidatePlanScope(qc);
         },
     });
 };

@@ -1,9 +1,8 @@
-import { LazyStore } from '@tauri-apps/plugin-store';
+import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { useSyncExternalStore } from 'react';
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
 const STORE_KEY = 'roast.settings';
-const SAVE_DEBOUNCE_MS = 200;
 
 export type PollIntervalMs = 500 | 1000;
 export type RorSpanSec = 15 | 30 | 60;
@@ -108,11 +107,8 @@ const normalize = (raw: Partial<RoastSettings> | null | undefined): RoastSetting
     };
 };
 
-const store = new LazyStore('settings.json');
-
 let _settings: RoastSettings = { ...DEFAULT_SETTINGS };
 let _userTouched = false;
-let _saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 const _listeners = new Set<() => void>();
 
@@ -142,25 +138,12 @@ const _consumeLegacyLocalStorage = (): Partial<RoastSettings> | null => {
 };
 
 const _flush = async () => {
-    try {
-        await store.set(STORE_KEY, _settings);
-        await store.save();
-    } catch {
-        // store unavailable — drop write
-    }
-};
-
-const _scheduleSave = () => {
-    if (_saveTimer) clearTimeout(_saveTimer);
-    _saveTimer = setTimeout(() => {
-        _saveTimer = null;
-        void _flush();
-    }, SAVE_DEBOUNCE_MS);
+    await settingsSet(STORE_KEY, _settings, { debounce: true });
 };
 
 const _hydrate = async () => {
     try {
-        const stored = await store.get<Partial<RoastSettings>>(STORE_KEY);
+        const stored = await settingsGet<Partial<RoastSettings>>(STORE_KEY);
         if (_userTouched) return;
 
         if (stored) {
@@ -177,7 +160,7 @@ const _hydrate = async () => {
         if (legacy) {
             _settings = normalize(legacy);
             _emit();
-            await _flush();
+            await settingsSet(STORE_KEY, _settings);
         }
     } catch {
         // store unavailable (e.g., non-Tauri context) — keep defaults
@@ -190,7 +173,7 @@ export const updateRoastSettings = (patch: Partial<RoastSettings>) => {
     _userTouched = true;
     _settings = normalize({ ..._settings, ...patch });
     _emit();
-    _scheduleSave();
+    void _flush();
 };
 
 export const useRoastSettings = () => useSyncExternalStore(_subscribe, _getSnapshot);

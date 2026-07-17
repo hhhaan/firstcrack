@@ -1,5 +1,5 @@
+import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { locale } from '@tauri-apps/plugin-os';
-import { LazyStore } from '@tauri-apps/plugin-store';
 import { ja as dateFnsJa, ko as dateFnsKo, enUS, zhCN } from 'date-fns/locale';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
@@ -14,8 +14,6 @@ export type SupportedLanguage = (typeof supportedLanguages)[number];
 const LANGUAGE_KEY = 'language';
 const LOCAL_STORAGE_KEY = 'fc.language';
 
-const store = new LazyStore('settings.json');
-
 const normalizeLanguage = (value: string | null | undefined): SupportedLanguage => {
     const normalized = value?.toLowerCase();
     if (normalized?.startsWith('ko')) return 'ko';
@@ -26,11 +24,9 @@ const normalizeLanguage = (value: string | null | undefined): SupportedLanguage 
 };
 
 const getStoredLanguage = async (): Promise<string | undefined> => {
-    try {
-        return await store.get<string>(LANGUAGE_KEY);
-    } catch {
-        return window.localStorage.getItem(LOCAL_STORAGE_KEY) ?? undefined;
-    }
+    const fromStore = await settingsGet<string>(LANGUAGE_KEY);
+    if (fromStore) return fromStore;
+    return window.localStorage.getItem(LOCAL_STORAGE_KEY) ?? undefined;
 };
 
 const getSystemLanguage = async (): Promise<string | null> => {
@@ -42,11 +38,11 @@ const getSystemLanguage = async (): Promise<string | null> => {
 };
 
 const persistLanguage = async (language: SupportedLanguage) => {
+    await settingsSet(LANGUAGE_KEY, language);
     try {
-        await store.set(LANGUAGE_KEY, language);
-        await store.save();
-    } catch {
         window.localStorage.setItem(LOCAL_STORAGE_KEY, language);
+    } catch {
+        /* private mode */
     }
 };
 

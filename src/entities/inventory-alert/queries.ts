@@ -1,11 +1,11 @@
 import { beanStockEventApi } from '@entities/bean-stock-event';
-import { dashboardKeys } from '@shared/lib/query-keys';
+import { dashboardKeys, inventoryQueryRoots } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { inventoryAlertApi } from './api';
 
 export const inventoryAlertKeys = {
-    all: ['inventory-alerts'] as const,
-    list: (userId: string) => [...inventoryAlertKeys.all, userId] as const,
+    all: inventoryQueryRoots.inventoryAlerts,
+    list: (userId: string) => [...inventoryQueryRoots.inventoryAlerts, userId] as const,
 };
 
 export const useInventoryAlerts = (userId: string) =>
@@ -31,7 +31,7 @@ export const useComputeInventoryAlerts = (userId: string) => {
         mutationFn: () => beanStockEventApi.computeInventoryAlerts(userId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: inventoryAlertKeys.list(userId) });
-            qc.invalidateQueries({ queryKey: ['bean-stock-summaries'] });
+            qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
             qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
         },
     });

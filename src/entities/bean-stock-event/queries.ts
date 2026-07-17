@@ -1,4 +1,4 @@
-import { dashboardKeys } from '@shared/lib/query-keys';
+import { dashboardKeys, inventoryQueryRoots } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BeanStockEventInsert, StockSummary } from './api';
 import { beanStockEventApi } from './api';
@@ -16,9 +16,10 @@ const applyDelta = (summary: StockSummary, event: BeanStockEventInsert): StockSu
 };
 
 export const stockEventKeys = {
-    byBean: (beanId: string) => ['bean-stock-events', beanId] as const,
-    summary: (beanId: string) => ['bean-stock-summary', beanId] as const,
-    summariesByUser: (userId: string) => ['bean-stock-summaries', userId] as const,
+    byBean: (beanId: string) => [...inventoryQueryRoots.beanStockEvents, beanId] as const,
+    summary: (beanId: string) => [...inventoryQueryRoots.beanStockSummary, beanId] as const,
+    summariesRoot: inventoryQueryRoots.beanStockSummaries,
+    summariesByUser: (userId: string) => [...inventoryQueryRoots.beanStockSummaries, userId] as const,
 };
 
 export const useBeanStockEvents = (beanId: string) =>
@@ -49,18 +50,18 @@ export const useInsertStockEvent = () => {
         onMutate: async (newEvent: BeanStockEventInsert) => {
             const beanId = newEvent.bean_id;
             await qc.cancelQueries({ queryKey: stockEventKeys.summary(beanId) });
-            await qc.cancelQueries({ queryKey: ['bean-stock-summaries'] });
+            await qc.cancelQueries({ queryKey: stockEventKeys.summariesRoot });
 
             const prevSummary = qc.getQueryData<StockSummary>(stockEventKeys.summary(beanId));
             const prevSummaries = qc.getQueriesData<Record<string, StockSummary>>({
-                queryKey: ['bean-stock-summaries'],
+                queryKey: stockEventKeys.summariesRoot,
             });
 
             if (prevSummary) {
                 qc.setQueryData<StockSummary>(stockEventKeys.summary(beanId), applyDelta(prevSummary, newEvent));
             }
 
-            qc.setQueriesData<Record<string, StockSummary>>({ queryKey: ['bean-stock-summaries'] }, (prev) => {
+            qc.setQueriesData<Record<string, StockSummary>>({ queryKey: stockEventKeys.summariesRoot }, (prev) => {
                 if (!prev?.[beanId]) return prev;
                 return { ...prev, [beanId]: applyDelta(prev[beanId], newEvent) };
             });
@@ -78,11 +79,11 @@ export const useInsertStockEvent = () => {
             const beanId = newEvent.bean_id;
             qc.invalidateQueries({ queryKey: stockEventKeys.byBean(beanId) });
             qc.invalidateQueries({ queryKey: stockEventKeys.summary(beanId) });
-            qc.invalidateQueries({ queryKey: ['bean-stock-summaries'] });
-            qc.invalidateQueries({ queryKey: ['inventory-alerts'] });
+            qc.invalidateQueries({ queryKey: stockEventKeys.summariesRoot });
+            qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
             if (newEvent.user_id) {
                 await beanStockEventApi.computeInventoryAlerts(newEvent.user_id);
-                qc.invalidateQueries({ queryKey: ['inventory-alerts'] });
+                qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
                 qc.invalidateQueries({ queryKey: dashboardKeys.all(newEvent.user_id) });
             }
         },

@@ -1,7 +1,4 @@
-export const inputCls =
-    'w-full px-3 py-2.5 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all';
-
-export const labelCls = 'text-[11px] font-medium uppercase tracking-[0.5px] text-muted mb-1.5 block';
+export { inputCls, labelCls } from '@shared/ui/form-styles';
 
 /** Percentage precision (margin, yield, blend ratio) — all locales. */
 export const PCT_DECIMALS = 2;

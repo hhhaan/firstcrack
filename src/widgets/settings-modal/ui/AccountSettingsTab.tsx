@@ -1,6 +1,7 @@
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { logger } from '@shared/lib/logger';
+import { weatherKeys } from '@shared/lib/query-keys';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
 import { Badge } from '@shared/ui/Badge';
@@ -135,7 +136,7 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                 }),
                 coords ? locationStore.set(coords) : Promise.resolve(),
             ]);
-            if (coords) qc.invalidateQueries({ queryKey: ['weather', 'coords'] });
+            if (coords) qc.invalidateQueries({ queryKey: weatherKeys.coords });
             setProfileSaveStatus('saved');
         } catch (e) {
             logger.capture(e, { context: 'settings save profile' });
@@ -267,7 +268,7 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                         <User size={14} strokeWidth={2} />
                         {tk('inviteMembers')}
                         <Badge size="sm" tone="lavenderSoft" className="ml-auto font-semibold">
-                            {tk('comingSoon')}
+                            Coming soon
                         </Badge>
                     </button>
                 </SectionCard.Body>

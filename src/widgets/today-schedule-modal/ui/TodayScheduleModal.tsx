@@ -1,5 +1,6 @@
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 
 interface TodayScheduleModalProps {
     open: boolean;
@@ -18,7 +19,7 @@ export const TodayScheduleModal = ({ open, batches, onStart, onSkip }: TodaySche
             onClose={onSkip}
             labelledBy="today-schedule-modal-title"
             overlayClassName="z-[10000]"
-            contentClassName="max-w-[400px] w-full bg-main-bg rounded-[20px] p-7 shadow-[rgba(0,0,0,0.22)_0px_24px_64px,rgba(0,0,0,0.06)_0px_0px_0px_1px]"
+            contentClassName={modalPanel.sm}
         >
             <div className="w-11 h-11 rounded-xl bg-[rgba(219,234,254,0.9)] text-[#2563eb] flex items-center justify-center mb-4.5">
                 <svg

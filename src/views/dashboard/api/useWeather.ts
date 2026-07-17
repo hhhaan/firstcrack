@@ -1,4 +1,5 @@
 import { locationStore } from '@shared/lib/locationStore';
+import { weatherKeys } from '@shared/lib/query-keys';
 import { useQuery } from '@tanstack/react-query';
 
 const WEATHER_TTL = 30 * 60 * 1000;
@@ -24,7 +25,7 @@ const fetchOpenMeteo = async (lat: number, lng: number): Promise<WeatherData> =>
 
 export const useWeather = () => {
     const coords = useQuery({
-        queryKey: ['weather', 'coords'],
+        queryKey: weatherKeys.coords,
         queryFn: async () => {
             const c = await locationStore.get();
             if (!c) throw new Error('no coords');
@@ -34,7 +35,7 @@ export const useWeather = () => {
     });
 
     const weather = useQuery({
-        queryKey: ['weather', 'current', coords.data?.lat, coords.data?.lng],
+        queryKey: weatherKeys.current(coords.data?.lat, coords.data?.lng),
         // biome-ignore lint/style/noNonNullAssertion: error already checked above
         queryFn: () => fetchOpenMeteo(coords.data!.lat, coords.data!.lng),
         enabled: !!coords.data,

@@ -5,9 +5,11 @@ import { useCreateProduct, useUpdateProduct } from '@entities/product';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { useAuthStore } from '@shared/store/auth';
+import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -16,10 +18,6 @@ type Props = {
     onClose: () => void;
     editing?: Product | null;
 };
-
-const inputCls =
-    'w-full px-3.5 py-3 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all';
-const labelCls = 'flex items-center gap-1.5 text-xs font-semibold text-muted mb-2 tracking-[0.02em] uppercase';
 
 /** Source: single bean, a blend, or neither (non-coffee merch). */
 type Source = { kind: 'bean' | 'blend'; id: string } | { kind: 'none' };
@@ -95,11 +93,7 @@ export const AddProductModal = ({ open, onClose, editing }: Props) => {
     };
 
     return (
-        <ModalShell
-            onClose={onClose}
-            labelledBy="add-product-modal-title"
-            contentClassName="max-w-[520px] w-full max-h-[min(720px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.96)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white dark:border-[#585d61] overflow-hidden"
-        >
+        <ModalShell onClose={onClose} labelledBy="add-product-modal-title" contentClassName={modalPanel.formSm}>
             <div className="shrink-0 border-b border-black/4 bg-white/60 dark:border-[#585d61] dark:bg-[#1a1e23]">
                 <ModalHeader
                     titleId="add-product-modal-title"

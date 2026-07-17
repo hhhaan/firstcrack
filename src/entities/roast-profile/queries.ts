@@ -17,6 +17,8 @@ export const roastProfileKeys = {
     all: (userId: string) => ['roast_profiles', userId] as const,
     detail: (id: string) => ['roast_profiles', 'detail', id] as const,
     curve: (tsvPath: string) => ['roast_profile_curve', tsvPath] as const,
+    curveNone: (fallbackKey: string) => ['roast_profile_curve', 'none', fallbackKey] as const,
+    beanHistory: (profileId: string) => ['profile-bean-history', profileId] as const,
 };
 
 export const useRoastProfiles = (userId: string) =>
@@ -60,7 +62,7 @@ export const useDeleteRoastProfile = (userId: string) => {
 
 // TSV는 세션당 immutable — 한 번 fetch 후 영구 캐시.
 const curveQueryConfig = (tsvPath: string | null | undefined, fallbackKey?: string) => ({
-    queryKey: tsvPath ? roastProfileKeys.curve(tsvPath) : ['roast_profile_curve', 'none', fallbackKey ?? ''],
+    queryKey: tsvPath ? roastProfileKeys.curve(tsvPath) : roastProfileKeys.curveNone(fallbackKey ?? ''),
     queryFn: async (): Promise<TsvPoint[]> => {
         if (!tsvPath) return [];
         return parseTsv(await fetchTsvFromR2(tsvPath));
@@ -111,7 +113,7 @@ export type BeanHistoryItem = {
 
 export const useProfileBeanHistory = (profileId: string) =>
     useQuery({
-        queryKey: ['profile-bean-history', profileId],
+        queryKey: roastProfileKeys.beanHistory(profileId),
         queryFn: async (): Promise<BeanHistoryItem[]> => {
             const { data, error } = await supabase
                 .from('roast_sessions')

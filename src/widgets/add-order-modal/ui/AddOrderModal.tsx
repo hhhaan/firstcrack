@@ -2,9 +2,11 @@ import { useCreateOrder } from '@entities/order';
 import { useProducts } from '@entities/product';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { useAuthStore } from '@shared/store/auth';
+import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,10 +14,6 @@ import { useTranslation } from 'react-i18next';
 type Props = { open: boolean; onClose: () => void };
 
 type LineDraft = { productId: string; quantity: string };
-
-const inputCls =
-    'w-full px-3.5 py-3 rounded-xl border border-black/8 dark:border-[#585d61] bg-white/80 dark:bg-[#262b31] shadow-(--shadow-inset) text-sm text-primary outline-none transition-all';
-const labelCls = 'flex items-center gap-1.5 text-xs font-semibold text-muted mb-2 tracking-[0.02em] uppercase';
 
 export const AddOrderModal = ({ open, onClose }: Props) => {
     const { t } = useTranslation();
@@ -68,11 +66,7 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
         setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
 
     return (
-        <ModalShell
-            onClose={onClose}
-            labelledBy="add-order-modal-title"
-            contentClassName="max-w-[520px] w-full max-h-[min(720px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.96)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.25)] border border-white dark:border-[#585d61] overflow-hidden"
-        >
+        <ModalShell onClose={onClose} labelledBy="add-order-modal-title" contentClassName={modalPanel.formSm}>
             <div className="shrink-0 border-b border-black/4 bg-white/60 dark:border-[#585d61] dark:bg-[#1a1e23]">
                 <ModalHeader
                     titleId="add-order-modal-title"

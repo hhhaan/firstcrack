@@ -13,6 +13,7 @@ import type { Bean, PlanBatchWithProgress, RoastProfile } from '@shared/types/da
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
+import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { format } from 'date-fns';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -204,11 +205,7 @@ export const AddBatchModal = ({
     if (!open) return null;
 
     return (
-        <ModalShell
-            onClose={onClose}
-            labelledBy="add-batch-modal-title"
-            contentClassName="max-w-[600px] w-full max-h-[min(840px,calc(100vh-64px))] flex flex-col rounded-[16px] bg-[rgba(255,255,255,0.97)] dark:bg-[#181d21] dark:[&_*]:!text-white backdrop-[blur(20px)_saturate(180%)] shadow-[0_32px_80px_rgba(22,18,12,0.22)] border border-white dark:border-[#585d61] overflow-hidden"
-        >
+        <ModalShell onClose={onClose} labelledBy="add-batch-modal-title" contentClassName={modalPanel.formMd}>
             <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm border-b border-black/4 dark:border-[#585d61]">
                 <ModalHeader
                     titleId="add-batch-modal-title"

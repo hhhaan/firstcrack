@@ -1,3 +1,4 @@
+import { coffeeFuturesKeys } from '@shared/lib/query-keys';
 import { useQuery } from '@tanstack/react-query';
 
 const SUPABASE_URL = 'https://vjdgdolfxvnxushxrmff.supabase.co';
@@ -20,7 +21,7 @@ const fetchCoffeeFutures = async (): Promise<CoffeeFuturesData> => {
 
 export const useCoffeeFutures = () => {
     const { data, isLoading, isFetching, refetch } = useQuery({
-        queryKey: ['coffee-futures'],
+        queryKey: coffeeFuturesKeys.all,
         queryFn: fetchCoffeeFutures,
         staleTime: FUTURES_TTL,
         retry: 3,

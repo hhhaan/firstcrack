@@ -1,5 +1,5 @@
 import type { StockSummary } from '@entities/bean-stock-event';
-import { beanStockEventApi } from '@entities/bean-stock-event';
+import { beanStockEventApi, stockEventKeys } from '@entities/bean-stock-event';
 import type { BlendWithComponents } from '@entities/blend';
 import { isRecurringHorizonStockShort, recurringHorizonGreenNeededGrams } from '@shared/lib/batch-stock';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
@@ -44,7 +44,7 @@ export const useBatchStockChecks = ({
 
     const blendStockQueries = useQueries({
         queries: blendComponents.map((comp) => ({
-            queryKey: ['bean-stock-summary', comp.bean_id],
+            queryKey: stockEventKeys.summary(comp.bean_id),
             queryFn: () => beanStockEventApi.getStockSummary(comp.bean_id),
             enabled: !!comp.bean_id,
         })),
