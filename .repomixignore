@@ -1,4 +1,52 @@
-# Add patterns to ignore here, one per line
-# Example:
-# *.log
-# tmp/
+# Secrets / local MCP / agent configs
+.mcp.json
+.codex/**
+.cursor/**
+.claude/**
+.clinerules/**
+.reasonix/**
+.omo/**
+.opencode/**
+.commandcode/**
+.superpowers/**
+.env
+.env.*
+!.env.example
+
+# Agent / local tooling noise
+memory.jsonl
+code_review.txt
+specific_file.diff
+*.diff
+TODOS.md
+DESIGN_REF_DATAROBOT.md
+react-doctor-report.json
+skills-lock.json
+
+# Pack outputs (self)
+repomix-output.xml
+repomix-output.txt
+
+# Locks / huge generated
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+src/shared/types/database.types.ts
+
+# Build / vendor / caches
+node_modules/**
+.pnpm-store/**
+dist/**
+build/**
+artifacts/**
+src-tauri/target/**
+src-tauri/binaries/**
+src-tauri/sidecar/venv/**
+src-tauri/sidecar/.venv/**
+src-tauri/sidecar/build/**
+src-tauri/sidecar/dist/**
+**/__pycache__/**
+**/*.pyc
+
+# Binary / assets (not useful in pack)
+**/*.{png,jpg,jpeg,gif,webp,ico,icns,woff,woff2,ttf,otf,msi,sig,dmg,zip}

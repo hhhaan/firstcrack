@@ -33,7 +33,7 @@
         "doctor:report": "react-doctor --format json > react-doctor-report.json",
         "version:bump": "node scripts/version-bump.mjs",
         "release": "node scripts/release.mjs",
-        "repomix": "repomix --compress --remove-comments --remove-empty-lines --silent"
+        "repomix": "repomix --quiet"
     },
     "dependencies": {
         "@carbon/icons-react": "^11.82.0",
