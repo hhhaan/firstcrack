@@ -50,7 +50,7 @@
             "profiles": "曲线",
             "machines": "设备",
             "schedule": "烘焙计划",
-            "pricing": "成本与售价",
+            "pricing": "利润计算器",
             "cupping": "杯测",
             "orders": "订单"
         }

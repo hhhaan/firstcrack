@@ -50,7 +50,7 @@
             "profiles": "プロファイル",
             "machines": "マシン",
             "schedule": "ロースト予定",
-            "pricing": "原価・販売価格",
+            "pricing": "マージン計算",
             "cupping": "カッピング",
             "orders": "注文"
         }
