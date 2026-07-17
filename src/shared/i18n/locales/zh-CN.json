@@ -852,6 +852,11 @@
             "profileCurve": "曲线",
             "noRecordedData": "无记录数据 · 参考曲线",
             "beansRoasted": "使用此曲线烘焙的生豆",
+            "consistency": {
+                "title": "一致性 · 最近{{count}}批",
+                "notEnough": "批次不足（至少{{min}}批）",
+                "outliers": "异常值 {{count}}个"
+            },
             "times": "{{count}}次",
             "lastDate": "最近 {{date}}",
             "startWith": "使用此曲线开始",

@@ -19,6 +19,7 @@ export const roastProfileKeys = {
     curve: (tsvPath: string) => ['roast_profile_curve', tsvPath] as const,
     curveNone: (fallbackKey: string) => ['roast_profile_curve', 'none', fallbackKey] as const,
     beanHistory: (profileId: string) => ['profile-bean-history', profileId] as const,
+    consistency: (profileId: string) => ['profile-consistency', profileId] as const,
 };
 
 export const useRoastProfiles = (userId: string) =>
@@ -136,6 +137,35 @@ export const useProfileBeanHistory = (profileId: string) =>
                 grouped[s.bean_id].count++;
             }
             return Object.values(grouped).sort((a, b) => b.count - a.count);
+        },
+        enabled: !!profileId,
+    });
+
+// ── Profile Consistency ──────────────────────────────────────────────────────
+
+export type ConsistencySessionRow = {
+    drop_temp_celsius: number | null;
+    duration_seconds: number | null;
+    weight_grams: number;
+    roasted_at: string | null;
+};
+
+const CONSISTENCY_BATCH_LIMIT = 10;
+
+/** 최근 N개 완료 배치 메타 (newest first) — 일관성 통계용. */
+export const useProfileConsistency = (profileId: string) =>
+    useQuery({
+        queryKey: roastProfileKeys.consistency(profileId),
+        queryFn: async (): Promise<ConsistencySessionRow[]> => {
+            const { data, error } = await supabase
+                .from('roast_sessions')
+                .select('drop_temp_celsius, duration_seconds, weight_grams, roasted_at')
+                .eq('profile_id', profileId)
+                .eq('status', 'completed')
+                .order('roasted_at', { ascending: false })
+                .limit(CONSISTENCY_BATCH_LIMIT);
+            if (error) throw error;
+            return data ?? [];
         },
         enabled: !!profileId,
     });

@@ -838,6 +838,11 @@
             "profileCurve": "프로파일 곡선",
             "noRecordedData": "기록된 데이터 없음 · 참고용 곡선",
             "beansRoasted": "이 프로파일로 로스팅된 생두",
+            "consistency": {
+                "title": "일관성 · 최근 {{count}}배치",
+                "notEnough": "배치가 부족합니다 (최소 {{min}}개)",
+                "outliers": "이상치 {{count}}건"
+            },
             "times": "{{count}}회",
             "lastDate": "마지막 {{date}}",
             "startWith": "이 프로파일로 시작",

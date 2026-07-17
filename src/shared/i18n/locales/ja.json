@@ -840,6 +840,11 @@
             "profileCurve": "プロファイルカーブ",
             "noRecordedData": "記録データなし · 参考カーブ",
             "beansRoasted": "このプロファイルでローストした豆",
+            "consistency": {
+                "title": "一貫性 · 直近{{count}}バッチ",
+                "notEnough": "バッチが不足しています（最低{{min}}）",
+                "outliers": "外れ値 {{count}}件"
+            },
             "times": "{{count}}回",
             "lastDate": "最終 {{date}}",
             "startWith": "このプロファイルで開始",

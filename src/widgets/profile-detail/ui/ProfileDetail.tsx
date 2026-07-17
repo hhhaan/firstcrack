@@ -10,6 +10,7 @@ import { ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveC
 import { AlertCircle, Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ConsistencyCard } from './ConsistencyCard';
 
 const fmtDuration = (sec: number | null): string => {
     if (sec == null) return '—';
@@ -194,6 +195,8 @@ export const ProfileDetail = ({
                     </div>
                 ))}
             </div>
+
+            <ConsistencyCard profileId={selected.id} />
 
             {roastLogEntries.length > 0 && (
                 <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 py-3 mb-5">

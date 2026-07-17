@@ -840,6 +840,11 @@
             "profileCurve": "Profile Curve",
             "noRecordedData": "No recorded data · Reference curve",
             "beansRoasted": "Beans Roasted with This Profile",
+            "consistency": {
+                "title": "Consistency · last {{count}} batches",
+                "notEnough": "Not enough batches yet (min {{min}})",
+                "outliers": "{{count}} outlier(s)"
+            },
             "times": "{{count}} times",
             "lastDate": "Last {{date}}",
             "startWith": "Start with this Profile",
