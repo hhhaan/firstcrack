@@ -2,6 +2,15 @@ import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { describe, expect, it } from 'vitest';
 import { filterSessions, paginateSessions, sortSessions } from './sessionFilter';
 
+const bean = (name: string, origin: string): NonNullable<RoastSessionWithRelations['beans']> => ({
+    name,
+    origin,
+    region: null,
+    variety: null,
+    process: null,
+    farm: null,
+});
+
 const session = (overrides: Partial<RoastSessionWithRelations> = {}): RoastSessionWithRelations =>
     ({
         id: '1',
@@ -10,19 +19,19 @@ const session = (overrides: Partial<RoastSessionWithRelations> = {}): RoastSessi
         duration_seconds: 600,
         drop_temp_celsius: 210,
         weight_grams: 1000,
-        beans: { name: 'Ethiopia Yirgacheffe', origin: 'Ethiopia' },
+        beans: bean('Ethiopia Yirgacheffe', 'Ethiopia'),
         roast_profiles: { name: 'Light City', target_level: 'Medium' },
         ...overrides,
     }) as RoastSessionWithRelations;
 
 describe('filterSessions', () => {
     const sessions = [
-        session({ id: '1', beans: { name: 'Ethiopia', origin: 'Ethiopia' }, roast_level: 'Light' }),
-        session({ id: '2', beans: { name: 'Colombia', origin: 'Colombia' }, roast_level: 'Dark' }),
+        session({ id: '1', beans: bean('Ethiopia', 'Ethiopia'), roast_level: 'Light' }),
+        session({ id: '2', beans: bean('Colombia', 'Colombia'), roast_level: 'Dark' }),
         session({
             id: '3',
             roasted_at: '2024-01-10T10:00:00Z',
-            beans: { name: 'Brazil', origin: 'Brazil' },
+            beans: bean('Brazil', 'Brazil'),
             roast_profiles: { name: 'Espresso', target_level: 'Dark' },
         }),
     ];
@@ -79,8 +88,8 @@ describe('filterSessions', () => {
 describe('sortSessions', () => {
     it('sorts beans alphabetically', () => {
         const sessions = [
-            session({ id: 'a', beans: { name: 'Zambia', origin: 'Zambia' } }),
-            session({ id: 'b', beans: { name: 'Apple', origin: 'Kenya' } }),
+            session({ id: 'a', beans: bean('Zambia', 'Zambia') }),
+            session({ id: 'b', beans: bean('Apple', 'Kenya') }),
         ];
         expect(sortSessions(sessions, 'bean', true).map((s) => s.id)).toEqual(['b', 'a']);
     });

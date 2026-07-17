@@ -5,5 +5,6 @@ export {
     useConnectChannel,
     useDisconnectChannel,
     useSalesChannels,
+    useSetAutoFulfill,
     useSyncOrders,
 } from './queries';

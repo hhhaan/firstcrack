@@ -69,4 +69,13 @@ export const salesChannelApi = {
         if (data?.error) throw new Error(data.error);
         return data as { results: Array<{ connectionId: string; ok: boolean; upserted: number; error?: string }> };
     },
+
+    setAutoFulfill: async (connectionId: string, enabled: boolean): Promise<void> => {
+        // biome-ignore lint/suspicious/noExplicitAny: table types until types:gen
+        const { error } = await (supabase as any)
+            .from('sales_channel_connections')
+            .update({ auto_fulfill_on_shipped: enabled, updated_at: new Date().toISOString() })
+            .eq('id', connectionId);
+        if (error) throw error;
+    },
 };

@@ -1732,7 +1732,7 @@ export type RoastProfile = Database['public']['Tables']['roast_profiles']['Row']
 
 export type RoastSession = Database['public']['Tables']['roast_sessions']['Row'];
 export type RoastSessionWithRelations = RoastSession & {
-    beans: Pick<Bean, 'name' | 'origin'> | null;
+    beans: Pick<Bean, 'name' | 'origin' | 'region' | 'variety' | 'process' | 'farm'> | null;
     roast_profiles: Pick<RoastProfile, 'name' | 'target_level'> | null;
 };
 

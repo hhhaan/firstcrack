@@ -1,4 +1,5 @@
 import type { PlanBatchHandoff } from '@shared/types/database.types';
+import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { AddBatchModal } from '@widgets/add-batch-modal';
 import { CompleteBatchModal } from '@widgets/complete-batch-modal';
 import { RecurringDeleteScopeModal, RecurringEditScopeModal } from '@widgets/recurring-edit-scope-modal';
@@ -36,15 +37,13 @@ export const ScheduleDayView = ({
     return (
         <>
             <div className="shrink-0 border-b border-border-subtle dark:border-[#585d61] bg-main-bg px-8 py-2.5 flex items-center gap-2">
-                <button
-                    type="button"
+                <SurfaceButton
                     onClick={() => hooks.setIsAddModalOpen(true)}
                     disabled={hooks.isLoading}
-                    className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-3 py-1.5 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    icon={<Plus size={13} strokeWidth={2} />}
                 >
-                    <Plus size={13} strokeWidth={2} />
                     {t('schedule.addBatch')}
-                </button>
+                </SurfaceButton>
             </div>
 
             {/* Overdue Section */}
@@ -91,14 +90,13 @@ export const ScheduleDayView = ({
                         <div className="text-[13px] text-muted text-center leading-relaxed">
                             {t('schedule.emptyState.title')}
                         </div>
-                        <button
-                            type="button"
+                        <SurfaceButton
                             onClick={() => hooks.setIsAddModalOpen(true)}
-                            className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
+                            icon={<Plus size={14} strokeWidth={2} />}
+                            className="px-4 py-2"
                         >
-                            <Plus size={14} strokeWidth={2} />
                             {t('schedule.addBatch')}
-                        </button>
+                        </SurfaceButton>
                     </div>
                 ) : (
                     <div className="space-y-3">

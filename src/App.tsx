@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/react';
 import { logger } from '@shared/lib/logger';
 import { supabase } from '@shared/lib/supabase';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useCallback, useEffect, useState } from 'react';
 import { useRoastingStore } from './features/active-roast';
 import { useOAuthDeepLink } from './features/auth';
@@ -32,6 +33,8 @@ import { InventoryAlertBanner } from './widgets/inventory-alert-banner';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
+
+const COMPARE_PLANS_URL = 'https://firstcrackiscoming.com/compare-plans';
 
 export const App = () => {
     const user = useAuthStore((s) => s.user);
@@ -97,6 +100,12 @@ export const App = () => {
     const openSettings = (tab: SettingsTabId = 'general') => {
         setSettingsInitialTab(tab);
         setSettingsOpen(true);
+    };
+
+    const openComparePlans = () => {
+        void openUrl(COMPARE_PLANS_URL).catch((err) => {
+            logger.capture(err, { context: 'open compare plans' });
+        });
     };
 
     const handleStartBatch = useCallback(
@@ -233,12 +242,12 @@ export const App = () => {
                         )}
                         {view === 'cupping' && (
                             <ViewErrorBoundary>
-                                <Cupping onUpgrade={() => openSettings('billing')} />
+                                <Cupping onUpgrade={openComparePlans} />
                             </ViewErrorBoundary>
                         )}
                         {view === 'orders' && (
                             <ViewErrorBoundary>
-                                <Orders onUpgrade={() => openSettings('billing')} />
+                                <Orders onUpgrade={openComparePlans} />
                             </ViewErrorBoundary>
                         )}
                         {view === 'beans' && (

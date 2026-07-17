@@ -11,6 +11,48 @@ type SampleRow = {
     roast_session_id: string | null;
 };
 
+type BeanMeta = {
+    name: string | null;
+    origin: string | null;
+    region: string | null;
+    variety: string | null;
+    process: string | null;
+    farm: string | null;
+};
+
+type SampleOut = {
+    id: string;
+    label: string;
+    beanName: string | null;
+    beanOrigin: string | null;
+    beanRegion: string | null;
+    beanVariety: string | null;
+    beanProcess: string | null;
+    beanFarm: string | null;
+    /** origin · region · variety · process · farm */
+    beanMeta: string | null;
+};
+
+function beanMetaLine(b: BeanMeta | null | undefined): string | null {
+    if (!b) return null;
+    const line = [b.origin, b.region, b.variety, b.process, b.farm].filter(Boolean).join(' · ');
+    return line || null;
+}
+
+function toSampleOut(id: string, label: string, bean: BeanMeta | null): SampleOut {
+    return {
+        id,
+        label,
+        beanName: bean?.name ?? null,
+        beanOrigin: bean?.origin ?? null,
+        beanRegion: bean?.region ?? null,
+        beanVariety: bean?.variety ?? null,
+        beanProcess: bean?.process ?? null,
+        beanFarm: bean?.farm ?? null,
+        beanMeta: beanMetaLine(bean),
+    };
+}
+
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -61,7 +103,7 @@ Deno.serve(async (req) => {
     }
 
     let eventTitle: string | null = null;
-    let samples: { id: string; label: string; beanName: string | null }[] = [];
+    let samples: SampleOut[] = [];
 
     if (eventId) {
         const { data: event } = await supabase
@@ -80,15 +122,15 @@ Deno.serve(async (req) => {
 
         const rows = (sampleRows ?? []) as SampleRow[];
         const roastIds = [...new Set(rows.map((r) => r.roast_session_id).filter(Boolean))] as string[];
-        const beanByRoast = new Map<string, string>();
+        const beanByRoast = new Map<string, BeanMeta>();
         if (roastIds.length) {
             const { data: sessions } = await supabase
                 .from('roast_sessions')
-                .select('id, beans(name)')
+                .select('id, beans(name, origin, region, variety, process, farm)')
                 .in('id', roastIds);
             for (const s of sessions ?? []) {
-                const beans = s.beans as { name: string } | null;
-                if (beans?.name) beanByRoast.set(s.id, beans.name);
+                const beans = s.beans as BeanMeta | null;
+                if (beans) beanByRoast.set(s.id, beans);
             }
         }
 
@@ -98,11 +140,13 @@ Deno.serve(async (req) => {
                 ? rows.filter((r) => r.id === invite.sample_id)
                 : rows;
 
-        samples = filtered.map((r) => ({
-            id: r.id,
-            label: r.label,
-            beanName: r.roast_session_id ? (beanByRoast.get(r.roast_session_id) ?? null) : null,
-        }));
+        samples = filtered.map((r) =>
+            toSampleOut(
+                r.id,
+                r.label,
+                r.roast_session_id ? (beanByRoast.get(r.roast_session_id) ?? null) : null,
+            ),
+        );
     } else if (invite.sample_id) {
         // Orphan sample invite without event
         const { data: sample } = await supabase
@@ -111,16 +155,16 @@ Deno.serve(async (req) => {
             .eq('id', invite.sample_id)
             .maybeSingle();
         if (sample) {
-            let beanName: string | null = null;
+            let bean: BeanMeta | null = null;
             if (sample.roast_session_id) {
                 const { data: session } = await supabase
                     .from('roast_sessions')
-                    .select('beans(name)')
+                    .select('beans(name, origin, region, variety, process, farm)')
                     .eq('id', sample.roast_session_id)
                     .maybeSingle();
-                beanName = (session?.beans as { name: string } | null)?.name ?? null;
+                bean = (session?.beans as BeanMeta | null) ?? null;
             }
-            samples = [{ id: sample.id, label: sample.label, beanName }];
+            samples = [toSampleOut(sample.id, sample.label, bean)];
         }
     }
 

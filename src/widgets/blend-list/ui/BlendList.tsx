@@ -7,11 +7,13 @@ import { BlendListEmpty } from '@widgets/blend-list/ui/BlendListEmpty';
 import { useTranslation } from 'react-i18next';
 
 interface BlendListProps {
+    hasBeans: boolean;
     onAddOpen: () => void;
+    onNeedBeans: () => void;
     onEditOpen: (blend: BlendWithComponents) => void;
 }
 
-export const BlendList = ({ onAddOpen, onEditOpen }: BlendListProps) => {
+export const BlendList = ({ hasBeans, onAddOpen, onNeedBeans, onEditOpen }: BlendListProps) => {
     const { t } = useTranslation();
     const { blends, isLoading, selected, setSelectedId, roastableByBlendId, roastable, handleDelete } =
         useBlendListState();
@@ -38,7 +40,7 @@ export const BlendList = ({ onAddOpen, onEditOpen }: BlendListProps) => {
     return (
         <>
             {!isLoading && blends.length === 0 ? (
-                <BlendListEmpty onAdd={onAddOpen} />
+                <BlendListEmpty hasBeans={hasBeans} onAdd={onAddOpen} onNeedBeans={onNeedBeans} />
             ) : (
                 <MasterDetailLayout
                     left={leftPanel}

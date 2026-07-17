@@ -120,17 +120,41 @@ Deno.serve(async (req) => {
             profileId = session?.profile_id ?? null;
         }
 
-        const { data: bumped, error: bumpErr } = await supabase
-            .from('cupping_invites')
-            .update({ used_count: invite.used_count + 1 })
-            .eq('id', invite.id)
-            .eq('used_count', invite.used_count)
-            .lt('used_count', invite.max_uses)
-            .is('revoked_at', null)
-            .select('id')
-            .maybeSingle();
+        // Multi-cupper concurrent submits: CAS retry on used_count
+        let consumedFrom: number | null = null;
+        for (let attempt = 0; attempt < 12; attempt++) {
+            const { data: current, error: curErr } = await supabase
+                .from('cupping_invites')
+                .select('id, used_count, max_uses, revoked_at, expires_at')
+                .eq('id', invite.id)
+                .maybeSingle();
+            if (curErr || !current) {
+                return jsonResponse({ error: 'lookup failed' }, 500);
+            }
+            if (current.revoked_at) return jsonResponse({ error: 'revoked' }, 410);
+            if (new Date(current.expires_at) <= new Date()) return jsonResponse({ error: 'expired' }, 410);
+            if (current.used_count >= current.max_uses) return jsonResponse({ error: 'full' }, 410);
 
-        if (bumpErr || !bumped) {
+            const { data: bumped, error: bumpErr } = await supabase
+                .from('cupping_invites')
+                .update({ used_count: current.used_count + 1 })
+                .eq('id', invite.id)
+                .eq('used_count', current.used_count)
+                .lt('used_count', current.max_uses)
+                .is('revoked_at', null)
+                .select('id')
+                .maybeSingle();
+
+            if (bumpErr) {
+                console.error('[submit-cupping] bump', bumpErr);
+                return jsonResponse({ error: 'lookup failed' }, 500);
+            }
+            if (bumped) {
+                consumedFrom = current.used_count;
+                break;
+            }
+        }
+        if (consumedFrom == null) {
             return jsonResponse({ error: 'full' }, 410);
         }
 
@@ -156,11 +180,12 @@ Deno.serve(async (req) => {
 
         if (insertErr || !row) {
             console.error('[submit-cupping] insert', insertErr);
+            // best-effort rollback of the consume slot
             await supabase
                 .from('cupping_invites')
-                .update({ used_count: invite.used_count })
+                .update({ used_count: consumedFrom })
                 .eq('id', invite.id)
-                .eq('used_count', invite.used_count + 1);
+                .eq('used_count', consumedFrom + 1);
             return jsonResponse({ error: 'insert failed' }, 500);
         }
 

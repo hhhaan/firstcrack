@@ -60,6 +60,21 @@ export interface TestConnectionResult {
     displayName: string;
 }
 
+export interface MarkShippedRequest {
+    platformOrderId: string;
+    lines: { platformLineId: string }[];
+    /** Already converted to platform delivery company code / name. */
+    carrierCode: string;
+    trackingNumber: string;
+}
+
+export interface MarkShippedResult {
+    ok: boolean;
+    alreadyShipped: boolean;
+    lineResults?: { platformLineId: string; ok: boolean; error?: string }[];
+    error?: string;
+}
+
 export interface ChannelAdapter {
     platform: Platform;
     capabilities: { webhooks: boolean; outboundDispatch: boolean };
@@ -69,4 +84,5 @@ export interface ChannelAdapter {
     refreshAuth(secrets: ChannelSecrets): Promise<ChannelSecrets | null>;
     fetchOrdersSince(secrets: ChannelSecrets, cursor: PollCursor): Promise<FetchOrdersResult>;
     listProducts(secrets: ChannelSecrets): Promise<PlatformListing[]>;
+    markShipped(secrets: ChannelSecrets, req: MarkShippedRequest): Promise<MarkShippedResult>;
 }

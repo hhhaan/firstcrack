@@ -1,6 +1,7 @@
 import {
     type CuppingEventSummary,
     type CuppingSampleWithMeta,
+    formatBeanCuppingMeta,
     useAddCuppingSamples,
     useCreateCuppingEvent,
     useCreateEventInvite,
@@ -15,12 +16,16 @@ import { useRoastSessions } from '@entities/roast';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatDateShort } from '@shared/lib/format';
 import { useAuthStore } from '@shared/store/auth';
+import { Badge } from '@shared/ui/Badge';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
+import { PillButton } from '@shared/ui/PillButton';
+import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { Check, ChevronLeft, Copy, Link2, Lock, Plus, QrCode, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CuppingEventListSkeleton, CuppingSampleListSkeleton } from './ui/CuppingSkeleton';
 
 type CuppingProps = {
     onUpgrade?: () => void;
@@ -69,15 +74,7 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
                             {t('cupping.locked.description')}
                         </p>
                     </div>
-                    {onUpgrade ? (
-                        <button
-                            type="button"
-                            onClick={onUpgrade}
-                            className="rounded-full bg-primary px-5 py-2 text-xs font-medium text-white"
-                        >
-                            {t('cupping.locked.cta')}
-                        </button>
-                    ) : null}
+                    {onUpgrade ? <PillButton onClick={onUpgrade}>{t('cupping.locked.cta')}</PillButton> : null}
                 </div>
             </PageLayout>
         );
@@ -104,14 +101,9 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
                 title={t('cupping.title')}
                 subtitle={isLoading ? t('cupping.subtitleLoading') : t('cupping.subtitle', { count: events.length })}
                 actions={
-                    <button
-                        type="button"
-                        onClick={() => setShowCreate(true)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-medium text-white"
-                    >
-                        <Plus size={14} />
+                    <PillButton onClick={() => setShowCreate(true)} icon={<Plus size={15} strokeWidth={2.5} />}>
                         {t('cupping.newEvent')}
-                    </button>
+                    </PillButton>
                 }
             />
 
@@ -128,25 +120,24 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
                     </button>
                 </div>
             ) : isLoading ? (
-                <div className="text-sm text-muted">{t('cupping.loading')}</div>
+                <CuppingEventListSkeleton />
             ) : events.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-4 rounded-xl bg-main-bg px-4 py-20 dark:border dark:border-[#585d61]">
-                    <p className="text-center text-[13px] text-muted">
+                <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-20 dark:border-[#585d61]">
+                    <p className="max-w-md text-center text-[13px] leading-relaxed text-muted tracking-[0.14px]">
                         {t('cupping.empty.title')}
                         <br />
                         {t('cupping.empty.description')}
                     </p>
-                    <button
-                        type="button"
+                    <SurfaceButton
                         onClick={() => setShowCreate(true)}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-surface px-4 py-2 text-[13px] font-medium text-primary dark:bg-surface-elevated"
+                        icon={<Plus size={14} strokeWidth={2} />}
+                        className="px-4 py-2"
                     >
-                        <Plus size={14} />
                         {t('cupping.newEvent')}
-                    </button>
+                    </SurfaceButton>
                 </div>
             ) : (
-                <div className="overflow-hidden rounded-lg bg-main-bg dark:border dark:border-[#585d61]">
+                <div className="overflow-hidden rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
                     <table className="w-full border-collapse text-left">
                         <thead>
                             <tr className="border-b border-border-subtle dark:border-[#585d61]">
@@ -161,6 +152,9 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
                                 </th>
                                 <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                     {t('cupping.colAvg')}
+                                </th>
+                                <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                                    {t('cupping.colLink')}
                                 </th>
                                 <th className="w-12 px-4 py-3" />
                             </tr>
@@ -181,6 +175,13 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
                                     </td>
                                     <td className="px-4 py-3 font-mono text-[13px] text-secondary">
                                         {ev.avg_score != null ? ev.avg_score.toFixed(2) : '—'}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <Badge tone={ev.active_invite ? 'good' : 'muted'} size="sm">
+                                            {ev.active_invite
+                                                ? t('cupping.sessionLinkActive')
+                                                : t('cupping.sessionLinkNone')}
+                                        </Badge>
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         <button
@@ -258,7 +259,7 @@ function EventDetail({
     onDeleted: () => void;
 }) {
     const { t } = useTranslation();
-    const { data: samples = [], isLoading, refetch } = useCuppingSamples(eventId);
+    const { data: samples = [], isLoading } = useCuppingSamples(eventId);
     const { data: activeInvite } = useEventInvite(eventId);
     const { data: roastSessions = [] } = useRoastSessions(userId, 'completed');
     const addSamples = useAddCuppingSamples(userId, eventId);
@@ -286,11 +287,21 @@ function EventDetail({
 
     const roastOptions = useMemo(
         () =>
-            roastSessions.map((s) => ({
-                id: s.id,
-                label: `${s.beans?.name ?? 'Roast'} · ${formatDateShort(s.roasted_at)}`,
-            })),
-        [roastSessions],
+            roastSessions.map((s) => {
+                const beanName = s.beans?.name ?? t('cupping.unknownBean');
+                const beanMeta = formatBeanCuppingMeta(s.beans);
+                return {
+                    id: s.id,
+                    /** Sample label stored on cupping_samples — bean name, not roast date */
+                    label: beanName,
+                    beanName,
+                    beanMeta,
+                    roastedAt: s.roasted_at,
+                    roastLevel: s.roast_level,
+                    profileName: s.roast_profiles?.name ?? null,
+                };
+            }),
+        [roastSessions, t],
     );
 
     const toggleRoast = (id: string) => {
@@ -302,7 +313,7 @@ function EventDetail({
         const items: { label: string; roastSessionId?: string | null }[] = [];
         for (const id of selectedRoastIds) {
             const opt = roastOptions.find((o) => o.id === id);
-            items.push({ label: opt?.label ?? 'Sample', roastSessionId: id });
+            items.push({ label: opt?.label ?? t('cupping.unknownBean'), roastSessionId: id });
         }
         if (freeLabel.trim()) {
             items.push({ label: freeLabel.trim(), roastSessionId: null });
@@ -316,7 +327,6 @@ function EventDetail({
             setShowAdd(false);
             setSelectedRoastIds([]);
             setFreeLabel('');
-            void refetch();
         } catch (e) {
             setAddError(e instanceof Error ? e.message : 'Failed');
         }
@@ -341,16 +351,14 @@ function EventDetail({
 
     return (
         <PageLayout>
-            <div className="mb-4 flex items-center gap-2">
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-3 py-1.5 text-xs text-secondary dark:border-[#585d61]"
-                >
-                    <ChevronLeft size={14} />
-                    {t('cupping.back')}
-                </button>
-            </div>
+            <button
+                type="button"
+                onClick={onBack}
+                className="mb-4 inline-flex items-center gap-1 border-none bg-transparent p-0 text-[13px] font-medium tracking-[0.14px] text-muted cursor-pointer transition-colors hover:text-primary"
+            >
+                <ChevronLeft size={14} strokeWidth={2} />
+                {t('cupping.back')}
+            </button>
 
             <PageHeader
                 title={title}
@@ -365,23 +373,9 @@ function EventDetail({
                 }
                 actions={
                     <div className="flex flex-wrap gap-2">
-                        <button
-                            type="button"
-                            onClick={() => void handleQr()}
-                            disabled={createInvite.isPending || samples.length === 0}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle px-4 py-2 text-xs font-medium text-secondary dark:border-[#585d61] disabled:opacity-50"
-                        >
-                            <QrCode size={14} />
-                            {t('cupping.sessionQr')}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setShowAdd(true)}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-medium text-white"
-                        >
-                            <Plus size={14} />
+                        <SurfaceButton onClick={() => setShowAdd(true)} icon={<Plus size={13} strokeWidth={2} />}>
                             {t('cupping.addSamples')}
-                        </button>
+                        </SurfaceButton>
                         <button
                             type="button"
                             onClick={() => {
@@ -389,7 +383,7 @@ function EventDetail({
                                     void deleteEvent.mutateAsync(eventId).then(onDeleted);
                                 }
                             }}
-                            className="rounded-full border border-border-subtle px-3 py-2 text-xs text-muted dark:border-[#585d61]"
+                            className="rounded-full border border-border-subtle px-3 py-2 text-xs text-muted dark:border-[#585d61] cursor-pointer"
                         >
                             {t('cupping.deleteEvent')}
                         </button>
@@ -397,14 +391,59 @@ function EventDetail({
                 }
             />
 
+            {/* Session = container; samples inside; one QR for the whole session */}
+            <div className="mb-5 rounded-xl border border-border-subtle bg-main-bg p-4 dark:border-[#585d61]">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <p className="text-[13px] font-semibold text-primary tracking-[0.14px]">
+                                {t('cupping.sessionPanelTitle')}
+                            </p>
+                            <Badge
+                                tone={activeInvite || samples.length > 0 ? (activeInvite ? 'good' : 'muted') : 'muted'}
+                                size="sm"
+                            >
+                                {activeInvite ? t('cupping.sessionLinkActive') : t('cupping.sessionLinkNone')}
+                            </Badge>
+                        </div>
+                        <p className="text-[12px] leading-relaxed text-muted tracking-[0.14px]">
+                            {t('cupping.sessionPanelBody')}
+                        </p>
+                        {samples.length === 0 ? (
+                            <p className="mt-2 text-[12px] text-secondary tracking-[0.14px]">
+                                {t('cupping.sessionQrNeedSamples')}
+                            </p>
+                        ) : null}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => void handleQr()}
+                        disabled={createInvite.isPending || samples.length === 0}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-transparent px-4 py-2 text-[12px] font-medium text-primary transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#585d61] dark:hover:bg-surface-elevated cursor-pointer"
+                    >
+                        <QrCode size={14} strokeWidth={1.75} />
+                        {t('cupping.sessionQr')}
+                    </button>
+                </div>
+            </div>
+
             {isLoading ? (
-                <div className="text-sm text-muted">{t('cupping.loading')}</div>
+                <CuppingSampleListSkeleton />
             ) : samples.length === 0 ? (
-                <div className="rounded-xl bg-main-bg px-4 py-16 text-center text-[13px] text-muted dark:border dark:border-[#585d61]">
-                    {t('cupping.noSamples')}
+                <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
+                    <p className="max-w-md text-[13px] leading-relaxed text-muted tracking-[0.14px]">
+                        {t('cupping.noSamples')}
+                    </p>
+                    <SurfaceButton
+                        onClick={() => setShowAdd(true)}
+                        icon={<Plus size={14} strokeWidth={2} />}
+                        className="px-4 py-2"
+                    >
+                        {t('cupping.addSamples')}
+                    </SurfaceButton>
                 </div>
             ) : (
-                <div className="overflow-x-auto rounded-lg bg-main-bg dark:border dark:border-[#585d61]">
+                <div className="overflow-x-auto rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
                     <table className="w-full min-w-[640px] border-collapse text-left">
                         <thead>
                             <tr className="border-b border-border-subtle dark:border-[#585d61]">
@@ -413,6 +452,9 @@ function EventDetail({
                                 </th>
                                 <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                     {t('cupping.colLabel')}
+                                </th>
+                                <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                                    {t('cupping.colBean')}
                                 </th>
                                 <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                     {t('cupping.colRoast')}
@@ -429,34 +471,62 @@ function EventDetail({
                             </tr>
                         </thead>
                         <tbody>
-                            {samples.map((s: CuppingSampleWithMeta, i: number) => (
-                                <tr key={s.id} className="border-b border-border-subtle dark:border-[#585d61]">
-                                    <td className="px-4 py-3 font-mono text-[12px] text-muted">{i + 1}</td>
-                                    <td className="px-4 py-3 text-[13px] font-medium text-primary">{s.label}</td>
-                                    <td className="px-4 py-3 text-[12px] text-secondary">
-                                        {s.roast_sessions
-                                            ? `${s.roast_sessions.beans?.name ?? '—'} · ${formatDateShort(s.roast_sessions.roasted_at)}`
-                                            : t('cupping.noRoastLink')}
-                                    </td>
-                                    <td className="px-4 py-3 font-mono text-[13px] text-secondary">{s.score_count}</td>
-                                    <td className="px-4 py-3 font-mono text-[13px] text-secondary">
-                                        {s.avg_score != null ? s.avg_score.toFixed(2) : '—'}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (window.confirm(t('cupping.deleteSampleConfirm'))) {
-                                                    void deleteSample.mutateAsync(s.id);
-                                                }
-                                            }}
-                                            className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-2.5 py-1 text-[11px] text-muted dark:border-[#585d61]"
-                                        >
-                                            <Trash2 size={12} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
+                            {samples.map((s: CuppingSampleWithMeta, i: number) => {
+                                const bean = s.roast_sessions?.beans ?? null;
+                                const beanMeta = formatBeanCuppingMeta(bean);
+                                return (
+                                    <tr
+                                        key={s.id}
+                                        className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61]"
+                                    >
+                                        <td className="px-4 py-3 font-mono text-[12px] text-muted">{i + 1}</td>
+                                        <td className="px-4 py-3 text-[13px] font-medium text-primary">{s.label}</td>
+                                        <td className="px-4 py-3">
+                                            {bean ? (
+                                                <div>
+                                                    <div className="text-[13px] font-medium text-primary">
+                                                        {bean.name}
+                                                    </div>
+                                                    {beanMeta ? (
+                                                        <div className="mt-0.5 text-[11px] leading-snug text-muted">
+                                                            {beanMeta}
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            ) : (
+                                                <span className="text-[12px] text-muted">
+                                                    {t('cupping.noRoastLink')}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-[12px] text-secondary">
+                                            {s.roast_sessions
+                                                ? formatDateShort(s.roast_sessions.roasted_at)
+                                                : t('cupping.noRoastLink')}
+                                        </td>
+                                        <td className="px-4 py-3 font-mono text-[13px] text-secondary">
+                                            {s.score_count}
+                                        </td>
+                                        <td className="px-4 py-3 font-mono text-[13px] text-secondary">
+                                            {s.avg_score != null ? s.avg_score.toFixed(2) : '—'}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (window.confirm(t('cupping.deleteSampleConfirm'))) {
+                                                        void deleteSample.mutateAsync(s.id);
+                                                    }
+                                                }}
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 cursor-pointer"
+                                                aria-label={t('common.delete')}
+                                            >
+                                                <Trash2 size={13} strokeWidth={1.75} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -476,14 +546,27 @@ function EventDetail({
                                 roastOptions.map((o) => (
                                     <label
                                         key={o.id}
-                                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] hover:bg-surface"
+                                        className="flex cursor-pointer items-start gap-2.5 rounded-lg px-2 py-2 text-[13px] hover:bg-surface"
                                     >
                                         <input
                                             type="checkbox"
+                                            className="mt-1"
                                             checked={selectedRoastIds.includes(o.id)}
                                             onChange={() => toggleRoast(o.id)}
                                         />
-                                        <span className="text-primary">{o.label}</span>
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block font-medium text-primary">{o.beanName}</span>
+                                            {o.beanMeta ? (
+                                                <span className="mt-0.5 block text-[11px] leading-snug text-muted">
+                                                    {o.beanMeta}
+                                                </span>
+                                            ) : null}
+                                            <span className="mt-0.5 block font-mono text-[11px] text-secondary">
+                                                {formatDateShort(o.roastedAt)}
+                                                {o.roastLevel ? ` · ${o.roastLevel}` : ''}
+                                                {o.profileName ? ` · ${o.profileName}` : ''}
+                                            </span>
+                                        </span>
                                     </label>
                                 ))
                             )}

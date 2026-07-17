@@ -1,0 +1,26 @@
+import { orderKeys } from '@entities/order';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { orderDispatchApi } from './api';
+
+export const orderDispatchKeys = {
+    all: (userId: string) => ['order-dispatches', userId] as const,
+};
+
+export const useOrderDispatches = (userId: string) =>
+    useQuery({
+        queryKey: orderDispatchKeys.all(userId),
+        queryFn: () => orderDispatchApi.listByUser(userId),
+        enabled: !!userId,
+    });
+
+export const useDispatchOrder = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (input: { orderId: string; carrier: string; trackingNumber: string }) =>
+            orderDispatchApi.dispatch(input),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: orderDispatchKeys.all(userId) });
+            qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
+        },
+    });
+};

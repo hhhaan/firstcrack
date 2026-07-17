@@ -29,6 +29,7 @@ type ConnRow = {
     status: string;
     poll_cursor: PollCursor | null;
     consecutive_failures: number;
+    auto_fulfill_on_shipped?: boolean;
 };
 
 async function syncOne(
@@ -98,6 +99,7 @@ async function syncOne(
             userId: conn.user_id,
             connectionId: conn.id,
             platform: conn.platform as Platform,
+            autoFulfillOnShipped: conn.auto_fulfill_on_shipped === true,
         }, orders);
 
         const now = new Date().toISOString();
@@ -172,9 +174,12 @@ Deno.serve(async (req) => {
     }
 
     const admin = serviceClient();
+    const connSelect =
+        'id, user_id, platform, status, poll_cursor, consecutive_failures, auto_fulfill_on_shipped';
+
     let query = admin
         .from('sales_channel_connections')
-        .select('id, user_id, platform, status, poll_cursor, consecutive_failures')
+        .select(connSelect)
         .eq('status', 'active');
 
     if (connectionId) {
@@ -188,7 +193,7 @@ Deno.serve(async (req) => {
     if (connectionId && userId) {
         query = admin
             .from('sales_channel_connections')
-            .select('id, user_id, platform, status, poll_cursor, consecutive_failures')
+            .select(connSelect)
             .eq('id', connectionId)
             .eq('user_id', userId)
             .in('status', ['active', 'error', 'pending']);

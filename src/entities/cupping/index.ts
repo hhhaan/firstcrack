@@ -1,12 +1,13 @@
 export type {
     AddSampleInput,
+    BeanCuppingMeta,
     CreateEventInput,
     CreateInviteForEventInput,
     CreateInviteResult,
     CuppingEventSummary,
     CuppingSampleWithMeta,
 } from './api';
-export { cuppingApi } from './api';
+export { cuppingApi, formatBeanCuppingMeta } from './api';
 export type { ScaV1Key, ScaV1Scores } from './lib/score';
 export {
     DEFECT_WEIGHT,

@@ -11,15 +11,30 @@ export type CuppingEventSummary = CuppingEvent & {
     active_invite: (CuppingInvite & { url: string }) | null;
 };
 
+export type BeanCuppingMeta = {
+    name: string;
+    origin: string | null;
+    region: string | null;
+    variety: string | null;
+    process: string | null;
+    farm: string | null;
+};
+
 export type CuppingSampleWithMeta = CuppingSample & {
     roast_sessions: {
         id: string;
         roasted_at: string | null;
-        beans: { name: string } | null;
+        beans: BeanCuppingMeta | null;
     } | null;
     score_count: number;
     avg_score: number | null;
 };
+
+/** origin · region · variety · process · farm (skips empty) */
+export function formatBeanCuppingMeta(bean: Partial<BeanCuppingMeta> | null | undefined): string {
+    if (!bean) return '';
+    return [bean.origin, bean.region, bean.variety, bean.process, bean.farm].filter(Boolean).join(' · ');
+}
 
 export type CreateEventInput = {
     userId: string;
@@ -176,7 +191,7 @@ export const cuppingApi = {
     listSamples: async (eventId: string): Promise<CuppingSampleWithMeta[]> => {
         const { data: samples, error } = await supabase
             .from('cupping_samples')
-            .select('*, roast_sessions(id, roasted_at, beans(name))')
+            .select('*, roast_sessions(id, roasted_at, beans(name, origin, region, variety, process, farm))')
             .eq('event_id', eventId)
             .order('sort_order', { ascending: true })
             .order('created_at', { ascending: true });
@@ -274,7 +289,8 @@ export const cuppingApi = {
         userId,
         eventId,
         expiresInDays = 7,
-        maxUses = 100,
+        // Session invite: many cuppers × many samples (parallel table use)
+        maxUses = 10_000,
     }: CreateInviteForEventInput): Promise<CreateInviteResult> => {
         const existing = await loadActiveInviteForEvent(eventId);
         if (existing) return existing;

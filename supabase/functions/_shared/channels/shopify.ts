@@ -17,6 +17,7 @@
  * API version pinned to docs "latest" crawl (2026-07).
  */
 
+import { buildShopifyFulfillmentInput } from './dispatch.ts';
 import { shopifyToCanonical } from './status-map.ts';
 import type {
     CanonicalOrder,
@@ -24,6 +25,8 @@ import type {
     ChannelAdapter,
     ChannelSecrets,
     FetchOrdersResult,
+    MarkShippedRequest,
+    MarkShippedResult,
     PlatformListing,
     PollCursor,
     TestConnectionResult,
@@ -264,5 +267,82 @@ export const shopifyAdapter: ChannelAdapter = {
             }
         }
         return out;
+    },
+
+    async markShipped(secrets, req: MarkShippedRequest): Promise<MarkShippedResult> {
+        const s = requireShopify(secrets);
+        const orderGid = req.platformOrderId.startsWith('gid://')
+            ? req.platformOrderId
+            : `gid://shopify/Order/${req.platformOrderId}`;
+
+        type FoData = {
+            order: {
+                fulfillmentOrders: {
+                    edges: Array<{
+                        node: {
+                            id: string;
+                            status: string;
+                        };
+                    }>;
+                };
+            } | null;
+        };
+
+        const foData = await gql<FoData>(
+            s.shop,
+            s.access_token,
+            `query ($id: ID!) {
+              order(id: $id) {
+                fulfillmentOrders(first: 20, display: "status:OPEN") {
+                  edges { node { id status } }
+                }
+              }
+            }`,
+            { id: orderGid },
+        );
+
+        const openIds = (foData.order?.fulfillmentOrders.edges ?? [])
+            .filter((e) => e.node.status === 'OPEN' || e.node.status === 'IN_PROGRESS')
+            .map((e) => e.node.id);
+
+        if (!openIds.length) {
+            return { ok: true, alreadyShipped: true };
+        }
+
+        const fulfillment = buildShopifyFulfillmentInput(req, openIds);
+        type CreateData = {
+            fulfillmentCreateV2: {
+                fulfillment?: { id: string } | null;
+                userErrors: Array<{ message: string }>;
+            };
+        };
+
+        const created = await gql<CreateData>(
+            s.shop,
+            s.access_token,
+            `mutation ($fulfillment: FulfillmentV2Input!) {
+              fulfillmentCreateV2(fulfillment: $fulfillment) {
+                fulfillment { id }
+                userErrors { message }
+              }
+            }`,
+            { fulfillment },
+        );
+
+        const errors = created.fulfillmentCreateV2.userErrors ?? [];
+        if (errors.length) {
+            const msg = errors.map((e) => e.message).join('; ');
+            const already = /already|fulfilled|closed/i.test(msg);
+            if (already) return { ok: true, alreadyShipped: true, error: msg };
+            return { ok: false, alreadyShipped: false, error: msg };
+        }
+        if (!created.fulfillmentCreateV2.fulfillment?.id) {
+            return { ok: false, alreadyShipped: false, error: 'shopify: no fulfillment created' };
+        }
+        return {
+            ok: true,
+            alreadyShipped: false,
+            lineResults: req.lines.map((l) => ({ platformLineId: l.platformLineId, ok: true })),
+        };
     },
 };

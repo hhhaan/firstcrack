@@ -1,8 +1,28 @@
+import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-export const BlendListEmpty = ({ onAdd }: { onAdd: () => void }) => {
+type BlendListEmptyProps = {
+    hasBeans: boolean;
+    onAdd: () => void;
+    onNeedBeans: () => void;
+};
+
+export const BlendListEmpty = ({ hasBeans, onAdd, onNeedBeans }: BlendListEmptyProps) => {
     const { t } = useTranslation();
+
+    if (!hasBeans) {
+        return (
+            <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
+                <div className="text-[13px] text-muted text-center leading-relaxed">
+                    {t('beans.blend.needBeansFirst')}
+                </div>
+                <SurfaceButton onClick={onNeedBeans} icon={<Plus size={14} strokeWidth={2} />} className="px-4 py-2">
+                    {t('beans.addBean')}
+                </SurfaceButton>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-main-bg dark:border dark:border-[#585d61] rounded-xl px-4 py-20 flex flex-col items-center justify-center gap-5 select-none">
@@ -11,14 +31,9 @@ export const BlendListEmpty = ({ onAdd }: { onAdd: () => void }) => {
                 <br />
                 {t('beans.blend.addBlendFirst')}
             </div>
-            <button
-                type="button"
-                onClick={onAdd}
-                className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
-            >
-                <Plus size={14} strokeWidth={2} />
+            <SurfaceButton onClick={onAdd} icon={<Plus size={14} strokeWidth={2} />} className="px-4 py-2">
                 {t('beans.blend.addBlend')}
-            </button>
+            </SurfaceButton>
         </div>
     );
 };

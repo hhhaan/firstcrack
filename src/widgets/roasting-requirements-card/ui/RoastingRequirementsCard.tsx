@@ -1,6 +1,7 @@
 import { useBeans } from '@entities/bean';
 import { useRoastingRequirements } from '@entities/order';
 import { useAuthStore } from '@shared/store/auth';
+import { Skeleton } from '@shared/ui/Skeleton';
 import { Flame } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +28,15 @@ export const RoastingRequirementsCard = () => {
             </div>
 
             {isLoading ? (
-                <p className="text-[13px] text-muted">{t('orders.requirements.loading')}</p>
+                <div className="space-y-3" role="status" aria-busy="true">
+                    {Array.from({ length: 3 }, (_, i) => (
+                        <div key={i} className="flex items-center justify-between gap-4">
+                            <Skeleton width="30%" height={14} borderRadius="4px" />
+                            <Skeleton width={64} height={14} borderRadius="4px" />
+                            <Skeleton width={64} height={14} borderRadius="4px" />
+                        </div>
+                    ))}
+                </div>
             ) : beanRows.length === 0 ? (
                 <p className="text-[13px] text-muted">{t('orders.requirements.empty')}</p>
             ) : (

@@ -2,7 +2,8 @@ import { supabase } from '@shared/lib/supabase';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 
-const SELECT_WITH_RELATIONS = '*, beans(name, origin), roast_profiles!profile_id(name, target_level)';
+const SELECT_WITH_RELATIONS =
+    '*, beans(name, origin, region, variety, process, farm), roast_profiles!profile_id(name, target_level)';
 
 export type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at'>;
 type RoastSessionUpdate = { id: string } & Partial<Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;

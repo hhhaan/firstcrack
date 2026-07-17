@@ -4,6 +4,7 @@
  */
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import { planInboundStockActions } from './inbound-actions.ts';
 import { mergeStatus } from './status-map.ts';
 import type { CanonicalOrder, CanonicalStatus, LineStatus, Platform } from './types.ts';
 
@@ -11,11 +12,13 @@ export interface UpsertContext {
     userId: string;
     connectionId: string;
     platform: Platform;
+    autoFulfillOnShipped?: boolean;
 }
 
 export interface UpsertResult {
     upserted: number;
     cancelledCompensations: number;
+    autoFulfillments: number;
 }
 
 type OrderRow = {
@@ -70,17 +73,37 @@ function resolveProductId(
     return null;
 }
 
+async function confirmDispatchIfShipped(
+    supabase: SupabaseClient,
+    orderId: string,
+    status: CanonicalStatus,
+): Promise<void> {
+    if (status !== 'shipped' && status !== 'delivered') return;
+    const now = new Date().toISOString();
+    await supabase
+        .from('order_dispatches')
+        .update({
+            status: 'confirmed',
+            confirmed_at: now,
+            updated_at: now,
+        })
+        .eq('order_id', orderId)
+        .eq('status', 'sent');
+}
+
 export async function upsertCanonicalOrders(
     supabase: SupabaseClient,
     ctx: UpsertContext,
     orders: CanonicalOrder[],
 ): Promise<UpsertResult> {
-    if (!orders.length) return { upserted: 0, cancelledCompensations: 0 };
+    if (!orders.length) return { upserted: 0, cancelledCompensations: 0, autoFulfillments: 0 };
 
     const productMap = await buildProductMap(supabase, ctx.userId, orders);
     let upserted = 0;
     let cancelledCompensations = 0;
+    let autoFulfillments = 0;
     const now = new Date().toISOString();
+    const autoFulfill = ctx.autoFulfillOnShipped === true;
 
     for (const order of orders) {
         const { data: existing } = await supabase
@@ -92,11 +115,11 @@ export async function upsertCanonicalOrders(
             .maybeSingle();
 
         const prev = existing as OrderRow | null;
-        const nextStatus = prev
-            ? mergeStatus(prev.status as CanonicalStatus, order.status)
-            : order.status;
+        const prevStatus = (prev?.status as CanonicalStatus) ?? order.status;
+        const nextStatus = prev ? mergeStatus(prev.status as CanonicalStatus, order.status) : order.status;
 
         let orderId: string;
+        let fulfilledAt = prev?.fulfilled_at ?? null;
 
         if (prev) {
             const { error } = await supabase
@@ -145,13 +168,14 @@ export async function upsertCanonicalOrders(
             ((existingLines ?? []) as LineRow[]).map((l) => [l.platform_line_id, l]),
         );
 
-        const cancelEvents: Array<{
-            user_id: string;
-            product_id: string;
-            delta_units: number;
-            event_type: string;
-            reference_id: string;
-        }> = [];
+        type DiffLine = {
+            lineId: string;
+            productId: string | null;
+            quantity: number;
+            prev: LineStatus;
+            next: LineStatus;
+        };
+        const diffs: DiffLine[] = [];
 
         for (const line of order.lines) {
             const prevLine = lineByPlatform.get(line.platformLineId);
@@ -160,25 +184,13 @@ export async function upsertCanonicalOrders(
                 resolveProductId(productMap, line.platformProductId, line.platformVariantId);
 
             if (prevLine) {
-                const prevStatus = prevLine.status as LineStatus;
-                const nextLineStatus = line.status;
-
-                // fulfilled order + line cancelled/refunded → compensate stock
-                if (
-                    prev &&
-                    prev.fulfilled_at &&
-                    prevStatus === 'active' &&
-                    (nextLineStatus === 'cancelled' || nextLineStatus === 'refunded') &&
-                    productId
-                ) {
-                    cancelEvents.push({
-                        user_id: ctx.userId,
-                        product_id: productId,
-                        delta_units: prevLine.quantity,
-                        event_type: 'order_cancel',
-                        reference_id: prevLine.id,
-                    });
-                }
+                diffs.push({
+                    lineId: prevLine.id,
+                    productId,
+                    quantity: prevLine.quantity,
+                    prev: prevLine.status as LineStatus,
+                    next: line.status,
+                });
 
                 const { error } = await supabase
                     .from('order_lines')
@@ -194,32 +206,67 @@ export async function upsertCanonicalOrders(
                     .eq('id', prevLine.id);
                 if (error) throw error;
             } else {
-                const { error } = await supabase.from('order_lines').insert({
-                    order_id: orderId,
-                    user_id: ctx.userId,
-                    platform_line_id: line.platformLineId,
-                    product_id: productId,
-                    platform_product_id: line.platformProductId,
-                    platform_variant_id: line.platformVariantId,
-                    title: line.title,
-                    quantity: line.quantity,
-                    unit_price: line.unitPrice,
-                    status: line.status,
-                });
+                const { data: inserted, error } = await supabase
+                    .from('order_lines')
+                    .insert({
+                        order_id: orderId,
+                        user_id: ctx.userId,
+                        platform_line_id: line.platformLineId,
+                        product_id: productId,
+                        platform_product_id: line.platformProductId,
+                        platform_variant_id: line.platformVariantId,
+                        title: line.title,
+                        quantity: line.quantity,
+                        unit_price: line.unitPrice,
+                        status: line.status,
+                    })
+                    .select('id')
+                    .single();
                 if (error) throw error;
+                diffs.push({
+                    lineId: inserted!.id,
+                    productId,
+                    quantity: line.quantity,
+                    prev: 'active',
+                    next: line.status,
+                });
             }
         }
 
-        if (cancelEvents.length) {
+        const planned = planInboundStockActions(
+            {
+                userId: ctx.userId,
+                fulfilledAt,
+                prevStatus: prev ? prevStatus : 'pending',
+                nextStatus,
+                autoFulfillOnShipped: autoFulfill,
+            },
+            diffs,
+        );
+
+        if (planned.events.length) {
             const { error } = await supabase.rpc('insert_product_stock_events_batch', {
-                p_events: cancelEvents,
+                p_events: planned.events,
             });
             if (error) throw error;
-            cancelledCompensations += cancelEvents.length;
+            cancelledCompensations += planned.events.filter((e) => e.event_type === 'order_cancel').length;
+            autoFulfillments += planned.events.filter((e) => e.event_type === 'order_fulfillment').length;
         }
+
+        if (planned.setFulfilledAt) {
+            const { error } = await supabase
+                .from('orders')
+                .update({ fulfilled_at: now, updated_at: now })
+                .eq('id', orderId)
+                .is('fulfilled_at', null);
+            if (error) throw error;
+            fulfilledAt = now;
+        }
+
+        await confirmDispatchIfShipped(supabase, orderId, nextStatus);
 
         upserted += 1;
     }
 
-    return { upserted, cancelledCompensations };
+    return { upserted, cancelledCompensations, autoFulfillments };
 }

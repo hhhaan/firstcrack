@@ -11,6 +11,7 @@ import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
+import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
 import { AddBlendModal } from '@widgets/add-blend-modal';
 import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
@@ -50,6 +51,19 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
         setIsAddModalOpen(true);
     };
 
+    const openBeanFirst = () => {
+        setTab('single');
+        openModal('new');
+    };
+
+    const openBlendAdd = () => {
+        if (beans.length === 0) {
+            openBeanFirst();
+            return;
+        }
+        setIsBlendAddOpen(true);
+    };
+
     const selected = beans.find((b) => b.id === selectedId) ?? beans[0] ?? null;
 
     const affectedBlendNames = useMemo(
@@ -69,14 +83,13 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 <br />
                 {t('beans.empty.description')}
             </div>
-            <button
-                type="button"
+            <SurfaceButton
                 onClick={() => openModal('new')}
-                className="flex items-center gap-1.5 text-[13px] font-medium text-primary px-4 py-2 rounded-lg bg-surface dark:bg-surface-elevated cursor-pointer hover:bg-surface-raised transition-colors"
+                icon={<Plus size={14} strokeWidth={2} />}
+                className="px-4 py-2"
             >
-                <Plus size={14} strokeWidth={2} />
                 {t('beans.addBean')}
-            </button>
+            </SurfaceButton>
         </div>
     );
 
@@ -133,7 +146,7 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
             <PageHeader
                 title={t('beans.title')}
                 actions={
-                    <PillButton onClick={() => (tab === 'blend' ? setIsBlendAddOpen(true) : openModal('new'))}>
+                    <PillButton onClick={() => (tab === 'blend' ? openBlendAdd() : openModal('new'))}>
                         <Plus size={15} strokeWidth={2.5} />
                         {tab === 'blend' ? t('beans.blend.addBlend') : t('beans.addBeanLot')}
                     </PillButton>
@@ -167,7 +180,9 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
             {tab === 'blend' && (
                 <>
                     <BlendList
-                        onAddOpen={() => setIsBlendAddOpen(true)}
+                        hasBeans={beans.length > 0}
+                        onAddOpen={openBlendAdd}
+                        onNeedBeans={openBeanFirst}
                         onEditOpen={(blend: BlendWithComponents) => setEditingBlend(blend)}
                     />
                     <AddBlendModal

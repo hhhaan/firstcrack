@@ -23,6 +23,7 @@
  */
 
 import { hash as bcryptHash } from 'npm:bcryptjs@2.4.3';
+import { buildNaverDispatchPayload } from './dispatch.ts';
 import { naverToCanonical } from './status-map.ts';
 import type {
     CanonicalOrder,
@@ -30,6 +31,8 @@ import type {
     ChannelAdapter,
     ChannelSecrets,
     FetchOrdersResult,
+    MarkShippedRequest,
+    MarkShippedResult,
     PlatformListing,
     PollCursor,
     TestConnectionResult,
@@ -386,5 +389,68 @@ export const naverAdapter: ChannelAdapter = {
         // Product catalog APIs are under a separate product API group; map via sellerProductCode on orders first.
         // Keep empty until product-search endpoint is wired from product docs.
         return [];
+    },
+
+    async markShipped(secrets, req: MarkShippedRequest): Promise<MarkShippedResult> {
+        let s = requireNaver(secrets);
+        const { token, refreshed } = await withToken(s);
+        if (refreshed) s = refreshed;
+
+        const body = buildNaverDispatchPayload(req);
+        const res = await fetch(`${BASE}/v1/pay-order/seller/product-orders/dispatch`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify(body),
+        });
+        const text = await res.text();
+        let json: {
+            data?: Array<{ productOrderId?: string; code?: string; message?: string }>;
+            code?: string;
+            message?: string;
+        } = {};
+        try {
+            json = text ? JSON.parse(text) : {};
+        } catch {
+            // keep empty
+        }
+
+        if (!res.ok) {
+            const msg = (json.message ?? text).slice(0, 500);
+            const already =
+                /already|already.?dispatched|ALREADY|DISPATCHED/i.test(msg) ||
+                json.code === 'ALREADY_DISPATCHED';
+            if (already) {
+                return { ok: true, alreadyShipped: true, error: msg };
+            }
+            return { ok: false, alreadyShipped: false, error: `naver dispatch ${res.status}: ${msg}` };
+        }
+
+        const rows = Array.isArray(json.data) ? json.data : [];
+        const lineResults = req.lines.map((l) => {
+            const row = rows.find((r) => String(r.productOrderId) === l.platformLineId);
+            if (!row) return { platformLineId: l.platformLineId, ok: true };
+            const code = String(row.code ?? '');
+            const ok = !code || code === 'SUCCESS' || code === '0000';
+            const already = /ALREADY|DISPATCHED/i.test(code) || /already/i.test(String(row.message ?? ''));
+            return {
+                platformLineId: l.platformLineId,
+                ok: ok || already,
+                error: ok || already ? undefined : String(row.message ?? code),
+            };
+        });
+        const anyFail = lineResults.some((r) => !r.ok);
+        const allAlready =
+            rows.length > 0 &&
+            rows.every((r) => /ALREADY|DISPATCHED/i.test(String(r.code ?? r.message ?? '')));
+        return {
+            ok: !anyFail,
+            alreadyShipped: allAlready,
+            lineResults,
+            error: anyFail ? lineResults.find((r) => !r.ok)?.error : undefined,
+        };
     },
 };

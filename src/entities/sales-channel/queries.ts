@@ -53,3 +53,14 @@ export const useSyncOrders = (userId: string) => {
         },
     });
 };
+
+export const useSetAutoFulfill = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ connectionId, enabled }: { connectionId: string; enabled: boolean }) =>
+            salesChannelApi.setAutoFulfill(connectionId, enabled),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
+        },
+    });
+};

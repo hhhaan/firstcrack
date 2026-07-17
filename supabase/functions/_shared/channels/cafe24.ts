@@ -26,6 +26,7 @@
  *   POST https://{mallid}.cafe24api.com/api/v2/oauth/token
  */
 
+import { buildCafe24ShipmentPayload } from './dispatch.ts';
 import { cafe24ToCanonical } from './status-map.ts';
 import type {
     CanonicalOrder,
@@ -33,6 +34,8 @@ import type {
     ChannelAdapter,
     ChannelSecrets,
     FetchOrdersResult,
+    MarkShippedRequest,
+    MarkShippedResult,
     PlatformListing,
     PollCursor,
     TestConnectionResult,
@@ -328,5 +331,40 @@ export const cafe24Adapter: ChannelAdapter = {
             }
         }
         return out;
+    },
+
+    async markShipped(secrets, req: MarkShippedRequest): Promise<MarkShippedResult> {
+        let s = requireCafe24(secrets);
+        const refreshed = await refreshCafe24Token(s);
+        if (refreshed) s = refreshed;
+
+        const payload = buildCafe24ShipmentPayload(req);
+        const url = `${adminBase(s.mall_id)}/orders/${encodeURIComponent(req.platformOrderId)}/shipments`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${s.access_token}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+        const text = await res.text();
+        if (!res.ok) {
+            const already = /already|exist|shipping|shipped/i.test(text);
+            if (already || res.status === 409) {
+                return { ok: true, alreadyShipped: true, error: text.slice(0, 300) };
+            }
+            return {
+                ok: false,
+                alreadyShipped: false,
+                error: `cafe24 shipments ${res.status}: ${text.slice(0, 300)}`,
+            };
+        }
+        return {
+            ok: true,
+            alreadyShipped: false,
+            lineResults: req.lines.map((l) => ({ platformLineId: l.platformLineId, ok: true })),
+        };
     },
 };

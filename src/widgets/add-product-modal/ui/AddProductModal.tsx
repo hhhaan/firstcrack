@@ -187,7 +187,7 @@ export const AddProductModal = ({ open, onClose, editing }: Props) => {
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 rounded-2xl border-none bg-surface py-3.5 text-[15px] font-semibold text-secondary shadow-(--shadow-inset) dark:bg-surface-elevated dark:text-[#e5e5e5]"
+                        className="flex-1 rounded-full border-none bg-surface py-3 text-[14px] font-medium tracking-[0.14px] text-secondary shadow-(--shadow-inset) transition-colors hover:bg-surface-elevated cursor-pointer dark:bg-surface-elevated dark:text-[#e5e5e5]"
                     >
                         {t('common.cancel')}
                     </button>
@@ -195,7 +195,7 @@ export const AddProductModal = ({ open, onClose, editing }: Props) => {
                         type="button"
                         onClick={onSubmit}
                         disabled={!valid}
-                        className="flex-1 rounded-2xl border border-transparent bg-primary py-3.5 text-[15px] font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,0.15)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-white dark:bg-black"
+                        className="flex-1 rounded-full border border-transparent bg-primary py-3 text-[14px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:border-white dark:bg-[#0d0d0d] cursor-pointer"
                     >
                         {editing ? t('common.save') : t('common.add')}
                     </button>
