@@ -42,6 +42,37 @@ const iconBtn =
 const dangerIconBtn =
     'inline-flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:pointer-events-none disabled:opacity-40 cursor-pointer';
 
+const ORDER_STATUS_EN: Record<string, string> = {
+    pending: 'Pending',
+    paid: 'Paid',
+    preparing: 'Preparing',
+    shipped: 'Shipped',
+    delivered: 'Delivered',
+    cancelled: 'Cancelled',
+    refunded: 'Refunded',
+};
+
+const DISPATCH_STATUS_EN: Record<string, string> = {
+    pending: 'Dispatch pending',
+    sent: 'Ship requested',
+    confirmed: 'Shipped (confirmed)',
+    failed: 'Ship failed',
+};
+
+const PLATFORM_EN: Record<string, string> = {
+    manual: 'Manual',
+    naver: 'Naver',
+    cafe24: 'Cafe24',
+    shopify: 'Shopify',
+};
+
+const CHANNEL_STATUS_EN: Record<string, string> = {
+    pending: 'Pending',
+    active: 'Active',
+    error: 'Error',
+    disabled: 'Disabled',
+};
+
 function GhostButton({
     className = '',
     children,
@@ -271,18 +302,14 @@ function OrderRow({
         dispatch?.status === 'sent' &&
         !!dispatch.sent_at &&
         nowMs - new Date(dispatch.sent_at).getTime() > 30 * 60 * 1000;
-    const statusLabel = fulfilled
-        ? t('orders.order.fulfilled')
-        : t(`orders.status.${order.status}`, { defaultValue: order.status });
+    const statusLabel = fulfilled ? 'Fulfilled' : (ORDER_STATUS_EN[order.status] ?? order.status);
 
     return (
         <tr className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
             <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">{formatDateShort(order.ordered_at)}</td>
             <td className="px-4 py-3.5">
                 <Badge tone="soft" size="sm">
-                    {order.platform === 'manual'
-                        ? t('orders.order.manual')
-                        : t(`orders.channel.platform.${order.platform}`, { defaultValue: order.platform })}
+                    {PLATFORM_EN[order.platform] ?? order.platform}
                 </Badge>
             </td>
             <td className="px-4 py-3.5 text-[13px] text-primary tracking-[0.14px]">{order.buyer_name ?? '—'}</td>
@@ -295,8 +322,8 @@ function OrderRow({
                     {dispatch ? (
                         <Badge tone={dispatchTone(dispatch.status, sentDelayed)} size="sm">
                             {sentDelayed
-                                ? t('orders.dispatch.delayed')
-                                : t(`orders.dispatch.status.${dispatch.status}`)}
+                                ? 'Platform confirm delayed'
+                                : (DISPATCH_STATUS_EN[dispatch.status] ?? dispatch.status)}
                         </Badge>
                     ) : null}
                 </div>
@@ -565,10 +592,10 @@ function ChannelCard({
                         {channel.display_name || channel.shop_identifier}
                     </p>
                     <Badge tone={channelStatusTone(channel.status)} size="sm">
-                        {t(`orders.channel.status.${channel.status}`, { defaultValue: channel.status })}
+                        {CHANNEL_STATUS_EN[channel.status] ?? channel.status}
                     </Badge>
                     <Badge tone="soft" size="sm">
-                        {t(`orders.channel.platform.${channel.platform}`)}
+                        {PLATFORM_EN[channel.platform] ?? channel.platform}
                     </Badge>
                 </div>
                 <p className="mt-1 text-[12px] text-muted tracking-[0.14px]">

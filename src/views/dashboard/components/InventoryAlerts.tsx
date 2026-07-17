@@ -27,10 +27,10 @@ export const InventoryAlerts = ({ data, loading }: InventoryAlertsProps) => {
                     const bg = alertBg[item.reason] ?? 'rgba(255,255,84,0.2)';
                     const status =
                         item.reason === 'out'
-                            ? t('dashboard.outOfStock')
+                            ? 'Out of Stock'
                             : item.reason === 'schedule'
-                              ? t('dashboard.scheduleStockAlert')
-                              : t('dashboard.lowStock');
+                              ? 'Schedule reservation short'
+                              : 'Low Stock';
                     return (
                         <div
                             key={item.id}
