@@ -178,9 +178,7 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
                                     </td>
                                     <td className="px-4 py-3">
                                         <Badge tone={ev.active_invite ? 'good' : 'muted'} size="sm">
-                                            {ev.active_invite
-                                                ? t('cupping.sessionLinkActive')
-                                                : t('cupping.sessionLinkNone')}
+                                            {ev.active_invite ? 'Link active' : 'No link yet'}
                                         </Badge>
                                     </td>
                                     <td className="px-4 py-3 text-right">
@@ -403,7 +401,7 @@ function EventDetail({
                                 tone={activeInvite || samples.length > 0 ? (activeInvite ? 'good' : 'muted') : 'muted'}
                                 size="sm"
                             >
-                                {activeInvite ? t('cupping.sessionLinkActive') : t('cupping.sessionLinkNone')}
+                                {activeInvite ? 'Link active' : 'No link yet'}
                             </Badge>
                         </div>
                         <p className="text-[12px] leading-relaxed text-muted tracking-[0.14px]">
