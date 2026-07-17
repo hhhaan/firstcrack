@@ -1,7 +1,7 @@
 export type {
     AddSampleInput,
     CreateEventInput,
-    CreateInviteForSampleInput,
+    CreateInviteForEventInput,
     CreateInviteResult,
     CuppingEventSummary,
     CuppingSampleWithMeta,
@@ -32,12 +32,13 @@ export {
     useAddCuppingSample,
     useAddCuppingSamples,
     useCreateCuppingEvent,
-    useCreateSampleInvite,
+    useCreateEventInvite,
     useCuppingEvent,
     useCuppingEvents,
     useCuppingSamples,
     useCuppingScoresBySample,
     useDeleteCuppingEvent,
     useDeleteCuppingSample,
+    useEventInvite,
     useRevokeCuppingInvite,
 } from './queries';

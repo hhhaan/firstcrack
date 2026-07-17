@@ -58,7 +58,9 @@ Deno.serve(async (req) => {
         const token = body.token.trim();
         const { data: invite, error } = await supabase
             .from('cupping_invites')
-            .select('id, user_id, roast_session_id, sample_id, expires_at, max_uses, used_count, revoked_at')
+            .select(
+                'id, user_id, roast_session_id, sample_id, event_id, expires_at, max_uses, used_count, revoked_at',
+            )
             .eq('token', token)
             .maybeSingle();
 
@@ -72,16 +74,41 @@ Deno.serve(async (req) => {
         if (invite.used_count >= invite.max_uses) return jsonResponse({ error: 'full' }, 410);
 
         let roastSessionId = invite.roast_session_id as string | null;
-        let sampleId = invite.sample_id as string | null;
+        let sampleId = (body.sampleId?.trim() || invite.sample_id) as string | null;
         let profileId: string | null = null;
 
-        if (sampleId) {
+        // Event-level invite: sample must belong to that event
+        if (invite.event_id) {
+            if (!sampleId) return jsonResponse({ error: 'sampleId required' }, 400);
+            const { data: sample, error: sampleErr } = await supabase
+                .from('cupping_samples')
+                .select('id, roast_session_id, event_id')
+                .eq('id', sampleId)
+                .eq('event_id', invite.event_id)
+                .maybeSingle();
+            if (sampleErr || !sample) return jsonResponse({ error: 'sample_not_found' }, 404);
+            roastSessionId = sample.roast_session_id ?? roastSessionId;
+        } else if (invite.sample_id) {
+            // Legacy per-sample invite: ignore body.sampleId override to other samples
+            sampleId = invite.sample_id;
             const { data: sample } = await supabase
                 .from('cupping_samples')
                 .select('id, roast_session_id')
                 .eq('id', sampleId)
                 .maybeSingle();
             if (sample?.roast_session_id) roastSessionId = sample.roast_session_id;
+        } else if (sampleId) {
+            const { data: sample } = await supabase
+                .from('cupping_samples')
+                .select('id, roast_session_id')
+                .eq('id', sampleId)
+                .maybeSingle();
+            if (!sample) return jsonResponse({ error: 'sample_not_found' }, 404);
+            roastSessionId = sample.roast_session_id ?? roastSessionId;
+        }
+
+        if (!sampleId && !roastSessionId) {
+            return jsonResponse({ error: 'sampleId required' }, 400);
         }
 
         if (roastSessionId) {

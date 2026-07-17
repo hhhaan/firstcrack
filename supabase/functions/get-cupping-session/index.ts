@@ -4,6 +4,13 @@ import { corsHeaders, jsonResponse } from '../_shared/auth.ts';
 const serviceClient = () =>
     createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
+type SampleRow = {
+    id: string;
+    label: string;
+    sort_order: number;
+    roast_session_id: string | null;
+};
+
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -27,7 +34,9 @@ Deno.serve(async (req) => {
     const supabase = serviceClient();
     const { data: invite, error } = await supabase
         .from('cupping_invites')
-        .select('id, expires_at, max_uses, used_count, revoked_at, roast_session_id, sample_id, user_id')
+        .select(
+            'id, expires_at, max_uses, used_count, revoked_at, roast_session_id, sample_id, event_id, user_id',
+        )
         .eq('token', token)
         .maybeSingle();
 
@@ -40,51 +49,95 @@ Deno.serve(async (req) => {
     if (new Date(invite.expires_at) <= new Date()) return jsonResponse({ error: 'expired' }, 410);
     if (invite.used_count >= invite.max_uses) return jsonResponse({ error: 'full' }, 410);
 
-    let sampleLabel: string | null = null;
-    let roastSessionId: string | null = invite.roast_session_id;
-    let beanName: string | null = null;
-    let profileName: string | null = null;
-    let roastLevel: string | null = null;
-    let roastedAt: string | null = null;
+    // Resolve event_id: direct column, or via sample (legacy per-sample invites)
+    let eventId = invite.event_id as string | null;
+    if (!eventId && invite.sample_id) {
+        const { data: sample } = await supabase
+            .from('cupping_samples')
+            .select('event_id')
+            .eq('id', invite.sample_id)
+            .maybeSingle();
+        eventId = sample?.event_id ?? null;
+    }
 
-    if (invite.sample_id) {
+    let eventTitle: string | null = null;
+    let samples: { id: string; label: string; beanName: string | null }[] = [];
+
+    if (eventId) {
+        const { data: event } = await supabase
+            .from('cupping_events')
+            .select('id, title')
+            .eq('id', eventId)
+            .maybeSingle();
+        eventTitle = event?.title ?? null;
+
+        const { data: sampleRows } = await supabase
+            .from('cupping_samples')
+            .select('id, label, sort_order, roast_session_id')
+            .eq('event_id', eventId)
+            .order('sort_order', { ascending: true })
+            .order('created_at', { ascending: true });
+
+        const rows = (sampleRows ?? []) as SampleRow[];
+        const roastIds = [...new Set(rows.map((r) => r.roast_session_id).filter(Boolean))] as string[];
+        const beanByRoast = new Map<string, string>();
+        if (roastIds.length) {
+            const { data: sessions } = await supabase
+                .from('roast_sessions')
+                .select('id, beans(name)')
+                .in('id', roastIds);
+            for (const s of sessions ?? []) {
+                const beans = s.beans as { name: string } | null;
+                if (beans?.name) beanByRoast.set(s.id, beans.name);
+            }
+        }
+
+        // Legacy single-sample invite: only expose that sample
+        const filtered =
+            invite.sample_id && !invite.event_id
+                ? rows.filter((r) => r.id === invite.sample_id)
+                : rows;
+
+        samples = filtered.map((r) => ({
+            id: r.id,
+            label: r.label,
+            beanName: r.roast_session_id ? (beanByRoast.get(r.roast_session_id) ?? null) : null,
+        }));
+    } else if (invite.sample_id) {
+        // Orphan sample invite without event
         const { data: sample } = await supabase
             .from('cupping_samples')
             .select('id, label, roast_session_id')
             .eq('id', invite.sample_id)
             .maybeSingle();
         if (sample) {
-            sampleLabel = sample.label;
-            roastSessionId = sample.roast_session_id ?? roastSessionId;
-        }
-    }
-
-    if (roastSessionId) {
-        const { data: session } = await supabase
-            .from('roast_sessions')
-            .select('id, roasted_at, roast_level, profile_id, bean_id, beans(name), roast_profiles!profile_id(name)')
-            .eq('id', roastSessionId)
-            .maybeSingle();
-        if (session) {
-            const beans = session.beans as { name: string } | null;
-            const profile = session.roast_profiles as { name: string } | null;
-            beanName = beans?.name ?? null;
-            profileName = profile?.name ?? null;
-            roastLevel = session.roast_level;
-            roastedAt = session.roasted_at;
+            let beanName: string | null = null;
+            if (sample.roast_session_id) {
+                const { data: session } = await supabase
+                    .from('roast_sessions')
+                    .select('beans(name)')
+                    .eq('id', sample.roast_session_id)
+                    .maybeSingle();
+                beanName = (session?.beans as { name: string } | null)?.name ?? null;
+            }
+            samples = [{ id: sample.id, label: sample.label, beanName }];
         }
     }
 
     return jsonResponse({
         inviteId: invite.id,
-        sampleId: invite.sample_id,
-        sampleLabel,
-        roastSessionId,
-        beanName,
-        profileName,
-        roastLevel,
-        roastedAt,
+        eventId,
+        eventTitle,
+        samples,
         expiresAt: invite.expires_at,
         remainingUses: invite.max_uses - invite.used_count,
+        // legacy fields for older clients
+        sampleId: invite.sample_id,
+        sampleLabel: samples.length === 1 ? samples[0].label : null,
+        roastSessionId: invite.roast_session_id,
+        beanName: samples.length === 1 ? samples[0].beanName : null,
+        profileName: null,
+        roastLevel: null,
+        roastedAt: null,
     });
 });

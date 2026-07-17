@@ -8,6 +8,7 @@ export type CuppingEventSummary = CuppingEvent & {
     sample_count: number;
     score_count: number;
     avg_score: number | null;
+    active_invite: (CuppingInvite & { url: string }) | null;
 };
 
 export type CuppingSampleWithMeta = CuppingSample & {
@@ -18,7 +19,6 @@ export type CuppingSampleWithMeta = CuppingSample & {
     } | null;
     score_count: number;
     avg_score: number | null;
-    active_invite: (CuppingInvite & { url: string }) | null;
 };
 
 export type CreateEventInput = {
@@ -36,15 +36,31 @@ export type AddSampleInput = {
     sortOrder?: number;
 };
 
-export type CreateInviteForSampleInput = {
+export type CreateInviteForEventInput = {
     userId: string;
-    sampleId: string;
-    roastSessionId?: string | null;
+    eventId: string;
     expiresInDays?: number;
     maxUses?: number;
 };
 
 export type CreateInviteResult = CuppingInvite & { url: string };
+
+async function loadActiveInviteForEvent(eventId: string): Promise<(CuppingInvite & { url: string }) | null> {
+    const now = new Date().toISOString();
+    const { data: invites, error } = await supabase
+        .from('cupping_invites')
+        .select('*')
+        .eq('event_id', eventId)
+        .is('revoked_at', null)
+        .gt('expires_at', now)
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const inv = (invites ?? []).find((i) => i.used_count < i.max_uses) ?? null;
+    if (!inv) return null;
+    const base = await resolveCuppingPublicBaseUrl();
+    return { ...inv, url: cuppingInviteUrl(inv.token, base) };
+}
 
 export const cuppingApi = {
     listEvents: async (userId: string): Promise<CuppingEventSummary[]> => {
@@ -86,6 +102,26 @@ export const cuppingApi = {
             samplesByEvent.set(s.event_id, list);
         }
 
+        const now = new Date().toISOString();
+        const { data: invites, error: iErr } = await supabase
+            .from('cupping_invites')
+            .select('*')
+            .in('event_id', eventIds)
+            .is('revoked_at', null)
+            .gt('expires_at', now)
+            .order('created_at', { ascending: false });
+        if (iErr) throw iErr;
+
+        const activeInviteByEvent = new Map<string, CuppingInvite>();
+        for (const inv of invites ?? []) {
+            if (!inv.event_id) continue;
+            if (inv.used_count >= inv.max_uses) continue;
+            if (!activeInviteByEvent.has(inv.event_id)) {
+                activeInviteByEvent.set(inv.event_id, inv);
+            }
+        }
+
+        const base = await resolveCuppingPublicBaseUrl();
         return events.map((ev) => {
             const sids = samplesByEvent.get(ev.id) ?? [];
             const allScores: number[] = [];
@@ -96,11 +132,13 @@ export const cuppingApi = {
                 allScores.length > 0
                     ? Math.round((allScores.reduce((a, b) => a + b, 0) / allScores.length) * 100) / 100
                     : null;
+            const inv = activeInviteByEvent.get(ev.id) ?? null;
             return {
                 ...ev,
                 sample_count: sids.length,
                 score_count: allScores.length,
                 avg_score: avg,
+                active_invite: inv ? { ...inv, url: cuppingInviteUrl(inv.token, base) } : null,
             };
         });
     },
@@ -111,6 +149,8 @@ export const cuppingApi = {
         // biome-ignore lint/style/noNonNullAssertion: error checked
         return data!;
     },
+
+    getActiveInviteForEvent: loadActiveInviteForEvent,
 
     createEvent: async ({ userId, title, heldAt, notes = null }: CreateEventInput): Promise<CuppingEvent> => {
         const { data, error } = await supabase
@@ -150,16 +190,6 @@ export const cuppingApi = {
             .in('sample_id', sampleIds);
         if (cErr) throw cErr;
 
-        const now = new Date().toISOString();
-        const { data: invites, error: iErr } = await supabase
-            .from('cupping_invites')
-            .select('*')
-            .in('sample_id', sampleIds)
-            .is('revoked_at', null)
-            .gt('expires_at', now)
-            .order('created_at', { ascending: false });
-        if (iErr) throw iErr;
-
         const scoresBySample = new Map<string, number[]>();
         for (const row of scores ?? []) {
             if (!row.sample_id) continue;
@@ -168,29 +198,17 @@ export const cuppingApi = {
             scoresBySample.set(row.sample_id, list);
         }
 
-        const activeInviteBySample = new Map<string, CuppingInvite>();
-        for (const inv of invites ?? []) {
-            if (!inv.sample_id) continue;
-            if (inv.used_count >= inv.max_uses) continue;
-            if (!activeInviteBySample.has(inv.sample_id)) {
-                activeInviteBySample.set(inv.sample_id, inv);
-            }
-        }
-
-        const base = await resolveCuppingPublicBaseUrl();
         return samples.map((s) => {
             const scoreList = scoresBySample.get(s.id) ?? [];
             const avg =
                 scoreList.length > 0
                     ? Math.round((scoreList.reduce((a, b) => a + b, 0) / scoreList.length) * 100) / 100
                     : null;
-            const inv = activeInviteBySample.get(s.id) ?? null;
             return {
                 ...s,
                 roast_sessions: s.roast_sessions as CuppingSampleWithMeta['roast_sessions'],
                 score_count: scoreList.length,
                 avg_score: avg,
-                active_invite: inv ? { ...inv, url: cuppingInviteUrl(inv.token, base) } : null,
             };
         });
     },
@@ -251,13 +269,16 @@ export const cuppingApi = {
         return data ?? [];
     },
 
-    createInviteForSample: async ({
+    /** One QR per cupping event (session). */
+    createInviteForEvent: async ({
         userId,
-        sampleId,
-        roastSessionId = null,
+        eventId,
         expiresInDays = 7,
-        maxUses = 20,
-    }: CreateInviteForSampleInput): Promise<CreateInviteResult> => {
+        maxUses = 100,
+    }: CreateInviteForEventInput): Promise<CreateInviteResult> => {
+        const existing = await loadActiveInviteForEvent(eventId);
+        if (existing) return existing;
+
         const token = generateCuppingToken();
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + expiresInDays);
@@ -266,8 +287,9 @@ export const cuppingApi = {
             .from('cupping_invites')
             .insert({
                 user_id: userId,
-                sample_id: sampleId,
-                roast_session_id: roastSessionId,
+                event_id: eventId,
+                sample_id: null,
+                roast_session_id: null,
                 token,
                 expires_at: expiresAt.toISOString(),
                 max_uses: maxUses,

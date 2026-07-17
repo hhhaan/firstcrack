@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { type AddSampleInput, type CreateEventInput, type CreateInviteForSampleInput, cuppingApi } from './api';
+import { type AddSampleInput, type CreateEventInput, type CreateInviteForEventInput, cuppingApi } from './api';
 
 export const cuppingKeys = {
     events: (userId: string) => ['cupping_events', userId] as const,
     event: (eventId: string) => ['cupping_events', 'detail', eventId] as const,
     samples: (eventId: string) => ['cupping_samples', eventId] as const,
+    invite: (eventId: string) => ['cupping_invite', eventId] as const,
     scores: (sampleId: string) => ['cuppings', 'sample', sampleId] as const,
 };
 
@@ -30,6 +31,15 @@ export const useCuppingSamples = (eventId: string, enabled = true) =>
     useQuery({
         queryKey: cuppingKeys.samples(eventId),
         queryFn: () => cuppingApi.listSamples(eventId),
+        staleTime: Infinity,
+        enabled: !!eventId && enabled,
+        throwOnError: false,
+    });
+
+export const useEventInvite = (eventId: string, enabled = true) =>
+    useQuery({
+        queryKey: cuppingKeys.invite(eventId),
+        queryFn: () => cuppingApi.getActiveInviteForEvent(eventId),
         staleTime: Infinity,
         enabled: !!eventId && enabled,
         throwOnError: false,
@@ -99,23 +109,25 @@ export const useDeleteCuppingSample = (userId: string, eventId: string) => {
     });
 };
 
-export const useCreateSampleInvite = (userId: string, eventId: string) => {
+export const useCreateEventInvite = (userId: string, eventId: string) => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (input: Omit<CreateInviteForSampleInput, 'userId'>) =>
-            cuppingApi.createInviteForSample({ ...input, userId }),
+        mutationFn: (input?: Omit<CreateInviteForEventInput, 'userId' | 'eventId'>) =>
+            cuppingApi.createInviteForEvent({ ...input, userId, eventId }),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: cuppingKeys.samples(eventId) });
+            qc.invalidateQueries({ queryKey: cuppingKeys.invite(eventId) });
+            qc.invalidateQueries({ queryKey: cuppingKeys.events(userId) });
         },
     });
 };
 
-export const useRevokeCuppingInvite = (eventId: string) => {
+export const useRevokeCuppingInvite = (eventId: string, userId?: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: cuppingApi.revokeInvite,
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: cuppingKeys.samples(eventId) });
+            qc.invalidateQueries({ queryKey: cuppingKeys.invite(eventId) });
+            if (userId) qc.invalidateQueries({ queryKey: cuppingKeys.events(userId) });
         },
     });
 };

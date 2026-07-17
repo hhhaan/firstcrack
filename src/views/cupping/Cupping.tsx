@@ -3,11 +3,12 @@ import {
     type CuppingSampleWithMeta,
     useAddCuppingSamples,
     useCreateCuppingEvent,
-    useCreateSampleInvite,
+    useCreateEventInvite,
     useCuppingEvents,
     useCuppingSamples,
     useDeleteCuppingEvent,
     useDeleteCuppingSample,
+    useEventInvite,
     useRevokeCuppingInvite,
 } from '@entities/cupping';
 import { useRoastSessions } from '@entities/roast';
@@ -258,17 +259,20 @@ function EventDetail({
 }) {
     const { t } = useTranslation();
     const { data: samples = [], isLoading, refetch } = useCuppingSamples(eventId);
+    const { data: activeInvite } = useEventInvite(eventId);
     const { data: roastSessions = [] } = useRoastSessions(userId, 'completed');
     const addSamples = useAddCuppingSamples(userId, eventId);
     const deleteSample = useDeleteCuppingSample(userId, eventId);
-    const createInvite = useCreateSampleInvite(userId, eventId);
-    const revokeInvite = useRevokeCuppingInvite(eventId);
+    const createInvite = useCreateEventInvite(userId, eventId);
+    const revokeInvite = useRevokeCuppingInvite(eventId, userId);
     const deleteEvent = useDeleteCuppingEvent(userId);
 
     const [showAdd, setShowAdd] = useState(false);
     const [selectedRoastIds, setSelectedRoastIds] = useState<string[]>([]);
     const [freeLabel, setFreeLabel] = useState('');
-    const [qrSample, setQrSample] = useState<CuppingSampleWithMeta | null>(null);
+    const [showQr, setShowQr] = useState(false);
+    const [qrUrl, setQrUrl] = useState<string | null>(null);
+    const [qrInviteId, setQrInviteId] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [addError, setAddError] = useState<string | null>(null);
 
@@ -318,25 +322,21 @@ function EventDetail({
         }
     };
 
-    const handleQr = async (sample: CuppingSampleWithMeta) => {
-        if (sample.active_invite) {
-            setQrSample(sample);
+    const handleQr = async () => {
+        if (activeInvite) {
+            setQrUrl(activeInvite.url);
+            setQrInviteId(activeInvite.id);
+            setShowQr(true);
             return;
         }
-        const inv = await createInvite.mutateAsync({
-            sampleId: sample.id,
-            roastSessionId: sample.roast_session_id,
-        });
-        setQrSample({
-            ...sample,
-            active_invite: inv,
-        });
-        void refetch();
+        const inv = await createInvite.mutateAsync({});
+        setQrUrl(inv.url);
+        setQrInviteId(inv.id);
+        setShowQr(true);
     };
 
-    const activeUrl = qrSample?.active_invite?.url ?? null;
-    const qrSrc = activeUrl
-        ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(activeUrl)}`
+    const qrSrc = qrUrl
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrUrl)}`
         : null;
 
     return (
@@ -365,6 +365,15 @@ function EventDetail({
                 }
                 actions={
                     <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={() => void handleQr()}
+                            disabled={createInvite.isPending || samples.length === 0}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle px-4 py-2 text-xs font-medium text-secondary dark:border-[#585d61] disabled:opacity-50"
+                        >
+                            <QrCode size={14} />
+                            {t('cupping.sessionQr')}
+                        </button>
                         <button
                             type="button"
                             onClick={() => setShowAdd(true)}
@@ -420,7 +429,7 @@ function EventDetail({
                             </tr>
                         </thead>
                         <tbody>
-                            {samples.map((s, i) => (
+                            {samples.map((s: CuppingSampleWithMeta, i: number) => (
                                 <tr key={s.id} className="border-b border-border-subtle dark:border-[#585d61]">
                                     <td className="px-4 py-3 font-mono text-[12px] text-muted">{i + 1}</td>
                                     <td className="px-4 py-3 text-[13px] font-medium text-primary">{s.label}</td>
@@ -434,28 +443,17 @@ function EventDetail({
                                         {s.avg_score != null ? s.avg_score.toFixed(2) : '—'}
                                     </td>
                                     <td className="px-4 py-3">
-                                        <div className="flex flex-wrap gap-1.5">
-                                            <button
-                                                type="button"
-                                                onClick={() => void handleQr(s)}
-                                                disabled={createInvite.isPending}
-                                                className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-2.5 py-1 text-[11px] text-secondary dark:border-[#585d61]"
-                                            >
-                                                <QrCode size={12} />
-                                                QR
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    if (window.confirm(t('cupping.deleteSampleConfirm'))) {
-                                                        void deleteSample.mutateAsync(s.id);
-                                                    }
-                                                }}
-                                                className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-2.5 py-1 text-[11px] text-muted dark:border-[#585d61]"
-                                            >
-                                                <Trash2 size={12} />
-                                            </button>
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (window.confirm(t('cupping.deleteSampleConfirm'))) {
+                                                    void deleteSample.mutateAsync(s.id);
+                                                }
+                                            }}
+                                            className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-2.5 py-1 text-[11px] text-muted dark:border-[#585d61]"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -521,13 +519,20 @@ function EventDetail({
                 </ModalShell>
             ) : null}
 
-            {qrSample && activeUrl ? (
-                <ModalShell onClose={() => setQrSample(null)} labelledBy="cupping-qr-title">
+            {showQr && qrUrl ? (
+                <ModalShell
+                    onClose={() => {
+                        setShowQr(false);
+                        setQrUrl(null);
+                        setQrInviteId(null);
+                    }}
+                    labelledBy="cupping-qr-title"
+                >
                     <div className="w-full max-w-sm rounded-xl bg-main-bg p-6 shadow-lg dark:border dark:border-[#585d61]">
                         <h2 id="cupping-qr-title" className="mb-1 text-base font-semibold text-primary">
-                            {qrSample.label}
+                            {title}
                         </h2>
-                        <p className="mb-4 text-[12px] text-muted">{t('cupping.qrHint')}</p>
+                        <p className="mb-4 text-[12px] text-muted">{t('cupping.sessionQrHint')}</p>
                         {qrSrc ? (
                             <img
                                 src={qrSrc}
@@ -537,12 +542,12 @@ function EventDetail({
                                 className="mx-auto mb-4 rounded-md bg-white p-2"
                             />
                         ) : null}
-                        <div className="mb-3 break-all font-mono text-[11px] text-secondary">{activeUrl}</div>
+                        <div className="mb-3 break-all font-mono text-[11px] text-secondary">{qrUrl}</div>
                         <div className="flex flex-wrap gap-2">
                             <button
                                 type="button"
                                 onClick={async () => {
-                                    await navigator.clipboard.writeText(activeUrl);
+                                    await navigator.clipboard.writeText(qrUrl);
                                     setCopied(true);
                                 }}
                                 className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-3 py-1.5 text-xs dark:border-[#585d61]"
@@ -551,7 +556,7 @@ function EventDetail({
                                 {copied ? t('cupping.copied') : t('cupping.copyLink')}
                             </button>
                             <a
-                                href={activeUrl}
+                                href={qrUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="inline-flex items-center gap-1 rounded-full border border-border-subtle px-3 py-1.5 text-xs dark:border-[#585d61]"
@@ -559,15 +564,14 @@ function EventDetail({
                                 <Link2 size={14} />
                                 {t('cupping.openLink')}
                             </a>
-                            {qrSample.active_invite ? (
+                            {qrInviteId ? (
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        const inviteId = qrSample.active_invite?.id;
-                                        if (!inviteId) return;
-                                        void revokeInvite.mutateAsync(inviteId).then(() => {
-                                            setQrSample(null);
-                                            void refetch();
+                                        void revokeInvite.mutateAsync(qrInviteId).then(() => {
+                                            setShowQr(false);
+                                            setQrUrl(null);
+                                            setQrInviteId(null);
                                         });
                                     }}
                                     className="rounded-full border border-border-subtle px-3 py-1.5 text-xs text-muted dark:border-[#585d61]"
