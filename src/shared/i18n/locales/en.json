@@ -1104,6 +1104,8 @@
         "deleteEventConfirm": "Delete this cupping table and all samples?",
         "deleteSampleConfirm": "Remove this sample?",
         "qrHint": "Scan or open link on the cupping table phone.",
+        "sessionQr": "Session QR",
+        "sessionQrHint": "One QR for this whole table. Cuppers pick a sample on their phone.",
         "copyLink": "Copy link",
         "copied": "Copied",
         "openLink": "Open",
@@ -1127,7 +1129,8 @@
         },
         "tab": {
             "orders": "Orders",
-            "products": "Products"
+            "products": "Products",
+            "channels": "Channels"
         },
         "requirements": {
             "title": "Roasting needs",
@@ -1151,8 +1154,10 @@
                 "buyer": "Buyer",
                 "items": "Items",
                 "status": "Status",
-                "action": ""
-            }
+                "action": "",
+                "platform": "Channel"
+            },
+            "manual": "Manual"
         },
         "status": {
             "pending": "Pending",
@@ -1185,6 +1190,44 @@
                 "weight": "Net",
                 "stock": "In stock",
                 "action": ""
+            }
+        },
+        "channel": {
+            "intro": "Connect a store with API keys. Credentials are stored server-side only and never sent to the desktop app after save.",
+            "empty": "No channels connected yet.",
+            "connectCta": "Connect",
+            "connecting": "Verifying…",
+            "sync": "Sync now",
+            "syncAll": "Sync all",
+            "syncOk": "Synced {{n}} orders.",
+            "syncPartial": "Synced {{n}} orders. Error: {{err}}",
+            "disconnect": "Disconnect",
+            "disconnectConfirm": "Disconnect this channel? Existing orders stay in the list.",
+            "displayName": "Display name (optional)",
+            "displayNamePh": "My store",
+            "shopDomain": "Shop domain",
+            "errRequired": "Fill in all required fields.",
+            "lastSync": "Last sync {{at}}",
+            "connect": {
+                "naver": "Connect Naver Smart Store",
+                "cafe24": "Connect Cafe24",
+                "shopify": "Connect Shopify"
+            },
+            "help": {
+                "naver": "Commerce API Center → application → copy Client ID and Client Secret (SELF type).",
+                "cafe24": "Cafe24 developers → OAuth app → paste Mall ID and access token.",
+                "shopify": "Shopify admin → Develop apps → install custom app with read_orders, read_products → paste shop domain and Admin API access token."
+            },
+            "platform": {
+                "naver": "Naver",
+                "cafe24": "Cafe24",
+                "shopify": "Shopify"
+            },
+            "status": {
+                "pending": "Pending",
+                "active": "Active",
+                "error": "Error",
+                "disabled": "Disabled"
             }
         }
     }

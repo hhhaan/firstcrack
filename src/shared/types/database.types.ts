@@ -246,6 +246,7 @@ export type Database = {
             cupping_invites: {
                 Row: {
                     created_at: string;
+                    event_id: string | null;
                     expires_at: string;
                     id: string;
                     label: string | null;
@@ -259,6 +260,7 @@ export type Database = {
                 };
                 Insert: {
                     created_at?: string;
+                    event_id?: string | null;
                     expires_at: string;
                     id?: string;
                     label?: string | null;
@@ -272,6 +274,7 @@ export type Database = {
                 };
                 Update: {
                     created_at?: string;
+                    event_id?: string | null;
                     expires_at?: string;
                     id?: string;
                     label?: string | null;
@@ -284,6 +287,13 @@ export type Database = {
                     user_id?: string;
                 };
                 Relationships: [
+                    {
+                        foreignKeyName: 'cupping_invites_event_id_fkey';
+                        columns: ['event_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'cupping_events';
+                        referencedColumns: ['id'];
+                    },
                     {
                         foreignKeyName: 'cupping_invites_roast_session_id_fkey';
                         columns: ['roast_session_id'];

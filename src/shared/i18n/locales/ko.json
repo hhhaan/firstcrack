@@ -1009,7 +1009,7 @@
             "itemAmountPlaceholder": "예: 500원"
         },
         "selling": {
-            "title": "판매가",
+            "title": "Selling Price",
             "hint": "판매가 대비 총이익률 — 40% 마진이면 판매가의 40%가 이익입니다.",
             "margin": "총이익률",
             "price": "판매가 (원/kg)",
@@ -1062,7 +1062,7 @@
         }
     },
     "cupping": {
-        "title": "커핑",
+        "title": "Cupping",
         "subtitle": "테이블 {{count}}개",
         "subtitleLoading": "불러오는 중...",
         "loading": "불러오는 중...",
@@ -1102,6 +1102,8 @@
         "deleteEventConfirm": "이 커핑 테이블과 샘플을 모두 삭제할까요?",
         "deleteSampleConfirm": "이 샘플을 삭제할까요?",
         "qrHint": "커핑 테이블 폰에서 스캔하거나 링크를 여세요.",
+        "sessionQr": "세션 QR",
+        "sessionQrHint": "이 테이블 전체용 QR 하나. 커퍼가 폰에서 샘플을 고릅니다.",
         "copyLink": "링크 복사",
         "copied": "복사됨",
         "openLink": "열기",
@@ -1114,7 +1116,7 @@
         }
     },
     "orders": {
-        "title": "주문",
+        "title": "Orders",
         "subtitle": "쇼핑몰 주문을 수집하고, 로스팅 필요량을 확인하고, 완제품 재고를 관리하세요.",
         "loading": "불러오는 중…",
         "locked": {
@@ -1125,7 +1127,8 @@
         },
         "tab": {
             "orders": "주문",
-            "products": "상품"
+            "products": "상품",
+            "channels": "채널"
         },
         "requirements": {
             "title": "로스팅 필요량",
@@ -1149,8 +1152,10 @@
                 "buyer": "주문자",
                 "items": "수량",
                 "status": "상태",
-                "action": ""
-            }
+                "action": "",
+                "platform": "채널"
+            },
+            "manual": "수동"
         },
         "status": {
             "pending": "대기",
@@ -1183,6 +1188,44 @@
                 "weight": "중량",
                 "stock": "재고",
                 "action": ""
+            }
+        },
+        "channel": {
+            "intro": "API 키로 쇼핑몰을 연결하세요. 자격증명은 서버에만 저장되며 앱에는 다시 내려오지 않습니다.",
+            "empty": "연결된 채널이 없습니다.",
+            "connectCta": "연결",
+            "connecting": "확인 중…",
+            "sync": "지금 동기화",
+            "syncAll": "전체 동기화",
+            "syncOk": "주문 {{n}}건 동기화됨.",
+            "syncPartial": "주문 {{n}}건 동기화. 오류: {{err}}",
+            "disconnect": "연결 해제",
+            "disconnectConfirm": "이 채널을 해제할까요? 이미 가져온 주문은 유지됩니다.",
+            "displayName": "표시 이름 (선택)",
+            "displayNamePh": "내 스토어",
+            "shopDomain": "샵 도메인",
+            "errRequired": "필수 항목을 입력하세요.",
+            "lastSync": "마지막 동기화 {{at}}",
+            "connect": {
+                "naver": "네이버 스마트스토어 연결",
+                "cafe24": "카페24 연결",
+                "shopify": "Shopify 연결"
+            },
+            "help": {
+                "naver": "커머스API 센터 → 애플리케이션 → Client ID / Client Secret 복사 (SELF).",
+                "cafe24": "카페24 개발자센터 OAuth 앱 → Mall ID와 access token 입력.",
+                "shopify": "Shopify 관리자 → 앱 개발 → custom app(read_orders, read_products) 설치 후 도메인과 Admin API access token 입력."
+            },
+            "platform": {
+                "naver": "네이버",
+                "cafe24": "카페24",
+                "shopify": "Shopify"
+            },
+            "status": {
+                "pending": "대기",
+                "active": "활성",
+                "error": "오류",
+                "disabled": "비활성"
             }
         }
     }
