@@ -1,3 +1,4 @@
+import { beanApi } from '@entities/bean';
 import { beanStockEventApi } from '@entities/bean-stock-event';
 import { type InventoryAlert, inventoryAlertApi } from '@entities/inventory-alert';
 import { planBatchApi } from '@entities/plan';
@@ -75,7 +76,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
 
-    const [completedRes, beansRes, stockSummaries, monthlyRes, inventoryAlertsRes] = await Promise.all([
+    const [completedRes, beans, stockSummaries, monthlyRes, inventoryAlertsRes] = await Promise.all([
         supabase
             .from('roast_sessions')
             .select('*, beans(name, origin), roast_profiles!profile_id(name, target_level)')
@@ -84,7 +85,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
             .gte('roasted_at', lastMonthStart)
             .order('roasted_at', { ascending: false }),
 
-        supabase.from('beans').select('*').eq('user_id', userId),
+        beanApi.list(userId),
 
         beanStockEventApi.getStockSummariesByUser(userId),
 
@@ -100,7 +101,6 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     ]);
 
     if (completedRes.error) throw completedRes.error;
-    if (beansRes.error) throw beansRes.error;
     if (monthlyRes.error) throw monthlyRes.error;
 
     const horizonEnd14 = format(addDays(now, 14), 'yyyy-MM-dd');
@@ -157,7 +157,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         return { date: new Date(year, month, 1), batches };
     });
 
-    const beanMeta = new Map((beansRes.data ?? []).map((b) => [b.id, b]));
+    const beanMeta = new Map(beans.map((b) => [b.id, b]));
     const inventoryAlerts: DashboardInventoryAlert[] = (inventoryAlertsRes ?? [])
         .map((row) => mapDbAlert(row, beanMeta.get(row.bean_id)))
         .sort((a, b) => {
