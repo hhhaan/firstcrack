@@ -7,8 +7,8 @@ export { orderKeys };
 
 /** Keys invalidated after create order (staleTime Infinity → must not omit). */
 export const invalidateAfterCreateOrder = (qc: QueryClient, userId: string) => {
-    qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
-    qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) });
+    void qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
+    void qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) });
 };
 
 export const useOrders = (userId: string) =>

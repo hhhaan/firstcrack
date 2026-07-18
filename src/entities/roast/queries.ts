@@ -12,9 +12,9 @@ export const roastSessionKeys = {
 
 /** Keys invalidated after create (staleTime Infinity → must not omit). */
 export const invalidateAfterCreateRoastSession = (qc: QueryClient, userId: string) => {
-    qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
-    qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
-    qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
+    void qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
+    void qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
+    void qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
 };
 
 export const useRoastSessions = (userId: string, status?: RoastSession['status']) =>
