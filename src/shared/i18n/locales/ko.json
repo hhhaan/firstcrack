@@ -186,7 +186,17 @@
                 "autoCharge": "자동 Charge 감지",
                 "autoChargeDescription": "감지 창 안에서 BT가 이 값만큼 떨어지면 Charge가 트리거됩니다.",
                 "dropThreshold": "하락 임계값",
-                "dropThresholdDescription": "생두 Charge 감지를 위한 최소 BT 하락"
+                "dropThresholdDescription": "생두 Charge 감지를 위한 최소 BT 하락",
+                "alerts": "실시간 알람",
+                "alertsDescription": "로스팅이 정상 범위를 벗어나면 경고합니다.",
+                "alertsEnabled": "알람 사용",
+                "alertsEnabledDescription": "로스팅 중 경고 배너를 표시합니다.",
+                "alertSound": "알람 소리",
+                "alertSoundDescription": "알람이 처음 발생할 때 소리로 알립니다.",
+                "alertRorCrash": "RoR 크래시",
+                "alertRorCrashDescription": "BT RoR이 이 값 이하로 떨어지면 경고. 터닝포인트 이후에만 동작.",
+                "alertBtMax": "BT 상한",
+                "alertBtMaxDescription": "원두 온도가 이 값에 도달하면 경고합니다."
             },
             "account": {
                 "label": "계정",
@@ -597,7 +607,10 @@
             "duration": "시간",
             "notes": "노트",
             "chartLoading": "차트 불러오는 중…",
-            "chartUnavailable": "차트를 불러올 수 없습니다"
+            "chartUnavailable": "차트를 불러올 수 없습니다",
+            "outputWeight": "배출량",
+            "estimated": "추정",
+            "outputWeightInvalid": "1–{{max}}g 사이로 입력하세요 (투입량 초과 불가)."
         },
         "scorecard": {
             "title": "vs {{name}}",
@@ -650,6 +663,8 @@
             "weight": "무게",
             "dropTemp": "투입 온도",
             "duration": "시간",
+            "loss": "손실률",
+            "dtr": "DTR",
             "level": "레벨"
         },
         "delete": {
@@ -806,7 +821,7 @@
         },
         "summary": {
             "title": "로스팅 완료",
-            "batchWeight": "배치 중량",
+            "batchWeight": "생두 투입량",
             "finalBt": "최종 BT",
             "totalTime": "총 시간",
             "development": "발달",
@@ -839,7 +854,11 @@
             "log": "로그",
             "discard": "저장 안 함",
             "save": "저장",
-            "weightUnit": "g"
+            "weightUnit": "g",
+            "outputWeight": "배출량 (로스팅 후)",
+            "outputWeightPlaceholder": "미계량 시 비워두세요",
+            "lossRateMeasured": "감량률 {{pct}}%",
+            "lossRateEstimated": "미계량 — 감량률은 로스팅 레벨 기반 추정치로 대체됩니다."
         },
         "planBatch": {
             "allDone": "{{done}}/{{total}} 배치 완료",
@@ -872,6 +891,10 @@
                     "description": "표시·감지·차트 범위 등 로스트 중 조절할 수 있는 설정이 한곳에 모여 있어요."
                 }
             }
+        },
+        "alerts": {
+            "rorCrash": "RoR 크래시 — 화력이 죽고 있습니다",
+            "btOver": "BT 상한 초과"
         }
     },
     "profiles": {

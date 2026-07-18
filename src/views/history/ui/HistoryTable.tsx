@@ -1,6 +1,9 @@
 import { useHistoryChart } from '@entities/roast';
+import { useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
+import { deriveSessionDevMetrics } from '@shared/lib/roast-delta';
+import { computeRoastWeights } from '@shared/lib/roastWeight';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { RoastTempChart } from '@views/active-roast/ui/RoastTempChart';
@@ -8,6 +11,7 @@ import { COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChar
 import { BookmarkPlus, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from 'lucide-react';
 import { Fragment, type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { OutputWeightEditor } from './OutputWeightEditor';
 import { SessionScorecard } from './SessionScorecard';
 
 // ── Constants ──
@@ -69,6 +73,29 @@ const columns: Column[] = [
         render: (s) => formatDuration(s.duration_seconds),
     },
     {
+        key: null,
+        label: 'loss',
+        width: '80px',
+        sortable: false,
+        hideOnMd: true,
+        // 미실측(output_weight 없음)은 roast_level 추정치 — 월간 리포트와 같은 * 표기
+        render: (s) => {
+            const w = computeRoastWeights(s.weight_grams, s.output_weight_grams, s.roast_level);
+            return w.inputKg > 0 ? `${w.lossRate.toFixed(1)}%${w.measured ? '' : '*'}` : '—';
+        },
+    },
+    {
+        key: null,
+        label: 'dtr',
+        width: '70px',
+        sortable: false,
+        hideOnMd: true,
+        render: (s) => {
+            const dev = deriveSessionDevMetrics(parseStoredRoastEvents(s.events), s.duration_seconds);
+            return dev.devPct != null ? `${dev.devPct.toFixed(1)}%` : '—';
+        },
+    },
+    {
         key: 'level',
         label: 'Level',
         width: '110px',
@@ -124,9 +151,18 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
     const { xs, btActual, etActual, rorActual, isLoading, isError } = useHistoryChart(session.tsv_path ?? null);
     const eventMarkers = useMemo(() => storedEventsToMarkers(parseStoredRoastEvents(session.events)), [session.events]);
 
+    // 세션의 타깃 프로파일 커브 오버레이 (실측 TSV 우선, 없으면 synthetic)
+    const { data: profiles = [] } = useRoastProfiles(session.user_id);
+    const profile = session.profile_id ? (profiles.find((p) => p.id === session.profile_id) ?? null) : null;
+    const { points: targetPoints } = useResolvedProfileCurve(profile);
+    const { targetXs, targetBt } = useMemo(
+        () => ({ targetXs: targetPoints.map((p) => p.t), targetBt: targetPoints.map((p) => p.bt) }),
+        [targetPoints],
+    );
+
     return (
         <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)] dark:bg-[rgba(38,43,48,0.3)]">
-            <td colSpan={8} className="px-4 py-4 md:px-6">
+            <td colSpan={10} className="px-4 py-4 md:px-6">
                 <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
                     {[
                         { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
@@ -145,6 +181,7 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                             </div>
                         </div>
                     ))}
+                    <OutputWeightEditor session={session} />
                     <div className="mb-2 md:col-span-3 lg:col-auto">
                         <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                             {t('history.expanded.notes')}
@@ -176,7 +213,9 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                                 btTarget={[]}
                                 currentTimeSec={0}
                                 eventMarkers={eventMarkers}
-                                showTargetCurve={false}
+                                showTargetCurve={targetXs.length > 0}
+                                targetXs={targetXs}
+                                targetBt={targetBt}
                                 showRoRET={false}
                                 height={550}
                             />
@@ -239,6 +278,8 @@ export const HistoryTable = ({
             weight: t('history.table.weight'),
             drop: t('history.table.dropTemp'),
             duration: t('history.table.duration'),
+            loss: t('history.table.loss'),
+            dtr: t('history.table.dtr'),
             level: t('history.table.level'),
         };
         return map[key] || key;
@@ -308,7 +349,7 @@ export const HistoryTable = ({
                                         </td>
                                     )}
                                     {columns.map((col, idx) => {
-                                        const isActions = col.key === null;
+                                        const isActions = col.key === null && col.label === '';
                                         const cellClass = isActions
                                             ? 'text-right'
                                             : col.key === 'date'

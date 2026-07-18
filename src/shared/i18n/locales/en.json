@@ -186,7 +186,17 @@
                 "autoCharge": "Auto Charge Detection",
                 "autoChargeDescription": "Charge is triggered when BT drops by this amount within the detection window.",
                 "dropThreshold": "Drop Threshold",
-                "dropThresholdDescription": "Minimum BT drop to detect bean charge"
+                "dropThresholdDescription": "Minimum BT drop to detect bean charge",
+                "alerts": "Live Alarms",
+                "alertsDescription": "Warn when the roast leaves safe bounds.",
+                "alertsEnabled": "Enable alarms",
+                "alertsEnabledDescription": "Show a warning banner during the roast.",
+                "alertSound": "Alarm sound",
+                "alertSoundDescription": "Beep when an alarm first triggers.",
+                "alertRorCrash": "RoR crash",
+                "alertRorCrashDescription": "Warn when BT RoR falls to this. Only after the turning point.",
+                "alertBtMax": "BT ceiling",
+                "alertBtMaxDescription": "Warn when bean temperature reaches this."
             },
             "account": {
                 "label": "Account",
@@ -555,7 +565,7 @@
             "sessionProgress": "Session {{current}}/{{total}}",
             "deductStock": "Deduct green stock ({{kg}}kg)",
             "deductStockDisabled": "No bean linked — stock cannot be deducted.",
-            "batchWeight": "Batch Weight",
+            "batchWeight": "Green Weight (charged)",
             "weightUnit": "g",
             "roastLevel": "Roast Level",
             "notes": "Notes",
@@ -568,7 +578,11 @@
                 "medium": "Medium",
                 "mediumDark": "Medium-Dark",
                 "dark": "Dark"
-            }
+            },
+            "outputWeight": "Output Weight (roasted)",
+            "outputWeightPlaceholder": "Leave blank if not weighed",
+            "lossRateMeasured": "Weight loss {{pct}}%",
+            "lossRateEstimated": "Not weighed — loss rate is estimated from the roast level."
         },
         "planBatch": {
             "backToSchedule": "Back to Schedule",
@@ -611,6 +625,10 @@
             "machineRequiredMsg": "No machine is connected. Connect one and try again.",
             "saveFailedTitle": "Save Failed",
             "saveFailedMsg": "Failed to save the roast session.\n\n{{error}}"
+        },
+        "alerts": {
+            "rorCrash": "RoR crash — heat is stalling",
+            "btOver": "BT over the ceiling"
         }
     },
     "schedule": {
@@ -804,7 +822,10 @@
             "duration": "Duration",
             "notes": "Notes",
             "chartLoading": "Loading chart…",
-            "chartUnavailable": "Chart unavailable"
+            "chartUnavailable": "Chart unavailable",
+            "outputWeight": "Output Weight",
+            "estimated": "est.",
+            "outputWeightInvalid": "Enter 1–{{max}}g (cannot exceed green input)."
         },
         "scorecard": {
             "title": "vs {{name}}",
@@ -857,6 +878,8 @@
             "weight": "Weight",
             "dropTemp": "Drop Temp",
             "duration": "Duration",
+            "loss": "Loss",
+            "dtr": "DTR",
             "level": "Level"
         },
         "delete": {

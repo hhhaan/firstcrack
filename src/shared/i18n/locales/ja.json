@@ -186,7 +186,17 @@
                 "autoCharge": "自動 Charge 検出",
                 "autoChargeDescription": "検出ウィンドウ内で BT がこの量だけ下がると Charge がトリガーされます。",
                 "dropThreshold": "下降しきい値",
-                "dropThresholdDescription": "豆 Charge 検出の最小 BT 下降"
+                "dropThresholdDescription": "豆 Charge 検出の最小 BT 下降",
+                "alerts": "リアルタイム警報",
+                "alertsDescription": "焙煎が正常範囲を外れたら警告します。",
+                "alertsEnabled": "警報を有効化",
+                "alertsEnabledDescription": "焙煎中に警告バナーを表示します。",
+                "alertSound": "警報音",
+                "alertSoundDescription": "警報が最初に発生したときに音で知らせます。",
+                "alertRorCrash": "RoRクラッシュ",
+                "alertRorCrashDescription": "BT RoRがこの値以下に落ちたら警告。ターニングポイント以降のみ。",
+                "alertBtMax": "BT上限",
+                "alertBtMaxDescription": "豆温度がこの値に達したら警告します。"
             },
             "account": {
                 "label": "アカウント",
@@ -555,7 +565,7 @@
             "sessionProgress": "セッション {{current}}/{{total}}",
             "deductStock": "生豆在庫を差し引く ({{kg}}kg)",
             "deductStockDisabled": "生豆が未連携のため在庫を差し引けません。",
-            "batchWeight": "バッチ重量",
+            "batchWeight": "生豆投入量",
             "weightUnit": "g",
             "roastLevel": "ロースト度",
             "notes": "ノート",
@@ -568,7 +578,11 @@
                 "medium": "ミディアム",
                 "mediumDark": "ミディアムダーク",
                 "dark": "ダーク"
-            }
+            },
+            "outputWeight": "排出量（焙煎後）",
+            "outputWeightPlaceholder": "未計量の場合は空欄",
+            "lossRateMeasured": "減量率 {{pct}}%",
+            "lossRateEstimated": "未計量 — 減量率は焙煎レベルに基づく推定値になります。"
         },
         "planBatch": {
             "backToSchedule": "スケジュールに戻る",
@@ -611,6 +625,10 @@
             "machineRequiredMsg": "マシンが接続されていません。接続してから再試行してください。",
             "saveFailedTitle": "保存失敗",
             "saveFailedMsg": "ローストセッションの保存に失敗しました。\n\n{{error}}"
+        },
+        "alerts": {
+            "rorCrash": "RoRクラッシュ — 火力が落ちています",
+            "btOver": "BT上限超過"
         }
     },
     "schedule": {
@@ -804,7 +822,10 @@
             "duration": "時間",
             "notes": "ノート",
             "chartLoading": "チャート読み込み中...",
-            "chartUnavailable": "チャート利用不可"
+            "chartUnavailable": "チャート利用不可",
+            "outputWeight": "排出量",
+            "estimated": "推定",
+            "outputWeightInvalid": "1–{{max}}gの範囲で入力してください（投入量超過不可）。"
         },
         "scorecard": {
             "title": "vs {{name}}",
@@ -829,6 +850,8 @@
             "weight": "重量",
             "dropTemp": "排気温度",
             "duration": "時間",
+            "loss": "損失率",
+            "dtr": "DTR",
             "level": "ロースト度"
         },
         "delete": {
