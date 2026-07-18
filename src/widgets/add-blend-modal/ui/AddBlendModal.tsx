@@ -2,9 +2,9 @@ import { useBeans } from '@entities/bean';
 import type { BlendWithComponents } from '@entities/blend';
 import { useCreateBlend, useUpdateBlend } from '@entities/blend';
 import { blendTotalRatio } from '@entities/blend/lib';
+import { useActiveWorkspace } from '@entities/organization';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import { useAuthStore } from '@shared/store/auth';
 import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
@@ -24,7 +24,7 @@ type Props = {
 
 export const AddBlendModal = ({ open, onClose, editing }: Props) => {
     const { t } = useTranslation();
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: beans = [] } = useBeans(userId);
     const createBlend = useCreateBlend(userId);
     const updateBlend = useUpdateBlend(userId);

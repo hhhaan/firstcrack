@@ -1,5 +1,6 @@
 import { type OrderWithLines, useOrders } from '@entities/order';
 import { type OrderDispatch, useOrderDispatches } from '@entities/order-dispatch';
+import { useActiveWorkspace } from '@entities/organization';
 import { type Product, useDeleteProduct, useProducts } from '@entities/product';
 import { useProductStock } from '@entities/product-stock-event';
 import {
@@ -15,7 +16,6 @@ import { useAddFinishedGoods } from '@features/finished-goods-inbound';
 import { useFulfillOrder } from '@features/fulfill-order';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatDateShort } from '@shared/lib/format';
-import { useAuthStore } from '@shared/store/auth';
 import { Badge, type BadgeTone } from '@shared/ui/Badge';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
@@ -190,7 +190,7 @@ export const Orders = ({ onUpgrade }: OrdersProps) => {
 
 function OrdersTab() {
     const { t } = useTranslation();
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: orders = [], isLoading } = useOrders(userId);
     const { data: dispatches = [] } = useOrderDispatches(userId);
     const fulfill = useFulfillOrder();
@@ -357,7 +357,7 @@ function OrderRow({
 
 function ProductsTab() {
     const { t } = useTranslation();
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: products = [], isLoading } = useProducts(userId);
     const { data: stock = {} } = useProductStock(userId);
     const deleteProduct = useDeleteProduct(userId);
@@ -480,7 +480,7 @@ const PLATFORMS: ChannelPlatform[] = ['naver', 'cafe24', 'shopify'];
 
 function ChannelsTab() {
     const { t } = useTranslation();
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: channels = [], isLoading } = useSalesChannels(userId);
     const disconnect = useDisconnectChannel(userId);
     const sync = useSyncOrders(userId);

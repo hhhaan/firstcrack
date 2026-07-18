@@ -2,8 +2,8 @@ import { useBeans, useDeleteBean } from '@entities/bean/queries';
 import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import type { BlendWithComponents } from '@entities/blend';
 import { useBlends } from '@entities/blend';
+import { useActiveWorkspace } from '@entities/organization';
 import { useRoastingStore } from '@features/active-roast';
-import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
@@ -23,7 +23,7 @@ import { useTranslation } from 'react-i18next';
 
 export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
     const { t } = useTranslation();
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: beans = [], isLoading } = useBeans(userId);
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
     const { data: blends = [] } = useBlends(userId);

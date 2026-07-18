@@ -1,6 +1,6 @@
 import { useBeans } from '@entities/bean/queries';
+import { useActiveWorkspace } from '@entities/organization';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAuthStore } from '@shared/store/auth';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Spinner } from '@shared/ui/Spinner';
@@ -79,7 +79,7 @@ export const RoastSummaryModal = ({
     fallbackBeanName = null,
 }: RoastSummaryModalProps) => {
     const { t } = useTranslation();
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: beans = [] } = useBeans(userId);
     const needsBeanPicker = !selectedBeanId && !hasBlendHandoff;
     const showBeanSection = needsBeanPicker || Boolean(selectedBeanId || hasBlendHandoff || fallbackBeanName);

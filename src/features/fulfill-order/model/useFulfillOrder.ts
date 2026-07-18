@@ -1,20 +1,20 @@
 import { orderApi, orderKeys } from '@entities/order';
+import { useActiveWorkspace } from '@entities/organization';
 import { productStockKeys } from '@entities/product-stock-event';
-import { useAuthStore } from '@shared/store/auth';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 /** Fulfill an order via the atomic `fulfill_order` RPC (deduct stock + stamp fulfilled_at). */
 export const useFulfillOrder = () => {
     const qc = useQueryClient();
-    const user = useAuthStore((s) => s.user);
+    const { workspaceOwnerId } = useActiveWorkspace();
 
     return useMutation({
         mutationFn: (orderId: string) => orderApi.fulfill(orderId),
         onSuccess: () => {
-            if (!user) return;
-            qc.invalidateQueries({ queryKey: orderKeys.all(user.id) });
-            qc.invalidateQueries({ queryKey: orderKeys.requirements(user.id) });
-            qc.invalidateQueries({ queryKey: productStockKeys.byUser(user.id) });
+            if (!workspaceOwnerId) return;
+            qc.invalidateQueries({ queryKey: orderKeys.all(workspaceOwnerId) });
+            qc.invalidateQueries({ queryKey: orderKeys.requirements(workspaceOwnerId) });
+            qc.invalidateQueries({ queryKey: productStockKeys.byUser(workspaceOwnerId) });
         },
     });
 };

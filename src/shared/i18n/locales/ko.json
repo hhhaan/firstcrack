@@ -39,6 +39,7 @@
         "expand": "사이드바 열기",
         "collapse": "사이드바 닫기",
         "workspaceSelector": "워크스페이스 선택",
+        "myWorkspace": "내 워크스페이스",
         "workspace": "워크스페이스",
         "settings": "설정",
         "workspacePreferences": "워크스페이스 환경설정",
@@ -232,6 +233,41 @@
                 "freeDesc": "영구 무료",
                 "proDesc": "모든 기능 무제한 이용",
                 "enterpriseDesc": "FDE·맞춤 개발·자사몰 구축 도움·팀"
+            },
+            "team": {
+                "label": "팀",
+                "title": "팀 워크스페이스",
+                "description": "팀원을 초대하고 이 로스터리 워크스페이스 접근 권한을 관리합니다.",
+                "membersTitle": "멤버",
+                "membersDescription": "좌석 {{count}} / {{limit}} 사용 중",
+                "noMembers": "조직이 없습니다. 초대를 만들어 팀을 시작하세요.",
+                "you": "나",
+                "removeMember": "멤버 제거",
+                "inviteTitle": "초대 코드",
+                "inviteDescription": "일회용 코드를 생성해 공유하세요. 이메일은 발송되지 않습니다.",
+                "createInvite": "초대 코드 생성",
+                "copy": "복사",
+                "copied": "복사됨",
+                "activeInvites": "활성 초대",
+                "revoke": "취소",
+                "joinTitle": "팀 참가",
+                "joinDescription": "워크스페이스 오너에게 받은 초대 코드를 입력하세요.",
+                "redeemPlaceholder": "초대 코드",
+                "redeem": "워크스페이스 참가",
+                "errors": {
+                    "expired": "초대가 만료되었습니다.",
+                    "revoked": "초대가 취소되었습니다.",
+                    "already_used": "이미 사용된 초대입니다.",
+                    "already_member": "이미 이 워크스페이스 멤버입니다.",
+                    "seat_limit": "좌석 한도에 도달했습니다. 오너에게 한도 상향을 요청하세요.",
+                    "invalid": "유효하지 않은 초대 코드입니다.",
+                    "network": "네트워크 오류입니다. 연결을 확인하세요.",
+                    "generic": "문제가 발생했습니다. 다시 시도하세요."
+                },
+                "success": {
+                    "inviteCreated": "초대 코드가 준비되었습니다. 복사해 공유하세요.",
+                    "joined": "워크스페이스에 참가했습니다."
+                }
             },
             "software": {
                 "label": "소프트웨어",

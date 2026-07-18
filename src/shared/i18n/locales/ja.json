@@ -39,6 +39,7 @@
         "expand": "サイドバーを展開",
         "collapse": "サイドバーを折りたたむ",
         "workspaceSelector": "ワークスペース選択",
+        "myWorkspace": "自分のワークスペース",
         "workspace": "ワークスペース",
         "settings": "設定",
         "workspacePreferences": "ワークスペース設定",
@@ -232,6 +233,41 @@
                 "freeDesc": "永久無料",
                 "proDesc": "全機能にフルアクセス",
                 "enterpriseDesc": "FDE・カスタム・自社EC構築支援・チーム"
+            },
+            "team": {
+                "label": "チーム",
+                "title": "チームワークスペース",
+                "description": "メンバーを招待し、このロースタリーへのアクセスを管理します。",
+                "membersTitle": "メンバー",
+                "membersDescription": "シート {{count}} / {{limit}} 使用中",
+                "noMembers": "組織がありません。招待を作成してチームを始めましょう。",
+                "you": "自分",
+                "removeMember": "メンバーを削除",
+                "inviteTitle": "招待コード",
+                "inviteDescription": "一度きりのコードを生成して共有します。メールは送信されません。",
+                "createInvite": "招待コードを生成",
+                "copy": "コピー",
+                "copied": "コピー済み",
+                "activeInvites": "有効な招待",
+                "revoke": "取り消し",
+                "joinTitle": "チームに参加",
+                "joinDescription": "オーナーから受け取った招待コードを貼り付けてください。",
+                "redeemPlaceholder": "招待コード",
+                "redeem": "ワークスペースに参加",
+                "errors": {
+                    "expired": "この招待は期限切れです。",
+                    "revoked": "この招待は取り消されました。",
+                    "already_used": "この招待は既に使用されています。",
+                    "already_member": "既にこのワークスペースのメンバーです。",
+                    "seat_limit": "シート上限に達しました。オーナーに上限の引き上げを依頼してください。",
+                    "invalid": "無効な招待コードです。",
+                    "network": "ネットワークエラーです。接続を確認してください。",
+                    "generic": "問題が発生しました。もう一度お試しください。"
+                },
+                "success": {
+                    "inviteCreated": "招待コードの準備ができました。コピーして共有してください。",
+                    "joined": "ワークスペースに参加しました。"
+                }
             },
             "software": {
                 "label": "ソフトウェア",

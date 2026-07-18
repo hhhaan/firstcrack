@@ -1,3 +1,4 @@
+import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import { useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import {
@@ -87,7 +88,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 유저 + DB 프로파일 ────────────────────────────────────────
     const user = useAuthStore((s) => s.user);
-    const { data: dbProfiles = [] } = useRoastProfiles(user?.id ?? '');
+    const { workspaceOwnerId } = useActiveWorkspace();
+    const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
     const { data: userProfile } = useProfile(user?.id ?? '');
 
     // ── 배치 핸드오프 ─────────────────────────────────────────────

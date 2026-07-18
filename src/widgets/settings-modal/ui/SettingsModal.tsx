@@ -14,6 +14,7 @@ import { GeneralSettingsTab } from './GeneralSettingsTab';
 import { RoastSettingsTab } from './RoastSettingsTab';
 import { SoftwareSettingsTab } from './SoftwareSettingsTab';
 import { SupportSettingsTab } from './SupportSettingsTab';
+import { TeamSettingsTab } from './TeamSettingsTab';
 
 interface SettingsModalProps {
     open: boolean;
@@ -118,6 +119,7 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                             {activeTab === 'roast' && <RoastSettingsTab />}
                             {activeTab === 'account' && <AccountSettingsTab onClose={onClose} />}
                             {activeTab === 'billing' && <BillingSettingsTab />}
+                            {activeTab === 'team' && <TeamSettingsTab />}
                             {activeTab === 'general' && <GeneralSettingsTab />}
                             {activeTab === 'software' && <SoftwareSettingsTab />}
                             {activeTab === 'support' && <SupportSettingsTab />}

@@ -1,4 +1,4 @@
-import { useAuthStore } from '@shared/store/auth';
+import { useActiveWorkspace } from '@entities/organization';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -38,7 +38,7 @@ interface ScheduleProps {
 }
 
 export const Schedule = ({ onStartBatch }: ScheduleProps) => {
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { view, setView, selectedDate, handleSelectDay, handleNav, navLabel, isTodaySelected, goToday } =
         useScheduleNav();
     const { t } = useTranslation();

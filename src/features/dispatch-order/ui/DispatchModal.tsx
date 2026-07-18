@@ -1,7 +1,7 @@
 import { useDispatchOrder } from '@entities/order-dispatch';
+import { useActiveWorkspace } from '@entities/organization';
 import { CARRIER_OPTIONS, type ClientCarrierId } from '@shared/lib/carriers';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import { useAuthStore } from '@shared/store/auth';
 import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
@@ -18,7 +18,7 @@ type Props = {
 
 export const DispatchModal = ({ open, orderId, onClose }: Props) => {
     const { t, i18n } = useTranslation();
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const dispatch = useDispatchOrder(userId);
     const [carrier, setCarrier] = useState<ClientCarrierId>('cj');
     const [tracking, setTracking] = useState('');

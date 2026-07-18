@@ -1,6 +1,6 @@
 import { useBeans } from '@entities/bean';
 import { useRoastingRequirements } from '@entities/order';
-import { useAuthStore } from '@shared/store/auth';
+import { useActiveWorkspace } from '@entities/organization';
 import { Skeleton } from '@shared/ui/Skeleton';
 import { Flame } from 'lucide-react';
 import { useMemo } from 'react';
@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 /** Display-only aggregation: what to roast to cover unfulfilled paid orders. */
 export const RoastingRequirementsCard = () => {
     const { t } = useTranslation();
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: req, isLoading } = useRoastingRequirements(userId);
     const { data: beans = [] } = useBeans(userId);
 

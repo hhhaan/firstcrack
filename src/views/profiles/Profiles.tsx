@@ -1,3 +1,4 @@
+import { useActiveWorkspace } from '@entities/organization';
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import {
     type RoastProfileWithSource,
@@ -39,10 +40,11 @@ interface ProfilesProps {
 export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const { t } = useTranslation();
     const user = useAuthStore((s) => s.user);
-    const { data: profiles = [], isLoading } = useRoastProfiles(user?.id ?? '');
-    const { mutateAsync: createProfile } = useCreateRoastProfile(user?.id ?? '');
-    const { mutate: deleteProfile } = useDeleteRoastProfile(user?.id ?? '');
-    const { mutateAsync: updateRoastProfile } = useUpdateRoastProfile(user?.id ?? '');
+    const { workspaceOwnerId } = useActiveWorkspace();
+    const { data: profiles = [], isLoading } = useRoastProfiles(workspaceOwnerId);
+    const { mutateAsync: createProfile } = useCreateRoastProfile(workspaceOwnerId);
+    const { mutate: deleteProfile } = useDeleteRoastProfile(workspaceOwnerId);
+    const { mutateAsync: updateRoastProfile } = useUpdateRoastProfile(workspaceOwnerId);
     const { data: userProfile } = useProfile(user?.id ?? '');
     const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
 

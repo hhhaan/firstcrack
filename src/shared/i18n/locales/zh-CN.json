@@ -39,6 +39,7 @@
         "expand": "展开侧边栏",
         "collapse": "收起侧边栏",
         "workspaceSelector": "工作区选择",
+        "myWorkspace": "我的工作区",
         "workspace": "工作区",
         "settings": "设置",
         "workspacePreferences": "工作区偏好",
@@ -232,6 +233,41 @@
                 "freeDesc": "永久免费",
                 "proDesc": "全部功能无限制使用",
                 "enterpriseDesc": "FDE、定制开发、自建商城协助、团队"
+            },
+            "team": {
+                "label": "团队",
+                "title": "团队工作区",
+                "description": "邀请队友并管理谁可以访问此烘焙工作室。",
+                "membersTitle": "成员",
+                "membersDescription": "已用席位 {{count}} / {{limit}}",
+                "noMembers": "尚无组织。生成邀请以开始组建团队。",
+                "you": "你",
+                "removeMember": "移除成员",
+                "inviteTitle": "邀请码",
+                "inviteDescription": "生成一次性代码并分享。不会发送邮件。",
+                "createInvite": "生成邀请码",
+                "copy": "复制",
+                "copied": "已复制",
+                "activeInvites": "有效邀请",
+                "revoke": "撤销",
+                "joinTitle": "加入团队",
+                "joinDescription": "粘贴工作区所有者给你的邀请码。",
+                "redeemPlaceholder": "邀请码",
+                "redeem": "加入工作区",
+                "errors": {
+                    "expired": "此邀请已过期。",
+                    "revoked": "此邀请已被撤销。",
+                    "already_used": "此邀请已被使用。",
+                    "already_member": "你已是此工作区成员。",
+                    "seat_limit": "席位已满。请让所有者提高上限。",
+                    "invalid": "无效的邀请码。",
+                    "network": "网络错误。请检查连接。",
+                    "generic": "出了点问题。请重试。"
+                },
+                "success": {
+                    "inviteCreated": "邀请码已就绪 — 复制并分享。",
+                    "joined": "已成功加入工作区。"
+                }
             },
             "software": {
                 "label": "软件",

@@ -1,3 +1,4 @@
+import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import { useDeleteRoastSession, useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
 import { useCreateRoastProfile } from '@entities/roast-profile';
@@ -61,6 +62,7 @@ export const History = () => {
     } = useHistoryFilters();
 
     const user = useAuthStore((s) => s.user);
+    const { workspaceOwnerId } = useActiveWorkspace();
     const { data: profile } = useProfile(user?.id ?? '');
 
     const useClientPagination = search.length > 0 || originFilter !== 'all';
@@ -70,7 +72,7 @@ export const History = () => {
         isLoading: isPaginatedLoading,
         isError: isPaginatedError,
     } = useRoastSessionsPaginated({
-        userId: user?.id ?? '',
+        userId: workspaceOwnerId,
         status: 'completed',
         page: Math.max(1, page),
         pageSize: PAGE_SIZE,
@@ -86,7 +88,7 @@ export const History = () => {
         data: rawSessions = [],
         isLoading: isRawLoading,
         isError: isRawError,
-    } = useRoastSessions(user?.id ?? '', 'completed');
+    } = useRoastSessions(workspaceOwnerId, 'completed');
 
     const totalSessions = rawSessions.length;
 
@@ -143,8 +145,8 @@ export const History = () => {
     );
 
     const exportCsv = useExportCsv();
-    const deleteSession = useDeleteRoastSession(user?.id ?? '');
-    const { mutateAsync: createProfile } = useCreateRoastProfile(user?.id ?? '');
+    const deleteSession = useDeleteRoastSession(workspaceOwnerId);
+    const { mutateAsync: createProfile } = useCreateRoastProfile(workspaceOwnerId);
 
     const handleProfileCreated = useCallback(
         async (profileData: RoastProfile) => {

@@ -1,5 +1,5 @@
+import { useActiveWorkspace } from '@entities/organization';
 import { useCoffeeFutures } from '@shared/api/coffee-futures';
-import { useAuthStore } from '@shared/store/auth';
 import type { View } from '@shared/types/view';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { useDashboard } from '@widgets/dashboard-summary/api/useDashboard';
@@ -15,7 +15,7 @@ interface DashboardProps {
 }
 
 export const Dashboard = ({ onNavigate }: DashboardProps) => {
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const db = useDashboard(userId);
     const coffee = useCoffeeFutures();
 

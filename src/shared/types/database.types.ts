@@ -753,6 +753,100 @@ export type Database = {
                     },
                 ];
             };
+            organization_invites: {
+                Row: {
+                    accepted_at: string | null;
+                    accepted_by: string | null;
+                    created_at: string;
+                    expires_at: string;
+                    id: string;
+                    org_id: string;
+                    revoked_at: string | null;
+                    token: string;
+                };
+                Insert: {
+                    accepted_at?: string | null;
+                    accepted_by?: string | null;
+                    created_at?: string;
+                    expires_at: string;
+                    id?: string;
+                    org_id: string;
+                    revoked_at?: string | null;
+                    token: string;
+                };
+                Update: {
+                    accepted_at?: string | null;
+                    accepted_by?: string | null;
+                    created_at?: string;
+                    expires_at?: string;
+                    id?: string;
+                    org_id?: string;
+                    revoked_at?: string | null;
+                    token?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'organization_invites_org_id_fkey';
+                        columns: ['org_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'organizations';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            organization_members: {
+                Row: {
+                    created_at: string;
+                    org_id: string;
+                    role: string;
+                    user_id: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    org_id: string;
+                    role?: string;
+                    user_id: string;
+                };
+                Update: {
+                    created_at?: string;
+                    org_id?: string;
+                    role?: string;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'organization_members_org_id_fkey';
+                        columns: ['org_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'organizations';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            organizations: {
+                Row: {
+                    created_at: string;
+                    id: string;
+                    name: string;
+                    owner_id: string;
+                    seat_limit: number;
+                };
+                Insert: {
+                    created_at?: string;
+                    id?: string;
+                    name: string;
+                    owner_id: string;
+                    seat_limit?: number;
+                };
+                Update: {
+                    created_at?: string;
+                    id?: string;
+                    name?: string;
+                    owner_id?: string;
+                    seat_limit?: number;
+                };
+                Relationships: [];
+            };
             polar_coupons: {
                 Row: {
                     amount_cents: number | null;
@@ -1687,6 +1781,10 @@ export type Database = {
                 Args: { p_horizon_days?: number };
                 Returns: string;
             };
+            create_org_invite: {
+                Args: { p_expires_in?: string; p_token: string };
+                Returns: string;
+            };
             expand_rrule_in_range: {
                 Args: {
                     p_dtstart: string;
@@ -1698,6 +1796,7 @@ export type Database = {
                 Returns: string[];
             };
             fulfill_order: { Args: { p_order_id: string }; Returns: undefined };
+            has_workspace_access: { Args: { target_owner: string }; Returns: boolean };
             get_bean_available_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_current_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_effective_stock: {
@@ -1728,6 +1827,11 @@ export type Database = {
             };
             insert_stock_events_batch: {
                 Args: { p_events: Json };
+                Returns: undefined;
+            };
+            redeem_org_invite: { Args: { p_token: string }; Returns: string };
+            remove_org_member: {
+                Args: { p_member_id: string; p_org_id: string };
                 Returns: undefined;
             };
         };
@@ -1863,6 +1967,10 @@ export const Constants = {
 export type Bean = Database['public']['Tables']['beans']['Row'];
 export type BeanInsert = Database['public']['Tables']['beans']['Insert'];
 export type BeanUpdate = Database['public']['Tables']['beans']['Update'];
+
+export type Organization = Database['public']['Tables']['organizations']['Row'];
+export type OrganizationMember = Database['public']['Tables']['organization_members']['Row'];
+export type OrganizationInvite = Database['public']['Tables']['organization_invites']['Row'];
 
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 

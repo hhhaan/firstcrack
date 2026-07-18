@@ -15,14 +15,16 @@ import {
     SidePanelOpen,
 } from '@carbon/icons-react';
 import { useInventoryAlerts } from '@entities/inventory-alert';
+import { useActiveWorkspace } from '@entities/organization';
 import { cn } from '@shared/lib/cn';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { useAuthStore } from '@shared/store/auth';
 import { useThemeStore } from '@shared/store/theme';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
-import { Lock } from 'lucide-react';
-import { type ComponentType, type CSSProperties, useState } from 'react';
+import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
+import { Check, Lock } from 'lucide-react';
+import { type ComponentType, type CSSProperties, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../entities/profile';
 
@@ -52,15 +54,26 @@ const navItems: { id: View; labelKey: string; icon: SidebarIcon }[] = [
 export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, onOpenSettings }: SidebarProps) => {
     const { t } = useTranslation();
     const [isHeaderHovered, setIsHeaderHovered] = useState(false);
+    const [wsOpen, setWsOpen] = useState(false);
     const user = useAuthStore((s) => s.user);
+    const { workspaceOwnerId, setActiveOwner, memberships, authUserId } = useActiveWorkspace();
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     const logoSrc = resolvedTheme === 'dark' ? '/logo_dark.png' : '/logo.png';
     const { data: profile } = useProfile(user?.id ?? '');
-    const { data: inventoryAlerts = [] } = useInventoryAlerts(user?.id ?? '');
+    const { data: inventoryAlerts = [] } = useInventoryAlerts(workspaceOwnerId);
     const alertCount = inventoryAlerts.length;
     const canCupping = useFeature(FEATURE.cupping);
     const canOrders = useFeature(FEATURE.orderIntegration);
-    const workspaceName = profile?.business_name || 'My Roastery';
+
+    const myName = profile?.business_name || t('sidebar.myWorkspace');
+    const activeMembership = useMemo(
+        () => memberships.find((m) => m.owner_id === workspaceOwnerId),
+        [memberships, workspaceOwnerId],
+    );
+    const workspaceName =
+        workspaceOwnerId === authUserId
+            ? myName
+            : activeMembership?.owner_business_name || activeMembership?.org_name || t('sidebar.workspace');
     const workspaceInitial = workspaceName.charAt(0).toUpperCase();
 
     return (
@@ -132,30 +145,83 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
 
             {/* Workspace selector */}
             <div className="px-4 pt-3 pb-2">
-                <button
-                    type="button"
-                    onClick={() => onOpenSettings('account')}
-                    aria-label={t('sidebar.workspaceSelector')}
-                    title={collapsed ? t('sidebar.workspace') : undefined}
-                    className="w-full flex items-center rounded-lg border-none bg-surface cursor-pointer shadow-(--shadow-inset) h-9 overflow-hidden"
-                >
-                    <div className="w-9 h-9 shrink-0 flex items-center justify-center">
-                        <div className="w-5.5 h-5.5 rounded-[5px] bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary">
-                            {workspaceInitial}
-                        </div>
-                    </div>
-                    <div
-                        className={cn(
-                            'flex-1 flex items-center justify-between pr-2.5 transition-all duration-220 overflow-hidden whitespace-nowrap',
-                            collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[160px]',
-                        )}
-                    >
-                        <span className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
-                            {workspaceName}
-                        </span>
-                        <ChevronDown size={14} className="shrink-0 ml-1 text-muted" />
-                    </div>
-                </button>
+                <Popover open={wsOpen} onOpenChange={setWsOpen}>
+                    <PopoverTrigger asChild>
+                        <button
+                            type="button"
+                            aria-label={t('sidebar.workspaceSelector')}
+                            title={collapsed ? workspaceName : undefined}
+                            className="w-full flex items-center rounded-lg border-none bg-surface cursor-pointer shadow-(--shadow-inset) h-9 overflow-hidden"
+                        >
+                            <div className="w-9 h-9 shrink-0 flex items-center justify-center">
+                                <div className="w-5.5 h-5.5 rounded-[5px] bg-surface-warm-solid flex items-center justify-center text-[11px] font-semibold text-secondary">
+                                    {workspaceInitial}
+                                </div>
+                            </div>
+                            <div
+                                className={cn(
+                                    'flex-1 flex items-center justify-between pr-2.5 transition-all duration-220 overflow-hidden whitespace-nowrap',
+                                    collapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[160px]',
+                                )}
+                            >
+                                <span className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
+                                    {workspaceName}
+                                </span>
+                                <ChevronDown size={14} className="shrink-0 ml-1 text-muted" />
+                            </div>
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[220px] p-1.5" align="start" side="bottom">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setActiveOwner(null);
+                                setWsOpen(false);
+                            }}
+                            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border-none bg-transparent hover:bg-surface cursor-pointer text-left"
+                        >
+                            <div className="w-6 h-6 rounded-[5px] bg-surface-warm-solid flex items-center justify-center text-[10px] font-semibold text-secondary shrink-0">
+                                {myName.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="flex-1 text-[13px] text-primary truncate">{myName}</span>
+                            {workspaceOwnerId === authUserId && (
+                                <Check size={14} className="text-palette-teal shrink-0" />
+                            )}
+                        </button>
+                        {memberships.map((m) => {
+                            const name = m.owner_business_name || m.org_name;
+                            const active = workspaceOwnerId === m.owner_id;
+                            return (
+                                <button
+                                    key={m.org_id}
+                                    type="button"
+                                    onClick={() => {
+                                        setActiveOwner(m.owner_id);
+                                        setWsOpen(false);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border-none bg-transparent hover:bg-surface cursor-pointer text-left"
+                                >
+                                    <div className="w-6 h-6 rounded-[5px] bg-surface-warm-solid flex items-center justify-center text-[10px] font-semibold text-secondary shrink-0">
+                                        {name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className="flex-1 text-[13px] text-primary truncate">{name}</span>
+                                    {active && <Check size={14} className="text-palette-teal shrink-0" />}
+                                </button>
+                            );
+                        })}
+                        <div className="h-px bg-border-subtle my-1" />
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setWsOpen(false);
+                                onOpenSettings('team');
+                            }}
+                            className="w-full px-2.5 py-2 rounded-lg border-none bg-transparent hover:bg-surface cursor-pointer text-left text-[12px] text-muted"
+                        >
+                            {t('settings.tabs.team.label')}
+                        </button>
+                    </PopoverContent>
+                </Popover>
             </div>
 
             {/* Nav */}

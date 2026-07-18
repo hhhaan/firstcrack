@@ -1,9 +1,9 @@
+import { useActiveWorkspace } from '@entities/organization';
 import { roastSessionApi } from '@entities/roast';
 import { roastSessionKeys } from '@entities/roast/queries';
 import { deleteBbpTsv, deleteSessionTsv, flushTsv } from '@features/active-roast/lib/tsv-writer';
 import { logger } from '@shared/lib/logger';
 import { dashboardKeys } from '@shared/lib/query-keys';
-import { useAuthStore } from '@shared/store/auth';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadBbpProfile, uploadRoastProfile } from './uploadRoastProfile';
 
@@ -25,21 +25,21 @@ const shouldRetry = (failureCount: number, error: unknown): boolean => {
  * Failure leaves local TSV so the curve is not destroyed.
  */
 export const useUploadRoastProfile = () => {
-    const user = useAuthStore((s) => s.user);
+    const { workspaceOwnerId } = useActiveWorkspace();
     const qc = useQueryClient();
 
     return useMutation({
         mutationFn: async ({ sessionId, roastSessionId }: SyncRoastCurveInput): Promise<string> => {
-            if (!user) throw new Error('Not authenticated');
+            if (!workspaceOwnerId) throw new Error('Not authenticated');
             await flushTsv(sessionId);
-            const key = await uploadRoastProfile(sessionId, user.id);
+            const key = await uploadRoastProfile(sessionId, workspaceOwnerId);
             if (!key) throw new Error('Local TSV missing or empty upload key');
             await roastSessionApi.update({ id: roastSessionId, tsv_path: key });
             await deleteSessionTsv(sessionId);
 
             // BBP 커브는 보조 데이터 — 실패해도 메인 동기화는 성공 처리, 로컬 파일 보존
             try {
-                const bbpKey = await uploadBbpProfile(sessionId, user.id);
+                const bbpKey = await uploadBbpProfile(sessionId, workspaceOwnerId);
                 if (bbpKey) {
                     await roastSessionApi.update({ id: roastSessionId, bbp_tsv_path: bbpKey });
                     await deleteBbpTsv(sessionId);
@@ -56,10 +56,10 @@ export const useUploadRoastProfile = () => {
         retry: shouldRetry,
         retryDelay: (attemptIndex) => 1000 * (attemptIndex + 1),
         onSuccess: (_key, { roastSessionId }) => {
-            if (!user) return;
-            qc.invalidateQueries({ queryKey: roastSessionKeys.all(user.id) });
-            qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(user.id) });
-            qc.invalidateQueries({ queryKey: dashboardKeys.all(user.id) });
+            if (!workspaceOwnerId) return;
+            qc.invalidateQueries({ queryKey: roastSessionKeys.all(workspaceOwnerId) });
+            qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(workspaceOwnerId) });
+            qc.invalidateQueries({ queryKey: dashboardKeys.all(workspaceOwnerId) });
             qc.invalidateQueries({ queryKey: roastSessionKeys.detail(roastSessionId) });
         },
     });

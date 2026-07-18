@@ -1,4 +1,5 @@
 import { beanKeys } from '@entities/bean/queries';
+import { useActiveWorkspace } from '@entities/organization';
 import { useUpdatePlanBatch } from '@entities/plan';
 import { type RoastSessionInsert, roastSessionApi, useCreateRoastSession } from '@entities/roast';
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
@@ -47,7 +48,8 @@ export interface SaveRoastResult {
 export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
     const user = useAuthStore((s) => s.user);
     const plan = useAuthStore((s) => s.plan);
-    const userId = user?.id ?? '';
+    const { workspaceOwnerId } = useActiveWorkspace();
+    const userId = workspaceOwnerId;
     const qc = useQueryClient();
 
     const { mutateAsync: saveRoastSession, isPending: isSaving } = useCreateRoastSession(userId);
@@ -63,7 +65,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
 
             const monthCap = planMaxBatchesPerMonth(plan);
             if (monthCap != null) {
-                const used = await roastSessionApi.countCompletedThisMonth(user.id);
+                const used = await roastSessionApi.countCompletedThisMonth(userId);
                 if (!canCompleteBatch(plan, used)) {
                     throw new BatchLimitError(used, monthCap);
                 }
@@ -90,7 +92,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
             const bbpSummary = useBbpStore.getState().finalized;
 
             const payload: RoastSessionInsert = {
-                user_id: user.id,
+                user_id: userId,
                 weight_grams: weightGrams,
                 status: 'completed',
                 roasted_at: roastedAt,
@@ -131,7 +133,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 );
             }
 
-            const cachedBeans = user ? qc.getQueryData<Bean[]>(beanKeys.all(user.id)) : undefined;
+            const cachedBeans = userId ? qc.getQueryData<Bean[]>(beanKeys.all(userId)) : undefined;
             const resolvedBeanName =
                 handoffBeanName ??
                 (resolvedBeanId ? (cachedBeans?.find((b) => b.id === resolvedBeanId)?.name ?? null) : null);

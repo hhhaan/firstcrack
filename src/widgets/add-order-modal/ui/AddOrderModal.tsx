@@ -1,7 +1,7 @@
 import { useCreateOrder } from '@entities/order';
+import { useActiveWorkspace } from '@entities/organization';
 import { useProducts } from '@entities/product';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import { useAuthStore } from '@shared/store/auth';
 import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
@@ -17,7 +17,7 @@ type LineDraft = { productId: string; quantity: string };
 
 export const AddOrderModal = ({ open, onClose }: Props) => {
     const { t } = useTranslation();
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: products = [] } = useProducts(userId);
     const createOrder = useCreateOrder(userId);
 

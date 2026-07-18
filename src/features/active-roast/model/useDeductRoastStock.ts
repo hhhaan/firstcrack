@@ -1,7 +1,7 @@
 import { beanStockEventApi, stockEventKeys } from '@entities/bean-stock-event';
 import { blendApi } from '@entities/blend';
+import { useActiveWorkspace } from '@entities/organization';
 import { inventoryQueryRoots } from '@shared/lib/query-keys';
-import { useAuthStore } from '@shared/store/auth';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { buildRoastStockEvents } from '../lib/buildRoastStockEvents';
@@ -55,13 +55,13 @@ export async function deductRoastStock(
 
 export const useDeductRoastStock = () => {
     const qc = useQueryClient();
-    const user = useAuthStore((s) => s.user);
+    const { workspaceOwnerId } = useActiveWorkspace();
 
     return useCallback(
         async (params: DeductRoastStockParams) => {
-            if (!user) return;
-            await deductRoastStock({ userId: user.id, qc }, params);
+            if (!workspaceOwnerId) return;
+            await deductRoastStock({ userId: workspaceOwnerId, qc }, params);
         },
-        [user, qc],
+        [workspaceOwnerId, qc],
     );
 };

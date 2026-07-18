@@ -2,13 +2,13 @@ import { useBeans } from '@entities/bean/queries';
 import { useBeanStockSummaries, useBeanStockSummary } from '@entities/bean-stock-event';
 import { useBlends } from '@entities/blend';
 import { useMachines } from '@entities/machine';
+import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { useRoastProfiles } from '@entities/roast-profile/queries';
 import { getDateFnsLocale } from '@shared/i18n';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import { useAuthStore } from '@shared/store/auth';
 import type { Bean, PlanBatchWithProgress, RoastProfile } from '@shared/types/database.types';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
@@ -55,7 +55,7 @@ export const AddBatchModal = ({
     currentDateKey,
     onSaved,
 }: AddBatchModalProps) => {
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { t } = useTranslation();
 
     const { data: beans = [] } = useBeans(userId);

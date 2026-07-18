@@ -39,6 +39,7 @@
         "expand": "Expand sidebar",
         "collapse": "Collapse sidebar",
         "workspaceSelector": "Workspace selector",
+        "myWorkspace": "My workspace",
         "workspace": "Workspace",
         "settings": "Settings",
         "workspacePreferences": "Workspace preferences",
@@ -232,6 +233,41 @@
                 "freeDesc": "Free forever",
                 "proDesc": "Full access to all features",
                 "enterpriseDesc": "FDE, custom work, own-store launch help, team"
+            },
+            "team": {
+                "label": "Team",
+                "title": "Team workspace",
+                "description": "Invite teammates and manage who can access this roastery workspace.",
+                "membersTitle": "Members",
+                "membersDescription": "{{count}} / {{limit}} seats used",
+                "noMembers": "No organization yet. Create an invite to start a team.",
+                "you": "you",
+                "removeMember": "Remove member",
+                "inviteTitle": "Invite code",
+                "inviteDescription": "Generate a one-time code and share it. No email is sent.",
+                "createInvite": "Generate invite code",
+                "copy": "Copy",
+                "copied": "Copied",
+                "activeInvites": "Active invites",
+                "revoke": "Revoke",
+                "joinTitle": "Join a team",
+                "joinDescription": "Paste an invite code you received from a workspace owner.",
+                "redeemPlaceholder": "Invite code",
+                "redeem": "Join workspace",
+                "errors": {
+                    "expired": "This invite has expired.",
+                    "revoked": "This invite was revoked.",
+                    "already_used": "This invite was already used.",
+                    "already_member": "You are already a member of this workspace.",
+                    "seat_limit": "Seat limit reached. Ask the owner to raise the limit.",
+                    "invalid": "Invalid invite code.",
+                    "network": "Network error. Check your connection.",
+                    "generic": "Something went wrong. Please try again."
+                },
+                "success": {
+                    "inviteCreated": "Invite code ready — copy and share it.",
+                    "joined": "Joined workspace successfully."
+                }
             },
             "software": {
                 "label": "Software",

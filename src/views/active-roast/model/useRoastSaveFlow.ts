@@ -1,3 +1,4 @@
+import { useActiveWorkspace } from '@entities/organization';
 import { useDeductRoastStock } from '@features/active-roast/model/useDeductRoastStock';
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { logger } from '@shared/lib/logger';
@@ -38,6 +39,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     } = params;
 
     const user = useAuthStore((s) => s.user);
+    const { workspaceOwnerId } = useActiveWorkspace();
     const flow = useRoastCompletionFlow();
     const { saveRoast, isSaving } = useSaveRoast(planBatchHandoff);
     const deductRoastStock = useDeductRoastStock();
@@ -48,7 +50,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             try {
                 const { deductionPlan, shouldOpenContinue } = await saveRoast({
                     formData,
-                    userId: user.id,
+                    userId: workspaceOwnerId,
                     elapsed,
                     roastStartTimeRef,
                     rawBT,
@@ -73,6 +75,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         },
         [
             user,
+            workspaceOwnerId,
             saveRoast,
             elapsed,
             roastStartTimeRef,

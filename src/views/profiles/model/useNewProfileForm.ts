@@ -1,8 +1,8 @@
 import { useBeans } from '@entities/bean/queries';
 import { useBlends } from '@entities/blend';
+import { useActiveWorkspace } from '@entities/organization';
 import { useRoastSessions } from '@entities/roast';
 import type { RoastProfileWithSource } from '@entities/roast-profile';
-import { useAuthStore } from '@shared/store/auth';
 import type { RoastProfile } from '@shared/types/database.types';
 import { useEffect, useRef, useState } from 'react';
 import { fmtDate } from '../lib/format';
@@ -39,10 +39,10 @@ export const useNewProfileForm = ({
     const [defaultBlendId, setDefaultBlendId] = useState<string | null>(null);
     const nameRef = useRef<HTMLInputElement>(null);
 
-    const user = useAuthStore((s) => s.user);
-    const { data: sessions = [] } = useRoastSessions(user?.id ?? '', 'completed');
-    const { data: beans = [] } = useBeans(user?.id ?? '');
-    const { data: blends = [] } = useBlends(user?.id ?? '');
+    const { workspaceOwnerId } = useActiveWorkspace();
+    const { data: sessions = [] } = useRoastSessions(workspaceOwnerId, 'completed');
+    const { data: beans = [] } = useBeans(workspaceOwnerId);
+    const { data: blends = [] } = useBlends(workspaceOwnerId);
 
     // Derive initial state from props during render to avoid stale UI commits
     const [prevOpen, setPrevOpen] = useState(open);
@@ -132,7 +132,7 @@ export const useNewProfileForm = ({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isValid || !user) return;
+        if (!isValid || !workspaceOwnerId) return;
 
         if (editingProfile) {
             const patch: Partial<Omit<RoastProfile, 'id' | 'created_at' | 'updated_at' | 'user_id'>> = {
@@ -150,7 +150,7 @@ export const useNewProfileForm = ({
             onUpdated?.({ id: editingProfile.id, ...patch } as RoastProfile);
         } else {
             const profile: Omit<RoastProfile, 'id' | 'created_at' | 'updated_at'> = {
-                user_id: user.id,
+                user_id: workspaceOwnerId,
                 name: form.name.trim(),
                 description: form.description.trim() || null,
                 target_level: form.target_level,

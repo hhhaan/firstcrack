@@ -1,4 +1,5 @@
 import { useBeans } from '@entities/bean/queries';
+import { useActiveWorkspace } from '@entities/organization';
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
@@ -84,8 +85,9 @@ export const RoastHeader = ({
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const sidecarError = useRoastingStore((s) => s.sidecarError);
     const user = useAuthStore((s) => s.user);
-    const { data: beans = [] } = useBeans(user?.id ?? '');
-    const { data: dbProfiles = [] } = useRoastProfiles(user?.id ?? '');
+    const { workspaceOwnerId } = useActiveWorkspace();
+    const { data: beans = [] } = useBeans(workspaceOwnerId);
+    const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
     const { data: userProfile } = useProfile(user?.id ?? '');
     const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
     // 드롭다운을 빠르게 바꿀 때 매번 DB 쓰기가 발생하는 걸 막기 위한 디바운스 타이머.

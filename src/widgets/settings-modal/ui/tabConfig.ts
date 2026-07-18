@@ -1,6 +1,6 @@
-import { CreditCard, Flame, Info, LayoutDashboard, LifeBuoy, type LucideIcon, User } from 'lucide-react';
+import { CreditCard, Flame, Info, LayoutDashboard, LifeBuoy, type LucideIcon, User, Users } from 'lucide-react';
 
-export type SettingsTabId = 'general' | 'roast' | 'account' | 'billing' | 'software' | 'support';
+export type SettingsTabId = 'general' | 'roast' | 'account' | 'billing' | 'team' | 'software' | 'support';
 
 export interface TabConfig {
     id: SettingsTabId;
@@ -42,6 +42,13 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
             icon: CreditCard,
             title: tk('billing', 'title'),
             description: tk('billing', 'description'),
+        },
+        {
+            id: 'team',
+            label: tk('team', 'label'),
+            icon: Users,
+            title: tk('team', 'title'),
+            description: tk('team', 'description'),
         },
         {
             id: 'software',

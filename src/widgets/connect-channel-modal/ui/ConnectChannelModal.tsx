@@ -1,6 +1,6 @@
+import { useActiveWorkspace } from '@entities/organization';
 import { type ChannelPlatform, useConnectChannel } from '@entities/sales-channel';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import { useAuthStore } from '@shared/store/auth';
 import { Badge } from '@shared/ui/Badge';
 import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
@@ -25,7 +25,7 @@ type Props = {
 
 export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
     const { t } = useTranslation();
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const connect = useConnectChannel(userId);
     const [displayName, setDisplayName] = useState('');
     const [clientId, setClientId] = useState('');

@@ -1,10 +1,10 @@
 import { useBeans } from '@entities/bean';
 import { useBlends } from '@entities/blend';
+import { useActiveWorkspace } from '@entities/organization';
 import type { Product } from '@entities/product';
 import { useCreateProduct, useUpdateProduct } from '@entities/product';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import { useAuthStore } from '@shared/store/auth';
 import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
@@ -24,7 +24,7 @@ type Source = { kind: 'bean' | 'blend'; id: string } | { kind: 'none' };
 
 export const AddProductModal = ({ open, onClose, editing }: Props) => {
     const { t } = useTranslation();
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: beans = [] } = useBeans(userId);
     const { data: blends = [] } = useBlends(userId);
     const { data: profiles = [] } = useRoastProfiles(userId);

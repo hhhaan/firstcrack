@@ -1,6 +1,7 @@
 import { useBeans } from '@entities/bean/queries';
 import type { BlendWithComponents } from '@entities/blend/api';
 import { useBlends } from '@entities/blend/queries';
+import { useActiveWorkspace } from '@entities/organization';
 import {
     blendGreenCostPerKg,
     DEFAULT_YIELD_PCT,
@@ -13,7 +14,6 @@ import {
 } from '@shared/lib/cost-calc';
 import { logger } from '@shared/lib/logger';
 import { pricingStore } from '@shared/lib/pricingStore';
-import { useAuthStore } from '@shared/store/auth';
 import { normalizePct } from '@widgets/cost-calculator/lib/format';
 import type {
     BlendComponentCost,
@@ -56,7 +56,7 @@ const blendToComponents = (blend: BlendWithComponents, beans: { id: string; cost
 export const usePricingCalculator = () => {
     const { i18n } = useTranslation();
     const lang = i18n.language;
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: beans = [] } = useBeans(userId);
     const { data: blends = [] } = useBlends(userId);
 
