@@ -14,20 +14,16 @@ const CONTACT_EMAIL = 'contact@firstcrackiscoming.com';
 type Plan = {
     key: string;
     name: string;
-    price?: string;
-    interval?: string;
     priceId?: string;
     contact?: boolean;
     descKey: string;
 };
 
 const PLANS: Plan[] = [
-    { key: 'free', name: 'Free', price: '$0', interval: '/mo', descKey: 'settings.tabs.billing.freeDesc' },
+    { key: 'free', name: 'Free', descKey: 'settings.tabs.billing.freeDesc' },
     {
         key: 'pro',
         name: 'Pro',
-        price: '$39',
-        interval: '/mo',
         priceId: 'POLAR_PRO_PRODUCT_ID',
         descKey: 'settings.tabs.billing.proDesc',
     },
@@ -86,14 +82,8 @@ function PlanCard({
                         />
                     )}
                 </div>
-                <div className="flex items-baseline gap-1.5 mb-1">
+                <div className="mb-1">
                     <span className="text-[18px] font-bold text-[#111827] dark:text-[#e5e5e5]">{plan.name}</span>
-                    {plan.price != null && (
-                        <span className="text-[13px] text-[#6B7280] dark:text-[#999]">
-                            {plan.price}
-                            {plan.interval}
-                        </span>
-                    )}
                 </div>
                 <div className="text-[12px] text-[#6B7280] dark:text-[#999] mb-3">{t(plan.descKey)}</div>
             </div>
@@ -153,7 +143,7 @@ export function BillingSettingsTab() {
         }
     };
 
-    const currentPlan = (profile?.plan ?? 'free') as string;
+    const currentPlan = profile?.plan ?? 'free';
 
     return (
         <SectionCard className="self-start">

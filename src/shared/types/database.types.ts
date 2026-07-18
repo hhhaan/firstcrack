@@ -587,6 +587,72 @@ export type Database = {
                 };
                 Relationships: [];
             };
+            order_dispatches: {
+                Row: {
+                    attempt_count: number;
+                    carrier: string;
+                    confirmed_at: string | null;
+                    connection_id: string;
+                    id: string;
+                    last_error: string | null;
+                    line_results: Json | null;
+                    order_id: string;
+                    requested_at: string;
+                    sent_at: string | null;
+                    status: string;
+                    tracking_number: string;
+                    updated_at: string;
+                    user_id: string;
+                };
+                Insert: {
+                    attempt_count?: number;
+                    carrier: string;
+                    confirmed_at?: string | null;
+                    connection_id: string;
+                    id?: string;
+                    last_error?: string | null;
+                    line_results?: Json | null;
+                    order_id: string;
+                    requested_at?: string;
+                    sent_at?: string | null;
+                    status?: string;
+                    tracking_number: string;
+                    updated_at?: string;
+                    user_id: string;
+                };
+                Update: {
+                    attempt_count?: number;
+                    carrier?: string;
+                    confirmed_at?: string | null;
+                    connection_id?: string;
+                    id?: string;
+                    last_error?: string | null;
+                    line_results?: Json | null;
+                    order_id?: string;
+                    requested_at?: string;
+                    sent_at?: string | null;
+                    status?: string;
+                    tracking_number?: string;
+                    updated_at?: string;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'order_dispatches_connection_id_fkey';
+                        columns: ['connection_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'sales_channel_connections';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'order_dispatches_order_id_fkey';
+                        columns: ['order_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'orders';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             order_lines: {
                 Row: {
                     created_at: string;
@@ -864,6 +930,7 @@ export type Database = {
                     name: string;
                     note: string | null;
                     polar_discount_id: string;
+                    product_scope: string;
                     redeemed_at: string | null;
                     redemptions_count: number;
                     status: string;
@@ -886,6 +953,7 @@ export type Database = {
                     name: string;
                     note?: string | null;
                     polar_discount_id: string;
+                    product_scope?: string;
                     redeemed_at?: string | null;
                     redemptions_count?: number;
                     status?: string;
@@ -908,6 +976,7 @@ export type Database = {
                     name?: string;
                     note?: string | null;
                     polar_discount_id?: string;
+                    product_scope?: string;
                     redeemed_at?: string | null;
                     redemptions_count?: number;
                     status?: string;
@@ -1796,7 +1865,6 @@ export type Database = {
                 Returns: string[];
             };
             fulfill_order: { Args: { p_order_id: string }; Returns: undefined };
-            has_workspace_access: { Args: { target_owner: string }; Returns: boolean };
             get_bean_available_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_current_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_effective_stock: {
@@ -1821,6 +1889,7 @@ export type Database = {
                 Args: { p_horizon_days?: number; p_user_id: string };
                 Returns: Json;
             };
+            has_workspace_access: { Args: { target_owner: string }; Returns: boolean };
             insert_product_stock_events_batch: {
                 Args: { p_events: Json };
                 Returns: undefined;
@@ -1829,14 +1898,14 @@ export type Database = {
                 Args: { p_events: Json };
                 Returns: undefined;
             };
+            is_org_member_or_owner: { Args: { p_org_id: string }; Returns: boolean };
+            is_org_owner: { Args: { p_org_id: string }; Returns: boolean };
             redeem_org_invite: { Args: { p_token: string }; Returns: string };
             remove_org_member: {
                 Args: { p_member_id: string; p_org_id: string };
                 Returns: undefined;
             };
             revoke_org_invite: { Args: { p_invite_id: string }; Returns: undefined };
-            is_org_owner: { Args: { p_org_id: string }; Returns: boolean };
-            is_org_member_or_owner: { Args: { p_org_id: string }; Returns: boolean };
         };
         Enums: {
             [_ in never]: never;
@@ -1970,10 +2039,6 @@ export const Constants = {
 export type Bean = Database['public']['Tables']['beans']['Row'];
 export type BeanInsert = Database['public']['Tables']['beans']['Insert'];
 export type BeanUpdate = Database['public']['Tables']['beans']['Update'];
-
-export type Organization = Database['public']['Tables']['organizations']['Row'];
-export type OrganizationMember = Database['public']['Tables']['organization_members']['Row'];
-export type OrganizationInvite = Database['public']['Tables']['organization_invites']['Row'];
 
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 
