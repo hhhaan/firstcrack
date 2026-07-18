@@ -565,6 +565,7 @@
             "sessionProgress": "Session {{current}}/{{total}}",
             "deductStock": "Deduct green stock ({{kg}}kg)",
             "deductStockDisabled": "No bean linked — stock cannot be deducted.",
+            "deductSkippedAlreadyDeducted": "Stock for this batch was already deducted from the schedule, so the duplicate deduction was skipped.",
             "batchWeight": "Green Weight (charged)",
             "weightUnit": "g",
             "roastLevel": "Roast Level",

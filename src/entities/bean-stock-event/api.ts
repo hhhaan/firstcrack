@@ -40,6 +40,18 @@ export const beanStockEventApi = {
         return data ?? [];
     },
 
+    /** 해당 reference_id로 이미 roast 차감이 기록됐는지 — 스케줄 완료/세션 저장 이중 차감 가드용. */
+    hasRoastDeductionForReference: async (referenceId: string): Promise<boolean> => {
+        const { data, error } = await supabase
+            .from('bean_stock_events')
+            .select('id')
+            .eq('reference_id', referenceId)
+            .eq('event_type', 'roast')
+            .limit(1);
+        if (error) throw error;
+        return (data ?? []).length > 0;
+    },
+
     insert: async (event: BeanStockEventInsert): Promise<BeanStockEvent> => {
         const { data, error } = await supabase.from('bean_stock_events').insert(event).select().single();
         if (error) throw error;
