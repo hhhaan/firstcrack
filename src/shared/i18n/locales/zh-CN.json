@@ -861,7 +861,6 @@
             "confirm": "删除"
         },
         "saveAsProfile": "保存为曲线",
-        "monthlyReport": "月度报告",
         "exportCsv": "导出 CSV",
         "exportConfirm": "保存到：{{path}}\n导出{{count}}条记录为CSV？",
         "exportNoSessions": "没有可导出的会话。",

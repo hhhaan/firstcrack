@@ -1,24 +1,19 @@
 import { useActiveWorkspace } from '@entities/organization';
-import { useProfile } from '@entities/profile';
 import { useDeleteRoastSession, useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
 import { useCreateRoastProfile } from '@entities/roast-profile';
 import { useExportCsv } from '@features/export-csv';
 import { formatDateShort } from '@shared/lib/format';
 import { filterSessions, paginateSessions, sortSessions } from '@shared/lib/sessionFilter';
-import { useAuthStore } from '@shared/store/auth';
 import type { RoastProfile } from '@shared/types/database.types';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
-import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { NewProfileModal } from '@views/profiles/NewProfileModal';
-import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
 import { DateRangeFilter } from '@widgets/date-range-filter';
-import { Download, FileText, GitCompare, Search, X } from 'lucide-react';
+import { Download, GitCompare, Search } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHistoryFilters } from './hooks/useHistoryFilters';
-import { buildReportData } from './lib/buildReportData';
 import { DeleteSessionModal } from './ui/DeleteSessionModal';
 import { HistorySkeleton } from './ui/HistorySkeleton';
 import { HistoryTable } from './ui/HistoryTable';
@@ -33,7 +28,6 @@ const PAGE_SIZE = 10;
 export const History = () => {
     const { t } = useTranslation();
     const [expandedId, setExpandedId] = useState<string | null>(null);
-    const [showReport, setShowReport] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [compareMode, setCompareMode] = useState(false);
     const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -61,9 +55,7 @@ export const History = () => {
         setPage,
     } = useHistoryFilters();
 
-    const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
-    const { data: profile } = useProfile(user?.id ?? '');
 
     const useClientPagination = search.length > 0 || originFilter !== 'all';
 
@@ -142,11 +134,6 @@ export const History = () => {
     const isLoading = useClientPagination ? isRawLoading : isPaginatedLoading;
     const isError = useClientPagination ? isRawError : isPaginatedError;
 
-    const reportData = useMemo(
-        () => buildReportData(rawSessions, profile?.display_name, user?.email),
-        [rawSessions, profile, user],
-    );
-
     const exportCsv = useExportCsv();
     const deleteSession = useDeleteRoastSession(workspaceOwnerId);
     const { mutateAsync: createProfile } = useCreateRoastProfile(workspaceOwnerId);
@@ -200,9 +187,6 @@ export const History = () => {
                 .filter((s): s is NonNullable<typeof s> => s != null),
         [compareIds, rawSessions],
     );
-
-    const handleOpenReport = useCallback(() => setShowReport(true), []);
-    const handleCloseReport = useCallback(() => setShowReport(false), []);
 
     const handleExportCsv = useCallback(() => {
         const filtered = filterSessions(rawSessions, filterCriteria);
@@ -280,14 +264,6 @@ export const History = () => {
                         )}
                         <button
                             type="button"
-                            onClick={handleOpenReport}
-                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent bg-main-bg dark:bg-[#262b31] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary dark:text-[#e5e5e5] transition hover:-translate-y-px hover:text-primary"
-                        >
-                            <FileText size={14} strokeWidth={2} />
-                            {t('history.monthlyReport')}
-                        </button>
-                        <button
-                            type="button"
                             onClick={handleExportCsv}
                             className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px"
                         >
@@ -343,20 +319,6 @@ export const History = () => {
                 onClose={() => setPromoteSessionId(null)}
                 onCreated={handleProfileCreated}
             />
-            {showReport && (
-                <ModalShell onClose={handleCloseReport} labelledBy="monthly-report-title">
-                    <div className="relative max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
-                        <button
-                            type="button"
-                            onClick={handleCloseReport}
-                            className="fixed top-6 right-6 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 shadow-md backdrop-blur-sm hover:bg-white"
-                        >
-                            <X size={16} strokeWidth={2} />
-                        </button>
-                        <MonthlyProductionReport {...reportData} />
-                    </div>
-                </ModalShell>
-            )}
             <DeleteSessionModal
                 open={deletingId !== null}
                 sessionName={

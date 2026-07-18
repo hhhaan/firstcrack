@@ -9,16 +9,6 @@ struct SidecarChild(Mutex<Option<CommandChild>>);
 /// 사이드카 자동 재시작 백오프 (초). 길이 = 최대 시도 횟수.
 const RESTART_BACKOFFS_SECS: [u64; 3] = [2, 5, 10];
 
-#[tauri::command]
-fn save_pdf(path: String, data: Vec<u8>) -> Result<(), String> {
-    std::fs::write(&path, data).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
-    window.print().map_err(|e| e.to_string())
-}
-
 /// 업데이트 적용 재시작. single-instance 소켓을 먼저 제거해 재시작 프로세스가 즉시 종료되지 않도록 한다.
 #[tauri::command]
 fn relaunch_for_update(app: tauri::AppHandle) -> Result<(), String> {
@@ -289,7 +279,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![save_pdf, print_window, relaunch_for_update])
+        .invoke_handler(tauri::generate_handler![relaunch_for_update])
         .build(tauri::generate_context!())
         .expect("error while running tauri application");
 

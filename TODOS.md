@@ -690,7 +690,6 @@ A5 v1 한계: no curve copy into draft dir; wall clock lag on resume; single lat
 
 | 파일 | ~LOC | 비고 |
 |------|------|------|
-| `src/views/reports/MonthlyProductionReport.tsx` | 614 | |
 | `src/views/active-roast/ActiveRoast.tsx` | 590 | |
 | `src/views/login/Login.tsx` | 583 | |
 | `src/views/active-roast/ui/RoastTempChart.tsx` | 346 | 분할 진행됨 (구 1097) |

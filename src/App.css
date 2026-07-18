@@ -253,30 +253,3 @@ html[lang="en"] {
 *::after {
     font-variant-numeric: tabular-nums lining-nums;
 }
-
-@media print {
-    @page {
-        size: A4 portrait;
-        margin: 0;
-    }
-    html,
-    body,
-    #root {
-        height: auto;
-        overflow: visible;
-    }
-    body > *:not(#print-root) {
-        display: none !important;
-    }
-    #print-root [data-report="true"] {
-        position: static !important;
-        width: 210mm !important;
-        margin: 0 auto !important;
-        box-sizing: border-box !important;
-    }
-    #print-root [data-report="true"],
-    #print-root [data-report="true"] * {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-}
