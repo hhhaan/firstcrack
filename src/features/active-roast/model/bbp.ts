@@ -1,4 +1,4 @@
-import { TSV_HEADER } from '@features/active-roast/lib/tsv-writer';
+import { TSV_HEADER } from '@shared/lib/tsv-writer';
 import { create } from 'zustand';
 
 /** charge가 이 시간(초)보다 늦으면 드럼 열 상태가 리셋된 것으로 보고 BBP를 폐기한다. */

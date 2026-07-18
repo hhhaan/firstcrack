@@ -5,7 +5,6 @@ import { type RoastSessionInsert, roastSessionApi, useCreateRoastSession } from 
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useBbpStore } from '@features/active-roast/model/bbp';
-import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { BatchLimitError, canCompleteBatch, planMaxBatchesPerMonth } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
@@ -14,6 +13,9 @@ import type { Bean, Json, PlanBatchHandoff } from '@shared/types/database.types'
 import type { LogEntry } from '@shared/types/roast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
+
+/** Injected from upload feature (composed in views) — avoids feature→feature import. */
+export type SyncRoastCurve = (input: { sessionId: string; roastSessionId: string }) => Promise<unknown>;
 
 /** Form fields required to persist a completed roast (matches summary modal). */
 export type SaveRoastFormData = {
@@ -53,7 +55,7 @@ export const resolveEffectiveBatch = (
     linkedBatch?: PlanBatchHandoff | null,
 ): PlanBatchHandoff | null => planBatchHandoff ?? linkedBatch ?? null;
 
-export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
+export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoastCurve: SyncRoastCurve) => {
     const user = useAuthStore((s) => s.user);
     const plan = useAuthStore((s) => s.plan);
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
@@ -61,7 +63,6 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
     const qc = useQueryClient();
 
     const { mutateAsync: saveRoastSession, isPending: isSaving } = useCreateRoastSession(userId);
-    const { mutateAsync: syncRoastCurve } = useUploadRoastProfile();
     // Single-batch update: invalidates schedule roots regardless of which planId (ad-hoc link safe)
     const { mutateAsync: updatePlanBatch } = useUpdateSingleBatch();
     const startBatch = useRoastSessionStore((s) => s.startBatch);

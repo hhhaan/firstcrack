@@ -1,6 +1,6 @@
-import { orderKeys } from '@entities/order';
 import { useActiveWorkspace } from '@entities/organization';
 import { productStockEventApi, productStockKeys } from '@entities/product-stock-event';
+import { orderKeys } from '@shared/lib/query-keys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export interface FinishedGoodsInbound {

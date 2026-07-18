@@ -42,3 +42,9 @@ export const roastChartKeys = {
     /** tsv 없는 세션용 disabled placeholder — useQueries 내 키 충돌 방지 */
     historyNone: (fallbackKey: string) => ['history-chart', 'none', fallbackKey] as const,
 };
+
+/** Orders — used by order, order-dispatch, sales-channel, fulfill, finished-goods */
+export const orderKeys = {
+    all: (userId: string) => ['orders', userId] as const,
+    requirements: (userId: string) => ['roasting-requirements', userId] as const,
+};

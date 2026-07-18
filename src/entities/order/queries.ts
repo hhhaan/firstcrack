@@ -1,11 +1,9 @@
+import { orderKeys } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { OrderInsert, OrderLineInsert } from './api';
 import { orderApi } from './api';
 
-export const orderKeys = {
-    all: (userId: string) => ['orders', userId] as const,
-    requirements: (userId: string) => ['roasting-requirements', userId] as const,
-};
+export { orderKeys };
 
 export const useOrders = (userId: string) =>
     useQuery({

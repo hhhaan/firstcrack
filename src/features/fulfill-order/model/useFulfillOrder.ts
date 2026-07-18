@@ -1,6 +1,7 @@
-import { orderApi, orderKeys } from '@entities/order';
+import { orderApi } from '@entities/order';
 import { useActiveWorkspace } from '@entities/organization';
 import { productStockKeys } from '@entities/product-stock-event';
+import { orderKeys } from '@shared/lib/query-keys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 /** Fulfill an order via the atomic `fulfill_order` RPC (deduct stock + stamp fulfilled_at). */

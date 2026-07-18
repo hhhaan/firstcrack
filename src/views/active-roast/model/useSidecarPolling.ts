@@ -1,9 +1,9 @@
 import { createBtFilter } from '@features/active-roast/lib/btFilter';
-import { enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@features/active-roast/lib/tsv-writer';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
+import { enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
 import type { MutableRefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -270,8 +270,8 @@ export const useSidecarPolling = ({
             }
         };
 
-        poll();
-        const id = setInterval(poll, pollIntervalMs);
+        void poll();
+        const id = setInterval(() => void poll(), pollIntervalMs);
         return () => clearInterval(id);
     }, [phase, pollIntervalMs]);
 

@@ -1,6 +1,6 @@
 import { type InventoryAlert, useDismissInventoryAlert, useInventoryAlerts } from '@entities/inventory-alert';
+import { alertColor } from '@shared/lib/inventory-alert-styles';
 import type { View } from '@shared/types/view';
-import { alertColor } from '@views/dashboard/lib/constants';
 import { X } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';

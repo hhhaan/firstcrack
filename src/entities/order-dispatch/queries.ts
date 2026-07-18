@@ -1,4 +1,4 @@
-import { orderKeys } from '@entities/order';
+import { orderKeys } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { orderDispatchApi } from './api';
 

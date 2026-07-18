@@ -18,19 +18,7 @@ export const levelBg: Record<string, string> = {
     Dark: 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
 };
 
-/** 재고 알림 이유 → 전경색 */
-export const alertColor: Record<string, string> = {
-    out: '#8080F0',
-    schedule: '#F59E0B',
-    low: '#FFFF54',
-};
-
-/** 재고 알림 이유 → 배경색 */
-export const alertBg: Record<string, string> = {
-    out: 'rgba(128,128,240,0.12)',
-    schedule: 'rgba(245,158,11,0.12)',
-    low: 'rgba(255,255,84,0.2)',
-};
+export { alertBg, alertColor } from '@shared/lib/inventory-alert-styles';
 
 /** 알림 이유 → 번역 키 매핑 */
 export const alertReasonLabels: Record<DashboardInventoryAlert['reason'], string> = {

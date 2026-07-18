@@ -1,9 +1,9 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { roastSessionApi } from '@entities/roast';
 import { roastSessionKeys } from '@entities/roast/queries';
-import { deleteBbpTsv, deleteSessionTsv, flushTsv } from '@features/active-roast/lib/tsv-writer';
 import { logger } from '@shared/lib/logger';
 import { dashboardKeys } from '@shared/lib/query-keys';
+import { deleteBbpTsv, deleteSessionTsv, flushTsv } from '@shared/lib/tsv-writer';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadBbpProfile, uploadRoastProfile } from './uploadRoastProfile';
 

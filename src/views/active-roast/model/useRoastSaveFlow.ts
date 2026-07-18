@@ -3,6 +3,7 @@ import { useDayBatches } from '@entities/plan';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import { useDeductRoastStock } from '@features/active-roast/model/useDeductRoastStock';
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
+import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
@@ -47,7 +48,8 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     const { data: dayBatches = [] } = useDayBatches(isWorkspaceReady ? workspaceOwnerId : '', today);
 
     const flow = useRoastCompletionFlow();
-    const { saveRoast, isSaving } = useSaveRoast(planBatchHandoff);
+    const { mutateAsync: syncRoastCurve } = useUploadRoastProfile();
+    const { saveRoast, isSaving } = useSaveRoast(planBatchHandoff, syncRoastCurve);
     const deductRoastStock = useDeductRoastStock();
 
     const handleSave = useCallback(

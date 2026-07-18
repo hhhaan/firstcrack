@@ -1,4 +1,3 @@
-import { beanStockEventApi } from '@entities/bean-stock-event';
 import { dashboardKeys, inventoryQueryRoots } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { inventoryAlertApi } from './api';
@@ -28,7 +27,7 @@ export const useDismissInventoryAlert = (userId: string) => {
 export const useComputeInventoryAlerts = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: () => beanStockEventApi.computeInventoryAlerts(userId),
+        mutationFn: () => inventoryAlertApi.computeInventoryAlerts(userId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: inventoryAlertKeys.list(userId) });
             qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
