@@ -17,6 +17,7 @@ import { useHistoryFilters } from './hooks/useHistoryFilters';
 import { DeleteSessionModal } from './ui/DeleteSessionModal';
 import { HistorySkeleton } from './ui/HistorySkeleton';
 import { HistoryTable } from './ui/HistoryTable';
+import { RoastedComponentReport } from './ui/RoastedComponentReport';
 import { SessionCompareModal } from './ui/SessionCompareModal';
 
 const MAX_COMPARE = 4;
@@ -310,6 +311,7 @@ export const History = () => {
             </div>
 
             {renderContent()}
+            <RoastedComponentReport />
             {showCompare && compareSessions.length >= 2 && (
                 <SessionCompareModal sessions={compareSessions} onClose={() => setShowCompare(false)} />
             )}

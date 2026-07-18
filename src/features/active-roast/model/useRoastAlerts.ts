@@ -54,7 +54,10 @@ export const useRoastAlerts = ({
     const [active, setActive] = useState<RoastAlertKind[]>([]);
     const activeRef = useRef<RoastAlertKind[]>([]);
     const soundRef = useRef(soundEnabled);
-    soundRef.current = soundEnabled;
+
+    useEffect(() => {
+        soundRef.current = soundEnabled;
+    }, [soundEnabled]);
 
     const dropped = logEntries.some((e) => e.event === 'Drop' || e.event === 'End');
     const armed = enabled && phase === 'roasting' && !dropped;

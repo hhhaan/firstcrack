@@ -894,7 +894,17 @@
         "exportNoSessions": "No sessions to export.",
         "exportTitle": "First Crack",
         "exportOkLabel": "Export",
-        "exportCancelLabel": "Cancel"
+        "exportCancelLabel": "Cancel",
+        "componentReport": {
+            "title": "Roast by green bean",
+            "range30": "Last 30 days",
+            "range90": "Last 90 days",
+            "colBean": "Bean",
+            "colGreen": "Green in (kg)",
+            "colRoasted": "Roasted out (kg)",
+            "colLoss": "Loss",
+            "estimateFootnote": "* includes estimated inbound"
+        }
     },
     "profiles": {
         "title": "Roast Profiles",
@@ -1369,6 +1379,45 @@
                 "confirmed": "Shipped (confirmed)",
                 "failed": "Ship failed"
             }
+        }
+    },
+    "inventory": {
+        "tabs": {
+            "green": "Green",
+            "roasted": "Roasted (bulk)",
+            "products": "Products"
+        },
+        "locked": {
+            "cta": "Upgrade plan",
+            "roastedTitle": "Roasted inventory is available on Pro+",
+            "roastedDescription": "Roast output is booked into bulk roasted stock automatically, with packaging and blending tracked end to end.",
+            "productsTitle": "Finished goods inventory is available on Pro+",
+            "productsDescription": "Track bag stock per SKU and packaging in/out."
+        },
+        "roasted": {
+            "blendAction": "Blend",
+            "empty": "No roasted stock yet. Saving a roast books it automatically.",
+            "estimateBadge": "includes estimate",
+            "blendBadge": "Blend",
+            "unknownBean": "(deleted bean)",
+            "unknownBlend": "(deleted blend)"
+        },
+        "products": {
+            "inbound": "Inbound",
+            "unitSuffix": "bags",
+            "empty": "No products registered. Add products in Orders first.",
+            "shortageWarning": "Bulk roasted is short by {{kg}}kg on paper. Inbound completed — check stock and adjust."
+        },
+        "blending": {
+            "title": "Post-roast blending",
+            "selectBlend": "Select blend",
+            "targetOutput": "Target output (g)",
+            "componentInputs": "Component inputs",
+            "available": "On hand {{kg}}kg",
+            "insufficientHint": "Over book stock — you can still proceed; balance may go negative",
+            "actualOutput": "Measured output (g)",
+            "submit": "Record blend",
+            "note": "Note (optional)"
         }
     }
 }

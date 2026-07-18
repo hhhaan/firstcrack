@@ -679,7 +679,17 @@
         "exportNoSessions": "내보낼 세션이 없습니다.",
         "exportTitle": "First Crack",
         "exportOkLabel": "내보내기",
-        "exportCancelLabel": "취소"
+        "exportCancelLabel": "취소",
+        "componentReport": {
+            "title": "생두별 로스팅 집계",
+            "range30": "최근 30일",
+            "range90": "최근 90일",
+            "colBean": "생두",
+            "colGreen": "투입 (kg)",
+            "colRoasted": "배출 (kg)",
+            "colLoss": "감량률",
+            "estimateFootnote": "* 추정 입고 포함"
+        }
     },
     "beans": {
         "title": "Bean Inventory",
@@ -1369,6 +1379,45 @@
                 "confirmed": "배송중 확인",
                 "failed": "발송 실패"
             }
+        }
+    },
+    "inventory": {
+        "tabs": {
+            "green": "생두",
+            "roasted": "원두 (벌크)",
+            "products": "완제품"
+        },
+        "locked": {
+            "cta": "플랜 업그레이드",
+            "roastedTitle": "원두 재고는 Pro+ 플랜부터",
+            "roastedDescription": "로스팅 배출량이 자동으로 벌크 원두 재고에 쌓이고, 포장·블렌딩까지 추적됩니다.",
+            "productsTitle": "완제품 재고는 Pro+ 플랜부터",
+            "productsDescription": "SKU별 봉지 재고와 포장 입출고를 관리합니다."
+        },
+        "roasted": {
+            "blendAction": "블렌딩",
+            "empty": "아직 원두 재고가 없습니다. 로스팅을 저장하면 자동으로 쌓입니다.",
+            "estimateBadge": "추정 포함",
+            "blendBadge": "블렌드",
+            "unknownBean": "(삭제된 생두)",
+            "unknownBlend": "(삭제된 블렌드)"
+        },
+        "products": {
+            "inbound": "입고",
+            "unitSuffix": "봉지",
+            "empty": "등록된 제품이 없습니다. Orders에서 제품을 먼저 등록하세요.",
+            "shortageWarning": "벌크 원두가 장부상 {{kg}}kg 부족합니다. 입고는 완료됐습니다 — 재고를 확인하고 조정하세요."
+        },
+        "blending": {
+            "title": "로스팅 후 블렌딩",
+            "selectBlend": "블렌드 선택",
+            "targetOutput": "목표 산출량",
+            "componentInputs": "컴포넌트 투입량",
+            "available": "잔량 {{kg}}kg",
+            "insufficientHint": "장부 잔량 초과 — 진행은 가능하며 잔량이 음수로 기록됩니다",
+            "actualOutput": "실측 산출량",
+            "submit": "블렌딩 기록",
+            "note": "메모 (선택)"
         }
     }
 }

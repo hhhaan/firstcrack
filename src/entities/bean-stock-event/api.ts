@@ -28,6 +28,18 @@ export const beanStockEventApi = {
         return data ?? [];
     },
 
+    listByUserSince: async (userId: string, sinceIso: string): Promise<BeanStockEvent[]> => {
+        const { data, error } = await supabase
+            .from('bean_stock_events')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('event_type', 'roast')
+            .gte('created_at', sinceIso)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data ?? [];
+    },
+
     insert: async (event: BeanStockEventInsert): Promise<BeanStockEvent> => {
         const { data, error } = await supabase.from('bean_stock_events').insert(event).select().single();
         if (error) throw error;
