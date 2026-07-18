@@ -322,7 +322,7 @@
         "saveAndConnect": "Save & Connect",
         "failedToSave": "Failed to save",
         "phidgetDriverNotice": "This device requires the Phidget22 system driver separately.",
-        "phidgetDriverLink": "View driver installation guide"
+        "phidgetDriverLink": "Download Phidget22 driver"
     },
     "dashboard": {
         "greeting": {

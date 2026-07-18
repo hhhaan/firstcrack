@@ -322,7 +322,7 @@
         "saveAndConnect": "저장 후 연결",
         "failedToSave": "저장에 실패했습니다",
         "phidgetDriverNotice": "해당 기기는 Phidget22 시스템 드라이버가 별도로 필요합니다.",
-        "phidgetDriverLink": "드라이버 설치 안내 보기"
+        "phidgetDriverLink": "Phidget22 드라이버 다운로드"
     },
     "dashboard": {
         "greeting": {

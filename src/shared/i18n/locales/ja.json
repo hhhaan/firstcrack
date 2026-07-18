@@ -322,7 +322,7 @@
         "saveAndConnect": "保存して接続",
         "failedToSave": "保存に失敗しました",
         "phidgetDriverNotice": "このデバイスにはPhidget22システムドライバーが別途必要です。",
-        "phidgetDriverLink": "ドライバーインストールガイドを見る"
+        "phidgetDriverLink": "Phidget22ドライバーをダウンロード"
     },
     "dashboard": {
         "greeting": {

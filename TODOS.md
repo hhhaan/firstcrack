@@ -999,6 +999,158 @@ B안 채택: AGENTS.md Automation 표를 실제 훅에 맞게 수정 (push=`veri
 
 ---
 
+## ROAST QC — 프로파일 · 배치 비교 · 일관성
+
+> 2026-07-17 제품 갭 정리.  
+> **있음:** roast_profiles CRUD, 세션→프로파일, 라이브 타겟 BT 오버레이, Profiles 간 곡선 비교, History 단건 차트.  
+> **약함/없음:** 배치↔배치 비교, 타겟 대비 점수, 일관성 통계, 라이브 Δ, 프로파일 승격.  
+> Artisan/Cropster 사용자·해외 ICP의 “재현·QC” 기대에 대응.
+
+### [RQ1] History 멀티 세션 배치 비교 (곡선 오버레이)
+
+**What:** History에서 완료 세션 2–N개를 선택해 BT/ET/RoR 곡선을 한 차트에 오버레이. 이벤트(TP/FC/Drop 등) 마커도 시리즈별 색으로 표시.
+
+**Why:** 지금은 단건 expand만 가능. “지난주 vs 오늘” 배치 비교가 Cropster/Artisan 기본 워크플로인데 없음. 프로파일 비교(`ProfileCompare`)는 프로파일끼리만.
+
+**How:**
+
+1. History 테이블에 multi-select (체크박스) + “Compare” 액션
+2. `SessionCompare` 뷰/모달: 시리즈 로드(`tsv_path` → parseTsv), `ProfileCurveChart` 또는 RoastTempChart multi-series 재사용
+3. 상한 N=4 (색상 팔레트 `COMPARE_COLORS` 재사용)
+4. 선택 세션 메타 표: drop / duration / roast_level / profile name
+
+**Depends on:** TSV fetch 안정 (Track A)  
+**Priority:** HIGH (해외 QC 포지션)  
+**Related:** Profiles `ProfileCompare` (프로파일끼리 — 유지)
+
+---
+
+### [RQ2] 세션 vs 프로파일 스코어카드 (타겟 대비 delta)
+
+**What:** 완료 배치를 연결된 `profile_id` 기준 프로파일과 비교해 숫자 스코어카드 표시.
+
+**지표 (MVP):**
+
+| 지표 | 계산 |
+|------|------|
+| Δ drop temp | `session.drop_temp − profile.drop_temp` (°C) |
+| Δ duration | `session.duration − profile.duration` (sec) |
+| Δ dev time / dev % | 세션 이벤트·메타 vs 프로파일 |
+| Δ FC time | 세션 events FC vs 소스/프로파일 기준 (가능 시) |
+| Curve max \|ΔBT\| 또는 RMSE | 시간축 정렬 후 타겟 곡선 vs 실측 (선택, phase 2) |
+
+**표시 위치:**
+
+1. History 세션 expand / 상세
+2. RoastSummaryModal 저장 직후 (선택)
+3. ProfileDetail — “최근 배치 vs 이 프로파일” 리스트 한 줄
+
+**Why:** 오버레이만으로는 “얼마나 벗어났는지”가 안 보임. 재현·QC·교육 모두 숫자 필요.
+
+**How:**
+
+1. `shared/lib/roast-delta.ts` (순수 함수) + vitest
+2. 프로파일 곡선: `source_session` TSV 또는 synthetic (`useResolvedProfileCurve`와 동일 규칙)
+3. 세션에 `profile_id` null이면 스코어카드 숨김 + “프로파일 연결” CTA
+
+**Depends on:** 세션–프로파일 링크 품질 (T31 charge 시 profile 권장)  
+**Priority:** HIGH
+
+---
+
+### [RQ3] 프로파일별 배치 일관성 (consistency) 카드
+
+**What:** 같은 `roast_profiles.id`로 찍힌 최근 N배치(기본 10)의 분산·추세.
+
+**MVP 카드:**
+
+- n, mean/σ: drop temp, duration, (가능 시) FC time, weight
+- 이상치 배지: \|x − mean\| > 2σ
+- sparkline: 시간순 drop 또는 duration
+- empty: 배치 &lt; 3이면 “데이터 부족”
+
+**표시:** ProfileDetail 하단, (선택) Dashboard KPI “가장 불안정한 프로파일”
+
+**Why:** “이 프로파일로 일관되게 볶히나?”가 로스터리 핵심 질문. 현재 beanHistory 카운트만 있고 통계 없음.
+
+**How:**
+
+1. `useProfileConsistency(profileId)` — completed sessions where `profile_id = …` order by roasted_at desc limit N
+2. 순수 집계 `computeConsistencyStats(sessions)`
+3. 커핑 점수 연동은 후속 (T22/커핑 완성 후)
+
+**Depends on:** RQ2 메타 필드 정리와 공유 가능  
+**Priority:** HIGH–MEDIUM
+
+---
+
+### [RQ4] 라이브 로스팅 — 타겟 대비 ΔT / 시간 피드백
+
+**What:** Active roast 중 타겟 곡선이 있을 때, 현재 시점 기준 숫자 피드백.
+
+**MVP:**
+
+- **ΔBT:** `live.bt − target.bt(at t)` (°C), 색: within band / over / under
+- **시간 어긋남 (선택):** 동일 BT 구간의 시간 차이 또는 “목표 대비 빠름/느림” 단순 표시
+- LiveReadings 또는 차트 코너 칩
+
+**Why:** 타겟 오버레이는 이미 있음 (`targetXs`/`targetBt`). 현장에서는 숫자 delta가 조작 판단에 더 빠름.
+
+**How:**
+
+1. `display-derivatives.ts` 또는 chart pipeline에 `targetDeltaAt(t)` 추가
+2. band 설정: Roast Settings (예: ±2°C) — 하드코드 MVP 후 설정
+3. 타겟 없거나 synthetic-only일 때도 동작 (synthetic이면 “reference” 라벨)
+
+**Depends on:** 기존 target curve 파이프라인  
+**Priority:** MEDIUM–HIGH
+
+---
+
+### [RQ5] 프로파일 승격 / 버전 (배치 → 새 기준 프로파일)
+
+**What:** History 또는 RoastSummary에서 “이 배치를 프로파일로 저장 / 기존 프로파일 업데이트”.
+
+**Why:** 좋은 배치를 기준으로 고정하는 워크플로가 약함. NewProfileModal의 source session 경로는 있으나 **히스토리에서 원클릭 승격·버전**이 없음. Duplicate 버튼 일부 disabled/미완 가능 — 점검.
+
+**How:**
+
+1. History 세션 액션: “Save as profile” → NewProfileModal prefill (`source_session_id`, drop/duration/dev from session)
+2. 기존 프로파일 선택 시: 메타 갱신 vs 새 프로파일 분기 (파괴적 업데이트 확인 모달)
+3. (phase 2) `roast_profiles` 버전 테이블 또는 `parent_profile_id` — 스키마 결정 후
+
+**Depends on:** NewProfileModal / roast_profiles API  
+**Priority:** MEDIUM
+
+---
+
+### [RQ6] 이벤트 정렬 비교 표 (배치 간)
+
+**What:** RQ1 Compare UI 안에 이벤트 타임라인 표: Charge / TP / DE / FC start-end / Drop 시각·BT를 세션 열로 나란히.
+
+**Why:** 곡선만 겹치면 FC 시각 차이를 읽기 어려움. 일관성·교육에 표가 더 명확.
+
+**How:** RQ1 모달에 테이블 섹션; events JSON 파서 재사용 (`parseStoredRoastEvents`).
+
+**Depends on:** RQ1  
+**Priority:** MEDIUM (RQ1 직후)
+
+---
+
+### 교차참조
+
+| ID | 관련 기존 항목 |
+|----|----------------|
+| RQ1–RQ3 | Profiles `ProfileCompare` (프로파일 전용 — 배치 아님) |
+| RQ2, RQ5 | T31 Charge 시 profile 선택 권장 |
+| RQ1, RQ5 | T24 Artisan `.alog` import (레퍼런스 자산) |
+| RQ3 | T22 커핑 ↔ 프로파일 품질 상관 (후속) |
+| RQ4 | Graph settings / target curve (DESIGN, active-roast chart) |
+
+**권장 구현 순서:** RQ1 → RQ2 → RQ3 → RQ6 → RQ4 → RQ5 (또는 RQ4를 라이브 체감용으로 RQ2 직후)
+
+---
+
 ## CODE QUALITY / FSD
 
 ### [CQ1] 대형 파일 SRP 분할
@@ -1075,5 +1227,6 @@ B안 채택: AGENTS.md Automation 표를 실제 훅에 맞게 수정 (push=`veri
 3. A1 → A4 → A3 → A5 (data integrity, A2 제외)  
 4. PLAN1 서버 plan 한도  
 5. T32 + T15 (체감 UX)  
-6. AUTO4  
-7. ORD2 · CQ* 점진
+6. **RQ1 → RQ2 → RQ3** (배치 비교 · 스코어카드 · 일관성 — 해외 QC)  
+7. AUTO4  
+8. ORD2 · CQ* 점진 · RQ4–RQ6

@@ -322,7 +322,7 @@
         "saveAndConnect": "保存并连接",
         "failedToSave": "保存失败",
         "phidgetDriverNotice": "该设备需要单独安装Phidget22系统驱动程序。",
-        "phidgetDriverLink": "查看驱动安装指南"
+        "phidgetDriverLink": "下载 Phidget22 驱动"
     },
     "dashboard": {
         "greeting": {

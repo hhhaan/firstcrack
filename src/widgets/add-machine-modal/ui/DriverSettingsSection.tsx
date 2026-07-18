@@ -2,9 +2,24 @@ import type { RoasterDef, RoasterFormField, SerialPort } from '@entities/machine
 import { isRoasterFieldVisible } from '@entities/machine';
 import { Badge } from '@shared/ui/Badge';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { platform } from '@tauri-apps/plugin-os';
 import { Info, MapPin, Radio } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FormField } from './FormField';
+
+/** Official Phidget22 runtime — same URLs as docs/machines/phidget.md */
+const PHIDGET22_INSTALL: Record<'windows' | 'macos', string> = {
+    windows: 'https://www.phidgets.com/downloads/phidget22/libraries/windows/Phidget22-x64.exe',
+    macos: 'https://www.phidgets.com/downloads/phidget22/libraries/macos/Phidget22.dmg',
+};
+
+const phidgetInstallUrl = (): string => {
+    try {
+        return platform() === 'windows' ? PHIDGET22_INSTALL.windows : PHIDGET22_INSTALL.macos;
+    } catch {
+        return PHIDGET22_INSTALL.macos;
+    }
+};
 
 type Props = {
     selectedDef: RoasterDef | null;
@@ -77,7 +92,9 @@ export const DriverSettingsSection = ({
                         {t('addMachine.phidgetDriverNotice')}{' '}
                         <button
                             type="button"
-                            onClick={() => openUrl('https://example.com/phidget-driver')}
+                            onClick={() => {
+                                void openUrl(phidgetInstallUrl());
+                            }}
                             className="text-blue-500 dark:!text-blue-400 underline cursor-pointer bg-transparent border-none p-0 text-[12px] font-body"
                         >
                             {t('addMachine.phidgetDriverLink')}
