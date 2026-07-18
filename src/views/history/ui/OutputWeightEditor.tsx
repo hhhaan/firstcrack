@@ -1,7 +1,10 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { useUpdateRoastSession } from '@entities/roast';
+import { roastedStockEventApi, roastedStockKeys } from '@entities/roasted-stock-event';
+import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -17,6 +20,7 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
     const { t } = useTranslation();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const { mutateAsync: updateSession, isPending } = useUpdateRoastSession(workspaceOwnerId);
+    const qc = useQueryClient();
 
     const [draft, setDraft] = useState(() =>
         session.output_weight_grams != null ? String(session.output_weight_grams) : '',
@@ -43,6 +47,25 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
         if (!isWorkspaceReady) return;
         try {
             await updateSession({ id: session.id, output_weight_grams: next });
+            const inbound = buildRoastedInbound({
+                greenGrams: session.weight_grams,
+                outputWeightGrams: next,
+                roastLevel: session.roast_level,
+                beanId: session.bean_id,
+                blendId: null,
+            });
+            if (inbound && workspaceOwnerId) {
+                void roastedStockEventApi
+                    .upsertInbound({
+                        sessionId: session.id,
+                        userId: workspaceOwnerId,
+                        beanId: inbound.beanId,
+                        blendId: inbound.blendId,
+                        grams: inbound.grams,
+                        isEstimate: inbound.isEstimate,
+                    })
+                    .then(() => qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(workspaceOwnerId) }));
+            }
         } catch {
             setDraft(session.output_weight_grams != null ? String(session.output_weight_grams) : '');
         }

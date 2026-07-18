@@ -2,7 +2,9 @@ import { beanKeys } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
 import { useUpdateSingleBatch } from '@entities/plan';
 import { type RoastSessionInsert, roastSessionApi, useCreateRoastSession } from '@entities/roast';
+import { roastedStockEventApi, roastedStockKeys } from '@entities/roasted-stock-event';
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
+import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { BatchLimitError, canCompleteBatch, planMaxBatchesPerMonth } from '@shared/lib/features';
@@ -143,6 +145,28 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
                 void syncRoastCurve({ sessionId, roastSessionId: savedSession.id }).catch((err) => {
                     logger.capture(err, { context: 'saveRoast tsv' });
                 });
+            }
+
+            // Loose roasted 자동 입고 — 전 플랜 기록, 실패해도 저장 플로우는 막지 않는다
+            const inbound = buildRoastedInbound({
+                greenGrams: weightGrams,
+                outputWeightGrams,
+                roastLevel: formData.roastLevel,
+                beanId: resolvedBeanId,
+                blendId,
+            });
+            if (inbound) {
+                void roastedStockEventApi
+                    .upsertInbound({
+                        sessionId: savedSession.id,
+                        userId,
+                        beanId: inbound.beanId,
+                        blendId: inbound.blendId,
+                        grams: inbound.grams,
+                        isEstimate: inbound.isEstimate,
+                    })
+                    .then(() => qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId) }))
+                    .catch((err) => logger.capture(err, { context: 'saveRoast roasted inbound' }));
             }
 
             if (effectiveBatch) {
