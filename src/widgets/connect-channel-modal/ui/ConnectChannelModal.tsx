@@ -38,6 +38,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
 
     useFormEscape(open, onClose);
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: reset when platform changes while open
     useEffect(() => {
         if (!open) return;
         setDisplayName('');

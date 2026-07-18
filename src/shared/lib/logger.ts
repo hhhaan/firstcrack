@@ -9,11 +9,9 @@ import * as Sentry from '@sentry/react';
 
 export const logger = {
     error: (...args: unknown[]) => {
-        // biome-ignore lint/suspicious/noConsole: logger wraps console
         if (import.meta.env.DEV) console.error(...args);
     },
     capture: (error: unknown, context?: Record<string, unknown>) => {
-        // biome-ignore lint/suspicious/noConsole: logger wraps console
         if (import.meta.env.DEV) console.error(error);
         if (import.meta.env.PROD) Sentry.captureException(error, { extra: context });
     },
@@ -22,7 +20,6 @@ export const logger = {
         if (import.meta.env.DEV) console.debug(...args);
     },
     warn: (...args: unknown[]) => {
-        // biome-ignore lint/suspicious/noConsole: logger wraps console
         if (import.meta.env.DEV) console.warn(...args);
     },
     log: (...args: unknown[]) => {

@@ -26,6 +26,7 @@ export const DispatchModal = ({ open, orderId, onClose }: Props) => {
 
     useFormEscape(open, onClose);
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: reset when orderId changes while open
     useEffect(() => {
         if (!open) return;
         setCarrier('cj');
