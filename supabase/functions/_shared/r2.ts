@@ -2,13 +2,16 @@ import { GetObjectCommand, PutObjectCommand, S3Client } from 'npm:@aws-sdk/clien
 import { getSignedUrl } from 'npm:@aws-sdk/s3-request-presigner@3';
 
 const PRESIGN_EXPIRY_SEC = 300;
-const PROFILE_KEY_RE = /^profiles\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.tsv$/;
+const PROFILE_KEY_RE = /^profiles\/[0-9a-f-]{36}\/[0-9a-f-]{36}(\.bbp)?\.tsv$/;
 
 export const isValidSessionId = (sessionId: string): boolean =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId);
 
 export const profileKeyForUser = (userId: string, sessionId: string): string =>
     `profiles/${userId}/${sessionId}.tsv`;
+
+export const bbpKeyForUser = (userId: string, sessionId: string): string =>
+    `profiles/${userId}/${sessionId}.bbp.tsv`;
 
 export const isOwnedProfileKey = (key: string, userId: string): boolean =>
     PROFILE_KEY_RE.test(key) && key.startsWith(`profiles/${userId}/`);
@@ -33,8 +36,12 @@ const getBucket = (): string => {
     return bucket;
 };
 
-export const presignUploadUrl = async (userId: string, sessionId: string): Promise<string> => {
-    const key = profileKeyForUser(userId, sessionId);
+export const presignUploadUrl = async (
+    userId: string,
+    sessionId: string,
+    kind: 'profile' | 'bbp' = 'profile',
+): Promise<string> => {
+    const key = kind === 'bbp' ? bbpKeyForUser(userId, sessionId) : profileKeyForUser(userId, sessionId);
     return getSignedUrl(
         getR2Client(),
         new PutObjectCommand({

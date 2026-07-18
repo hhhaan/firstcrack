@@ -1,10 +1,11 @@
 import { roastSessionApi } from '@entities/roast';
 import { roastSessionKeys } from '@entities/roast/queries';
-import { deleteSessionTsv, flushTsv } from '@features/active-roast/lib/tsv-writer';
+import { deleteBbpTsv, deleteSessionTsv, flushTsv } from '@features/active-roast/lib/tsv-writer';
+import { logger } from '@shared/lib/logger';
 import { dashboardKeys } from '@shared/lib/query-keys';
 import { useAuthStore } from '@shared/store/auth';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { uploadRoastProfile } from './uploadRoastProfile';
+import { uploadBbpProfile, uploadRoastProfile } from './uploadRoastProfile';
 
 export type SyncRoastCurveInput = {
     sessionId: string;
@@ -35,6 +36,21 @@ export const useUploadRoastProfile = () => {
             if (!key) throw new Error('Local TSV missing or empty upload key');
             await roastSessionApi.update({ id: roastSessionId, tsv_path: key });
             await deleteSessionTsv(sessionId);
+
+            // BBP 커브는 보조 데이터 — 실패해도 메인 동기화는 성공 처리, 로컬 파일 보존
+            try {
+                const bbpKey = await uploadBbpProfile(sessionId, user.id);
+                if (bbpKey) {
+                    await roastSessionApi.update({ id: roastSessionId, bbp_tsv_path: bbpKey });
+                    await deleteBbpTsv(sessionId);
+                }
+            } catch (err) {
+                logger.capture(err instanceof Error ? err : new Error(String(err)), {
+                    context: 'bbp tsv sync',
+                    sessionId,
+                });
+            }
+
             return key;
         },
         retry: shouldRetry,

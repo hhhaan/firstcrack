@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
-    let body: { sessionId?: string };
+    let body: { sessionId?: string; kind?: string };
     try {
         body = await req.json();
     } catch {
@@ -27,8 +27,10 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Invalid sessionId' }, 400);
     }
 
+    const kind = body.kind === 'bbp' ? 'bbp' : 'profile';
+
     try {
-        const url = await presignUploadUrl(user.id, sessionId);
+        const url = await presignUploadUrl(user.id, sessionId, kind);
         return jsonResponse({ url });
     } catch (err) {
         console.error('[get-upload-url]', err);
