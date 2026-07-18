@@ -104,6 +104,11 @@ export const App = () => {
     const startBatch = useRoastSessionStore((s) => s.startBatch);
     const completeBatch = useRoastSessionStore((s) => s.completeBatch);
 
+    // Active roast: collapse nav for chart real estate (also if user left it open elsewhere)
+    useEffect(() => {
+        if (view === 'roast') setSidebarCollapsed(true);
+    }, [view]);
+
     const openSettings = (tab: SettingsTabId = 'general') => {
         setSettingsInitialTab(tab);
         setSettingsOpen(true);
