@@ -38,7 +38,6 @@ describe('sessionsToCsv', () => {
         const csv = sessionsToCsv([
             session({
                 roasted_at: null,
-                weight_grams: null,
                 beans: null,
                 roast_profiles: null,
                 drop_temp_celsius: null,
