@@ -27,7 +27,7 @@ export default defineConfig(async () => ({
         include: ['src/**/*.{test,spec}.{ts,tsx}', 'supabase/functions/_shared/**/*.test.ts'],
         // CI has no .env — prevent createClient() throw on import chains that touch supabase.
         env: {
-            VITE_SUPABASE_URL: 'https://example.supabase.co',
+            VITE_SUPABASE_URL: 'https://vjdgdolfxvnxushxrmff.supabase.co',
             VITE_SUPABASE_ANON_KEY: 'test-anon-key',
         },
     },

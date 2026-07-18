@@ -1,5 +1,6 @@
 import type { Machine, SidecarStatus, TemperatureReading } from '@entities/machine';
 import { isSameSidecarStatus, useMachines, VIRTUAL_ID } from '@entities/machine';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import * as Sentry from '@sentry/react';
 import { logger } from '@shared/lib/logger';
 import { sendOsNotification } from '@shared/lib/osNotification';
@@ -110,6 +111,13 @@ export const Machines = ({
             );
             setSidecarStatus(status);
             if (status.connected) {
+                // ActiveRoast와 동일: phase → preheating 이면 폴링·타이틀 온도 갱신
+                const { phase, enterPreheating, setConnected } = useRoastingStore.getState();
+                if (phase === 'idle' || phase === 'ended') {
+                    enterPreheating(status.capabilities);
+                } else {
+                    setConnected(true, status.capabilities);
+                }
                 Sentry.addBreadcrumb({
                     category: 'hardware.connection',
                     message: `로스터 연결 성공: ${machine.name}`,
