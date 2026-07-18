@@ -3,6 +3,7 @@ import { useUpdatePlanBatch } from '@entities/plan';
 import { type RoastSessionInsert, roastSessionApi, useCreateRoastSession } from '@entities/roast';
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { BatchLimitError, canCompleteBatch, planMaxBatchesPerMonth } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
@@ -85,6 +86,9 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                     ? new Date(payloadParams.roastStartTimeRef.current).toISOString()
                     : null;
 
+            // charge 시 확정된 BBP 요약 (없으면 null — 첫 배치/만료/무료 플랜)
+            const bbpSummary = useBbpStore.getState().finalized;
+
             const payload: RoastSessionInsert = {
                 user_id: user.id,
                 weight_grams: weightGrams,
@@ -101,8 +105,8 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 profile_id: payloadParams.targetProfileId,
                 tsv_path: null,
                 bbp_tsv_path: null,
-                bbp_seconds: null,
-                charge_temp_celsius: null,
+                bbp_seconds: bbpSummary?.seconds ?? null,
+                charge_temp_celsius: bbpSummary != null ? Math.round(bbpSummary.chargeTemp) : null,
                 plan_batch_id: payloadParams.planBatchHandoff?.planBatchId ?? null,
                 events: serializeRoastEvents(payloadParams.logEntries) as Json,
             };
