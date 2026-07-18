@@ -18,6 +18,8 @@ export function planHasFeature(plan: string, key: FeatureKey): boolean {
     switch (key) {
         case FEATURE.cupping:
             return isPaidPlan(plan);
+        case FEATURE.bbp:
+            return isPaidPlan(plan);
         case FEATURE.orderIntegration:
             return ORDER_INTEGRATION_PLANS.has(plan);
         default:

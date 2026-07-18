@@ -27,6 +27,22 @@ describe('planHasFeature cupping', () => {
     });
 });
 
+describe('planHasFeature bbp', () => {
+    it('allows paid plans', () => {
+        expect(planHasFeature('pro', FEATURE.bbp)).toBe(true);
+        expect(planHasFeature('team', FEATURE.bbp)).toBe(true);
+        expect(planHasFeature('pro_plus', FEATURE.bbp)).toBe(true);
+        expect(planHasFeature('enterprise', FEATURE.bbp)).toBe(true);
+    });
+
+    it('denies free / trial / read_only', () => {
+        expect(planHasFeature('free', FEATURE.bbp)).toBe(false);
+        expect(planHasFeature('trial', FEATURE.bbp)).toBe(false);
+        expect(planHasFeature('read_only', FEATURE.bbp)).toBe(false);
+        expect(planHasFeature('', FEATURE.bbp)).toBe(false);
+    });
+});
+
 describe('resolveFeature', () => {
     it('uses plan matrix by default', () => {
         expect(resolveFeature(FEATURE.cupping, { plan: 'pro' })).toBe(true);

@@ -2,6 +2,7 @@
 export const FEATURE = {
     cupping: 'cupping',
     orderIntegration: 'orderIntegration',
+    bbp: 'bbp',
 } as const;
 
 export type FeatureKey = (typeof FEATURE)[keyof typeof FEATURE];
