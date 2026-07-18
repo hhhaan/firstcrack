@@ -8,16 +8,7 @@ export interface RoastSummaryData {
     logEntries: LogEntry[];
 }
 
-export interface PendingStockDeduct {
-    deductionGrams: number;
-    singleBeanId: string | null;
-    blendId: string | null;
-    referenceId: string;
-    beanName: string | null;
-}
-
 export interface SaveFlowResult {
-    deductionPlan: PendingStockDeduct | null;
     shouldOpenContinue: boolean;
 }
 
@@ -25,20 +16,14 @@ interface FlowState {
     endRoastModal: boolean;
     summaryModal: boolean;
     summaryData: RoastSummaryData | null;
-    deductModal: boolean;
     continueModal: boolean;
-    continueAfterDeduct: boolean;
-    pendingStockDeduct: PendingStockDeduct | null;
 }
 
 const INITIAL_FLOW_STATE: FlowState = {
     endRoastModal: false,
     summaryModal: false,
     summaryData: null,
-    deductModal: false,
     continueModal: false,
-    continueAfterDeduct: false,
-    pendingStockDeduct: null,
 };
 
 type FlowAction =
@@ -48,7 +33,6 @@ type FlowAction =
     | { type: 'CLOSE_SUMMARY' }
     | { type: 'DISCARD_SUMMARY' }
     | { type: 'SAVE_SUCCESS'; payload: SaveFlowResult }
-    | { type: 'FINISH_DEDUCT_FLOW' }
     | { type: 'DISMISS_CONTINUE' }
     | { type: 'RESET' };
 
@@ -72,23 +56,10 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
             return { ...state, summaryModal: false, summaryData: null };
 
         case 'DISCARD_SUMMARY':
-            return {
-                ...INITIAL_FLOW_STATE,
-            };
+            return { ...INITIAL_FLOW_STATE };
 
         case 'SAVE_SUCCESS': {
-            const { deductionPlan, shouldOpenContinue } = action.payload;
-            if (deductionPlan) {
-                return {
-                    ...state,
-                    summaryModal: false,
-                    summaryData: null,
-                    deductModal: true,
-                    continueAfterDeduct: shouldOpenContinue,
-                    pendingStockDeduct: deductionPlan,
-                };
-            }
-            if (shouldOpenContinue) {
+            if (action.payload.shouldOpenContinue) {
                 return {
                     ...state,
                     summaryModal: false,
@@ -102,15 +73,6 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
                 summaryData: null,
             };
         }
-
-        case 'FINISH_DEDUCT_FLOW':
-            return {
-                ...state,
-                deductModal: false,
-                pendingStockDeduct: null,
-                continueModal: state.continueAfterDeduct,
-                continueAfterDeduct: false,
-            };
 
         case 'DISMISS_CONTINUE':
             return { ...state, continueModal: false };
@@ -130,7 +92,6 @@ export interface UseRoastCompletionFlowReturn extends FlowState {
     closeSummary: () => void;
     discardSummary: () => void;
     onSaveSuccess: (result: SaveFlowResult) => void;
-    finishDeductFlow: () => void;
     dismissContinue: () => void;
     resetFlow: () => void;
 }
@@ -150,7 +111,6 @@ export const useRoastCompletionFlow = (): UseRoastCompletionFlowReturn => {
         (result: SaveFlowResult) => dispatch({ type: 'SAVE_SUCCESS', payload: result }),
         [],
     );
-    const finishDeductFlow = useCallback(() => dispatch({ type: 'FINISH_DEDUCT_FLOW' }), []);
     const dismissContinue = useCallback(() => dispatch({ type: 'DISMISS_CONTINUE' }), []);
     const resetFlow = useCallback(() => dispatch({ type: 'RESET' }), []);
 
@@ -162,7 +122,6 @@ export const useRoastCompletionFlow = (): UseRoastCompletionFlowReturn => {
         closeSummary,
         discardSummary,
         onSaveSuccess,
-        finishDeductFlow,
         dismissContinue,
         resetFlow,
     };

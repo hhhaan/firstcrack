@@ -1,10 +1,13 @@
 import { useActiveWorkspace } from '@entities/organization';
+import { useDayBatches } from '@entities/plan';
+import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import { useDeductRoastStock } from '@features/active-roast/model/useDeductRoastStock';
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { message } from '@tauri-apps/plugin-dialog';
+import { format } from 'date-fns';
 import { useCallback } from 'react';
 import type { RoastSummaryForm } from '../ui/RoastSummaryModal';
 import { useRoastCompletionFlow } from './useRoastCompletionFlow';
@@ -39,7 +42,10 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     } = params;
 
     const user = useAuthStore((s) => s.user);
-    const { workspaceOwnerId } = useActiveWorkspace();
+    const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const { data: dayBatches = [] } = useDayBatches(isWorkspaceReady ? workspaceOwnerId : '', today);
+
     const flow = useRoastCompletionFlow();
     const { saveRoast, isSaving } = useSaveRoast(planBatchHandoff);
     const deductRoastStock = useDeductRoastStock();
@@ -48,8 +54,23 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         async (formData: RoastSummaryForm) => {
             if (!user) return;
             try {
+                let linkedBatch: PlanBatchHandoff | null = null;
+                if (!planBatchHandoff && formData.linkMode === 'schedule' && formData.planBatchId) {
+                    const row = dayBatches.find((b) => b.id === formData.planBatchId);
+                    if (!row || row.completed_sessions >= row.batch_count) {
+                        throw new Error('Selected schedule batch is no longer available.');
+                    }
+                    linkedBatch = toPlanBatchHandoff(row);
+                }
+
                 const { deductionPlan, shouldOpenContinue } = await saveRoast({
-                    formData,
+                    formData: {
+                        notes: formData.notes,
+                        weightGrams: formData.weightGrams,
+                        roastLevel: formData.roastLevel,
+                        beanId: formData.beanId,
+                        linkedBatch,
+                    },
                     userId: workspaceOwnerId,
                     elapsed,
                     roastStartTimeRef,
@@ -63,7 +84,33 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     handoffBeanName,
                     logEntries: flow.summaryData?.logEntries ?? [],
                 });
-                flow.onSaveSuccess({ deductionPlan, shouldOpenContinue });
+
+                if (formData.deductStock && deductionPlan) {
+                    const { singleBeanId, blendId, deductionGrams, referenceId } = deductionPlan;
+                    if (!singleBeanId && !blendId) {
+                        await message('연결된 원두가 없어 재고를 차감할 수 없습니다.', {
+                            title: '재고 차감 불가',
+                            kind: 'warning',
+                        });
+                    } else {
+                        try {
+                            await deductRoastStock({
+                                deductionGrams,
+                                singleBeanId,
+                                blendId,
+                                referenceId,
+                            });
+                        } catch (err) {
+                            logger.capture(err, { context: 'stockDeduct inline' });
+                            await message(
+                                `재고 차감에 실패했습니다.\n\n${err instanceof Error ? err.message : String(err)}`,
+                                { title: '재고 차감 실패', kind: 'error' },
+                            );
+                        }
+                    }
+                }
+
+                flow.onSaveSuccess({ shouldOpenContinue });
                 onResetActiveRoast();
             } catch (err) {
                 logger.capture(err, { context: 'roastSummary save' });
@@ -77,6 +124,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             user,
             workspaceOwnerId,
             saveRoast,
+            deductRoastStock,
             elapsed,
             roastStartTimeRef,
             rawBT,
@@ -87,48 +135,16 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             planBatchHandoff,
             sessionId,
             handoffBeanName,
+            dayBatches,
             flow.summaryData,
             flow.onSaveSuccess,
             onResetActiveRoast,
         ],
     );
 
-    const handleStockDeductConfirm = useCallback(
-        async (deductStock: boolean) => {
-            try {
-                if (deductStock && flow.pendingStockDeduct) {
-                    const { singleBeanId, blendId, deductionGrams, referenceId } = flow.pendingStockDeduct;
-                    if (!singleBeanId && !blendId) {
-                        await message('연결된 원두가 없어 재고를 차감할 수 없습니다.', {
-                            title: '재고 차감 불가',
-                            kind: 'warning',
-                        });
-                        return;
-                    }
-                    await deductRoastStock({
-                        deductionGrams,
-                        singleBeanId,
-                        blendId,
-                        referenceId,
-                    });
-                }
-            } catch (err) {
-                logger.capture(err, { context: 'stockDeduct confirm' });
-                await message(`재고 차감에 실패했습니다.\n\n${err instanceof Error ? err.message : String(err)}`, {
-                    title: '재고 차감 실패',
-                    kind: 'error',
-                });
-            } finally {
-                flow.finishDeductFlow();
-            }
-        },
-        [flow.pendingStockDeduct, deductRoastStock, flow.finishDeductFlow],
-    );
-
     return {
         flow,
         isSaving,
         handleSave,
-        handleStockDeductConfirm,
     };
 };

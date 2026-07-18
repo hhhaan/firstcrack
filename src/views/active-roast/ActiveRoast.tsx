@@ -23,7 +23,6 @@ import { useRoastSessionStore } from '@shared/store/roastSession';
 import { useThemeStore } from '@shared/store/theme';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
-import { StockDeductModal } from '@widgets/stock-deduct-modal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useShallow } from 'zustand/react/shallow';
@@ -555,7 +554,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 ambientTemp={weatherData?.temperature}
                 ambientHumidity={weatherData?.humidity}
                 selectedBeanId={selectedBeanId}
-                hasBlendHandoff={Boolean(planBatchHandoff?.blendId)}
+                planBatchHandoff={planBatchHandoff}
                 fallbackBeanName={handoffBeanName}
                 onClose={saveFlow.flow.closeSummary}
                 onDiscard={() => {
@@ -563,18 +562,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     lifecycle.resetActiveRoast();
                 }}
                 onSave={saveFlow.handleSave}
-            />
-
-            <StockDeductModal
-                open={saveFlow.flow.deductModal}
-                beanName={saveFlow.flow.pendingStockDeduct?.beanName ?? undefined}
-                deductionKg={((saveFlow.flow.pendingStockDeduct?.deductionGrams ?? 0) / 1000).toFixed(1)}
-                canDeduct={Boolean(
-                    saveFlow.flow.pendingStockDeduct &&
-                        (saveFlow.flow.pendingStockDeduct.singleBeanId || saveFlow.flow.pendingStockDeduct.blendId),
-                )}
-                onClose={saveFlow.flow.finishDeductFlow}
-                onConfirm={saveFlow.handleStockDeductConfirm}
             />
 
             <PlanBatchContinueModal

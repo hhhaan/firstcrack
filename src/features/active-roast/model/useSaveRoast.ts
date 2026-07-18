@@ -1,6 +1,6 @@
 import { beanKeys } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
-import { useUpdatePlanBatch } from '@entities/plan';
+import { useUpdateSingleBatch } from '@entities/plan';
 import { type RoastSessionInsert, roastSessionApi, useCreateRoastSession } from '@entities/roast';
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
@@ -21,6 +21,8 @@ export type SaveRoastFormData = {
     weightGrams: number;
     roastLevel: string | null;
     beanId: string | null;
+    /** resolved handoff for ad-hoc schedule link (from day batches) */
+    linkedBatch?: PlanBatchHandoff | null;
 };
 
 export interface SaveRoastParams {
@@ -45,6 +47,12 @@ export interface SaveRoastResult {
     shouldOpenContinue: boolean;
 }
 
+/** Handoff wins; otherwise ad-hoc linked batch from the save form. */
+export const resolveEffectiveBatch = (
+    planBatchHandoff: PlanBatchHandoff | null,
+    linkedBatch?: PlanBatchHandoff | null,
+): PlanBatchHandoff | null => planBatchHandoff ?? linkedBatch ?? null;
+
 export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
     const user = useAuthStore((s) => s.user);
     const plan = useAuthStore((s) => s.plan);
@@ -54,8 +62,9 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
 
     const { mutateAsync: saveRoastSession, isPending: isSaving } = useCreateRoastSession(userId);
     const { mutateAsync: syncRoastCurve } = useUploadRoastProfile();
-    const { mutateAsync: updatePlanBatch } = useUpdatePlanBatch(planBatchHandoff?.planId ?? '');
-    const incrementCompletedSession = useRoastSessionStore((s) => s.incrementCompletedSession);
+    // Single-batch update: invalidates schedule roots regardless of which planId (ad-hoc link safe)
+    const { mutateAsync: updatePlanBatch } = useUpdateSingleBatch();
+    const startBatch = useRoastSessionStore((s) => s.startBatch);
 
     const saveRoast = useCallback(
         async (params: SaveRoastParams): Promise<SaveRoastResult> => {
@@ -75,11 +84,12 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
             }
 
             const { formData, handoffBeanName, sessionId, ...payloadParams } = params;
+            const effectiveBatch = resolveEffectiveBatch(planBatchHandoff, formData.linkedBatch);
 
             const weightGrams = Math.round(formData.weightGrams * 1000);
-            // Summary modal can fill bean when roast ran without one
-            const resolvedBeanId = formData.beanId ?? payloadParams.selectedBeanId;
-            const blendId = planBatchHandoff?.blendId ?? null;
+            // Linked / handoff batch supplies bean/blend; else form or header selection
+            const resolvedBeanId = effectiveBatch?.beanId ?? formData.beanId ?? payloadParams.selectedBeanId;
+            const blendId = effectiveBatch?.blendId ?? null;
 
             // Stock deduct / session bean link: require single bean or blend
             if (!resolvedBeanId && !blendId) {
@@ -114,7 +124,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 bbp_tsv_path: null,
                 bbp_seconds: bbpSummary?.seconds ?? null,
                 charge_temp_celsius: bbpSummary != null ? Math.round(bbpSummary.chargeTemp) : null,
-                plan_batch_id: payloadParams.planBatchHandoff?.planBatchId ?? null,
+                plan_batch_id: effectiveBatch?.planBatchId ?? null,
                 events: serializeRoastEvents(payloadParams.logEntries) as Json,
             };
 
@@ -127,24 +137,28 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 });
             }
 
-            const newCompletedCount = (planBatchHandoff?.completedSessions ?? 0) + 1;
-            const isNowBatchDone = planBatchHandoff != null && newCompletedCount >= planBatchHandoff.batchCount;
+            if (effectiveBatch) {
+                const newCompletedCount = effectiveBatch.completedSessions + 1;
+                // Keep store in sync for Continue modal (covers ad-hoc link too)
+                startBatch({ ...effectiveBatch, completedSessions: newCompletedCount });
 
-            incrementCompletedSession();
-
-            if (isNowBatchDone && planBatchHandoff) {
-                updatePlanBatch({ id: planBatchHandoff.planBatchId, status: 'done' }).catch((err) =>
-                    logger.capture(err, { context: 'saveRoast batch status' }),
-                );
+                if (newCompletedCount >= effectiveBatch.batchCount) {
+                    // useUpdateSingleBatch invalidates plan + schedule roots (not tied to handoff planId)
+                    updatePlanBatch({
+                        id: effectiveBatch.planBatchId,
+                        patch: { id: effectiveBatch.planBatchId, status: 'done' },
+                    }).catch((err) => logger.capture(err, { context: 'saveRoast batch status' }));
+                }
             }
 
             const cachedBeans = userId ? qc.getQueryData<Bean[]>(beanKeys.all(userId)) : undefined;
             const resolvedBeanName =
+                effectiveBatch?.beanName ??
                 handoffBeanName ??
                 (resolvedBeanId ? (cachedBeans?.find((b) => b.id === resolvedBeanId)?.name ?? null) : null);
 
             const deductionPlan = determineStockDeduction({
-                planBatchHandoff,
+                planBatchHandoff: effectiveBatch,
                 saveWeight: weightGrams,
                 selectedBeanId: resolvedBeanId,
                 referenceId: savedSession.id,
@@ -154,7 +168,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
             return {
                 savedSession,
                 deductionPlan,
-                shouldOpenContinue: planBatchHandoff != null,
+                shouldOpenContinue: effectiveBatch != null,
             };
         },
         [
@@ -166,7 +180,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
             syncRoastCurve,
             saveRoastSession,
             planBatchHandoff,
-            incrementCompletedSession,
+            startBatch,
             updatePlanBatch,
         ],
     );

@@ -1,9 +1,13 @@
 import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
+import { useDayBatches } from '@entities/plan';
+import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import { zodResolver } from '@hookform/resolvers/zod';
+import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Spinner } from '@shared/ui/Spinner';
+import { format } from 'date-fns';
 import { Check, Coffee } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
@@ -18,6 +22,10 @@ const baseRoastSummarySchema = z.object({
     weightGrams: z.number().min(0, 'Weight must be 0 or greater'),
     roastLevel: z.string().nullable(),
     beanId: z.string().nullable(),
+    /** ad-hoc only: link to today's schedule batch, or none */
+    linkMode: z.enum(['schedule', 'none']),
+    planBatchId: z.string().nullable(),
+    deductStock: z.boolean(),
 });
 
 export type RoastSummaryForm = z.infer<typeof baseRoastSummarySchema>;
@@ -34,8 +42,8 @@ interface RoastSummaryModalProps {
     ambientHumidity?: number | null;
     /** Pre-selected bean from roast header / handoff */
     selectedBeanId?: string | null;
-    /** Blend handoff already covers stock — no single-bean picker */
-    hasBlendHandoff?: boolean;
+    /** Existing schedule handoff — link UI is read-only */
+    planBatchHandoff?: PlanBatchHandoff | null;
     /** Schedule/inventory display name when beans list not resolved yet */
     fallbackBeanName?: string | null;
 }
@@ -62,6 +70,9 @@ const beanOptionLabel = (b: {
     return meta ? `${b.name} (${meta})` : b.name;
 };
 
+const batchOptionLabel = (b: PlanBatchWithProgress) =>
+    `${b.bean_name} · ${b.batch_size_kg}kg · ${b.completed_sessions}/${b.batch_count}`;
+
 const sectionLabelClass = 'text-[11px] font-semibold text-muted uppercase tracking-[0.4px] mb-2';
 
 export const RoastSummaryModal = ({
@@ -75,20 +86,37 @@ export const RoastSummaryModal = ({
     ambientTemp,
     ambientHumidity,
     selectedBeanId = null,
-    hasBlendHandoff = false,
+    planBatchHandoff = null,
     fallbackBeanName = null,
 }: RoastSummaryModalProps) => {
     const { t } = useTranslation();
-    const { workspaceOwnerId: userId } = useActiveWorkspace();
+    const { workspaceOwnerId: userId, isWorkspaceReady } = useActiveWorkspace();
     const { data: beans = [] } = useBeans(userId);
-    const needsBeanPicker = !selectedBeanId && !hasBlendHandoff;
-    const showBeanSection = needsBeanPicker || Boolean(selectedBeanId || hasBlendHandoff || fallbackBeanName);
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const { data: dayBatches = [] } = useDayBatches(isWorkspaceReady ? userId : '', today);
 
-    // Single bean required for save (stock deduct needs bean_id). Blend handoff is the exception.
+    const hasHandoff = Boolean(planBatchHandoff);
+    const hasBlendHandoff = Boolean(planBatchHandoff?.blendId);
+
+    const incompleteBatches = useMemo(
+        () => dayBatches.filter((b) => b.completed_sessions < b.batch_count),
+        [dayBatches],
+    );
+
     const roastSummarySchema = useMemo(
         () =>
             baseRoastSummarySchema.superRefine((data, ctx) => {
-                if (hasBlendHandoff) return;
+                if (hasHandoff) return;
+                if (data.linkMode === 'schedule') {
+                    if (!data.planBatchId) {
+                        ctx.addIssue({
+                            code: 'custom',
+                            path: ['planBatchId'],
+                            message: t('activeRoast.summary.planBatchRequired'),
+                        });
+                    }
+                    return;
+                }
                 if (!data.beanId) {
                     ctx.addIssue({
                         code: 'custom',
@@ -97,7 +125,7 @@ export const RoastSummaryModal = ({
                     });
                 }
             }),
-        [hasBlendHandoff, t],
+        [hasHandoff, t],
     );
 
     const {
@@ -114,39 +142,71 @@ export const RoastSummaryModal = ({
             weightGrams: 0,
             roastLevel: null,
             beanId: selectedBeanId,
+            linkMode: hasHandoff ? 'schedule' : 'none',
+            planBatchId: planBatchHandoff?.planBatchId ?? null,
+            deductStock: false,
         },
     });
 
     const roastLevel = watch('roastLevel');
     const formBeanId = watch('beanId');
+    const linkMode = watch('linkMode');
+    const formPlanBatchId = watch('planBatchId');
+    const deductStock = watch('deductStock');
+    const weightGrams = watch('weightGrams');
 
     const selectedBeanIdRef = useRef(selectedBeanId);
     selectedBeanIdRef.current = selectedBeanId;
+    const handoffRef = useRef(planBatchHandoff);
+    handoffRef.current = planBatchHandoff;
 
     useEffect(() => {
         if (open && summaryData) {
+            const handoff = handoffRef.current;
             reset({
                 notes: '',
                 weightGrams: 0,
                 roastLevel: null,
                 beanId: selectedBeanIdRef.current,
+                linkMode: handoff ? 'schedule' : 'none',
+                planBatchId: handoff?.planBatchId ?? null,
+                deductStock: false,
             });
         }
     }, [open, summaryData, reset]);
 
     useEffect(() => {
-        if (open && summaryData) {
+        if (open && summaryData && !planBatchHandoff) {
             setValue('beanId', selectedBeanId, { shouldDirty: false });
         }
-    }, [selectedBeanId, open, summaryData, setValue]);
+    }, [selectedBeanId, open, summaryData, setValue, planBatchHandoff]);
 
-    const resolvedBeanId = selectedBeanId ?? formBeanId;
+    const linkedBatch = useMemo(() => {
+        if (hasHandoff || linkMode !== 'schedule' || !formPlanBatchId) return null;
+        return incompleteBatches.find((b) => b.id === formPlanBatchId) ?? null;
+    }, [hasHandoff, linkMode, formPlanBatchId, incompleteBatches]);
+
+    const linkedHandoff = linkedBatch ? toPlanBatchHandoff(linkedBatch) : null;
+    const effectiveHandoff = planBatchHandoff ?? linkedHandoff;
+
+    const showBeanPicker = !hasHandoff && linkMode === 'none';
+    const showBeanReadonly =
+        hasHandoff || (linkMode === 'schedule' && Boolean(effectiveHandoff)) || Boolean(selectedBeanId);
+
+    const resolvedBeanId = effectiveHandoff?.beanId ?? formBeanId ?? selectedBeanId;
     const displayBean = useMemo(
         () => (resolvedBeanId ? beans.find((b) => b.id === resolvedBeanId) : undefined),
         [beans, resolvedBeanId],
     );
-    const displayName = displayBean?.name ?? fallbackBeanName ?? null;
-    const displayMeta = displayBean ? beanMeta(displayBean) : '';
+    const displayName = effectiveHandoff?.beanName ?? displayBean?.name ?? fallbackBeanName ?? null;
+    const displayMeta = displayBean && !effectiveHandoff?.blendId ? beanMeta(displayBean) : '';
+
+    const deductionKg = useMemo(() => {
+        if (effectiveHandoff?.batchSizeKg) return effectiveHandoff.batchSizeKg;
+        return Number.isFinite(weightGrams) && weightGrams > 0 ? weightGrams : 0;
+    }, [effectiveHandoff, weightGrams]);
+
+    const canDeduct = deductionKg > 0 && Boolean(resolvedBeanId || effectiveHandoff?.blendId || hasBlendHandoff);
 
     if (!open || !summaryData) {
         return null;
@@ -225,11 +285,106 @@ export const RoastSummaryModal = ({
                 </div>
             </div>
 
-            {showBeanSection && (
+            {/* ── Link: schedule batch or ad-hoc ── */}
+            <div className="mb-5">
+                <div className={sectionLabelClass}>{t('activeRoast.summary.link')}</div>
+
+                {hasHandoff && planBatchHandoff ? (
+                    <div className="rounded-lg bg-surface dark:bg-[#262B31] px-3.5 py-3">
+                        <p className="text-[14px] font-medium text-primary tracking-[0.14px] truncate">
+                            {planBatchHandoff.beanName}
+                        </p>
+                        <p className="text-[12px] text-muted mt-0.5">
+                            {t('activeRoast.summary.sessionProgress', {
+                                current: planBatchHandoff.completedSessions + 1,
+                                total: planBatchHandoff.batchCount,
+                            })}
+                            {' · '}
+                            {planBatchHandoff.batchSizeKg}kg
+                        </p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex gap-2 mb-3">
+                            {(
+                                [
+                                    { value: 'schedule' as const, label: t('activeRoast.summary.linkSchedule') },
+                                    { value: 'none' as const, label: t('activeRoast.summary.linkNone') },
+                                ] as const
+                            ).map(({ value, label }) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => {
+                                        setValue('linkMode', value, { shouldValidate: true });
+                                        if (value === 'none') {
+                                            setValue('planBatchId', null, { shouldValidate: true });
+                                        }
+                                    }}
+                                    className={`flex-1 px-3 py-2 rounded-md text-[12px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
+                                        linkMode === value
+                                            ? 'bg-primary text-white'
+                                            : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {linkMode === 'schedule' && (
+                            <>
+                                <div
+                                    className={`rounded-lg bg-surface dark:bg-[#262B31] px-3 py-0.5 ${
+                                        errors.planBatchId ? 'ring-1 ring-red-400/80' : ''
+                                    }`}
+                                >
+                                    <select
+                                        value={formPlanBatchId ?? ''}
+                                        onChange={(e) =>
+                                            setValue('planBatchId', e.target.value || null, {
+                                                shouldDirty: true,
+                                                shouldValidate: true,
+                                            })
+                                        }
+                                        disabled={!isWorkspaceReady || incompleteBatches.length === 0}
+                                        className="w-full py-2.5 bg-transparent border-none outline-none text-primary text-[13px] cursor-pointer appearance-none disabled:opacity-50"
+                                    >
+                                        <option value="">
+                                            {incompleteBatches.length === 0
+                                                ? t('activeRoast.summary.noOpenBatches')
+                                                : t('activeRoast.summary.planBatchPlaceholder')}
+                                        </option>
+                                        {incompleteBatches.map((b) => (
+                                            <option key={b.id} value={b.id}>
+                                                {batchOptionLabel(b)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                {effectiveHandoff && (
+                                    <p className="text-[12px] text-muted mt-1.5">
+                                        {t('activeRoast.summary.sessionProgress', {
+                                            current: effectiveHandoff.completedSessions + 1,
+                                            total: effectiveHandoff.batchCount,
+                                        })}
+                                    </p>
+                                )}
+                                {errors.planBatchId && (
+                                    <p className="text-[11px] text-red-500 mt-1.5">{errors.planBatchId.message}</p>
+                                )}
+                            </>
+                        )}
+                    </>
+                )}
+            </div>
+
+            {/* ── Bean ── */}
+            {(showBeanPicker || showBeanReadonly) && (
                 <div className="mb-5">
                     <div className={sectionLabelClass}>{t('activeRoast.summary.bean')}</div>
 
-                    {needsBeanPicker ? (
+                    {showBeanPicker ? (
                         <>
                             <p className="text-[12px] text-muted leading-snug mb-2">
                                 {t('activeRoast.summary.beanHint')}
@@ -319,7 +474,7 @@ export const RoastSummaryModal = ({
                 </div>
             </div>
 
-            <div className="mb-6">
+            <div className="mb-5">
                 <div className={sectionLabelClass}>{t('activeRoast.summary.notes')}</div>
                 <textarea
                     {...register('notes')}
@@ -328,6 +483,24 @@ export const RoastSummaryModal = ({
                     className="w-full px-3.5 py-2.5 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) resize-none outline-none box-border"
                 />
             </div>
+
+            {/* ── Inline stock deduct ── */}
+            <label
+                className={`flex items-start gap-2.5 mb-6 ${canDeduct ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+            >
+                <input
+                    type="checkbox"
+                    checked={deductStock && canDeduct}
+                    disabled={!canDeduct}
+                    onChange={(e) => setValue('deductStock', e.target.checked)}
+                    className="mt-0.5 shrink-0"
+                />
+                <span className="text-[13px] text-primary leading-snug">
+                    {canDeduct
+                        ? t('activeRoast.summary.deductStock', { kg: deductionKg.toFixed(1) })
+                        : t('activeRoast.summary.deductStockDisabled')}
+                </span>
+            </label>
 
             <div className="flex flex-col gap-2">
                 <button
