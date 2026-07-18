@@ -26,7 +26,13 @@ import { StockDeductModal } from '@widgets/stock-deduct-modal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useShallow } from 'zustand/react/shallow';
-import { buildEventMarkers, buildRoastLogDisplayEntries, calcDelta, calcDevTime } from './lib/display-derivatives';
+import {
+    buildEventMarkers,
+    buildRoastLogDisplayEntries,
+    calcDelta,
+    calcDevTime,
+    calcTargetDelta,
+} from './lib/display-derivatives';
 import { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
 import { useChartKeyboard } from './model/useChartKeyboard';
 import { useChartPipeline } from './model/useChartPipeline';
@@ -393,6 +399,13 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 표시용 파생값 ─────────────────────────────────────────────
     const { deltaBT, deltaET } = useMemo(() => calcDelta(livePoints, unit), [livePoints, unit]);
+    const targetDelta = useMemo(
+        () =>
+            roastSettings.showTargetCurve && charged && !roastEnded
+                ? calcTargetDelta(rawBT, targetCurvePoints, elapsed, unit)
+                : null,
+        [roastSettings.showTargetCurve, charged, roastEnded, rawBT, targetCurvePoints, elapsed, unit],
+    );
     const roastLogDisplayEntries = useMemo(
         () => buildRoastLogDisplayEntries(logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit),
         [logEntries, roastEnded, charged, timeStr, rawBT, roastPhaseName, unit],
@@ -507,6 +520,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         roastEnded={roastEnded}
                         deltaBT={deltaBT}
                         deltaET={deltaET}
+                        targetDelta={targetDelta}
                         dtrPct={dtrPct}
                         devTimeStr={devTimeStr}
                         logEntries={logEntries}

@@ -5,8 +5,14 @@ import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
-import type { RoastLogDisplayEntry } from '../lib/display-derivatives';
+import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
 import { EventButtons } from './EventButtons';
+
+const TARGET_DELTA_COLORS: Record<TargetDeltaResult['status'], string> = {
+    within: PHASE_COLORS.ready,
+    over: PHASE_COLORS.danger,
+    under: SENSOR_COLORS.et,
+};
 
 interface RoastSidePanelProps {
     rawBT: number | null;
@@ -23,6 +29,7 @@ interface RoastSidePanelProps {
     roastEnded: boolean;
     deltaBT: string | null;
     deltaET: string | null;
+    targetDelta: TargetDeltaResult | null;
     dtrPct: number | null;
     devTimeStr: string;
     logEntries: LogEntry[];
@@ -52,6 +59,7 @@ export const RoastSidePanel = ({
     roastEnded,
     deltaBT,
     deltaET,
+    targetDelta,
     dtrPct,
     devTimeStr,
     logEntries,
@@ -116,6 +124,19 @@ export const RoastSidePanel = ({
                 )}
             </span>
         </div>
+        {/* Δ Target — 타겟 곡선 대비 현재 BT */}
+        {targetDelta != null && (
+            <div className="flex items-center justify-between">
+                <span className="text-xs text-muted font-semibold uppercase">Δ Target</span>
+                <span
+                    className="font-mono text-xl font-medium leading-tight"
+                    style={{ color: TARGET_DELTA_COLORS[targetDelta.status] }}
+                >
+                    <span className="mr-1">{targetDelta.deltaDisplay >= 0 ? '+' : '−'}</span>
+                    <span>{Math.abs(targetDelta.deltaDisplay).toFixed(1)}°</span>
+                </span>
+            </div>
+        )}
         {/* RoR */}
         <div className="text-right border-t border-border-subtle pt-3">
             <div className="text-md text-muted font-semibold mb-1">RoR</div>

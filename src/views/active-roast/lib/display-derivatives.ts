@@ -2,6 +2,7 @@ import { getResolvedEventColor, isChartEventMarker } from '@features/active-roas
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
+import { interpolateProfileBT } from '@shared/data/roast-profiles';
 import type { LogEntry } from '@shared/types/roast';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
 import type { RoastEventMarker } from '../ui/RoastTempChart';
@@ -45,6 +46,33 @@ export const calcDelta = (livePoints: LiveRoastPoint[], unit: TemperatureUnit): 
         deltaBT: dbt.toFixed(1),
         deltaET: det != null ? det.toFixed(1) : null,
     };
+};
+
+export type TargetDeltaStatus = 'within' | 'over' | 'under';
+
+export interface TargetDeltaResult {
+    /** 표시 단위(°C/°F) 기준 delta */
+    deltaDisplay: number;
+    status: TargetDeltaStatus;
+}
+
+// ponytail: 밴드 ±2°C 하드코드 — 설정화(RoastSettings)는 수요 생기면
+const TARGET_DELTA_BAND_C = 2;
+
+/** 현재 BT − 타겟 곡선 BT(현재 시각 선형 보간). 타겟 곡선/BT 없으면 null. */
+export const calcTargetDelta = (
+    rawBT: number | null,
+    targetCurvePoints: { t: number; bt: number }[],
+    elapsedSec: number,
+    unit: TemperatureUnit,
+): TargetDeltaResult | null => {
+    if (rawBT == null || targetCurvePoints.length === 0) return null;
+    const targetBt = interpolateProfileBT(targetCurvePoints, elapsedSec);
+    if (targetBt == null) return null;
+    const deltaC = rawBT - targetBt;
+    const status: TargetDeltaStatus =
+        Math.abs(deltaC) <= TARGET_DELTA_BAND_C ? 'within' : deltaC > 0 ? 'over' : 'under';
+    return { deltaDisplay: toDisplayTemp(rawBT, unit) - toDisplayTemp(targetBt, unit), status };
 };
 
 /** 이벤트 로그를 ECharts 마커 배열로 변환 */
