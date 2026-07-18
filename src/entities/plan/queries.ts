@@ -47,17 +47,17 @@ export const scheduledBatchInvalidationKeys = () =>
 
 export const invalidateScheduledBatchQueries = (qc: QueryClient) => {
     for (const queryKey of scheduledBatchInvalidationKeys()) {
-        qc.invalidateQueries({ queryKey });
+        void qc.invalidateQueries({ queryKey });
     }
 };
 
 export const invalidatePlanScope = (qc: QueryClient, userId?: string) => {
-    qc.invalidateQueries({ queryKey: planKeys.batchesRoot });
-    qc.invalidateQueries({ queryKey: userId ? [...planQueryRoots.day, userId] : planKeys.dayRoot });
-    qc.invalidateQueries({
+    void qc.invalidateQueries({ queryKey: planKeys.batchesRoot });
+    void qc.invalidateQueries({ queryKey: userId ? [...planQueryRoots.day, userId] : planKeys.dayRoot });
+    void qc.invalidateQueries({
         queryKey: userId ? [...planQueryRoots.rangeSummary, userId] : planKeys.rangeSummaryRoot,
     });
-    qc.invalidateQueries({
+    void qc.invalidateQueries({
         queryKey: userId ? planKeys.recurrenceRules(userId) : planKeys.recurrenceRulesRoot,
     });
     invalidateScheduledBatchQueries(qc);
@@ -65,7 +65,7 @@ export const invalidatePlanScope = (qc: QueryClient, userId?: string) => {
 
 /** Mirrors useCreatePlanBatch onSettled invalidation (for regression tests). */
 export const invalidateAfterCreatePlanBatch = (qc: QueryClient, planId: string) => {
-    qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
+    void qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
     invalidateScheduledBatchQueries(qc);
 };
 
@@ -132,7 +132,7 @@ export const useUpdateDayPlanNotes = (userId: string, date: string) => {
     return useMutation({
         mutationFn: ({ id, notes }: { id: string; notes: string }) => dayPlanApi.updateNotes(id, notes),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: planKeys.day(userId, date) });
+            void qc.invalidateQueries({ queryKey: planKeys.day(userId, date) });
         },
     });
 };
@@ -215,7 +215,7 @@ export const useCreatePlanBatch = (planId: string, userId: string, date: string)
             }
         },
         onSettled: () => {
-            qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
+            void qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
             invalidateScheduledBatchQueries(qc);
         },
     });
@@ -226,7 +226,7 @@ export const useUpdatePlanBatch = (planId: string) => {
     return useMutation({
         mutationFn: (update: PlanBatchUpdate) => planBatchApi.updateSingle(update.id, update),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
+            void qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
             invalidateScheduledBatchQueries(qc);
         },
     });
@@ -251,7 +251,7 @@ export const useDeletePlanBatch = (planId: string) => {
             }
         },
         onSettled: () => {
-            qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
+            void qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
             invalidateScheduledBatchQueries(qc);
         },
     });
@@ -432,7 +432,7 @@ export const useUpdateSingleBatch = () => {
         },
         onSettled: (_data, _error, vars) => {
             if (vars.patch.plan_id) {
-                qc.invalidateQueries({ queryKey: planKeys.batches(vars.patch.plan_id) });
+                void qc.invalidateQueries({ queryKey: planKeys.batches(vars.patch.plan_id) });
             }
             invalidatePlanScope(qc);
         },
@@ -497,7 +497,7 @@ export const useReorderPlanBatches = ({ userId, date, planId }: { userId: string
             }
         },
         onSettled: () => {
-            qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
+            void qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
             invalidateScheduledBatchQueries(qc);
         },
     });

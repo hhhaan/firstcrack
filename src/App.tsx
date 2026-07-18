@@ -61,8 +61,13 @@ export const App = () => {
     const isRoastIdle = roastPhase === 'idle';
 
     useEffect(() => {
-        checkAndDownload();
-        const id = setInterval(checkAndDownload, 4 * 60 * 60 * 1000);
+        void checkAndDownload();
+        const id = setInterval(
+            () => {
+                void checkAndDownload();
+            },
+            4 * 60 * 60 * 1000,
+        );
         return () => clearInterval(id);
     }, [checkAndDownload]);
 
@@ -79,14 +84,16 @@ export const App = () => {
 
         if (code) {
             window.history.replaceState({}, '', '/');
-            supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+            void supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
                 if (error) logger.error('[auth] dev exchangeCode failed:', error);
             });
         } else if (accessToken && refreshToken) {
             window.history.replaceState({}, '', '/');
-            supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
-                if (error) logger.error('[auth] dev setSession failed:', error);
-            });
+            void supabase.auth
+                .setSession({ access_token: accessToken, refresh_token: refreshToken })
+                .then(({ error }) => {
+                    if (error) logger.error('[auth] dev setSession failed:', error);
+                });
         }
     }, []);
 

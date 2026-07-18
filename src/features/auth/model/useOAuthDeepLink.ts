@@ -27,17 +27,17 @@ export const useOAuthDeepLink = () => {
             if (urls.length) void handleUrl(urls[0], source);
         };
 
-        getCurrent().then((urls) => {
+        void getCurrent().then((urls) => {
             if (urls?.length) void handleUrl(urls[0], 'getCurrent');
         });
 
         let unlistenDeepLink: (() => void) | undefined;
-        onOpenUrl((urls) => handleUrls(urls, 'onOpenUrl')).then((fn) => {
+        void onOpenUrl((urls) => handleUrls(urls, 'onOpenUrl')).then((fn) => {
             unlistenDeepLink = fn;
         });
 
         let unlistenBackup: (() => void) | undefined;
-        listen<string>('oauth-callback-url', (event) => {
+        void listen<string>('oauth-callback-url', (event) => {
             void handleUrl(event.payload, 'oauth-callback-url');
         }).then((fn) => {
             unlistenBackup = fn;

@@ -3,10 +3,13 @@
     "assist": { "actions": { "source": { "organizeImports": "on" } } },
     "linter": {
         "enabled": true,
+        "domains": {
+            "react": "recommended",
+            "project": "recommended"
+        },
         "rules": {
             "preset": "recommended",
             "a11y": {
-                "useButtonType": "off",
                 "noLabelWithoutControl": "off",
                 "noStaticElementInteractions": "off",
                 "useKeyWithClickEvents": "off",
@@ -16,7 +19,7 @@
             },
             "correctness": {
                 "noUnusedVariables": "error",
-                "useExhaustiveDependencies": "warn"
+                "useExhaustiveDependencies": "error"
             },
             "complexity": {
                 "noForEach": "warn",
@@ -30,10 +33,15 @@
                 "useImportType": "error",
                 "noNonNullAssertion": "warn"
             },
+            "nursery": {
+                "noFloatingPromises": "error",
+                "noMisusedPromises": "error",
+                "useExhaustiveSwitchCases": "error"
+            },
             "suspicious": {
-                "noConsole": "warn",
+                "noConsole": { "level": "error", "options": { "allow": ["warn", "error"] } },
                 "noDoubleEquals": "error",
-                "noExplicitAny": "warn",
+                "noExplicitAny": "error",
                 "noArrayIndexKey": "off",
                 "noGlobalIsNan": "warn",
                 "noConfusingVoidType": "warn",
@@ -69,6 +77,12 @@
             "enabled": true
         }
     },
+    "overrides": [
+        {
+            "includes": ["**/*.config.{js,ts,mjs}"],
+            "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+        }
+    ],
     "files": {
         "includes": ["**", "!**/dist", "!**/build", "!**/.next", "!**/coverage", "!**/src-tauri", "!**/node_modules"]
     }

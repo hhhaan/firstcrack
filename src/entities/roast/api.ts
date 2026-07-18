@@ -50,15 +50,13 @@ export const roastSessionApi = {
             .eq('id', id)
             .single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error already checked above
-        return data!;
+        return data;
     },
 
     create: async (session: RoastSessionInsert): Promise<RoastSession> => {
         const { data, error } = await supabase.from('roast_sessions').insert(session).select().single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error already checked above
-        return data!;
+        return data;
     },
 
     /** Completed sessions in local calendar month (batch quota). */
@@ -79,8 +77,7 @@ export const roastSessionApi = {
     update: async ({ id, ...patch }: RoastSessionUpdate): Promise<RoastSession> => {
         const { data, error } = await supabase.from('roast_sessions').update(patch).eq('id', id).select().single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error already checked above
-        return data!;
+        return data;
     },
 
     listPaginated: async ({

@@ -161,8 +161,7 @@ export const cuppingApi = {
     getEvent: async (eventId: string): Promise<CuppingEvent> => {
         const { data, error } = await supabase.from('cupping_events').select('*').eq('id', eventId).single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error checked
-        return data!;
+        return data;
     },
 
     getActiveInviteForEvent: loadActiveInviteForEvent,
@@ -179,8 +178,7 @@ export const cuppingApi = {
             .select()
             .single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error checked
-        return data!;
+        return data;
     },
 
     deleteEvent: async (eventId: string): Promise<void> => {
@@ -221,7 +219,7 @@ export const cuppingApi = {
                     : null;
             return {
                 ...s,
-                roast_sessions: s.roast_sessions as CuppingSampleWithMeta['roast_sessions'],
+                roast_sessions: s.roast_sessions,
                 score_count: scoreList.length,
                 avg_score: avg,
             };
@@ -247,8 +245,7 @@ export const cuppingApi = {
             .select()
             .single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error checked
-        return data!;
+        return data;
     },
 
     addSamplesBatch: async (
@@ -314,8 +311,7 @@ export const cuppingApi = {
             .single();
         if (error) throw error;
         const base = await resolveCuppingPublicBaseUrl();
-        // biome-ignore lint/style/noNonNullAssertion: error checked
-        return { ...data!, url: cuppingInviteUrl(data!.token, base) };
+        return { ...data, url: cuppingInviteUrl(data.token, base) };
     },
 
     revokeInvite: async (inviteId: string): Promise<CuppingInvite> => {
@@ -326,15 +322,13 @@ export const cuppingApi = {
             .select()
             .single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error checked
-        return data!;
+        return data;
     },
 
     createOwnerCupping: async (row: CuppingInsert): Promise<Cupping> => {
         const { data, error } = await supabase.from('cuppings').insert(row).select().single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error checked
-        return data!;
+        return data;
     },
 
     delete: async (id: string): Promise<void> => {

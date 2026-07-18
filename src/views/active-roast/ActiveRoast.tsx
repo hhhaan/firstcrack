@@ -264,34 +264,36 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         const win = getCurrentWindow();
         let unlisten: (() => void) | undefined;
         let active = true;
-        win.onCloseRequested(async (e) => {
-            if (!isRunningRef.current) return;
-            e.preventDefault();
-            const ok = await ask('로스팅이 진행 중입니다. 정말 종료하시겠습니까?', {
-                title: '로스팅 진행 중',
-                kind: 'warning',
-                okLabel: '종료',
-                cancelLabel: '취소',
-            });
-            if (ok) {
-                const sid = useRoastingStore.getState().sessionId;
-                if (sid) {
-                    try {
-                        await flushTsv(sid);
-                    } catch {
-                        // flush failure must not block window close
+        void win
+            .onCloseRequested(async (e) => {
+                if (!isRunningRef.current) return;
+                e.preventDefault();
+                const ok = await ask('로스팅이 진행 중입니다. 정말 종료하시겠습니까?', {
+                    title: '로스팅 진행 중',
+                    kind: 'warning',
+                    okLabel: '종료',
+                    cancelLabel: '취소',
+                });
+                if (ok) {
+                    const sid = useRoastingStore.getState().sessionId;
+                    if (sid) {
+                        try {
+                            await flushTsv(sid);
+                        } catch {
+                            // flush failure must not block window close
+                        }
                     }
+                    unlisten?.();
+                    void win.close();
                 }
-                unlisten?.();
-                win.close();
-            }
-        }).then((fn) => {
-            if (active) {
-                unlisten = fn;
-            } else {
-                fn();
-            }
-        });
+            })
+            .then((fn) => {
+                if (active) {
+                    unlisten = fn;
+                } else {
+                    fn();
+                }
+            });
         return () => {
             active = false;
             unlisten?.();
@@ -303,12 +305,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         if (!('__TAURI_INTERNALS__' in window)) return;
         const isActivePhase = phase === 'roasting' || phase === 'preheating' || phase === 'standby';
         if (!isActivePhase) {
-            getCurrentWindow().setTitle('First Crack');
+            void getCurrentWindow().setTitle('First Crack');
             return;
         }
         const bt = formatTemp(rawBT, unit);
         const et = formatTemp(rawET, unit);
-        getCurrentWindow().setTitle(`First Crack — BT ${bt} | ET ${et} | ${timeStr}`);
+        void getCurrentWindow().setTitle(`First Crack — BT ${bt} | ET ${et} | ${timeStr}`);
     }, [phase, rawBT, rawET, timeStr, unit]);
 
     // ── 단계 표시 및 파생값 ──────────────────────────────────────
@@ -334,7 +336,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         onToggleFullscreen: toggleFullscreen,
         onExitFullscreen: exitFullscreen,
         onEnterStandby: lifecycle.handleEnterStandby,
-        onManualCharge: lifecycle.handleManualCharge,
+        onManualCharge: () => {
+            void lifecycle.handleManualCharge();
+        },
         onMarkEvent: markEvent,
         onMarkDrop: handleDrop,
     });

@@ -16,7 +16,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
             logger.error(`[sidecar] ${init?.method ?? 'GET'} ${path} 실패:`, msg);
             throw new Error(msg);
         }
-        return res.json() as Promise<T>;
+        return await (res.json() as Promise<T>);
     } catch (err) {
         if (!(err instanceof Error && err.message.startsWith('HTTP'))) {
             logger.error(`[sidecar] ${path} 네트워크 오류:`, err);

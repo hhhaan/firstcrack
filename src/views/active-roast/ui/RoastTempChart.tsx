@@ -268,7 +268,7 @@ export const RoastTempChart: React.FC<Props> = ({
             const evt = e.event as MouseEvent | undefined;
             const mx = evt?.offsetX ?? (e.offsetX as number);
             if (mx == null) return;
-            const yMid = (chart.convertToPixel({ yAxisIndex: 0 }, 150) as number) ?? 200;
+            const yMid = chart.convertToPixel({ yAxisIndex: 0 }, 150) ?? 200;
             for (const marker of eventMarkers) {
                 if (marker.event === 'Charge') continue;
                 const pixel = chart.convertToPixel({ xAxisIndex: 0 }, [marker.timeSec, yMid]);

@@ -60,7 +60,6 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         if (profiles.length > 0 && !selectedId) {
             setSelectedId(profiles[0].id);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profiles.length, selectedId]);
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
@@ -68,7 +67,6 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         if (userProfile !== undefined) {
             setDefaultId(userProfile?.default_roast_profile_id ?? null);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userProfile?.default_roast_profile_id]);
 
     const sortedProfiles = [...profiles].sort((a, b) => {

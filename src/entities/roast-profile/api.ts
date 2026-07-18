@@ -24,21 +24,19 @@ export const roastProfileApi = {
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
         if (error) throw error;
-        return (data ?? []) as unknown as RoastProfileWithSource[];
+        return data ?? [];
     },
 
     create: async (profile: RoastProfileInsert): Promise<RoastProfile> => {
         const { data, error } = await supabase.from('roast_profiles').insert(profile).select().single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error already checked above
-        return data!;
+        return data;
     },
 
     update: async ({ id, ...patch }: RoastProfileUpdate): Promise<RoastProfile> => {
         const { data, error } = await supabase.from('roast_profiles').update(patch).eq('id', id).select().single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error already checked above
-        return data!;
+        return data;
     },
 
     delete: async (id: string): Promise<void> => {

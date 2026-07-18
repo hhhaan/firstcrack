@@ -27,7 +27,7 @@ export const useConnectChannel = (userId: string) => {
             displayName?: string;
         }) => salesChannelApi.connect(platform, credentials, displayName),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
         },
     });
 };
@@ -37,7 +37,7 @@ export const useDisconnectChannel = (userId: string) => {
     return useMutation({
         mutationFn: (connectionId: string) => salesChannelApi.disconnect(connectionId),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
         },
     });
 };
@@ -47,9 +47,9 @@ export const useSyncOrders = (userId: string) => {
     return useMutation({
         mutationFn: (connectionId?: string) => salesChannelApi.syncNow(connectionId),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
-            qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) });
-            qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) });
+            void qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
         },
     });
 };
@@ -60,7 +60,7 @@ export const useSetAutoFulfill = (userId: string) => {
         mutationFn: ({ connectionId, enabled }: { connectionId: string; enabled: boolean }) =>
             salesChannelApi.setAutoFulfill(connectionId, enabled),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
         },
     });
 };

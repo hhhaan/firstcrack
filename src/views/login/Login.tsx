@@ -99,7 +99,14 @@ export const Login = ({ onLogin }: LoginProps) => {
                         cursor: 'pointer',
                         userSelect: 'none',
                     }}
-                    onClick={() => alert('First Crack no Football Club')}
+                    onClick={async () => {
+                        if ((window as Window & { __TAURI__?: unknown }).__TAURI__) {
+                            const { message } = await import('@tauri-apps/plugin-dialog');
+                            await message('First Crack no Football Club');
+                        } else {
+                            alert('First Crack no Football Club');
+                        }
+                    }}
                 >
                     <span
                         style={{

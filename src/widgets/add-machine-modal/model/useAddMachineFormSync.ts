@@ -56,7 +56,7 @@ export const useAddMachineFormSync = ({
         setTestState('idle');
         setTestMessage('');
         testConnectedRef.current = false;
-        sidecar
+        void sidecar
             .getSerialPorts()
             .catch(() => [])
             .then((ports) => setSerialPorts(ports as SerialPort[]));

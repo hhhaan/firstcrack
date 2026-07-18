@@ -47,7 +47,6 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
     useEffect(() => {
         if (chargedRef.current || userSelectedTargetRef.current) return;
         if (userProfile !== undefined) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setTargetProfileId(userProfile?.default_roast_profile_id ?? null);
         }
     }, [userProfile?.default_roast_profile_id]);
@@ -57,7 +56,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         if (!isActive) return;
         const { pendingBeanId, pendingBeanName, setPendingBean } = useRoastingStore.getState();
         if (!pendingBeanId) return;
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+
         setSelectedBeanId(pendingBeanId);
         setHandoffBeanName(pendingBeanName);
         appliedDefaultBeanRef.current = true;
@@ -69,13 +68,13 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
     useEffect(() => {
         if (!isActive || !planBatchHandoff) return;
         // Single bean batch: lock bean id. Blend-only: clear single-bean so blend deduction path is used.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+
         setSelectedBeanId(planBatchHandoff.beanId ?? null);
         setHandoffBeanName(planBatchHandoff.beanName || null);
         appliedDefaultBeanRef.current = true;
         if (planBatchHandoff.profileId) {
             userSelectedTargetRef.current = true;
-            // eslint-disable-next-line react-hooks/set-state-in-effect
+
             setTargetProfileId(planBatchHandoff.profileId);
         }
     }, [isActive, planBatchHandoff]);
@@ -90,7 +89,6 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         try {
             const stored = localStorage.getItem(DEFAULT_BEAN_KEY);
             if (stored) {
-                // eslint-disable-next-line react-hooks/set-state-in-effect
                 setSelectedBeanId(stored);
             }
         } catch {

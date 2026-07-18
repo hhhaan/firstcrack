@@ -36,7 +36,7 @@ export const useCreateBlend = (userId: string) => {
             components: Omit<BlendComponentInsert, 'blend_id'>[];
         }) => blendApi.create(blend, components),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: blendKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: blendKeys.all(userId) });
         },
     });
 };
@@ -55,7 +55,7 @@ export const useUpdateBlend = (userId: string) => {
         }) => blendApi.update(id, patch, components),
         onSuccess: (updated: BlendWithComponents) => {
             qc.setQueryData(blendKeys.detail(updated.id), updated);
-            qc.invalidateQueries({ queryKey: blendKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: blendKeys.all(userId) });
         },
     });
 };
@@ -67,7 +67,7 @@ export const useDeleteBlend = (userId: string) => {
         // biome-ignore lint/suspicious/noConfusingVoidType: matches mutation return type
         onSuccess: (_data: void, id: string) => {
             qc.removeQueries({ queryKey: blendKeys.detail(id) });
-            qc.invalidateQueries({ queryKey: blendKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: blendKeys.all(userId) });
         },
     });
 };

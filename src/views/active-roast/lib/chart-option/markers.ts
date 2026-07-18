@@ -16,7 +16,7 @@ export const nearestBtAt = (xs: number[], btActual: (number | null)[], timeSec: 
             bestIdx = i;
         }
     }
-    return bestIdx >= 0 ? (btActual[bestIdx] as number) : null;
+    return bestIdx >= 0 ? btActual[bestIdx] : null;
 };
 
 // Charge는 t=0 고정 → 시간 생략 (event + temp만)

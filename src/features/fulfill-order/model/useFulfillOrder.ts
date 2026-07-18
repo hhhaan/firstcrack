@@ -16,9 +16,9 @@ export const useFulfillOrder = () => {
             return workspaceOwnerId;
         },
         onSuccess: (ownerId) => {
-            qc.invalidateQueries({ queryKey: orderKeys.all(ownerId) });
-            qc.invalidateQueries({ queryKey: orderKeys.requirements(ownerId) });
-            qc.invalidateQueries({ queryKey: productStockKeys.byUser(ownerId) });
+            void qc.invalidateQueries({ queryKey: orderKeys.all(ownerId) });
+            void qc.invalidateQueries({ queryKey: orderKeys.requirements(ownerId) });
+            void qc.invalidateQueries({ queryKey: productStockKeys.byUser(ownerId) });
         },
     });
 };

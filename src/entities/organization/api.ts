@@ -1,18 +1,10 @@
 import { supabase } from '@shared/lib/supabase';
-import type { MineOrg, OrganizationInvite, OrganizationMember, OrgMembership } from './types';
+import type { MineOrg, OrganizationMember, OrgMembership } from './types';
 
 type MemberRow = {
     org_id: string;
     user_id: string;
     role: string;
-    created_at: string;
-};
-
-type OrgRow = {
-    id: string;
-    owner_id: string;
-    name: string;
-    seat_limit: number;
     created_at: string;
 };
 
@@ -26,7 +18,7 @@ export const organizationApi = {
         if (error) throw error;
         if (!org) return null;
 
-        const o = org as OrgRow;
+        const o = org;
         const [{ data: members, error: mErr }, { data: invites, error: iErr }] = await Promise.all([
             supabase.from('organization_members').select('*').eq('org_id', o.id).order('created_at'),
             supabase
@@ -75,7 +67,7 @@ export const organizationApi = {
             seat_limit: o.seat_limit,
             created_at: o.created_at,
             members: enriched,
-            invites: (invites ?? []) as OrganizationInvite[],
+            invites: invites ?? [],
         };
     },
 
@@ -87,14 +79,14 @@ export const organizationApi = {
         if (error) throw error;
         if (!memberships?.length) return [];
 
-        const orgIds = memberships.map((m) => m.org_id as string);
+        const orgIds = memberships.map((m) => m.org_id);
         const { data: orgs, error: oErr } = await supabase
             .from('organizations')
             .select('id, owner_id, name')
             .in('id', orgIds);
         if (oErr) throw oErr;
 
-        const ownerIds = [...new Set((orgs ?? []).map((o) => o.owner_id as string))];
+        const ownerIds = [...new Set((orgs ?? []).map((o) => o.owner_id))];
         if (ownerIds.length === 0) return [];
 
         const { data: profiles, error: pErr } = await supabase
@@ -103,21 +95,21 @@ export const organizationApi = {
             .in('id', ownerIds);
         if (pErr) throw pErr;
 
-        const orgById = new Map((orgs ?? []).map((o) => [o.id as string, o]));
+        const orgById = new Map((orgs ?? []).map((o) => [o.id, o]));
         const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
 
         return memberships
             .map((m) => {
-                const org = orgById.get(m.org_id as string);
+                const org = orgById.get(m.org_id);
                 if (!org) return null;
                 // Skip own org (owner already sees it as self workspace)
                 if (org.owner_id === userId) return null;
-                const profile = profileById.get(org.owner_id as string);
+                const profile = profileById.get(org.owner_id);
                 return {
-                    org_id: m.org_id as string,
+                    org_id: m.org_id,
                     role: m.role as OrgMembership['role'],
-                    owner_id: org.owner_id as string,
-                    org_name: org.name as string,
+                    owner_id: org.owner_id,
+                    org_name: org.name,
                     owner_business_name: profile?.business_name ?? null,
                     owner_display_name: profile?.display_name ?? null,
                 } satisfies OrgMembership;
@@ -130,7 +122,7 @@ export const organizationApi = {
             p_token: token,
         });
         if (error) throw error;
-        return data as string;
+        return data;
     },
 
     redeemInvite: async (token: string): Promise<string> => {
@@ -138,7 +130,7 @@ export const organizationApi = {
             p_token: token,
         });
         if (error) throw error;
-        return data as string;
+        return data;
     },
 
     removeMember: async (orgId: string, memberId: string): Promise<void> => {

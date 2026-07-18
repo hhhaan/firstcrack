@@ -11,7 +11,7 @@ export function useRedeemInvite() {
         redeem: async (token: string) => {
             try {
                 const orgId = await mutation.mutateAsync(token.trim());
-                return { orgId, error: null as null };
+                return { orgId, error: null };
             } catch (e) {
                 return { orgId: null as string | null, error: mapInviteError(e) };
             }

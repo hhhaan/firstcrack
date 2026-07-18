@@ -1,4 +1,4 @@
-import { Frequency, type Options, RRule } from 'rrule';
+import { Frequency, RRule } from 'rrule';
 import { UI_PREVIEW_DAYS } from './stock-calc';
 
 /**
@@ -43,7 +43,7 @@ export function buildRRule(interval: RecurrenceInterval, options?: { until?: Dat
 
     // Convert to RFC 5545 string via RRule helper
     // optionsToString returns "RULE:FREQ=..." — strip the "RULE:" prefix
-    return RRule.optionsToString(rruleOptions as RRuleOptions).replace(/^RULE:/, '');
+    return RRule.optionsToString(rruleOptions).replace(/^RULE:/, '');
 }
 
 /**
@@ -234,7 +234,7 @@ export function parseRruleToInterval(rrule: string | null): RecurrenceInterval |
 // ── Internal types ────────────────────────────────────────────────────────────
 
 const rruleWithDtstart = (rruleStr: string, dtstart: Date): RRule => {
-    const parsed = RRule.parseString(rruleStr) as Partial<Options>;
+    const parsed = RRule.parseString(rruleStr);
     return new RRule({ ...parsed, dtstart });
 };
 

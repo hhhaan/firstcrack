@@ -15,7 +15,7 @@ export const inventoryAlertApi = {
             .is('dismissed_at', null)
             .order('computed_at', { ascending: false });
         if (error) throw error;
-        return (data ?? []) as InventoryAlert[];
+        return data ?? [];
     },
 
     dismiss: async (id: string): Promise<void> => {

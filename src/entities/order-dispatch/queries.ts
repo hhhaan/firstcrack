@@ -19,8 +19,8 @@ export const useDispatchOrder = (userId: string) => {
         mutationFn: (input: { orderId: string; carrier: string; trackingNumber: string }) =>
             orderDispatchApi.dispatch(input),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: orderDispatchKeys.all(userId) });
-            qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: orderDispatchKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
         },
     });
 };

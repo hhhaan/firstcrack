@@ -11,7 +11,7 @@ export function useRemoveMember() {
         remove: async (orgId: string, memberId: string) => {
             try {
                 await mutation.mutateAsync({ orgId, memberId });
-                return { error: null as null };
+                return { error: null };
             } catch (e) {
                 return { error: mapInviteError(e) };
             }

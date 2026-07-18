@@ -136,7 +136,7 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                 }),
                 coords ? locationStore.set(coords) : Promise.resolve(),
             ]);
-            if (coords) qc.invalidateQueries({ queryKey: weatherKeys.coords });
+            if (coords) void qc.invalidateQueries({ queryKey: weatherKeys.coords });
             setProfileSaveStatus('saved');
         } catch (e) {
             logger.capture(e, { context: 'settings save profile' });

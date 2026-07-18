@@ -87,7 +87,6 @@ export const MonthlyBatchesChart = ({ data }: MonthlyBatchesChartProps) => {
         // biome-ignore lint/style/noNonNullAssertion: error already checked above
         obs.observe(canvas.parentElement!);
         return () => obs.disconnect();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data]);
 
     const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {

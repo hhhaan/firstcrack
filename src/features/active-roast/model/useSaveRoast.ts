@@ -9,7 +9,7 @@ import { BatchLimitError, canCompleteBatch, planMaxBatchesPerMonth } from '@shar
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
-import type { Bean, Json, PlanBatchHandoff } from '@shared/types/database.types';
+import type { Bean, PlanBatchHandoff } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
@@ -126,7 +126,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
                 bbp_seconds: bbpSummary?.seconds ?? null,
                 charge_temp_celsius: bbpSummary != null ? Math.round(bbpSummary.chargeTemp) : null,
                 plan_batch_id: effectiveBatch?.planBatchId ?? null,
-                events: serializeRoastEvents(payloadParams.logEntries) as Json,
+                events: serializeRoastEvents(payloadParams.logEntries),
             };
 
             const savedSession = await saveRoastSession(payload);

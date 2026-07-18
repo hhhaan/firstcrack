@@ -107,7 +107,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
                 markPointData.length > 0
                     ? {
                           silent: false,
-                          data: markPointData as object[],
+                          data: markPointData,
                           animation: false,
                       }
                     : undefined,
@@ -234,7 +234,7 @@ export const buildPhaseSeries = (params: PhaseSeriesParams) => {
         type: 'custom' as const,
         xAxisIndex: 0,
         yAxisIndex: 0,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
         renderItem: (renderParams: any, api: any) => {
             const startPx = api.coord([api.value(0), phaseCoordY])[0] as number;
@@ -262,7 +262,6 @@ export const buildPhaseSeries = (params: PhaseSeriesParams) => {
             const { x, y, width, height: h } = clipped;
             const textY = y + h / 2;
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             // biome-ignore lint/suspicious/noExplicitAny: ECharts graphic children are loosely typed
             const children: any[] = [
                 {

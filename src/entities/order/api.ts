@@ -35,7 +35,7 @@ export const orderApi = {
             .eq('user_id', userId)
             .order('ordered_at', { ascending: false });
         if (error) throw error;
-        return (data ?? []) as OrderWithLines[];
+        return data ?? [];
     },
 
     /** Manual order entry — order + its lines in one call. */
@@ -45,8 +45,7 @@ export const orderApi = {
     ): Promise<OrderWithLines> => {
         const { data: newOrder, error: orderErr } = await supabase.from('orders').insert(order).select().single();
         if (orderErr) throw orderErr;
-        // biome-ignore lint/style/noNonNullAssertion: error already checked above
-        const created = newOrder!;
+        const created = newOrder;
 
         if (!lines.length) return { ...created, order_lines: [] };
 

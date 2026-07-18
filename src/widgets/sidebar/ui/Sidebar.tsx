@@ -121,7 +121,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                                 onClick={async () => {
                                     if ((window as Window & { __TAURI__?: unknown }).__TAURI__) {
                                         const { message } = await import('@tauri-apps/plugin-dialog');
-                                        message('First Crack no Football Club');
+                                        void message('First Crack no Football Club');
                                     } else {
                                         alert('First Crack no Football Club');
                                     }

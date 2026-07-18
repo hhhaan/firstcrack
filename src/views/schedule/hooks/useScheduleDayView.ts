@@ -331,10 +331,10 @@ export const useScheduleDayView = ({
             });
 
             if (dateChanged) {
-                qc.invalidateQueries({ queryKey: planKeys.batches(oldPlanId) });
-                qc.invalidateQueries({ queryKey: planKeys.batches(targetPlanId) });
-                qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, dateKey) });
-                qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, newDateKey) });
+                void qc.invalidateQueries({ queryKey: planKeys.batches(oldPlanId) });
+                void qc.invalidateQueries({ queryKey: planKeys.batches(targetPlanId) });
+                void qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, dateKey) });
+                void qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, newDateKey) });
             }
         },
         [editingBatch, dateKey, userId, updateSingleBatch, qc],
@@ -365,7 +365,7 @@ export const useScheduleDayView = ({
                     dtstart: data.date,
                 });
             } else if (planId) {
-                await createBatch.mutateAsync({ ...baseBatch, plan_id: planId } as PlanBatchInsert);
+                await createBatch.mutateAsync({ ...baseBatch, plan_id: planId });
             }
         },
         [planId, batches.length, createBatch, createRecurringBatches],

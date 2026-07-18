@@ -81,14 +81,14 @@ export const useInsertStockEvent = () => {
         },
         onSettled: async (_data, _err, newEvent: BeanStockEventInsert) => {
             const beanId = newEvent.bean_id;
-            qc.invalidateQueries({ queryKey: stockEventKeys.byBean(beanId) });
-            qc.invalidateQueries({ queryKey: stockEventKeys.summary(beanId) });
-            qc.invalidateQueries({ queryKey: stockEventKeys.summariesRoot });
-            qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
+            void qc.invalidateQueries({ queryKey: stockEventKeys.byBean(beanId) });
+            void qc.invalidateQueries({ queryKey: stockEventKeys.summary(beanId) });
+            void qc.invalidateQueries({ queryKey: stockEventKeys.summariesRoot });
+            void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
             if (newEvent.user_id) {
                 await beanStockEventApi.computeInventoryAlerts(newEvent.user_id);
-                qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
-                qc.invalidateQueries({ queryKey: dashboardKeys.all(newEvent.user_id) });
+                void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
+                void qc.invalidateQueries({ queryKey: dashboardKeys.all(newEvent.user_id) });
             }
         },
     });

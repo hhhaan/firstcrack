@@ -5,7 +5,7 @@ describe('blendTotalRatio', () => {
     it('sums ratio_pct', () => {
         expect(blendTotalRatio([{ ratio_pct: 40 }, { ratio_pct: 60 }])).toBe(100);
         expect(blendTotalRatio([])).toBe(0);
-        expect(blendTotalRatio([{ ratio_pct: Number.NaN as unknown as number }])).toBe(0);
+        expect(blendTotalRatio([{ ratio_pct: Number.NaN }])).toBe(0);
     });
 });
 

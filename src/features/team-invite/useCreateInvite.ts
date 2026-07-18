@@ -13,7 +13,7 @@ export function useCreateInvite() {
             const token = generateToken();
             try {
                 await mutation.mutateAsync(token);
-                return { token, error: null as null };
+                return { token, error: null };
             } catch (e) {
                 return { token: null as string | null, error: mapInviteError(e) };
             }

@@ -34,8 +34,8 @@ export const useAddFinishedGoods = () => {
             return workspaceOwnerId;
         },
         onSuccess: (ownerId) => {
-            qc.invalidateQueries({ queryKey: productStockKeys.byUser(ownerId) });
-            qc.invalidateQueries({ queryKey: orderKeys.requirements(ownerId) });
+            void qc.invalidateQueries({ queryKey: productStockKeys.byUser(ownerId) });
+            void qc.invalidateQueries({ queryKey: orderKeys.requirements(ownerId) });
         },
     });
 };

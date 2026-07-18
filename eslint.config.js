@@ -1,6 +1,6 @@
-import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
+import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
@@ -27,6 +27,26 @@ export default tseslint.config(
             'react-hooks/incompatible-library': 'off',
             '@typescript-eslint/no-explicit-any': 'off',
             '@typescript-eslint/no-unused-vars': 'off',
+        },
+    },
+    // type-aware 규칙 — Biome이 못 잡는 타입 기반 검사. tsconfig 프로젝트에 속한 src만 대상
+    // (supabase/functions는 Deno라 projectService 파싱 불가)
+    {
+        files: ['src/**/*.{ts,tsx}'],
+        languageOptions: {
+            parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+        },
+        rules: {
+            '@typescript-eslint/no-unnecessary-condition': 'warn',
+            '@typescript-eslint/require-array-sort-compare': 'error',
+            '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+
+            // 비동기 정확성 — await 누락/promise 오용
+            // Biome nursery에도 같은 룰이 있지만 타입 추론이 얕아 실측 0/112 검출 → ESLint 유지
+            '@typescript-eslint/no-floating-promises': 'error',
+            '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: { attributes: false } }],
+            '@typescript-eslint/await-thenable': 'error',
+            '@typescript-eslint/return-await': ['error', 'in-try-catch'],
         },
     },
 );

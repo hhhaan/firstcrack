@@ -55,8 +55,8 @@ export const useUpdateRoastSession = (userId: string) => {
     return useMutation({
         mutationFn: roastSessionApi.update,
         onSuccess: (updated) => {
-            qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
-            qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
+            void qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
             qc.setQueryData<RoastSessionWithRelations>(roastSessionKeys.detail(updated.id), (prev) =>
                 prev ? { ...prev, ...updated } : undefined,
             );
@@ -130,8 +130,8 @@ export const useDeleteRoastSession = (userId: string) => {
             if (context?.prevPaginated) qc.setQueryData(roastSessionKeys.paginated(userId), context.prevPaginated);
         },
         onSettled: (_data, _err, id) => {
-            qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
-            qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
+            void qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
             qc.removeQueries({ queryKey: roastSessionKeys.detail(id) });
         },
     });

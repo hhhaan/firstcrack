@@ -44,12 +44,10 @@ export async function deductRoastStock(
 
     await insertMany(events);
 
-    qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
+    void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
     for (const e of events) {
-        // biome-ignore lint/style/noNonNullAssertion: bean_id set for roast events
-        qc.invalidateQueries({ queryKey: stockEventKeys.summary(e.bean_id!) });
-        // biome-ignore lint/style/noNonNullAssertion: bean_id set for roast events
-        qc.invalidateQueries({ queryKey: stockEventKeys.byBean(e.bean_id!) });
+        void qc.invalidateQueries({ queryKey: stockEventKeys.summary(e.bean_id) });
+        void qc.invalidateQueries({ queryKey: stockEventKeys.byBean(e.bean_id) });
     }
 }
 

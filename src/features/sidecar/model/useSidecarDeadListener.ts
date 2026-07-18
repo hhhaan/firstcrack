@@ -7,7 +7,7 @@ export const useSidecarDeadListener = (): { isDead: boolean } => {
     useEffect(() => {
         let unlisten: (() => void) | undefined;
 
-        listen<null>('sidecar-dead', () => {
+        void listen<null>('sidecar-dead', () => {
             setIsDead(true);
         }).then((fn) => {
             unlisten = fn;

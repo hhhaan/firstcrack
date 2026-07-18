@@ -39,7 +39,7 @@ export const MonthlyProductionReport = ({
 
         const clone = el.cloneNode(true) as HTMLElement;
         el.querySelectorAll<HTMLInputElement>('input').forEach((src, i) => {
-            (clone.querySelectorAll('input')[i] as HTMLInputElement).value = src.value;
+            clone.querySelectorAll('input')[i].value = src.value;
         });
 
         const printRoot = document.createElement('div');

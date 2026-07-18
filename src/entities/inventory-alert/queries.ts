@@ -19,7 +19,7 @@ export const useDismissInventoryAlert = (userId: string) => {
     return useMutation({
         mutationFn: inventoryAlertApi.dismiss,
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: inventoryAlertKeys.list(userId) });
+            void qc.invalidateQueries({ queryKey: inventoryAlertKeys.list(userId) });
         },
     });
 };
@@ -29,9 +29,9 @@ export const useComputeInventoryAlerts = (userId: string) => {
     return useMutation({
         mutationFn: () => inventoryAlertApi.computeInventoryAlerts(userId),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: inventoryAlertKeys.list(userId) });
-            qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
-            qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: inventoryAlertKeys.list(userId) });
+            void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
+            void qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
         },
     });
 };

@@ -15,12 +15,11 @@ export interface TooltipFormatterParams {
 export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
     const { showET, showRoR, showRoRET, controlData, unitLabel, rorUnit, colors } = opts;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     // biome-ignore lint/suspicious/noExplicitAny: ECharts tooltip params are loosely typed
     return (params: any) => {
         const timeSec = params[0]?.axisValue ?? 0;
         let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         // biome-ignore lint/suspicious/noExplicitAny: ECharts tooltip params are loosely typed
         for (const p of params as any[]) {
             const y = p.value?.[1];

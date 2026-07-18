@@ -77,7 +77,7 @@ export const usePricingCalculator = () => {
 
     useEffect(() => {
         let cancelled = false;
-        pricingStore.getFixedOverheads().then((items) => {
+        void pricingStore.getFixedOverheads().then((items) => {
             if (cancelled) return;
             setFixedOverheads(items);
             setOverheadsReady(true);

@@ -11,7 +11,7 @@ type ProfilePatch = Partial<
 export const profileApi = {
     get: async (userId: string): Promise<Profile | null> => {
         const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
-        return data as Profile | null;
+        return data;
     },
 
     update: async (userId: string, patch: ProfilePatch): Promise<Profile> => {
@@ -22,6 +22,6 @@ export const profileApi = {
             .select()
             .single();
         if (error) throw error;
-        return data as Profile;
+        return data;
     },
 };

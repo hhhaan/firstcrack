@@ -58,10 +58,10 @@ export const useUploadRoastProfile = () => {
         retryDelay: (attemptIndex) => 1000 * (attemptIndex + 1),
         onSuccess: (_key, { roastSessionId }) => {
             if (!workspaceOwnerId) return;
-            qc.invalidateQueries({ queryKey: roastSessionKeys.all(workspaceOwnerId) });
-            qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(workspaceOwnerId) });
-            qc.invalidateQueries({ queryKey: dashboardKeys.all(workspaceOwnerId) });
-            qc.invalidateQueries({ queryKey: roastSessionKeys.detail(roastSessionId) });
+            void qc.invalidateQueries({ queryKey: roastSessionKeys.all(workspaceOwnerId) });
+            void qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(workspaceOwnerId) });
+            void qc.invalidateQueries({ queryKey: dashboardKeys.all(workspaceOwnerId) });
+            void qc.invalidateQueries({ queryKey: roastSessionKeys.detail(roastSessionId) });
         },
     });
 };

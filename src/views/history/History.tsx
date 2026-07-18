@@ -93,7 +93,10 @@ export const History = () => {
     const totalSessions = rawSessions.length;
 
     const uniqueOrigins = useMemo(
-        () => [...new Set(rawSessions.map((s) => s.beans?.origin).filter(Boolean) as string[])].sort(),
+        () =>
+            [...new Set(rawSessions.map((s) => s.beans?.origin).filter(Boolean) as string[])].sort((a, b) =>
+                a.localeCompare(b),
+            ),
         [rawSessions],
     );
 
@@ -107,7 +110,7 @@ export const History = () => {
                 set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
             }
         }
-        return [...set].sort();
+        return [...set].sort((a, b) => a.localeCompare(b));
     }, [rawSessions]);
 
     const clientFiltered = useMemo(

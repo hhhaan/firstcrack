@@ -19,8 +19,7 @@ export const productApi = {
     create: async (product: ProductInsert): Promise<Product> => {
         const { data, error } = await supabase.from('products').insert(product).select().single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error already checked above
-        return data!;
+        return data;
     },
 
     update: async (id: string, patch: ProductUpdate): Promise<Product> => {
@@ -31,8 +30,7 @@ export const productApi = {
             .select()
             .single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error already checked above
-        return data!;
+        return data;
     },
 
     delete: async (id: string): Promise<void> => {

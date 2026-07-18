@@ -34,7 +34,7 @@ export const useCreateRoastProfile = (userId: string) => {
     return useMutation({
         mutationFn: roastProfileApi.create,
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: roastProfileKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: roastProfileKeys.all(userId) });
         },
     });
 };
@@ -44,7 +44,7 @@ export const useUpdateRoastProfile = (userId: string) => {
     return useMutation({
         mutationFn: roastProfileApi.update,
         onSuccess: (updated) => {
-            qc.invalidateQueries({ queryKey: roastProfileKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: roastProfileKeys.all(userId) });
             qc.setQueryData<RoastProfile>(roastProfileKeys.detail(updated.id), updated);
         },
     });
@@ -55,7 +55,7 @@ export const useDeleteRoastProfile = (userId: string) => {
     return useMutation({
         mutationFn: roastProfileApi.delete,
         onSuccess: (_, id) => {
-            qc.invalidateQueries({ queryKey: roastProfileKeys.all(userId) });
+            void qc.invalidateQueries({ queryKey: roastProfileKeys.all(userId) });
             qc.removeQueries({ queryKey: roastProfileKeys.detail(id) });
         },
     });
@@ -129,7 +129,7 @@ export const useProfileBeanHistory = (profileId: string) =>
                 if (!s.bean_id) continue;
                 if (!grouped[s.bean_id]) {
                     grouped[s.bean_id] = {
-                        name: (s.beans as { name: string } | null)?.name ?? 'Unknown',
+                        name: s.beans?.name ?? 'Unknown',
                         count: 0,
                         lastDate: s.roasted_at ?? '',
                     };

@@ -4,7 +4,7 @@ export { generateCuppingToken, generateToken } from '@shared/lib/token';
 export const DEFAULT_CUPPING_PUBLIC_BASE = 'https://fc-cupping.pages.dev';
 
 export function cuppingPublicBaseUrl(): string {
-    const fromEnv = import.meta.env.VITE_CUPPING_PUBLIC_BASE_URL as string | undefined;
+    const fromEnv = import.meta.env.VITE_CUPPING_PUBLIC_BASE_URL;
     if (fromEnv?.trim()) return fromEnv.replace(/\/$/, '');
     return DEFAULT_CUPPING_PUBLIC_BASE;
 }

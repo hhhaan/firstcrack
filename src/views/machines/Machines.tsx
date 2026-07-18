@@ -79,8 +79,10 @@ export const Machines = ({
                 setSidecarStatus((prev) => (isSameSidecarStatus(prev, nextStatus) ? prev : nextStatus));
             }
         };
-        poll();
-        const id = setInterval(poll, POLL_INTERVAL_MS);
+        void poll();
+        const id = setInterval(() => {
+            void poll();
+        }, POLL_INTERVAL_MS);
         return () => clearInterval(id);
     }, [isActive, sidecarStatus?.connected, modalOpen]);
 
@@ -91,7 +93,6 @@ export const Machines = ({
         const connectedId = machines.find((m) => m.roasterKey === sidecarStatus.roaster)?.id;
         if (connectedId) setSelectedId(connectedId);
         // selectedId 제외: 사용자 클릭 시 effect 재실행 방지
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sidecarStatus?.connected, sidecarStatus?.roaster]);
 
     const filtered = machines.filter(
@@ -105,10 +106,7 @@ export const Machines = ({
         setConnecting(true);
         setSidecarStatus((prev) => (prev ? { ...prev, error: null } : prev));
         try {
-            const status = await sidecar.connect(
-                machine.roasterKey,
-                machine.connectionParams as Record<string, unknown>,
-            );
+            const status = await sidecar.connect(machine.roasterKey, machine.connectionParams);
             setSidecarStatus(status);
             if (status.connected) {
                 // ActiveRoast와 동일: phase → preheating 이면 폴링·타이틀 온도 갱신

@@ -12,7 +12,7 @@ const mapSummariesRecord = (raw: Record<string, unknown> | null): Record<string,
     if (!raw) return {};
     const out: Record<string, StockSummary> = {};
     for (const [beanId, value] of Object.entries(raw)) {
-        out[beanId] = parseStockSummaryJson((value ?? {}) as Record<string, number>);
+        out[beanId] = parseStockSummaryJson(value ?? {});
     }
     return out;
 };
@@ -31,21 +31,19 @@ export const beanStockEventApi = {
     insert: async (event: BeanStockEventInsert): Promise<BeanStockEvent> => {
         const { data, error } = await supabase.from('bean_stock_events').insert(event).select().single();
         if (error) throw error;
-        // biome-ignore lint/style/noNonNullAssertion: error already checked above
-        return data!;
+        return data;
     },
 
     /** Atomic batch insert via RPC — all events in one transaction. Idempotent: duplicate (reference_id, bean_id) pairs are silently skipped. */
     insertMany: async (events: BeanStockEventInsert[]): Promise<void> => {
         if (!events.length) return;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
         const { error } = await (supabase as any).rpc('insert_stock_events_batch', { p_events: events });
         if (error) throw error;
     },
 
     getCurrentStock: async (beanId: string): Promise<number> => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
         const { data, error } = await (supabase as any).rpc('get_bean_current_stock', { p_bean_id: beanId });
         if (error) throw error;
@@ -53,7 +51,6 @@ export const beanStockEventApi = {
     },
 
     getAvailableStock: async (beanId: string): Promise<number> => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
         const { data, error } = await (supabase as any).rpc('get_bean_available_stock', { p_bean_id: beanId });
         if (error) throw error;
@@ -62,7 +59,7 @@ export const beanStockEventApi = {
 
     getReservedStock: async (beanId: string, horizonDays?: number): Promise<number> => {
         const horizon = horizonDays ?? (await inventoryStore.getHorizonDays());
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
         const { data, error } = await (supabase as any).rpc('get_bean_reserved_stock', {
             p_bean_id: beanId,
@@ -74,7 +71,7 @@ export const beanStockEventApi = {
 
     getStockSummary: async (beanId: string, horizonDays?: number): Promise<StockSummary> => {
         const horizon = horizonDays ?? (await inventoryStore.getHorizonDays());
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
         const { data, error } = await (supabase as any).rpc('get_bean_stock_summary', {
             p_bean_id: beanId,
@@ -86,7 +83,7 @@ export const beanStockEventApi = {
 
     getStockSummariesByUser: async (userId: string, horizonDays?: number): Promise<Record<string, StockSummary>> => {
         const horizon = horizonDays ?? (await inventoryStore.getHorizonDays());
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
         const { data, error } = await (supabase as any).rpc('get_user_stock_summaries', {
             p_user_id: userId,
@@ -98,7 +95,7 @@ export const beanStockEventApi = {
 
     computeInventoryAlerts: async (userId: string, horizonDays?: number): Promise<void> => {
         const horizon = horizonDays ?? (await inventoryStore.getHorizonDays());
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
         const { error } = await (supabase as any).rpc('compute_inventory_alerts', {
             p_user_id: userId,

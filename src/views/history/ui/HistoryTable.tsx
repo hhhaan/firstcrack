@@ -263,14 +263,14 @@ export const HistoryTable = ({
                             return (
                                 <th
                                     key={col.key || `col-${colIdx}`}
-                                    onClick={() => col.sortable && col.key && onSort(col.key as SortKey)}
+                                    onClick={() => col.sortable && col.key && onSort(col.key)}
                                     className={`px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[0.5px] text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'}`}
                                     style={{ width: col.width }}
                                 >
                                     <span className="flex items-center gap-1 whitespace-nowrap">
                                         {colLabel(col.key || col.label)}
                                         {col.sortable && col.key && (
-                                            <SortIcon col={col.key as SortKey} sortKey={sortKey} sortAsc={sortAsc} />
+                                            <SortIcon col={col.key} sortKey={sortKey} sortAsc={sortAsc} />
                                         )}
                                     </span>
                                 </th>
@@ -385,7 +385,7 @@ export const HistoryTable = ({
                     {Array.from({ length: totalPages }, (_, i) => i + 1)
                         .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
                         .reduce<(number | '…')[]>((acc, p, i, arr) => {
-                            if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('…');
+                            if (i > 0 && p - arr[i - 1] > 1) acc.push('…');
                             acc.push(p);
                             return acc;
                         }, [])
@@ -398,7 +398,7 @@ export const HistoryTable = ({
                                 <button
                                     type="button"
                                     key={item}
-                                    onClick={() => onPageChange(item as number)}
+                                    onClick={() => onPageChange(item)}
                                     className={`h-6 min-w-6 rounded px-1.5 text-xs font-medium transition ${
                                         page === item
                                             ? 'bg-surface-warm-solid text-primary'
