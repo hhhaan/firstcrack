@@ -43,6 +43,24 @@ describe('planHasFeature bbp', () => {
     });
 });
 
+describe('roasted inventory / product stock gating', () => {
+    it('grants roastedInventory to Pro+ and above only', () => {
+        expect(planHasFeature('free', FEATURE.roastedInventory)).toBe(false);
+        expect(planHasFeature('pro', FEATURE.roastedInventory)).toBe(false);
+        expect(planHasFeature('pro_plus', FEATURE.roastedInventory)).toBe(true);
+        expect(planHasFeature('enterprise', FEATURE.roastedInventory)).toBe(true);
+        expect(planHasFeature('team', FEATURE.roastedInventory)).toBe(true);
+    });
+
+    it('grants productStock to Pro+ and above only', () => {
+        expect(planHasFeature('free', FEATURE.productStock)).toBe(false);
+        expect(planHasFeature('pro', FEATURE.productStock)).toBe(false);
+        expect(planHasFeature('pro_plus', FEATURE.productStock)).toBe(true);
+        expect(planHasFeature('enterprise', FEATURE.productStock)).toBe(true);
+        expect(planHasFeature('team', FEATURE.productStock)).toBe(true);
+    });
+});
+
 describe('resolveFeature', () => {
     it('uses plan matrix by default', () => {
         expect(resolveFeature(FEATURE.cupping, { plan: 'pro' })).toBe(true);

@@ -22,6 +22,9 @@ export function planHasFeature(plan: string, key: FeatureKey): boolean {
             return isPaidPlan(plan);
         case FEATURE.orderIntegration:
             return ORDER_INTEGRATION_PLANS.has(plan);
+        case FEATURE.roastedInventory:
+        case FEATURE.productStock:
+            return MULTI_MACHINE_PLANS.has(plan);
         default:
             return false;
     }

@@ -3,6 +3,8 @@ export const FEATURE = {
     cupping: 'cupping',
     orderIntegration: 'orderIntegration',
     bbp: 'bbp',
+    roastedInventory: 'roastedInventory',
+    productStock: 'productStock',
 } as const;
 
 export type FeatureKey = (typeof FEATURE)[keyof typeof FEATURE];
