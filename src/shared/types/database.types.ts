@@ -1580,6 +1580,67 @@ export type Database = {
                     },
                 ];
             };
+            roasted_stock_events: {
+                Row: {
+                    bean_id: string | null;
+                    blend_id: string | null;
+                    created_at: string;
+                    delta_grams: number;
+                    event_type: string;
+                    id: string;
+                    is_estimate: boolean;
+                    note: string | null;
+                    reference_id: string | null;
+                    user_id: string;
+                };
+                Insert: {
+                    bean_id?: string | null;
+                    blend_id?: string | null;
+                    created_at?: string;
+                    delta_grams: number;
+                    event_type: string;
+                    id?: string;
+                    is_estimate?: boolean;
+                    note?: string | null;
+                    reference_id?: string | null;
+                    user_id: string;
+                };
+                Update: {
+                    bean_id?: string | null;
+                    blend_id?: string | null;
+                    created_at?: string;
+                    delta_grams?: number;
+                    event_type?: string;
+                    id?: string;
+                    is_estimate?: boolean;
+                    note?: string | null;
+                    reference_id?: string | null;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'roasted_stock_events_bean_id_fkey';
+                        columns: ['bean_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'beans';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roasted_stock_events_blend_id_fkey';
+                        columns: ['blend_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'blends';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roasted_stock_events_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             sales_channel_connections: {
                 Row: {
                     auto_fulfill_on_shipped: boolean;
@@ -1888,6 +1949,7 @@ export type Database = {
             };
             get_roasting_requirements: { Args: { p_user_id: string }; Returns: Json };
             get_user_product_stock: { Args: { p_user_id: string }; Returns: Json };
+            get_user_roasted_stock: { Args: { p_user_id: string }; Returns: Json };
             get_user_stock_summaries: {
                 Args: { p_horizon_days?: number; p_user_id: string };
                 Returns: Json;
@@ -1897,8 +1959,23 @@ export type Database = {
                 Args: { p_events: Json };
                 Returns: undefined;
             };
+            insert_roasted_stock_events_batch: {
+                Args: { p_events: Json };
+                Returns: undefined;
+            };
             insert_stock_events_batch: {
                 Args: { p_events: Json };
+                Returns: undefined;
+            };
+            upsert_roasted_inbound: {
+                Args: {
+                    p_bean_id: string | null;
+                    p_blend_id: string | null;
+                    p_grams: number;
+                    p_is_estimate: boolean;
+                    p_session_id: string;
+                    p_user_id: string;
+                };
                 Returns: undefined;
             };
             is_org_member_or_owner: { Args: { p_org_id: string }; Returns: boolean };
