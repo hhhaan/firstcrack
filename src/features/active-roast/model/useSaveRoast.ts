@@ -100,6 +100,9 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                 bean_id: resolvedBeanId,
                 profile_id: payloadParams.targetProfileId,
                 tsv_path: null,
+                bbp_tsv_path: null,
+                bbp_seconds: null,
+                charge_temp_celsius: null,
                 plan_batch_id: payloadParams.planBatchHandoff?.planBatchId ?? null,
                 events: serializeRoastEvents(payloadParams.logEntries) as Json,
             };

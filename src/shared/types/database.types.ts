@@ -647,6 +647,50 @@ export type Database = {
                     },
                 ];
             };
+            order_sync_runs: {
+                Row: {
+                    connection_id: string | null;
+                    error_message: string | null;
+                    finished_at: string | null;
+                    id: string;
+                    orders_upserted: number;
+                    started_at: string;
+                    status: string;
+                    trigger: string;
+                    user_id: string | null;
+                };
+                Insert: {
+                    connection_id?: string | null;
+                    error_message?: string | null;
+                    finished_at?: string | null;
+                    id?: string;
+                    orders_upserted?: number;
+                    started_at?: string;
+                    status?: string;
+                    trigger?: string;
+                    user_id?: string | null;
+                };
+                Update: {
+                    connection_id?: string | null;
+                    error_message?: string | null;
+                    finished_at?: string | null;
+                    id?: string;
+                    orders_upserted?: number;
+                    started_at?: string;
+                    status?: string;
+                    trigger?: string;
+                    user_id?: string | null;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'order_sync_runs_connection_id_fkey';
+                        columns: ['connection_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'sales_channel_connections';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             orders: {
                 Row: {
                     buyer_name: string | null;
@@ -699,7 +743,15 @@ export type Database = {
                     updated_at?: string;
                     user_id?: string;
                 };
-                Relationships: [];
+                Relationships: [
+                    {
+                        foreignKeyName: 'orders_connection_id_fkey';
+                        columns: ['connection_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'sales_channel_connections';
+                        referencedColumns: ['id'];
+                    },
+                ];
             };
             polar_coupons: {
                 Row: {
@@ -1262,7 +1314,10 @@ export type Database = {
                 Row: {
                     ambient_humidity_pct: number | null;
                     ambient_temp_celsius: number | null;
+                    bbp_seconds: number | null;
+                    bbp_tsv_path: string | null;
                     bean_id: string | null;
+                    charge_temp_celsius: number | null;
                     created_at: string;
                     drop_temp_celsius: number | null;
                     duration_seconds: number | null;
@@ -1283,7 +1338,10 @@ export type Database = {
                 Insert: {
                     ambient_humidity_pct?: number | null;
                     ambient_temp_celsius?: number | null;
+                    bbp_seconds?: number | null;
+                    bbp_tsv_path?: string | null;
                     bean_id?: string | null;
+                    charge_temp_celsius?: number | null;
                     created_at?: string;
                     drop_temp_celsius?: number | null;
                     duration_seconds?: number | null;
@@ -1304,7 +1362,10 @@ export type Database = {
                 Update: {
                     ambient_humidity_pct?: number | null;
                     ambient_temp_celsius?: number | null;
+                    bbp_seconds?: number | null;
+                    bbp_tsv_path?: string | null;
                     bean_id?: string | null;
+                    charge_temp_celsius?: number | null;
                     created_at?: string;
                     drop_temp_celsius?: number | null;
                     duration_seconds?: number | null;
@@ -1349,6 +1410,83 @@ export type Database = {
                         columns: ['user_id'];
                         isOneToOne: false;
                         referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            sales_channel_connections: {
+                Row: {
+                    auto_fulfill_on_shipped: boolean;
+                    consecutive_failures: number;
+                    created_at: string;
+                    display_name: string | null;
+                    id: string;
+                    last_error: string | null;
+                    last_polled_at: string | null;
+                    platform: string;
+                    poll_cursor: Json | null;
+                    shop_identifier: string;
+                    status: string;
+                    updated_at: string;
+                    user_id: string;
+                    webhook_registered: boolean;
+                };
+                Insert: {
+                    auto_fulfill_on_shipped?: boolean;
+                    consecutive_failures?: number;
+                    created_at?: string;
+                    display_name?: string | null;
+                    id?: string;
+                    last_error?: string | null;
+                    last_polled_at?: string | null;
+                    platform: string;
+                    poll_cursor?: Json | null;
+                    shop_identifier: string;
+                    status?: string;
+                    updated_at?: string;
+                    user_id: string;
+                    webhook_registered?: boolean;
+                };
+                Update: {
+                    auto_fulfill_on_shipped?: boolean;
+                    consecutive_failures?: number;
+                    created_at?: string;
+                    display_name?: string | null;
+                    id?: string;
+                    last_error?: string | null;
+                    last_polled_at?: string | null;
+                    platform?: string;
+                    poll_cursor?: Json | null;
+                    shop_identifier?: string;
+                    status?: string;
+                    updated_at?: string;
+                    user_id?: string;
+                    webhook_registered?: boolean;
+                };
+                Relationships: [];
+            };
+            sales_channel_secrets: {
+                Row: {
+                    connection_id: string;
+                    credentials: Json;
+                    updated_at: string;
+                };
+                Insert: {
+                    connection_id: string;
+                    credentials: Json;
+                    updated_at?: string;
+                };
+                Update: {
+                    connection_id?: string;
+                    credentials?: Json;
+                    updated_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'sales_channel_secrets_connection_id_fkey';
+                        columns: ['connection_id'];
+                        isOneToOne: true;
+                        referencedRelation: 'sales_channel_connections';
                         referencedColumns: ['id'];
                     },
                 ];
