@@ -238,6 +238,7 @@
                 "label": "팀",
                 "title": "팀 워크스페이스",
                 "description": "팀원을 초대하고 이 로스터리 워크스페이스 접근 권한을 관리합니다.",
+                "ownOrgNote": "팀 설정은 사이드바에서 선택한 워크스페이스가 아니라 항상 내 조직을 관리합니다.",
                 "membersTitle": "멤버",
                 "membersDescription": "좌석 {{count}} / {{limit}} 사용 중",
                 "noMembers": "조직이 없습니다. 초대를 만들어 팀을 시작하세요.",

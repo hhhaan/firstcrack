@@ -14,11 +14,11 @@ export interface FinishedGoodsInbound {
 /** Log roasted bags into finished-goods stock (+roast_inbound). */
 export const useAddFinishedGoods = () => {
     const qc = useQueryClient();
-    const { workspaceOwnerId } = useActiveWorkspace();
+    const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
 
     return useMutation({
         mutationFn: async ({ productId, units, referenceId, note }: FinishedGoodsInbound) => {
-            if (!workspaceOwnerId) throw new Error('로그인이 필요합니다.');
+            if (!isWorkspaceReady || !workspaceOwnerId) throw new Error('로그인이 필요합니다.');
             if (units <= 0) throw new Error('입고 수량은 1개 이상이어야 합니다.');
 
             await productStockEventApi.insertMany([
@@ -31,11 +31,11 @@ export const useAddFinishedGoods = () => {
                     note,
                 },
             ]);
+            return workspaceOwnerId;
         },
-        onSuccess: () => {
-            if (!workspaceOwnerId) return;
-            qc.invalidateQueries({ queryKey: productStockKeys.byUser(workspaceOwnerId) });
-            qc.invalidateQueries({ queryKey: orderKeys.requirements(workspaceOwnerId) });
+        onSuccess: (ownerId) => {
+            qc.invalidateQueries({ queryKey: productStockKeys.byUser(ownerId) });
+            qc.invalidateQueries({ queryKey: orderKeys.requirements(ownerId) });
         },
     });
 };

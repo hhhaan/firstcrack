@@ -1,31 +1,14 @@
+import type { Database } from '@shared/types/database.types';
+
 export type OrgRole = 'owner' | 'member';
 
-export type Organization = {
-    id: string;
-    owner_id: string;
-    name: string;
-    seat_limit: number;
-    created_at: string;
-};
+export type Organization = Database['public']['Tables']['organizations']['Row'];
+export type OrganizationInvite = Database['public']['Tables']['organization_invites']['Row'];
 
-export type OrganizationMember = {
-    org_id: string;
-    user_id: string;
+export type OrganizationMember = Database['public']['Tables']['organization_members']['Row'] & {
     role: OrgRole;
-    created_at: string;
     display_name?: string | null;
     business_name?: string | null;
-};
-
-export type OrganizationInvite = {
-    id: string;
-    org_id: string;
-    token: string;
-    expires_at: string;
-    accepted_by: string | null;
-    accepted_at: string | null;
-    revoked_at: string | null;
-    created_at: string;
 };
 
 export type OrgMembership = {

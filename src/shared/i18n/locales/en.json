@@ -238,6 +238,7 @@
                 "label": "Team",
                 "title": "Team workspace",
                 "description": "Invite teammates and manage who can access this roastery workspace.",
+                "ownOrgNote": "Team settings always manage your own organization, not the workspace currently selected in the sidebar.",
                 "membersTitle": "Members",
                 "membersDescription": "{{count}} / {{limit}} seats used",
                 "noMembers": "No organization yet. Create an invite to start a team.",

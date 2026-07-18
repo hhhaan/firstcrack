@@ -1834,6 +1834,9 @@ export type Database = {
                 Args: { p_member_id: string; p_org_id: string };
                 Returns: undefined;
             };
+            revoke_org_invite: { Args: { p_invite_id: string }; Returns: undefined };
+            is_org_owner: { Args: { p_org_id: string }; Returns: boolean };
+            is_org_member_or_owner: { Args: { p_org_id: string }; Returns: boolean };
         };
         Enums: {
             [_ in never]: never;

@@ -1,5 +1,5 @@
-import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
-import { isValidSessionId, presignUploadUrl } from '../_shared/r2.ts';
+import { corsHeaders, createUserClient, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
+import { isValidSessionId, isValidUserId, presignUploadUrl } from '../_shared/r2.ts';
 
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
-    let body: { sessionId?: string; kind?: string };
+    let body: { sessionId?: string; kind?: string; ownerUserId?: string };
     try {
         body = await req.json();
     } catch {
@@ -33,8 +33,23 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Invalid kind' }, 400);
     }
 
+    const ownerUserId = (body.ownerUserId?.trim() || user.id);
+    if (!isValidUserId(ownerUserId)) {
+        return jsonResponse({ error: 'Invalid ownerUserId' }, 400);
+    }
+
+    if (ownerUserId !== user.id) {
+        const supabase = createUserClient(req);
+        const { data: allowed, error } = await supabase.rpc('has_workspace_access', {
+            target_owner: ownerUserId,
+        });
+        if (error || !allowed) {
+            return jsonResponse({ error: 'Forbidden' }, 403);
+        }
+    }
+
     try {
-        const url = await presignUploadUrl(user.id, sessionId, kind);
+        const url = await presignUploadUrl(ownerUserId, sessionId, kind);
         return jsonResponse({ url });
     } catch (err) {
         console.error('[get-upload-url]', err);

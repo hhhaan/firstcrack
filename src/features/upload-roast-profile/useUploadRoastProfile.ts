@@ -25,21 +25,22 @@ const shouldRetry = (failureCount: number, error: unknown): boolean => {
  * Failure leaves local TSV so the curve is not destroyed.
  */
 export const useUploadRoastProfile = () => {
-    const { workspaceOwnerId } = useActiveWorkspace();
+    const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const qc = useQueryClient();
 
     return useMutation({
         mutationFn: async ({ sessionId, roastSessionId }: SyncRoastCurveInput): Promise<string> => {
-            if (!workspaceOwnerId) throw new Error('Not authenticated');
+            if (!isWorkspaceReady || !workspaceOwnerId) throw new Error('Not authenticated');
+            const ownerId = workspaceOwnerId;
             await flushTsv(sessionId);
-            const key = await uploadRoastProfile(sessionId, workspaceOwnerId);
+            const key = await uploadRoastProfile(sessionId, ownerId);
             if (!key) throw new Error('Local TSV missing or empty upload key');
             await roastSessionApi.update({ id: roastSessionId, tsv_path: key });
             await deleteSessionTsv(sessionId);
 
             // BBP 커브는 보조 데이터 — 실패해도 메인 동기화는 성공 처리, 로컬 파일 보존
             try {
-                const bbpKey = await uploadBbpProfile(sessionId, workspaceOwnerId);
+                const bbpKey = await uploadBbpProfile(sessionId, ownerId);
                 if (bbpKey) {
                     await roastSessionApi.update({ id: roastSessionId, bbp_tsv_path: bbpKey });
                     await deleteBbpTsv(sessionId);

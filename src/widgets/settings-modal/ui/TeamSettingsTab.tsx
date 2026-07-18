@@ -1,6 +1,5 @@
-import { useMyOrganization, useRevokeOrgInvite } from '@entities/organization';
+import { useActiveWorkspace, useMyOrganization, useRevokeOrgInvite } from '@entities/organization';
 import { useCreateInvite, useRedeemInvite, useRemoveMember } from '@features/team-invite';
-import { useAuthStore } from '@shared/store/auth';
 import { SectionCard } from '@shared/ui/SectionCard';
 import { Check, Copy, Trash2, UserMinus, Users } from 'lucide-react';
 import { useState } from 'react';
@@ -15,7 +14,10 @@ const primaryBtnCls =
 
 export function TeamSettingsTab() {
     const { t } = useTranslation();
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    // Team management is always for the authenticated user's own org (invites/members),
+    // not the currently selected foreign workspace.
+    const { authUserId, isForeignWorkspace } = useActiveWorkspace();
+    const userId = authUserId;
     const { data: org, isLoading } = useMyOrganization(userId);
     const { create, isPending: creating } = useCreateInvite();
     const { redeem, isPending: redeeming } = useRedeemInvite();
@@ -32,6 +34,10 @@ export function TeamSettingsTab() {
         (i) => !i.accepted_at && !i.revoked_at && new Date(i.expires_at) > new Date(),
     );
     const members = org?.members ?? [];
+    const seatsUsed = members.length + activeInvites.length;
+    const seatLimit = org?.seat_limit ?? 1;
+    const seatsFull = seatsUsed >= seatLimit;
+    const iAmOrgOwner = !org || org.owner_id === userId;
 
     const handleCreate = async () => {
         setErrorKey(null);
@@ -91,6 +97,11 @@ export function TeamSettingsTab() {
 
     return (
         <div className="grid gap-4">
+            {isForeignWorkspace && (
+                <div className="text-[13px] px-3 py-2 rounded-lg bg-[#F3F4F6] dark:bg-[#262b31] text-[#6B7280] dark:text-[#999]">
+                    {t('settings.tabs.team.ownOrgNote')}
+                </div>
+            )}
             {(errMsg || okMsg) && (
                 <div
                     className={`text-[13px] px-3 py-2 rounded-lg ${
@@ -122,7 +133,6 @@ export function TeamSettingsTab() {
                     {members.map((m) => {
                         const label = m.display_name || m.business_name || m.user_id.slice(0, 8);
                         const isSelf = m.user_id === userId;
-                        const iAmOrgOwner = org?.owner_id === userId;
                         const canRemove = m.role !== 'owner' && (iAmOrgOwner || isSelf);
                         return (
                             <SettingsOptionRow key={m.user_id} tone="muted">
@@ -161,12 +171,18 @@ export function TeamSettingsTab() {
                 <SectionCard.Body className="flex flex-col gap-3">
                     <button
                         type="button"
-                        disabled={creating}
+                        disabled={creating || seatsFull}
                         onClick={() => void handleCreate()}
                         className={primaryBtnCls}
+                        title={seatsFull ? t('settings.tabs.team.errors.seat_limit') : undefined}
                     >
                         {creating ? t('common.loading') : t('settings.tabs.team.createInvite')}
                     </button>
+                    {seatsFull && (
+                        <p className="text-[12px] text-[#6B7280] dark:text-[#999] m-0">
+                            {t('settings.tabs.team.errors.seat_limit')}
+                        </p>
+                    )}
                     {lastToken && (
                         <SettingsOptionRow tone="muted">
                             <div className="flex items-center gap-2 w-full min-w-0">

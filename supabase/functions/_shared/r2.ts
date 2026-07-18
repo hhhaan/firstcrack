@@ -7,6 +7,9 @@ const PROFILE_KEY_RE = /^profiles\/[0-9a-f-]{36}\/[0-9a-f-]{36}(\.bbp)?\.tsv$/;
 export const isValidSessionId = (sessionId: string): boolean =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId);
 
+export const isValidUserId = (userId: string): boolean =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+
 export const profileKeyForUser = (userId: string, sessionId: string): string =>
     `profiles/${userId}/${sessionId}.tsv`;
 

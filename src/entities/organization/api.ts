@@ -95,6 +95,8 @@ export const organizationApi = {
         if (oErr) throw oErr;
 
         const ownerIds = [...new Set((orgs ?? []).map((o) => o.owner_id as string))];
+        if (ownerIds.length === 0) return [];
+
         const { data: profiles, error: pErr } = await supabase
             .from('profiles')
             .select('id, display_name, business_name')
@@ -148,10 +150,9 @@ export const organizationApi = {
     },
 
     revokeInvite: async (inviteId: string): Promise<void> => {
-        const { error } = await supabase
-            .from('organization_invites')
-            .update({ revoked_at: new Date().toISOString() })
-            .eq('id', inviteId);
+        const { error } = await supabase.rpc('revoke_org_invite', {
+            p_invite_id: inviteId,
+        });
         if (error) throw error;
     },
 };

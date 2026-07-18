@@ -6,15 +6,18 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 /** Fulfill an order via the atomic `fulfill_order` RPC (deduct stock + stamp fulfilled_at). */
 export const useFulfillOrder = () => {
     const qc = useQueryClient();
-    const { workspaceOwnerId } = useActiveWorkspace();
+    const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
 
     return useMutation({
-        mutationFn: (orderId: string) => orderApi.fulfill(orderId),
-        onSuccess: () => {
-            if (!workspaceOwnerId) return;
-            qc.invalidateQueries({ queryKey: orderKeys.all(workspaceOwnerId) });
-            qc.invalidateQueries({ queryKey: orderKeys.requirements(workspaceOwnerId) });
-            qc.invalidateQueries({ queryKey: productStockKeys.byUser(workspaceOwnerId) });
+        mutationFn: async (orderId: string) => {
+            if (!isWorkspaceReady || !workspaceOwnerId) throw new Error('Workspace is still loading');
+            await orderApi.fulfill(orderId);
+            return workspaceOwnerId;
+        },
+        onSuccess: (ownerId) => {
+            qc.invalidateQueries({ queryKey: orderKeys.all(ownerId) });
+            qc.invalidateQueries({ queryKey: orderKeys.requirements(ownerId) });
+            qc.invalidateQueries({ queryKey: productStockKeys.byUser(ownerId) });
         },
     });
 };

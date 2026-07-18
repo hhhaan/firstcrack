@@ -55,13 +55,13 @@ export async function deductRoastStock(
 
 export const useDeductRoastStock = () => {
     const qc = useQueryClient();
-    const { workspaceOwnerId } = useActiveWorkspace();
+    const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
 
     return useCallback(
         async (params: DeductRoastStockParams) => {
-            if (!workspaceOwnerId) return;
+            if (!isWorkspaceReady || !workspaceOwnerId) return;
             await deductRoastStock({ userId: workspaceOwnerId, qc }, params);
         },
-        [workspaceOwnerId, qc],
+        [workspaceOwnerId, isWorkspaceReady, qc],
     );
 };

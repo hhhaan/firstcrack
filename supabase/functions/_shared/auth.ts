@@ -11,15 +11,20 @@ export const jsonResponse = (body: unknown, status = 200): Response =>
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-export const getAuthenticatedUser = async (req: Request) => {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return null;
-
-    const supabase = createClient(
+export const createUserClient = (req: Request) => {
+    const authHeader = req.headers.get('Authorization') ?? '';
+    return createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_ANON_KEY') ?? '',
         { global: { headers: { Authorization: authHeader } } },
     );
+};
+
+export const getAuthenticatedUser = async (req: Request) => {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) return null;
+
+    const supabase = createUserClient(req);
 
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) return null;

@@ -48,7 +48,7 @@ export interface SaveRoastResult {
 export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
     const user = useAuthStore((s) => s.user);
     const plan = useAuthStore((s) => s.plan);
-    const { workspaceOwnerId } = useActiveWorkspace();
+    const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const userId = workspaceOwnerId;
     const qc = useQueryClient();
 
@@ -61,6 +61,9 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
         async (params: SaveRoastParams): Promise<SaveRoastResult> => {
             if (!user) {
                 throw new Error('Not authenticated');
+            }
+            if (!isWorkspaceReady || !userId) {
+                throw new Error('Workspace is still loading');
             }
 
             const monthCap = planMaxBatchesPerMonth(plan);
@@ -156,6 +159,8 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
         },
         [
             user,
+            userId,
+            isWorkspaceReady,
             plan,
             qc,
             syncRoastCurve,

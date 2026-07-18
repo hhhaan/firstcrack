@@ -17,9 +17,13 @@ export const fetchTsvFromR2 = async (key: string): Promise<string> => {
     return res.text();
 };
 
-export const requestUploadUrl = async (sessionId: string, kind: 'profile' | 'bbp' = 'profile'): Promise<string> => {
+export const requestUploadUrl = async (
+    sessionId: string,
+    kind: 'profile' | 'bbp' = 'profile',
+    ownerUserId?: string,
+): Promise<string> => {
     const { data, error } = await supabase.functions.invoke<PresignedUrlResponse>('get-upload-url', {
-        body: { sessionId, kind },
+        body: { sessionId, kind, ownerUserId },
     });
     if (error) throw new Error(`Failed to get upload URL: ${error.message}`);
     if (!data?.url) throw new Error('Failed to get upload URL');

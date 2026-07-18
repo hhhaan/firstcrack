@@ -11,7 +11,7 @@ export const uploadRoastProfile = async (sessionId: string, userId: string): Pro
         return null;
     }
 
-    const uploadUrl = await requestUploadUrl(sessionId);
+    const uploadUrl = await requestUploadUrl(sessionId, 'profile', userId);
     const res = await fetch(uploadUrl, {
         method: 'PUT',
         body: tsvContent,
@@ -37,7 +37,7 @@ export const uploadBbpProfile = async (sessionId: string, userId: string): Promi
         return null;
     }
 
-    const uploadUrl = await requestUploadUrl(sessionId, 'bbp');
+    const uploadUrl = await requestUploadUrl(sessionId, 'bbp', userId);
     const res = await fetch(uploadUrl, {
         method: 'PUT',
         body: tsvContent,

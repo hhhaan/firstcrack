@@ -8,9 +8,8 @@ export const organizationKeys = {
     memberships: (userId: string) => [...organizationKeys.all, 'memberships', userId] as const,
 };
 
-export function invalidateOrganizationQueries(qc: ReturnType<typeof useQueryClient>, userId: string) {
-    void qc.invalidateQueries({ queryKey: organizationKeys.mine(userId) });
-    void qc.invalidateQueries({ queryKey: organizationKeys.memberships(userId) });
+export function invalidateOrganizationQueries(qc: ReturnType<typeof useQueryClient>, _userId?: string) {
+    // Prefix invalidation covers mine + memberships (and future org keys).
     void qc.invalidateQueries({ queryKey: organizationKeys.all });
 }
 

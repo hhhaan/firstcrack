@@ -238,6 +238,7 @@
                 "label": "团队",
                 "title": "团队工作区",
                 "description": "邀请队友并管理谁可以访问此烘焙工作室。",
+                "ownOrgNote": "团队设置始终管理你自己的组织，而不是侧边栏当前选中的工作区。",
                 "membersTitle": "成员",
                 "membersDescription": "已用席位 {{count}} / {{limit}}",
                 "noMembers": "尚无组织。生成邀请以开始组建团队。",
