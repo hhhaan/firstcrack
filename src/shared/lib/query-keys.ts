@@ -14,6 +14,7 @@ export const inventoryQueryRoots = {
     beanStockSummary: ['bean-stock-summary'] as const,
     beanStockEvents: ['bean-stock-events'] as const,
     inventoryAlerts: ['inventory-alerts'] as const,
+    roastedStock: ['roasted-stock'] as const,
 };
 
 /** Plan / schedule — used only via planKeys factories + invalidateScheduledBatchQueries */
