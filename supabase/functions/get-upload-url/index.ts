@@ -27,7 +27,11 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Invalid sessionId' }, 400);
     }
 
-    const kind = body.kind === 'bbp' ? 'bbp' : 'profile';
+    // 잘못된 kind를 profile로 흘리면 BBP 커브가 메인 프로파일 키를 덮어쓴다
+    const kind = body.kind ?? 'profile';
+    if (kind !== 'profile' && kind !== 'bbp') {
+        return jsonResponse({ error: 'Invalid kind' }, 400);
+    }
 
     try {
         const url = await presignUploadUrl(user.id, sessionId, kind);

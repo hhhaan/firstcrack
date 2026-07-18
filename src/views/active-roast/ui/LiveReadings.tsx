@@ -47,7 +47,7 @@ export const LiveReadings = ({
                         label: t('activeRoast.readings.phase'),
                         value: connected ? phase : '—',
                         color: connected ? phaseColor : 'var(--color-muted)',
-                        sub: connected && phase !== 'roasting' && bbpTimer ? `BBP ${bbpTimer}` : null,
+                        sub: connected && bbpTimer ? `BBP ${bbpTimer}` : null,
                     },
                 ].map(({ label, value, color, sub }) => (
                     <div

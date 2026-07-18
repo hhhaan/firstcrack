@@ -88,8 +88,10 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null) => {
                     ? new Date(payloadParams.roastStartTimeRef.current).toISOString()
                     : null;
 
-            // charge 시 확정된 BBP 요약 (없으면 null — 첫 배치/만료/무료 플랜)
-            const bbpSummary = useBbpStore.getState().finalized;
+            // charge 시 확정된 BBP 요약 (없으면 null — 첫 배치/만료/무료 플랜).
+            // 이 세션 것이 맞을 때만 사용 — 다른 배치 요약이 붙는 것을 막는다.
+            const pendingBbp = useBbpStore.getState().finalized;
+            const bbpSummary = pendingBbp?.sessionId === sessionId ? pendingBbp : null;
 
             const payload: RoastSessionInsert = {
                 user_id: userId,

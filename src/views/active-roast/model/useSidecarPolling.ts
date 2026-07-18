@@ -85,8 +85,10 @@ export const useSidecarPolling = ({
         if (prevPhaseRef.current !== 'roasting' && phase === 'roasting') {
             const chargeTime = roastStartTimeRef.current;
             // BBP 확정: 요약은 스토어(finalized)에 남고 커브는 로컬 TSV로 — 저장 시 업로드
-            const bbpResult = useBbpStore.getState().finalize(chargeTime || Date.now());
             const bbpSessionId = useRoastingStore.getState().sessionId;
+            const bbpResult = bbpSessionId
+                ? useBbpStore.getState().finalize(chargeTime || Date.now(), bbpSessionId)
+                : null;
             if (bbpResult && bbpSessionId) {
                 void writeBbpTsv(bbpSessionId, bbpResult.tsv).catch((err) => {
                     logger.capture(err instanceof Error ? err : new Error(String(err)), {

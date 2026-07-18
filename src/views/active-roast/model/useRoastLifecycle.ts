@@ -139,7 +139,9 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             logEntries: completedLogEntries,
         };
         storeEndRoast();
-        // BBP: 드롭 시점부터 다음 charge까지 배치간 기록 시작 (Pro 전용 — 유일한 게이팅 지점)
+        // BBP: 드롭 시점부터 다음 charge까지 배치간 기록 시작 (Pro 전용 — 유일한 게이팅 지점).
+        // ponytail: 기준점은 Drop 로그 시각이 아니라 종료 확정 시각 — 그 사이 phase가 'roasting'이라
+        // 어차피 커브가 안 쌓인다. 확정을 늦게 누르면 bbp_seconds가 그만큼 짧게 잡힌다.
         if (bbpEnabled) useBbpStore.getState().begin(Date.now());
         setIsRunning(false);
         return summaryData;
