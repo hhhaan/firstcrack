@@ -412,7 +412,14 @@
                 "cancel": "Cancel",
                 "save": "Save",
                 "add": "Add"
-            }
+            },
+            "componentCount_one": "{{count}} bean",
+            "componentCount_other": "{{count}} beans",
+            "totalRatioLabel": "Total Ratio",
+            "limitingBeanLabel": "Limiting Bean",
+            "composition": "Composition",
+            "effectiveStock": "Effective {{kg}}kg",
+            "description": "Description"
         }
     },
     "activeRoast": {

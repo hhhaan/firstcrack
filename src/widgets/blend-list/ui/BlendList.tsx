@@ -15,7 +15,7 @@ interface BlendListProps {
 
 export const BlendList = ({ hasBeans, onAddOpen, onNeedBeans, onEditOpen }: BlendListProps) => {
     const { t } = useTranslation();
-    const { blends, isLoading, selected, setSelectedId, roastableByBlendId, roastable, handleDelete } =
+    const { blends, isLoading, selected, setSelectedId, roastableByBlendId, roastable, stockSummaries, handleDelete } =
         useBlendListState();
 
     const leftPanel = (
@@ -49,6 +49,7 @@ export const BlendList = ({ hasBeans, onAddOpen, onNeedBeans, onEditOpen }: Blen
                             <BlendDetail
                                 blend={selected}
                                 roastable={roastable}
+                                stockSummaries={stockSummaries}
                                 onEdit={onEditOpen}
                                 onDelete={handleDelete}
                             />

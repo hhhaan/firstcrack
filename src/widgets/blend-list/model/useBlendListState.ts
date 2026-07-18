@@ -47,6 +47,7 @@ export const useBlendListState = () => {
         editing,
         roastableByBlendId,
         roastable,
+        stockSummaries,
         openCreate,
         openEdit,
         closeModal,

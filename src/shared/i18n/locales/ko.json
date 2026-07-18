@@ -668,7 +668,14 @@
                 "cancel": "취소",
                 "save": "저장",
                 "add": "추가"
-            }
+            },
+            "componentCount_one": "생두 {{count}}종",
+            "componentCount_other": "생두 {{count}}종",
+            "totalRatioLabel": "비율 합계",
+            "limitingBeanLabel": "제한 생두",
+            "composition": "구성 비율",
+            "effectiveStock": "가용 {{kg}}kg",
+            "description": "설명"
         }
     },
     "activeRoast": {

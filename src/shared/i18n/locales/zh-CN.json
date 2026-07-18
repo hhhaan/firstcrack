@@ -412,7 +412,14 @@
                 "cancel": "取消",
                 "save": "保存",
                 "add": "添加"
-            }
+            },
+            "componentCount_one": "{{count}}支生豆",
+            "componentCount_other": "{{count}}支生豆",
+            "totalRatioLabel": "比例合计",
+            "limitingBeanLabel": "最短缺生豆",
+            "composition": "构成比例",
+            "effectiveStock": "可用 {{kg}}kg",
+            "description": "说明"
         }
     },
     "activeRoast": {

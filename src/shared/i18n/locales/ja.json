@@ -412,7 +412,14 @@
                 "cancel": "キャンセル",
                 "save": "保存",
                 "add": "追加"
-            }
+            },
+            "componentCount_one": "生豆 {{count}}種",
+            "componentCount_other": "生豆 {{count}}種",
+            "totalRatioLabel": "構成比率",
+            "limitingBeanLabel": "制限生豆",
+            "composition": "構成",
+            "effectiveStock": "利用可能 {{kg}}kg",
+            "description": "説明"
         }
     },
     "activeRoast": {
