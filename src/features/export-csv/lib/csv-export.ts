@@ -19,6 +19,7 @@ export interface CsvRow {
     inputKg: number;
     outputKg: number;
     lossRate: number;
+    lossBasis: string;
     roastLevel: string;
     dropTemp: string;
     duration: string;
@@ -34,6 +35,7 @@ const HEADERS: (keyof CsvRow)[] = [
     'inputKg',
     'outputKg',
     'lossRate',
+    'lossBasis',
     'roastLevel',
     'dropTemp',
     'duration',
@@ -45,10 +47,11 @@ const HEADER_LABELS: Record<keyof CsvRow, string> = {
     bean: 'Bean',
     origin: 'Origin',
     profile: 'Profile',
-    weightGrams: 'Weight (g)',
+    weightGrams: 'Green (g)',
     inputKg: 'Input (kg)',
     outputKg: 'Output (kg)',
     lossRate: 'Loss Rate (%)',
+    lossBasis: 'Loss Basis',
     roastLevel: 'Roast Level',
     dropTemp: 'Drop Temp (°C)',
     duration: 'Duration',
@@ -56,7 +59,11 @@ const HEADER_LABELS: Record<keyof CsvRow, string> = {
 };
 
 const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
-    const { outputKg, inputKg, lossRate } = computeRoastWeights(s.weight_grams);
+    const { outputKg, inputKg, lossRate, measured } = computeRoastWeights(
+        s.weight_grams,
+        s.output_weight_grams,
+        s.roast_level,
+    );
 
     return {
         date: s.roasted_at ? s.roasted_at.slice(0, 10) : '',
@@ -67,6 +74,7 @@ const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
         inputKg,
         outputKg,
         lossRate,
+        lossBasis: measured ? 'measured' : 'estimated',
         roastLevel: s.roast_level ?? '',
         dropTemp: s.drop_temp_celsius != null ? `${s.drop_temp_celsius}°C` : '',
         duration: s.duration_seconds != null ? formatDuration(s.duration_seconds) : '',

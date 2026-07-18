@@ -1487,6 +1487,7 @@ export type Database = {
                     events: Json;
                     id: string;
                     notes: string | null;
+                    output_weight_grams: number | null;
                     plan_batch_id: string | null;
                     profile_id: string | null;
                     roast_level: string | null;
@@ -1511,6 +1512,7 @@ export type Database = {
                     events?: Json;
                     id?: string;
                     notes?: string | null;
+                    output_weight_grams?: number | null;
                     plan_batch_id?: string | null;
                     profile_id?: string | null;
                     roast_level?: string | null;
@@ -1535,6 +1537,7 @@ export type Database = {
                     events?: Json;
                     id?: string;
                     notes?: string | null;
+                    output_weight_grams?: number | null;
                     plan_batch_id?: string | null;
                     profile_id?: string | null;
                     roast_level?: string | null;

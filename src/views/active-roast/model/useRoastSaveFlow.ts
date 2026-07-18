@@ -69,6 +69,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     formData: {
                         notes: formData.notes,
                         weightGrams: formData.weightGrams,
+                        outputWeightKg: formData.outputWeightKg,
                         roastLevel: formData.roastLevel,
                         beanId: formData.beanId,
                         linkedBatch,
