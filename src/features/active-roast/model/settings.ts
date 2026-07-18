@@ -38,6 +38,11 @@ export type RoastSettings = {
     fcStartTempC: number;
     autoChargeDropC: number;
     preChargeDisplaySec: number;
+    /** Live threshold alarms (RoR crash / BT ceiling). */
+    alertsEnabled: boolean;
+    alertSoundEnabled: boolean;
+    alertRorCrashCPerMin: number;
+    alertBtMaxC: number;
 };
 
 const DEFAULT_SETTINGS: RoastSettings = {
@@ -65,6 +70,10 @@ const DEFAULT_SETTINGS: RoastSettings = {
     fcStartTempC: 200,
     autoChargeDropC: 5,
     preChargeDisplaySec: 60,
+    alertsEnabled: true,
+    alertSoundEnabled: true,
+    alertRorCrashCPerMin: 0,
+    alertBtMaxC: 250,
 };
 
 const clampNum = (value: unknown, min: number, max: number, fallback: number) => {
@@ -104,6 +113,10 @@ const normalize = (raw: Partial<RoastSettings> | null | undefined): RoastSetting
         controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
         controlYMin,
         controlYMax,
+        alertsEnabled: asBool(merged.alertsEnabled, DEFAULT_SETTINGS.alertsEnabled),
+        alertSoundEnabled: asBool(merged.alertSoundEnabled, DEFAULT_SETTINGS.alertSoundEnabled),
+        alertRorCrashCPerMin: clampNum(merged.alertRorCrashCPerMin, -20, 20, DEFAULT_SETTINGS.alertRorCrashCPerMin),
+        alertBtMaxC: clampNum(merged.alertBtMaxC, 100, 400, DEFAULT_SETTINGS.alertBtMaxC),
     };
 };
 

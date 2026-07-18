@@ -12,6 +12,7 @@ import {
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
+import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { useWeather } from '@shared/api/weather';
@@ -238,16 +239,27 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         triggerChargeRef.current = triggerCharge;
     }, [resetAutoDetection, disableAutoCharge, triggerCharge]);
 
+    const activeAlerts = useRoastAlerts({
+        enabled: roastSettings.alertsEnabled,
+        soundEnabled: roastSettings.alertSoundEnabled,
+        rorCrashCPerMin: roastSettings.alertRorCrashCPerMin,
+        btMaxC: roastSettings.alertBtMaxC,
+        afterTurningPoint: turningPoints.length > 0,
+        logEntries,
+    });
+
     // ── Effect: rorSpanSec 변경 시 사이드카에 전달 ────────────────
     useEffect(() => {
         if (!sidecarConnected) return;
         sidecar.updateSettings({ ror_window_sec: roastSettings.rorSpanSec }).catch(() => {});
     }, [sidecarConnected, roastSettings.rorSpanSec]);
 
-    // ── Effect: 머신 disconnect 시 진행 중 로스트 초기화 ─────────
+    // ── Effect: 머신 disconnect 시 대기 상태만 초기화 ─────────────
+    // 로스팅 중(원두가 드럼 안) 끊김은 세션 보존 — 폴링이 계속 재시도하므로
+    // 재연결되면 커브가 이어진다(끊긴 구간만 갭). 헤더 배너가 끊김을 표시한다.
     useEffect(() => {
         if (sidecarConnected) return;
-        if (phase === 'idle' || phase === 'ended') return;
+        if (phase !== 'preheating' && phase !== 'standby') return;
         lifecycle.resetActiveRoast();
     }, [sidecarConnected, phase, lifecycle.resetActiveRoast]);
 
@@ -526,6 +538,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         deltaBT={deltaBT}
                         deltaET={deltaET}
                         targetDelta={targetDelta}
+                        activeAlerts={activeAlerts}
                         dtrPct={dtrPct}
                         devTimeStr={devTimeStr}
                         logEntries={logEntries}
