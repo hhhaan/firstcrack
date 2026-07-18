@@ -26,12 +26,12 @@
     "updater": {
         "checking": "Checking for update…",
         "downloading": "Downloading update…",
-        "ready": "New update (v{{version}}) restart",
+        "ready": "Update ready (v{{version}}) · Restart",
         "applying": "Restarting…",
         "checkError": "An error occurred while checking for updates.",
         "relaunchError": "Failed to restart.",
-        "loopGuardError": "The update was not applied. Please reinstall the app from the dmg or manually download the latest version.",
-        "sidecarDead": "Hardware connection service is not responding.",
+        "loopGuardError": "The update didn't apply. Reinstall from the installer or download the latest version.",
+        "sidecarDead": "Hardware connection service isn't responding.",
         "sidecarDeadRestart": "Please restart the app."
     },
     "sidebar": {
@@ -59,15 +59,15 @@
     "settings": {
         "title": "Workspace settings",
         "close": "Close settings",
-        "whyTitle": "Why this is in settings",
-        "whyDescription": "These controls affect the whole application experience. Dedicated operational data should stay in the main sidebar views so the settings area remains lightweight.",
+        "whyTitle": "About these settings",
+        "whyDescription": "These options apply across the whole app. Day-to-day work—beans, machines, schedules—stays in the sidebar.",
         "tabs": {
             "general": {
                 "label": "General",
                 "title": "Workspace preferences",
-                "description": "Control the app-wide defaults that shape how the roastery workspace feels day to day.",
+                "description": "Set default views and units used across the app.",
                 "interfaceTitle": "Interface",
-                "interfaceDescription": "Lightweight preferences that apply across the whole app.",
+                "interfaceDescription": "Theme, language, and other display options.",
                 "theme": "Appearance",
                 "themeDescription": "Choose how the app looks. System follows your OS setting.",
                 "themeLight": "Light",
@@ -107,7 +107,7 @@
                 "title": "Roast session behavior",
                 "description": "Set the small workflow defaults that affect each roast session from start to finish.",
                 "startTitle": "Session start",
-                "startDescription": "Automations that help the operator begin quickly.",
+                "startDescription": "Help you start a roast faster.",
                 "autoStartTimer": "Auto-start roast timer",
                 "openActiveRoast": "Open active roast view immediately",
                 "confirmBeforeStart": "Confirm before starting session",
@@ -120,9 +120,9 @@
             "system": {
                 "label": "System",
                 "title": "System and data",
-                "description": "A home for global app actions, local data health, and export-related controls.",
+                "description": "Export, backup, connection health, and other system options.",
                 "dataTitle": "Data controls",
-                "dataDescription": "Workspace-level actions that do not belong to beans, machines, or profiles directly.",
+                "dataDescription": "Workspace actions that sit outside beans, machines, and profiles.",
                 "exportWorkspace": "Export current workspace data",
                 "backupSnapshot": "Create local backup snapshot",
                 "preserveLogs": "Preserve activity logs",
@@ -135,7 +135,7 @@
             "roast": {
                 "label": "Roast",
                 "title": "Roast Settings",
-                "description": "Customize update rate, RoR calculation, and data visibility during an active roasting session.",
+                "description": "Set update rate, RoR calculation, and chart data during a live roast.",
                 "temperatureUnit": "Temperature Unit",
                 "temperatureUnitDescription": "Display temperatures in Celsius or Fahrenheit.",
                 "updateRate": "Update Rate",
@@ -216,7 +216,7 @@
                 "inviteMembers": "Invite members",
                 "comingSoon": "Coming soon",
                 "session": "Session",
-                "sessionDescription": "Sign out of your account on this device.",
+                "sessionDescription": "Sign out on this device.",
                 "signOut": "Sign out"
             },
             "billing": {
@@ -275,7 +275,7 @@
                 "title": "Software Info",
                 "description": "View the current app version and software details.",
                 "version": "App Version",
-                "versionDescription": "The currently installed version of the application."
+                "versionDescription": "Currently installed app version."
             },
             "support": {
                 "label": "Support",
@@ -301,7 +301,7 @@
         "connectedSuffix": "{{name}} connected",
         "noActiveConnection": "no active connection",
         "addMachine": "Add Machine",
-        "empty": "No machines registered yet",
+        "empty": "No machines yet",
         "addFirst": "Add your first machine",
         "searchPlaceholder": "Search machines...",
         "removeMachine": "Remove machine",
@@ -325,7 +325,7 @@
         }
     },
     "addMachine": {
-        "onboarding": "Machine onboarding",
+        "onboarding": "Add machine",
         "title": "Add a new machine",
         "editTitle": "Edit Machine Connection",
         "roasterModel": "Roaster Model",
@@ -358,7 +358,7 @@
         "saveOnly": "Save only",
         "saveAndConnect": "Save & Connect",
         "failedToSave": "Failed to save",
-        "phidgetDriverNotice": "This device requires the Phidget22 system driver separately.",
+        "phidgetDriverNotice": "This device needs the Phidget22 system driver installed separately.",
         "phidgetDriverLink": "Download Phidget22 driver"
     },
     "dashboard": {
@@ -370,7 +370,7 @@
         "viewActiveRoast": "View Active Roast",
         "kpi": {
             "batchesThisMonth": "Batches This Month",
-            "beansRoasted": "Beans Roasted",
+            "beansRoasted": "Beans roasted",
             "avgRoastTime": "Avg Roast Time",
             "successRate": "Success Rate",
             "coffeeFutures": "Coffee C (ICE)"
@@ -461,14 +461,14 @@
     },
     "activeRoast": {
         "header": {
-            "noBeanSelected": "No Bean Selected",
+            "noBeanSelected": "No bean selected",
             "target": "Target:",
             "noTarget": "No Target",
             "roastComplete": "Roast Complete",
             "disconnected": "Disconnected",
             "mockRoastInProgress": "Mock — Roast in Progress",
             "liveRoastInProgress": "Live — Roast in Progress",
-            "machineConnected": "Machine Connected · Ready to Roast",
+            "machineConnected": "Machine connected · Ready to roast",
             "settings": "Roast settings",
             "openSettings": "Open roast settings"
         },
@@ -607,8 +607,8 @@
             "roastInProgressMsg": "A roast is in progress. Are you sure you want to end it?",
             "end": "End",
             "cancel": "Cancel",
-            "machineRequiredTitle": "Machine Connection Required",
-            "machineRequiredMsg": "The machine is not connected.",
+            "machineRequiredTitle": "Connect a machine",
+            "machineRequiredMsg": "No machine is connected. Connect one and try again.",
             "saveFailedTitle": "Save Failed",
             "saveFailedMsg": "Failed to save the roast session.\n\n{{error}}"
         }
@@ -745,8 +745,8 @@
         "blendPlaceholder": "Select blend...",
         "blendComposition": "{{count}} beans",
         "blendShortage": "{{name}}: available {{effective}}g / needed {{needed}}g",
-        "targetRoasted": "Target Roasted (kg)",
-        "batchSize": "Batch Size (kg)",
+        "targetRoasted": "Target roasted (kg)",
+        "batchSize": "Batch size (kg)",
         "yield": "Yield (%)",
         "batches": "batches",
         "greenNeeded": "Green needed (kg)",
@@ -861,7 +861,7 @@
         },
         "delete": {
             "title": "Delete roast session?",
-            "description": "will be permanently deleted. This cannot be undone.",
+            "description": "{{name}} will be permanently deleted. This can't be undone.",
             "cancel": "Cancel",
             "confirm": "Delete"
         },
@@ -912,7 +912,7 @@
             "chargeTemp": "Charge Temperature",
             "devTime": "DT",
             "devPct": "DTR",
-            "targetLevel": "Target Level",
+            "targetLevel": "Target level",
             "duration": "Duration",
             "curveOverlay": "Curve Overlay",
             "selectToCompare": "Select profiles from the list to compare",
@@ -932,7 +932,7 @@
         "profileNamePlaceholder": "e.g. Light Floral",
         "description": "Description",
         "descriptionPlaceholder": "Short description…",
-        "targetLevel": "Target Roast Level",
+        "targetLevel": "Target roast level",
         "chargeTemp": "Charge Temp (°C)",
         "tempPlaceholder": "e.g. 200",
         "dropTemp": "Drop Temp (°C)",
@@ -955,7 +955,7 @@
         "drop": "Drop",
         "howToCreate": "How would you like to create the profile?",
         "manualInput": "Manual Input",
-        "manualInputDesc": "Set charge temp, drop temp, duration, etc. directly",
+        "manualInputDesc": "Enter charge temp, drop temp, duration, and more",
         "fromSessionOption": "From Roast History",
         "fromSessionDesc": "Auto-fill parameters from a past roast session",
         "roastLevel": {
@@ -973,7 +973,7 @@
     },
     "deleteBeanModal": {
         "title": "Delete bean?",
-        "description": "{{name}} will be permanently deleted. This cannot be undone.",
+        "description": "{{name}} will be permanently deleted. This can't be undone.",
         "blendWarning": "{{count}} blend(s) using this bean will also be deleted: {{names}}",
         "cancel": "Cancel",
         "confirm": "Delete"
@@ -1076,7 +1076,7 @@
         }
     },
     "pricing": {
-        "title": "Pricing",
+        "title": "Margin Calculator",
         "subtitle": "Calculate roasted cost and set selling price by margin",
         "source": {
             "title": "Source",
@@ -1157,8 +1157,8 @@
         "cancel": "Cancel",
         "back": "All sessions",
         "empty": {
-            "title": "No cupping sessions yet.",
-            "description": "Create a session, add any number of coffees as samples, then share one QR for the whole table."
+            "title": "No cupping sessions yet",
+            "description": "Create a session, add samples, then share one QR for the whole table."
         },
         "colTitle": "Session",
         "colDate": "Date",
@@ -1213,12 +1213,12 @@
     },
     "orders": {
         "title": "Orders",
-        "subtitle": "Collect store orders, see roasting needs, and manage finished-goods stock.",
+        "subtitle": "Pull store orders, see what to roast, and manage finished goods.",
         "loading": "Loading…",
         "locked": {
             "subtitle": "E-commerce order integration",
-            "title": "Available on the Enterprise plan",
-            "description": "Connect Naver SmartStore, Cafe24, and Shopify to pull orders, calculate roasting needs, and deduct finished-goods stock automatically.",
+            "title": "On the Enterprise plan",
+            "description": "Connect Naver SmartStore, Cafe24, and Shopify to pull orders, calculate roast demand, and auto-deduct finished goods.",
             "cta": "Upgrade plan"
         },
         "tab": {

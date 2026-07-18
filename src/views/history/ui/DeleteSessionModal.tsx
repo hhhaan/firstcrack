@@ -34,7 +34,7 @@ export const DeleteSessionModal = ({ open, sessionName, isLoading, onClose, onCo
                 {t('history.delete.title')}
             </h2>
             <p className="text-sm text-secondary leading-[1.6] mb-5.5">
-                <span className="font-medium text-primary">{sessionName}</span> {t('history.delete.description')}
+                {t('history.delete.description', { name: sessionName })}
             </p>
             <div className="grid grid-cols-2 gap-2">
                 <button
