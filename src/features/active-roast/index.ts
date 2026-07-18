@@ -20,6 +20,7 @@ export type {
 export { updateRoastSettings, useRoastSettings } from './model/settings';
 export type { RoastingState, RoastPhase } from './model/status';
 export { useRoastingStore } from './model/status';
+export { useBbpTimer } from './model/useBbpTimer';
 export type { DeductRoastStockParams } from './model/useDeductRoastStock';
 export { useDeductRoastStock } from './model/useDeductRoastStock';
 export { useRoastActions } from './model/useRoastActions';
