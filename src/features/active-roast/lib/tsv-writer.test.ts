@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
     _resetTsvWriterForTests,
+    bbpTsvPath,
+    deleteBbpTsv,
     deleteSessionTsv,
     enqueueTsvRow,
     flushTsv,
     initSessionTsv,
     sessionTsvPath,
     TSV_HEADER,
+    writeBbpTsv,
 } from './tsv-writer';
 
 describe('tsv-writer', () => {
@@ -128,5 +131,28 @@ describe('tsv-writer', () => {
         enqueueTsvRow('s1', '1\t2');
         await flushTsv('s1');
         expect(writes[writes.length - 1]?.contents).toBe('1\t2\n');
+    });
+
+    it('bbpTsvPath formats filename', () => {
+        expect(bbpTsvPath('abc')).toBe('bbp_abc.tsv');
+    });
+
+    it('writeBbpTsv writes full content without append', async () => {
+        await writeBbpTsv('abc', 'time\tbt\n1.0\t200\n');
+        expect(writes).toEqual([{ path: 'bbp_abc.tsv', contents: 'time\tbt\n1.0\t200\n', append: false }]);
+    });
+
+    it('deleteBbpTsv swallows remove failure', async () => {
+        _resetTsvWriterForTests({
+            remove: async () => {
+                throw new Error('ENOENT');
+            },
+        });
+        await expect(deleteBbpTsv('abc')).resolves.toBeUndefined();
+    });
+
+    it('deleteBbpTsv removes the bbp file', async () => {
+        await deleteBbpTsv('abc');
+        expect(removed).toEqual(['bbp_abc.tsv']);
     });
 });

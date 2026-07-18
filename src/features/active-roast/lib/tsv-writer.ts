@@ -111,6 +111,22 @@ export const flushTsv = async (sessionId?: string): Promise<void> => {
     await Promise.all([...sessions.values()].map((q) => q.chain));
 };
 
+// ── BBP (between-batch) TSV — 세션 큐 불필요한 단발 기록 ──────────────
+
+export const bbpTsvPath = (sessionId: string): string => `bbp_${sessionId}.tsv`;
+
+export const writeBbpTsv = async (sessionId: string, content: string): Promise<void> => {
+    await writeImpl(bbpTsvPath(sessionId), content, { append: false });
+};
+
+export const deleteBbpTsv = async (sessionId: string): Promise<void> => {
+    try {
+        await removeImpl(bbpTsvPath(sessionId));
+    } catch (err) {
+        captureIo(err, 'bbp-tsv delete', sessionId);
+    }
+};
+
 /** Delete local TSV only after successful sync (caller responsibility). */
 export const deleteSessionTsv = async (sessionId: string): Promise<void> => {
     await flushTsv(sessionId);
