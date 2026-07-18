@@ -809,6 +809,7 @@
             "cancel": "Cancel",
             "confirm": "Delete"
         },
+        "saveAsProfile": "Save as profile",
         "monthlyReport": "Monthly Report",
         "exportCsv": "Export CSV",
         "exportConfirm": "Save to: {{path}}\nExport {{count}} session(s) as CSV?",

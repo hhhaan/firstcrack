@@ -616,6 +616,7 @@
             "cancel": "취소",
             "confirm": "삭제"
         },
+        "saveAsProfile": "프로파일로 저장",
         "monthlyReport": "월간 보고서",
         "exportCsv": "Export CSV",
         "exportConfirm": "저장 위치: {{path}}\n{{count}}개 세션을 CSV로 내보내시겠습니까?",

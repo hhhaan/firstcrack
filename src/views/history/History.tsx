@@ -1,13 +1,16 @@
 import { useProfile } from '@entities/profile';
 import { useDeleteRoastSession, useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
+import { useCreateRoastProfile } from '@entities/roast-profile';
 import { useExportCsv } from '@features/export-csv';
 import { formatDateShort } from '@shared/lib/format';
 import { filterSessions, paginateSessions, sortSessions } from '@shared/lib/sessionFilter';
 import { useAuthStore } from '@shared/store/auth';
+import type { RoastProfile } from '@shared/types/database.types';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
+import { NewProfileModal } from '@views/profiles/NewProfileModal';
 import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
 import { DateRangeFilter } from '@widgets/date-range-filter';
 import { Download, FileText, GitCompare, Search, X } from 'lucide-react';
@@ -34,6 +37,7 @@ export const History = () => {
     const [compareMode, setCompareMode] = useState(false);
     const [compareIds, setCompareIds] = useState<string[]>([]);
     const [showCompare, setShowCompare] = useState(false);
+    const [promoteSessionId, setPromoteSessionId] = useState<string | null>(null);
 
     const {
         search,
@@ -140,6 +144,18 @@ export const History = () => {
 
     const exportCsv = useExportCsv();
     const deleteSession = useDeleteRoastSession(user?.id ?? '');
+    const { mutateAsync: createProfile } = useCreateRoastProfile(user?.id ?? '');
+
+    const handleProfileCreated = useCallback(
+        async (profileData: RoastProfile) => {
+            const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...insert } = profileData;
+            void _id;
+            void _createdAt;
+            void _updatedAt;
+            await createProfile(insert);
+        },
+        [createProfile],
+    );
 
     const deletingSession = useMemo(
         () => rawSessions.find((s) => s.id === deletingId) ?? null,
@@ -217,6 +233,7 @@ export const History = () => {
                 compareIds={compareIds}
                 onRowClick={handleRowClick}
                 onDeleteClick={handleDeleteClick}
+                onSaveAsProfile={setPromoteSessionId}
                 sortKey={sortKey}
                 sortAsc={sortAsc}
                 onSort={setSort}
@@ -315,6 +332,12 @@ export const History = () => {
             {showCompare && compareSessions.length >= 2 && (
                 <SessionCompareModal sessions={compareSessions} onClose={() => setShowCompare(false)} />
             )}
+            <NewProfileModal
+                open={promoteSessionId != null}
+                initialSessionId={promoteSessionId}
+                onClose={() => setPromoteSessionId(null)}
+                onCreated={handleProfileCreated}
+            />
             {showReport && (
                 <ModalShell onClose={handleCloseReport} labelledBy="monthly-report-title">
                     <div className="relative max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">

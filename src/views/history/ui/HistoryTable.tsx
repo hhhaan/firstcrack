@@ -5,7 +5,7 @@ import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { RoastTempChart } from '@views/active-roast/ui/RoastTempChart';
 import { COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from 'lucide-react';
+import { BookmarkPlus, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from 'lucide-react';
 import { Fragment, type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SessionScorecard } from './SessionScorecard';
@@ -88,7 +88,7 @@ const columns: Column[] = [
     {
         key: null,
         label: '',
-        width: '60px',
+        width: '80px',
         sortable: false,
         render: () => null,
     },
@@ -199,6 +199,7 @@ interface HistoryTableProps {
     compareIds: string[];
     onRowClick: (id: string) => void;
     onDeleteClick: (id: string) => void;
+    onSaveAsProfile: (id: string) => void;
     sortKey: SortKey;
     sortAsc: boolean;
     onSort: (key: SortKey) => void;
@@ -217,6 +218,7 @@ export const HistoryTable = ({
     compareIds,
     onRowClick,
     onDeleteClick,
+    onSaveAsProfile,
     sortKey,
     sortAsc,
     onSort,
@@ -324,17 +326,31 @@ export const HistoryTable = ({
                                                 style={{ width: col.width }}
                                             >
                                                 {isActions ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={(event) => {
-                                                            event.stopPropagation();
-                                                            onDeleteClick(session.id);
-                                                        }}
-                                                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted opacity-0 transition hover:bg-[rgba(254,226,226,0.5)] hover:text-[#dc2626] group-hover:opacity-100 focus:opacity-100"
-                                                        aria-label={t('history.delete.title')}
-                                                    >
-                                                        <Trash2 size={14} strokeWidth={2} />
-                                                    </button>
+                                                    <span className="inline-flex items-center">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                onSaveAsProfile(session.id);
+                                                            }}
+                                                            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted opacity-0 transition hover:bg-surface hover:text-primary group-hover:opacity-100 focus:opacity-100"
+                                                            aria-label={t('history.saveAsProfile')}
+                                                            title={t('history.saveAsProfile')}
+                                                        >
+                                                            <BookmarkPlus size={14} strokeWidth={2} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                onDeleteClick(session.id);
+                                                            }}
+                                                            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted opacity-0 transition hover:bg-[rgba(254,226,226,0.5)] hover:text-[#dc2626] group-hover:opacity-100 focus:opacity-100"
+                                                            aria-label={t('history.delete.title')}
+                                                        >
+                                                            <Trash2 size={14} strokeWidth={2} />
+                                                        </button>
+                                                    </span>
                                                 ) : (
                                                     col.render(session)
                                                 )}

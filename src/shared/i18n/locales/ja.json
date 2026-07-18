@@ -781,6 +781,7 @@
             "cancel": "キャンセル",
             "confirm": "削除"
         },
+        "saveAsProfile": "プロファイルとして保存",
         "monthlyReport": "月次レポート",
         "exportCsv": "CSVエクスポート",
         "exportConfirm": "保存先: {{path}}\n{{count}}件のセッションをCSVにエクスポートしますか？",

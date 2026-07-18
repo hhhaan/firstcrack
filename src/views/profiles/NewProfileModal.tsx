@@ -13,10 +13,19 @@ interface NewProfileModalProps {
     onCreated: (profile: RoastProfile) => void;
     editingProfile?: RoastProfileWithSource | null;
     onUpdated?: (profile: RoastProfile) => void;
+    /** 열릴 때 이 세션으로 바로 from-session 모드 진입 */
+    initialSessionId?: string | null;
 }
 
-export const NewProfileModal = ({ open, onClose, onCreated, editingProfile, onUpdated }: NewProfileModalProps) => {
-    const form = useNewProfileForm({ open, onClose, onCreated, editingProfile, onUpdated });
+export const NewProfileModal = ({
+    open,
+    onClose,
+    onCreated,
+    editingProfile,
+    onUpdated,
+    initialSessionId,
+}: NewProfileModalProps) => {
+    const form = useNewProfileForm({ open, onClose, onCreated, editingProfile, onUpdated, initialSessionId });
 
     if (!open) return null;
 

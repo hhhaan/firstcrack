@@ -19,9 +19,18 @@ interface UseNewProfileFormArgs {
     onCreated: (profile: RoastProfile) => void;
     editingProfile?: RoastProfileWithSource | null;
     onUpdated?: (profile: RoastProfile) => void;
+    /** 열릴 때 이 세션으로 바로 from-session 모드 진입 (History "프로파일로 저장") */
+    initialSessionId?: string | null;
 }
 
-export const useNewProfileForm = ({ open, onClose, onCreated, editingProfile, onUpdated }: UseNewProfileFormArgs) => {
+export const useNewProfileForm = ({
+    open,
+    onClose,
+    onCreated,
+    editingProfile,
+    onUpdated,
+    initialSessionId,
+}: UseNewProfileFormArgs) => {
     const [mode, setMode] = useState<ProfileFormMode>('pick');
     const [form, setForm] = useState<ProfileFormState>(INITIAL_PROFILE_FORM);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -111,6 +120,13 @@ export const useNewProfileForm = ({ open, onClose, onCreated, editingProfile, on
         });
         setMode('from-session');
     };
+
+    // biome-ignore lint/correctness/useExhaustiveDependencies: handleSessionSelect는 렌더마다 재생성 — mode 가드로 1회만 실행
+    useEffect(() => {
+        if (open && initialSessionId && !editingProfile && mode === 'pick' && sessions.length > 0) {
+            handleSessionSelect(initialSessionId);
+        }
+    }, [open, initialSessionId, editingProfile, mode, sessions.length]);
 
     const isValid = form.name.trim().length > 0;
 
