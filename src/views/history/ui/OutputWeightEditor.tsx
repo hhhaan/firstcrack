@@ -51,16 +51,12 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
                 greenGrams: session.weight_grams,
                 outputWeightGrams: next,
                 roastLevel: session.roast_level,
-                beanId: session.bean_id,
-                blendId: null,
             });
             if (inbound && workspaceOwnerId) {
                 void roastedStockEventApi
                     .upsertInbound({
                         sessionId: session.id,
                         userId: workspaceOwnerId,
-                        beanId: inbound.beanId,
-                        blendId: inbound.blendId,
                         grams: inbound.grams,
                         isEstimate: inbound.isEstimate,
                     })

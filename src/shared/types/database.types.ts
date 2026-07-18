@@ -1969,8 +1969,6 @@ export type Database = {
             };
             upsert_roasted_inbound: {
                 Args: {
-                    p_bean_id: string | null;
-                    p_blend_id: string | null;
                     p_grams: number;
                     p_is_estimate: boolean;
                     p_session_id: string;

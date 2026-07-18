@@ -152,16 +152,12 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
                 greenGrams: weightGrams,
                 outputWeightGrams,
                 roastLevel: formData.roastLevel,
-                beanId: resolvedBeanId,
-                blendId,
             });
             if (inbound) {
                 void roastedStockEventApi
                     .upsertInbound({
                         sessionId: savedSession.id,
                         userId,
-                        beanId: inbound.beanId,
-                        blendId: inbound.blendId,
                         grams: inbound.grams,
                         isEstimate: inbound.isEstimate,
                     })

@@ -8,10 +8,8 @@ describe('buildRoastedInbound', () => {
                 greenGrams: 10000,
                 outputWeightGrams: 8400,
                 roastLevel: 'Dark',
-                beanId: 'b1',
-                blendId: null,
             }),
-        ).toEqual({ grams: 8400, isEstimate: false, beanId: 'b1', blendId: null });
+        ).toEqual({ grams: 8400, isEstimate: false });
     });
 
     it('estimates from roast level when unmeasured', () => {
@@ -21,10 +19,8 @@ describe('buildRoastedInbound', () => {
                 greenGrams: 10000,
                 outputWeightGrams: null,
                 roastLevel: 'Medium',
-                beanId: null,
-                blendId: 'x1',
             }),
-        ).toEqual({ grams: 8500, isEstimate: true, beanId: null, blendId: 'x1' });
+        ).toEqual({ grams: 8500, isEstimate: true });
     });
 
     it('skips when nothing to book', () => {
@@ -33,17 +29,13 @@ describe('buildRoastedInbound', () => {
                 greenGrams: 0,
                 outputWeightGrams: null,
                 roastLevel: null,
-                beanId: 'b1',
-                blendId: null,
             }),
         ).toBeNull();
         expect(
             buildRoastedInbound({
-                greenGrams: 1000,
-                outputWeightGrams: null,
-                roastLevel: null,
-                beanId: null,
-                blendId: null,
+                greenGrams: 0,
+                outputWeightGrams: 0,
+                roastLevel: 'Dark',
             }),
         ).toBeNull();
     });
