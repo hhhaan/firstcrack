@@ -50,8 +50,7 @@ export const usePackageProduct = () => {
                 if (have < need) shortageGrams = need - have;
             }
 
-            await productStockEventApi.insertMany(productEvents);
-            if (roastedEvents.length > 0) await roastedStockEventApi.insertBatch(roastedEvents);
+            await productStockEventApi.insertPackagingOp(productEvents, roastedEvents);
 
             return { ownerId: workspaceOwnerId, shortageGrams };
         },

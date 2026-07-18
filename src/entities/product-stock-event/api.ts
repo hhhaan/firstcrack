@@ -4,12 +4,37 @@ import type { Database } from '@shared/types/database.types';
 export type ProductStockEvent = Database['public']['Tables']['product_stock_events']['Row'];
 export type ProductStockEventInsert = Database['public']['Tables']['product_stock_events']['Insert'];
 
+/** 포장 시 roasted 차감 이벤트 — FSD상 entities↔entities import 금지라 구조적 타입으로 선언 (RoastedStockEventInsert 호환). */
+export type PackagingRoastedEvent = {
+    user_id: string;
+    bean_id?: string | null;
+    blend_id?: string | null;
+    delta_grams: number;
+    event_type: string;
+    reference_id?: string | null;
+    note?: string | null;
+    is_estimate?: boolean;
+};
+
 export const productStockEventApi = {
     /** Atomic batch insert via RPC. Idempotent on (reference_id, product_id, event_type). */
     insertMany: async (events: ProductStockEventInsert[]): Promise<void> => {
         if (!events.length) return;
         // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
         const { error } = await (supabase as any).rpc('insert_product_stock_events_batch', { p_events: events });
+        if (error) throw error;
+    },
+
+    /** 포장 1회 = product +units & roasted −grams를 단일 트랜잭션 RPC로. 멱등 (ON CONFLICT DO NOTHING). */
+    insertPackagingOp: async (
+        productEvents: ProductStockEventInsert[],
+        roastedEvents: PackagingRoastedEvent[],
+    ): Promise<void> => {
+        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
+        const { error } = await (supabase as any).rpc('insert_packaging_op', {
+            p_product_events: productEvents,
+            p_roasted_events: roastedEvents,
+        });
         if (error) throw error;
     },
 
