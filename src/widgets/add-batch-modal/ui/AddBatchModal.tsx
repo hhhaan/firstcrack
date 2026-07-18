@@ -4,12 +4,11 @@ import { useBlends } from '@entities/blend';
 import { useMachines } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
-import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { useRoastProfiles } from '@entities/roast-profile/queries';
 import { getDateFnsLocale } from '@shared/i18n';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import type { Bean, PlanBatchWithProgress, RoastProfile } from '@shared/types/database.types';
+import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -132,7 +131,7 @@ export const AddBatchModal = ({
     const handleProfileSelect = (id: string) => {
         setProfileId(id);
         if (!id) return;
-        const selected = profiles.find((p) => p.id === id) as RoastProfileWithSource | undefined;
+        const selected = profiles.find((p) => p.id === id);
         if (selected?.default_bean_id) {
             setBatchType('Single Origin');
             setBeanId(selected.default_bean_id);
@@ -245,8 +244,8 @@ export const AddBatchModal = ({
                     profileId={profileId}
                     beanId={beanId}
                     blendId={blendId}
-                    profileItems={profileItems as RoastProfile[]}
-                    beanItems={beanItems as Bean[]}
+                    profileItems={profileItems}
+                    beanItems={beanItems}
                     blends={blends}
                     stockSummaries={stockSummaries}
                     plannedGrams={plannedGrams}
@@ -302,7 +301,7 @@ export const AddBatchModal = ({
                 {dateChanged && newDateKey && (
                     <p className="text-[12px] text-amber-600 font-medium">
                         {t('addBatchModal.dateChanged', {
-                            date: format(new Date(`${newDateKey}T00:00:00`), 'M월 d일', {
+                            date: format(new Date(`${newDateKey}T00:00:00`), t('addBatchModal.dateFormatShort'), {
                                 locale: getDateFnsLocale(),
                             }),
                         })}

@@ -61,11 +61,13 @@ export const BatchFormHeader = ({
                             <CalendarIcon size={13} className="text-muted shrink-0" />
                             <span>
                                 {date
-                                    ? format(date, 'M월 d일 (eee)', { locale: getDateFnsLocale() })
+                                    ? format(date, t('addBatchModal.dateFormat'), { locale: getDateFnsLocale() })
                                     : t('addBatchModal.date')}
                             </span>
                             {dateChanged && (
-                                <span className="ml-auto text-[10px] text-amber-600 font-semibold shrink-0">이동</span>
+                                <span className="ml-auto text-[10px] text-amber-600 font-semibold shrink-0">
+                                    {t('addBatchModal.moved')}
+                                </span>
                             )}
                         </button>
                     </PopoverTrigger>
