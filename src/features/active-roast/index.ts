@@ -8,6 +8,8 @@ export { computePhaseSegments } from './lib/phases';
 export { formatTemp, toDisplayRoR, toDisplayTemp } from './lib/temperature';
 export type { TurningPoint } from './lib/turningPoints';
 export { detectTurningPoints } from './lib/turningPoints';
+export type { BbpSample, BbpSummary } from './model/bbp';
+export { BBP_MAX_SECONDS, useBbpStore } from './model/bbp';
 export type {
     EventMarkerStyle,
     PollIntervalMs,
