@@ -32,7 +32,7 @@ describe('determineStockDeduction', () => {
         });
     });
 
-    it('prefers plan batch size over save weight', () => {
+    it('uses save weight when positive (editable form overrides batch size)', () => {
         const plan = determineStockDeduction({
             planBatchHandoff: {
                 planBatchId: 'pb-1',
@@ -50,8 +50,29 @@ describe('determineStockDeduction', () => {
             referenceId: 'sess-2',
             handoffBeanName: null,
         });
-        expect(plan?.deductionGrams).toBe(12000);
+        expect(plan?.deductionGrams).toBe(1000);
         expect(plan?.beanName).toBe('Colombia');
+    });
+
+    it('falls back to plan batch size when save weight is zero', () => {
+        const plan = determineStockDeduction({
+            planBatchHandoff: {
+                planBatchId: 'pb-1',
+                planId: 'p-1',
+                beanId: 'bean-1',
+                blendId: null,
+                beanName: 'Colombia',
+                batchSizeKg: 12,
+                profileId: null,
+                batchCount: 1,
+                completedSessions: 0,
+            },
+            saveWeight: 0,
+            selectedBeanId: 'bean-1',
+            referenceId: 'sess-2',
+            handoffBeanName: null,
+        });
+        expect(plan?.deductionGrams).toBe(12000);
     });
 
     it('allows blend-only deduct without selectedBeanId', () => {

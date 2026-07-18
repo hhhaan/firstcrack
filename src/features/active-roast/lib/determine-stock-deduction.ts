@@ -20,11 +20,13 @@ export interface DetermineStockDeductionParams {
 export const determineStockDeduction = (params: DetermineStockDeductionParams): StockDeductionPlan | null => {
     const { planBatchHandoff, saveWeight, selectedBeanId, referenceId, handoffBeanName } = params;
 
-    const deductionGrams = planBatchHandoff?.batchSizeKg
-        ? Math.round(planBatchHandoff.batchSizeKg * 1000)
-        : saveWeight > 0
-          ? saveWeight
-          : 0;
+    // Prefer form/save weight (prefilled from batch, user-editable); fall back to plan batch size.
+    const deductionGrams =
+        saveWeight > 0
+            ? saveWeight
+            : planBatchHandoff?.batchSizeKg
+              ? Math.round(planBatchHandoff.batchSizeKg * 1000)
+              : 0;
 
     const blendId = planBatchHandoff?.blendId ?? null;
     const canDeduct = deductionGrams > 0 && Boolean(selectedBeanId || blendId);
