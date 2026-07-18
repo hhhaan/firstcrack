@@ -763,7 +763,8 @@
             "close": "Close",
             "curveOverlay": "Curve Overlay",
             "noCurves": "No curve data in selected sessions",
-            "noCurveData": "No curve data"
+            "noCurveData": "No curve data",
+            "events": "Events"
         },
         "cupping": {
             "title": "Cupping",

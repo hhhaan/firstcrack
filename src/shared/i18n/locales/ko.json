@@ -570,7 +570,8 @@
             "close": "닫기",
             "curveOverlay": "곡선 오버레이",
             "noCurves": "선택한 세션에 곡선 데이터가 없습니다",
-            "noCurveData": "곡선 데이터 없음"
+            "noCurveData": "곡선 데이터 없음",
+            "events": "이벤트"
         },
         "cupping": {
             "title": "커핑",

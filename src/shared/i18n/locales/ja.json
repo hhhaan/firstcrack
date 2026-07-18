@@ -763,7 +763,8 @@
             "close": "閉じる",
             "curveOverlay": "カーブオーバーレイ",
             "noCurves": "選択したセッションにカーブデータがありません",
-            "noCurveData": "カーブデータなし"
+            "noCurveData": "カーブデータなし",
+            "events": "イベント"
         },
         "table": {
             "date": "日付",

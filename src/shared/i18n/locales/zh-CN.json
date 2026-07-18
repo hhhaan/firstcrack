@@ -763,7 +763,8 @@
             "close": "关闭",
             "curveOverlay": "曲线叠加",
             "noCurves": "所选记录没有曲线数据",
-            "noCurveData": "无曲线数据"
+            "noCurveData": "无曲线数据",
+            "events": "事件"
         },
         "table": {
             "date": "日期",

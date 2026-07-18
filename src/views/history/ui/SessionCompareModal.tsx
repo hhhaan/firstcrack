@@ -1,13 +1,18 @@
 import { useHistoryCharts } from '@entities/roast';
-import { formatDateShort, formatDuration } from '@shared/lib/format';
+import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
+import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import { formatDateShort, formatDuration, formatElapsed } from '@shared/lib/format';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import type { SeriesData } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { COMPARE_COLORS, ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { AlertCircle, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+
+/** 이벤트 정렬 표 행 순서 — 로스팅 진행 순 */
+const EVENT_ORDER = ['Charge', 'TP', 'Yellow', 'FC Start', 'FC End', 'Drop', 'End'] as const;
 
 const sessionLabel = (s: RoastSessionWithRelations): string =>
     `${s.beans?.name ?? '—'} · ${formatDateShort(s.roasted_at)}`;
@@ -54,6 +59,9 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
         ];
     });
     const chartKey = sessions.map((s) => `${s.id}:${s.tsv_path ?? ''}`).join('|');
+
+    const eventsBySession = useMemo(() => sessions.map((s) => parseStoredRoastEvents(s.events)), [sessions]);
+    const eventRows = EVENT_ORDER.filter((type) => eventsBySession.some((evts) => evts.some((e) => e.type === type)));
 
     return (
         <ModalShell onClose={onClose} labelledBy="session-compare-title" contentClassName={modalPanel.formLg}>
@@ -155,6 +163,50 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                         ])}
                     </div>
                 </div>
+
+                {eventRows.length > 0 && (
+                    <div className="mt-3 overflow-hidden rounded-lg bg-surface dark:bg-surface-elevated">
+                        <div className="px-3.5 pt-2.5 text-[11px] font-medium uppercase tracking-[0.4px] text-muted">
+                            {t('history.compare.events')}
+                        </div>
+                        <div className="grid" style={{ gridTemplateColumns: `110px repeat(${sessions.length}, 1fr)` }}>
+                            {eventRows.flatMap((type, rowIdx) => [
+                                <div
+                                    key={`evt-lbl-${type}`}
+                                    className={`flex items-center gap-1.5 px-3.5 py-2.5 ${rowIdx < eventRows.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
+                                >
+                                    <div
+                                        className="h-2 w-2 flex-shrink-0 rounded-full"
+                                        style={{
+                                            backgroundColor: EVENT_MARKER_COLORS[type] ?? 'var(--color-muted)',
+                                        }}
+                                    />
+                                    <span className="text-[11px] font-medium uppercase tracking-[0.4px] text-muted">
+                                        {type}
+                                    </span>
+                                </div>,
+                                ...sessions.map((s, i) => {
+                                    const evt = eventsBySession[i].find((e) => e.type === type);
+                                    return (
+                                        <div
+                                            key={`evt-${s.id}-${type}`}
+                                            className={`border-l border-l-black/5 dark:border-l-[#585d61] px-3.5 py-2.5 ${rowIdx < eventRows.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
+                                        >
+                                            <span className="font-mono text-[12px] font-semibold tracking-[-0.2px] text-primary">
+                                                {evt ? formatElapsed(evt.time_sec) : '—'}
+                                            </span>
+                                            {evt?.temp_c != null && (
+                                                <span className="ml-1.5 font-mono text-[11px] text-muted">
+                                                    {Math.round(evt.temp_c)}°
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                }),
+                            ])}
+                        </div>
+                    </div>
+                )}
             </div>
         </ModalShell>
     );
