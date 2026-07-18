@@ -1,8 +1,10 @@
 import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
 import { useDayBatches } from '@entities/plan';
+import { summaryPrefill } from '@features/active-roast/lib/summaryPrefill';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -21,6 +23,8 @@ export type { RoastSummaryData };
 const baseRoastSummarySchema = z.object({
     notes: z.string().max(2000, 'Notes are too long'),
     weightGrams: z.number().min(0, 'Weight must be 0 or greater'),
+    /** Measured roasted output. Blank input yields NaN — treated as "not weighed", not invalid. */
+    outputWeightKg: z.union([z.number().min(0, 'Weight must be 0 or greater'), z.nan()]).optional(),
     roastLevel: z.string().nullable(),
     beanId: z.string().nullable(),
     /** ad-hoc only: link to today's schedule batch, or none */
@@ -141,6 +145,7 @@ export const RoastSummaryModal = ({
         defaultValues: {
             notes: '',
             weightGrams: 0,
+            outputWeightKg: undefined,
             roastLevel: null,
             beanId: selectedBeanId,
             linkMode: hasHandoff ? 'schedule' : 'none',
@@ -155,20 +160,39 @@ export const RoastSummaryModal = ({
     const formPlanBatchId = watch('planBatchId');
     const deductStock = watch('deductStock');
     const weightGrams = watch('weightGrams');
+    const outputWeightKg = watch('outputWeightKg');
+
+    /** null until both green and measured output are present — then the real loss %. */
+    const lossPreview = useMemo(() => {
+        if (!Number.isFinite(weightGrams) || weightGrams <= 0) return null;
+        if (
+            outputWeightKg === null ||
+            outputWeightKg === undefined ||
+            !Number.isFinite(outputWeightKg) ||
+            outputWeightKg <= 0
+        )
+            return null;
+        return ((weightGrams - outputWeightKg) / weightGrams) * 100;
+    }, [weightGrams, outputWeightKg]);
 
     const selectedBeanIdRef = useRef(selectedBeanId);
     selectedBeanIdRef.current = selectedBeanId;
     const handoffRef = useRef(planBatchHandoff);
     handoffRef.current = planBatchHandoff;
+    const lastAdhoc = useRoastSessionStore((s) => s.lastAdhocSave);
+    const lastAdhocRef = useRef(lastAdhoc);
+    lastAdhocRef.current = lastAdhoc;
 
     useEffect(() => {
         if (open && summaryData) {
             const handoff = handoffRef.current;
+            const prefill = summaryPrefill(handoff, lastAdhocRef.current, selectedBeanIdRef.current);
             reset({
                 notes: '',
-                weightGrams: handoff?.batchSizeKg ?? 0,
-                roastLevel: null,
-                beanId: handoff?.beanId ?? selectedBeanIdRef.current,
+                weightGrams: prefill.weightGrams,
+                outputWeightKg: undefined,
+                roastLevel: prefill.roastLevel,
+                beanId: prefill.beanId,
                 linkMode: handoff ? 'schedule' : 'none',
                 planBatchId: handoff?.planBatchId ?? null,
                 deductStock: false,
@@ -177,7 +201,7 @@ export const RoastSummaryModal = ({
     }, [open, summaryData, reset]);
 
     useEffect(() => {
-        if (open && summaryData && !planBatchHandoff) {
+        if (open && summaryData && !planBatchHandoff && selectedBeanId) {
             setValue('beanId', selectedBeanId, { shouldDirty: false });
         }
     }, [selectedBeanId, open, summaryData, setValue, planBatchHandoff]);
@@ -466,6 +490,30 @@ export const RoastSummaryModal = ({
                     </div>
                     {errors.weightGrams && (
                         <p className="text-[11px] text-red-500 mt-1">{errors.weightGrams.message}</p>
+                    )}
+                </div>
+
+                <div className="mb-3.5">
+                    <div className={sectionLabelClass}>{t('activeRoast.summary.outputWeight')}</div>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            {...register('outputWeightKg', { valueAsNumber: true })}
+                            placeholder={t('activeRoast.summary.outputWeightPlaceholder')}
+                            className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
+                        />
+                        <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">kg</span>
+                    </div>
+                    {errors.outputWeightKg ? (
+                        <p className="text-[11px] text-red-500 mt-1">{errors.outputWeightKg.message}</p>
+                    ) : (
+                        <p className="text-[11px] text-muted mt-1">
+                            {lossPreview !== null
+                                ? t('activeRoast.summary.lossRateMeasured', { pct: lossPreview.toFixed(1) })
+                                : t('activeRoast.summary.lossRateEstimated')}
+                        </p>
                     )}
                 </div>
 

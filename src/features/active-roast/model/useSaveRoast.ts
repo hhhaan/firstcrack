@@ -20,7 +20,10 @@ export type SyncRoastCurve = (input: { sessionId: string; roastSessionId: string
 /** Form fields required to persist a completed roast (matches summary modal). */
 export type SaveRoastFormData = {
     notes: string;
+    /** Green input, in kg — prefilled from batch size, drives stock deduction. */
     weightGrams: number;
+    /** Measured roasted output, in kg. 0/undefined = not weighed. */
+    outputWeightKg?: number;
     roastLevel: string | null;
     beanId: string | null;
     /** resolved handoff for ad-hoc schedule link (from day batches) */
@@ -88,6 +91,9 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
             const effectiveBatch = resolveEffectiveBatch(planBatchHandoff, formData.linkedBatch);
 
             const weightGrams = Math.round(formData.weightGrams * 1000);
+            const outputKg = formData.outputWeightKg;
+            const outputWeightGrams =
+                outputKg != null && Number.isFinite(outputKg) && outputKg > 0 ? Math.round(outputKg * 1000) : null;
             // Linked / handoff batch supplies bean/blend; else form or header selection
             const resolvedBeanId = effectiveBatch?.beanId ?? formData.beanId ?? payloadParams.selectedBeanId;
             const blendId = effectiveBatch?.blendId ?? null;
@@ -110,6 +116,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
             const payload: RoastSessionInsert = {
                 user_id: userId,
                 weight_grams: weightGrams,
+                output_weight_grams: outputWeightGrams,
                 status: 'completed',
                 roasted_at: roastedAt,
                 duration_seconds: payloadParams.elapsed,
@@ -150,6 +157,15 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
                         patch: { id: effectiveBatch.planBatchId, status: 'done' },
                     }).catch((err) => logger.capture(err, { context: 'saveRoast batch status' }));
                 }
+            }
+
+            if (!effectiveBatch) {
+                // 애드혹 연속 배치: 다음 저장 폼 프리필용으로 이번 값을 기록
+                useRoastSessionStore.getState().recordAdhocSave({
+                    beanId: resolvedBeanId,
+                    weightKg: formData.weightGrams,
+                    roastLevel: formData.roastLevel,
+                });
             }
 
             const cachedBeans = userId ? qc.getQueryData<Bean[]>(beanKeys.all(userId)) : undefined;
