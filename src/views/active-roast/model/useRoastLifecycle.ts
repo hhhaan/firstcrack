@@ -1,6 +1,8 @@
 import { formatTemp } from '@features/active-roast/lib/temperature';
+import { useBbpStore } from '@features/active-roast/model/bbp';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { FEATURE, useFeature } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
 import { message } from '@tauri-apps/plugin-dialog';
@@ -67,6 +69,8 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         triggerChargeRef,
         roastStartTimeRef,
     } = params;
+
+    const bbpEnabled = useFeature(FEATURE.bbp);
 
     const handleEnterStandby = useCallback(() => {
         if (phase !== 'preheating') return;
@@ -135,9 +139,11 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             logEntries: completedLogEntries,
         };
         storeEndRoast();
+        // BBP: 드롭 시점부터 다음 charge까지 배치간 기록 시작 (Pro 전용 — 유일한 게이팅 지점)
+        if (bbpEnabled) useBbpStore.getState().begin(Date.now());
         setIsRunning(false);
         return summaryData;
-    }, [logEntries, timeStr, devTimeStr, rawBT, unit, storeEndRoast, setIsRunning]);
+    }, [logEntries, timeStr, devTimeStr, rawBT, unit, storeEndRoast, setIsRunning, bbpEnabled]);
 
     return {
         handleEnterStandby,

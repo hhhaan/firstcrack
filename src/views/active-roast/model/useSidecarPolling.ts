@@ -1,5 +1,6 @@
 import { createBtFilter } from '@features/active-roast/lib/btFilter';
-import { enqueueTsvRow, initSessionTsv } from '@features/active-roast/lib/tsv-writer';
+import { enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@features/active-roast/lib/tsv-writer';
+import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
@@ -83,6 +84,17 @@ export const useSidecarPolling = ({
     useEffect(() => {
         if (prevPhaseRef.current !== 'roasting' && phase === 'roasting') {
             const chargeTime = roastStartTimeRef.current;
+            // BBP 확정: 요약은 스토어(finalized)에 남고 커브는 로컬 TSV로 — 저장 시 업로드
+            const bbpResult = useBbpStore.getState().finalize(chargeTime || Date.now());
+            const bbpSessionId = useRoastingStore.getState().sessionId;
+            if (bbpResult && bbpSessionId) {
+                void writeBbpTsv(bbpSessionId, bbpResult.tsv).catch((err) => {
+                    logger.capture(err instanceof Error ? err : new Error(String(err)), {
+                        context: 'bbp tsv write',
+                        sessionId: bbpSessionId,
+                    });
+                });
+            }
             let prePoints: LiveRoastPoint[] = [];
             if (chargeTime !== 0 && preChargeBufferRef.current.length > 0) {
                 const cutoff = chargeTime - preChargeDisplaySec * 1000;
@@ -127,11 +139,11 @@ export const useSidecarPolling = ({
             .catch(() => setConnected(false));
     }, [isActive]);
 
-    // 예열·대기·로스팅 단계에서 주기적으로 온도를 폴링한다.
-    // idle / ended 단계에서는 폴링을 중단해 불필요한 IPC 호출을 막는다.
+    // 예열·대기·로스팅·종료 단계에서 주기적으로 온도를 폴링한다.
+    // idle 단계에서만 폴링을 중단 — ended(요약 모달)에는 BBP 쿨다운 기록을 위해 폴링 유지.
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
-        if (phase === 'idle' || phase === 'ended') return;
+        if (phase === 'idle') return;
 
         const poll = async () => {
             try {
@@ -159,6 +171,21 @@ export const useSidecarPolling = ({
                 if (bt === null) return;
 
                 const currentPhase = useRoastingStore.getState().phase;
+
+                // BBP: 이전 드롭 이후 pre-charge 구간(ended/preheating/standby) 기록.
+                // 비활성 시 no-op — 간격 제한·만료는 스토어 append가 처리.
+                if (currentPhase !== 'roasting') {
+                    useBbpStore.getState().append(
+                        {
+                            bt,
+                            et: data.et ?? null,
+                            heater: data.heater ?? 0,
+                            fan: data.fan ?? 0,
+                            drum: data.drum ?? 0,
+                        },
+                        Date.now(),
+                    );
+                }
 
                 if (currentPhase === 'roasting' && roastStartTimeRef.current !== 0) {
                     // post-charge: same origin as store.roastStartMs / elapsed
