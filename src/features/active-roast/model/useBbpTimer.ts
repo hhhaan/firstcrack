@@ -1,19 +1,21 @@
-import { useEffect, useReducer } from 'react';
+import { useEffect, useState } from 'react';
 import { useBbpStore } from './bbp';
 
-/** BBP 경과 시간 "M:SS" — 기록 중이 아니면 null. 1초 간격 리렌더. */
+/** BBP 경과 시간 "M:SS" — 기록 중이 아니면 null. 1초 간격 갱신. */
 export const useBbpTimer = (): string | null => {
     const active = useBbpStore((s) => s.active);
     const startMs = useBbpStore((s) => s.startMs);
-    const [, tick] = useReducer((n: number) => n + 1, 0);
+    // Date.now()는 effect 안에서만 — 렌더는 순수하게 유지한다
+    const [elapsedSec, setElapsedSec] = useState(0);
 
     useEffect(() => {
-        if (!active) return;
-        const id = setInterval(tick, 1000);
+        if (!active || startMs <= 0) return;
+        const update = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - startMs) / 1000)));
+        update();
+        const id = setInterval(update, 1000);
         return () => clearInterval(id);
-    }, [active]);
+    }, [active, startMs]);
 
     if (!active || startMs <= 0) return null;
-    const sec = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
-    return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    return `${Math.floor(elapsedSec / 60)}:${String(elapsedSec % 60).padStart(2, '0')}`;
 };
