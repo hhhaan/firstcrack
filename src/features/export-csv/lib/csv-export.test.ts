@@ -1,0 +1,53 @@
+import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { describe, expect, it } from 'vitest';
+import { sessionsToCsv } from './csv-export';
+
+const session = (partial: Partial<RoastSessionWithRelations> = {}): RoastSessionWithRelations =>
+    ({
+        id: 's1',
+        user_id: 'u1',
+        roasted_at: '2026-07-01T10:00:00Z',
+        weight_grams: 820,
+        roast_level: 'Medium',
+        drop_temp_celsius: 205,
+        duration_seconds: 600,
+        notes: 'clean',
+        beans: { name: 'Ethiopia', origin: 'Yirgacheffe' },
+        roast_profiles: { name: 'City+' },
+        ...partial,
+    }) as RoastSessionWithRelations;
+
+describe('sessionsToCsv', () => {
+    it('prefixes UTF-8 BOM and header row', () => {
+        const csv = sessionsToCsv([session()]);
+        expect(csv.startsWith('\uFEFF')).toBe(true);
+        expect(csv).toContain('Date,Bean,Origin,Profile');
+        expect(csv).toContain('2026-07-01');
+        expect(csv).toContain('Ethiopia');
+        expect(csv).toContain('Yirgacheffe');
+        expect(csv).toContain('City+');
+        expect(csv).toContain('10:00'); // duration 600s
+    });
+
+    it('escapes commas quotes and newlines in notes', () => {
+        const csv = sessionsToCsv([session({ notes: 'said "hello", then\nline2' })]);
+        expect(csv).toContain('"said ""hello"", then\nline2"');
+    });
+
+    it('handles null optional fields without throwing', () => {
+        const csv = sessionsToCsv([
+            session({
+                roasted_at: null,
+                weight_grams: null,
+                beans: null,
+                roast_profiles: null,
+                drop_temp_celsius: null,
+                duration_seconds: null,
+                notes: null,
+            }),
+        ]);
+        expect(csv).toContain('\uFEFF');
+        const dataLine = csv.trim().split('\n')[1];
+        expect(dataLine.split(',').length).toBeGreaterThanOrEqual(10);
+    });
+});

@@ -1,9 +1,15 @@
 import { orderKeys } from '@shared/lib/query-keys';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { OrderInsert, OrderLineInsert } from './api';
 import { orderApi } from './api';
 
 export { orderKeys };
+
+/** Keys invalidated after create order (staleTime Infinity → must not omit). */
+export const invalidateAfterCreateOrder = (qc: QueryClient, userId: string) => {
+    qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
+    qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) });
+};
 
 export const useOrders = (userId: string) =>
     useQuery({
@@ -30,8 +36,7 @@ export const useCreateOrder = (userId: string) => {
             lines: Omit<OrderLineInsert, 'order_id' | 'user_id'>[];
         }) => orderApi.create(order, lines),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
-            qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) });
+            invalidateAfterCreateOrder(qc, userId);
         },
     });
 };

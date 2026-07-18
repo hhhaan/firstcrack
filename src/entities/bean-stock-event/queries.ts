@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BeanStockEventInsert, StockSummary } from './api';
 import { beanStockEventApi } from './api';
 
-const applyDelta = (summary: StockSummary, event: BeanStockEventInsert): StockSummary => {
+/** Optimistic stock summary patch (also used by insert mutation onMutate). */
+export const applyStockEventDelta = (summary: StockSummary, event: BeanStockEventInsert): StockSummary => {
     const affectsCurrent = event.event_type !== 'expected_inbound';
     const nextCurrent = affectsCurrent ? summary.currentGrams + event.delta_grams : summary.currentGrams;
     const nextAvailable = summary.availableGrams + event.delta_grams;
@@ -58,12 +59,15 @@ export const useInsertStockEvent = () => {
             });
 
             if (prevSummary) {
-                qc.setQueryData<StockSummary>(stockEventKeys.summary(beanId), applyDelta(prevSummary, newEvent));
+                qc.setQueryData<StockSummary>(
+                    stockEventKeys.summary(beanId),
+                    applyStockEventDelta(prevSummary, newEvent),
+                );
             }
 
             qc.setQueriesData<Record<string, StockSummary>>({ queryKey: stockEventKeys.summariesRoot }, (prev) => {
                 if (!prev?.[beanId]) return prev;
-                return { ...prev, [beanId]: applyDelta(prev[beanId], newEvent) };
+                return { ...prev, [beanId]: applyStockEventDelta(prev[beanId], newEvent) };
             });
 
             return { prevSummary, prevSummaries };

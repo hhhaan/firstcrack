@@ -1,6 +1,6 @@
 import { dashboardKeys } from '@shared/lib/query-keys';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { roastSessionApi } from './api';
 
 export const roastSessionKeys = {
@@ -8,6 +8,13 @@ export const roastSessionKeys = {
     byStatus: (userId: string, status: string) => ['roast_sessions', userId, status] as const,
     detail: (id: string) => ['roast_sessions', 'detail', id] as const,
     paginated: (userId: string) => ['roast_sessions', 'paginated', userId] as const,
+};
+
+/** Keys invalidated after create (staleTime Infinity → must not omit). */
+export const invalidateAfterCreateRoastSession = (qc: QueryClient, userId: string) => {
+    qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
+    qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
+    qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
 };
 
 export const useRoastSessions = (userId: string, status?: RoastSession['status']) =>
@@ -38,9 +45,7 @@ export const useCreateRoastSession = (userId: string) => {
         mutationFn: roastSessionApi.create,
         retry: (failureCount, error) => !is4xx(error) && failureCount < 3,
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
-            qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
-            qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
+            invalidateAfterCreateRoastSession(qc, userId);
         },
     });
 };
