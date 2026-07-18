@@ -1,5 +1,9 @@
 # Dependabot — weekly dependency update PRs
 # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+#
+# Keep cooldown ≥ pnpm minimumReleaseAge (default 1440m / 1d in pnpm 11).
+# Otherwise Dependabot commits a lockfile CI cannot install
+# (ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION).
 
 version: 2
 updates:
@@ -11,7 +15,13 @@ updates:
       day: monday
       time: "09:00"
       timezone: Asia/Seoul
-    open-pull-requests-limit: 8
+    open-pull-requests-limit: 5
+    # Wait until packages are old enough for pnpm install + fewer bad publishes
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
+      semver-minor-days: 3
+      semver-patch-days: 2
     labels:
       - dependencies
       - npm
@@ -27,14 +37,8 @@ updates:
           - minor
           - patch
     ignore:
-      # Major bumps need deliberate review (React/Tauri/Vite ecosystem)
-      - dependency-name: react
-        update-types: ["version-update:semver-major"]
-      - dependency-name: react-dom
-        update-types: ["version-update:semver-major"]
-      - dependency-name: vite
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@tauri-apps/*"
+      # Majors need a deliberate upgrade (TS 7, zod 4, plugin-react 6, …)
+      - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
   # GitHub Actions
@@ -45,7 +49,9 @@ updates:
       day: monday
       time: "09:00"
       timezone: Asia/Seoul
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 3
     labels:
       - dependencies
       - github-actions
@@ -62,7 +68,10 @@ updates:
       day: monday
       time: "09:00"
       timezone: Asia/Seoul
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     labels:
       - dependencies
       - python
@@ -73,6 +82,9 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # Tauri / Rust
   - package-ecosystem: cargo
@@ -82,7 +94,10 @@ updates:
       day: monday
       time: "09:00"
       timezone: Asia/Seoul
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 3
+      semver-major-days: 14
     labels:
       - dependencies
       - rust
@@ -101,3 +116,6 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
