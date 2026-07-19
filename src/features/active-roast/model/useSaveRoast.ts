@@ -13,8 +13,7 @@ import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean, PlanBatchHandoff } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
-import type { QueryClient } from '@tanstack/react-query';
-import { useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
 /** Injected from upload feature (composed in views) — avoids feature→feature import. */
@@ -188,9 +187,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
                 patch: { id: effectiveBatch.planBatchId, status: 'done' },
             }).catch((err) => logger.capture(err, { context: 'saveRoast batch status' }));
         }
-    }
-
-    if (!effectiveBatch) {
+    } else {
         // 애드혹 연속 배치: 다음 저장 폼 프리필용으로 이번 값을 기록
         recordAdhocSave({
             beanId: resolvedBeanId,

@@ -1,9 +1,9 @@
 /**
  * POST /order-webhook?platform=shopify|cafe24
- * Push ingest: verify signature when possible, upsert canonical order, always 200 on handled body.
+ * Push ingest: fail-closed signature/secret verify, upsert canonical order.
  *
  * Shopify headers: X-Shopify-Shop-Domain, X-Shopify-Hmac-Sha256, X-Shopify-Topic
- * Cafe24: mall_id in payload; optional CAFE24_WEBHOOK_SECRET header check later.
+ * Cafe24: mall_id in payload; x-cafe24-webhook-secret / x-webhook-secret vs CAFE24_WEBHOOK_SECRET
  */
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
 import { verifySharedSecret, verifyShopifyHmac } from '../_shared/webhook-auth.ts';

@@ -4,15 +4,15 @@ import { verifyPolarSignature } from '../_shared/webhook-auth.ts';
 const POLAR_WEBHOOK_SECRET = Deno.env.get('POLAR_WEBHOOK_SECRET');
 
 /** product_id → profiles.plan. Empty env keys are omitted so missing secrets never map. */
-const PLAN_MAP: Record<string, string> = Object.fromEntries(
-    (
-        [
-            [Deno.env.get('POLAR_PRO_PRODUCT_ID'), 'pro'],
-            [Deno.env.get('POLAR_PRO_PLUS_PRODUCT_ID'), 'pro_plus'],
-            [Deno.env.get('POLAR_ENTERPRISE_PRODUCT_ID'), 'enterprise'],
-        ] as const
-    ).filter((entry): entry is readonly [string, string] => Boolean(entry[0])),
-);
+const PLAN_MAP: Record<string, string> = {};
+for (const [envKey, plan] of [
+    ['POLAR_PRO_PRODUCT_ID', 'pro'],
+    ['POLAR_PRO_PLUS_PRODUCT_ID', 'pro_plus'],
+    ['POLAR_ENTERPRISE_PRODUCT_ID', 'enterprise'],
+] as const) {
+    const productId = Deno.env.get(envKey);
+    if (productId) PLAN_MAP[productId] = plan;
+}
 
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
@@ -94,18 +94,15 @@ Deno.serve(async (req) => {
 
             if (sub.status === 'active' && sub.product_id) {
                 const plan = PLAN_MAP[sub.product_id];
-                if (!plan) {
-                    // fail-closed: unknown product must not silently grant 'pro'
-                    console.error('[polar-webhook] unknown product_id, skip plan update', sub.product_id);
-                } else {
+                if (plan) {
                     const { error: planErr } = await supabase
                         .from('profiles')
                         .update({ plan })
                         .eq('id', userId);
-
-                    if (planErr) {
-                        console.error('[polar-webhook] plan update:', planErr);
-                    }
+                    if (planErr) console.error('[polar-webhook] plan update:', planErr);
+                } else {
+                    // fail-closed: unknown product must not silently grant 'pro'
+                    console.error('[polar-webhook] unknown product_id, skip plan update', sub.product_id);
                 }
             }
             break;

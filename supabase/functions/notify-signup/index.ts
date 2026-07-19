@@ -17,11 +17,7 @@ type DbWebhookPayload = {
 
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
-        return new Response('ok', {
-            headers: {
-                ...corsHeaders,
-            },
-        });
+        return new Response('ok', { headers: corsHeaders });
     }
 
     if (req.method !== 'POST') {
