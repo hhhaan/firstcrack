@@ -8,9 +8,9 @@ import {
     inventoryQueryRoots,
     orderKeys,
     planQueryRoots,
-    roastChartKeys,
     weatherKeys,
 } from './query-keys';
+import { roastCurveKeys } from './roast-curve';
 
 describe('query key factories', () => {
     it('planKeys compose from planQueryRoots (stable string prefixes)', () => {
@@ -36,7 +36,7 @@ describe('query key factories', () => {
         expect(weatherKeys.coords).toEqual(['weather', 'coords']);
         expect(weatherKeys.current(1, 2)).toEqual(['weather', 'current', 1, 2]);
         expect(coffeeFuturesKeys.all).toEqual(['coffee-futures']);
-        expect(roastChartKeys.history('a.tsv')).toEqual(['history-chart', 'a.tsv']);
+        expect(roastCurveKeys.byPath('a.tsv')).toEqual(['roast_curve', 'a.tsv']);
         expect(orderKeys.all('u1')).toEqual(['orders', 'u1']);
         expect(orderKeys.requirements('u1')).toEqual(['roasting-requirements', 'u1']);
     });

@@ -5,9 +5,21 @@ import { planBatchApi } from '@entities/plan';
 import { isBatchStockShort } from '@shared/lib/batch-stock';
 import { dashboardKeys } from '@shared/lib/query-keys';
 import { supabase } from '@shared/lib/supabase';
-import type { PlanBatchWithProgress, RoastSessionWithRelations } from '@shared/types/database.types';
+import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
+
+/** Columns actually rendered / aggregated by dashboard (no events jsonb). */
+export type DashboardRecentSession = {
+    id: string;
+    roasted_at: string | null;
+    weight_grams: number;
+    duration_seconds: number | null;
+    drop_temp_celsius: number | null;
+    roast_level: string | null;
+    beans: { name: string; origin: string | null } | null;
+    roast_profiles: { name: string; target_level: string | null } | null;
+};
 
 export interface MonthlyBatch {
     date: Date;
@@ -43,7 +55,7 @@ export interface DashboardData {
     kgRoastedLastMonth: number;
     avgDurationSeconds: number;
     avgDurationLastMonthSeconds: number;
-    recentSessions: RoastSessionWithRelations[];
+    recentSessions: DashboardRecentSession[];
     upcomingBatches: UpcomingBatch[];
     inventoryAlerts: DashboardInventoryAlert[];
     monthlyBatches: MonthlyBatch[];
@@ -79,7 +91,9 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     const [completedRes, beans, stockSummaries, monthlyRes, inventoryAlertsRes] = await Promise.all([
         supabase
             .from('roast_sessions')
-            .select('*, beans(name, origin), roast_profiles!profile_id(name, target_level)')
+            .select(
+                'id, roasted_at, weight_grams, duration_seconds, drop_temp_celsius, roast_level, beans(name, origin), roast_profiles!profile_id(name, target_level)',
+            )
             .eq('user_id', userId)
             .eq('status', 'completed')
             .gte('roasted_at', lastMonthStart)
@@ -129,9 +143,9 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
             };
         });
 
-    const completed = (completedRes.data ?? []).filter(
-        (s): s is RoastSessionWithRelations & { roasted_at: string } => !!s.roasted_at,
-    );
+    const completed = (completedRes.data ?? []).filter((s) => !!s.roasted_at) as Array<
+        DashboardRecentSession & { roasted_at: string }
+    >;
     const thisMonth = completed.filter((s) => s.roasted_at >= thisMonthStart);
     const lastMonth = completed.filter((s) => s.roasted_at < thisMonthStart);
 

@@ -14,22 +14,31 @@ import { mergeRecurrenceRuleMaster, type RecurrenceRuleMasterPatch, recurrenceRu
 
 export const planBatchApi = {
     list: async (planId: string): Promise<PlanBatchWithProgress[]> => {
-        const [batchesResult, sessionsResult] = await Promise.all([
-            supabase.from('roast_plan_batches').select('*').eq('plan_id', planId).order('order_index'),
-            supabase.from('roast_sessions').select('plan_batch_id').not('plan_batch_id', 'is', null),
-        ]);
-
+        const batchesResult = await supabase
+            .from('roast_plan_batches')
+            .select('*')
+            .eq('plan_id', planId)
+            .order('order_index');
         if (batchesResult.error) throw batchesResult.error;
-        if (sessionsResult.error) throw sessionsResult.error;
 
+        const batches = batchesResult.data ?? [];
+        const batchIds = batches.map((b) => b.id);
         const countMap = new Map<string, number>();
-        for (const s of sessionsResult.data ?? []) {
-            if (s.plan_batch_id) {
-                countMap.set(s.plan_batch_id, (countMap.get(s.plan_batch_id) ?? 0) + 1);
+
+        if (batchIds.length > 0) {
+            const sessionsResult = await supabase
+                .from('roast_sessions')
+                .select('plan_batch_id')
+                .in('plan_batch_id', batchIds);
+            if (sessionsResult.error) throw sessionsResult.error;
+            for (const s of sessionsResult.data ?? []) {
+                if (s.plan_batch_id) {
+                    countMap.set(s.plan_batch_id, (countMap.get(s.plan_batch_id) ?? 0) + 1);
+                }
             }
         }
 
-        return (batchesResult.data ?? []).map((row) => ({
+        return batches.map((row) => ({
             ...row,
             completed_sessions: countMap.get(row.id) ?? 0,
         }));

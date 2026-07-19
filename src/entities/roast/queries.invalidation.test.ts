@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { invalidateAfterCreateRoastSession, roastSessionKeys } from './queries';
 
 describe('roast session mutation invalidation', () => {
-    it('create invalidates list, paginated, completed count, and dashboard', () => {
+    it('create invalidates list, paginated, completed count, filter meta, and dashboard', () => {
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         const spy = vi.spyOn(qc, 'invalidateQueries');
 
@@ -14,7 +14,8 @@ describe('roast session mutation invalidation', () => {
         expect(keys).toContainEqual(roastSessionKeys.all('user-1'));
         expect(keys).toContainEqual(roastSessionKeys.paginated('user-1'));
         expect(keys).toContainEqual(roastSessionKeys.completedCount('user-1'));
+        expect(keys).toContainEqual(roastSessionKeys.filterMeta('user-1'));
         expect(keys).toContainEqual(dashboardKeys.all('user-1'));
-        expect(spy).toHaveBeenCalledTimes(4);
+        expect(spy).toHaveBeenCalledTimes(5);
     });
 });

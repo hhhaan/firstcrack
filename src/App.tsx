@@ -10,7 +10,6 @@ import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
 import { Spinner } from '@shared/ui/Spinner';
 import { useTranslation } from 'react-i18next';
-import { useInventoryAlertSync } from './features/inventory-alert';
 import { useSidecarDeadListener } from './features/sidecar';
 import { useUpdateChecker } from './features/updater';
 import { useAuthStore } from './shared/store/auth';
@@ -38,7 +37,6 @@ const COMPARE_PLANS_URL = 'https://firstcrackiscoming.com/compare-plans';
 
 export const App = () => {
     const user = useAuthStore((s) => s.user);
-    useInventoryAlertSync(user?.id);
     const loading = useAuthStore((s) => s.loading);
     const oauthPending = useAuthStore((s) => s.oauthPending);
     const cancelOAuth = useAuthStore((s) => s.cancelOAuth);

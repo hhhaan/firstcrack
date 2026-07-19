@@ -38,12 +38,6 @@ export const coffeeFuturesKeys = {
     all: ['coffee-futures'] as const,
 };
 
-export const roastChartKeys = {
-    history: (tsvPath: string | null) => ['history-chart', tsvPath] as const,
-    /** tsv 없는 세션용 disabled placeholder — useQueries 내 키 충돌 방지 */
-    historyNone: (fallbackKey: string) => ['history-chart', 'none', fallbackKey] as const,
-};
-
 /** Orders — used by order, order-dispatch, sales-channel, fulfill, finished-goods */
 export const orderKeys = {
     all: (userId: string) => ['orders', userId] as const,

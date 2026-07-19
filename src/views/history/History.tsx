@@ -1,5 +1,10 @@
 import { useActiveWorkspace } from '@entities/organization';
-import { useDeleteRoastSession, useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
+import {
+    useDeleteRoastSession,
+    useRoastSessionFilterMeta,
+    useRoastSessions,
+    useRoastSessionsPaginated,
+} from '@entities/roast';
 import { useCreateRoastProfile } from '@entities/roast-profile';
 import { useExportCsv } from '@features/export-csv';
 import { formatDateShort } from '@shared/lib/format';
@@ -11,7 +16,7 @@ import { PageLayout } from '@shared/ui/PageLayout';
 import { NewProfileModal } from '@views/profiles/NewProfileModal';
 import { DateRangeFilter } from '@widgets/date-range-filter';
 import { Download, GitCompare, Search } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHistoryFilters } from './hooks/useHistoryFilters';
 import { DeleteSessionModal } from './ui/DeleteSessionModal';
@@ -58,6 +63,9 @@ export const History = () => {
     const { workspaceOwnerId } = useActiveWorkspace();
 
     const useClientPagination = search.length > 0 || originFilter !== 'all';
+    const [exportArmed, setExportArmed] = useState(false);
+    // Full list only when client-side search/filter, compare mode, or export needs it.
+    const needFullList = useClientPagination || compareMode || exportArmed;
 
     const {
         data: paginatedResult,
@@ -80,30 +88,32 @@ export const History = () => {
         data: rawSessions = [],
         isLoading: isRawLoading,
         isError: isRawError,
-    } = useRoastSessions(workspaceOwnerId, 'completed');
+    } = useRoastSessions(workspaceOwnerId, 'completed', { enabled: needFullList });
 
-    const totalSessions = rawSessions.length;
+    const { data: filterMeta = [] } = useRoastSessionFilterMeta(workspaceOwnerId);
+
+    const totalSessions = filterMeta.length;
 
     const uniqueOrigins = useMemo(
         () =>
-            [...new Set(rawSessions.map((s) => s.beans?.origin).filter(Boolean) as string[])].sort((a, b) =>
+            [...new Set(filterMeta.map((s) => s.beans?.origin).filter(Boolean) as string[])].sort((a, b) =>
                 a.localeCompare(b),
             ),
-        [rawSessions],
+        [filterMeta],
     );
 
     const monthOptions = useMemo(() => {
         const set = new Set<string>();
         const now = new Date();
         set.add(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
-        for (const s of rawSessions) {
+        for (const s of filterMeta) {
             if (s.roasted_at) {
                 const d = new Date(s.roasted_at);
                 set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
             }
         }
         return [...set].sort((a, b) => a.localeCompare(b));
-    }, [rawSessions]);
+    }, [filterMeta]);
 
     const clientFiltered = useMemo(
         () => (useClientPagination ? filterSessions(rawSessions, filterCriteria) : []),
@@ -150,8 +160,8 @@ export const History = () => {
     );
 
     const deletingSession = useMemo(
-        () => rawSessions.find((s) => s.id === deletingId) ?? null,
-        [rawSessions, deletingId],
+        () => displaySessions.find((s) => s.id === deletingId) ?? rawSessions.find((s) => s.id === deletingId) ?? null,
+        [displaySessions, rawSessions, deletingId],
     );
 
     // ── Handlers ──
@@ -183,15 +193,26 @@ export const History = () => {
     const compareSessions = useMemo(
         () =>
             compareIds
-                .map((id) => rawSessions.find((s) => s.id === id))
+                .map((id) => rawSessions.find((s) => s.id === id) ?? displaySessions.find((s) => s.id === id) ?? null)
                 .filter((s): s is NonNullable<typeof s> => s != null),
-        [compareIds, rawSessions],
+        [compareIds, rawSessions, displaySessions],
     );
 
     const handleExportCsv = useCallback(() => {
+        if (rawSessions.length === 0 && !useClientPagination) {
+            setExportArmed(true);
+            return;
+        }
         const filtered = filterSessions(rawSessions, filterCriteria);
         void exportCsv(filtered);
-    }, [rawSessions, filterCriteria, exportCsv]);
+    }, [rawSessions, filterCriteria, exportCsv, useClientPagination]);
+
+    useEffect(() => {
+        if (!exportArmed || isRawLoading) return;
+        const filtered = filterSessions(rawSessions, filterCriteria);
+        void exportCsv(filtered);
+        setExportArmed(false);
+    }, [exportArmed, isRawLoading, rawSessions, filterCriteria, exportCsv]);
 
     const handleDeleteClick = useCallback((id: string) => setDeletingId(id), []);
     const handleCloseDelete = useCallback(() => setDeletingId(null), []);

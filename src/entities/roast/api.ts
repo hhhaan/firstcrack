@@ -25,6 +25,11 @@ interface PaginatedResult {
     total: number;
 }
 
+export type RoastSessionFilterMeta = {
+    roasted_at: string | null;
+    beans: { origin: string | null } | null;
+};
+
 export const roastSessionApi = {
     list: async (userId: string, status?: RoastSession['status']): Promise<RoastSessionWithRelations[]> => {
         let query = supabase
@@ -41,6 +46,17 @@ export const roastSessionApi = {
         const { data, error } = await query;
         if (error) throw error;
         return data || [];
+    },
+
+    /** Lightweight rows for History filter dropdowns + total count (no events/embeds bloat). */
+    listFilterMeta: async (userId: string): Promise<RoastSessionFilterMeta[]> => {
+        const { data, error } = await supabase
+            .from('roast_sessions')
+            .select('roasted_at, beans(origin)')
+            .eq('user_id', userId)
+            .eq('status', 'completed');
+        if (error) throw error;
+        return (data as RoastSessionFilterMeta[]) || [];
     },
 
     get: async (id: string): Promise<RoastSessionWithRelations> => {

@@ -6,6 +6,7 @@ export {
     useCreateRoastSession,
     useDeleteRoastSession,
     useRoastSession,
+    useRoastSessionFilterMeta,
     useRoastSessions,
     useRoastSessionsPaginated,
     useUpdateRoastSession,

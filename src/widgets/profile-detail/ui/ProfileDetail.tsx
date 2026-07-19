@@ -1,5 +1,5 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
-import { resolveSourceSession, useProfileBeanHistory } from '@entities/roast-profile';
+import { useProfileBeanHistory, useSourceSessionEvents } from '@entities/roast-profile';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
@@ -114,11 +114,12 @@ export const ProfileDetail = ({
 }: ProfileDetailProps) => {
     const { t } = useTranslation();
     const { data: beanHistory = [] } = useProfileBeanHistory(selected.id ?? '');
+    const { data: sourceEvents = null } = useSourceSessionEvents(selected.source_session_id);
     const TABLE_ROWS = useTableRows();
-    const roastLogEntries = useMemo(() => {
-        const sourceSession = resolveSourceSession(selected.source_session);
-        return storedEventsToLogEntries(parseStoredRoastEvents(sourceSession?.events));
-    }, [selected.source_session]);
+    const roastLogEntries = useMemo(
+        () => storedEventsToLogEntries(parseStoredRoastEvents(sourceEvents)),
+        [sourceEvents],
+    );
 
     return (
         <div className="bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
