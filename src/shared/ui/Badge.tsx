@@ -28,8 +28,8 @@ const toneClass: Record<BadgeTone, string> = {
     amber: 'text-amber-700 dark:text-amber-300 bg-amber-400/20',
     lavender: 'text-palette-lavender bg-palette-lavender/15 border border-palette-lavender/25',
     lavenderSoft: 'text-palette-lavender bg-palette-lavender/12',
-    blue: 'text-palette-blue bg-palette-blue/12 border border-palette-blue/20',
-    green: 'text-palette-green bg-palette-green/12 border border-palette-green/20',
+    blue: 'text-palette-blue bg-palette-blue/12',
+    green: 'text-palette-green bg-palette-green/12',
     yellow: 'text-palette-yellow bg-palette-yellow/15',
     muted: 'text-palette-lavender bg-palette-lavender/10',
 };
