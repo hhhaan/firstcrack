@@ -2,6 +2,7 @@ import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import type { Bean } from '@shared/types/database.types';
+import { modalCancelBtnCls, modalFooterChrome, modalHeaderChrome, modalPrimaryBtnCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -149,7 +150,7 @@ export const AddBeanModal = ({
 
     return (
         <ModalShell onClose={onClose} labelledBy="add-bean-modal-title" contentClassName={modalPanel.formLg}>
-            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
+            <div className={modalHeaderChrome}>
                 <ModalHeader
                     titleId="add-bean-modal-title"
                     title={t(titleKey)}
@@ -225,13 +226,9 @@ export const AddBeanModal = ({
                 )}
             </ModalScrollBody>
 
-            <div className="px-8 pt-5 pb-8 bg-white/80 dark:bg-[#1a1e23] backdrop-blur-sm border-t border-black/4 dark:border-[#585d61] shrink-0">
+            <div className={modalFooterChrome}>
                 <div className="flex gap-3">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
-                    >
+                    <button type="button" onClick={onClose} className={modalCancelBtnCls}>
                         {t('addBeanModal.cancel')}
                     </button>
                     {tab === 'new' || tab === 'edit' ? (
@@ -239,7 +236,7 @@ export const AddBeanModal = ({
                             type="submit"
                             form="bean-form"
                             disabled={isSubmitting}
-                            className="flex-2 py-3.5 rounded-2xl border border-transparent bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className={`${modalPrimaryBtnCls} flex-[2]`}
                         >
                             {isSubmitting
                                 ? t('addBeanModal.saving')
@@ -252,7 +249,7 @@ export const AddBeanModal = ({
                             type="button"
                             disabled={isSubmitDisabled}
                             onClick={() => submitBean(getValues())}
-                            className="flex-2 py-3.5 rounded-2xl border border-transparent bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className={`${modalPrimaryBtnCls} flex-[2]`}
                         >
                             {isSubmitting
                                 ? t('addBeanModal.saving')

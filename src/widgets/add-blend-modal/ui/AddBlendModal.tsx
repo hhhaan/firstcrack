@@ -5,7 +5,14 @@ import { blendTotalRatio } from '@entities/blend/lib';
 import { useActiveWorkspace } from '@entities/organization';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import { inputCls, labelCls } from '@shared/ui/form-styles';
+import {
+    inputCls,
+    labelCls,
+    modalCancelBtnCls,
+    modalFooterChrome,
+    modalHeaderChrome,
+    modalPrimaryBtnCls,
+} from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -93,7 +100,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
 
     return (
         <ModalShell onClose={onClose} labelledBy="add-blend-modal-title" contentClassName={modalPanel.formMd}>
-            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
+            <div className={modalHeaderChrome}>
                 <ModalHeader
                     titleId="add-blend-modal-title"
                     title={editing ? t('beans.blend.modal.titleEdit') : t('beans.blend.modal.titleCreate')}
@@ -103,8 +110,8 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                 />
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                <ModalScrollBody contentClassName="p-8 space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <ModalScrollBody contentClassName="p-8 space-y-5">
                     <div>
                         <label className={labelCls}>{t('beans.blend.modal.nameLabel')}</label>
                         <input
@@ -112,7 +119,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                             className={inputCls}
                             placeholder={t('beans.blend.modal.namePlaceholder')}
                         />
-                        {errors.name && <p className="text-[11px] text-red-500 mt-1">{errors.name.message}</p>}
+                        {errors.name && <p className="mt-1 text-[11px] text-red-500">{errors.name.message}</p>}
                     </div>
 
                     <div>
@@ -125,7 +132,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                     </div>
 
                     <div>
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="mb-3 flex items-center justify-between">
                             <label className={`${labelCls} mb-0`}>{t('beans.blend.modal.componentsLabel')}</label>
                             <span
                                 className={`text-xs font-semibold ${totalRatio === 100 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}
@@ -134,7 +141,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                             </span>
                         </div>
                         {errors.components?.root && (
-                            <p className="text-[11px] text-red-500 mb-2">{errors.components.root.message}</p>
+                            <p className="mb-2 text-[11px] text-red-500">{errors.components.root.message}</p>
                         )}
 
                         <div className="space-y-2">
@@ -152,30 +159,24 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
 
                         <button
                             type="button"
-                            className="mt-3 text-sm text-primary font-medium underline cursor-pointer"
+                            className="mt-3 cursor-pointer text-sm font-medium text-primary underline"
                             onClick={() => append({ bean_id: '', ratio_pct: 0 })}
                         >
                             {t('beans.blend.modal.addComponent')}
                         </button>
                     </div>
+                </ModalScrollBody>
 
-                    <div className="!mt-8 flex gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="flex-1 py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
-                        >
+                <div className={modalFooterChrome}>
+                    <div className="flex gap-3">
+                        <button type="button" onClick={onClose} className={modalCancelBtnCls}>
                             {t('beans.blend.modal.cancel')}
                         </button>
-                        <button
-                            type="submit"
-                            disabled={!isValid}
-                            className="flex-1 py-3.5 rounded-2xl border border-transparent dark:border-white bg-primary dark:bg-black text-white text-[15px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
+                        <button type="submit" disabled={!isValid} className={modalPrimaryBtnCls}>
                             {editing ? t('beans.blend.modal.save') : t('beans.blend.modal.add')}
                         </button>
                     </div>
-                </ModalScrollBody>
+                </div>
             </form>
         </ModalShell>
     );

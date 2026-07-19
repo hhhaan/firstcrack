@@ -2,7 +2,15 @@ import { useDispatchOrder } from '@entities/order-dispatch';
 import { useActiveWorkspace } from '@entities/organization';
 import { CARRIER_OPTIONS, type ClientCarrierId } from '@shared/lib/carriers';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import { inputCls, labelCls } from '@shared/ui/form-styles';
+import { FormSelect } from '@shared/ui/FormSelect';
+import {
+    inputCls,
+    labelCls,
+    modalCancelBtnCls,
+    modalFooterChrome,
+    modalHeaderChrome,
+    modalPrimaryBtnCls,
+} from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -58,25 +66,26 @@ export const DispatchModal = ({ open, orderId, onClose }: Props) => {
 
     return (
         <ModalShell onClose={onClose} labelledBy="dispatch-order-title" contentClassName={modalPanel.formSm}>
-            <div className="shrink-0 border-b border-black/4 bg-white/60 dark:border-[#585d61] dark:bg-[#1a1e23]">
+            <div className={modalHeaderChrome}>
                 <ModalHeader
                     titleId="dispatch-order-title"
                     title={t('orders.dispatch.title')}
-                    subtitle={t('orders.dispatch.subtitle')}
+                    subtitle={
+                        <p className="mt-1 text-[13px] tracking-[0.14px] text-muted">{t('orders.dispatch.subtitle')}</p>
+                    }
                     onClose={onClose}
                     closeLabel={t('common.close')}
                     className="px-8 pt-6 pb-5"
                 />
             </div>
 
-            <ModalScrollBody contentClassName="p-8 space-y-4">
+            <ModalScrollBody contentClassName="p-8 space-y-5">
                 <div>
                     <label className={labelCls} htmlFor="dispatch-carrier">
                         {t('orders.dispatch.carrier')}
                     </label>
-                    <select
+                    <FormSelect
                         id="dispatch-carrier"
-                        className={inputCls}
                         value={carrier}
                         onChange={(e) => setCarrier(e.target.value as ClientCarrierId)}
                     >
@@ -85,7 +94,7 @@ export const DispatchModal = ({ open, orderId, onClose }: Props) => {
                                 {ko ? c.labelKo : c.labelEn}
                             </option>
                         ))}
-                    </select>
+                    </FormSelect>
                 </div>
                 <div>
                     <label className={labelCls} htmlFor="dispatch-tracking">
@@ -102,29 +111,27 @@ export const DispatchModal = ({ open, orderId, onClose }: Props) => {
                 </div>
 
                 {error ? (
-                    <p className="rounded-lg bg-[rgba(192,57,43,0.07)] px-3 py-2 text-[12px] leading-relaxed text-[#c0392b] tracking-[0.14px]">
+                    <p className="rounded-lg bg-[rgba(192,57,43,0.07)] px-3 py-2 text-[12px] leading-relaxed tracking-[0.14px] text-[#c0392b]">
                         {error}
                     </p>
                 ) : null}
+            </ModalScrollBody>
 
-                <div className="!mt-8 flex gap-3">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="flex-1 rounded-full border-none bg-surface py-3 text-[14px] font-medium tracking-[0.14px] text-secondary shadow-(--shadow-inset) transition-colors hover:bg-surface-elevated cursor-pointer dark:bg-surface-elevated dark:text-[#e5e5e5]"
-                    >
+            <div className={modalFooterChrome}>
+                <div className="flex gap-3">
+                    <button type="button" onClick={onClose} className={modalCancelBtnCls}>
                         {t('common.cancel')}
                     </button>
                     <button
                         type="button"
                         disabled={dispatch.isPending || !tracking.trim()}
                         onClick={() => void submit()}
-                        className="flex-1 rounded-full border border-transparent bg-primary py-3 text-[14px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:border-white dark:bg-[#0d0d0d] cursor-pointer"
+                        className={modalPrimaryBtnCls}
                     >
                         {dispatch.isPending ? t('orders.dispatch.submitting') : t('orders.dispatch.submit')}
                     </button>
                 </div>
-            </ModalScrollBody>
+            </div>
         </ModalShell>
     );
 };

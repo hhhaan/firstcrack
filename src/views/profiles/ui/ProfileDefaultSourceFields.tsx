@@ -1,6 +1,6 @@
 import type { Bean } from '@shared/types/database.types';
-import { chipCls, inputCls, labelCls } from '@shared/ui/form-styles';
-import { ChevronDown } from 'lucide-react';
+import { FormSelect } from '@shared/ui/FormSelect';
+import { chipCls, labelCls } from '@shared/ui/form-styles';
 import { useTranslation } from 'react-i18next';
 import type { ProfileDefaultType } from '../lib/types';
 
@@ -16,8 +16,6 @@ type ProfileDefaultSourceFieldsProps = {
     defaultBlendId: string | null;
     setDefaultBlendId: (id: string | null) => void;
 };
-
-const selectCls = `${inputCls} appearance-none cursor-pointer`;
 
 export const ProfileDefaultSourceFields = ({
     beans,
@@ -53,48 +51,32 @@ export const ProfileDefaultSourceFields = ({
                 ))}
             </div>
             {defaultType === 'bean' && (
-                <div className="relative mt-3">
-                    <select
-                        value={defaultBeanId ?? ''}
-                        onChange={(e) => setDefaultBeanId(e.target.value || null)}
-                        className={selectCls}
-                        style={{ paddingRight: '2.5rem' }}
-                    >
-                        <option value="">{t('newProfileModal.selectBeanOption')}</option>
-                        {beans.map((b) => (
-                            <option key={b.id} value={b.id}>
-                                {b.name}
-                            </option>
-                        ))}
-                    </select>
-                    <ChevronDown
-                        size={16}
-                        strokeWidth={2.5}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-                    />
-                </div>
+                <FormSelect
+                    wrapperClassName="mt-3"
+                    value={defaultBeanId ?? ''}
+                    onChange={(e) => setDefaultBeanId(e.target.value || null)}
+                >
+                    <option value="">{t('newProfileModal.selectBeanOption')}</option>
+                    {beans.map((b) => (
+                        <option key={b.id} value={b.id}>
+                            {b.name}
+                        </option>
+                    ))}
+                </FormSelect>
             )}
             {defaultType === 'blend' && (
-                <div className="relative mt-3">
-                    <select
-                        value={defaultBlendId ?? ''}
-                        onChange={(e) => setDefaultBlendId(e.target.value || null)}
-                        className={selectCls}
-                        style={{ paddingRight: '2.5rem' }}
-                    >
-                        <option value="">{t('newProfileModal.selectBlendOption')}</option>
-                        {blends.map((b) => (
-                            <option key={b.id} value={b.id}>
-                                {b.name}
-                            </option>
-                        ))}
-                    </select>
-                    <ChevronDown
-                        size={16}
-                        strokeWidth={2.5}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-                    />
-                </div>
+                <FormSelect
+                    wrapperClassName="mt-3"
+                    value={defaultBlendId ?? ''}
+                    onChange={(e) => setDefaultBlendId(e.target.value || null)}
+                >
+                    <option value="">{t('newProfileModal.selectBlendOption')}</option>
+                    {blends.map((b) => (
+                        <option key={b.id} value={b.id}>
+                            {b.name}
+                        </option>
+                    ))}
+                </FormSelect>
             )}
         </div>
     );

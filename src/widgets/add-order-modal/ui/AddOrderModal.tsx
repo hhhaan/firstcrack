@@ -2,7 +2,15 @@ import { useCreateOrder } from '@entities/order';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProducts } from '@entities/product';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import { inputCls, labelCls } from '@shared/ui/form-styles';
+import { FormSelect } from '@shared/ui/FormSelect';
+import {
+    inputCls,
+    labelCls,
+    modalCancelBtnCls,
+    modalFooterChrome,
+    modalHeaderChrome,
+    modalPrimaryBtnCls,
+} from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -67,7 +75,7 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
 
     return (
         <ModalShell onClose={onClose} labelledBy="add-order-modal-title" contentClassName={modalPanel.formSm}>
-            <div className="shrink-0 border-b border-black/4 bg-white/60 dark:border-[#585d61] dark:bg-[#1a1e23]">
+            <div className={modalHeaderChrome}>
                 <ModalHeader
                     titleId="add-order-modal-title"
                     title={t('orders.order.newTitle')}
@@ -77,7 +85,7 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                 />
             </div>
 
-            <ModalScrollBody contentClassName="p-8 space-y-4">
+            <ModalScrollBody contentClassName="p-8 space-y-5">
                 <div>
                     <label className={labelCls}>{t('orders.order.buyer')}</label>
                     <input value={buyer} onChange={(e) => setBuyer(e.target.value)} className={inputCls} />
@@ -88,10 +96,10 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                     <div className="space-y-2">
                         {lines.map((l, idx) => (
                             <div key={idx} className="flex gap-2">
-                                <select
+                                <FormSelect
                                     value={l.productId}
                                     onChange={(e) => setLine(idx, { productId: e.target.value })}
-                                    className={`${inputCls} flex-1`}
+                                    wrapperClassName="min-w-0 flex-1"
                                 >
                                     <option value="">{t('orders.order.selectProduct')}</option>
                                     {products.map((p) => (
@@ -99,7 +107,7 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                                             {p.name}
                                         </option>
                                     ))}
-                                </select>
+                                </FormSelect>
                                 <input
                                     type="number"
                                     value={l.quantity}
@@ -110,7 +118,7 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                                     <button
                                         type="button"
                                         onClick={() => setLines((prev) => prev.filter((_, i) => i !== idx))}
-                                        className="shrink-0 px-2 text-muted hover:text-red-500"
+                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-none bg-surface text-muted transition-colors hover:text-red-500 dark:bg-surface-elevated cursor-pointer"
                                         aria-label={t('common.delete')}
                                     >
                                         <Trash2 size={16} />
@@ -127,25 +135,18 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                         {t('orders.order.addLine')}
                     </button>
                 </div>
+            </ModalScrollBody>
 
-                <div className="!mt-8 flex gap-3">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="flex-1 rounded-full border-none bg-surface py-3 text-[14px] font-medium tracking-[0.14px] text-secondary shadow-(--shadow-inset) transition-colors hover:bg-surface-elevated cursor-pointer dark:bg-surface-elevated dark:text-[#e5e5e5]"
-                    >
+            <div className={modalFooterChrome}>
+                <div className="flex gap-3">
+                    <button type="button" onClick={onClose} className={modalCancelBtnCls}>
                         {t('common.cancel')}
                     </button>
-                    <button
-                        type="button"
-                        onClick={onSubmit}
-                        disabled={!valid}
-                        className="flex-1 rounded-full border border-transparent bg-primary py-3 text-[14px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:border-white dark:bg-[#0d0d0d] cursor-pointer"
-                    >
+                    <button type="button" onClick={onSubmit} disabled={!valid} className={modalPrimaryBtnCls}>
                         {t('common.add')}
                     </button>
                 </div>
-            </ModalScrollBody>
+            </div>
         </ModalShell>
     );
 };

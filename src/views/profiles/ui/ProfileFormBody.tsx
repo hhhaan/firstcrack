@@ -1,6 +1,7 @@
 import type { Bean } from '@shared/types/database.types';
+import { FormSelect } from '@shared/ui/FormSelect';
 import { inputCls, labelCls } from '@shared/ui/form-styles';
-import { Check, ChevronDown, ChevronRight, History, Plus, X } from 'lucide-react';
+import { Check, ChevronRight, History, Plus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { fmtDate, fmtDuration } from '../lib/format';
 import { type ProfileDefaultType, type ProfileFormMode, type ProfileFormState, ROAST_LEVELS } from '../lib/types';
@@ -37,8 +38,6 @@ type ProfileFormBodyProps = {
     onClose: () => void;
     onSubmit: (e: React.FormEvent) => void;
 };
-
-const selectCls = `${inputCls} appearance-none cursor-pointer`;
 
 export const ProfileFormBody = ({
     mode,
@@ -142,25 +141,13 @@ export const ProfileFormBody = ({
 
                     <div>
                         <label className={labelCls}>{t('newProfileModal.targetLevel')}</label>
-                        <div className="relative">
-                            <select
-                                value={form.target_level}
-                                onChange={setField('target_level')}
-                                className={selectCls}
-                                style={{ paddingRight: '2.5rem' }}
-                            >
-                                {ROAST_LEVELS.map((l) => (
-                                    <option key={l} value={l}>
-                                        {t(`newProfileModal.roastLevel.${l}`)}
-                                    </option>
-                                ))}
-                            </select>
-                            <ChevronDown
-                                size={16}
-                                strokeWidth={2.5}
-                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-                            />
-                        </div>
+                        <FormSelect value={form.target_level} onChange={setField('target_level')}>
+                            {ROAST_LEVELS.map((l) => (
+                                <option key={l} value={l}>
+                                    {t(`newProfileModal.roastLevel.${l}`)}
+                                </option>
+                            ))}
+                        </FormSelect>
                     </div>
 
                     <ProfileCurveFields form={form} setField={setField} />

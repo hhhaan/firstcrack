@@ -5,7 +5,15 @@ import type { Product } from '@entities/product';
 import { useCreateProduct, useUpdateProduct } from '@entities/product';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import { inputCls, labelCls } from '@shared/ui/form-styles';
+import { FormSelect } from '@shared/ui/FormSelect';
+import {
+    inputCls,
+    labelCls,
+    modalCancelBtnCls,
+    modalFooterChrome,
+    modalHeaderChrome,
+    modalPrimaryBtnCls,
+} from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -37,6 +45,7 @@ export const AddProductModal = ({ open, onClose, editing }: Props) => {
     const [profileId, setProfileId] = useState('');
     const [netWeight, setNetWeight] = useState('200');
     const [yieldPct, setYieldPct] = useState('85');
+    const [submitting, setSubmitting] = useState(false);
 
     useFormEscape(open, onClose);
 
@@ -63,6 +72,7 @@ export const AddProductModal = ({ open, onClose, editing }: Props) => {
             setNetWeight('200');
             setYieldPct('85');
         }
+        setSubmitting(false);
     }, [open, editing]);
 
     if (!open) return null;
@@ -70,31 +80,35 @@ export const AddProductModal = ({ open, onClose, editing }: Props) => {
     const netWeightNum = Number(netWeight);
     const yieldNum = Number(yieldPct);
     const valid = name.trim() && netWeightNum > 0 && yieldNum > 0 && yieldNum <= 100;
-
     const sourceValue = source.kind === 'none' ? '' : `${source.kind}:${source.id}`;
 
     const onSubmit = async () => {
-        if (!valid) return;
-        const payload = {
-            name: name.trim(),
-            sku: sku.trim() || null,
-            bean_id: source.kind === 'bean' ? source.id : null,
-            blend_id: source.kind === 'blend' ? source.id : null,
-            roast_profile_id: profileId || null,
-            net_weight_grams: netWeightNum,
-            yield_pct: yieldNum / 100,
-        };
-        if (editing) {
-            await updateProduct.mutateAsync({ id: editing.id, patch: payload });
-        } else {
-            await createProduct.mutateAsync({ ...payload, user_id: userId });
+        if (!valid || submitting) return;
+        setSubmitting(true);
+        try {
+            const payload = {
+                name: name.trim(),
+                sku: sku.trim() || null,
+                bean_id: source.kind === 'bean' ? source.id : null,
+                blend_id: source.kind === 'blend' ? source.id : null,
+                roast_profile_id: profileId || null,
+                net_weight_grams: netWeightNum,
+                yield_pct: yieldNum / 100,
+            };
+            if (editing) {
+                await updateProduct.mutateAsync({ id: editing.id, patch: payload });
+            } else {
+                await createProduct.mutateAsync({ ...payload, user_id: userId });
+            }
+            onClose();
+        } finally {
+            setSubmitting(false);
         }
-        onClose();
     };
 
     return (
         <ModalShell onClose={onClose} labelledBy="add-product-modal-title" contentClassName={modalPanel.formSm}>
-            <div className="shrink-0 border-b border-black/4 bg-white/60 dark:border-[#585d61] dark:bg-[#1a1e23]">
+            <div className={modalHeaderChrome}>
                 <ModalHeader
                     titleId="add-product-modal-title"
                     title={editing ? t('orders.product.editTitle') : t('orders.product.newTitle')}
@@ -104,40 +118,79 @@ export const AddProductModal = ({ open, onClose, editing }: Props) => {
                 />
             </div>
 
-            <ModalScrollBody contentClassName="p-8 space-y-4">
+            <ModalScrollBody contentClassName="p-8 space-y-5">
                 <div>
-                    <label className={labelCls}>{t('orders.product.name')}</label>
-                    <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
-                </div>
-
-                <div className="flex gap-3">
-                    <div className="flex-1">
-                        <label className={labelCls}>SKU</label>
-                        <input value={sku} onChange={(e) => setSku(e.target.value)} className={inputCls} />
-                    </div>
-                    <div className="w-28">
-                        <label className={labelCls}>{t('orders.product.netWeight')}</label>
-                        <input
-                            type="number"
-                            value={netWeight}
-                            onChange={(e) => setNetWeight(e.target.value)}
-                            className={inputCls}
-                        />
-                    </div>
-                    <div className="w-20">
-                        <label className={labelCls}>{t('orders.product.yield')}</label>
-                        <input
-                            type="number"
-                            value={yieldPct}
-                            onChange={(e) => setYieldPct(e.target.value)}
-                            className={inputCls}
-                        />
-                    </div>
+                    <label className={labelCls} htmlFor="product-name">
+                        {t('orders.product.name')}
+                    </label>
+                    <input
+                        id="product-name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className={inputCls}
+                        autoComplete="off"
+                    />
                 </div>
 
                 <div>
-                    <label className={labelCls}>{t('orders.product.source')}</label>
-                    <select
+                    <label className={labelCls} htmlFor="product-sku">
+                        SKU
+                    </label>
+                    <input
+                        id="product-sku"
+                        value={sku}
+                        onChange={(e) => setSku(e.target.value)}
+                        className={inputCls}
+                        autoComplete="off"
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className={labelCls} htmlFor="product-net-weight">
+                            {t('orders.product.netWeight')}
+                        </label>
+                        <div className="relative">
+                            <input
+                                id="product-net-weight"
+                                type="number"
+                                min={1}
+                                value={netWeight}
+                                onChange={(e) => setNetWeight(e.target.value)}
+                                className={`${inputCls} pr-10`}
+                            />
+                            <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted">
+                                g
+                            </span>
+                        </div>
+                    </div>
+                    <div>
+                        <label className={labelCls} htmlFor="product-yield">
+                            {t('orders.product.yield')}
+                        </label>
+                        <div className="relative">
+                            <input
+                                id="product-yield"
+                                type="number"
+                                min={1}
+                                max={100}
+                                value={yieldPct}
+                                onChange={(e) => setYieldPct(e.target.value)}
+                                className={`${inputCls} pr-10`}
+                            />
+                            <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] font-medium text-muted">
+                                %
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label className={labelCls} htmlFor="product-source">
+                        {t('orders.product.source')}
+                    </label>
+                    <FormSelect
+                        id="product-source"
                         value={sourceValue}
                         onChange={(e) => {
                             const v = e.target.value;
@@ -145,7 +198,6 @@ export const AddProductModal = ({ open, onClose, editing }: Props) => {
                             const [kind, id] = v.split(':');
                             setSource({ kind: kind as 'bean' | 'blend', id });
                         }}
-                        className={inputCls}
                     >
                         <option value="">{t('orders.product.sourceNone')}</option>
                         <optgroup label={t('orders.product.beanGroup')}>
@@ -162,39 +214,39 @@ export const AddProductModal = ({ open, onClose, editing }: Props) => {
                                 </option>
                             ))}
                         </optgroup>
-                    </select>
+                    </FormSelect>
                 </div>
 
                 <div>
-                    <label className={labelCls}>{t('orders.product.profile')}</label>
-                    <select value={profileId} onChange={(e) => setProfileId(e.target.value)} className={inputCls}>
+                    <label className={labelCls} htmlFor="product-profile">
+                        {t('orders.product.profile')}
+                    </label>
+                    <FormSelect id="product-profile" value={profileId} onChange={(e) => setProfileId(e.target.value)}>
                         <option value="">{t('orders.product.profileNone')}</option>
                         {profiles.map((p) => (
                             <option key={p.id} value={p.id}>
                                 {p.name}
                             </option>
                         ))}
-                    </select>
+                    </FormSelect>
                 </div>
+            </ModalScrollBody>
 
-                <div className="!mt-8 flex gap-3">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="flex-1 rounded-full border-none bg-surface py-3 text-[14px] font-medium tracking-[0.14px] text-secondary shadow-(--shadow-inset) transition-colors hover:bg-surface-elevated cursor-pointer dark:bg-surface-elevated dark:text-[#e5e5e5]"
-                    >
+            <div className={modalFooterChrome}>
+                <div className="flex gap-3">
+                    <button type="button" onClick={onClose} className={modalCancelBtnCls}>
                         {t('common.cancel')}
                     </button>
                     <button
                         type="button"
-                        onClick={onSubmit}
-                        disabled={!valid}
-                        className="flex-1 rounded-full border border-transparent bg-primary py-3 text-[14px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:border-white dark:bg-[#0d0d0d] cursor-pointer"
+                        onClick={() => void onSubmit()}
+                        disabled={!valid || submitting}
+                        className={modalPrimaryBtnCls}
                     >
                         {editing ? t('common.save') : t('common.add')}
                     </button>
                 </div>
-            </ModalScrollBody>
+            </div>
         </ModalShell>
     );
 };

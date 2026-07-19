@@ -1,6 +1,7 @@
 import type { Bean } from '@shared/types/database.types';
+import { FormSelect } from '@shared/ui/FormSelect';
 import { inputCls } from '@shared/ui/form-styles';
-import { ChevronDown, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { UseFormRegister } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import type { BlendForm } from '../lib/schema';
@@ -18,25 +19,14 @@ export const BlendComponentRow = ({ index, register, beans, canRemove, onRemove 
 
     return (
         <div className="flex gap-2 items-center">
-            <div className="relative flex-1">
-                <select
-                    {...register(`components.${index}.bean_id`)}
-                    className={`${inputCls} appearance-none cursor-pointer`}
-                    style={{ paddingRight: '2rem' }}
-                >
-                    <option value="">{t('beans.blend.modal.selectBean')}</option>
-                    {beans.map((b) => (
-                        <option key={b.id} value={b.id}>
-                            {b.name}
-                        </option>
-                    ))}
-                </select>
-                <ChevronDown
-                    size={16}
-                    strokeWidth={2}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-                />
-            </div>
+            <FormSelect {...register(`components.${index}.bean_id`)} wrapperClassName="min-w-0 flex-1">
+                <option value="">{t('beans.blend.modal.selectBean')}</option>
+                {beans.map((b) => (
+                    <option key={b.id} value={b.id}>
+                        {b.name}
+                    </option>
+                ))}
+            </FormSelect>
             <input
                 type="number"
                 {...register(`components.${index}.ratio_pct`, { valueAsNumber: true })}
