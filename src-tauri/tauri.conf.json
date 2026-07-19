@@ -24,7 +24,7 @@
             }
         ],
         "security": {
-            "csp": "default-src 'self'; img-src 'self' data: https: blob:; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:9999 https://*.supabase.co https://*.r2.cloudflarestorage.com https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev https://api.open-meteo.com https://*.ingest.us.sentry.io https://*.ingest.sentry.io"
+            "csp": "default-src 'self'; img-src 'self' data: https: blob:; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:9999 https://*.supabase.co https://*.r2.cloudflarestorage.com https://dl.firstcrackiscoming.com https://api.open-meteo.com https://*.ingest.us.sentry.io https://*.ingest.sentry.io"
         }
     },
     "plugins": {
@@ -35,7 +35,7 @@
         },
         "updater": {
             "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlBODIzMjY0MjMyNzJCQjQKUldTMEt5Y2paREtDbW1WZU1XSWpvYTF3Q0ZVRW9BWGFlZ0ZYWE5IWFc5RG0xWkNid3ZyS1ZPdSsK",
-            "endpoints": ["https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev/releases/latest.json"]
+            "endpoints": ["https://dl.firstcrackiscoming.com/releases/latest.json"]
         }
     },
     "bundle": {

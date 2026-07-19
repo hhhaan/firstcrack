@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      R2_PUBLIC_URL: https://pub-32f64eaa15504eeba9203bcbbced439d.r2.dev
+      R2_PUBLIC_URL: https://dl.firstcrackiscoming.com
     steps:
       - name: Fetch and validate latest.json
         run: |
