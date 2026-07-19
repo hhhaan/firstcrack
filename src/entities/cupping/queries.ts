@@ -111,6 +111,8 @@ export const useCreateCuppingEvent = (userId: string) => {
                 updated_at: now,
                 sample_count: 0,
                 score_count: 0,
+                participant_count: 0,
+                participants: [],
                 avg_score: null,
                 active_invite: null,
             };
@@ -125,6 +127,8 @@ export const useCreateCuppingEvent = (userId: string) => {
                 ...real,
                 sample_count: 0,
                 score_count: 0,
+                participant_count: 0,
+                participants: [],
                 avg_score: null,
                 active_invite: null,
             };
@@ -281,6 +285,34 @@ export const useDeleteCuppingSample = (userId: string, eventId: string) => {
         },
         onSuccess: (_data, sampleId) => {
             qc.removeQueries({ queryKey: cuppingKeys.scores(sampleId) });
+        },
+    });
+};
+
+/** Reorder samples by full ordered id list. Optimistic; reverts on error. */
+export const useReorderCuppingSamples = (eventId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (orderedIds: string[]) => cuppingApi.reorderSamples(orderedIds),
+        onMutate: async (orderedIds) => {
+            await qc.cancelQueries({ queryKey: cuppingKeys.samples(eventId) });
+            const prev = qc.getQueryData<CuppingSampleWithMeta[]>(cuppingKeys.samples(eventId));
+            if (!prev) return { prev };
+            const byId = new Map(prev.map((s) => [s.id, s]));
+            const next: CuppingSampleWithMeta[] = [];
+            for (let i = 0; i < orderedIds.length; i++) {
+                const s = byId.get(orderedIds[i]);
+                if (s) next.push({ ...s, sort_order: i });
+            }
+            // Keep any ids missing from orderedIds (shouldn't happen) at the end
+            for (const s of prev) {
+                if (!orderedIds.includes(s.id)) next.push(s);
+            }
+            qc.setQueryData(cuppingKeys.samples(eventId), next);
+            return { prev };
+        },
+        onError: (_err, _ids, ctx) => {
+            if (ctx?.prev) qc.setQueryData(cuppingKeys.samples(eventId), ctx.prev);
         },
     });
 };

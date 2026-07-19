@@ -108,6 +108,9 @@ export const CuppingEventList = ({
                                     {t('cupping.colSamples')}
                                 </th>
                                 <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                                    {t('cupping.colParticipants')}
+                                </th>
+                                <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                     {t('cupping.colAvg')}
                                 </th>
                                 <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
@@ -130,6 +133,20 @@ export const CuppingEventList = ({
                                     <td className="px-4 py-3 font-mono text-[13px] text-secondary">
                                         {ev.sample_count}
                                     </td>
+                                    <td className="px-4 py-3 text-[13px] text-secondary">
+                                        {ev.participant_count > 0 ? (
+                                            <span
+                                                className="font-mono"
+                                                title={ev.participants
+                                                    .map((n) => n || t('cupping.anonymous'))
+                                                    .join(', ')}
+                                            >
+                                                {ev.participant_count}
+                                            </span>
+                                        ) : (
+                                            <span className="text-muted">—</span>
+                                        )}
+                                    </td>
                                     <td className="px-4 py-3 font-mono text-[13px] text-secondary">
                                         {ev.avg_score != null ? ev.avg_score.toFixed(2) : '—'}
                                     </td>
@@ -138,20 +155,22 @@ export const CuppingEventList = ({
                                             {ev.active_invite ? 'Link active' : 'No link yet'}
                                         </Badge>
                                     </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <button
-                                            type="button"
-                                            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted hover:bg-red-50 hover:text-red-600"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (window.confirm(t('cupping.deleteEventConfirm'))) {
-                                                    void deleteEvent.mutateAsync(ev.id);
-                                                }
-                                            }}
-                                            aria-label={t('cupping.deleteEvent')}
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
+                                    <td className="px-4 py-3">
+                                        <div className="flex justify-end">
+                                            <button
+                                                type="button"
+                                                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted hover:bg-red-50 hover:text-red-600"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (window.confirm(t('cupping.deleteEventConfirm'))) {
+                                                        void deleteEvent.mutateAsync(ev.id);
+                                                    }
+                                                }}
+                                                aria-label={t('cupping.deleteEvent')}
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

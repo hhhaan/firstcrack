@@ -1,8 +1,13 @@
-import { type CuppingSampleWithMeta, formatBeanCuppingMeta, useDeleteCuppingSample } from '@entities/cupping';
+import {
+    type CuppingSampleWithMeta,
+    formatBeanCuppingMeta,
+    useDeleteCuppingSample,
+    useReorderCuppingSamples,
+} from '@entities/cupping';
 import { formatDateShort } from '@shared/lib/format';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
-import { Fragment, useState } from 'react';
+import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { Fragment, type KeyboardEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CuppingScoreList } from './CuppingScoreList';
 import { CuppingSampleListSkeleton } from './CuppingSkeleton';
@@ -15,6 +20,16 @@ type CuppingSampleSummaryProps = {
     onAddClick: () => void;
 };
 
+function moveIndex(ids: string[], index: number, dir: 'up' | 'down'): string[] | null {
+    const to = dir === 'up' ? index - 1 : index + 1;
+    if (to < 0 || to >= ids.length) return null;
+    const next = [...ids];
+    const tmp = next[index];
+    next[index] = next[to];
+    next[to] = tmp;
+    return next;
+}
+
 export const CuppingSampleSummary = ({
     userId,
     eventId,
@@ -24,6 +39,7 @@ export const CuppingSampleSummary = ({
 }: CuppingSampleSummaryProps) => {
     const { t } = useTranslation();
     const deleteSample = useDeleteCuppingSample(userId, eventId);
+    const reorderSamples = useReorderCuppingSamples(eventId);
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     if (isLoading) {
@@ -43,12 +59,32 @@ export const CuppingSampleSummary = ({
         );
     }
 
+    const handleMove = (index: number, dir: 'up' | 'down') => {
+        const next = moveIndex(
+            samples.map((s) => s.id),
+            index,
+            dir,
+        );
+        if (!next) return;
+        void reorderSamples.mutateAsync(next);
+    };
+
+    const toggleExpanded = (id: string) => {
+        setExpandedId((prev) => (prev === id ? null : id));
+    };
+
+    const onRowKeyDown = (e: KeyboardEvent, id: string) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleExpanded(id);
+        }
+    };
+
     return (
         <div className="overflow-x-auto rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
             <table className="w-full min-w-[640px] border-collapse text-left">
                 <thead>
                     <tr className="border-b border-border-subtle dark:border-[#585d61]">
-                        <th className="w-8 px-2 py-3" aria-hidden />
                         <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">#</th>
                         <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                             {t('cupping.colLabel')}
@@ -77,22 +113,14 @@ export const CuppingSampleSummary = ({
                         const open = expandedId === s.id;
                         return (
                             <Fragment key={s.id}>
-                                <tr className="border-b border-border-subtle transition-colors last:border-0 hover:bg-surface/50 dark:border-[#585d61]">
-                                    <td className="px-2 py-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setExpandedId(open ? null : s.id)}
-                                            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-surface hover:text-primary"
-                                            aria-expanded={open}
-                                            aria-label={open ? t('cupping.collapseScores') : t('cupping.expandScores')}
-                                        >
-                                            {open ? (
-                                                <ChevronDown size={14} strokeWidth={2} />
-                                            ) : (
-                                                <ChevronRight size={14} strokeWidth={2} />
-                                            )}
-                                        </button>
-                                    </td>
+                                <tr
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-expanded={open}
+                                    onClick={() => toggleExpanded(s.id)}
+                                    onKeyDown={(e) => onRowKeyDown(e, s.id)}
+                                    className="cursor-pointer border-b border-border-subtle transition-colors last:border-0 hover:bg-surface/50 dark:border-[#585d61]"
+                                >
                                     <td className="px-4 py-3 font-mono text-[12px] text-muted">{i + 1}</td>
                                     <td className="px-4 py-3 text-[13px] font-medium text-primary">{s.label}</td>
                                     <td className="px-4 py-3">
@@ -118,24 +146,51 @@ export const CuppingSampleSummary = ({
                                     <td className="px-4 py-3 font-mono text-[13px] text-secondary">
                                         {s.avg_score != null ? s.avg_score.toFixed(2) : '—'}
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (window.confirm(t('cupping.deleteSampleConfirm'))) {
-                                                    void deleteSample.mutateAsync(s.id);
-                                                }
-                                            }}
-                                            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500"
-                                            aria-label={t('common.delete')}
-                                        >
-                                            <Trash2 size={13} strokeWidth={1.75} />
-                                        </button>
+                                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                        <div className="flex items-center justify-end gap-1">
+                                            {(
+                                                [
+                                                    { dir: 'up' as const, Icon: ChevronUp, label: t('cupping.moveUp') },
+                                                    {
+                                                        dir: 'down' as const,
+                                                        Icon: ChevronDown,
+                                                        label: t('cupping.moveDown'),
+                                                    },
+                                                ] as const
+                                            ).map(({ dir, Icon, label }) => (
+                                                <button
+                                                    key={dir}
+                                                    type="button"
+                                                    onClick={() => handleMove(i, dir)}
+                                                    disabled={
+                                                        reorderSamples.isPending ||
+                                                        (dir === 'up' ? i === 0 : i === samples.length - 1)
+                                                    }
+                                                    title={label}
+                                                    aria-label={label}
+                                                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border-none bg-surface text-muted transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-30 dark:bg-surface-elevated"
+                                                >
+                                                    <Icon size={13} strokeWidth={2} />
+                                                </button>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (window.confirm(t('cupping.deleteSampleConfirm'))) {
+                                                        void deleteSample.mutateAsync(s.id);
+                                                    }
+                                                }}
+                                                className="ml-1 inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500"
+                                                aria-label={t('common.delete')}
+                                            >
+                                                <Trash2 size={13} strokeWidth={1.75} />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                                 {open ? (
                                     <tr className="border-b border-border-subtle bg-surface/30 dark:border-[#585d61] dark:bg-[#1c1f22]">
-                                        <td colSpan={8} className="p-0">
+                                        <td colSpan={7} className="p-0">
                                             <div className="border-t border-border-subtle dark:border-[#585d61]">
                                                 <div className="px-4 pt-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                                     {t('cupping.scoreDetail')}

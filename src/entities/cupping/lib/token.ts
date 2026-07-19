@@ -1,7 +1,7 @@
 export { generateCuppingToken, generateToken } from '@shared/lib/token';
 
-/** Cloudflare Pages project for apps/cupping (fc-landing monorepo). */
-export const DEFAULT_CUPPING_PUBLIC_BASE = 'https://fc-cupping.pages.dev';
+/** Public cupping web app (custom domain). */
+export const DEFAULT_CUPPING_PUBLIC_BASE = 'https://cup.firstcrackiscoming.com';
 
 export function cuppingPublicBaseUrl(): string {
     const fromEnv = import.meta.env.VITE_CUPPING_PUBLIC_BASE_URL;

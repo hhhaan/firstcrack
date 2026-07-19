@@ -42,5 +42,6 @@ export {
     useDeleteCuppingEvent,
     useDeleteCuppingSample,
     useEventInvite,
+    useReorderCuppingSamples,
     useRevokeCuppingInvite,
 } from './queries';

@@ -7,6 +7,9 @@ type CuppingInsert = Database['public']['Tables']['cuppings']['Insert'];
 export type CuppingEventSummary = CuppingEvent & {
     sample_count: number;
     score_count: number;
+    /** Unique cuppers (by cupped_by). Empty string = anonymous. */
+    participant_count: number;
+    participants: string[];
     avg_score: number | null;
     active_invite: (CuppingInvite & { url: string }) | null;
 };
@@ -60,6 +63,13 @@ export type CreateInviteForEventInput = {
 
 export type CreateInviteResult = CuppingInvite & { url: string };
 
+/** Empty string = anonymous (also maps server default "Anonymous"). */
+function normalizeCupperName(raw: string | null | undefined): string {
+    const name = raw?.trim() ?? '';
+    if (!name || name.toLowerCase() === 'anonymous') return '';
+    return name;
+}
+
 async function loadActiveInviteForEvent(eventId: string): Promise<(CuppingInvite & { url: string }) | null> {
     const now = new Date().toISOString();
     const { data: invites, error } = await supabase
@@ -96,10 +106,11 @@ export const cuppingApi = {
 
         const sampleIds = (samples ?? []).map((s) => s.id);
         const scoresBySample = new Map<string, number[]>();
+        const cuppersBySample = new Map<string, string[]>();
         if (sampleIds.length) {
             const { data: scores, error: cErr } = await supabase
                 .from('cuppings')
-                .select('sample_id, total_score')
+                .select('sample_id, total_score, cupped_by')
                 .in('sample_id', sampleIds);
             if (cErr) throw cErr;
             for (const row of scores ?? []) {
@@ -107,6 +118,9 @@ export const cuppingApi = {
                 const list = scoresBySample.get(row.sample_id) ?? [];
                 list.push(Number(row.total_score));
                 scoresBySample.set(row.sample_id, list);
+                const cuppers = cuppersBySample.get(row.sample_id) ?? [];
+                cuppers.push(normalizeCupperName(row.cupped_by));
+                cuppersBySample.set(row.sample_id, cuppers);
             }
         }
 
@@ -140,9 +154,18 @@ export const cuppingApi = {
         return events.map((ev) => {
             const sids = samplesByEvent.get(ev.id) ?? [];
             const allScores: number[] = [];
+            const participantSet = new Set<string>();
             for (const sid of sids) {
                 allScores.push(...(scoresBySample.get(sid) ?? []));
+                for (const name of cuppersBySample.get(sid) ?? []) {
+                    participantSet.add(name);
+                }
             }
+            const participants = [...participantSet].sort((a, b) => {
+                if (!a) return 1;
+                if (!b) return -1;
+                return a.localeCompare(b);
+            });
             const avg =
                 allScores.length > 0
                     ? Math.round((allScores.reduce((a, b) => a + b, 0) / allScores.length) * 100) / 100
@@ -152,6 +175,8 @@ export const cuppingApi = {
                 ...ev,
                 sample_count: sids.length,
                 score_count: allScores.length,
+                participant_count: participants.length,
+                participants,
                 avg_score: avg,
                 active_invite: inv ? { ...inv, url: cuppingInviteUrl(inv.token, base) } : null,
             };
@@ -254,16 +279,34 @@ export const cuppingApi = {
         items: { label: string; roastSessionId?: string | null }[],
     ): Promise<CuppingSample[]> => {
         if (!items.length) return [];
+        const { data: existing, error: maxErr } = await supabase
+            .from('cupping_samples')
+            .select('sort_order')
+            .eq('event_id', eventId)
+            .order('sort_order', { ascending: false })
+            .limit(1);
+        if (maxErr) throw maxErr;
+        const baseOrder = (existing?.[0]?.sort_order ?? -1) + 1;
         const rows = items.map((item, i) => ({
             user_id: userId,
             event_id: eventId,
             label: item.label.trim() || `Sample ${i + 1}`,
             roast_session_id: item.roastSessionId ?? null,
-            sort_order: i,
+            sort_order: baseOrder + i,
         }));
         const { data, error } = await supabase.from('cupping_samples').insert(rows).select();
         if (error) throw error;
         return data ?? [];
+    },
+
+    /** Persist sample order: `orderedIds` index becomes `sort_order`. */
+    reorderSamples: async (orderedIds: string[]): Promise<void> => {
+        if (!orderedIds.length) return;
+        const results = await Promise.all(
+            orderedIds.map((id, i) => supabase.from('cupping_samples').update({ sort_order: i }).eq('id', id)),
+        );
+        const failed = results.find((r) => r.error);
+        if (failed?.error) throw failed.error;
     },
 
     deleteSample: async (sampleId: string): Promise<void> => {
