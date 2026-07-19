@@ -8,14 +8,25 @@ export const roastSessionKeys = {
     byStatus: (userId: string, status: string) => ['roast_sessions', userId, status] as const,
     detail: (id: string) => ['roast_sessions', 'detail', id] as const,
     paginated: (userId: string) => ['roast_sessions', 'paginated', userId] as const,
+    completedCount: (userId: string) => ['roast_sessions', 'completed_count', userId] as const,
 };
 
 /** Keys invalidated after create (staleTime Infinity → must not omit). */
 export const invalidateAfterCreateRoastSession = (qc: QueryClient, userId: string) => {
     void qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
     void qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
+    void qc.invalidateQueries({ queryKey: roastSessionKeys.completedCount(userId) });
     void qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
 };
+
+/** Lifetime completed sessions — trial quota display. */
+export const useCompletedSessionCount = (userId: string) =>
+    useQuery({
+        queryKey: roastSessionKeys.completedCount(userId),
+        queryFn: () => roastSessionApi.countCompletedTotal(userId),
+        staleTime: Infinity,
+        enabled: !!userId,
+    });
 
 export const useRoastSessions = (userId: string, status?: RoastSession['status']) =>
     useQuery({

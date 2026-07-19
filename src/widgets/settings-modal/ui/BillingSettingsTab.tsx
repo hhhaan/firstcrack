@@ -1,4 +1,6 @@
 import { useProfile } from '@entities/profile';
+import { useCompletedSessionCount } from '@entities/roast';
+import { isPaidPlan, TRIAL_BATCH_CAP, trialEndsAt } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
@@ -20,7 +22,6 @@ type Plan = {
 };
 
 const PLANS: Plan[] = [
-    { key: 'free', name: 'Free', descKey: 'settings.tabs.billing.freeDesc' },
     {
         key: 'pro',
         name: 'Pro',
@@ -53,11 +54,7 @@ function PlanCard({
     onUpgrade: (priceId: string) => void;
 }) {
     const { t } = useTranslation();
-    const badgeLabel = isCurrent
-        ? t('settings.tabs.billing.current')
-        : plan.key === 'free'
-          ? t('settings.tabs.billing.free')
-          : t('settings.tabs.billing.available');
+    const badgeLabel = isCurrent ? t('settings.tabs.billing.current') : t('settings.tabs.billing.available');
     const canUpgrade = !isCurrent && !!plan.priceId;
     const canContact = !isCurrent && !!plan.contact;
     const cardBorder = isCurrent
@@ -128,10 +125,56 @@ function PlanCard({
     );
 }
 
+/** Current non-paid state: active trial (days/batches left, derived like the server) or read-only. */
+function PlanStateCard({
+    plan,
+    createdAt,
+    completedCount,
+}: {
+    plan: string;
+    createdAt: string;
+    completedCount: number;
+}) {
+    const { t } = useTranslation();
+    const daysLeft = Math.max(0, Math.ceil((trialEndsAt(createdAt).getTime() - Date.now()) / 86_400_000));
+    const batchesLeft = Math.max(0, TRIAL_BATCH_CAP - completedCount);
+    const trialActive = plan !== 'read_only' && daysLeft > 0 && batchesLeft > 0;
+
+    return (
+        <div className="flex flex-col rounded-xl p-4 border border-palette-teal/35 bg-palette-teal/[0.07] dark:bg-palette-teal/[0.1]">
+            <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] font-semibold tracking-wider text-[#9CA3AF] dark:text-[#666] uppercase">
+                    {t('settings.tabs.billing.current')}
+                </div>
+                <Badge
+                    size="sm"
+                    className="text-[9px] font-bold text-palette-teal bg-palette-teal/15"
+                    icon={<Star size={10} fill="currentColor" />}
+                    aria-label="Current plan"
+                />
+            </div>
+            <div className="mb-1">
+                <span className="text-[18px] font-bold text-[#111827] dark:text-[#e5e5e5]">
+                    {trialActive ? t('settings.tabs.billing.trial') : t('settings.tabs.billing.readOnly')}
+                </span>
+            </div>
+            {trialActive && (
+                <div className="text-[12px] font-medium text-palette-teal mb-1">
+                    {t('settings.tabs.billing.trialStatus', { days: daysLeft, batches: batchesLeft })}
+                </div>
+            )}
+            <div className="text-[12px] text-[#6B7280] dark:text-[#999]">
+                {trialActive ? t('settings.tabs.billing.trialDesc') : t('settings.tabs.billing.readOnlyDesc')}
+            </div>
+        </div>
+    );
+}
+
 export function BillingSettingsTab() {
     const { t } = useTranslation();
     const user = useAuthStore((s) => s.user);
     const { data: profile } = useProfile(user?.id ?? '');
+    const { data: completedCount } = useCompletedSessionCount(user?.id ?? '');
     const [checkoutLoading, setCheckoutLoading] = useState(false);
 
     const handleUpgrade = async (priceId: string) => {
@@ -149,12 +192,19 @@ export function BillingSettingsTab() {
         }
     };
 
-    const currentPlan = profile?.plan ?? 'free';
+    const currentPlan = profile?.plan ?? '';
 
     return (
         <SectionCard className="self-start">
             <SectionCard.Header title={t('settings.tabs.billing.currentPlan')} />
             <SectionCard.Body className="grid grid-cols-2 gap-3 items-stretch">
+                {profile && !isPaidPlan(currentPlan) && (
+                    <PlanStateCard
+                        plan={currentPlan}
+                        createdAt={profile.created_at}
+                        completedCount={completedCount ?? 0}
+                    />
+                )}
                 {PLANS.map((plan) => (
                     <PlanCard
                         key={plan.key}
