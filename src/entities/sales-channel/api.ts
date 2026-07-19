@@ -26,8 +26,7 @@ export type ConnectCredentials =
 
 export const salesChannelApi = {
     list: async (userId: string): Promise<SalesChannelConnection[]> => {
-        // biome-ignore lint/suspicious/noExplicitAny: table types until types:gen after migration
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('sales_channel_connections')
             .select(
                 'id, user_id, platform, shop_identifier, display_name, status, last_error, consecutive_failures, last_polled_at, webhook_registered, auto_fulfill_on_shipped, created_at, updated_at',
@@ -71,8 +70,7 @@ export const salesChannelApi = {
     },
 
     setAutoFulfill: async (connectionId: string, enabled: boolean): Promise<void> => {
-        // biome-ignore lint/suspicious/noExplicitAny: table types until types:gen
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('sales_channel_connections')
             .update({ auto_fulfill_on_shipped: enabled, updated_at: new Date().toISOString() })
             .eq('id', connectionId);

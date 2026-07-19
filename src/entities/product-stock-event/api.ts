@@ -20,8 +20,7 @@ export const productStockEventApi = {
     /** Atomic batch insert via RPC. Idempotent on (reference_id, product_id, event_type). */
     insertMany: async (events: ProductStockEventInsert[]): Promise<void> => {
         if (!events.length) return;
-        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
-        const { error } = await (supabase as any).rpc('insert_product_stock_events_batch', { p_events: events });
+        const { error } = await supabase.rpc('insert_product_stock_events_batch', { p_events: events });
         if (error) throw error;
     },
 
@@ -30,8 +29,7 @@ export const productStockEventApi = {
         productEvents: ProductStockEventInsert[],
         roastedEvents: PackagingRoastedEvent[],
     ): Promise<void> => {
-        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
-        const { error } = await (supabase as any).rpc('insert_packaging_op', {
+        const { error } = await supabase.rpc('insert_packaging_op', {
             p_product_events: productEvents,
             p_roasted_events: roastedEvents,
         });
@@ -39,8 +37,7 @@ export const productStockEventApi = {
     },
 
     getStockByUser: async (userId: string): Promise<Record<string, number>> => {
-        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
-        const { data, error } = await (supabase as any).rpc('get_user_product_stock', { p_user_id: userId });
+        const { data, error } = await supabase.rpc('get_user_product_stock', { p_user_id: userId });
         if (error) throw error;
         return (data as Record<string, number>) ?? {};
     },

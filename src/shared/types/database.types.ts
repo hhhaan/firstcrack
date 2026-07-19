@@ -1955,6 +1955,10 @@ export type Database = {
                 Returns: Json;
             };
             has_workspace_access: { Args: { target_owner: string }; Returns: boolean };
+            insert_packaging_op: {
+                Args: { p_product_events: Json; p_roasted_events: Json };
+                Returns: undefined;
+            };
             insert_product_stock_events_batch: {
                 Args: { p_events: Json };
                 Returns: undefined;

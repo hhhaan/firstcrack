@@ -21,8 +21,7 @@ export interface OrderDispatch {
 
 export const orderDispatchApi = {
     listByUser: async (userId: string): Promise<OrderDispatch[]> => {
-        // biome-ignore lint/suspicious/noExplicitAny: table types until types:gen after migration
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('order_dispatches')
             .select(
                 'id, user_id, order_id, connection_id, carrier, tracking_number, status, attempt_count, last_error, line_results, requested_at, sent_at, confirmed_at, updated_at',
