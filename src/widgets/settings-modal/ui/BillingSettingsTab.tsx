@@ -2,21 +2,20 @@ import { useProfile } from '@entities/profile';
 import { useCompletedSessionCount } from '@entities/roast';
 import { isPaidPlan, TRIAL_BATCH_CAP, trialEndsAt } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
-import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
 import { Badge } from '@shared/ui/Badge';
 import { SectionCard } from '@shared/ui/SectionCard';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { CreditCard, Mail, Settings, Star } from 'lucide-react';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const CONTACT_EMAIL = 'contact@firstcrackiscoming.com';
+const COMPARE_PLANS_URL = 'https://firstcrackiscoming.com/compare-plans';
 
 type Plan = {
     key: string;
     name: string;
-    priceId?: string;
+    upgrade?: boolean;
     contact?: boolean;
     descKey: string;
 };
@@ -25,13 +24,13 @@ const PLANS: Plan[] = [
     {
         key: 'pro',
         name: 'Pro',
-        priceId: 'POLAR_PRO_PRODUCT_ID',
+        upgrade: true,
         descKey: 'settings.tabs.billing.proDesc',
     },
     {
         key: 'pro_plus',
         name: 'Pro+',
-        priceId: 'POLAR_PRO_PLUS_PRODUCT_ID',
+        upgrade: true,
         descKey: 'settings.tabs.billing.proPlusDesc',
     },
     {
@@ -42,24 +41,22 @@ const PLANS: Plan[] = [
     },
 ];
 
-function PlanCard({
-    plan,
-    isCurrent,
-    checkoutLoading,
-    onUpgrade,
-}: {
-    plan: Plan;
-    isCurrent: boolean;
-    checkoutLoading: boolean;
-    onUpgrade: (priceId: string) => void;
-}) {
+function PlanCard({ plan, isCurrent }: { plan: Plan; isCurrent: boolean }) {
     const { t } = useTranslation();
     const badgeLabel = isCurrent ? t('settings.tabs.billing.current') : t('settings.tabs.billing.available');
-    const canUpgrade = !isCurrent && !!plan.priceId;
+    const canUpgrade = !isCurrent && !!plan.upgrade;
     const canContact = !isCurrent && !!plan.contact;
     const cardBorder = isCurrent
         ? 'border-palette-teal/35 bg-palette-teal/[0.07] dark:bg-palette-teal/[0.1]'
         : 'border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#262b31]';
+
+    const handleUpgrade = async () => {
+        try {
+            await openUrl(COMPARE_PLANS_URL);
+        } catch (err) {
+            logger.capture(err, { context: 'billing open compare plans' });
+        }
+    };
 
     const handleContact = async () => {
         try {
@@ -103,12 +100,11 @@ function PlanCard({
                 ) : canUpgrade ? (
                     <button
                         type="button"
-                        onClick={() => onUpgrade(plan.priceId ?? '')}
-                        disabled={checkoutLoading}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-palette-teal/15 text-palette-teal border border-palette-teal/30 text-[12px] font-semibold hover:bg-palette-teal/25 active:bg-palette-teal/30 disabled:opacity-50 transition-all cursor-pointer"
+                        onClick={() => void handleUpgrade()}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-palette-teal/15 text-palette-teal border border-palette-teal/30 text-[12px] font-semibold hover:bg-palette-teal/25 active:bg-palette-teal/30 transition-all cursor-pointer"
                     >
                         <CreditCard size={12} strokeWidth={2} />
-                        {checkoutLoading ? t('settings.tabs.billing.redirecting') : t('settings.tabs.billing.upgrade')}
+                        {t('settings.tabs.billing.upgrade')}
                     </button>
                 ) : canContact ? (
                     <button
@@ -175,23 +171,6 @@ export function BillingSettingsTab() {
     const user = useAuthStore((s) => s.user);
     const { data: profile } = useProfile(user?.id ?? '');
     const { data: completedCount } = useCompletedSessionCount(user?.id ?? '');
-    const [checkoutLoading, setCheckoutLoading] = useState(false);
-
-    const handleUpgrade = async (priceId: string) => {
-        setCheckoutLoading(true);
-        try {
-            const { data, error } = await supabase.functions.invoke<{ url: string }>('create-polar-checkout', {
-                body: { priceId },
-            });
-            if (error || !data?.url) throw error;
-            await openUrl(data.url);
-        } catch (err) {
-            logger.capture(err, { context: 'billing checkout' });
-        } finally {
-            setCheckoutLoading(false);
-        }
-    };
-
     const currentPlan = profile?.plan ?? '';
 
     return (
@@ -206,13 +185,7 @@ export function BillingSettingsTab() {
                     />
                 )}
                 {PLANS.map((plan) => (
-                    <PlanCard
-                        key={plan.key}
-                        plan={plan}
-                        isCurrent={currentPlan === plan.key}
-                        checkoutLoading={checkoutLoading}
-                        onUpgrade={handleUpgrade}
-                    />
+                    <PlanCard key={plan.key} plan={plan} isCurrent={currentPlan === plan.key} />
                 ))}
             </SectionCard.Body>
         </SectionCard>

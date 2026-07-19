@@ -243,6 +243,7 @@
                 "upgrade": "Upgrade",
                 "contact": "Contact",
                 "redirecting": "Redirecting…",
+                "checkoutFailed": "Could not open checkout. Please try again in a moment.",
                 "trialStatus": "{{days}} days · {{batches}} batches left",
                 "trialDesc": "Pro-level core access while you evaluate.",
                 "readOnlyDesc": "Your trial or subscription has ended. Your data is safe — subscribe to keep roasting.",

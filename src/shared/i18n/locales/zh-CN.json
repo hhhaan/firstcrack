@@ -243,6 +243,7 @@
                 "upgrade": "升级",
                 "contact": "联系",
                 "redirecting": "跳转中…",
+                "checkoutFailed": "无法打开结账页面。请稍后重试。",
                 "trialStatus": "剩余 {{days}} 天 · {{batches}} 批次",
                 "trialDesc": "试用期间可使用 Pro 核心功能。",
                 "readOnlyDesc": "试用或订阅已结束。数据已安全保留 — 订阅后即可继续烘焙。",

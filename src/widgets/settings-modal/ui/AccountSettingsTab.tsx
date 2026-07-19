@@ -4,14 +4,12 @@ import { logger } from '@shared/lib/logger';
 import { weatherKeys } from '@shared/lib/query-keys';
 import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
-import { Badge } from '@shared/ui/Badge';
 import { SectionCard } from '@shared/ui/SectionCard';
 import { useQueryClient } from '@tanstack/react-query';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { Link, LogOut, User } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SettingsOptionRow } from './SettingsOptionRow';
 
 type AccountSettingsTabProps = {
     onClose: () => void;
@@ -60,29 +58,6 @@ function InputField({
                 className={readOnly ? readonlyInputCls : inputCls}
             />
         </div>
-    );
-}
-
-function GoogleIcon() {
-    return (
-        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-            />
-            <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-            />
-            <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-            />
-            <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-            />
-        </svg>
     );
 }
 
@@ -227,50 +202,6 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                             </span>
                         )}
                     </div>
-                </SectionCard.Body>
-            </SectionCard>
-
-            {user && (
-                <SectionCard>
-                    <SectionCard.Header
-                        title={tk('connectedAccount')}
-                        description={tk('connectedAccountDescription')}
-                    />
-                    <SectionCard.Body>
-                        <SettingsOptionRow className="dark:bg-[#262B31]">
-                            <div className="w-8 h-8 rounded-full bg-[#111827] dark:bg-[#181d21] flex items-center justify-center text-sm font-semibold text-white shrink-0">
-                                {(profile?.display_name || user.email || '').charAt(0).toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5]">
-                                    {profile?.business_name || profile?.display_name || tk('userFallback')}
-                                </div>
-                                <div className="text-[12px] text-[#6B7280] dark:text-[#999] truncate">{user.email}</div>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-[12px] text-green-600 dark:text-green-400 font-medium shrink-0">
-                                <GoogleIcon />
-                                <Link size={13} strokeWidth={2} />
-                                {tk('connected')}
-                            </div>
-                        </SettingsOptionRow>
-                    </SectionCard.Body>
-                </SectionCard>
-            )}
-
-            <SectionCard>
-                <SectionCard.Header title={tk('teamWorkspace')} description={tk('teamWorkspaceDescription')} />
-                <SectionCard.Body>
-                    <button
-                        type="button"
-                        disabled
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#262B31] text-[13px] font-medium text-[#9CA3AF] dark:text-[#666] cursor-not-allowed"
-                    >
-                        <User size={14} strokeWidth={2} />
-                        {tk('inviteMembers')}
-                        <Badge size="sm" tone="lavenderSoft" className="ml-auto font-semibold">
-                            Coming soon
-                        </Badge>
-                    </button>
                 </SectionCard.Body>
             </SectionCard>
 

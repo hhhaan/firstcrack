@@ -243,6 +243,7 @@
                 "upgrade": "업그레이드",
                 "contact": "문의",
                 "redirecting": "이동 중…",
+                "checkoutFailed": "결제 페이지를 열 수 없습니다. 잠시 후 다시 시도해 주세요.",
                 "trialStatus": "{{days}}일 · {{batches}}배치 남음",
                 "trialDesc": "체험 기간 동안 Pro 코어 기능을 사용할 수 있습니다.",
                 "readOnlyDesc": "체험판 또는 구독이 종료되었습니다. 데이터는 안전하게 보관됩니다 — 구독하면 다시 로스팅할 수 있습니다.",
