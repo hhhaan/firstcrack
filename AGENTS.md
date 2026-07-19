@@ -65,8 +65,9 @@ Prefer `SKIP_VERIFY=1` over `--no-verify` (keeps other hooks; explicit intent in
 - vite: ignore src-tauri/**
 
 ## Sidecar
-- sidecar/server.py + drivers/ (MQTT,Modbus,Phidget,Roest)
-- cfg: sidecar/config/devices/**/*.json
+- src-tauri/sidecar/: main.py(aiohttp :9999) + manager.py + adapters/ (modbus,phidget,kaleido,probat_ws,s7,virtual)
+- registry: roaster_registry.py (기기별 프로토콜/주소맵) | API doc: docs/sidecar-api.md
+- Phidget: OS-level libphidget22 필요 → docs/phidget-driver-setup.md
 
 ## UI
 - views/: History,ActiveRoast | widgets/: modals,sidebar | shared/ui/: primitives
