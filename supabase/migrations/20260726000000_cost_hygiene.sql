@@ -60,40 +60,24 @@ drop policy if exists "Users can view own subscriptions" on public.subscriptions
 create policy "Users can view own subscriptions" on public.subscriptions
   for select using (user_id = (select auth.uid()));
 
--- roast_day_plans (live still has legacy name; not workspace policy)
+-- plan tables: drop legacy policies WITHOUT recreating —
+-- 20260722000000_plan_tables_rls.sql (applied earlier in the same push) already
+-- provides the workspace-scoped replacements ("workspace access day plans"/
+-- "workspace access plan batches"). Recreating the legacy ones here would
+-- reintroduce duplicate permissive policies.
 drop policy if exists "users can manage own day plans" on public.roast_day_plans;
-create policy "users can manage own day plans" on public.roast_day_plans
-  for all
-  using (user_id = (select auth.uid()))
-  with check (user_id = (select auth.uid()));
-
--- roast_plan_batches
 drop policy if exists "users can manage own plan batches" on public.roast_plan_batches;
-create policy "users can manage own plan batches" on public.roast_plan_batches
-  for all
-  using (
-    exists (
-      select 1 from public.roast_day_plans p
-      where p.id = roast_plan_batches.plan_id
-        and p.user_id = (select auth.uid())
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.roast_day_plans p
-      where p.id = roast_plan_batches.plan_id
-        and p.user_id = (select auth.uid())
-    )
-  );
 
 -- machine_connection_logs
 drop policy if exists "Users can view their own connection logs" on public.machine_connection_logs;
 create policy "Users can view their own connection logs" on public.machine_connection_logs
-  for select using (user_id = (select auth.uid()));
+  for select to authenticated
+  using (user_id = (select auth.uid()));
 
 drop policy if exists "Users can insert their own connection logs" on public.machine_connection_logs;
 create policy "Users can insert their own connection logs" on public.machine_connection_logs
-  for insert with check (user_id = (select auth.uid()));
+  for insert to authenticated
+  with check (user_id = (select auth.uid()));
 
 -- organization_members
 drop policy if exists "org_members select self or owner" on public.organization_members;
