@@ -181,7 +181,7 @@ export const RoastHeader = ({
                     <OverlaySelect
                         value={targetProfileId}
                         onChange={handleProfileChange}
-                        disabled={charged}
+                        disabled={false}
                         options={profileOptions}
                         placeholder="No Target"
                     />
