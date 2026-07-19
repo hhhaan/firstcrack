@@ -77,6 +77,11 @@ repomix-output.xml
 # Agent/local tooling
 .commandcode/
 .codex/
+.opencode/
+.superpowers/
+.grok/
+.reasonix/
+.omo/
 memory.jsonl
 
 # Code review / scratch diffs (do not pack or ship)
@@ -84,6 +89,3 @@ code_review.txt
 specific_file.diff
 *.diff
 react-doctor-report.json
-
-
-.omo/*
