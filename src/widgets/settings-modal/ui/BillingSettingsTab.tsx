@@ -28,6 +28,12 @@ const PLANS: Plan[] = [
         descKey: 'settings.tabs.billing.proDesc',
     },
     {
+        key: 'pro_plus',
+        name: 'Pro+',
+        priceId: 'POLAR_PRO_PLUS_PRODUCT_ID',
+        descKey: 'settings.tabs.billing.proPlusDesc',
+    },
+    {
         key: 'enterprise',
         name: 'Enterprise',
         contact: true,
@@ -148,7 +154,7 @@ export function BillingSettingsTab() {
     return (
         <SectionCard className="self-start">
             <SectionCard.Header title={t('settings.tabs.billing.currentPlan')} />
-            <SectionCard.Body className="grid grid-cols-3 gap-3 items-stretch">
+            <SectionCard.Body className="grid grid-cols-2 gap-3 items-stretch">
                 {PLANS.map((plan) => (
                     <PlanCard
                         key={plan.key}

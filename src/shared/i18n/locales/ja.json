@@ -244,6 +244,7 @@
                 "redirecting": "リダイレクト中…",
                 "freeDesc": "永久無料",
                 "proDesc": "全機能にフルアクセス",
+                "proPlusDesc": "無制限バッチ・複数マシン・焙煎在庫",
                 "enterpriseDesc": "FDE・カスタム・自社EC構築支援・チーム"
             },
             "team": {
