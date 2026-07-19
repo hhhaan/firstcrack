@@ -764,49 +764,152 @@ A5 v1 한계: no curve copy into draft dir; wall clock lag on resume; single lat
 
 ## CODE QUALITY / FSD
 
-### [CQ1] 대형 파일 SRP 분할
+> 2026-07-20 production-readiness-audit 리팩토링 트랙 재조사. **출시 비블로킹**, 점진.
+> 상세: `docs/production-readiness-audit.md` Part 2 §아키텍처.
 
-**What:** 이유-to-change > 1 인 거대 파일 분할. 터치하는 파일만 점진 분할.
+### 권고 착수 순서 (리팩토링만)
 
-**후보 (2026-07-18 LOC):**
-
-| 파일 | ~LOC | 비고 |
-|------|------|------|
-| `src/views/active-roast/ActiveRoast.tsx` | 590 | |
-| `src/views/login/Login.tsx` | 583 | |
-| `src/views/active-roast/ui/RoastTempChart.tsx` | 346 | 분할 진행됨 (구 1097) |
-
-이미 분할됨 (목록에서 제외): AddMachineModal, NewProfileModal, Cupping.tsx
-
-**Priority:** MEDIUM (점진)
+1. **[CQ-R1]** `useScheduleDayView` 분해 (최대 유지보수 리스크)
+2. **[CQ-R2]** Machines sidecar 폴링 → feature 훅
+3. **[CQ-R3]** Orders.tsx 탭 파일 분리 (+ i18n 맵)
+4. **[CQ-R4]** plan `queries.ts` mutation 분리
+5. **[CQ-R5]** shared 도메인 → entities/lib (터치 시만, 일괄 X)
+6. **[CQ-R6]** dashboard-summary supabase 직접 쿼리 → entities
 
 ---
 
-### [CQ2] views 직접 fetch → entities/features
+### [CQ-R1] useScheduleDayView → features 분해
 
-**What:** views에서 `useQuery`/`useMutation`/axios 직접 호출 제거.
+**What:** `views/schedule/hooks/useScheduleDayView.ts` (**583L**) — plan entity mutations + 재고 차감 + RRULE + 모달 오케스트레이션 한 훅.
 
-**현재 예:**
+**Why:** views에 features급 도메인 축적. 회귀 시 스케줄 전체 영향.
 
-- `src/views/dashboard/api/useDashboard.ts` 등
-- `src/views/active-roast/model/useSaveRoast.ts`
-- `src/views/schedule/hooks/useScheduleDayView.ts`
+**How:** 시나리오별 features (`complete-batch`, `edit-recurrence` 등)로 분해. view는 orchestration만.
 
-**Why:** FSD: views = orchestration only.
+**Priority:** MEDIUM (리팩토링 1순위)
+
+---
+
+### [CQ-R2] Machines sidecar 연결 훅
+
+**What:** `views/machines/Machines.tsx` (**448L**) — `useEffect`+`setInterval`로 sidecar 폴링·connect/disconnect (**NO useEffect fetch 위반**).
+
+**How:** `features/machine-connection` 훅 추출. 상태 일부는 이미 `useMachinesPageState` 분리됨.
 
 **Priority:** MEDIUM
 
 ---
 
+### [CQ-R3] Orders.tsx 탭 분해
+
+**What:** `views/orders/Orders.tsx` (**638L**) 한 파일에:
+
+- 탭 셸 (orders | products | channels)
+- `OrdersTab` / `OrderRow` + fulfill·dispatch
+- `ProductsTab` + 인라인 포장 (`window.prompt` — inventory-audit M6)
+- `ChannelsTab` / `ChannelCard`
+- EN 하드코딩 상태 맵 4종 + tone 헬퍼
+
+**이미 feature 사용:** `useFulfillOrder`, `usePackageProduct`, `DispatchModal`.
+
+**How:**
+
+```
+views/orders/Orders.tsx          # 탭 셸만
+views/orders/ui/OrdersTab.tsx
+views/orders/ui/ProductsTab.tsx
+views/orders/ui/ChannelsTab.tsx
+# STATUS 맵 → i18n locales
+```
+
+포장 UX는 Beans 탭 공용 경로로 통합 권장.
+
+**Priority:** MEDIUM (저위험)
+
+---
+
+### [CQ-R4] entities queries.ts mutation 분리
+
+**What:** 규칙 `queries.ts`=reads, `useX.ts`=writes. entities에 mutation 전용 `use*.ts` **0**. write 전부 queries 혼재.
+
+| 슬라이스 | useMutation | LOC |
+|----------|-------------|-----|
+| **plan** | **13** | **528** |
+| cupping | 9 | 392 |
+| sales-channel | 6 | 72 |
+| organization | 5 | 63 |
+| roast / roast-profile / product / blend / bean | 4 each | — |
+| roasted / product-stock-event | 0 (read-only) | 22 |
+
+**features에 이미 write 있는 예:** `useFulfillOrder`, `usePackageProduct`, `useBlendRoasted`, `useDeductRoastStock`, `useSaveRoast`.
+
+**How:** plan부터 `mutations.ts` 또는 시나리오 features로. 전 슬라이스 일괄 이동 비권장.
+
+**Priority:** MEDIUM
+
+---
+
+### [CQ-R5] shared 도메인 로직 → entities
+
+**What:** "entities↔entities는 shared 경유" 부작용으로 순수 도메인이 shared에 집하.
+
+| 파일 | 성격 | 이동 후보 |
+|------|------|-----------|
+| `shared/lib/stock-calc.ts` | 재고/배치 계산 | bean-stock-event 또는 plan lib |
+| `shared/lib/batch-stock.ts` | 배치 생두 필요량 | `entities/plan/lib` |
+| `shared/lib/roastWeight.ts` | 수율/무게 | `entities/roast/lib` |
+| `shared/lib/sessionFilter.ts` | 이력 필터 | `entities/roast/lib` |
+| `shared/lib/roast-curve.ts` | 커브 파싱 | `entities/roast/lib` |
+| `shared/data/roast-profiles.ts` | 프로파일 곡선 | `entities/roast-profile/lib` |
+| `shared/lib/carriers.ts` | 택배사 상수 | order-dispatch / dispatch-order |
+| `shared/lib/features/*` | 플랜 게이트 + FeatureGate UI | `entities/plan` (+ ui) |
+| `inventoryStore` / `pricingStore` / `locationStore` | 설정 persist | `shared/store/` 규약 (entities 아님) |
+
+**How:** 일괄 이동 X. 새 코드는 해당 entities/lib에 두고, 기존은 터치 시 점진.
+
+**Priority:** LOW
+
+---
+
+### [CQ-R6] 개별 FSD 위반
+
+| 항목 | 위치 | 조치 |
+|------|------|------|
+| shared→entities 역방향 | `shared/lib/sidecar.ts` type-only `@entities/machine` | 타입 shared로 내리거나 클라이언트 entities로 |
+| widget 직접 supabase | `widgets/dashboard-summary/api/useDashboard.ts` (222L) | entities 쿼리로 |
+| entities↔entities | `entities/bean/queries.ts` → bean-stock-event | shared query-keys 허브 |
+| useSidecarPolling | views/active-roast 279L | features/active-roast + TSV 분리 |
+| pricing / new profile form | views model | features로 |
+
+**Priority:** MEDIUM–LOW
+
+---
+
+### [CQ1] 대형 파일 SRP 분할 (잔여)
+
+터치하는 파일만 점진. CQ-R1/R3과 겹치면 그쪽 우선.
+
+| 파일 | ~LOC |
+|------|------|
+| `useScheduleDayView.ts` | 583 → CQ-R1 |
+| `Orders.tsx` | 638 → CQ-R3 |
+| `Machines.tsx` | 448 → CQ-R2 |
+| ActiveRoast / Login / charts | 대형 잔여 시 터치할 때 |
+
+**Priority:** MEDIUM (점진)
+
+---
+
 ### [CQ3] 테스트 확대 (Q4 연장)
 
-**What:** 순수 계산 + integrity + invalidation 우선. 현재 ~36 test / ~372 ts(x).
+**What:** 순수 계산 + integrity + invalidation 우선.
 
 **우선 후보:**
 
 - save/upload 실패 경로 (A2 연동 시)
 - stock/reserved 집계 (`getReservedStock`)
 - AUTO10 invalidation 표 대응 테스트
+- 로스트 상태머신 / useSidecarPolling 순수부 (prod-readiness P2)
 
 **React Testing Library:** 선택 (Q4).
 
