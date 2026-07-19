@@ -29,6 +29,8 @@ describe('query key factories', () => {
         expect(stockEventKeys.summariesRoot).toBe(inventoryQueryRoots.beanStockSummaries);
         expect(inventoryAlertKeys.all).toBe(inventoryQueryRoots.inventoryAlerts);
         expect(inventoryAlertKeys.list('u1')).toEqual([...inventoryQueryRoots.inventoryAlerts, 'u1']);
+        expect(inventoryQueryRoots.roastedStock).toEqual(['roasted-stock']);
+        expect(inventoryQueryRoots.productStock).toEqual(['product-stock']);
     });
 
     it('cross-slice keys stay hierarchical', () => {

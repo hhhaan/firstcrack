@@ -8,13 +8,14 @@ export const dashboardKeys = {
     all: (userId: string) => ['dashboard', userId] as const,
 };
 
-/** Inventory / stock — used by bean-stock-event, inventory-alert, roast deduct, dashboard */
+/** Inventory / stock — used by bean-stock-event, inventory-alert, roast deduct, packaging, dashboard */
 export const inventoryQueryRoots = {
     beanStockSummaries: ['bean-stock-summaries'] as const,
     beanStockSummary: ['bean-stock-summary'] as const,
     beanStockEvents: ['bean-stock-events'] as const,
     inventoryAlerts: ['inventory-alerts'] as const,
     roastedStock: ['roasted-stock'] as const,
+    productStock: ['product-stock'] as const,
 };
 
 /** Plan / schedule — used only via planKeys factories + invalidateScheduledBatchQueries */

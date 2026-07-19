@@ -23,8 +23,12 @@ const queryClient = new QueryClient({
     mutationCache: new MutationCache({ onError: onQueryError }),
     defaultOptions: {
         queries: {
+            // Desktop: mutation invalidation only — no background refetch churn.
             staleTime: Infinity,
+            // Keep unused inventory/lists after tab switch (default 5m GC was too aggressive).
+            gcTime: Infinity,
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
             // 4xx는 재시도 의미 없음 (인증/권한 문제) — 서버 오류(5xx)만 최대 2회 재시도
             retry: (failureCount, error) => !is4xx(error) && failureCount < 2,
         },

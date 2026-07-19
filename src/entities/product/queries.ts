@@ -1,3 +1,4 @@
+import { inventoryQueryRoots } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Product, ProductInsert, ProductUpdate } from './api';
 import { productApi } from './api';
@@ -37,6 +38,15 @@ export const useDeleteProduct = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: productApi.delete,
-        onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.all(userId) }),
+        onSuccess: (_void, id) => {
+            void qc.invalidateQueries({ queryKey: productKeys.all(userId) });
+            const stockKey = [...inventoryQueryRoots.productStock, userId] as const;
+            qc.setQueryData<Record<string, number>>(stockKey, (prev) => {
+                if (!prev || !(id in prev)) return prev;
+                const next = { ...prev };
+                delete next[id];
+                return next;
+            });
+        },
     });
 };
