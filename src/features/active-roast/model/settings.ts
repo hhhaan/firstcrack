@@ -29,6 +29,8 @@ export type RoastSettings = {
     controlYMin: number;
     controlYMax: number;
     showPhaseBar: boolean;
+    /** FC Start–End vertical band on the temp chart */
+    showFcBand: boolean;
     eventMarkerStyle: EventMarkerStyle;
     tempMinC: number;
     tempMaxC: number;
@@ -61,6 +63,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     controlYMin: 0,
     controlYMax: 100,
     showPhaseBar: true,
+    showFcBand: true,
     eventMarkerStyle: 'point',
     tempMinC: 130,
     tempMaxC: 240,
@@ -110,6 +113,7 @@ const normalize = (raw: Partial<RoastSettings> | null | undefined): RoastSetting
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),
         showControlHeat: asBool(merged.showControlHeat, DEFAULT_SETTINGS.showControlHeat),
         showControlFan: asBool(merged.showControlFan, DEFAULT_SETTINGS.showControlFan),
+        showFcBand: asBool(merged.showFcBand, DEFAULT_SETTINGS.showFcBand),
         controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
         controlYMin,
         controlYMax,

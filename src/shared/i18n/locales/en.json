@@ -156,6 +156,8 @@
                 "showControlChartDescription": "Drum / Heat / Fan bottom chart (fullscreen only)",
                 "showPhaseBar": "Phase Bar",
                 "showPhaseBarDescription": "Bottom strip showing Drying / Maillard / Development with duration and percentage",
+                "showFcBand": "First Crack band",
+                "showFcBandDescription": "Shade the chart background from FC Start to FC End",
                 "eventMarkers": "Event Markers",
                 "eventMarkersDescription": "How Yellow, FC, Drop, and Turning Point are drawn on the temperature chart.",
                 "eventMarkerPoint": "Point on curve",
@@ -705,7 +707,8 @@
             "createRecurring": "Failed to add recurring batch:",
             "createBatch": "Failed to add batch:",
             "completeBatch": "Failed to complete batch:",
-            "startBatch": "Failed to start batch:"
+            "startBatch": "Failed to start batch:",
+            "roastInProgress": "A roast is already in progress. Finish it before starting another batch."
         },
         "recurringEditScope": {
             "title": "Change Recurring Schedule",

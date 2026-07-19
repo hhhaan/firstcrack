@@ -108,6 +108,8 @@ export const getResolvedChartColors = () => {
         eventEnd: gv('--color-event-end', '#626fd2'),
         eventNote: gv('--color-event-note', '#00a36d'),
         eventDrop: gv('--color-event-drop', '#7483e0'),
+        // FC Start–End band fill on temp chart (lighter than phase bar)
+        fcBandFill: gv('--color-fc-band-fill', 'rgba(105,103,225,0.1)'),
     };
 };
 

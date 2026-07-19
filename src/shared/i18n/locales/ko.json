@@ -156,6 +156,8 @@
                 "showControlChartDescription": "Drum / Heat / Fan 하단 차트 (전체 화면 전용)",
                 "showPhaseBar": "페이즈 바",
                 "showPhaseBarDescription": "Drying / Maillard / Development 구간 시간과 비율을 표시하는 하단 스트립",
+                "showFcBand": "First Crack 밴드",
+                "showFcBandDescription": "FC Start부터 FC End까지 차트 배경을 음영 처리",
                 "eventMarkers": "이벤트 마커",
                 "eventMarkersDescription": "Yellow, FC, Drop, Turning Point를 온도 차트에 그리는 방식입니다.",
                 "eventMarkerPoint": "곡선 위 포인트",
@@ -483,7 +485,8 @@
             "createRecurring": "반복 배치 추가 실패:",
             "createBatch": "배치 추가 실패:",
             "completeBatch": "배치 완료 처리 실패:",
-            "startBatch": "배치 시작 실패:"
+            "startBatch": "배치 시작 실패:",
+            "roastInProgress": "이미 로스팅이 진행 중입니다. 완료 후 시작해주세요."
         },
         "recurringEditScope": {
             "title": "반복 일정 변경",

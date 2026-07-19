@@ -65,6 +65,11 @@ const visibilityOptions = [
         labelKey: 'settings.tabs.roast.showPhaseBar',
         descKey: 'settings.tabs.roast.showPhaseBarDescription',
     },
+    {
+        key: 'showFcBand' as const,
+        labelKey: 'settings.tabs.roast.showFcBand',
+        descKey: 'settings.tabs.roast.showFcBandDescription',
+    },
 ];
 
 const controlSeriesOptions = [

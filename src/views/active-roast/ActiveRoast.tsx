@@ -518,6 +518,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         eventMarkers={eventMarkers}
                         turningPoints={turningPoints}
                         phaseSegments={phaseSegments}
+                        showFcBand={roastSettings.showFcBand}
                         unit={unit}
                         targetProfileName={targetProfile?.name}
                         onCursorIdx={handleChartCursorIdx}

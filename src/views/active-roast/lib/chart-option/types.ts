@@ -45,6 +45,8 @@ export interface ChartOptionParams {
     controlYMin: number;
     controlYMax: number;
     phaseSegments: PhaseSegment[];
+    /** FC Start–End background band (default on) */
+    showFcBand?: boolean;
     tempMinC: number;
     tempMaxC: number;
     rorYMin: number;

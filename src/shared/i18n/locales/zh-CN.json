@@ -156,6 +156,8 @@
                 "showControlChartDescription": "底部 Drum / Heat / Fan 图表（仅全屏）",
                 "showPhaseBar": "阶段条",
                 "showPhaseBarDescription": "显示 Drying / Maillard / Development 时长与比例的底部条",
+                "showFcBand": "一爆区间底色",
+                "showFcBandDescription": "在 FC Start 到 FC End 之间为图表背景着色",
                 "eventMarkers": "事件标记",
                 "eventMarkersDescription": "Yellow、FC、Drop、Turning Point 在温度图上的绘制方式。",
                 "eventMarkerPoint": "曲线上的点",
@@ -705,7 +707,8 @@
             "createRecurring": "添加重复批次失败：",
             "createBatch": "添加批次失败：",
             "completeBatch": "完成批次失败：",
-            "startBatch": "启动批次失败："
+            "startBatch": "启动批次失败：",
+            "roastInProgress": "烘焙正在进行中，请完成后再开始新批次。"
         },
         "recurringEditScope": {
             "title": "更改重复计划",

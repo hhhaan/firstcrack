@@ -45,6 +45,7 @@ interface Props {
     controlYMin?: number;
     controlYMax?: number;
     phaseSegments?: PhaseSegment[];
+    showFcBand?: boolean;
     tempMinC?: number;
     tempMaxC?: number;
     rorYMin?: number;
@@ -83,6 +84,7 @@ export const RoastTempChart: React.FC<Props> = ({
     controlYMin = 0,
     controlYMax = 100,
     phaseSegments = [],
+    showFcBand = true,
     tempMinC = TEMP_Y_MIN_C,
     tempMaxC = TEMP_Y_MAX_C,
     rorYMin = ROR_Y_MIN,
@@ -163,6 +165,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 controlYMin,
                 controlYMax,
                 phaseSegments,
+                showFcBand,
                 tempMinC,
                 tempMaxC,
                 rorYMin,
@@ -198,6 +201,7 @@ export const RoastTempChart: React.FC<Props> = ({
             controlYMin,
             controlYMax,
             phaseSegments,
+            showFcBand,
             resolvedTheme,
             tempMinC,
             tempMaxC,

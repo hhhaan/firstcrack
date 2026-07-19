@@ -46,6 +46,7 @@ interface RoastChartContainerProps {
     eventMarkers: RoastEventMarker[];
     turningPoints: { timeSec: number; temp: number }[];
     phaseSegments: PhaseSegment[];
+    showFcBand?: boolean;
     unit: TemperatureUnit;
     targetProfileName?: string;
     onCursorIdx: (idx: number | null) => void;
@@ -88,6 +89,7 @@ export const RoastChartContainer = ({
     eventMarkers,
     turningPoints,
     phaseSegments,
+    showFcBand = true,
     unit,
     targetProfileName,
     onCursorIdx,
@@ -152,6 +154,7 @@ export const RoastChartContainer = ({
                 controlYMin={controlYMin}
                 controlYMax={controlYMax}
                 phaseSegments={phaseSegments}
+                showFcBand={showFcBand}
                 tempMinC={tempMinC}
                 tempMaxC={tempMaxC}
                 rorYMin={rorYMin}

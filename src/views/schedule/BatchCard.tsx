@@ -69,12 +69,17 @@ export const BatchCard = ({
                     <Package size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 mt-[1px]" />
                     <span className="text-[14px] font-semibold text-primary">{batch.bean_name}</span>
                     {isOverdue && (
-                        <Badge size="sm" tone="warn" icon={<Clock size={9} strokeWidth={2.5} />}>
+                        <Badge
+                            size="sm"
+                            tone="warn"
+                            icon={<Clock size={9} strokeWidth={2.5} />}
+                            className="border-none"
+                        >
                             Overdue
                         </Badge>
                     )}
                     {isRecurring && (
-                        <Badge size="sm" tone="lavender">
+                        <Badge size="sm" tone="lavender" className="border-none">
                             {RECURRENCE_EN[getRecurrenceLabel(batch.rrule)] ?? 'Repeat'}
                         </Badge>
                     )}
@@ -82,7 +87,7 @@ export const BatchCard = ({
                 <div className="flex items-center gap-2 shrink-0">
                     <Badge
                         tone={statusTone[status] ?? 'neutral'}
-                        className={`px-1.5 rounded-md${status === 'skipped' ? ' line-through' : ''}`}
+                        className={`border-none px-1.5 rounded-md${status === 'skipped' ? ' line-through' : ''}`}
                     >
                         {status === 'in-progress'
                             ? `In Progress ${batch.completed_sessions}/${batch.batch_count}`

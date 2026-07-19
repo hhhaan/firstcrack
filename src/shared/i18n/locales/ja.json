@@ -156,6 +156,8 @@
                 "showControlChartDescription": "Drum / Heat / Fan の下部チャート（フルスクリーンのみ）",
                 "showPhaseBar": "フェーズバー",
                 "showPhaseBarDescription": "Drying / Maillard / Development の時間と割合を示す下部ストリップ",
+                "showFcBand": "First Crack バンド",
+                "showFcBandDescription": "FC Start から FC End までチャート背景を塗りつぶす",
                 "eventMarkers": "イベントマーカー",
                 "eventMarkersDescription": "Yellow、FC、Drop、Turning Point の描画方法です。",
                 "eventMarkerPoint": "カーブ上のポイント",
@@ -705,7 +707,8 @@
             "createRecurring": "繰り返しバッチの追加に失敗しました:",
             "createBatch": "バッチの追加に失敗しました:",
             "completeBatch": "バッチの完了処理に失敗しました:",
-            "startBatch": "バッチの開始に失敗しました:"
+            "startBatch": "バッチの開始に失敗しました:",
+            "roastInProgress": "すでに焙煎が進行中です。完了後に開始してください。"
         },
         "recurringEditScope": {
             "title": "繰り返し予定の変更",

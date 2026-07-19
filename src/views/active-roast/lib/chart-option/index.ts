@@ -45,6 +45,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         controlYMin,
         controlYMax,
         phaseSegments,
+        showFcBand = true,
         tempMinC,
         tempMaxC,
         rorYMin,
@@ -83,22 +84,24 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
 
     const hasControlSeries = !!controlData && (showControlDrum || showControlHeat || showControlFan);
-    const { usePointMarkers, allMarkLines, markPointData, controlGuideMarkLines, tempBottomBorderLine } = buildMarkers({
-        charged,
-        currentTimeSec,
-        xMin,
-        xMax,
-        eventMarkerStyle,
-        eventMarkers,
-        turningPoints,
-        temperatureUnit,
-        unitLabel,
-        xs,
-        btActual,
-        colors,
-        tempYMin,
-        hasControlSeries,
-    });
+    const { usePointMarkers, allMarkLines, markPointData, fcMarkArea, controlGuideMarkLines, tempBottomBorderLine } =
+        buildMarkers({
+            charged,
+            currentTimeSec,
+            xMin,
+            xMax,
+            eventMarkerStyle,
+            eventMarkers,
+            turningPoints,
+            temperatureUnit,
+            unitLabel,
+            xs,
+            btActual,
+            colors,
+            tempYMin,
+            hasControlSeries,
+            showFcBand,
+        });
 
     const hasRightYAxis = showRoR || hasControlSeries;
     const { leftMargin, rightMargin, topMargin } = computeGridMargins(hasRightYAxis);
@@ -119,6 +122,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         usePointMarkers,
         allMarkLines,
         markPointData,
+        fcMarkArea,
         tempBottomBorderLine,
     });
 

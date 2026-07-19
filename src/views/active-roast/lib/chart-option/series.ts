@@ -47,6 +47,7 @@ export interface TempSeriesParams {
     usePointMarkers: boolean;
     allMarkLines: object[];
     markPointData: object[];
+    fcMarkArea: object | null;
     tempBottomBorderLine: object | null;
 }
 
@@ -67,6 +68,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
         usePointMarkers,
         allMarkLines,
         markPointData,
+        fcMarkArea,
         tempBottomBorderLine,
     } = params;
 
@@ -111,6 +113,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
                           animation: false,
                       }
                     : undefined,
+            markArea: fcMarkArea ?? undefined,
         },
         showET && {
             name: 'ET Actual',
