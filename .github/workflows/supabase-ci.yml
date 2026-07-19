@@ -41,7 +41,8 @@ jobs:
               echo "::error::$f: invalid name (want YYYYMMDDHHMMSS_name.sql)"
               bad=1
             fi
-            if [ ! -s "$f" ]; then
+            # empty *_placeholder.sql are historical no-ops; real migrations must be non-empty
+            if [ ! -s "$f" ] && [[ "$base" != *_placeholder.sql ]]; then
               echo "::error::$f: empty file"
               bad=1
             fi
