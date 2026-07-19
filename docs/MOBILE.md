@@ -74,16 +74,14 @@
   Android versionCode는 버전에서 자동 파생(major×1,000,000 + minor×1,000 + patch)이라 버전만 올리면 된다.
 - `pnpm release <ver>`는 `v<ver>` 태그를 push해 **데스크톱 릴리스를 발동**시키므로 모바일 단독 배포에 쓰지 말 것.
 
-### 모바일 단독 배포
+### 모바일 단독 배포 (기본: Actions 수동 실행)
 
-```bash
-pnpm version:bump <major.minor.patch>   # 3개 매니페스트 범프 (태그/push 없음)
-git add -A && bash scripts/ai-commit.sh
-git tag app-v<major.minor.patch>
-git push origin <branch> app-v<major.minor.patch>
-```
+1. `pnpm version:bump <major.minor.patch>` → 커밋 → push (버전 범프 필수 — 스토어가 동일 버전 거부)
+2. GitHub → Actions → **Release App (iOS/Android)** → Run workflow
+   - `upload` 체크 안 함: 빌드만, ipa/aab 아티팩트 확인용
+   - `upload` 체크: 빌드 + **TestFlight + Play 내부 트랙** 업로드
 
-→ `release-app.yml`이 iOS·Android 병렬 빌드 후 **TestFlight + Play 내부 트랙**에 자동 업로드.
+태그 기반 자동화도 열려 있음: `git tag app-v<ver> && git push origin app-v<ver>` → 빌드 + 업로드.
 
 ### 스토어 반영 (수동 — 의도적)
 
@@ -98,14 +96,10 @@ git push origin <branch> app-v<major.minor.patch>
 
 | | 데스크톱 | 모바일 |
 |---|---|---|
-| 태그 | `v*` (`pnpm release`) | `app-v*` (수동 태그) |
+| 트리거 | `v*` 태그 (`pnpm release`) | Actions 수동 실행 (또는 `app-v*` 태그) |
 | 워크플로우 | `release.yml` | `release-app.yml` |
 | 배포 채널 | R2 자체 업데이터 (즉시) | 스토어 (심사 후) |
 | 산출물 | dmg / msi | ipa / aab |
-
-### 검증만 하고 싶을 때
-
-`release-app.yml`을 **workflow_dispatch**로 수동 실행 → 스토어 업로드 없이 빌드만 하고 ipa/aab를 아티팩트로 남긴다.
 
 ## 트러블슈팅
 

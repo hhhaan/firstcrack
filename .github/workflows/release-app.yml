@@ -1,8 +1,9 @@
 # 모바일 앱 릴리스 — 데스크톱 릴리스(release.yml, v* 태그)와 완전 분리.
 #
-# 트리거:
-#   - app-v* 태그 push  → 빌드 + 스토어 업로드 (TestFlight / Play 내부 트랙)
-#   - workflow_dispatch → 빌드만 (아티팩트 확인용, 스토어 업로드 안 함)
+# 트리거 (Actions 탭에서 수동 실행이 기본 운용):
+#   - workflow_dispatch          → 빌드만 (아티팩트 확인용)
+#   - workflow_dispatch + upload → 빌드 + 스토어 업로드 (TestFlight / Play 내부 트랙)
+#   - app-v* 태그 push           → 빌드 + 스토어 업로드 (태그 기반 자동화도 열어둠)
 #
 # 전제: src-tauri/gen/{apple,android} 커밋 + Secrets 등록 — docs/MOBILE.md 참고
 name: Release App (iOS/Android)
@@ -11,6 +12,11 @@ on:
   push:
     tags: ['app-v*']
   workflow_dispatch:
+    inputs:
+      upload:
+        description: '스토어 업로드 (TestFlight / Play 내부 트랙)'
+        type: boolean
+        default: false
 
 concurrency:
   group: release-app-${{ github.ref }}
@@ -70,7 +76,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload to TestFlight
-        if: startsWith(github.ref, 'refs/tags/app-v')
+        if: startsWith(github.ref, 'refs/tags/app-v') || inputs.upload
         run: |
           IPA=$(find src-tauri/gen/apple/build -name '*.ipa' | head -1)
           xcrun altool --upload-app --type ios --file "$IPA" \
@@ -135,7 +141,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload to Play (internal track)
-        if: startsWith(github.ref, 'refs/tags/app-v')
+        if: startsWith(github.ref, 'refs/tags/app-v') || inputs.upload
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
