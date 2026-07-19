@@ -26,9 +26,8 @@ export const ScheduleDayView = ({
     const scopeBatchLabel = hooks.scopeBatch
         ? `${hooks.scopeBatch.bean_name} / ${hooks.scopeBatch.batch_size_kg}kg`
         : '';
-    const scopeRecurrenceLabel = hooks.scopeBatch
-        ? t(`schedule.recurrence.${getRecurrenceLabel(hooks.scopeBatch.rrule)}`)
-        : '';
+    const scopeRecurrenceKey = hooks.scopeBatch ? getRecurrenceLabel(hooks.scopeBatch.rrule) || 'repeat' : '';
+    const scopeRecurrenceLabel = scopeRecurrenceKey ? t(`schedule.recurrence.${scopeRecurrenceKey}`) : '';
     const scopeIsFirstInstance =
         !!hooks.scopeBatch &&
         batchStatus(hooks.scopeBatch) === 'pending' &&

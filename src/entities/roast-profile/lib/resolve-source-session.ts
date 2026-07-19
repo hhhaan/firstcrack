@@ -1,6 +1,5 @@
 export type SourceSessionSnapshot = {
     tsv_path: string | null;
-    events: unknown;
 };
 
 type SourceSessionJoin = SourceSessionSnapshot | SourceSessionSnapshot[] | null | undefined;

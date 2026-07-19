@@ -63,15 +63,13 @@ export const orderApi = {
 
     /** Atomic RPC: deducts stock for active mapped lines + stamps fulfilled_at in one transaction. */
     fulfill: async (orderId: string): Promise<void> => {
-        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
-        const { error } = await (supabase as any).rpc('fulfill_order', { p_order_id: orderId });
+        const { error } = await supabase.rpc('fulfill_order', { p_order_id: orderId });
         if (error) throw error;
     },
 
     getRoastingRequirements: async (userId: string): Promise<RoastingRequirements> => {
-        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
-        const { data, error } = await (supabase as any).rpc('get_roasting_requirements', { p_user_id: userId });
+        const { data, error } = await supabase.rpc('get_roasting_requirements', { p_user_id: userId });
         if (error) throw error;
-        return (data as RoastingRequirements) ?? { products: [], beans: [] };
+        return (data as unknown as RoastingRequirements) ?? { products: [], beans: [] };
     },
 };

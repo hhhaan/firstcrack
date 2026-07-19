@@ -27,13 +27,16 @@ serde_json = "1"
 tauri-plugin-os = "2.3.2"
 tauri-plugin-store = "2.4.3"
 tauri-plugin-deep-link = "2"
-tauri-plugin-updater = "2"
-tauri-plugin-process = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-notification = "2"
-tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 sentry = "0.42"
 tauri-plugin-sentry = "0.5.0"
+
+# 데스크톱 전용 — 모바일은 스토어 배포(업데이터 불가)·단일 인스턴스 개념 없음, 사이드카 스폰 불가
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 tokio = { version = "1", features = ["time"] }
 
 [profile.release]

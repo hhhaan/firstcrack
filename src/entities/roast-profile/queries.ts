@@ -1,8 +1,7 @@
 import { generateProfileCurve } from '@shared/data/roast-profiles';
-import { fetchTsvFromR2 } from '@shared/lib/r2';
+import { curveQueryConfig } from '@shared/lib/roast-curve';
 import { supabase } from '@shared/lib/supabase';
-import { parseTsv, type TsvPoint } from '@shared/lib/tsv';
-import type { RoastProfile } from '@shared/types/database.types';
+import type { Json, RoastProfile } from '@shared/types/database.types';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { type RoastProfileWithSource, roastProfileApi } from './api';
@@ -16,8 +15,7 @@ const resolveTsvPath = (profile: RoastProfileWithSource | null): string | null =
 export const roastProfileKeys = {
     all: (userId: string) => ['roast_profiles', userId] as const,
     detail: (id: string) => ['roast_profiles', 'detail', id] as const,
-    curve: (tsvPath: string) => ['roast_profile_curve', tsvPath] as const,
-    curveNone: (fallbackKey: string) => ['roast_profile_curve', 'none', fallbackKey] as const,
+    sourceEvents: (sessionId: string) => ['roast_profiles', 'source_events', sessionId] as const,
     beanHistory: (profileId: string) => ['profile-bean-history', profileId] as const,
     consistency: (profileId: string) => ['profile-consistency', profileId] as const,
 };
@@ -61,19 +59,21 @@ export const useDeleteRoastProfile = (userId: string) => {
     });
 };
 
-// TSV는 세션당 immutable — 한 번 fetch 후 영구 캐시.
-const curveQueryConfig = (tsvPath: string | null | undefined, fallbackKey?: string) => ({
-    queryKey: tsvPath ? roastProfileKeys.curve(tsvPath) : roastProfileKeys.curveNone(fallbackKey ?? ''),
-    queryFn: async (): Promise<TsvPoint[]> => {
-        if (!tsvPath) return [];
-        return parseTsv(await fetchTsvFromR2(tsvPath));
-    },
-    enabled: !!tsvPath,
-    staleTime: Infinity,
-    gcTime: Infinity,
-});
-
 export const useRoastProfileCurve = (tsvPath: string | null | undefined) => useQuery(curveQueryConfig(tsvPath));
+
+/** ProfileDetail roast log — events are immutable after session save. */
+export const useSourceSessionEvents = (sessionId: string | null) =>
+    useQuery({
+        queryKey: roastProfileKeys.sourceEvents(sessionId ?? ''),
+        queryFn: async (): Promise<Json | null> => {
+            if (!sessionId) return null;
+            const { data, error } = await supabase.from('roast_sessions').select('events').eq('id', sessionId).single();
+            if (error) throw error;
+            return data?.events ?? null;
+        },
+        enabled: !!sessionId,
+        staleTime: Infinity,
+    });
 
 /** 실측 TSV 우선, 없으면 drop_temp/duration 기반 synthetic 곡선 반환 */
 export const useResolvedProfileCurve = (profile: RoastProfileWithSource | null) => {

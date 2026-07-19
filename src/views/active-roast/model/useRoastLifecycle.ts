@@ -2,7 +2,7 @@ import { formatTemp } from '@features/active-roast/lib/temperature';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
-import { FEATURE, useFeature } from '@shared/lib/features';
+import { FEATURE, useFeature, useWriteAccess } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
 import { message } from '@tauri-apps/plugin-dialog';
@@ -71,6 +71,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
     } = params;
 
     const bbpEnabled = useFeature(FEATURE.bbp);
+    const canWrite = useWriteAccess();
 
     const handleEnterStandby = useCallback(() => {
         if (phase !== 'preheating') return;
@@ -80,6 +81,16 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
 
     const handleManualCharge = useCallback(async () => {
         if (charged) return;
+        // UX guard only — 저장 경로는 서버 트리거가 최종 차단한다.
+        if (!canWrite) {
+            if (isTauri()) {
+                await message('현재 계정은 조회 전용입니다. 로스팅을 시작하려면 구독이 필요합니다.', {
+                    title: '로스팅 시작 불가',
+                    kind: 'warning',
+                });
+            }
+            return;
+        }
         const status = await sidecar.getStatus().catch(() => null);
         if (!status?.connected) {
             setConnected(false);
@@ -90,7 +101,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         }
         disableAutoChargeRef.current?.();
         triggerChargeRef.current?.(rawBT);
-    }, [charged, rawBT, triggerChargeRef, setConnected, disableAutoChargeRef]);
+    }, [charged, canWrite, rawBT, triggerChargeRef, setConnected, disableAutoChargeRef]);
 
     const resetActiveRoast = useCallback(() => {
         roastStartTimeRef.current = 0;

@@ -88,7 +88,7 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                         <Icon size={16} strokeWidth={1.8} />
                                     </div>
                                     <span
-                                        className={`text-[14px] ${
+                                        className={`text-[14px] flex-1 ${
                                             active
                                                 ? 'font-semibold text-[#111827] dark:text-[#e5e5e5]'
                                                 : 'font-medium text-[#374151] dark:text-[#ccc]'

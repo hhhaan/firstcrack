@@ -1,0 +1,150 @@
+# 모바일 앱 릴리스 — 데스크톱 릴리스(release.yml, v* 태그)와 완전 분리.
+#
+# 트리거 — 수동(Actions)·터미널(태그) 둘 다 지원:
+#   - workflow_dispatch          → 빌드만 (아티팩트 확인용)
+#   - workflow_dispatch + upload → 빌드 + 스토어 업로드 (TestFlight / Play 내부 트랙)
+#   - app-v* 태그 push           → 빌드 + 스토어 업로드
+#
+# 전제: src-tauri/gen/{apple,android} 커밋 + Secrets 등록 — docs/MOBILE.md 참고
+name: Release App (iOS/Android)
+
+on:
+  push:
+    tags: ['app-v*']
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: '스토어 업로드 (TestFlight / Play 내부 트랙)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-app-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_KEY_PATH: /Users/runner/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure iOS project exists
+        run: |
+          test -d src-tauri/gen/apple || {
+            echo "::error::src-tauri/gen/apple 없음 — 로컬에서 'pnpm tauri ios init' 후 커밋 필요 (docs/MOBILE.md)"
+            exit 1
+          }
+
+      # app-v<ver> 태그와 tauri.conf.json 버전 일치 검증 — 스토어는 동일 버전 재업로드를 거부하므로
+      # 버전 범프 없이 태그만 새로 찍는 실수를 여기서 차단
+      - name: Verify tag matches version
+        if: startsWith(github.ref, 'refs/tags/app-v')
+        run: |
+          TAG_VER="${GITHUB_REF_NAME#app-v}"
+          CONF_VER=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          [ "$TAG_VER" = "$CONF_VER" ] || {
+            echo "::error::태그($TAG_VER) ≠ tauri.conf.json($CONF_VER) — 'pnpm version:bump' 먼저"
+            exit 1
+          }
+
+      - uses: ./.github/actions/setup
+
+      - name: Add iOS Rust target
+        run: rustup target add aarch64-apple-ios
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Setup App Store Connect API key
+        run: |
+          mkdir -p /Users/runner/private_keys
+          echo -n "${{ secrets.APPLE_API_KEY_P8 }}" | base64 -d > "$APPLE_API_KEY_PATH"
+
+      - name: Build iOS (App Store Connect)
+        run: pnpm tauri ios build --export-method app-store-connect
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: src-tauri/gen/apple/build/arm64/*.ipa
+          if-no-files-found: error
+
+      - name: Upload to TestFlight
+        if: startsWith(github.ref, 'refs/tags/app-v') || inputs.upload
+        run: |
+          IPA=$(find src-tauri/gen/apple/build -name '*.ipa' | head -1)
+          xcrun altool --upload-app --type ios --file "$IPA" \
+            --apiKey "$APPLE_API_KEY" --apiIssuer "$APPLE_API_ISSUER"
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure Android project exists
+        run: |
+          test -d src-tauri/gen/android || {
+            echo "::error::src-tauri/gen/android 없음 — 로컬에서 'pnpm tauri android init' + gradle 서명 패치 후 커밋 필요 (docs/MOBILE.md)"
+            exit 1
+          }
+
+      - name: Verify tag matches version
+        if: startsWith(github.ref, 'refs/tags/app-v')
+        run: |
+          TAG_VER="${GITHUB_REF_NAME#app-v}"
+          CONF_VER=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          [ "$TAG_VER" = "$CONF_VER" ] || {
+            echo "::error::태그($TAG_VER) ≠ tauri.conf.json($CONF_VER) — 'pnpm version:bump' 먼저"
+            exit 1
+          }
+
+      - uses: ./.github/actions/setup
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android NDK
+        run: echo "NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
+
+      - name: Add Android Rust target
+        # 태블릿 타깃은 arm64로 시작 — 구형 armv7 기기 지원 필요 시 armv7-linux-androideabi 추가
+        run: rustup target add aarch64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Setup Android signing
+        run: |
+          cd src-tauri/gen/android
+          echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" > keystore.properties
+          echo "password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> keystore.properties
+          base64 -d <<< "${{ secrets.ANDROID_KEY_BASE64 }}" > "$RUNNER_TEMP/keystore.jks"
+          echo "storeFile=$RUNNER_TEMP/keystore.jks" >> keystore.properties
+
+      - name: Build Android (AAB)
+        run: pnpm tauri android build --aab --target aarch64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-aab
+          path: src-tauri/gen/android/app/build/outputs/bundle/**/*.aab
+          if-no-files-found: error
+
+      - name: Upload to Play (internal track)
+        if: startsWith(github.ref, 'refs/tags/app-v') || inputs.upload
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.han.firstcrack
+          releaseFiles: src-tauri/gen/android/app/build/outputs/bundle/**/*.aab
+          track: internal

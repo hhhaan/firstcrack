@@ -1,5 +1,6 @@
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
+import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
@@ -7,6 +8,7 @@ import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
 import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
 import { EventButtons } from './EventButtons';
+import { RoastAlertBanner } from './RoastAlertBanner';
 
 const TARGET_DELTA_COLORS: Record<TargetDeltaResult['status'], string> = {
     within: PHASE_COLORS.ready,
@@ -30,6 +32,7 @@ interface RoastSidePanelProps {
     deltaBT: string | null;
     deltaET: string | null;
     targetDelta: TargetDeltaResult | null;
+    activeAlerts: RoastAlertKind[];
     dtrPct: number | null;
     devTimeStr: string;
     logEntries: LogEntry[];
@@ -60,6 +63,7 @@ export const RoastSidePanel = ({
     deltaBT,
     deltaET,
     targetDelta,
+    activeAlerts,
     dtrPct,
     devTimeStr,
     logEntries,
@@ -76,6 +80,7 @@ export const RoastSidePanel = ({
     onEndRoast,
 }: RoastSidePanelProps) => (
     <div className="w-48 flex flex-col gap-2.5 px-3 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <RoastAlertBanner alerts={activeAlerts} />
         {/* ET */}
         <div className="text-right">
             <div className="text-sm text-muted font-semibold uppercase mb-1">ET</div>

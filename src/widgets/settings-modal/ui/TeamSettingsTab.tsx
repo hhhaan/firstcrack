@@ -1,7 +1,8 @@
 import { useActiveWorkspace, useMyOrganization, useRevokeOrgInvite } from '@entities/organization';
 import { useCreateInvite, useRedeemInvite, useRemoveMember } from '@features/team-invite';
+import { FEATURE, useFeature } from '@shared/lib/features';
 import { SectionCard } from '@shared/ui/SectionCard';
-import { Check, Copy, Trash2, UserMinus, Users } from 'lucide-react';
+import { Check, Copy, Lock, Trash2, UserMinus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsOptionRow, settingsOptionLabelCls } from './SettingsOptionRow';
@@ -18,6 +19,8 @@ export function TeamSettingsTab() {
     // not the currently selected foreign workspace.
     const { authUserId, isForeignWorkspace } = useActiveWorkspace();
     const userId = authUserId;
+    /** Hosting a team (invite create) is enterprise-only; redeem/join is open to all plans. */
+    const canHostTeam = useFeature(FEATURE.team);
     const { data: org, isLoading } = useMyOrganization(userId);
     const { create, isPending: creating } = useCreateInvite();
     const { redeem, isPending: redeeming } = useRedeemInvite();
@@ -131,18 +134,37 @@ export function TeamSettingsTab() {
                         </p>
                     )}
                     {members.map((m) => {
-                        const label = m.display_name || m.business_name || m.user_id.slice(0, 8);
+                        const primary = m.display_name?.trim() || m.business_name?.trim() || m.email?.trim() || null;
+                        const showEmailSub =
+                            !!m.email?.trim() &&
+                            !!primary &&
+                            primary !== m.email.trim() &&
+                            (m.display_name?.trim() || m.business_name?.trim());
                         const isSelf = m.user_id === userId;
-                        const canRemove = m.role !== 'owner' && (iAmOrgOwner || isSelf);
+                        // Host admin cannot be removed (incl. self). Members may leave via isSelf.
+                        const isAdmin = m.role === 'admin' || m.user_id === org?.owner_id;
+                        const canRemove = !isAdmin && (iAmOrgOwner || isSelf);
+                        const roleLabel = isAdmin
+                            ? t('settings.tabs.team.roles.admin')
+                            : t('settings.tabs.team.roles.member');
                         return (
                             <SettingsOptionRow key={m.user_id} tone="muted">
                                 <div className="flex items-center justify-between w-full gap-2">
                                     <div className="min-w-0">
-                                        <span className={settingsOptionLabelCls}>{label}</span>
-                                        <span className="ml-2 text-[11px] uppercase tracking-wide text-[#9CA3AF]">
-                                            {m.role}
-                                            {isSelf ? ` · ${t('settings.tabs.team.you')}` : ''}
-                                        </span>
+                                        <div className="flex items-baseline gap-2 min-w-0">
+                                            <span className={settingsOptionLabelCls}>
+                                                {primary ?? t('settings.tabs.team.unknownMember')}
+                                            </span>
+                                            <span className="text-[11px] uppercase tracking-wide text-[#9CA3AF] shrink-0">
+                                                {roleLabel}
+                                                {isSelf ? ` · ${t('settings.tabs.team.you')}` : ''}
+                                            </span>
+                                        </div>
+                                        {showEmailSub && (
+                                            <p className="text-[12px] text-[#6B7280] dark:text-[#999] m-0 truncate">
+                                                {m.email}
+                                            </p>
+                                        )}
                                     </div>
                                     {canRemove && (
                                         <button
@@ -169,64 +191,82 @@ export function TeamSettingsTab() {
                     description={t('settings.tabs.team.inviteDescription')}
                 />
                 <SectionCard.Body className="flex flex-col gap-3">
-                    <button
-                        type="button"
-                        disabled={creating || seatsFull}
-                        onClick={() => void handleCreate()}
-                        className={primaryBtnCls}
-                        title={seatsFull ? t('settings.tabs.team.errors.seat_limit') : undefined}
-                    >
-                        {creating ? t('common.loading') : t('settings.tabs.team.createInvite')}
-                    </button>
-                    {seatsFull && (
-                        <p className="text-[12px] text-[#6B7280] dark:text-[#999] m-0">
-                            {t('settings.tabs.team.errors.seat_limit')}
-                        </p>
-                    )}
-                    {lastToken && (
-                        <SettingsOptionRow tone="muted">
-                            <div className="flex items-center gap-2 w-full min-w-0">
-                                <code className="text-[12px] font-mono truncate flex-1">{lastToken}</code>
-                                <button
-                                    type="button"
-                                    onClick={() => void handleCopy(lastToken)}
-                                    className={actionBtnCls}
-                                >
-                                    {copied ? <Check size={14} /> : <Copy size={14} />}
-                                    {copied ? t('settings.tabs.team.copied') : t('settings.tabs.team.copy')}
-                                </button>
+                    {!canHostTeam ? (
+                        <div className="flex items-start gap-2.5 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#181d21] px-3 py-3">
+                            <Lock size={14} className="mt-0.5 shrink-0 text-[#9CA3AF]" aria-hidden />
+                            <div>
+                                <p className="text-[13px] font-medium text-[#111827] dark:text-[#e5e5e5] m-0">
+                                    {t('settings.tabs.team.locked.title')}
+                                </p>
+                                <p className="mt-1 text-[12px] leading-relaxed text-[#6B7280] dark:text-[#999] m-0">
+                                    {t('settings.tabs.team.locked.description')}
+                                </p>
                             </div>
-                        </SettingsOptionRow>
-                    )}
-                    {activeInvites.length > 0 && (
-                        <div className="flex flex-col gap-2 mt-1">
-                            <span className="text-[12px] font-medium text-[#6B7280] dark:text-[#999]">
-                                {t('settings.tabs.team.activeInvites')}
-                            </span>
-                            {activeInvites.map((inv) => (
-                                <SettingsOptionRow key={inv.id} tone="muted">
+                        </div>
+                    ) : (
+                        <>
+                            <button
+                                type="button"
+                                disabled={creating || seatsFull}
+                                onClick={() => void handleCreate()}
+                                className={primaryBtnCls}
+                                title={seatsFull ? t('settings.tabs.team.errors.seat_limit') : undefined}
+                            >
+                                {creating ? t('common.loading') : t('settings.tabs.team.createInvite')}
+                            </button>
+                            {seatsFull && (
+                                <p className="text-[12px] text-[#6B7280] dark:text-[#999] m-0">
+                                    {t('settings.tabs.team.errors.seat_limit')}
+                                </p>
+                            )}
+                            {lastToken && (
+                                <SettingsOptionRow tone="muted">
                                     <div className="flex items-center gap-2 w-full min-w-0">
-                                        <code className="text-[11px] font-mono truncate flex-1">{inv.token}</code>
+                                        <code className="text-[12px] font-mono truncate flex-1">{lastToken}</code>
                                         <button
                                             type="button"
-                                            onClick={() => void handleCopy(inv.token)}
-                                            className="p-1.5 rounded-md border-none bg-transparent text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white cursor-pointer"
-                                            aria-label={t('settings.tabs.team.copy')}
+                                            onClick={() => void handleCopy(lastToken)}
+                                            className={actionBtnCls}
                                         >
-                                            <Copy size={14} />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => void handleRevoke(inv.id)}
-                                            className="p-1.5 rounded-md border-none bg-transparent text-[#9CA3AF] hover:text-red-600 cursor-pointer"
-                                            aria-label={t('settings.tabs.team.revoke')}
-                                        >
-                                            <Trash2 size={14} />
+                                            {copied ? <Check size={14} /> : <Copy size={14} />}
+                                            {copied ? t('settings.tabs.team.copied') : t('settings.tabs.team.copy')}
                                         </button>
                                     </div>
                                 </SettingsOptionRow>
-                            ))}
-                        </div>
+                            )}
+                            {activeInvites.length > 0 && (
+                                <div className="flex flex-col gap-2 mt-1">
+                                    <span className="text-[12px] font-medium text-[#6B7280] dark:text-[#999]">
+                                        {t('settings.tabs.team.activeInvites')}
+                                    </span>
+                                    {activeInvites.map((inv) => (
+                                        <SettingsOptionRow key={inv.id} tone="muted">
+                                            <div className="flex items-center gap-2 w-full min-w-0">
+                                                <code className="text-[11px] font-mono truncate flex-1">
+                                                    {inv.token}
+                                                </code>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void handleCopy(inv.token)}
+                                                    className="p-1.5 rounded-md border-none bg-transparent text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white cursor-pointer"
+                                                    aria-label={t('settings.tabs.team.copy')}
+                                                >
+                                                    <Copy size={14} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void handleRevoke(inv.id)}
+                                                    className="p-1.5 rounded-md border-none bg-transparent text-[#9CA3AF] hover:text-red-600 cursor-pointer"
+                                                    aria-label={t('settings.tabs.team.revoke')}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </SettingsOptionRow>
+                                    ))}
+                                </div>
+                            )}
+                        </>
                     )}
                 </SectionCard.Body>
             </SectionCard>

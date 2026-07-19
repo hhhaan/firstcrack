@@ -37,6 +37,7 @@ export type Database = {
                 Row: {
                     bean_id: string;
                     created_at: string;
+                    created_by: string | null;
                     delta_grams: number;
                     event_type: string;
                     id: string;
@@ -47,6 +48,7 @@ export type Database = {
                 Insert: {
                     bean_id: string;
                     created_at?: string;
+                    created_by?: string | null;
                     delta_grams: number;
                     event_type: string;
                     id?: string;
@@ -57,6 +59,7 @@ export type Database = {
                 Update: {
                     bean_id?: string;
                     created_at?: string;
+                    created_by?: string | null;
                     delta_grams?: number;
                     event_type?: string;
                     id?: string;
@@ -593,6 +596,7 @@ export type Database = {
                     carrier: string;
                     confirmed_at: string | null;
                     connection_id: string;
+                    created_by: string | null;
                     id: string;
                     last_error: string | null;
                     line_results: Json | null;
@@ -609,6 +613,7 @@ export type Database = {
                     carrier: string;
                     confirmed_at?: string | null;
                     connection_id: string;
+                    created_by?: string | null;
                     id?: string;
                     last_error?: string | null;
                     line_results?: Json | null;
@@ -625,6 +630,7 @@ export type Database = {
                     carrier?: string;
                     confirmed_at?: string | null;
                     connection_id?: string;
+                    created_by?: string | null;
                     id?: string;
                     last_error?: string | null;
                     line_results?: Json | null;
@@ -988,6 +994,7 @@ export type Database = {
             product_stock_events: {
                 Row: {
                     created_at: string;
+                    created_by: string | null;
                     delta_units: number;
                     event_type: string;
                     id: string;
@@ -998,6 +1005,7 @@ export type Database = {
                 };
                 Insert: {
                     created_at?: string;
+                    created_by?: string | null;
                     delta_units: number;
                     event_type: string;
                     id?: string;
@@ -1008,6 +1016,7 @@ export type Database = {
                 };
                 Update: {
                     created_at?: string;
+                    created_by?: string | null;
                     delta_units?: number;
                     event_type?: string;
                     id?: string;
@@ -1482,11 +1491,13 @@ export type Database = {
                     bean_id: string | null;
                     charge_temp_celsius: number | null;
                     created_at: string;
+                    created_by: string | null;
                     drop_temp_celsius: number | null;
                     duration_seconds: number | null;
                     events: Json;
                     id: string;
                     notes: string | null;
+                    output_weight_grams: number | null;
                     plan_batch_id: string | null;
                     profile_id: string | null;
                     roast_level: string | null;
@@ -1506,11 +1517,13 @@ export type Database = {
                     bean_id?: string | null;
                     charge_temp_celsius?: number | null;
                     created_at?: string;
+                    created_by?: string | null;
                     drop_temp_celsius?: number | null;
                     duration_seconds?: number | null;
                     events?: Json;
                     id?: string;
                     notes?: string | null;
+                    output_weight_grams?: number | null;
                     plan_batch_id?: string | null;
                     profile_id?: string | null;
                     roast_level?: string | null;
@@ -1530,11 +1543,13 @@ export type Database = {
                     bean_id?: string | null;
                     charge_temp_celsius?: number | null;
                     created_at?: string;
+                    created_by?: string | null;
                     drop_temp_celsius?: number | null;
                     duration_seconds?: number | null;
                     events?: Json;
                     id?: string;
                     notes?: string | null;
+                    output_weight_grams?: number | null;
                     plan_batch_id?: string | null;
                     profile_id?: string | null;
                     roast_level?: string | null;
@@ -1570,6 +1585,70 @@ export type Database = {
                     },
                     {
                         foreignKeyName: 'roast_sessions_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            roasted_stock_events: {
+                Row: {
+                    bean_id: string | null;
+                    blend_id: string | null;
+                    created_at: string;
+                    created_by: string | null;
+                    delta_grams: number;
+                    event_type: string;
+                    id: string;
+                    is_estimate: boolean;
+                    note: string | null;
+                    reference_id: string | null;
+                    user_id: string;
+                };
+                Insert: {
+                    bean_id?: string | null;
+                    blend_id?: string | null;
+                    created_at?: string;
+                    created_by?: string | null;
+                    delta_grams: number;
+                    event_type: string;
+                    id?: string;
+                    is_estimate?: boolean;
+                    note?: string | null;
+                    reference_id?: string | null;
+                    user_id: string;
+                };
+                Update: {
+                    bean_id?: string | null;
+                    blend_id?: string | null;
+                    created_at?: string;
+                    created_by?: string | null;
+                    delta_grams?: number;
+                    event_type?: string;
+                    id?: string;
+                    is_estimate?: boolean;
+                    note?: string | null;
+                    reference_id?: string | null;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'roasted_stock_events_bean_id_fkey';
+                        columns: ['bean_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'beans';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roasted_stock_events_blend_id_fkey';
+                        columns: ['blend_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'blends';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roasted_stock_events_user_id_fkey';
                         columns: ['user_id'];
                         isOneToOne: false;
                         referencedRelation: 'profiles';
@@ -1885,12 +1964,21 @@ export type Database = {
             };
             get_roasting_requirements: { Args: { p_user_id: string }; Returns: Json };
             get_user_product_stock: { Args: { p_user_id: string }; Returns: Json };
+            get_user_roasted_stock: { Args: { p_user_id: string }; Returns: Json };
             get_user_stock_summaries: {
                 Args: { p_horizon_days?: number; p_user_id: string };
                 Returns: Json;
             };
             has_workspace_access: { Args: { target_owner: string }; Returns: boolean };
+            insert_packaging_op: {
+                Args: { p_product_events: Json; p_roasted_events: Json };
+                Returns: undefined;
+            };
             insert_product_stock_events_batch: {
+                Args: { p_events: Json };
+                Returns: undefined;
+            };
+            insert_roasted_stock_events_batch: {
                 Args: { p_events: Json };
                 Returns: undefined;
             };
@@ -1898,8 +1986,28 @@ export type Database = {
                 Args: { p_events: Json };
                 Returns: undefined;
             };
+            upsert_roasted_inbound: {
+                Args: {
+                    p_grams: number;
+                    p_is_estimate: boolean;
+                    p_session_id: string;
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
             is_org_member_or_owner: { Args: { p_org_id: string }; Returns: boolean };
             is_org_owner: { Args: { p_org_id: string }; Returns: boolean };
+            list_org_members: {
+                Args: { p_org_id: string };
+                Returns: {
+                    business_name: string | null;
+                    created_at: string;
+                    display_name: string | null;
+                    email: string | null;
+                    role: string;
+                    user_id: string;
+                }[];
+            };
             redeem_org_invite: { Args: { p_token: string }; Returns: string };
             remove_org_member: {
                 Args: { p_member_id: string; p_org_id: string };

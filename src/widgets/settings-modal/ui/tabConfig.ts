@@ -14,6 +14,7 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
     const tk = (tab: SettingsTabId, key: string) => t(`settings.tabs.${tab}.${key}`);
 
     // Order: frequent prefs → product domain → identity/billing → meta → help
+    // Team is always visible: redeem/join must work on any plan; invite-create is gated in-tab.
     return [
         {
             id: 'general',

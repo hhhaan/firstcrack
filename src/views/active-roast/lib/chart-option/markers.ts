@@ -23,9 +23,12 @@ export const nearestBtAt = (xs: number[], btActual: (number | null)[], timeSec: 
 export const eventLabelText = (event: string, timeStr: string, temp: string) =>
     event === 'Charge' ? `${event} ${temp}` : `${event} ${timeStr} ${temp}`;
 
-const buildPointLabel = (color: string, text: string) => ({
+/** 하단 라벨 — 상단 이벤트와 겹침 완화 */
+const LABEL_BELOW_EVENTS = new Set(['FC End', 'Drop', 'TP']);
+
+const buildPointLabel = (color: string, text: string, below = false) => ({
     show: true,
-    position: 'top' as const,
+    position: (below ? 'bottom' : 'top') as 'top' | 'bottom',
     distance: 5,
     formatter: text,
     fontSize: 10,
@@ -52,12 +55,15 @@ export interface MarkerBuildParams {
     colors: ResolvedChartColors;
     tempYMin: number;
     hasControlSeries: boolean;
+    showFcBand?: boolean;
 }
 
 export interface MarkerBuildResult {
     usePointMarkers: boolean;
     allMarkLines: object[];
     markPointData: object[];
+    /** FC Start–End vertical band (null if incomplete / invalid range) */
+    fcMarkArea: object | null;
     controlGuideMarkLines: object[];
     tempBottomBorderLine: object | null;
 }
@@ -78,6 +84,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         colors,
         tempYMin,
         hasControlSeries,
+        showFcBand = true,
     } = params;
 
     // Charge: eventMarkers 경유 → eventMarkerStyle(point|line)과 동일 처리
@@ -109,14 +116,15 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         guideMarkLines.push({
             xAxis: currentTimeSec,
             lineStyle: nowLineStyle,
-            label: {
-                show: true,
-                position: 'insideEndTop' as const,
-                formatter: 'NOW',
-                color: colors.nowLabel,
-                fontSize: 10,
-                fontWeight: 700,
-            },
+            // label: {
+            //     show: true,
+            //     position: 'insideEndTop' as const,
+            //     formatter: 'NOW',
+            //     color: colors.nowLabel,
+            //     fontSize: 10,
+            //     fontWeight: 700,
+            // },
+            label: { show: false },
         });
         controlGuideMarkLines.push({
             xAxis: currentTimeSec,
@@ -125,24 +133,28 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         });
     }
 
-    // ── line style: 세로 markLine + start 라벨 ──────────────────────────
-    const eventMarkLines = eventMarkers.map((m) => ({
-        xAxis: m.timeSec,
-        lineStyle: {
-            color: m.color,
-            width: 1.5,
-            type: 'solid' as const,
-            opacity: 1,
-        },
-        label: {
-            show: true,
-            position: 'start' as const,
-            formatter: eventLabelText(m.event, m.timeStr, m.temp),
-            color: m.color,
-            fontSize: 11,
-            fontWeight: 700,
-        },
-    }));
+    // ── line style: 세로 markLine + 라벨 (기본 상단, FC End/Drop은 하단) ─
+    const eventMarkLines = eventMarkers.map((m) => {
+        const below = LABEL_BELOW_EVENTS.has(m.event);
+        return {
+            xAxis: m.timeSec,
+            lineStyle: {
+                color: m.color,
+                width: 1.5,
+                type: 'solid' as const,
+                opacity: 1,
+            },
+            label: {
+                show: true,
+                // vertical xAxis line: start=top, end=bottom
+                position: (below ? 'end' : 'start') as 'start' | 'end',
+                formatter: eventLabelText(m.event, m.timeStr, m.temp),
+                color: m.color,
+                fontSize: 11,
+                fontWeight: 700,
+            },
+        };
+    });
 
     const tpMarkLines = turningPoints.map((tp) => ({
         xAxis: tp.timeSec,
@@ -154,7 +166,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         },
         label: {
             show: true,
-            position: 'start' as const,
+            position: 'end' as const,
             formatter: `TP ${fmtSec(tp.timeSec)} ${toDisplayTemp(tp.temp, temperatureUnit).toFixed(1)}${unitLabel}`,
             color: colors.tp,
             fontSize: 11,
@@ -180,7 +192,11 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                               borderColor: colors.markerLabelColor,
                               borderWidth: 1,
                           },
-                          label: buildPointLabel(m.color, eventLabelText(m.event, m.timeStr, tempStr)),
+                          label: buildPointLabel(
+                              m.color,
+                              eventLabelText(m.event, m.timeStr, tempStr),
+                              LABEL_BELOW_EVENTS.has(m.event),
+                          ),
                       };
                   })
                   .filter(Boolean),
@@ -197,13 +213,34 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                           borderColor: colors.markerLabelColor,
                           borderWidth: 1,
                       },
-                      label: buildPointLabel(colors.tp, `TP ${fmtSec(tp.timeSec)} ${tempStr}`),
+                      label: buildPointLabel(colors.tp, `TP ${fmtSec(tp.timeSec)} ${tempStr}`, true),
                   };
               }),
           ]
         : [];
 
     const allMarkLines = usePointMarkers ? guideMarkLines : [...guideMarkLines, ...eventMarkLines, ...tpMarkLines];
+
+    // FC Start → FC End 세로 밴드 (End 없으면 live currentTime까지)
+    let fcMarkArea: object | null = null;
+    if (showFcBand) {
+        const fcStart = eventMarkers.find((m) => m.event === 'FC Start');
+        const fcEnd = eventMarkers.find((m) => m.event === 'FC End');
+        if (fcStart) {
+            const endSec = fcEnd?.timeSec ?? (charged ? currentTimeSec : null);
+            if (endSec != null && endSec > fcStart.timeSec) {
+                fcMarkArea = {
+                    silent: true,
+                    z: 0,
+                    itemStyle: {
+                        color: colors.fcBandFill,
+                    },
+                    data: [[{ xAxis: fcStart.timeSec }, { xAxis: endSec }]],
+                };
+            }
+        }
+    }
+
     // dual-grid: bottom edge of temp plot (axisLine is unreliable on value xAxis)
     const tempBottomBorderLine = hasControlSeries
         ? {
@@ -219,6 +256,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         usePointMarkers,
         allMarkLines,
         markPointData: markPointData as object[],
+        fcMarkArea,
         controlGuideMarkLines,
         tempBottomBorderLine,
     };

@@ -98,8 +98,22 @@ async function cafe24Get(
     return res.json();
 }
 
+/** App credentials from env (production OAuth app). Falls back to secrets for legacy paste tokens. */
+function resolveCafe24Client(secrets: Cafe24Secrets): { clientId: string; clientSecret: string } | null {
+    const envId = (Deno.env.get('CAFE24_CLIENT_ID') ?? '').trim();
+    const envSecret = (Deno.env.get('CAFE24_CLIENT_SECRET') ?? '').trim();
+    if (envId && envSecret) return { clientId: envId, clientSecret: envSecret };
+    if (secrets.client_id && secrets.client_secret) {
+        return { clientId: String(secrets.client_id), clientSecret: String(secrets.client_secret) };
+    }
+    return null;
+}
+
 export async function refreshCafe24Token(secrets: Cafe24Secrets): Promise<Cafe24Secrets | null> {
-    if (!secrets.refresh_token || !secrets.client_id || !secrets.client_secret) return null;
+    if (!secrets.refresh_token) return null;
+    const client = resolveCafe24Client(secrets);
+    if (!client) return null;
+
     const skew = 5 * 60 * 1000;
     if (secrets.token_expires_at && secrets.token_expires_at - skew > Date.now()) return null;
 
@@ -107,7 +121,7 @@ export async function refreshCafe24Token(secrets: Cafe24Secrets): Promise<Cafe24
         grant_type: 'refresh_token',
         refresh_token: secrets.refresh_token,
     });
-    const basic = btoa(`${secrets.client_id}:${secrets.client_secret}`);
+    const basic = btoa(`${client.clientId}:${client.clientSecret}`);
     const res = await fetch(`https://${secrets.mall_id}.cafe24api.com/api/v2/oauth/token`, {
         method: 'POST',
         headers: {
@@ -125,6 +139,7 @@ export async function refreshCafe24Token(secrets: Cafe24Secrets): Promise<Cafe24
         expires_at?: string;
         expires_in?: number;
     };
+    // Official: new refresh_token revokes the previous one — always persist rotation.
     return {
         ...secrets,
         access_token: json.access_token,
@@ -248,24 +263,39 @@ export const cafe24Adapter: ChannelAdapter = {
         const start = cursor.since ? new Date(cursor.since) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         const startDate = start.toISOString().slice(0, 10);
         const endDate = end.toISOString().slice(0, 10);
+        const limit = 100;
+        const maxPages = 50;
+        const rawOrders: Array<Record<string, unknown>> = [];
+        let offset = 0;
+        let pages = 0;
+        let complete = true;
 
-        const query: Record<string, string> = {
-            start_date: startDate,
-            end_date: endDate,
-            date_type: 'order_date',
-            embed: 'items,buyer',
-            limit: '100',
-            offset: '0',
-        };
-        if (s.shop_no != null) query.shop_no = String(s.shop_no);
+        while (pages < maxPages) {
+            const query: Record<string, string> = {
+                start_date: startDate,
+                end_date: endDate,
+                date_type: 'order_date',
+                embed: 'items,buyer',
+                limit: String(limit),
+                offset: String(offset),
+            };
+            if (s.shop_no != null) query.shop_no = String(s.shop_no);
 
-        const data = (await cafe24Get(s.mall_id, s.access_token, '/orders', query)) as {
-            orders?: Array<Record<string, unknown>>;
-        };
+            const data = (await cafe24Get(s.mall_id, s.access_token, '/orders', query)) as {
+                orders?: Array<Record<string, unknown>>;
+            };
+            const batch = data.orders ?? [];
+            rawOrders.push(...batch);
+            pages += 1;
+            if (batch.length < limit) break;
+            offset += limit;
+            if (pages >= maxPages) {
+                complete = false;
+                break;
+            }
+        }
 
-        const orders = (data.orders ?? [])
-            .map(mapCafe24Order)
-            .filter((o): o is CanonicalOrder => o != null);
+        const orders = rawOrders.map(mapCafe24Order).filter((o): o is CanonicalOrder => o != null);
 
         // Detail fill when list omitted items
         for (let i = 0; i < orders.length; i++) {
@@ -287,9 +317,12 @@ export const cafe24Adapter: ChannelAdapter = {
             }
         }
 
+        // Do not advance watermark past unread pages (avoids permanent order loss).
         return {
             orders,
-            nextCursor: { since: end.toISOString() },
+            nextCursor: {
+                since: complete ? end.toISOString() : (cursor.since ?? start.toISOString()),
+            },
         };
     },
 

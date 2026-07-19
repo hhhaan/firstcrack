@@ -1,6 +1,6 @@
 import { calcPlanBatchCount } from '@shared/lib/stock-calc';
 import { supabase } from '@shared/lib/supabase';
-import type { PlanBatchWithProgress } from '@shared/types/database.types';
+import type { PlanBatch, PlanBatchWithProgress } from '@shared/types/database.types';
 import { recurrenceRuleApi } from './recurrence-rule';
 
 /**
@@ -27,20 +27,6 @@ export async function listForDateRange(
     const dateToPlanId = new Map((plans ?? []).map((p) => [p.date, p.id]));
     const planIds = (plans ?? []).map((p) => p.id);
 
-    // Get sessions for progress
-    const { data: sessions, error: sessionsError } = await supabase
-        .from('roast_sessions')
-        .select('plan_batch_id')
-        .not('plan_batch_id', 'is', null);
-    if (sessionsError) throw sessionsError;
-
-    const sessionCountMap = new Map<string, number>();
-    for (const s of sessions ?? []) {
-        if (s.plan_batch_id) {
-            sessionCountMap.set(s.plan_batch_id, (sessionCountMap.get(s.plan_batch_id) ?? 0) + 1);
-        }
-    }
-
     // 3. Get exception rows for recurrence rules in the date range
     const { data: exceptions, error: exceptionsError } = await supabase
         .from('roast_plan_batches')
@@ -51,12 +37,32 @@ export async function listForDateRange(
     if (exceptionsError) throw exceptionsError;
 
     // 4. Get one-off batches (no recurrence_rule_id)
-    const { data: oneOffBatches, error: oneOffError } = await supabase
-        .from('roast_plan_batches')
-        .select('*')
-        .is('recurrence_rule_id', null)
-        .in('plan_id', planIds);
-    if (oneOffError) throw oneOffError;
+    let oneOffBatches: PlanBatch[] = [];
+    if (planIds.length > 0) {
+        const oneOffResult = await supabase
+            .from('roast_plan_batches')
+            .select('*')
+            .is('recurrence_rule_id', null)
+            .in('plan_id', planIds);
+        if (oneOffResult.error) throw oneOffResult.error;
+        oneOffBatches = oneOffResult.data ?? [];
+    }
+
+    // Sessions for progress — scoped to concrete batch ids only (no full-table scan)
+    const batchIds = [...(exceptions ?? []), ...(oneOffBatches ?? [])].map((b) => b.id);
+    const sessionCountMap = new Map<string, number>();
+    if (batchIds.length > 0) {
+        const { data: sessions, error: sessionsError } = await supabase
+            .from('roast_sessions')
+            .select('plan_batch_id')
+            .in('plan_batch_id', batchIds);
+        if (sessionsError) throw sessionsError;
+        for (const s of sessions ?? []) {
+            if (s.plan_batch_id) {
+                sessionCountMap.set(s.plan_batch_id, (sessionCountMap.get(s.plan_batch_id) ?? 0) + 1);
+            }
+        }
+    }
 
     // Build result from one-off batches
     const result: PlanBatchWithProgress[] = (oneOffBatches ?? []).map((row) => ({
@@ -116,6 +122,8 @@ export async function listForDateRange(
                 if (exBatch) {
                     result.push({
                         ...exBatch,
+                        // Exception rows may not store rrule; use master rule
+                        rrule: exBatch.rrule ?? rule.rrule,
                         completed_sessions: sessionCountMap.get(exBatch.id) ?? 0,
                     });
                 }

@@ -180,6 +180,8 @@ max_frequency = "5s"
 # 4152127777 = "123456"
 
 # Configure logged in session timeouts.
+# Hosted: Dashboard → Authentication → Sessions → enable "Single session per user"
+# (newest login wins; older sessions end on next token refresh — Pro+).
 # [auth.sessions]
 # Force log out after the specified duration.
 # timebox = "24h"
@@ -286,6 +288,12 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.submit-cupping]
+verify_jwt = false
+
+[functions.cafe24-oauth-start]
+verify_jwt = true
+
+[functions.cafe24-oauth-callback]
 verify_jwt = false
 
 # [functions.MY_FUNCTION_NAME]

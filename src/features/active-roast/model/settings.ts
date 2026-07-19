@@ -29,6 +29,8 @@ export type RoastSettings = {
     controlYMin: number;
     controlYMax: number;
     showPhaseBar: boolean;
+    /** FC Start–End vertical band on the temp chart */
+    showFcBand: boolean;
     eventMarkerStyle: EventMarkerStyle;
     tempMinC: number;
     tempMaxC: number;
@@ -38,6 +40,11 @@ export type RoastSettings = {
     fcStartTempC: number;
     autoChargeDropC: number;
     preChargeDisplaySec: number;
+    /** Live threshold alarms (RoR crash / BT ceiling). */
+    alertsEnabled: boolean;
+    alertSoundEnabled: boolean;
+    alertRorCrashCPerMin: number;
+    alertBtMaxC: number;
 };
 
 const DEFAULT_SETTINGS: RoastSettings = {
@@ -56,6 +63,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     controlYMin: 0,
     controlYMax: 100,
     showPhaseBar: true,
+    showFcBand: true,
     eventMarkerStyle: 'point',
     tempMinC: 130,
     tempMaxC: 240,
@@ -65,6 +73,10 @@ const DEFAULT_SETTINGS: RoastSettings = {
     fcStartTempC: 200,
     autoChargeDropC: 5,
     preChargeDisplaySec: 60,
+    alertsEnabled: true,
+    alertSoundEnabled: true,
+    alertRorCrashCPerMin: 0,
+    alertBtMaxC: 250,
 };
 
 const clampNum = (value: unknown, min: number, max: number, fallback: number) => {
@@ -101,9 +113,14 @@ const normalize = (raw: Partial<RoastSettings> | null | undefined): RoastSetting
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),
         showControlHeat: asBool(merged.showControlHeat, DEFAULT_SETTINGS.showControlHeat),
         showControlFan: asBool(merged.showControlFan, DEFAULT_SETTINGS.showControlFan),
+        showFcBand: asBool(merged.showFcBand, DEFAULT_SETTINGS.showFcBand),
         controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
         controlYMin,
         controlYMax,
+        alertsEnabled: asBool(merged.alertsEnabled, DEFAULT_SETTINGS.alertsEnabled),
+        alertSoundEnabled: asBool(merged.alertSoundEnabled, DEFAULT_SETTINGS.alertSoundEnabled),
+        alertRorCrashCPerMin: clampNum(merged.alertRorCrashCPerMin, -20, 20, DEFAULT_SETTINGS.alertRorCrashCPerMin),
+        alertBtMaxC: clampNum(merged.alertBtMaxC, 100, 400, DEFAULT_SETTINGS.alertBtMaxC),
     };
 };
 

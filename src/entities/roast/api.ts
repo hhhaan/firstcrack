@@ -5,7 +5,10 @@ import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 const SELECT_WITH_RELATIONS =
     '*, beans(name, origin, region, variety, process, farm), roast_profiles!profile_id(name, target_level)';
 
-export type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at'>;
+/** Insert payload — created_by defaults to auth.uid() in DB. */
+export type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'created_by'> & {
+    created_by?: string | null;
+};
 type RoastSessionUpdate = { id: string } & Partial<Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;
 
 interface PaginatedParams {
@@ -25,6 +28,11 @@ interface PaginatedResult {
     total: number;
 }
 
+export type RoastSessionFilterMeta = {
+    roasted_at: string | null;
+    beans: { origin: string | null } | null;
+};
+
 export const roastSessionApi = {
     list: async (userId: string, status?: RoastSession['status']): Promise<RoastSessionWithRelations[]> => {
         let query = supabase
@@ -43,6 +51,17 @@ export const roastSessionApi = {
         return data || [];
     },
 
+    /** Lightweight rows for History filter dropdowns + total count (no events/embeds bloat). */
+    listFilterMeta: async (userId: string): Promise<RoastSessionFilterMeta[]> => {
+        const { data, error } = await supabase
+            .from('roast_sessions')
+            .select('roasted_at, beans(origin)')
+            .eq('user_id', userId)
+            .eq('status', 'completed');
+        if (error) throw error;
+        return (data as RoastSessionFilterMeta[]) || [];
+    },
+
     get: async (id: string): Promise<RoastSessionWithRelations> => {
         const { data, error } = await supabase
             .from('roast_sessions')
@@ -57,6 +76,17 @@ export const roastSessionApi = {
         const { data, error } = await supabase.from('roast_sessions').insert(session).select().single();
         if (error) throw error;
         return data;
+    },
+
+    /** Lifetime completed sessions (trial 20-batch cap). */
+    countCompletedTotal: async (userId: string): Promise<number> => {
+        const { count, error } = await supabase
+            .from('roast_sessions')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('status', 'completed');
+        if (error) throw error;
+        return count ?? 0;
     },
 
     /** Completed sessions in local calendar month (batch quota). */

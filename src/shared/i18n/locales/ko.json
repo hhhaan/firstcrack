@@ -4,11 +4,11 @@
         "close": "닫기",
         "connected": "연결됨",
         "connecting": "연결 중...",
-        "disconnected": "연결 안 됨",
+        "disconnected": "연결 끊김",
         "live": "실시간",
         "loading": "불러오는 중…",
         "offline": "오프라인",
-        "unavailable": "불가",
+        "unavailable": "사용 불가",
         "save": "저장",
         "add": "추가",
         "edit": "수정",
@@ -16,21 +16,23 @@
     },
     "auth": {
         "oauthCompleting": "로그인 완료 중…",
+        "sessionReplacedTitle": "로그아웃됨",
         "errors": {
             "invalid_credentials": "이메일 또는 비밀번호가 올바르지 않습니다. 다시 시도해 주세요.",
             "network": "네트워크 오류입니다. 연결을 확인한 뒤 다시 시도해 주세요.",
             "oauth_failed": "로그인을 완료하지 못했습니다. 다시 시도해 주세요.",
+            "session_replaced": "다른 기기에서 로그인되어 로그아웃되었습니다.",
             "generic": "로그인에 실패했습니다. 다시 시도해 주세요."
         }
     },
     "updater": {
         "checking": "업데이트 확인 중…",
         "downloading": "업데이트 다운로드 중…",
-        "ready": "새 업데이트 (v{{version}}) 재시작",
+        "ready": "업데이트 준비됨 (v{{version}}) · 재시작",
         "applying": "재시작 중…",
         "checkError": "업데이트 확인 중 오류가 발생했습니다.",
         "relaunchError": "재시작에 실패했습니다.",
-        "loopGuardError": "업데이트가 적용되지 않았습니다. dmg에서 앱을 다시 설치하거나 최신 버전을 수동으로 받아 주세요.",
+        "loopGuardError": "업데이트가 적용되지 않았습니다. 설치 파일로 다시 설치하거나 최신 버전을 받아 주세요.",
         "sidecarDead": "하드웨어 연결 서비스가 응답하지 않습니다.",
         "sidecarDeadRestart": "앱을 재시작해 주세요."
     },
@@ -59,15 +61,15 @@
     "settings": {
         "title": "워크스페이스 설정",
         "close": "설정 닫기",
-        "whyTitle": "설정에 있는 이유",
-        "whyDescription": "이 항목들은 앱 전체 경험에 영향을 줍니다. 운영 데이터는 설정 화면을 가볍게 유지하기 위해 사이드바의 주요 화면에 둡니다.",
+        "whyTitle": "여기에 있는 설정",
+        "whyDescription": "앱 전반에 적용되는 기본 설정입니다. 생두·머신·일정 같은 일상 작업은 사이드바에서 바로 하세요.",
         "tabs": {
             "general": {
                 "label": "일반",
                 "title": "워크스페이스 환경설정",
-                "description": "로스터리 워크스페이스 전반에 적용되는 기본값을 관리합니다.",
+                "description": "앱 전반의 기본 화면과 단위를 설정합니다.",
                 "interfaceTitle": "인터페이스",
-                "interfaceDescription": "앱 전체에 적용되는 가벼운 환경설정입니다.",
+                "interfaceDescription": "테마·언어 등 화면 표시 옵션입니다.",
                 "theme": "화면 모드",
                 "themeDescription": "앱 화면 스타일을 선택합니다. 시스템은 OS 설정을 따릅니다.",
                 "themeLight": "라이트",
@@ -107,22 +109,22 @@
                 "title": "로스팅 세션 동작",
                 "description": "각 로스팅 세션의 시작부터 종료까지 적용되는 작업 기본값입니다.",
                 "startTitle": "세션 시작",
-                "startDescription": "오퍼레이터가 빠르게 시작하도록 돕는 자동화입니다.",
+                "startDescription": "로스팅을 빠르게 시작할 수 있게 도와줍니다.",
                 "autoStartTimer": "로스팅 타이머 자동 시작",
                 "openActiveRoast": "진행 중 로스팅 화면 즉시 열기",
                 "confirmBeforeStart": "세션 시작 전 확인",
                 "endTitle": "세션 종료",
                 "endDescription": "요약과 최종 검토를 일관되게 유지합니다.",
                 "showSummary": "종료 후 로스팅 요약 표시",
-                "confirmDiscard": "세션 폐기 전 확인",
+                "confirmDiscard": "세션을 버리기 전 확인",
                 "keepNotesVisible": "로스팅 노트 계속 표시"
             },
             "system": {
                 "label": "시스템",
                 "title": "시스템과 데이터",
-                "description": "전역 앱 작업, 로컬 데이터 상태, 내보내기 관련 제어를 모읍니다.",
+                "description": "데이터 내보내기, 백업, 연결 상태 등 시스템 옵션입니다.",
                 "dataTitle": "데이터 제어",
-                "dataDescription": "생두, 머신, 프로파일 화면에 직접 속하지 않는 워크스페이스 작업입니다.",
+                "dataDescription": "생두·머신·프로파일 화면 밖의 워크스페이스 작업입니다.",
                 "exportWorkspace": "현재 워크스페이스 데이터 내보내기",
                 "backupSnapshot": "로컬 백업 스냅샷 생성",
                 "preserveLogs": "활동 로그 보존",
@@ -135,7 +137,7 @@
             "roast": {
                 "label": "로스팅",
                 "title": "로스팅 설정",
-                "description": "활성 로스트 세션 중 업데이트 속도, RoR 계산 및 데이터 표시 방식을 설정합니다.",
+                "description": "로스팅 중 갱신 주기, RoR 계산, 차트에 표시할 데이터를 설정합니다.",
                 "temperatureUnit": "온도 단위",
                 "temperatureUnitDescription": "온도를 섭씨 또는 화씨로 표시합니다.",
                 "updateRate": "업데이트 주기",
@@ -156,6 +158,8 @@
                 "showControlChartDescription": "Drum / Heat / Fan 하단 차트 (전체 화면 전용)",
                 "showPhaseBar": "페이즈 바",
                 "showPhaseBarDescription": "Drying / Maillard / Development 구간 시간과 비율을 표시하는 하단 스트립",
+                "showFcBand": "First Crack 밴드",
+                "showFcBandDescription": "FC Start부터 FC End까지 차트 배경을 음영 처리",
                 "eventMarkers": "이벤트 마커",
                 "eventMarkersDescription": "Yellow, FC, Drop, Turning Point를 온도 차트에 그리는 방식입니다.",
                 "eventMarkerPoint": "곡선 위 포인트",
@@ -186,7 +190,17 @@
                 "autoCharge": "자동 Charge 감지",
                 "autoChargeDescription": "감지 창 안에서 BT가 이 값만큼 떨어지면 Charge가 트리거됩니다.",
                 "dropThreshold": "하락 임계값",
-                "dropThresholdDescription": "생두 Charge 감지를 위한 최소 BT 하락"
+                "dropThresholdDescription": "생두 Charge 감지를 위한 최소 BT 하락",
+                "alerts": "실시간 알람",
+                "alertsDescription": "로스팅이 정상 범위를 벗어나면 경고합니다.",
+                "alertsEnabled": "알람 사용",
+                "alertsEnabledDescription": "로스팅 중 경고 배너를 표시합니다.",
+                "alertSound": "알람 소리",
+                "alertSoundDescription": "알람이 처음 발생할 때 소리로 알립니다.",
+                "alertRorCrash": "RoR 크래시",
+                "alertRorCrashDescription": "BT RoR이 이 값 이하로 떨어지면 경고. 터닝포인트 이후에만 동작.",
+                "alertBtMax": "BT 상한",
+                "alertBtMaxDescription": "원두 온도가 이 값에 도달하면 경고합니다."
             },
             "account": {
                 "label": "계정",
@@ -216,7 +230,7 @@
                 "inviteMembers": "멤버 초대",
                 "comingSoon": "준비 중",
                 "session": "세션",
-                "sessionDescription": "이 기기에서 계정 로그아웃합니다.",
+                "sessionDescription": "이 기기에서 로그아웃합니다.",
                 "signOut": "로그아웃"
             },
             "billing": {
@@ -225,19 +239,28 @@
                 "description": "구독 플랜과 결제 정보를 관리합니다.",
                 "currentPlan": "현재 플랜",
                 "current": "현재",
-                "free": "무료",
+                "trial": "체험판",
+                "readOnly": "조회 전용",
                 "available": "이용 가능",
                 "upgrade": "업그레이드",
                 "contact": "문의",
                 "redirecting": "이동 중…",
-                "freeDesc": "영구 무료",
+                "checkoutFailed": "결제 페이지를 열 수 없습니다. 잠시 후 다시 시도해 주세요.",
+                "trialStatus": "{{days}}일 · {{batches}}배치 남음",
+                "trialDesc": "체험 기간 동안 Pro 코어 기능을 사용할 수 있습니다.",
+                "readOnlyDesc": "체험판 또는 구독이 종료되었습니다. 데이터는 안전하게 보관됩니다 — 구독하면 다시 로스팅할 수 있습니다.",
                 "proDesc": "모든 기능 무제한 이용",
+                "proPlusDesc": "무제한 배치·멀티 머신·로스팅 재고",
                 "enterpriseDesc": "FDE·맞춤 개발·자사몰 구축 도움·팀"
             },
             "team": {
                 "label": "팀",
                 "title": "팀 워크스페이스",
                 "description": "팀원을 초대하고 이 로스터리 워크스페이스 접근 권한을 관리합니다.",
+                "locked": {
+                    "title": "팀 호스팅은 Enterprise 플랜",
+                    "description": "초대 코드로 워크스페이스 참여는 모든 플랜에서 가능합니다. 초대 생성·팀 호스팅은 Enterprise 플랜에서 이용할 수 있습니다."
+                },
                 "ownOrgNote": "팀 설정은 사이드바에서 선택한 워크스페이스가 아니라 항상 내 조직을 관리합니다.",
                 "membersTitle": "멤버",
                 "membersDescription": "좌석 {{count}} / {{limit}} 사용 중",
@@ -252,7 +275,7 @@
                 "activeInvites": "활성 초대",
                 "revoke": "취소",
                 "joinTitle": "팀 참가",
-                "joinDescription": "워크스페이스 오너에게 받은 초대 코드를 입력하세요.",
+                "joinDescription": "워크스페이스 Admin에게 받은 초대 코드를 입력하세요.",
                 "redeemPlaceholder": "초대 코드",
                 "redeem": "워크스페이스 참가",
                 "errors": {
@@ -260,7 +283,7 @@
                     "revoked": "초대가 취소되었습니다.",
                     "already_used": "이미 사용된 초대입니다.",
                     "already_member": "이미 이 워크스페이스 멤버입니다.",
-                    "seat_limit": "좌석 한도에 도달했습니다. 오너에게 한도 상향을 요청하세요.",
+                    "seat_limit": "좌석 한도에 도달했습니다. Admin에게 한도 상향을 요청하세요.",
                     "invalid": "유효하지 않은 초대 코드입니다.",
                     "network": "네트워크 오류입니다. 연결을 확인하세요.",
                     "generic": "문제가 발생했습니다. 다시 시도하세요."
@@ -268,6 +291,11 @@
                 "success": {
                     "inviteCreated": "초대 코드가 준비되었습니다. 복사해 공유하세요.",
                     "joined": "워크스페이스에 참가했습니다."
+                },
+                "unknownMember": "이름 없음",
+                "roles": {
+                    "admin": "Admin",
+                    "member": "멤버"
                 }
             },
             "software": {
@@ -275,7 +303,7 @@
                 "title": "소프트웨어 정보",
                 "description": "현재 앱 버전과 소프트웨어 정보를 확인합니다.",
                 "version": "앱 버전",
-                "versionDescription": "현재 설치된 애플리케이션의 버전입니다."
+                "versionDescription": "현재 설치된 앱 버전입니다."
             },
             "support": {
                 "label": "지원",
@@ -301,7 +329,7 @@
         "connectedSuffix": "{{name}} 연결됨",
         "noActiveConnection": "활성 연결 없음",
         "addMachine": "머신 추가",
-        "empty": "아직 등록된 머신이 없습니다",
+        "empty": "등록된 머신이 없습니다",
         "addFirst": "첫 머신 추가",
         "searchPlaceholder": "머신 검색...",
         "removeMachine": "머신 제거",
@@ -312,7 +340,7 @@
             "ror": "RoR",
             "rateOfRise": "상승률"
         },
-        "notConnectedHint": "연결되어 있지 않습니다. 연결 버튼을 눌러 시작하세요.",
+        "notConnectedHint": "연결되지 않았습니다. 연결을 눌러 시작하세요.",
         "connection": "연결",
         "disconnect": "연결 해제",
         "connect": "연결",
@@ -325,7 +353,7 @@
         }
     },
     "addMachine": {
-        "onboarding": "머신 온보딩",
+        "onboarding": "머신 추가",
         "title": "새 머신 추가",
         "editTitle": "머신 연결 설정 수정",
         "roasterModel": "로스터 모델",
@@ -350,15 +378,15 @@
         "testConnection": "연결 테스트",
         "testingConnection": "연결 테스트 중...",
         "connectedWithBt": "연결됨 - BT {{bt}}°C",
-        "addOnly": "추가만 하기",
+        "addOnly": "추가만",
         "addAndConnect": "추가 후 연결",
         "adding": "추가 중...",
         "save": "저장",
         "saving": "저장 중...",
-        "saveOnly": "저장만 하기",
+        "saveOnly": "저장만",
         "saveAndConnect": "저장 후 연결",
         "failedToSave": "저장에 실패했습니다",
-        "phidgetDriverNotice": "해당 기기는 Phidget22 시스템 드라이버가 별도로 필요합니다.",
+        "phidgetDriverNotice": "이 기기는 Phidget22 시스템 드라이버가 별도로 필요합니다.",
         "phidgetDriverLink": "Phidget22 드라이버 다운로드"
     },
     "dashboard": {
@@ -370,7 +398,7 @@
         "viewActiveRoast": "진행 중 로스팅 보기",
         "kpi": {
             "batchesThisMonth": "이번 달 배치",
-            "beansRoasted": "로스팅된 생두량",
+            "beansRoasted": "로스팅량",
             "avgRoastTime": "평균 로스팅 시간",
             "successRate": "성공률",
             "coffeeFutures": "Coffee C (ICE)"
@@ -386,7 +414,7 @@
             "duration": "시간",
             "level": "로스팅 레벨"
         },
-        "loading": "로딩 중...",
+        "loading": "불러오는 중...",
         "noSessions": "아직 세션이 없습니다",
         "monthlyBatches": "월별 배치",
         "thisMonth": "이번 달",
@@ -450,10 +478,6 @@
         },
         "reorderDisabledRecurring": "반복 일정 배치는 순서를 변경할 수 없습니다",
         "stockShortRecurring": "예약 재고 기준 생두가 부족할 수 있습니다 (필요 {{needed}}kg / 가용 {{available}}kg)",
-        "overdue.title": "밀린 배치 {{count}}건",
-        "overdue.badge": "밀림",
-        "overdue.originalDate": "원래 일정: {{date}}",
-        "overdue.reorderDisabled": "밀린 배치는 순서를 변경할 수 없습니다",
         "detail": {
             "target": "목표 {{kg}} kg",
             "batch": "Batch {{kg}} kg",
@@ -476,7 +500,9 @@
         "error": {
             "createRecurring": "반복 배치 추가 실패:",
             "createBatch": "배치 추가 실패:",
-            "completeBatch": "배치 완료 처리 실패:"
+            "completeBatch": "배치 완료 처리 실패:",
+            "startBatch": "배치 시작 실패:",
+            "roastInProgress": "이미 로스팅이 진행 중입니다. 완료 후 시작해주세요."
         },
         "recurringEditScope": {
             "title": "반복 일정 변경",
@@ -512,6 +538,12 @@
                 "title": "전체 반복 일정 삭제",
                 "description": "모든 반복 일정이 삭제됩니다. 과거 기록은 유지됩니다."
             }
+        },
+        "overdue": {
+            "title": "밀린 배치 {{count}}건",
+            "badge": "밀림",
+            "originalDate": "원래 일정: {{date}}",
+            "reorderDisabled": "밀린 배치는 순서를 바꿀 수 없습니다"
         }
     },
     "addBatchModal": {
@@ -595,7 +627,10 @@
             "duration": "시간",
             "notes": "노트",
             "chartLoading": "차트 불러오는 중…",
-            "chartUnavailable": "차트를 불러올 수 없습니다"
+            "chartUnavailable": "차트를 불러올 수 없습니다",
+            "outputWeight": "배출량",
+            "estimated": "추정",
+            "outputWeightInvalid": "1–{{max}}g 사이로 입력하세요 (투입량 초과 불가)."
         },
         "scorecard": {
             "title": "vs {{name}}",
@@ -648,16 +683,17 @@
             "weight": "무게",
             "dropTemp": "투입 온도",
             "duration": "시간",
+            "loss": "손실률",
+            "dtr": "DTR",
             "level": "레벨"
         },
         "delete": {
             "title": "로스팅 기록을 삭제할까요?",
-            "description": "이(가) 영구적으로 삭제됩니다. 되돌릴 수 없습니다.",
+            "description": "\"{{name}}\" 기록이 영구 삭제됩니다. 되돌릴 수 없습니다.",
             "cancel": "취소",
             "confirm": "삭제"
         },
         "saveAsProfile": "프로파일로 저장",
-        "monthlyReport": "월간 보고서",
         "exportCsv": "Export CSV",
         "exportConfirm": "저장 위치: {{path}}\n{{count}}개 세션을 CSV로 내보내시겠습니까?",
         "exportNoSessions": "내보낼 세션이 없습니다.",
@@ -669,7 +705,7 @@
         "title": "Bean Inventory",
         "addBeanLot": "생두 추가",
         "addBean": "생두 추가",
-        "loading": "로딩 중…",
+        "loading": "불러오는 중…",
         "tab": {
             "single": "싱글 오리진",
             "blend": "블렌드"
@@ -788,7 +824,7 @@
         },
         "dialogs": {
             "machineRequiredTitle": "머신 연결 필요",
-            "machineRequiredMsg": "머신이 연결되어 있지 않습니다.",
+            "machineRequiredMsg": "연결된 머신이 없습니다. 연결 후 다시 시도하세요.",
             "roastInProgressTitle": "로스팅 진행 중",
             "roastInProgressMsg": "로스팅이 진행 중입니다. 정말 종료하시겠습니까?",
             "saveFailedTitle": "저장 실패",
@@ -804,7 +840,7 @@
         },
         "summary": {
             "title": "로스팅 완료",
-            "batchWeight": "배치 중량",
+            "batchWeight": "생두 투입량",
             "finalBt": "최종 BT",
             "totalTime": "총 시간",
             "development": "발달",
@@ -824,6 +860,7 @@
             "sessionProgress": "세션 {{current}}/{{total}}",
             "deductStock": "생두 재고 차감 ({{kg}}kg)",
             "deductStockDisabled": "연결된 원두가 없어 재고를 차감할 수 없습니다.",
+            "deductSkippedAlreadyDeducted": "이 배치는 스케줄에서 이미 재고가 차감되어 중복 차감을 건너뛰었습니다.",
             "roastLevel": "로스팅 레벨",
             "levels": {
                 "light": "라이트",
@@ -837,7 +874,11 @@
             "log": "로그",
             "discard": "저장 안 함",
             "save": "저장",
-            "weightUnit": "g"
+            "weightUnit": "g",
+            "outputWeight": "배출량 (로스팅 후)",
+            "outputWeightPlaceholder": "미계량 시 비워두세요",
+            "lossRateMeasured": "감량률 {{pct}}%",
+            "lossRateEstimated": "미계량 — 감량률은 로스팅 레벨 기반 추정치로 대체됩니다."
         },
         "planBatch": {
             "allDone": "{{done}}/{{total}} 배치 완료",
@@ -870,6 +911,10 @@
                     "description": "표시·감지·차트 범위 등 로스트 중 조절할 수 있는 설정이 한곳에 모여 있어요."
                 }
             }
+        },
+        "alerts": {
+            "rorCrash": "RoR 크래시 — 화력이 죽고 있습니다",
+            "btOver": "BT 상한 초과"
         }
     },
     "profiles": {
@@ -953,7 +998,7 @@
         "drop": "Drop",
         "howToCreate": "프로파일을 어떻게 만들까요?",
         "manualInput": "직접 입력",
-        "manualInputDesc": "Charge temp, Drop temp, Duration 등 직접 설정",
+        "manualInputDesc": "투입·배출 온도, 시간 등을 직접 입력",
         "fromSessionOption": "로스팅 기록에서 불러오기",
         "fromSessionDesc": "과거 로스팅 세션 기준으로 파라미터 자동 완성",
         "roastLevel": {
@@ -971,7 +1016,7 @@
     },
     "deleteBeanModal": {
         "title": "생두를 삭제할까요?",
-        "description": "{{name}}이(가) 영구적으로 삭제됩니다. 되돌릴 수 없습니다.",
+        "description": "\"{{name}}\" 항목이 영구 삭제됩니다. 되돌릴 수 없습니다.",
         "blendWarning": "이 생두를 사용하는 블렌드 {{count}}개도 함께 삭제됩니다: {{names}}",
         "cancel": "취소",
         "confirm": "삭제"
@@ -1088,7 +1133,7 @@
             "itemAmountPlaceholder": "예: 500원"
         },
         "selling": {
-            "title": "Selling Price",
+            "title": "판매가",
             "hint": "판매가 대비 총이익률 — 40% 마진이면 판매가의 40%가 이익입니다.",
             "margin": "총이익률",
             "price": "판매가 (원/kg)",
@@ -1156,7 +1201,7 @@
         "back": "세션 목록",
         "empty": {
             "title": "커핑 세션이 없습니다",
-            "description": "세션을 만든 뒤 샘플를 원하는만큼 넣고, 테이블 전체용 QR 하나로 공유하세요"
+            "description": "세션을 만든 뒤 샘플을 원하는 만큼 넣고, 테이블용 QR 하나로 공유하세요."
         },
         "colTitle": "세션",
         "colDate": "날짜",
@@ -1211,12 +1256,12 @@
     },
     "orders": {
         "title": "Orders",
-        "subtitle": "쇼핑몰 주문을 수집하고, 로스팅 필요량을 확인하고, 완제품 재고를 관리하세요.",
+        "subtitle": "쇼핑몰 주문을 모으고, 로스팅 필요량을 확인하며, 완제품 재고를 관리합니다.",
         "loading": "불러오는 중…",
         "locked": {
             "subtitle": "이커머스 주문 연동",
-            "title": "엔터프라이즈 플랜 전용 기능",
-            "description": "네이버 스마트스토어·카페24·쇼피파이를 연결해 주문을 수집하고, 로스팅 필요량을 계산하고, 완제품 재고를 자동 차감하세요.",
+            "title": "엔터프라이즈 플랜에서 이용",
+            "description": "네이버 스마트스토어·Cafe24·Shopify를 연결해 주문을 가져오고, 로스팅 필요량을 계산하며, 완제품 재고를 자동 차감합니다.",
             "cta": "플랜 업그레이드"
         },
         "tab": {
@@ -1302,6 +1347,9 @@
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
             "accessToken": "Access token",
+            "oauthCta": "카페24에서 연결",
+            "oauthWaiting": "브라우저에서 동의 후 대기 중…",
+            "oauthWaitTimeout": "연결 확인 시간이 초과되었습니다. 동의 후 채널 목록을 새로고침하세요.",
             "errRequired": "필수 항목을 입력하세요.",
             "lastSync": "마지막 동기화 {{at}}",
             "connect": {
@@ -1311,7 +1359,7 @@
             },
             "help": {
                 "naver": "커머스API 센터 → 애플리케이션 → Client ID / Client Secret 복사 (SELF).",
-                "cafe24": "카페24 개발자센터 OAuth 앱 → Mall ID와 access token 입력.",
+                "cafe24": "Mall ID를 입력한 뒤 카페24에서 권한에 동의하면 연결됩니다. 토큰은 서버에만 저장됩니다.",
                 "shopify": "Shopify 관리자 → 앱 개발 → custom app(read_orders, read_products) 설치 후 도메인과 Admin API access token 입력."
             },
             "platform": {
@@ -1345,6 +1393,45 @@
                 "confirmed": "배송중 확인",
                 "failed": "발송 실패"
             }
+        }
+    },
+    "inventory": {
+        "tabs": {
+            "green": "생두",
+            "roasted": "원두 (벌크)",
+            "products": "완제품"
+        },
+        "locked": {
+            "cta": "플랜 업그레이드",
+            "roastedTitle": "원두 재고는 Pro+ 플랜부터",
+            "roastedDescription": "로스팅 배출량이 자동으로 벌크 원두 재고에 쌓이고, 포장·블렌딩까지 추적됩니다.",
+            "productsTitle": "완제품 재고는 Pro+ 플랜부터",
+            "productsDescription": "SKU별 봉지 재고와 포장 입출고를 관리합니다."
+        },
+        "roasted": {
+            "blendAction": "블렌딩",
+            "empty": "아직 원두 재고가 없습니다. 로스팅을 저장하면 자동으로 쌓입니다.",
+            "estimateBadge": "추정 포함",
+            "blendBadge": "블렌드",
+            "unknownBean": "(삭제된 생두)",
+            "unknownBlend": "(삭제된 블렌드)"
+        },
+        "products": {
+            "inbound": "입고",
+            "unitSuffix": "봉지",
+            "empty": "등록된 제품이 없습니다. Orders에서 제품을 먼저 등록하세요.",
+            "shortageWarning": "벌크 원두가 장부상 {{kg}}kg 부족합니다. 입고는 완료됐습니다 — 재고를 확인하고 조정하세요."
+        },
+        "blending": {
+            "title": "로스팅 후 블렌딩",
+            "selectBlend": "블렌드 선택",
+            "targetOutput": "목표 산출량",
+            "componentInputs": "컴포넌트 투입량",
+            "available": "잔량 {{kg}}kg",
+            "insufficientHint": "장부 잔량 초과 — 진행은 가능하며 잔량이 음수로 기록됩니다",
+            "actualOutput": "실측 산출량",
+            "submit": "블렌딩 기록",
+            "note": "메모 (선택)"
         }
     }
 }

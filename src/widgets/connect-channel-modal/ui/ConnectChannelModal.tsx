@@ -1,4 +1,9 @@
-import { type ChannelPlatform, useConnectChannel } from '@entities/sales-channel';
+import {
+    type ChannelPlatform,
+    useConnectChannel,
+    useSalesChannels,
+    useStartCafe24OAuth,
+} from '@entities/sales-channel';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { useAuthStore } from '@shared/store/auth';
 import { Badge } from '@shared/ui/Badge';
@@ -7,8 +12,9 @@ import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { Info } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const PLATFORM_EN: Record<string, string> = {
@@ -28,6 +34,8 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
     // Channel credentials are personal (Edge Function writes under auth.uid()).
     const userId = useAuthStore((s) => s.user?.id ?? '');
     const connect = useConnectChannel(userId);
+    const startCafe24 = useStartCafe24OAuth();
+    const channels = useSalesChannels(userId);
     const [displayName, setDisplayName] = useState('');
     const [clientId, setClientId] = useState('');
     const [clientSecret, setClientSecret] = useState('');
@@ -35,6 +43,8 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
     const [accessToken, setAccessToken] = useState('');
     const [mallId, setMallId] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [cafe24Waiting, setCafe24Waiting] = useState(false);
+    const waitSinceRef = useRef<number>(0);
 
     useFormEscape(open, onClose);
 
@@ -48,7 +58,41 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
         setAccessToken('');
         setMallId('');
         setError(null);
+        setCafe24Waiting(false);
+        waitSinceRef.current = 0;
     }, [open, platform]);
+
+    // After Cafe24 OAuth, poll until a matching active connection appears.
+    useEffect(() => {
+        if (!open || platform !== 'cafe24' || !cafe24Waiting) return;
+        const mall = mallId.trim().toLowerCase();
+        const found = (channels.data ?? []).some(
+            (c) =>
+                c.platform === 'cafe24' &&
+                c.status === 'active' &&
+                (c.shop_identifier === mall || !mall) &&
+                new Date(c.updated_at).getTime() >= waitSinceRef.current - 5_000,
+        );
+        if (found) {
+            setCafe24Waiting(false);
+            onClose();
+            return;
+        }
+        const id = window.setInterval(() => {
+            void channels.refetch();
+        }, 2000);
+        const timeout = window.setTimeout(
+            () => {
+                setCafe24Waiting(false);
+                setError(t('orders.channel.oauthWaitTimeout'));
+            },
+            3 * 60 * 1000,
+        );
+        return () => {
+            window.clearInterval(id);
+            window.clearTimeout(timeout);
+        };
+    }, [open, platform, cafe24Waiting, channels, mallId, onClose, t]);
 
     if (!open || !platform) return null;
 
@@ -65,6 +109,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                     credentials: { client_id: clientId.trim(), client_secret: clientSecret.trim() },
                     displayName: displayName.trim() || undefined,
                 });
+                onClose();
             } else if (platform === 'shopify') {
                 if (!shop.trim() || !accessToken.trim()) {
                     setError(t('orders.channel.errRequired'));
@@ -75,22 +120,35 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                     credentials: { shop: shop.trim(), access_token: accessToken.trim() },
                     displayName: displayName.trim() || undefined,
                 });
+                onClose();
             } else {
-                if (!mallId.trim() || !accessToken.trim()) {
+                if (!mallId.trim()) {
                     setError(t('orders.channel.errRequired'));
                     return;
                 }
-                await connect.mutateAsync({
-                    platform,
-                    credentials: { mall_id: mallId.trim(), access_token: accessToken.trim() },
+                const { authorizeUrl } = await startCafe24.mutateAsync({
+                    mallId: mallId.trim(),
                     displayName: displayName.trim() || undefined,
                 });
+                waitSinceRef.current = Date.now();
+                setCafe24Waiting(true);
+                await openUrl(authorizeUrl);
             }
-            onClose();
         } catch (e) {
+            setCafe24Waiting(false);
             setError(e instanceof Error ? e.message : String(e));
         }
     };
+
+    const pending = platform === 'cafe24' ? startCafe24.isPending || cafe24Waiting : connect.isPending;
+    const ctaLabel =
+        platform === 'cafe24'
+            ? cafe24Waiting
+                ? t('orders.channel.oauthWaiting')
+                : t('orders.channel.oauthCta')
+            : connect.isPending
+              ? t('orders.channel.connecting')
+              : t('orders.channel.connectCta');
 
     return (
         <ModalShell onClose={onClose} labelledBy="connect-channel-title" contentClassName={modalPanel.formSm}>
@@ -129,6 +187,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
                         placeholder={t('orders.channel.displayNamePh')}
+                        disabled={cafe24Waiting}
                     />
                 </div>
 
@@ -194,34 +253,20 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                 )}
 
                 {platform === 'cafe24' && (
-                    <>
-                        <div>
-                            <label className={labelCls} htmlFor="channel-mall-id">
-                                {t('orders.channel.mallId')}
-                            </label>
-                            <input
-                                id="channel-mall-id"
-                                className={inputCls}
-                                value={mallId}
-                                onChange={(e) => setMallId(e.target.value)}
-                                placeholder="yourmall"
-                                autoComplete="off"
-                            />
-                        </div>
-                        <div>
-                            <label className={labelCls} htmlFor="channel-access-token">
-                                {t('orders.channel.accessToken')}
-                            </label>
-                            <input
-                                id="channel-access-token"
-                                className={inputCls}
-                                type="password"
-                                value={accessToken}
-                                onChange={(e) => setAccessToken(e.target.value)}
-                                autoComplete="off"
-                            />
-                        </div>
-                    </>
+                    <div>
+                        <label className={labelCls} htmlFor="channel-mall-id">
+                            {t('orders.channel.mallId')}
+                        </label>
+                        <input
+                            id="channel-mall-id"
+                            className={inputCls}
+                            value={mallId}
+                            onChange={(e) => setMallId(e.target.value)}
+                            placeholder="yourmall"
+                            autoComplete="off"
+                            disabled={cafe24Waiting}
+                        />
+                    </div>
                 )}
 
                 {error ? (
@@ -240,11 +285,11 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                     </button>
                     <button
                         type="button"
-                        disabled={connect.isPending}
+                        disabled={pending}
                         onClick={() => void submit()}
                         className="flex-1 rounded-full border border-transparent bg-primary py-3 text-[14px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:border-white dark:bg-[#0d0d0d] cursor-pointer"
                     >
-                        {connect.isPending ? t('orders.channel.connecting') : t('orders.channel.connectCta')}
+                        {ctaLabel}
                     </button>
                 </div>
             </ModalScrollBody>

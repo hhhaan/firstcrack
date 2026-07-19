@@ -680,6 +680,88 @@ A5 v1 한계: no curve copy into draft dir; wall clock lag on resume; single lat
 
 ---
 
+### [INV1] 로트(lot) 기반 생두 재고
+
+**What:** `beans` 단일 레코드 누적 대신 입고 단위(로트)별 무게·단가·크롭년도 추적. Cropster PG/PP lot 모델 대응.
+
+**Why:** 지금은 같은 생두의 서로 다른 입고분을 구분 못 해 FIFO 소진·로트별 원가·"이 로스트가 어느 입고분에서 나왔나" 역추적이 불가능. `cost_per_kg`도 bean당 단일 값이라 재입고 시 과거 원가가 소급 왜곡됨. 재고 아키텍처의 근간이라 늦출수록 마이그레이션 비용이 커짐.
+
+**How:**
+
+1. `bean_lots` 테이블 (bean_id, weight_grams, cost_per_kg, purchased_at, crop_year, expires_at 등) — `bean_stock_events`는 로트 단위로 reference
+2. 차감 시 FIFO/수동 로트 선택 UI
+3. `docs/cropster-feature-map.md` §2 lot 매핑 참고
+
+**Depends on:** 없음 (독립 착수 가능, 단 스키마 영향 큼)  
+**Priority:** HIGH (구조적 — 스코프 크므로 별도 계획 문서 필요)
+
+---
+
+### [INV2] 재고 net requirement (필요량 계산)
+
+**What:** 벌크/완제품에 최소재고 + 예정 생산/포장 vs 현재고로 "지금 얼마나 로스팅/포장해야 하는가" 계산. Cropster 공식: `Loose = (예정 포장 + 최소재고) − (현재고 + 예정 로스팅)`.
+
+**Why:** 지금은 부족 알림(`inventory_alerts`)까지만 있고 "그래서 뭘 해야 하는지"로 안 이어짐. 생두는 `low_stock_threshold` + 예약(28일 horizon) 있으나 벌크·완제품엔 하한 개념 자체가 없음.
+
+**How:**
+
+1. `roasted`/`product`에 최소재고 필드 추가
+2. net requirement RPC (읽기 전용 계산, 원장 변경 없음)
+3. Schedule/Inventory 뷰에 "필요량" 배너
+
+**Depends on:** [INV1] 없이도 가능 (bean/blend/product 단위로 우선 구현)  
+**Priority:** MEDIUM
+
+---
+
+### [INV3] 수동 재고 입력 멱등성
+
+**What:** `bean_stock_events`의 수동 `purchase`/`adjustment` 삽입이 `reference_id` null이라 DB 멱등 보호가 없음 (클라이언트 `isSubmitting` 가드뿐).
+
+**Why:** 더블클릭·네트워크 재시도 시 중복 입고 가능성. 리스크는 낮지만(수동 1건성 액션) 원장 정합성 원칙과 어긋남.
+
+**How:** 클라이언트에서 `crypto.randomUUID()`를 reference_id로 생성해 전달 + `(reference_id, bean_id) WHERE reference_id IS NOT NULL` 기존 인덱스가 자동으로 보호.
+
+**Priority:** LOW
+
+---
+
+### [INV4] roasted/product 조정(adjustment)·폐기(write_off) UI
+
+**What:** `roasted_stock_events`/`product_stock_events` 스키마엔 `adjustment`/`write_off` 이벤트 타입이 정의돼 있으나 작성하는 UI가 없음 (생두만 `BeanAdjustTab`으로 있음).
+
+**Why:** 실사·파손·폐기 시 벌크·완제품 재고를 수동 보정할 방법이 없어 장부가 어긋나면 되돌릴 수 없음.
+
+**How:** `BeanAdjustTab` 패턴을 Roasted/Products 탭에 복제.
+
+**Priority:** MEDIUM
+
+---
+
+### [INV5] 주문 수동 취소 시 재고 복원
+
+**What:** 이행된 주문을 수동으로 취소했을 때 `product_stock_events`에 `order_cancel` +복원 이벤트가 없음. 채널 동기화 경로(`inbound-actions.ts`)만 이 이벤트를 씀.
+
+**Why:** Orders 뷰에서 "취소"는 표시 라벨일 뿐 재고에 반영 안 됨 — 수동 취소 후 재고가 실제보다 적게 표시된 채 남음.
+
+**How:** `fulfill_order`처럼 `cancel_order` RPC 신설 (기존 `order_fulfillment` 존재 시에만 `order_cancel` +반영, idempotent).
+
+**Priority:** MEDIUM
+
+---
+
+### [INV6] 앱 시작 재고 알림 — 워크스페이스 오너 기준 통일
+
+**What:** `App.tsx`의 `useInventoryAlertSync(user?.id)`가 auth id를 쓰는데, 저장 후 재계산 경로는 `workspaceOwnerId`를 씀. 팀 멤버 로그인 시 시작 알림이 오너 재고가 아닌 자기 자신(빈 재고) 기준으로 계산됨.
+
+**Why:** 팀 멤버가 로그인해도 실제 재고 알림을 못 봄 — 조용한 기능 결손.
+
+**How:** `App.tsx` 호출을 `workspaceOwnerId`로 교체 (한 줄, `useActiveWorkspace` 이미 다른 곳에서 쓰는 패턴).
+
+**Priority:** LOW (수정 자체는 작음, 발견 난이도가 낮아 버그로 재분류 가능)
+
+---
+
 ## CODE QUALITY / FSD
 
 ### [CQ1] 대형 파일 SRP 분할
@@ -690,7 +772,6 @@ A5 v1 한계: no curve copy into draft dir; wall clock lag on resume; single lat
 
 | 파일 | ~LOC | 비고 |
 |------|------|------|
-| `src/views/reports/MonthlyProductionReport.tsx` | 614 | |
 | `src/views/active-roast/ActiveRoast.tsx` | 590 | |
 | `src/views/login/Login.tsx` | 583 | |
 | `src/views/active-roast/ui/RoastTempChart.tsx` | 346 | 분할 진행됨 (구 1097) |

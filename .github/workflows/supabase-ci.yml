@@ -15,25 +15,43 @@ permissions:
   contents: read
 
 jobs:
+  # Offline checks only — no remote DB / no SUPABASE_DB_PASSWORD.
+  # (supabase db lint --linked needs Postgres password; not available as a PR gate.)
   migration-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
-      # pin: supabase/setup-cli@v1.7.1
-      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1
-        with:
-          version: 2.24.3
-
-      - name: Lint migrations
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      - name: Lint migration files (static)
         run: |
-          supabase db lint --project-ref vjdgdolfxvnxushxrmff || {
-            echo "::warning::Migration linting found issues — review before merging"
+          set -euo pipefail
+          shopt -s nullglob
+          files=(supabase/migrations/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::No migration files under supabase/migrations/"
             exit 1
-          }
+          fi
+
+          bad=0
+          for f in "${files[@]}"; do
+            base=$(basename "$f")
+            # Supabase expects <timestamp>_<name>.sql (14-digit timestamp)
+            if ! [[ "$base" =~ ^[0-9]{14}_.+\.sql$ ]]; then
+              echo "::error::$f: invalid name (want YYYYMMDDHHMMSS_name.sql)"
+              bad=1
+            fi
+            # empty *_placeholder.sql are historical no-ops; real migrations must be non-empty
+            if [ ! -s "$f" ] && [[ "$base" != *_placeholder.sql ]]; then
+              echo "::error::$f: empty file"
+              bad=1
+            fi
+          done
+
+          if [ "$bad" -ne 0 ]; then
+            exit 1
+          fi
+          echo "✅ ${#files[@]} migration file(s) pass static lint"
 
   rls-check:
     runs-on: ubuntu-latest

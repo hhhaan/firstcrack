@@ -1,24 +1,24 @@
 import { useActiveWorkspace } from '@entities/organization';
-import { useProfile } from '@entities/profile';
-import { useDeleteRoastSession, useRoastSessions, useRoastSessionsPaginated } from '@entities/roast';
+import {
+    useDeleteRoastSession,
+    useRoastSessionFilterMeta,
+    useRoastSessions,
+    useRoastSessionsPaginated,
+} from '@entities/roast';
 import { useCreateRoastProfile } from '@entities/roast-profile';
 import { useExportCsv } from '@features/export-csv';
 import { formatDateShort } from '@shared/lib/format';
 import { filterSessions, paginateSessions, sortSessions } from '@shared/lib/sessionFilter';
-import { useAuthStore } from '@shared/store/auth';
 import type { RoastProfile } from '@shared/types/database.types';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
-import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { NewProfileModal } from '@views/profiles/NewProfileModal';
-import { MonthlyProductionReport } from '@views/reports/MonthlyProductionReport';
 import { DateRangeFilter } from '@widgets/date-range-filter';
-import { Download, FileText, GitCompare, Search, X } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { Download, GitCompare, Search } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHistoryFilters } from './hooks/useHistoryFilters';
-import { buildReportData } from './lib/buildReportData';
 import { DeleteSessionModal } from './ui/DeleteSessionModal';
 import { HistorySkeleton } from './ui/HistorySkeleton';
 import { HistoryTable } from './ui/HistoryTable';
@@ -33,7 +33,6 @@ const PAGE_SIZE = 10;
 export const History = () => {
     const { t } = useTranslation();
     const [expandedId, setExpandedId] = useState<string | null>(null);
-    const [showReport, setShowReport] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [compareMode, setCompareMode] = useState(false);
     const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -61,11 +60,12 @@ export const History = () => {
         setPage,
     } = useHistoryFilters();
 
-    const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
-    const { data: profile } = useProfile(user?.id ?? '');
 
     const useClientPagination = search.length > 0 || originFilter !== 'all';
+    const [exportArmed, setExportArmed] = useState(false);
+    // Full list only when client-side search/filter, compare mode, or export needs it.
+    const needFullList = useClientPagination || compareMode || exportArmed;
 
     const {
         data: paginatedResult,
@@ -88,30 +88,32 @@ export const History = () => {
         data: rawSessions = [],
         isLoading: isRawLoading,
         isError: isRawError,
-    } = useRoastSessions(workspaceOwnerId, 'completed');
+    } = useRoastSessions(workspaceOwnerId, 'completed', { enabled: needFullList });
 
-    const totalSessions = rawSessions.length;
+    const { data: filterMeta = [] } = useRoastSessionFilterMeta(workspaceOwnerId);
+
+    const totalSessions = filterMeta.length;
 
     const uniqueOrigins = useMemo(
         () =>
-            [...new Set(rawSessions.map((s) => s.beans?.origin).filter(Boolean) as string[])].sort((a, b) =>
+            [...new Set(filterMeta.map((s) => s.beans?.origin).filter(Boolean) as string[])].sort((a, b) =>
                 a.localeCompare(b),
             ),
-        [rawSessions],
+        [filterMeta],
     );
 
     const monthOptions = useMemo(() => {
         const set = new Set<string>();
         const now = new Date();
         set.add(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
-        for (const s of rawSessions) {
+        for (const s of filterMeta) {
             if (s.roasted_at) {
                 const d = new Date(s.roasted_at);
                 set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
             }
         }
         return [...set].sort((a, b) => a.localeCompare(b));
-    }, [rawSessions]);
+    }, [filterMeta]);
 
     const clientFiltered = useMemo(
         () => (useClientPagination ? filterSessions(rawSessions, filterCriteria) : []),
@@ -142,11 +144,6 @@ export const History = () => {
     const isLoading = useClientPagination ? isRawLoading : isPaginatedLoading;
     const isError = useClientPagination ? isRawError : isPaginatedError;
 
-    const reportData = useMemo(
-        () => buildReportData(rawSessions, profile?.display_name, user?.email),
-        [rawSessions, profile, user],
-    );
-
     const exportCsv = useExportCsv();
     const deleteSession = useDeleteRoastSession(workspaceOwnerId);
     const { mutateAsync: createProfile } = useCreateRoastProfile(workspaceOwnerId);
@@ -163,8 +160,8 @@ export const History = () => {
     );
 
     const deletingSession = useMemo(
-        () => rawSessions.find((s) => s.id === deletingId) ?? null,
-        [rawSessions, deletingId],
+        () => displaySessions.find((s) => s.id === deletingId) ?? rawSessions.find((s) => s.id === deletingId) ?? null,
+        [displaySessions, rawSessions, deletingId],
     );
 
     // ── Handlers ──
@@ -196,18 +193,26 @@ export const History = () => {
     const compareSessions = useMemo(
         () =>
             compareIds
-                .map((id) => rawSessions.find((s) => s.id === id))
+                .map((id) => rawSessions.find((s) => s.id === id) ?? displaySessions.find((s) => s.id === id) ?? null)
                 .filter((s): s is NonNullable<typeof s> => s != null),
-        [compareIds, rawSessions],
+        [compareIds, rawSessions, displaySessions],
     );
 
-    const handleOpenReport = useCallback(() => setShowReport(true), []);
-    const handleCloseReport = useCallback(() => setShowReport(false), []);
-
     const handleExportCsv = useCallback(() => {
+        if (rawSessions.length === 0 && !useClientPagination) {
+            setExportArmed(true);
+            return;
+        }
         const filtered = filterSessions(rawSessions, filterCriteria);
         void exportCsv(filtered);
-    }, [rawSessions, filterCriteria, exportCsv]);
+    }, [rawSessions, filterCriteria, exportCsv, useClientPagination]);
+
+    useEffect(() => {
+        if (!exportArmed || isRawLoading) return;
+        const filtered = filterSessions(rawSessions, filterCriteria);
+        void exportCsv(filtered);
+        setExportArmed(false);
+    }, [exportArmed, isRawLoading, rawSessions, filterCriteria, exportCsv]);
 
     const handleDeleteClick = useCallback((id: string) => setDeletingId(id), []);
     const handleCloseDelete = useCallback(() => setDeletingId(null), []);
@@ -280,14 +285,6 @@ export const History = () => {
                         )}
                         <button
                             type="button"
-                            onClick={handleOpenReport}
-                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent bg-main-bg dark:bg-[#262b31] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-secondary dark:text-[#e5e5e5] transition hover:-translate-y-px hover:text-primary"
-                        >
-                            <FileText size={14} strokeWidth={2} />
-                            {t('history.monthlyReport')}
-                        </button>
-                        <button
-                            type="button"
                             onClick={handleExportCsv}
                             className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px"
                         >
@@ -343,20 +340,6 @@ export const History = () => {
                 onClose={() => setPromoteSessionId(null)}
                 onCreated={handleProfileCreated}
             />
-            {showReport && (
-                <ModalShell onClose={handleCloseReport} labelledBy="monthly-report-title">
-                    <div className="relative max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
-                        <button
-                            type="button"
-                            onClick={handleCloseReport}
-                            className="fixed top-6 right-6 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 shadow-md backdrop-blur-sm hover:bg-white"
-                        >
-                            <X size={16} strokeWidth={2} />
-                        </button>
-                        <MonthlyProductionReport {...reportData} />
-                    </div>
-                </ModalShell>
-            )}
             <DeleteSessionModal
                 open={deletingId !== null}
                 sessionName={

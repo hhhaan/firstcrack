@@ -65,6 +65,11 @@ const visibilityOptions = [
         labelKey: 'settings.tabs.roast.showPhaseBar',
         descKey: 'settings.tabs.roast.showPhaseBarDescription',
     },
+    {
+        key: 'showFcBand' as const,
+        labelKey: 'settings.tabs.roast.showFcBand',
+        descKey: 'settings.tabs.roast.showFcBandDescription',
+    },
 ];
 
 const controlSeriesOptions = [
@@ -361,6 +366,50 @@ export const RoastSettingsTab = () => {
                             onChange={(v) => updateRoastSettings({ autoChargeDropC: v })}
                             min={1}
                             max={30}
+                            suffix="°C"
+                        />
+                    </SettingsOptionRow>
+                </SectionCard.Body>
+            </SectionCard>
+
+            <SectionCard>
+                <SectionCard.Header title={tk('alerts')} description={tk('alertsDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
+                    <SettingsCheckRow
+                        checked={roastSettings.alertsEnabled}
+                        label={tk('alertsEnabled')}
+                        description={tk('alertsEnabledDescription')}
+                        onChange={() => updateRoastSettings({ alertsEnabled: !roastSettings.alertsEnabled })}
+                    />
+                    <SettingsCheckRow
+                        checked={roastSettings.alertSoundEnabled}
+                        label={tk('alertSound')}
+                        description={tk('alertSoundDescription')}
+                        onChange={() => updateRoastSettings({ alertSoundEnabled: !roastSettings.alertSoundEnabled })}
+                    />
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('alertRorCrash')}</div>
+                            <div className={settingsOptionDescCls}>{tk('alertRorCrashDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.alertRorCrashCPerMin}
+                            onChange={(v) => updateRoastSettings({ alertRorCrashCPerMin: v })}
+                            min={-20}
+                            max={20}
+                            suffix="°C/min"
+                        />
+                    </SettingsOptionRow>
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('alertBtMax')}</div>
+                            <div className={settingsOptionDescCls}>{tk('alertBtMaxDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.alertBtMaxC}
+                            onChange={(v) => updateRoastSettings({ alertBtMaxC: v })}
+                            min={100}
+                            max={400}
                             suffix="°C"
                         />
                     </SettingsOptionRow>

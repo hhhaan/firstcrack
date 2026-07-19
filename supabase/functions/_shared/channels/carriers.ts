@@ -3,12 +3,13 @@
  * Pure TS — no Deno / npm imports (shared with vitest + client id list).
  */
 
+/** Cafe24 codes: official shipping_company_code CSV (CJ=0006, HANJIN=0018, LOGEN=0004, …). */
 export const CARRIERS = {
-    cj: { naver: 'CJGLS', cafe24: '0018', shopify: 'CJ Logistics' },
-    hanjin: { naver: 'HANJIN', cafe24: '0037', shopify: 'Hanjin' },
+    cj: { naver: 'CJGLS', cafe24: '0006', shopify: 'CJ Logistics' },
+    hanjin: { naver: 'HANJIN', cafe24: '0018', shopify: 'Hanjin' },
     lotte: { naver: 'HYUNDAI', cafe24: '0019', shopify: 'Lotte' },
     post_office: { naver: 'EPOST', cafe24: '0012', shopify: 'Korea Post' },
-    logen: { naver: 'KGB', cafe24: '0032', shopify: 'Logen' },
+    logen: { naver: 'KGB', cafe24: '0004', shopify: 'Logen' },
 } as const;
 
 export type CarrierId = keyof typeof CARRIERS;

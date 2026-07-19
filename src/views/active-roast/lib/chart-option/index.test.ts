@@ -34,6 +34,7 @@ const mockColors: ResolvedChartColors = {
     eventEnd: '#1d',
     eventNote: '#1e',
     eventDrop: '#1f',
+    fcBandFill: 'rgba(105,103,225,0.1)',
 };
 
 const baseParams = (): ChartOptionParams => ({
@@ -114,5 +115,40 @@ describe('buildRoastChartOption', () => {
         const series = option.series as { name?: string; markLine?: { data?: unknown[] } }[];
         const bt = series.find((s) => s.name === 'BT Actual');
         expect(bt?.markLine?.data?.length).toBeGreaterThan(0);
+    });
+
+    it('shades FC Start–End band on BT series', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            xs: [0, 500, 600],
+            btActual: [100, 196, 200],
+            charged: true,
+            currentTimeSec: 600,
+            eventMarkers: [
+                { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' },
+                { timeSec: 540, event: 'FC End', color: '#1c', timeStr: '9:00', temp: '200°C' },
+            ],
+        });
+        const series = option.series as { name?: string; markArea?: { data?: unknown[] } }[];
+        const bt = series.find((s) => s.name === 'BT Actual');
+        expect(bt?.markArea?.data).toEqual([[{ xAxis: 480 }, { xAxis: 540 }]]);
+    });
+
+    it('hides FC band when showFcBand is false', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            showFcBand: false,
+            xs: [0, 500, 600],
+            btActual: [100, 196, 200],
+            charged: true,
+            currentTimeSec: 600,
+            eventMarkers: [
+                { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' },
+                { timeSec: 540, event: 'FC End', color: '#1c', timeStr: '9:00', temp: '200°C' },
+            ],
+        });
+        const series = option.series as { name?: string; markArea?: unknown }[];
+        const bt = series.find((s) => s.name === 'BT Actual');
+        expect(bt?.markArea).toBeUndefined();
     });
 });

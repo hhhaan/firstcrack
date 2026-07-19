@@ -1,6 +1,6 @@
 import { FEATURE, type FeatureKey } from './keys';
 
-/** Current auth plan strings (`profiles.plan`). Later: trial | pro | pro_plus | enterprise. */
+/** `profiles.plan` states: trial | read_only | pro | pro_plus | enterprise (+ legacy free/team). */
 const PAID_PLANS = new Set(['pro', 'team', 'pro_plus', 'enterprise']);
 
 /** Multi-machine (2+): Pro+ and above. Legacy `team` maps to enterprise-class. */
@@ -13,15 +13,29 @@ export function isPaidPlan(plan: string): boolean {
     return PAID_PLANS.has(plan);
 }
 
+/** Trial runs at Pro core level; read_only (and legacy free) get nothing. */
+export function isCoreEntitled(plan: string): boolean {
+    return plan === 'trial' || isPaidPlan(plan);
+}
+
+/** read_only blocks all core writes — server-enforced; this mirrors it for UI. */
+export function isWritablePlan(plan: string): boolean {
+    return plan !== 'read_only';
+}
+
 /** Plan → feature. Only place that encodes “who gets what”. */
 export function planHasFeature(plan: string, key: FeatureKey): boolean {
     switch (key) {
         case FEATURE.cupping:
-            return isPaidPlan(plan);
+            return isCoreEntitled(plan);
         case FEATURE.bbp:
-            return isPaidPlan(plan);
+            return isCoreEntitled(plan);
         case FEATURE.orderIntegration:
+        case FEATURE.team:
             return ORDER_INTEGRATION_PLANS.has(plan);
+        case FEATURE.roastedInventory:
+        case FEATURE.productStock:
+            return MULTI_MACHINE_PLANS.has(plan);
         default:
             return false;
     }
@@ -46,8 +60,17 @@ export function canAddMachine(plan: string, realMachineCount: number): boolean {
 /** Completed roast sessions per calendar month. `null` = unlimited. Pro = 200; Pro+ = unlimited. */
 export const PRO_MONTHLY_BATCH_CAP = 200;
 
+/** Trial ends at whichever comes first: 14 days from signup or 20 lifetime completed batches. */
+export const TRIAL_DURATION_DAYS = 14;
+export const TRIAL_BATCH_CAP = 20;
+
+export function trialEndsAt(signupAt: string | Date): Date {
+    return new Date(new Date(signupAt).getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
+}
+
 export function planMaxBatchesPerMonth(plan: string): number | null {
     if (MULTI_MACHINE_PLANS.has(plan)) return null;
+    if (plan === 'read_only') return 0;
     return PRO_MONTHLY_BATCH_CAP;
 }
 
@@ -57,14 +80,38 @@ export function canCompleteBatch(plan: string, completedThisMonth: number): bool
     return completedThisMonth < max;
 }
 
+/** Matches the RAISE codes of the server batch gate (enforce_batch_gate / profile_write_error). */
+export type BatchGateCode = 'monthly_batch_cap' | 'trial_batch_cap' | 'trial_expired' | 'read_only_plan';
+
+const GATE_MESSAGES: Record<BatchGateCode, (used: number, max: number) => string> = {
+    monthly_batch_cap: (used, max) =>
+        `Monthly batch limit reached (${used}/${max}). Upgrade to Pro+ for unlimited batches.`,
+    trial_batch_cap: (used, max) => `Trial batch limit reached (${used}/${max}). Upgrade to keep roasting.`,
+    trial_expired: () => 'Trial period has ended. Upgrade to keep roasting.',
+    read_only_plan: () => 'Subscription inactive — account is read-only. Upgrade to keep roasting.',
+};
+
 export class BatchLimitError extends Error {
     readonly used: number;
     readonly max: number;
+    readonly code: BatchGateCode;
 
-    constructor(used: number, max: number) {
-        super(`Monthly batch limit reached (${used}/${max}). Upgrade to Pro+ for unlimited batches.`);
+    constructor(used: number, max: number, code: BatchGateCode = 'monthly_batch_cap') {
+        super(GATE_MESSAGES[code](used, max));
         this.name = 'BatchLimitError';
         this.used = used;
         this.max = max;
+        this.code = code;
     }
+}
+
+/** Server gate RAISE → typed error (client pre-checks can be bypassed; this catches the authority path). */
+export function mapServerBatchGateError(e: unknown): BatchLimitError | null {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('monthly_batch_cap')) return new BatchLimitError(PRO_MONTHLY_BATCH_CAP, PRO_MONTHLY_BATCH_CAP);
+    if (msg.includes('trial_batch_cap'))
+        return new BatchLimitError(TRIAL_BATCH_CAP, TRIAL_BATCH_CAP, 'trial_batch_cap');
+    if (msg.includes('trial_expired')) return new BatchLimitError(0, 0, 'trial_expired');
+    if (msg.includes('read_only_plan')) return new BatchLimitError(0, 0, 'read_only_plan');
+    return null;
 }

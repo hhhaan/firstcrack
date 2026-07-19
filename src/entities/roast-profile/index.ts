@@ -12,5 +12,6 @@ export {
     useRoastProfileCurve,
     useRoastProfileCurves,
     useRoastProfiles,
+    useSourceSessionEvents,
     useUpdateRoastProfile,
 } from './queries';

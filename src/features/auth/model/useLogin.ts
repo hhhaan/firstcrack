@@ -28,6 +28,7 @@ export const useLogin = (onLogin?: () => void) => {
             e.preventDefault();
             setLoading(true);
             setError(null);
+            cancelOAuth(); // clear session_replaced / oauth notice
             try {
                 await signInWithEmail(email, password);
                 onLogin?.();
@@ -37,7 +38,7 @@ export const useLogin = (onLogin?: () => void) => {
                 setLoading(false);
             }
         },
-        [email, password, signInWithEmail, onLogin],
+        [email, password, signInWithEmail, onLogin, cancelOAuth],
     );
 
     const handleGoogleOAuth = useCallback(async () => {

@@ -1,251 +1,102 @@
-# Inventory Architecture — 진단 & 전환 보고서
+# Inventory Architecture — 3-원장 이벤트 소싱
 
-> 최종 검증: 2026-07-10
-> 상태: 이벤트 소싱 기반 단일 시스템으로 전환 완료 (dead code 정리 완료)
+> 최종 검증: 2026-07-19
+> 상태: 생두/벌크 원두/완제품 3-원장 운영 중. RLS 워크스페이스 통일 + 멱등/원자성 보강 완료 (`20260721000000_inventory_ledger_fixes.sql`).
 
 ---
 
-## 1. 원래 문제 (What Was Broken)
+## 1. 개요 — 세 개의 원장
 
-### 1.1 두 개의 병렬 재고 시스템
+모든 재고는 append-only 이벤트 원장의 SUM으로 계산한다. 비정규화 재고 컬럼 없음 (`beans.stock_grams`·`bean_inventory_logs`는 `20260619000001`에서 제거).
 
-프로젝트는 한동안 **재고를 두 개의 독립된 시스템으로 동시에 추적**하고 있었다.
-
-| 시스템 | 테이블 | 역할 |
-|---|---|---|
-| **Legacy** | `beans.stock_grams` + `bean_inventory_logs` | 비정규화 컬럼 + 트랜잭션 저널 |
-| **Modern** | `bean_stock_events` | 이벤트 소싱 기반 재고 추적 |
-
-### 1.2 데이터 불일치 매트릭스 (예전 상태)
-
-모든 액션마다 두 시스템이 **서로 다른 조합으로 기록되어** UI가 표시하는 값과 실제 재고가 불일치했다.
-
-| 액션 | `beans.stock_grams` | `bean_inventory_logs` | `bean_stock_events` |
+| 원장 | 단위 | 대상 | event_type |
 |---|---|---|---|
-| 신규 Bean 등록 | `0` 으로 고정 | `purchase` 기록 | 기록 안 함 ✗ |
-| Bean 정보 편집 | 직접 덮어쓰기 | 기록 안 함 | 기록 안 함 |
-| 재입고 (Restock) | 업데이트 안 함 | `purchase` 기록 | `purchase` 기록 |
-| 단일원두 로스팅 | 업데이트 안 함 | `roast` 기록 | 기록 안 함 ✗ |
-| 블렌드 로스팅 | 업데이트 안 함 | 기록 안 함 | `roast` 기록 |
+| `bean_stock_events` | g (생두) | bean | `purchase` + / `roast` − / `adjustment` ± / `write_off` − / `expected_inbound` + |
+| `roasted_stock_events` | g (벌크 원두) | bean **또는** blend (`single_source` CHECK: 정확히 하나) | `roast_inbound` + / `packaging` − / `blend_consume` − / `blend_produce` + / `adjustment` ± / `write_off` − |
+| `product_stock_events` | 봉지 (units) | product | `roast_inbound` + / `order_fulfillment` − / `order_cancel` + / `adjustment` ± / `write_off` − |
 
-### 1.3 UI가 서로 다른 소스를 참조
+- `roasted_stock_events.is_estimate`: 배출량 미실측 시 로스팅 레벨 기반 추정 입고 → 실측 입력 시 `upsert_roasted_inbound` RPC가 같은 세션의 이벤트를 실측으로 교체 (append-only의 유일한 예외).
+- 흐름: 생두 `purchase` → 로스팅 `roast`(생두 −) + `roast_inbound`(벌크 +) → 포장 `packaging`(벌크 −) + `roast_inbound`(완제품 +) → 주문 `order_fulfillment`(완제품 −).
 
-같은 화면에서도 컴포넌트마다 다른 재고값을 바라보고 있었다.
+## 2. 쓰기 경로
 
-| UI | 참조 소스 | 문제 |
-|---|---|---|
-| BeanList 재고바/뱃지 | `beans.stock_grams` | 입출고 미반영 |
-| BeanDetail 상단 정보 | `beans.stock_grams` | 입출고 미반영 |
-| BeanDetail 재고 요약 패널 | `bean_stock_events` SUM | **정확했던 유일한 곳** |
-| Dashboard 재고 알림 | `beans.stock_grams` | 입출고 미반영 + 예약 미고려 |
-| AddBatchModal 재고 체크 | `stock_grams` + `effectiveGrams` 혼용 | 같은 모달에서 두 값이 달랐음 |
-| `getStatus()` | `beans.stock_grams` | 입출고 미반영 |
-
-### 1.4 DB 트리거/함수 부재
-
-`beans.stock_grams`를 동기화해주는 PostgreSQL 트리거나 함수가 **하나도 존재하지 않았다**.
-`supabase/migrations/` 전체에 `FUNCTION`/`TRIGGER`/`trigger`/`function` 검색 결과 0건.
-
-입출고 이벤트가 발생해도 `beans.stock_grams`는 **절대 자동 갱신되지 않았다**.
-즉 재입고해도, 로스팅해도 UI가 보여주는 숫자는 바뀌지 않았다.
-
----
-
-## 2. 해소 완료 (What Was Fixed)
-
-### 2.1 모든 입출고가 `bean_stock_events` 하나로 통일
+### bean_stock_events (생두)
 
 | 액션 | 코드 위치 | 이벤트 |
 |---|---|---|
-| 신규 Bean 등록 (+입고) | `widgets/add-bean-modal/ui/useAddBeanSubmit.ts:68` | `delta_grams: +stockGrams, event_type: 'purchase'` |
-| 재입고 (Restock) | `widgets/add-bean-modal/ui/useAddBeanSubmit.ts:94` | `delta_grams: +amount, event_type: 'purchase'` |
-| 단일원두 로스팅 | `views/active-roast/ActiveRoast.tsx:1065` | `delta_grams: -deduction, event_type: 'roast'` |
-| 블렌드 로스팅 | `views/active-roast/ActiveRoast.tsx:1084` | `delta_grams: -ratio, event_type: 'roast'` (컴포넌트별) |
+| Bean 생성/재입고 | `widgets/add-bean-modal/ui/useAddBeanSubmit.ts` | `purchase` (reference_id 없음) |
+| 로스트 저장 차감 | `views/active-roast/model/useRoastSaveFlow.ts` → `features/active-roast/model/useDeductRoastStock.ts` | `roast`, ref = session/batch id. 블렌드는 `buildRoastStockEvents`가 성분별 분해 → `insert_stock_events_batch` RPC (단일 트랜잭션) |
+| 배치 완료 차감 (스케줄) | `views/schedule/hooks/useScheduleDayView.ts` (`batchGreenNeededGramsFromBatch` — 남은 세션분만) | `roast`, ref = plan_batch.id |
 
-### 2.2 모든 UI가 `effectiveGrams`를 읽도록 전환
+### roasted_stock_events (벌크 원두)
 
-| UI | 읽는 방식 | 위치 |
+| 액션 | 코드 위치 | 이벤트 |
 |---|---|---|
-| BeanList | `stockSummaries[bean.id].effectiveGrams` (prop) | `widgets/bean-list/ui/BeanList.tsx:107` |
-| BeanDetail | `useBeanStockSummary(bean.id) → effectiveGrams` | `widgets/bean-detail/ui/BeanDetail.tsx:50,56` |
-| Dashboard | `getStockSummariesByUser(userId) → item.effectiveGrams` | `views/dashboard/useDashboard.ts:143` |
-| AddBatchModal | `useBeanStockSummary(beanId) → effectiveStockKg` | `widgets/add-batch-modal/ui/AddBatchModal.tsx:178-179` |
+| 로스트 저장 자동 입고 | `features/active-roast/model/useSaveRoast.ts` + `lib/roastedInbound.ts` → `upsert_roasted_inbound` RPC | `roast_inbound`, ref = session.id. 실측 없으면 추정(`is_estimate`) |
+| History 배출량 수정 | `views/history/ui/OutputWeightEditor.tsx` → 같은 RPC | 추정 → 실측 교체 (upsert). bean/blend 귀속은 서버가 `roast_sessions`+`roast_plan_batches`에서 해석 |
+| 포장 | `features/package-product/model/usePackageProduct.ts` → `insert_packaging_op` RPC | `packaging` −, product `roast_inbound` +와 **한 트랜잭션** |
+| 블렌딩 | `features/blend-roasted/model/useBlendRoasted.ts` → `insert_roasted_stock_events_batch` RPC | `blend_consume` −(성분 bean별) + `blend_produce` +, 공유 opId |
 
-### 2.3 `getStatus()` 시그니처 변경
+### product_stock_events (완제품)
 
-```typescript
-// entities/bean/lib.ts:5
-// 이전: getStatus(bean: Bean) → bean.stock_grams 참조
-// 현재: getStatus(effectiveGrams: number, lowStockThresholdGrams: number)
+| 액션 | 코드 위치 | 이벤트 |
+|---|---|---|
+| 포장 입고 | `features/package-product` → `insert_packaging_op` RPC | `roast_inbound` +, ref = 포장 op uuid |
+| 주문 이행 | `fulfill_order(p_order_id)` RPC (차감 + `fulfilled_at` 스탬프 단일 트랜잭션) | `order_fulfillment` −, ref = order_line.id |
+| 채널 주문 취소 | `supabase/functions/_shared/channels/inbound-actions.ts` (채널 동기화) | `order_cancel` +, ref = order_line.id |
 
-export const getStatus = (effectiveGrams: number, lowStockThresholdGrams: number): BeanStatus => {
-    if (effectiveGrams <= 0) return 'Out';
-    if (effectiveGrams <= lowStockThresholdGrams) return 'Low';
-    return 'Good';
-};
-```
+## 3. 멱등성 (unique 인덱스)
 
-### 2.4 캐시 무효화 완비
+재시도 이중 기록은 partial unique + `ON CONFLICT DO NOTHING`으로 차단.
 
-- `useInsertStockEvent` → onSuccess 시 `['bean-stock-summaries']`, `['bean-stock-summary', beanId]`, `['bean-stock-events', beanId]` 모두 무효화 (`entities/bean-stock-event/queries.ts:36-40`)
-- ActiveRoast 로스팅 완료 → 차감 후 `qc.invalidateQueries`로 캐시 수동 무효화 (`ActiveRoast.tsx:1105-1116`)
+| 원장 | 인덱스 | 근거 마이그레이션 |
+|---|---|---|
+| bean | `(reference_id, bean_id) WHERE reference_id IS NOT NULL` | `20260619000000` |
+| roasted | `(reference_id) WHERE roast_inbound` (세션당 입고 1건, upsert 대상) | `20260720000000` |
+| roasted | `(reference_id) WHERE packaging` / `(reference_id) WHERE blend_produce` / `(reference_id, bean_id) WHERE blend_consume` | `20260721000000` |
+| product | `(reference_id, product_id, event_type) WHERE reference_id IS NOT NULL` (이행과 취소가 같은 ref 공유, 각각 멱등) | `20260717000000` |
 
-### 2.5 배치 조회 최적화 (`getStockSummariesByUser`)
+## 4. RLS
 
-`bean-stock-event/api.ts` — user의 모든 bean에 대한 재고 요약을 한 번의 배치 호출로 가져오는 함수.
-BeanList와 Dashboard에서 N+1 쿼리를 방지한다.
+세 원장 모두 `has_workspace_access(user_id)` 기반 — 팀 멤버가 오너 워크스페이스 재고를 읽고 쓴다.
 
-### 2.6 블렌드 차감 silent fail 수정
+- bean/product: `20260718045740_workspace_security.sql`
+- roasted: 생성 시점(`20260720`)에 `auth.uid() = user_id`로 남아 있던 것을 `20260721000000`에서 전환. WITH CHECK는 bean_id → `beans`, blend_id → `blends` 소유권 EXISTS 검증 (bean_stock_events 정책 미러).
+- 모든 RPC는 `SECURITY INVOKER` — RLS 그대로 적용.
 
-`ActiveRoast.tsx` 블렌드 구성 생두 차감 코드에서 inner try/catch 제거.
-`blendApi.get()` 실패 시 에러가 outer catch로 전파되어 유저에게 "저장 실패" 다이얼로그 표시.
+## 5. F3 이중 차감 가드 (저장 경로)
 
-### 2.7 예약재고 계산 정확성 수정 (`getReservedStock`, `getStockSummariesByUser`)
+스케줄 "배치 완료"가 ref = plan_batch.id로 생두를 차감한 뒤, 그 배치에 링크된 로스트를 저장하면 ref = session.id로 또 차감되는 구멍이 있었다. `useRoastSaveFlow`가 deduct 직전 `beanStockEventApi.hasRoastDeductionForReference(planBatchId)`로 기존 차감을 확인하고, 있으면 스킵 + 안내 메시지. 가드 조회 실패 시 fail-open (차감 진행 — 저장 플로우를 막는 것보다 낫다).
 
-**문제였던 것**: `reservedGrams = SUM(batch_size_kg * batch_count * 1000)` — 다회차 배치(batch_count > 1)에서 중간 세션이 완료돼도 예약량이 줄지 않아 effectiveGrams가 실제보다 낮게 표시됐다.
+## 6. 읽기 경로
 
-```
-예시: 3kg 배치(1kg×3회), 재고 10kg
-1차 완료 후: current=9,000 / reserved=3,000 / effective=6,000  ← 실제는 7,000g
-```
+| 원장 | 집계 | 소비처 |
+|---|---|---|
+| bean | `getStockSummariesByUser` → `{ currentGrams, reservedGrams, effectiveGrams }`. 예약 = `(batch_count − completed_sessions) × batch_size_kg × 1000` (pending/scheduled) | BeanList / BeanDetail / Dashboard / AddBatchModal |
+| roasted | `get_user_roasted_stock` RPC → `'bean:<id>' \| 'blend:<id>'` 키, `{ grams, has_estimate }` | 벌크 재고 뷰, 포장/블렌딩 모달 |
+| product | `get_user_product_stock` RPC → product_id별 units | 상품/주문 뷰 |
 
-**수정된 계산**: `reservedGrams = SUM((batch_count - completed_sessions) * batch_size_kg * 1000)`
+## 7. 알려진 잔여 한계
 
-`completed_sessions`는 `roast_sessions.plan_batch_id` 카운트로 계산 (DB 컬럼 아님).
+| # | 내용 |
+|---|---|
+| 1 | 수동 `purchase`/adjust는 reference_id null → DB 멱등 보호 없음 (클라이언트 isSubmitting 가드뿐) |
+| 2 | `adjustment`/`write_off`는 roasted/product 스키마에 정의돼 있으나 UI 없음 (bean은 있음) |
+| 3 | `roast_inbound` 의미가 원장마다 다름 — 벌크 = 로스팅 산출, 완제품 = 포장. 이름만 같음 |
+| 4 | 주문 수동 취소 시 재고 복원 경로 없음 — `order_cancel`은 채널 동기화만 기록 |
+| 5 | 앱 시작 재고 알림 compute가 auth user id 사용 (`App.tsx` → `useInventoryAlertSync(user?.id)`) — 팀 멤버 로그인으로는 오너 알림이 갱신 안 됨 |
+| 6 | 로트(lot) 개념 없음 — Cropster식 로트 추적/트레이서빌리티 불가. 원장은 bean/blend/product 단위 합계뿐 |
 
----
-
-## 3. 잔존 문제 (Remaining Issues)
-
-> **정리 완료**: `bean_inventory_logs` 테이블 + `beans.stock_grams` 컬럼은
-> 마이그레이션 `20260619000001`에서 DB 제거 완료, 코드 및 타입 잔재 없음.
-
-### 3.1 Adjustment(조정) 기능 미구현
-
-- DB CHECK 제약에 `event_type IN ('purchase', 'roast', 'adjustment')`로 정의되어 있으나 (`migrations/20260611065045_add_blends_and_stock_tables.sql:40`)
-- adjustment를 생성하는 UI / API 호출 없음
-
-**→ 신규 기능 구현 필요**
-
-### 3.2 Write-off(폐기) 이벤트 타입 없음
-
-- DB CHECK 제약에 `'write_off'` 미포함
-- 실무에서 생두 폐기/손실을 기록할 방법 없음
-
-**→ 마이그레이션 + UI 구현 필요**
-
-### 3.3 원자성 없는 차감 (미해결)
-
-블렌드 로스팅 완료 시 복수의 `beanStockEventApi.insert()`가 `Promise.all`로 실행됨.
-일부 성공 후 일부 실패하면 재고가 부분 차감된 채로 남는다.
-DB 레벨 트랜잭션 없이는 완전 해결 불가 — Supabase PostgreSQL 함수(RPC)로 단일 트랜잭션 처리 필요.
-
-### 3.4 멱등성 없는 차감 (미해결)
-
-로스팅 저장 실패 후 재시도 시 `beanStockEventApi.insert()`가 중복 실행될 수 있다.
-`reference_id`(roast_session_id)는 기록되나 DB unique constraint 없음 → 이중 차감 가능.
-
-**→ `bean_stock_events(reference_id)` unique constraint 추가 필요**
-
-### 3.5 블렌드 ratio 반올림 오차
-
-컴포넌트별 `Math.round(chargeGrams * ratio_pct / 100)` 독립 반올림.
-합산이 `chargeGrams`와 불일치할 수 있어 이벤트마다 수g 오차 누적.
-
-**→ 마지막 컴포넌트에서 잔량 처리하는 방식으로 수정 필요**
-
----
-
-## 4. 현재 아키텍처 개요
-
-```
-                         ┌──────────────────────────────┐
-                         │  DB: bean_stock_events        │
-                         │  (single source of truth)     │
-                         │  delta_grams ±                │
-                         │  event_type: purchase|roast|  │
-                         │              adjustment       │
-                         └──────────────┬───────────────┘
-                                        │
-                    ┌───────────────────┼───────────────────┐
-                    ▼                   ▼                   ▼
-            getCurrentStock()   getReservedStock()   insert(event)
-            SUM(delta_grams)    SUM(remaining *      단일 이벤트 기록
-                                batch_size_kg * 1000)
-                    │                   │
-                    └─────────┬─────────┘
-                              ▼
-                      StockSummary {
-                        currentGrams
-                        reservedGrams      ← (batch_count - completed_sessions) * batch_size_kg * 1000
-                        effectiveGrams     ← current - reserved
-                      }
-                              │
-                    ┌─────────┼─────────┐
-                    ▼         ▼         ▼
-               BeanList   BeanDetail  Dashboard
-               (prop)     (hook)      (batch fetch)
-```
-
-### 이벤트 타입
-
-| `event_type` | delta | 설명 | 트리거 |
-|---|---|---|---|
-| `purchase` | `+` | 생두 입고 | Bean 생성, 재입고 |
-| `roast` | `-` | 로스팅 소비 | ActiveRoast 완료 |
-| `adjustment` | `±` | 수동 재고 조정 | (미구현) |
-| `write_off` | `-` | 폐기/손실 | (미구현, DB 마이그레이션 필요) |
-
-### 예약(Reservation) 로직
-
-```
-reservedGrams = SUM(
-    (batch_count - completed_sessions) * batch_size_kg * 1000
-)
-WHERE status IN ('pending', 'scheduled')
-  AND bean_id = target_bean
-
-completed_sessions = COUNT(roast_sessions WHERE plan_batch_id = batch.id)
-```
-
-- 예약은 **읽기 전용 계산** (명시적 reserve API 없음)
-- 배치가 `'done'`으로 전환되면 자동 해제 (`ActiveRoast.tsx:1101`)
-- 중간 세션 완료 시에도 `completed_sessions` 증가로 예약량 즉시 감소 (2.7 수정)
-- `effectiveGrams = currentGrams - reservedGrams` → 음수 가능 → 재고 부족 감지
-
----
-
-## 5. 정리 로드맵
-
-| 순서 | 작업 | 파일/대상 | 영향 | 상태 |
-|---|---|---|---|---|
-| P0-1 | `bean_inventory_logs` 코드 제거 | `entities/bean-inventory/` 전체 + `database.types.ts` aliases | dead code 삭제 | ✅ 완료 |
-| P0-2 | `bean_inventory_logs` 테이블 제거 | DB 마이그레이션 | DB 클린업 | ✅ 완료 |
-| P1 | `beans.stock_grams` 컬럼 제거 | DB 마이그레이션 + 타입 재생성 | DB 스키마 정리 | ✅ 완료 |
-| P2 | `bean_stock_events(reference_id)` unique constraint | DB 마이그레이션 | 이중 차감 방지 | ⏳ 미해결 |
-| P3 | 블렌드 차감 원자성 | Supabase RPC (PostgreSQL 함수) | 부분 차감 방지 | ⏳ 미해결 |
-| P4 | Adjustment UI 구현 | 신규 feature/widget | 재고 조정 기능 | ⏳ 미해결 |
-| P5 | Write-off 이벤트 타입 추가 + UI | DB 마이그레이션 + feature | 폐기 기록 | ⏳ 미해결 |
-
----
-
-## 6. 관련 파일 인덱스
+## 8. 관련 파일 인덱스
 
 | Layer | File | Role |
 |---|---|---|
-| **entities** | `bean-stock-event/api.ts` | `bean_stock_events` CRUD + 현재/예약/요약 계산 |
-| **entities** | `bean-stock-event/queries.ts` | React Query hooks + 캐시 무효화 |
-| **entities** | `bean/lib.ts` | `getStatus()` (effectiveGrams 기반) + `statusConfig`, `processColor` |
-| **entities** | `bean/api.ts` | `beans` 테이블 CRUD (stock_grams 제외) |
-| **entities** | `bean/queries.ts` | `useBeans`/`useBean`/`useCreateBean`/`useUpdateBean`/`useDeleteBean` |
-
-| **features** | `active-roast/model/` | 로스팅 세션 상태 (차감 트리거) |
-| **widgets** | `add-bean-modal/ui/useAddBeanSubmit.ts` | Bean 생성/편집/재입고 제출 로직 (stock_events 기록) |
-| **widgets** | `bean-list/ui/BeanList.tsx` | Bean 목록 (stockSummaries prop) |
-| **widgets** | `bean-detail/ui/BeanDetail.tsx` | Bean 상세 (useBeanStockSummary) |
-| **widgets** | `add-batch-modal/ui/AddBatchModal.tsx` | 배치 생성 + 재고 부족 검사 (useBeanStockSummary) |
-| **views** | `bean/index.tsx` | Bean Inventory 페이지 (useBeanStockSummaries) |
-| **views** | `active-roast/ActiveRoast.tsx` | 로스팅 완료 → `beanStockEventApi.insert` 차감 (lines 1064-1116) |
-| **views** | `dashboard/useDashboard.ts` | `fetchDashboard()` → `getStockSummariesByUser()` (line 73) |
-| **shared** | `types/database.types.ts` | 모든 DB 타입 (bean_stock_events, beans, roast_plan_batches) |
-| **DB** | `migrations/20260611065045_add_blends_and_stock_tables.sql` | bean_stock_events 테이블 + 기존 stock_grams → event 마이그레이션 |
+| entities | `bean-stock-event/api.ts` | bean 원장 CRUD + 요약 + `hasRoastDeductionForReference` |
+| entities | `roasted-stock-event/api.ts` | `upsertInbound` / `insertBatch` / 잔량 RPC 래핑 |
+| entities | `product-stock-event/api.ts` | `insertPackagingOp` / 잔량 RPC 래핑 |
+| features | `active-roast/model/useDeductRoastStock.ts`, `useSaveRoast.ts`, `lib/roastedInbound.ts` | 생두 차감 / 벌크 자동 입고 |
+| features | `package-product/`, `blend-roasted/` | 포장 / 블렌딩 이벤트 빌드 + RPC 호출 |
+| views | `active-roast/model/useRoastSaveFlow.ts` | 저장 오케스트레이션 + F3 가드 |
+| views | `schedule/hooks/useScheduleDayView.ts` | 배치 완료 차감 |
+| views | `history/ui/OutputWeightEditor.tsx` | 배출량 수정 → 입고 교체 |
+| DB | `20260717000000` / `20260720000000` / `20260721000000` | product / roasted 원장 + ledger fixes |

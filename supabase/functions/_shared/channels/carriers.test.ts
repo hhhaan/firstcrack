@@ -28,4 +28,12 @@ describe('carriers', () => {
         const efIds = Object.keys(CARRIERS).sort();
         expect(clientIds).toEqual(efIds);
     });
+
+    it('cafe24 carrier codes match official CSV', () => {
+        expect(platformCarrierCode('cj', 'cafe24')).toBe('0006');
+        expect(platformCarrierCode('hanjin', 'cafe24')).toBe('0018');
+        expect(platformCarrierCode('logen', 'cafe24')).toBe('0004');
+        expect(platformCarrierCode('lotte', 'cafe24')).toBe('0019');
+        expect(platformCarrierCode('post_office', 'cafe24')).toBe('0012');
+    });
 });

@@ -4,7 +4,7 @@
         "close": "关闭",
         "connected": "已连接",
         "connecting": "连接中...",
-        "disconnected": "未连接",
+        "disconnected": "已断开",
         "live": "实时",
         "offline": "离线",
         "loading": "加载中…",
@@ -16,21 +16,23 @@
     },
     "auth": {
         "oauthCompleting": "正在完成登录…",
+        "sessionReplacedTitle": "已退出登录",
         "errors": {
             "invalid_credentials": "邮箱或密码不正确，请重试。",
             "network": "网络错误，请检查连接后重试。",
             "oauth_failed": "无法完成登录，请重试。",
+            "session_replaced": "该账号已在其他设备登录，您已被退出。",
             "generic": "登录失败，请重试。"
         }
     },
     "updater": {
         "checking": "正在检查更新…",
         "downloading": "正在下载更新…",
-        "ready": "新更新 (v{{version}}) 重新启动",
+        "ready": "更新已就绪 (v{{version}}) · 重启",
         "applying": "正在重新启动…",
         "checkError": "检查更新时出错。",
         "relaunchError": "重启失败。",
-        "loopGuardError": "更新未能应用。请通过 dmg 重新安装应用或手动下载最新版本。",
+        "loopGuardError": "更新未生效。请用安装包重新安装或下载最新版本。",
         "sidecarDead": "硬件连接服务无响应。",
         "sidecarDeadRestart": "请重新启动应用。"
     },
@@ -59,15 +61,15 @@
     "settings": {
         "title": "工作区设置",
         "close": "关闭设置",
-        "whyTitle": "为什么放在设置中",
-        "whyDescription": "这些选项会影响整个应用体验。专用的运营数据应保留在侧边栏主视图中，让设置区域保持轻量。",
+        "whyTitle": "关于这些设置",
+        "whyDescription": "这些是应用到整个应用的基础设置。生豆、设备和日程等日常操作请在侧边栏完成。",
         "tabs": {
             "general": {
                 "label": "通用",
                 "title": "工作区偏好",
-                "description": "管理影响日常烘焙工作区体验的全局默认值。",
+                "description": "设置应用全局默认界面与单位。",
                 "interfaceTitle": "界面",
-                "interfaceDescription": "应用全局生效的轻量偏好设置。",
+                "interfaceDescription": "主题、语言等显示选项。",
                 "theme": "外观",
                 "themeDescription": "选择应用显示样式。系统会跟随操作系统设置。",
                 "themeLight": "浅色",
@@ -107,7 +109,7 @@
                 "title": "烘焙会话行为",
                 "description": "设置影响每次烘焙从开始到结束流程的默认值。",
                 "startTitle": "会话开始",
-                "startDescription": "帮助操作者快速开始的自动化选项。",
+                "startDescription": "帮助你更快开始烘焙。",
                 "autoStartTimer": "自动开始烘焙计时",
                 "openActiveRoast": "立即打开正在烘焙视图",
                 "confirmBeforeStart": "开始会话前确认",
@@ -120,9 +122,9 @@
             "system": {
                 "label": "系统",
                 "title": "系统与数据",
-                "description": "全局应用操作、本地数据健康检查和导出相关控制。",
+                "description": "导出、备份、连接状态等系统选项。",
                 "dataTitle": "数据控制",
-                "dataDescription": "不直接属于生豆、设备或曲线页面的工作区级操作。",
+                "dataDescription": "生豆、设备、曲线之外的工作区操作。",
                 "exportWorkspace": "导出当前工作区数据",
                 "backupSnapshot": "创建本地备份快照",
                 "preserveLogs": "保留活动日志",
@@ -135,7 +137,7 @@
             "roast": {
                 "label": "烘焙",
                 "title": "烘焙设置",
-                "description": "自定义活跃烘焙会话期间的更新速率、RoR 计算和数据可见性。",
+                "description": "设置烘焙中的更新频率、RoR 计算和图表数据。",
                 "temperatureUnit": "温度单位",
                 "temperatureUnitDescription": "以摄氏或华氏显示温度。",
                 "updateRate": "更新频率",
@@ -156,6 +158,8 @@
                 "showControlChartDescription": "底部 Drum / Heat / Fan 图表（仅全屏）",
                 "showPhaseBar": "阶段条",
                 "showPhaseBarDescription": "显示 Drying / Maillard / Development 时长与比例的底部条",
+                "showFcBand": "一爆区间底色",
+                "showFcBandDescription": "在 FC Start 到 FC End 之间为图表背景着色",
                 "eventMarkers": "事件标记",
                 "eventMarkersDescription": "Yellow、FC、Drop、Turning Point 在温度图上的绘制方式。",
                 "eventMarkerPoint": "曲线上的点",
@@ -186,7 +190,17 @@
                 "autoCharge": "自动 Charge 检测",
                 "autoChargeDescription": "在检测窗口内 BT 下降达到该值时触发 Charge。",
                 "dropThreshold": "下降阈值",
-                "dropThresholdDescription": "检测豆子 Charge 的最小 BT 下降"
+                "dropThresholdDescription": "检测豆子 Charge 的最小 BT 下降",
+                "alerts": "实时警报",
+                "alertsDescription": "烘焙偏离正常范围时发出警告。",
+                "alertsEnabled": "启用警报",
+                "alertsEnabledDescription": "烘焙过程中显示警告横幅。",
+                "alertSound": "警报声",
+                "alertSoundDescription": "警报首次触发时发出提示音。",
+                "alertRorCrash": "RoR 骤降",
+                "alertRorCrashDescription": "BT RoR 降至该值时警告。仅在回温点之后生效。",
+                "alertBtMax": "BT 上限",
+                "alertBtMaxDescription": "豆温达到该值时警告。"
             },
             "account": {
                 "label": "账户",
@@ -216,7 +230,7 @@
                 "inviteMembers": "邀请成员",
                 "comingSoon": "即将推出",
                 "session": "会话",
-                "sessionDescription": "在此设备上退出您的账户。",
+                "sessionDescription": "在此设备上退出登录。",
                 "signOut": "退出登录"
             },
             "billing": {
@@ -225,19 +239,28 @@
                 "description": "管理订阅套餐和账单信息。",
                 "currentPlan": "当前套餐",
                 "current": "当前",
-                "free": "免费",
+                "trial": "试用",
+                "readOnly": "只读",
                 "available": "可选",
                 "upgrade": "升级",
                 "contact": "联系",
                 "redirecting": "跳转中…",
-                "freeDesc": "永久免费",
+                "checkoutFailed": "无法打开结账页面。请稍后重试。",
+                "trialStatus": "剩余 {{days}} 天 · {{batches}} 批次",
+                "trialDesc": "试用期间可使用 Pro 核心功能。",
+                "readOnlyDesc": "试用或订阅已结束。数据已安全保留 — 订阅后即可继续烘焙。",
                 "proDesc": "全部功能无限制使用",
+                "proPlusDesc": "无限批次、多机、烘焙库存",
                 "enterpriseDesc": "FDE、定制开发、自建商城协助、团队"
             },
             "team": {
                 "label": "团队",
                 "title": "团队工作区",
                 "description": "邀请队友并管理谁可以访问此烘焙工作室。",
+                "locked": {
+                    "title": "托管团队需要 Enterprise",
+                    "description": "使用邀请码加入工作区对所有套餐开放。创建邀请并托管共享烘焙工作区需 Enterprise 套餐。"
+                },
                 "ownOrgNote": "团队设置始终管理你自己的组织，而不是侧边栏当前选中的工作区。",
                 "membersTitle": "成员",
                 "membersDescription": "已用席位 {{count}} / {{limit}}",
@@ -252,7 +275,7 @@
                 "activeInvites": "有效邀请",
                 "revoke": "撤销",
                 "joinTitle": "加入团队",
-                "joinDescription": "粘贴工作区所有者给你的邀请码。",
+                "joinDescription": "粘贴工作区 Admin 给你的邀请码。",
                 "redeemPlaceholder": "邀请码",
                 "redeem": "加入工作区",
                 "errors": {
@@ -260,7 +283,7 @@
                     "revoked": "此邀请已被撤销。",
                     "already_used": "此邀请已被使用。",
                     "already_member": "你已是此工作区成员。",
-                    "seat_limit": "席位已满。请让所有者提高上限。",
+                    "seat_limit": "席位已满。请让 Admin 提高上限。",
                     "invalid": "无效的邀请码。",
                     "network": "网络错误。请检查连接。",
                     "generic": "出了点问题。请重试。"
@@ -268,6 +291,11 @@
                 "success": {
                     "inviteCreated": "邀请码已就绪 — 复制并分享。",
                     "joined": "已成功加入工作区。"
+                },
+                "unknownMember": "未知成员",
+                "roles": {
+                    "admin": "Admin",
+                    "member": "成员"
                 }
             },
             "software": {
@@ -275,7 +303,7 @@
                 "title": "软件信息",
                 "description": "查看当前应用版本和软件详细信息。",
                 "version": "应用版本",
-                "versionDescription": "当前安装的应用程序版本。"
+                "versionDescription": "当前安装的应用版本。"
             },
             "support": {
                 "label": "支持",
@@ -301,7 +329,7 @@
         "connectedSuffix": "{{name}} 已连接",
         "noActiveConnection": "无活动连接",
         "addMachine": "添加设备",
-        "empty": "尚未注册设备",
+        "empty": "暂无设备",
         "addFirst": "添加第一台设备",
         "searchPlaceholder": "搜索设备...",
         "removeMachine": "移除设备",
@@ -312,7 +340,7 @@
             "ror": "RoR",
             "rateOfRise": "升温率"
         },
-        "notConnectedHint": "尚未连接。点击连接开始。",
+        "notConnectedHint": "未连接。点击「连接」开始。",
         "connection": "连接",
         "disconnect": "断开连接",
         "connect": "连接",
@@ -325,7 +353,7 @@
         }
     },
     "addMachine": {
-        "onboarding": "设备引导",
+        "onboarding": "添加设备",
         "title": "添加新设备",
         "editTitle": "编辑设备连接",
         "roasterModel": "烘焙机型号",
@@ -358,7 +386,7 @@
         "saveOnly": "仅保存",
         "saveAndConnect": "保存并连接",
         "failedToSave": "保存失败",
-        "phidgetDriverNotice": "该设备需要单独安装Phidget22系统驱动程序。",
+        "phidgetDriverNotice": "此设备需单独安装 Phidget22 系统驱动。",
         "phidgetDriverLink": "下载 Phidget22 驱动"
     },
     "dashboard": {
@@ -367,7 +395,7 @@
             "afternoon": "下午好",
             "evening": "晚上好"
         },
-        "viewActiveRoast": "查看正在烘焙",
+        "viewActiveRoast": "查看进行中的烘焙",
         "kpi": {
             "batchesThisMonth": "本月批次数",
             "beansRoasted": "烘焙量",
@@ -386,7 +414,7 @@
             "duration": "时长",
             "level": "烘焙度"
         },
-        "loading": "加载中...",
+        "loading": "加载中…",
         "noSessions": "暂无记录",
         "monthlyBatches": "月度批次",
         "thisMonth": "本月",
@@ -461,14 +489,14 @@
     },
     "activeRoast": {
         "header": {
-            "noBeanSelected": "未选择生豆",
+            "noBeanSelected": "未选生豆",
             "target": "目标:",
             "noTarget": "无目标",
             "roastComplete": "烘焙完成",
             "disconnected": "未连接",
             "mockRoastInProgress": "模拟 — 烘焙进行中",
             "liveRoastInProgress": "实时 — 烘焙进行中",
-            "machineConnected": "设备已连接 · 准备烘焙",
+            "machineConnected": "设备已连接 · 可以开始烘焙",
             "settings": "烘焙设置",
             "openSettings": "打开烘焙设置"
         },
@@ -555,7 +583,8 @@
             "sessionProgress": "第 {{current}}/{{total}} 次",
             "deductStock": "扣减生豆库存 ({{kg}}kg)",
             "deductStockDisabled": "未关联生豆，无法扣减库存。",
-            "batchWeight": "批次重量",
+            "deductSkippedAlreadyDeducted": "该批次已在计划中扣减过库存，已跳过重复扣减。",
+            "batchWeight": "生豆投入量",
             "weightUnit": "g",
             "roastLevel": "烘焙度",
             "notes": "备注",
@@ -568,7 +597,11 @@
                 "medium": "中烘焙",
                 "mediumDark": "中深烘焙",
                 "dark": "深烘焙"
-            }
+            },
+            "outputWeight": "出豆量（烘焙后）",
+            "outputWeightPlaceholder": "未称重则留空",
+            "lossRateMeasured": "失重率 {{pct}}%",
+            "lossRateEstimated": "未称重 — 失重率将按烘焙度估算。"
         },
         "planBatch": {
             "backToSchedule": "返回计划",
@@ -608,9 +641,13 @@
             "end": "结束",
             "cancel": "取消",
             "machineRequiredTitle": "需要连接设备",
-            "machineRequiredMsg": "设备未连接。",
+            "machineRequiredMsg": "尚未连接设备。请连接后重试。",
             "saveFailedTitle": "保存失败",
             "saveFailedMsg": "保存烘焙数据失败。\n\n{{error}}"
+        },
+        "alerts": {
+            "rorCrash": "RoR 骤降 — 火力正在衰减",
+            "btOver": "BT 超过上限"
         }
     },
     "schedule": {
@@ -685,7 +722,9 @@
         "error": {
             "createRecurring": "添加重复批次失败：",
             "createBatch": "添加批次失败：",
-            "completeBatch": "完成批次失败："
+            "completeBatch": "完成批次失败：",
+            "startBatch": "启动批次失败：",
+            "roastInProgress": "烘焙正在进行中，请完成后再开始新批次。"
         },
         "recurringEditScope": {
             "title": "更改重复计划",
@@ -725,7 +764,7 @@
     },
     "addBatchModal": {
         "batchType": {
-            "singleOrigin": "单品",
+            "singleOrigin": "单一产地",
             "preRoastBlend": "烘焙前拼配",
             "postRoastBlend": "烘焙后拼配"
         },
@@ -745,11 +784,11 @@
         "blendPlaceholder": "选择拼配...",
         "blendComposition": "{{count}}种生豆组成",
         "blendShortage": "{{name}}: 可用 {{effective}}g / 需要 {{needed}}g",
-        "targetRoasted": "目标烘焙量 (kg)",
-        "batchSize": "批次量 (kg)",
-        "yield": "收率 (%)",
+        "targetRoasted": "目标熟豆 (kg)",
+        "batchSize": "批次大小 (kg)",
+        "yield": "出品率 (%)",
         "batches": "批次",
-        "greenNeeded": "生豆需要 (kg)",
+        "greenNeeded": "所需生豆 (kg)",
         "currentStock": "当前库存:",
         "needed": "/ 需要:",
         "insufficientStock": "库存不足",
@@ -804,7 +843,10 @@
             "duration": "时长",
             "notes": "备注",
             "chartLoading": "正在加载图表…",
-            "chartUnavailable": "图表不可用"
+            "chartUnavailable": "图表不可用",
+            "outputWeight": "出豆量",
+            "estimated": "估算",
+            "outputWeightInvalid": "请输入 1–{{max}}g（不能超过投入量）。"
         },
         "scorecard": {
             "title": "vs {{name}}",
@@ -829,16 +871,17 @@
             "weight": "重量",
             "dropTemp": "下豆温度",
             "duration": "时长",
+            "loss": "失重率",
+            "dtr": "DTR",
             "level": "烘焙度"
         },
         "delete": {
             "title": "删除烘焙记录？",
-            "description": "将被永久删除。此操作无法撤销。",
+            "description": "“{{name}}” 将被永久删除，无法恢复。",
             "cancel": "取消",
             "confirm": "删除"
         },
         "saveAsProfile": "保存为曲线",
-        "monthlyReport": "月度报告",
         "exportCsv": "导出 CSV",
         "exportConfirm": "保存到：{{path}}\n导出{{count}}条记录为CSV？",
         "exportNoSessions": "没有可导出的会话。",
@@ -881,13 +924,13 @@
     },
     "deleteBeanModal": {
         "title": "删除生豆？",
-        "description": "{{name}}将被永久删除。此操作无法撤销。",
+        "description": "“{{name}}” 将被永久删除，无法恢复。",
         "blendWarning": "使用此生豆的 {{count}} 个拼配也将被删除：{{names}}",
         "cancel": "取消",
         "confirm": "删除"
     },
     "profiles": {
-        "title": "烘焙曲线",
+        "title": "曲线配置",
         "drop": "下豆",
         "newProfile": "新建曲线",
         "empty": "尚无曲线",
@@ -924,7 +967,7 @@
             "chargeTemp": "投豆温度",
             "devTime": "DT",
             "devPct": "DTR",
-            "targetLevel": "Target Level",
+            "targetLevel": "目标等级",
             "duration": "时间",
             "curveOverlay": "曲线叠加",
             "selectToCompare": "从列表中选择要比较的曲线",
@@ -944,7 +987,7 @@
         "profileNamePlaceholder": "例如：浅花香",
         "description": "描述",
         "descriptionPlaceholder": "简短描述…",
-        "targetLevel": "Target Roast Level",
+        "targetLevel": "目标烘焙度",
         "chargeTemp": "投豆温度 (°C)",
         "tempPlaceholder": "例如：200",
         "dropTemp": "下豆温度 (°C)",
@@ -967,7 +1010,7 @@
         "drop": "下豆",
         "howToCreate": "您希望如何创建曲线？",
         "manualInput": "手动输入",
-        "manualInputDesc": "直接设置投豆温度、下豆温度、时长等参数",
+        "manualInputDesc": "直接输入入豆/下豆温度、时间等",
         "fromSessionOption": "从烘焙记录导入",
         "fromSessionDesc": "根据历史烘焙记录自动填充参数",
         "roastLevel": {
@@ -1076,7 +1119,7 @@
         }
     },
     "pricing": {
-        "title": "成本与售价",
+        "title": "利润计算器",
         "subtitle": "计算烘焙后成本，并按毛利率设定售价",
         "source": {
             "title": "来源",
@@ -1143,7 +1186,7 @@
         }
     },
     "cupping": {
-        "title": "Cupping",
+        "title": "杯测",
         "subtitle": "{{count}} 个场次",
         "subtitleLoading": "加载中...",
         "loading": "加载中...",
@@ -1157,8 +1200,8 @@
         "cancel": "取消",
         "back": "全部场次",
         "empty": {
-            "title": "还没有杯测场次。",
-            "description": "创建一场次，按需加入任意数量的咖啡样品，再用一个整场 QR 分享给杯测员。"
+            "title": "暂无杯测会话",
+            "description": "创建会话、添加样品，再用一个二维码分享给整桌。"
         },
         "colTitle": "场次",
         "colDate": "日期",
@@ -1213,12 +1256,12 @@
     },
     "orders": {
         "title": "订单",
-        "subtitle": "汇总店铺订单、查看烘焙需求并管理成品库存。",
+        "subtitle": "汇总店铺订单、查看需烘焙量并管理成品库存。",
         "loading": "加载中…",
         "locked": {
             "subtitle": "电商订单集成",
-            "title": "Enterprise 套餐可用",
-            "description": "连接 Naver 智能店铺、Cafe24 和 Shopify，自动拉取订单、计算烘焙需求并扣减成品库存。",
+            "title": "企业版可用",
+            "description": "连接 Naver SmartStore、Cafe24、Shopify，拉取订单、计算烘焙需求并自动扣减成品库存。",
             "cta": "升级套餐"
         },
         "tab": {
@@ -1304,6 +1347,9 @@
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
             "accessToken": "访问令牌",
+            "oauthCta": "通过 Cafe24 连接",
+            "oauthWaiting": "等待浏览器授权…",
+            "oauthWaitTimeout": "连接确认超时。授权后请刷新渠道列表。",
             "errRequired": "请填写所有必填项。",
             "lastSync": "上次同步 {{at}}",
             "connect": {
@@ -1313,7 +1359,7 @@
             },
             "help": {
                 "naver": "Commerce API Center → 应用 → 复制 Client ID 和 Client Secret（SELF 类型）。",
-                "cafe24": "Cafe24 developers → OAuth 应用 → 粘贴 Mall ID 和访问令牌。",
+                "cafe24": "输入 Mall ID，在 Cafe24 中同意权限即可连接。令牌仅保存在服务器。",
                 "shopify": "Shopify 后台 → 开发应用 → 安装具有 read_orders、read_products 权限的自定义应用 → 粘贴店铺域名和 Admin API 访问令牌。"
             },
             "platform": {
@@ -1347,6 +1393,45 @@
                 "confirmed": "已确认发货",
                 "failed": "发货失败"
             }
+        }
+    },
+    "inventory": {
+        "tabs": {
+            "green": "生豆",
+            "roasted": "熟豆（散装）",
+            "products": "成品"
+        },
+        "locked": {
+            "cta": "升级方案",
+            "roastedTitle": "熟豆库存从 Pro+ 起可用",
+            "roastedDescription": "烘焙出豆量会自动记入散装熟豆库存，并贯通包装与拼配。",
+            "productsTitle": "成品库存从 Pro+ 起可用",
+            "productsDescription": "按 SKU 管理袋装库存与包装出入库。"
+        },
+        "roasted": {
+            "blendAction": "拼配",
+            "empty": "尚无熟豆库存。保存烘焙后会自动入库。",
+            "estimateBadge": "含估算",
+            "blendBadge": "拼配",
+            "unknownBean": "（已删除生豆）",
+            "unknownBlend": "（已删除拼配）"
+        },
+        "products": {
+            "inbound": "入库",
+            "unitSuffix": "袋",
+            "empty": "尚未注册产品。请先在订单中添加产品。",
+            "shortageWarning": "散装熟豆账面短缺 {{kg}}kg。入库已完成 — 请核对并调整库存。"
+        },
+        "blending": {
+            "title": "烘焙后拼配",
+            "selectBlend": "选择拼配",
+            "targetOutput": "目标产出量",
+            "componentInputs": "组分投入量",
+            "available": "库存 {{kg}}kg",
+            "insufficientHint": "超出账面库存 — 仍可继续，余额可能记为负数",
+            "actualOutput": "实测产出量",
+            "submit": "记录拼配",
+            "note": "备注（可选）"
         }
     }
 }

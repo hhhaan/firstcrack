@@ -28,6 +28,18 @@ export const beanStockEventApi = {
         return data ?? [];
     },
 
+    /** 해당 reference_id로 이미 roast 차감이 기록됐는지 — 스케줄 완료/세션 저장 이중 차감 가드용. */
+    hasRoastDeductionForReference: async (referenceId: string): Promise<boolean> => {
+        const { data, error } = await supabase
+            .from('bean_stock_events')
+            .select('id')
+            .eq('reference_id', referenceId)
+            .eq('event_type', 'roast')
+            .limit(1);
+        if (error) throw error;
+        return (data ?? []).length > 0;
+    },
+
     insert: async (event: BeanStockEventInsert): Promise<BeanStockEvent> => {
         const { data, error } = await supabase.from('bean_stock_events').insert(event).select().single();
         if (error) throw error;
@@ -38,21 +50,18 @@ export const beanStockEventApi = {
     insertMany: async (events: BeanStockEventInsert[]): Promise<void> => {
         if (!events.length) return;
 
-        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
-        const { error } = await (supabase as any).rpc('insert_stock_events_batch', { p_events: events });
+        const { error } = await supabase.rpc('insert_stock_events_batch', { p_events: events });
         if (error) throw error;
     },
 
     getCurrentStock: async (beanId: string): Promise<number> => {
-        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
-        const { data, error } = await (supabase as any).rpc('get_bean_current_stock', { p_bean_id: beanId });
+        const { data, error } = await supabase.rpc('get_bean_current_stock', { p_bean_id: beanId });
         if (error) throw error;
         return (data as number) ?? 0;
     },
 
     getAvailableStock: async (beanId: string): Promise<number> => {
-        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
-        const { data, error } = await (supabase as any).rpc('get_bean_available_stock', { p_bean_id: beanId });
+        const { data, error } = await supabase.rpc('get_bean_available_stock', { p_bean_id: beanId });
         if (error) throw error;
         return (data as number) ?? 0;
     },
@@ -60,8 +69,7 @@ export const beanStockEventApi = {
     getReservedStock: async (beanId: string, horizonDays?: number): Promise<number> => {
         const horizon = horizonDays ?? (await inventoryStore.getHorizonDays());
 
-        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
-        const { data, error } = await (supabase as any).rpc('get_bean_reserved_stock', {
+        const { data, error } = await supabase.rpc('get_bean_reserved_stock', {
             p_bean_id: beanId,
             p_horizon_days: horizon,
         });
@@ -72,8 +80,7 @@ export const beanStockEventApi = {
     getStockSummary: async (beanId: string, horizonDays?: number): Promise<StockSummary> => {
         const horizon = horizonDays ?? (await inventoryStore.getHorizonDays());
 
-        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
-        const { data, error } = await (supabase as any).rpc('get_bean_stock_summary', {
+        const { data, error } = await supabase.rpc('get_bean_stock_summary', {
             p_bean_id: beanId,
             p_horizon_days: horizon,
         });
@@ -84,8 +91,7 @@ export const beanStockEventApi = {
     getStockSummariesByUser: async (userId: string, horizonDays?: number): Promise<Record<string, StockSummary>> => {
         const horizon = horizonDays ?? (await inventoryStore.getHorizonDays());
 
-        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
-        const { data, error } = await (supabase as any).rpc('get_user_stock_summaries', {
+        const { data, error } = await supabase.rpc('get_user_stock_summaries', {
             p_user_id: userId,
             p_horizon_days: horizon,
         });
@@ -96,8 +102,7 @@ export const beanStockEventApi = {
     computeInventoryAlerts: async (userId: string, horizonDays?: number): Promise<void> => {
         const horizon = horizonDays ?? (await inventoryStore.getHorizonDays());
 
-        // biome-ignore lint/suspicious/noExplicitAny: Supabase RPC types not generated
-        const { error } = await (supabase as any).rpc('compute_inventory_alerts', {
+        const { error } = await supabase.rpc('compute_inventory_alerts', {
             p_user_id: userId,
             p_horizon_days: horizon,
         });

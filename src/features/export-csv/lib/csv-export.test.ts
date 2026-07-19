@@ -29,6 +29,20 @@ describe('sessionsToCsv', () => {
         expect(csv).toContain('10:00'); // duration 600s
     });
 
+    it('marks loss rate as measured only when output weight was captured', () => {
+        const estimated = sessionsToCsv([session({ weight_grams: 10000 })])
+            .trim()
+            .split('\n')[1];
+        expect(estimated).toContain('estimated');
+        expect(estimated).toContain('15'); // level-based estimate (fixture is Medium)
+
+        const measured = sessionsToCsv([session({ weight_grams: 10000, output_weight_grams: 8400 })])
+            .trim()
+            .split('\n')[1];
+        expect(measured).toContain('measured');
+        expect(measured).toContain('16');
+    });
+
     it('escapes commas quotes and newlines in notes', () => {
         const csv = sessionsToCsv([session({ notes: 'said "hello", then\nline2' })]);
         expect(csv).toContain('"said ""hello"", then\nline2"');

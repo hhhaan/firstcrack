@@ -36,11 +36,17 @@ export const detectTurningPoints = (xs: number[], bt: number[]): TurningPoint[] 
 
     const points: TurningPoint[] = [];
 
+    // TP: 1st derivative neg → pos (BT local minimum).
+    // armed 교차 방식 — 실제 TP 곡률(~0.006°C/s²)에선 미분이 ±0.01 데드존에
+    // 수 초 머물러, 인접 샘플 간 -0.01→+0.01 점프 비교로는 발화 불가
+    let armed = false;
     for (let i = 2; i < xs.length - 2; i++) {
-        // TP: 1st derivative neg → pos  (BT local minimum)
-        if (d1[i - 1] < -0.01 && d1[i + 1] > 0.01) {
+        if (xs[i] < 0) continue; // pre-charge 구간은 TP 대상 아님
+        if (d1[i] < -0.01) {
+            armed = true;
+        } else if (armed && d1[i] > 0.01) {
             // 스무딩 lag 보정: 탐지 시점 직전 LOOKBACK_SEC 구간에서 실제 최솟값 역추적
-            const lookbackStart = xs[i] - TP_LOOKBACK_SEC;
+            const lookbackStart = Math.max(0, xs[i] - TP_LOOKBACK_SEC);
             let minTemp = Infinity;
             let minTimeSec = xs[i];
             for (let j = i; j >= 0 && xs[j] >= lookbackStart; j--) {

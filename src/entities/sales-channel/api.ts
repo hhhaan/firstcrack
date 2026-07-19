@@ -21,13 +21,11 @@ export interface SalesChannelConnection {
 
 export type ConnectCredentials =
     | { client_id: string; client_secret: string } // naver
-    | { shop: string; access_token: string } // shopify
-    | { mall_id: string; access_token: string; refresh_token?: string; client_id?: string; client_secret?: string }; // cafe24
+    | { shop: string; access_token: string }; // shopify
 
 export const salesChannelApi = {
     list: async (userId: string): Promise<SalesChannelConnection[]> => {
-        // biome-ignore lint/suspicious/noExplicitAny: table types until types:gen after migration
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('sales_channel_connections')
             .select(
                 'id, user_id, platform, shop_identifier, display_name, status, last_error, consecutive_failures, last_polled_at, webhook_registered, auto_fulfill_on_shipped, created_at, updated_at',
@@ -51,6 +49,17 @@ export const salesChannelApi = {
         return data.connection as SalesChannelConnection;
     },
 
+    /** Cafe24 OAuth: returns authorize URL for browser open. Callback stores connection. */
+    startCafe24OAuth: async (mallId: string, displayName?: string): Promise<{ authorizeUrl: string }> => {
+        const { data, error } = await supabase.functions.invoke('cafe24-oauth-start', {
+            body: { mallId, displayName },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        if (!data?.authorizeUrl) throw new Error('missing authorizeUrl');
+        return { authorizeUrl: String(data.authorizeUrl) };
+    },
+
     disconnect: async (connectionId: string): Promise<void> => {
         const { data, error } = await supabase.functions.invoke('channel-disconnect', {
             body: { connectionId },
@@ -71,8 +80,7 @@ export const salesChannelApi = {
     },
 
     setAutoFulfill: async (connectionId: string, enabled: boolean): Promise<void> => {
-        // biome-ignore lint/suspicious/noExplicitAny: table types until types:gen
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('sales_channel_connections')
             .update({ auto_fulfill_on_shipped: enabled, updated_at: new Date().toISOString() })
             .eq('id', connectionId);

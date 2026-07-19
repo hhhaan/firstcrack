@@ -69,6 +69,25 @@ jobs:
       - name: Secretlint
         run: pnpm scan:secrets
 
+  # 모바일 cfg 게이트 회귀 방지 — 데스크톱 전용 코드(사이드카/업데이터)가
+  # 게이트 없이 추가되면 여기서 잡힌다. 빌드/서명 없이 컴파일만 확인.
+  ios-check:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add iOS target
+        run: rustup target add aarch64-apple-ios
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Cargo check (iOS)
+        run: cargo check --target aarch64-apple-ios
+        working-directory: src-tauri
+
   sidecar:
     runs-on: ubuntu-latest
     timeout-minutes: 15

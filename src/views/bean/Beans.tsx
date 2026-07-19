@@ -4,6 +4,8 @@ import type { BlendWithComponents } from '@entities/blend';
 import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import { useRoastingStore } from '@features/active-roast';
+import { BlendRoastedModal } from '@features/blend-roasted';
+import { FEATURE, useFeature } from '@shared/lib/features';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
@@ -20,6 +22,9 @@ import { BlendList } from '@widgets/blend-list/ui/BlendList';
 import { Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type InventoryTab, InventoryTabBar } from './ui/InventoryTabBar';
+import { ProductsTab } from './ui/ProductsTab';
+import { RoastedInventoryTab } from './ui/RoastedInventoryTab';
 
 export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
     const { t } = useTranslation();
@@ -28,7 +33,12 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
     const { data: blends = [] } = useBlends(userId);
     const { mutate: deleteBean } = useDeleteBean(userId);
+    /** Pro+ / enterprise — same gate for roasted + product tabs. */
+    const showInventoryTabs = useFeature(FEATURE.roastedInventory);
 
+    const [activeTab, setActiveTab] = useState<InventoryTab>('green');
+    const inventoryTab = showInventoryTabs ? activeTab : 'green';
+    const [blendModalOpen, setBlendModalOpen] = useState(false);
     const [isBlendAddOpen, setIsBlendAddOpen] = useState(false);
     const [editingBlend, setEditingBlend] = useState<BlendWithComponents | null>(null);
 
@@ -128,31 +138,8 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
         />
     );
 
-    return (
-        <PageLayout>
-            <AddBeanModal
-                open={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
-                userId={userId}
-                existingBeans={beans}
-                initialTab={modalConfig.tab}
-                initialBeanId={modalConfig.beanId}
-                initialData={modalConfig.initialData}
-                onSuccess={(bean) => {
-                    if (bean) setSelectedId(bean.id);
-                }}
-            />
-
-            <PageHeader
-                title={t('beans.title')}
-                actions={
-                    <PillButton onClick={() => (tab === 'blend' ? openBlendAdd() : openModal('new'))}>
-                        <Plus size={15} strokeWidth={2.5} />
-                        {tab === 'blend' ? t('beans.blend.addBlend') : t('beans.addBeanLot')}
-                    </PillButton>
-                }
-            />
-
+    const greenBody = (
+        <>
             <div className="flex border-b border-(--color-border) dark:border-[#585d61] mb-4">
                 <button
                     type="button"
@@ -196,6 +183,45 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                     />
                 </>
             )}
+        </>
+    );
+
+    return (
+        <PageLayout>
+            <AddBeanModal
+                open={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                userId={userId}
+                existingBeans={beans}
+                initialTab={modalConfig.tab}
+                initialBeanId={modalConfig.beanId}
+                initialData={modalConfig.initialData}
+                onSuccess={(bean) => {
+                    if (bean) setSelectedId(bean.id);
+                }}
+            />
+
+            <PageHeader
+                title={t('beans.title')}
+                actions={
+                    inventoryTab === 'green' ? (
+                        <PillButton onClick={() => (tab === 'blend' ? openBlendAdd() : openModal('new'))}>
+                            <Plus size={15} strokeWidth={2.5} />
+                            {tab === 'blend' ? t('beans.blend.addBlend') : t('beans.addBeanLot')}
+                        </PillButton>
+                    ) : undefined
+                }
+            />
+
+            {showInventoryTabs && <InventoryTabBar active={inventoryTab} onChange={setActiveTab} />}
+
+            {inventoryTab === 'green' && greenBody}
+
+            {inventoryTab === 'roasted' && <RoastedInventoryTab onOpenBlending={() => setBlendModalOpen(true)} />}
+
+            <BlendRoastedModal open={blendModalOpen} onClose={() => setBlendModalOpen(false)} />
+
+            {inventoryTab === 'products' && <ProductsTab />}
         </PageLayout>
     );
 };

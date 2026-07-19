@@ -18,6 +18,9 @@ export function resolveWorkspaceOwnerId(
 interface WorkspaceState {
     activeOwnerId: string | null;
     setActiveOwner: (id: string | null) => void;
+    /** Host plans for foreign workspaces the user belongs to (not persisted). */
+    ownerPlanById: Record<string, string>;
+    setOwnerPlans: (plans: Record<string, string>) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceState>()(
@@ -25,6 +28,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         (set) => ({
             activeOwnerId: null,
             setActiveOwner: (id) => set({ activeOwnerId: id }),
+            ownerPlanById: {},
+            setOwnerPlans: (plans) => set({ ownerPlanById: plans }),
         }),
         {
             name: 'fc_workspace',

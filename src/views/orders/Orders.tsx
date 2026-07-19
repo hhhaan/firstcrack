@@ -12,8 +12,8 @@ import {
     useSyncOrders,
 } from '@entities/sales-channel';
 import { DispatchModal } from '@features/dispatch-order';
-import { useAddFinishedGoods } from '@features/finished-goods-inbound';
 import { useFulfillOrder } from '@features/fulfill-order';
+import { usePackageProduct } from '@features/package-product';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatDateShort } from '@shared/lib/format';
 import { Badge, type BadgeTone } from '@shared/ui/Badge';
@@ -361,7 +361,7 @@ function ProductsTab() {
     const { data: products = [], isLoading } = useProducts(userId);
     const { data: stock = {} } = useProductStock(userId);
     const deleteProduct = useDeleteProduct(userId);
-    const addInbound = useAddFinishedGoods();
+    const { packageProduct } = usePackageProduct();
     const [showAdd, setShowAdd] = useState(false);
     const [editing, setEditing] = useState<Product | null>(null);
 
@@ -370,7 +370,7 @@ function ProductsTab() {
         const raw = window.prompt(t('orders.product.inboundPrompt', { name: p.name }));
         if (raw == null) return;
         const units = Number(raw);
-        if (Number.isFinite(units) && units > 0) addInbound.mutate({ productId: p.id, units });
+        if (Number.isFinite(units) && units > 0) void packageProduct({ productId: p.id, units });
     };
 
     const openNew = () => {

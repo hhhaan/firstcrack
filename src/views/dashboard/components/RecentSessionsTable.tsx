@@ -1,14 +1,14 @@
 import { formatDuration } from '@shared/lib/format';
-import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
+import type { DashboardRecentSession } from '@widgets/dashboard-summary/api/useDashboard';
 import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { levelBg, levelColor } from '../lib/constants';
 import { formatDate, formatWeight } from '../lib/format';
 
 interface RecentSessionsTableProps {
-    data: RoastSessionWithRelations[];
+    data: DashboardRecentSession[];
     loading: boolean;
     onNavigate: (view: View) => void;
 }
