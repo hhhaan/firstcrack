@@ -1206,6 +1206,7 @@
         "colTitle": "세션",
         "colDate": "날짜",
         "colSamples": "샘플",
+        "colParticipants": "참여자",
         "colAvg": "평균",
         "colLabel": "샘플",
         "colBean": "생두",
@@ -1214,7 +1215,9 @@
         "colActions": "작업",
         "colLink": "QR",
         "unknownBean": "생두 미상",
-        "eventSubtitle": "{{date}} · 샘플 {{samples}} · 점수 {{scores}}",
+        "eventSubtitle": "{{date}} · 샘플 {{samples}} · 참여자 {{participants}} · 점수 {{scores}}",
+        "participantsTitle": "참여자 {{count}}명",
+        "participantsEmpty": "아직 제출한 참여자가 없습니다.",
         "addSamples": "샘플 추가",
         "addSamplesHint": "이번 세션에 넣을 커피를 원하는 만큼 추가하세요. 개수 제한 없음. 로스트를 고르거나 직접 라벨을 넣을 수 있습니다.",
         "addSamplesEmpty": "로스트를 고르거나 라벨을 입력하세요.",
@@ -1240,6 +1243,8 @@
         "copied": "복사됨",
         "openLink": "열기",
         "revoke": "무효화",
+        "moveUp": "위로",
+        "moveDown": "아래로",
         "expandScores": "점수 보기",
         "collapseScores": "점수 접기",
         "scoreDetail": "제출된 점수",
@@ -1413,14 +1418,34 @@
             "empty": "아직 원두 재고가 없습니다. 로스팅을 저장하면 자동으로 쌓입니다.",
             "estimateBadge": "추정 포함",
             "blendBadge": "블렌드",
+            "singleBadge": "싱글",
             "unknownBean": "(삭제된 생두)",
-            "unknownBlend": "(삭제된 블렌드)"
+            "unknownBlend": "(삭제된 블렌드)",
+            "searchPlaceholder": "원두 재고 검색…",
+            "noMatch": "일치하는 원두 재고가 없습니다.",
+            "total": "합계 {{kg}} kg",
+            "col": {
+                "name": "이름",
+                "type": "유형",
+                "stock": "잔량",
+                "status": "상태"
+            }
         },
         "products": {
             "inbound": "입고",
             "unitSuffix": "봉지",
-            "empty": "등록된 제품이 없습니다. Orders에서 제품을 먼저 등록하세요.",
-            "shortageWarning": "벌크 원두가 장부상 {{kg}}kg 부족합니다. 입고는 완료됐습니다 — 재고를 확인하고 조정하세요."
+            "empty": "등록된 제품이 없습니다. 판매 SKU를 등록해 봉지 재고를 추적하세요.",
+            "shortageWarning": "벌크 원두가 장부상 {{kg}}kg 부족합니다. 입고는 완료됐습니다 — 재고를 확인하고 조정하세요.",
+            "searchPlaceholder": "완제품 검색…",
+            "noMatch": "일치하는 제품이 없습니다.",
+            "sourceNone": "—",
+            "col": {
+                "name": "이름",
+                "sku": "SKU",
+                "source": "원료",
+                "weight": "용량",
+                "stock": "재고"
+            }
         },
         "blending": {
             "title": "로스팅 후 블렌딩",

@@ -1206,6 +1206,7 @@
         "colTitle": "セッション",
         "colDate": "日付",
         "colSamples": "サンプル",
+        "colParticipants": "参加者",
         "colAvg": "平均",
         "colLabel": "サンプル",
         "colBean": "生豆",
@@ -1214,7 +1215,9 @@
         "colActions": "操作",
         "colLink": "QR",
         "unknownBean": "生豆不明",
-        "eventSubtitle": "{{date}} · サンプル {{samples}} · スコア {{scores}}",
+        "eventSubtitle": "{{date}} · サンプル {{samples}} · 参加者 {{participants}} · スコア {{scores}}",
+        "participantsTitle": "参加者 {{count}}名",
+        "participantsEmpty": "まだ提出した参加者はいません。",
         "addSamples": "サンプル追加",
         "addSamplesHint": "このセッションに必要な分だけコーヒーを追加できます（数の固定なし）。ロースト選択またはラベル入力。",
         "addSamplesEmpty": "ローストを選ぶかラベルを入力してください。",
@@ -1240,6 +1243,8 @@
         "copied": "コピー済み",
         "openLink": "開く",
         "revoke": "無効化",
+        "moveUp": "上へ",
+        "moveDown": "下へ",
         "expandScores": "スコアを表示",
         "collapseScores": "スコアを隠す",
         "scoreDetail": "送信済みスコア",
@@ -1413,14 +1418,34 @@
             "empty": "焙煎豆在庫はまだありません。焙煎を保存すると自動で積み上がります。",
             "estimateBadge": "推定を含む",
             "blendBadge": "ブレンド",
+            "singleBadge": "シングル",
             "unknownBean": "（削除された生豆）",
-            "unknownBlend": "（削除されたブレンド）"
+            "unknownBlend": "（削除されたブレンド）",
+            "searchPlaceholder": "焙煎豆を検索…",
+            "noMatch": "一致する焙煎豆がありません。",
+            "total": "合計 {{kg}} kg",
+            "col": {
+                "name": "名前",
+                "type": "種類",
+                "stock": "在庫",
+                "status": "状態"
+            }
         },
         "products": {
             "inbound": "入庫",
             "unitSuffix": "袋",
-            "empty": "登録された製品がありません。Orders で先に製品を登録してください。",
-            "shortageWarning": "バルク焙煎豆が帳簿上 {{kg}}kg 不足しています。入庫は完了済み — 在庫を確認して調整してください。"
+            "empty": "登録された製品がありません。販売 SKU を登録して袋在庫を追跡します。",
+            "shortageWarning": "バルク焙煎豆が帳簿上 {{kg}}kg 不足しています。入庫は完了済み — 在庫を確認して調整してください。",
+            "searchPlaceholder": "完成品を検索…",
+            "noMatch": "一致する製品がありません。",
+            "sourceNone": "—",
+            "col": {
+                "name": "名前",
+                "sku": "SKU",
+                "source": "原料",
+                "weight": "内容量",
+                "stock": "在庫"
+            }
         },
         "blending": {
             "title": "焙煎後ブレンド",

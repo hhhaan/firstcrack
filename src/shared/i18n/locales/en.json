@@ -1206,6 +1206,7 @@
         "colTitle": "Session",
         "colDate": "Date",
         "colSamples": "Samples",
+        "colParticipants": "Participants",
         "colAvg": "Avg score",
         "colLabel": "Sample",
         "colBean": "Bean",
@@ -1214,7 +1215,9 @@
         "colActions": "Actions",
         "colLink": "QR",
         "unknownBean": "Unknown bean",
-        "eventSubtitle": "{{date}} · {{samples}} samples · {{scores}} scores",
+        "eventSubtitle": "{{date}} · {{samples}} samples · {{participants}} participants · {{scores}} scores",
+        "participantsTitle": "{{count}} participants",
+        "participantsEmpty": "No scores submitted yet.",
         "addSamples": "Add samples",
         "addSamplesHint": "Add as many coffees as you need for this session — no fixed count. Pick roasts and/or free labels.",
         "addSamplesEmpty": "Select at least one roast or enter a label.",
@@ -1240,6 +1243,8 @@
         "copied": "Copied",
         "openLink": "Open",
         "revoke": "Revoke",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
         "expandScores": "Show scores",
         "collapseScores": "Hide scores",
         "scoreDetail": "Submitted scores",
@@ -1413,14 +1418,34 @@
             "empty": "No roasted stock yet. Saving a roast books it automatically.",
             "estimateBadge": "includes estimate",
             "blendBadge": "Blend",
+            "singleBadge": "Single",
             "unknownBean": "(deleted bean)",
-            "unknownBlend": "(deleted blend)"
+            "unknownBlend": "(deleted blend)",
+            "searchPlaceholder": "Search roasted stock…",
+            "noMatch": "No matching roasted stock.",
+            "total": "Total {{kg}} kg",
+            "col": {
+                "name": "Name",
+                "type": "Type",
+                "stock": "On hand",
+                "status": "Status"
+            }
         },
         "products": {
             "inbound": "Inbound",
             "unitSuffix": "bags",
-            "empty": "No products registered. Add products in Orders first.",
-            "shortageWarning": "Bulk roasted is short by {{kg}}kg on paper. Inbound completed — check stock and adjust."
+            "empty": "No products yet. Register a sellable SKU to track bag stock.",
+            "shortageWarning": "Bulk roasted is short by {{kg}}kg on paper. Inbound completed — check stock and adjust.",
+            "searchPlaceholder": "Search products…",
+            "noMatch": "No matching products.",
+            "sourceNone": "—",
+            "col": {
+                "name": "Name",
+                "sku": "SKU",
+                "source": "Source",
+                "weight": "Net",
+                "stock": "In stock"
+            }
         },
         "blending": {
             "title": "Post-roast blending",

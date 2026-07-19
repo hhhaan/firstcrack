@@ -1206,6 +1206,7 @@
         "colTitle": "场次",
         "colDate": "日期",
         "colSamples": "样品",
+        "colParticipants": "参与者",
         "colAvg": "均分",
         "colLabel": "样品",
         "colBean": "生豆",
@@ -1214,7 +1215,9 @@
         "colActions": "操作",
         "colLink": "QR",
         "unknownBean": "未知生豆",
-        "eventSubtitle": "{{date}} · 样品 {{samples}} · 评分 {{scores}}",
+        "eventSubtitle": "{{date}} · 样品 {{samples}} · 参与者 {{participants}} · 评分 {{scores}}",
+        "participantsTitle": "参与者 {{count}} 人",
+        "participantsEmpty": "尚无提交评分的参与者。",
         "addSamples": "添加样品",
         "addSamplesHint": "本场可添加任意数量咖啡，无固定数量。可选手动烘焙记录或自定义标签。",
         "addSamplesEmpty": "请选择烘焙记录或输入标签。",
@@ -1240,6 +1243,8 @@
         "copied": "已复制",
         "openLink": "打开",
         "revoke": "作废",
+        "moveUp": "上移",
+        "moveDown": "下移",
         "expandScores": "显示评分",
         "collapseScores": "收起评分",
         "scoreDetail": "已提交评分",
@@ -1413,14 +1418,34 @@
             "empty": "尚无熟豆库存。保存烘焙后会自动入库。",
             "estimateBadge": "含估算",
             "blendBadge": "拼配",
+            "singleBadge": "单品",
             "unknownBean": "（已删除生豆）",
-            "unknownBlend": "（已删除拼配）"
+            "unknownBlend": "（已删除拼配）",
+            "searchPlaceholder": "搜索熟豆库存…",
+            "noMatch": "没有匹配的熟豆库存。",
+            "total": "合计 {{kg}} kg",
+            "col": {
+                "name": "名称",
+                "type": "类型",
+                "stock": "库存",
+                "status": "状态"
+            }
         },
         "products": {
             "inbound": "入库",
             "unitSuffix": "袋",
-            "empty": "尚未注册产品。请先在订单中添加产品。",
-            "shortageWarning": "散装熟豆账面短缺 {{kg}}kg。入库已完成 — 请核对并调整库存。"
+            "empty": "尚未注册产品。添加可售 SKU 以跟踪袋装库存。",
+            "shortageWarning": "散装熟豆账面短缺 {{kg}}kg。入库已完成 — 请核对并调整库存。",
+            "searchPlaceholder": "搜索成品…",
+            "noMatch": "没有匹配的产品。",
+            "sourceNone": "—",
+            "col": {
+                "name": "名称",
+                "sku": "SKU",
+                "source": "原料",
+                "weight": "净重",
+                "stock": "库存"
+            }
         },
         "blending": {
             "title": "烘焙后拼配",
