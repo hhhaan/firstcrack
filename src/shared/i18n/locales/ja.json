@@ -1391,6 +1391,7 @@
             "submit": "送信",
             "submitting": "送信中…",
             "failed": "出荷処理に失敗しました",
+            "fulfillFailed": "プラットフォーム出荷は成功しましたが在庫減算に失敗しました。手動でFulfillしてください。（{{detail}}）",
             "delayed": "プラットフォーム確認遅延",
             "status": {
                 "pending": "出荷待ち",

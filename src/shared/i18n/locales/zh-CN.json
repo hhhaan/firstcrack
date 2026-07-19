@@ -1391,6 +1391,7 @@
             "submit": "提交",
             "submitting": "提交中…",
             "failed": "发货失败",
+            "fulfillFailed": "平台已发货，但库存扣减失败。请手动 Fulfill。（{{detail}}）",
             "delayed": "平台确认延迟",
             "status": {
                 "pending": "待发货",

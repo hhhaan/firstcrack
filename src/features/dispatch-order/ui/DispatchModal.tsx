@@ -58,6 +58,11 @@ export const DispatchModal = ({ open, orderId, onClose }: Props) => {
                 setError(res.error ?? t('orders.dispatch.failed'));
                 return;
             }
+            // Platform ship ok but auto-fulfill failed — keep modal open so user can act
+            if (res.fulfillError) {
+                setError(t('orders.dispatch.fulfillFailed', { detail: res.fulfillError }));
+                return;
+            }
             onClose();
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));

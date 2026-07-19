@@ -31,16 +31,20 @@ export const orderDispatchApi = {
         return (data ?? []) as OrderDispatch[];
     },
 
-    dispatch: async (input: {
-        orderId: string;
-        carrier: string;
-        trackingNumber: string;
-    }): Promise<{ status: DispatchStatus; error?: string; alreadyShipped?: boolean }> => {
+    dispatch: async (input: { orderId: string; carrier: string; trackingNumber: string }): Promise<DispatchResult> => {
         const { data, error } = await supabase.functions.invoke('order-dispatch', {
             body: input,
         });
         if (error) throw error;
         if (data?.error && data?.status !== 'failed') throw new Error(data.error);
-        return data as { status: DispatchStatus; error?: string; alreadyShipped?: boolean };
+        return data as DispatchResult;
     },
+};
+
+export type DispatchResult = {
+    status: DispatchStatus;
+    error?: string;
+    alreadyShipped?: boolean;
+    fulfilled?: boolean;
+    fulfillError?: string | null;
 };

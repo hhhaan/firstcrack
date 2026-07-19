@@ -1,3 +1,4 @@
+import { productStockKeys } from '@entities/product-stock-event';
 import { orderKeys } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { orderDispatchApi } from './api';
@@ -18,9 +19,14 @@ export const useDispatchOrder = (userId: string) => {
     return useMutation({
         mutationFn: (input: { orderId: string; carrier: string; trackingNumber: string }) =>
             orderDispatchApi.dispatch(input),
-        onSuccess: () => {
+        onSuccess: (res) => {
             void qc.invalidateQueries({ queryKey: orderDispatchKeys.all(userId) });
             void qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
+            // C3: dispatch may call fulfill_order — mirror useFulfillOrder invalidation
+            if (res.fulfilled) {
+                void qc.invalidateQueries({ queryKey: productStockKeys.byUser(userId) });
+                void qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) });
+            }
         },
     });
 };

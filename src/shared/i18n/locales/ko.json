@@ -1391,6 +1391,7 @@
             "submit": "전송",
             "submitting": "전송 중…",
             "failed": "발송 처리 실패",
+            "fulfillFailed": "플랫폼 발송은 됐지만 재고 차감에 실패했습니다. 수동 Fulfill을 실행하세요. ({{detail}})",
             "delayed": "플랫폼 확인 지연",
             "status": {
                 "pending": "발송 대기",
