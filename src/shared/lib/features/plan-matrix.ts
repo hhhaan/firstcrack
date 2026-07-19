@@ -79,14 +79,38 @@ export function canCompleteBatch(plan: string, completedThisMonth: number): bool
     return completedThisMonth < max;
 }
 
+/** Matches the RAISE codes of the server batch gate (enforce_batch_gate / profile_write_error). */
+export type BatchGateCode = 'monthly_batch_cap' | 'trial_batch_cap' | 'trial_expired' | 'read_only_plan';
+
+const GATE_MESSAGES: Record<BatchGateCode, (used: number, max: number) => string> = {
+    monthly_batch_cap: (used, max) =>
+        `Monthly batch limit reached (${used}/${max}). Upgrade to Pro+ for unlimited batches.`,
+    trial_batch_cap: (used, max) => `Trial batch limit reached (${used}/${max}). Upgrade to keep roasting.`,
+    trial_expired: () => 'Trial period has ended. Upgrade to keep roasting.',
+    read_only_plan: () => 'Subscription inactive — account is read-only. Upgrade to keep roasting.',
+};
+
 export class BatchLimitError extends Error {
     readonly used: number;
     readonly max: number;
+    readonly code: BatchGateCode;
 
-    constructor(used: number, max: number) {
-        super(`Monthly batch limit reached (${used}/${max}). Upgrade to Pro+ for unlimited batches.`);
+    constructor(used: number, max: number, code: BatchGateCode = 'monthly_batch_cap') {
+        super(GATE_MESSAGES[code](used, max));
         this.name = 'BatchLimitError';
         this.used = used;
         this.max = max;
+        this.code = code;
     }
+}
+
+/** Server gate RAISE → typed error (client pre-checks can be bypassed; this catches the authority path). */
+export function mapServerBatchGateError(e: unknown): BatchLimitError | null {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('monthly_batch_cap')) return new BatchLimitError(PRO_MONTHLY_BATCH_CAP, PRO_MONTHLY_BATCH_CAP);
+    if (msg.includes('trial_batch_cap'))
+        return new BatchLimitError(TRIAL_BATCH_CAP, TRIAL_BATCH_CAP, 'trial_batch_cap');
+    if (msg.includes('trial_expired')) return new BatchLimitError(0, 0, 'trial_expired');
+    if (msg.includes('read_only_plan')) return new BatchLimitError(0, 0, 'read_only_plan');
+    return null;
 }

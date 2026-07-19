@@ -41,6 +41,7 @@ function makeDeps(overrides: Partial<SaveRoastDeps> = {}): SaveRoastDeps {
         qc: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
         planBatchHandoff: null,
         countCompletedThisMonth: vi.fn().mockResolvedValue(0),
+        countCompletedTotal: vi.fn().mockResolvedValue(0),
         createSession: vi.fn().mockResolvedValue({ id: 'sess-db-1' }),
         syncRoastCurve: vi.fn().mockResolvedValue(undefined),
         upsertInbound: vi.fn().mockResolvedValue(undefined),
@@ -62,6 +63,38 @@ describe('saveRoastCore', () => {
         await expect(saveRoastCore(deps, baseParams)).rejects.toBeInstanceOf(BatchLimitError);
         expect(deps.createSession).not.toHaveBeenCalled();
         expect(deps.upsertInbound).not.toHaveBeenCalled();
+    });
+
+    it('trial 20회 도달 → trial_batch_cap, 세션 생성 없음', async () => {
+        const deps = makeDeps({
+            plan: 'trial',
+            countCompletedTotal: vi.fn().mockResolvedValue(20),
+        });
+        await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'trial_batch_cap' });
+        expect(deps.createSession).not.toHaveBeenCalled();
+    });
+
+    it('trial 19회 → 저장 통과 (월 캡 미적용)', async () => {
+        const deps = makeDeps({
+            plan: 'trial',
+            countCompletedTotal: vi.fn().mockResolvedValue(19),
+            countCompletedThisMonth: vi.fn().mockResolvedValue(9999),
+        });
+        const result = await saveRoastCore(deps, baseParams);
+        expect(result.savedSession).toEqual({ id: 'sess-db-1' });
+    });
+
+    it('read_only → 즉시 거부', async () => {
+        const deps = makeDeps({ plan: 'read_only' });
+        await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'read_only_plan' });
+        expect(deps.createSession).not.toHaveBeenCalled();
+    });
+
+    it('서버 게이트 RAISE → BatchLimitError로 매핑', async () => {
+        const deps = makeDeps({
+            createSession: vi.fn().mockRejectedValue(new Error('trial_expired')),
+        });
+        await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'trial_expired' });
     });
 
     it('해피패스: 이벤트 시간순 직렬화 + plan_batch_id + 마지막 배치 → done', async () => {

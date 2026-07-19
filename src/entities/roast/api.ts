@@ -59,6 +59,17 @@ export const roastSessionApi = {
         return data;
     },
 
+    /** Lifetime completed sessions (trial 20-batch cap). */
+    countCompletedTotal: async (userId: string): Promise<number> => {
+        const { count, error } = await supabase
+            .from('roast_sessions')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('status', 'completed');
+        if (error) throw error;
+        return count ?? 0;
+    },
+
     /** Completed sessions in local calendar month (batch quota). */
     countCompletedThisMonth: async (userId: string, now = new Date()): Promise<number> => {
         const from = startOfMonth(now).toISOString();

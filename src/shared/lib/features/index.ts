@@ -1,12 +1,14 @@
 export { FeatureGate } from './FeatureGate';
 export { FEATURE, type FeatureKey } from './keys';
 export {
+    type BatchGateCode,
     BatchLimitError,
     canAddMachine,
     canCompleteBatch,
     isCoreEntitled,
     isPaidPlan,
     isWritablePlan,
+    mapServerBatchGateError,
     PRO_MONTHLY_BATCH_CAP,
     planHasFeature,
     planMaxBatchesPerMonth,

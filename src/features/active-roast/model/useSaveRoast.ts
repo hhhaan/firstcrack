@@ -7,7 +7,14 @@ import { determineStockDeduction } from '@features/active-roast/lib/determine-st
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useBbpStore } from '@features/active-roast/model/bbp';
-import { BatchLimitError, canCompleteBatch, planMaxBatchesPerMonth } from '@shared/lib/features';
+import {
+    BatchLimitError,
+    canCompleteBatch,
+    isWritablePlan,
+    mapServerBatchGateError,
+    planMaxBatchesPerMonth,
+    TRIAL_BATCH_CAP,
+} from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
@@ -60,6 +67,7 @@ export type SaveRoastDeps = {
     qc: QueryClient;
     planBatchHandoff: PlanBatchHandoff | null;
     countCompletedThisMonth: (userId: string) => Promise<number>;
+    countCompletedTotal: (userId: string) => Promise<number>;
     createSession: ReturnType<typeof useCreateRoastSession>['mutateAsync'];
     syncRoastCurve: SyncRoastCurve;
     upsertInbound: typeof roastedStockEventApi.upsertInbound;
@@ -83,6 +91,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         qc,
         planBatchHandoff,
         countCompletedThisMonth,
+        countCompletedTotal,
         createSession,
         syncRoastCurve,
         upsertInbound,
@@ -92,11 +101,22 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         getFinalizedBbp,
     } = deps;
 
-    const monthCap = planMaxBatchesPerMonth(plan);
-    if (monthCap != null) {
-        const used = await countCompletedThisMonth(userId);
-        if (!canCompleteBatch(plan, used)) {
-            throw new BatchLimitError(used, monthCap);
+    // UX pre-checks only — the DB trigger (enforce_batch_gate) is the authority.
+    if (!isWritablePlan(plan)) {
+        throw new BatchLimitError(0, 0, 'read_only_plan');
+    }
+    if (plan === 'trial') {
+        const used = await countCompletedTotal(userId);
+        if (used >= TRIAL_BATCH_CAP) {
+            throw new BatchLimitError(used, TRIAL_BATCH_CAP, 'trial_batch_cap');
+        }
+    } else {
+        const monthCap = planMaxBatchesPerMonth(plan);
+        if (monthCap != null) {
+            const used = await countCompletedThisMonth(userId);
+            if (!canCompleteBatch(plan, used)) {
+                throw new BatchLimitError(used, monthCap);
+            }
         }
     }
 
@@ -149,7 +169,9 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         events: serializeRoastEvents(payloadParams.logEntries),
     };
 
-    const savedSession = await createSession(payload);
+    const savedSession = await createSession(payload).catch((e: unknown) => {
+        throw mapServerBatchGateError(e) ?? e;
+    });
 
     // Meta returns immediately; curve sync background. Local TSV kept if sync fails.
     if (sessionId) {
@@ -245,6 +267,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
                     qc,
                     planBatchHandoff,
                     countCompletedThisMonth: roastSessionApi.countCompletedThisMonth,
+                    countCompletedTotal: roastSessionApi.countCompletedTotal,
                     createSession: saveRoastSession,
                     syncRoastCurve,
                     upsertInbound: roastedStockEventApi.upsertInbound,
