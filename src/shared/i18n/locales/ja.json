@@ -1347,6 +1347,9 @@
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
             "accessToken": "アクセストークン",
+            "oauthCta": "Cafe24で接続",
+            "oauthWaiting": "ブラウザでの同意を待っています…",
+            "oauthWaitTimeout": "接続確認がタイムアウトしました。同意後、チャネル一覧を更新してください。",
             "errRequired": "必須項目をすべて入力してください。",
             "lastSync": "最終同期 {{at}}",
             "connect": {
@@ -1356,7 +1359,7 @@
             },
             "help": {
                 "naver": "Commerce API Center → アプリケーション → Client IDとClient Secretをコピー（SELFタイプ）。",
-                "cafe24": "Cafe24 developers → OAuthアプリ → Mall IDとアクセストークンを貼り付け。",
+                "cafe24": "Mall IDを入力し、Cafe24で権限に同意すると接続されます。トークンはサーバーのみに保存されます。",
                 "shopify": "Shopify管理画面 → アプリ開発 → read_orders・read_products権限のカスタムアプリをインストール → ショップドメインとAdmin APIアクセストークンを貼り付け。"
             },
             "platform": {

@@ -1347,6 +1347,9 @@
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
             "accessToken": "访问令牌",
+            "oauthCta": "通过 Cafe24 连接",
+            "oauthWaiting": "等待浏览器授权…",
+            "oauthWaitTimeout": "连接确认超时。授权后请刷新渠道列表。",
             "errRequired": "请填写所有必填项。",
             "lastSync": "上次同步 {{at}}",
             "connect": {
@@ -1356,7 +1359,7 @@
             },
             "help": {
                 "naver": "Commerce API Center → 应用 → 复制 Client ID 和 Client Secret（SELF 类型）。",
-                "cafe24": "Cafe24 developers → OAuth 应用 → 粘贴 Mall ID 和访问令牌。",
+                "cafe24": "输入 Mall ID，在 Cafe24 中同意权限即可连接。令牌仅保存在服务器。",
                 "shopify": "Shopify 后台 → 开发应用 → 安装具有 read_orders、read_products 权限的自定义应用 → 粘贴店铺域名和 Admin API 访问令牌。"
             },
             "platform": {

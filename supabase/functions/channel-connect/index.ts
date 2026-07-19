@@ -29,9 +29,8 @@ function validateCredentials(platform: Platform, credentials: ChannelSecrets): s
             return 'shopify requires shop and access_token';
         }
     } else if (platform === 'cafe24') {
-        if (!credentials.mall_id || !credentials.access_token) {
-            return 'cafe24 requires mall_id and access_token';
-        }
+        // Cafe24 production connect is OAuth (cafe24-oauth-start / callback).
+        return 'cafe24 requires OAuth — use cafe24-oauth-start';
     }
     return null;
 }

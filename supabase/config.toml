@@ -290,6 +290,12 @@ verify_jwt = false
 [functions.submit-cupping]
 verify_jwt = false
 
+[functions.cafe24-oauth-start]
+verify_jwt = true
+
+[functions.cafe24-oauth-callback]
+verify_jwt = false
+
 # [functions.MY_FUNCTION_NAME]
 # enabled = true
 # verify_jwt = true

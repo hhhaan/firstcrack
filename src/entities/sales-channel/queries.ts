@@ -32,6 +32,12 @@ export const useConnectChannel = (userId: string) => {
     });
 };
 
+export const useStartCafe24OAuth = () =>
+    useMutation({
+        mutationFn: ({ mallId, displayName }: { mallId: string; displayName?: string }) =>
+            salesChannelApi.startCafe24OAuth(mallId, displayName),
+    });
+
 export const useDisconnectChannel = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({

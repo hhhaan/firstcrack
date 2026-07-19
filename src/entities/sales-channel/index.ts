@@ -6,5 +6,6 @@ export {
     useDisconnectChannel,
     useSalesChannels,
     useSetAutoFulfill,
+    useStartCafe24OAuth,
     useSyncOrders,
 } from './queries';

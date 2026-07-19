@@ -1347,6 +1347,9 @@
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
             "accessToken": "Access token",
+            "oauthCta": "Connect with Cafe24",
+            "oauthWaiting": "Waiting for browser consent…",
+            "oauthWaitTimeout": "Timed out waiting for connection. After consent, refresh the channel list.",
             "errRequired": "Fill in all required fields.",
             "lastSync": "Last sync {{at}}",
             "connect": {
@@ -1356,7 +1359,7 @@
             },
             "help": {
                 "naver": "Commerce API Center → application → copy Client ID and Client Secret (SELF type).",
-                "cafe24": "Cafe24 developers → OAuth app → paste Mall ID and access token.",
+                "cafe24": "Enter your Mall ID, then approve permissions in Cafe24. Tokens stay on the server only.",
                 "shopify": "Shopify admin → Develop apps → install custom app with read_orders, read_products → paste shop domain and Admin API access token."
             },
             "platform": {

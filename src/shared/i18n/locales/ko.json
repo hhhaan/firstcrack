@@ -1347,6 +1347,9 @@
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
             "accessToken": "Access token",
+            "oauthCta": "카페24에서 연결",
+            "oauthWaiting": "브라우저에서 동의 후 대기 중…",
+            "oauthWaitTimeout": "연결 확인 시간이 초과되었습니다. 동의 후 채널 목록을 새로고침하세요.",
             "errRequired": "필수 항목을 입력하세요.",
             "lastSync": "마지막 동기화 {{at}}",
             "connect": {
@@ -1356,7 +1359,7 @@
             },
             "help": {
                 "naver": "커머스API 센터 → 애플리케이션 → Client ID / Client Secret 복사 (SELF).",
-                "cafe24": "카페24 개발자센터 OAuth 앱 → Mall ID와 access token 입력.",
+                "cafe24": "Mall ID를 입력한 뒤 카페24에서 권한에 동의하면 연결됩니다. 토큰은 서버에만 저장됩니다.",
                 "shopify": "Shopify 관리자 → 앱 개발 → custom app(read_orders, read_products) 설치 후 도메인과 Admin API access token 입력."
             },
             "platform": {

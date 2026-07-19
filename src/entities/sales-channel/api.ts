@@ -21,8 +21,7 @@ export interface SalesChannelConnection {
 
 export type ConnectCredentials =
     | { client_id: string; client_secret: string } // naver
-    | { shop: string; access_token: string } // shopify
-    | { mall_id: string; access_token: string; refresh_token?: string; client_id?: string; client_secret?: string }; // cafe24
+    | { shop: string; access_token: string }; // shopify
 
 export const salesChannelApi = {
     list: async (userId: string): Promise<SalesChannelConnection[]> => {
@@ -48,6 +47,17 @@ export const salesChannelApi = {
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
         return data.connection as SalesChannelConnection;
+    },
+
+    /** Cafe24 OAuth: returns authorize URL for browser open. Callback stores connection. */
+    startCafe24OAuth: async (mallId: string, displayName?: string): Promise<{ authorizeUrl: string }> => {
+        const { data, error } = await supabase.functions.invoke('cafe24-oauth-start', {
+            body: { mallId, displayName },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        if (!data?.authorizeUrl) throw new Error('missing authorizeUrl');
+        return { authorizeUrl: String(data.authorizeUrl) };
     },
 
     disconnect: async (connectionId: string): Promise<void> => {
