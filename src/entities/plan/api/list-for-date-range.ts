@@ -116,6 +116,8 @@ export async function listForDateRange(
                 if (exBatch) {
                     result.push({
                         ...exBatch,
+                        // Exception rows may not store rrule; use master rule
+                        rrule: exBatch.rrule ?? rule.rrule,
                         completed_sessions: sessionCountMap.get(exBatch.id) ?? 0,
                     });
                 }
