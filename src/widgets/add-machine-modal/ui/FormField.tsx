@@ -1,6 +1,6 @@
 import type { RoasterFormField, SerialPort } from '@entities/machine';
-import { ChevronDown } from 'lucide-react';
-import { inputCls, labelCls, selectCls } from '../lib/styles';
+import { FormSelect } from '@shared/ui/FormSelect';
+import { inputCls, labelCls } from '../lib/styles';
 import { ComportField } from './ComportField';
 
 export const FormField = ({
@@ -24,19 +24,13 @@ export const FormField = ({
         {field.key === 'comport' ? (
             <ComportField value={value} onChange={onChange} ports={serialPorts} registryDefault={registryDefault} />
         ) : field.options ? (
-            <div className="relative">
-                <select className={selectCls} value={value} onChange={(e) => onChange(e.target.value)}>
-                    {field.options.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                        </option>
-                    ))}
-                </select>
-                <ChevronDown
-                    size={13}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:!text-[#8a8580] pointer-events-none"
-                />
-            </div>
+            <FormSelect value={value} onChange={(e) => onChange(e.target.value)}>
+                {field.options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                    </option>
+                ))}
+            </FormSelect>
         ) : (
             <input
                 className={inputCls}

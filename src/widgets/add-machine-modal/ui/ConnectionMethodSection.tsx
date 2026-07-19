@@ -1,8 +1,8 @@
 import { groupRoastersByBrand, listProtocols, ROASTER_REGISTRY } from '@entities/machine';
 import { cn } from '@shared/lib/cn';
-import { ChevronDown } from 'lucide-react';
+import { FormSelect } from '@shared/ui/FormSelect';
 import { useTranslation } from 'react-i18next';
-import { inputCls, labelCls, selectCls, tabCls } from '../lib/styles';
+import { inputCls, labelCls, tabCls } from '../lib/styles';
 import type { MachineModalTab } from '../model/types';
 
 const ROASTERS_BY_BRAND = groupRoastersByBrand(ROASTER_REGISTRY);
@@ -61,31 +61,25 @@ export const ConnectionMethodSection = ({
             {!isCustom && (
                 <div>
                     <label className={labelCls}>{t('addMachine.roasterModel')}</label>
-                    <div className="relative">
-                        <select
-                            className={cn(selectCls, isEdit && 'opacity-70 cursor-default')}
-                            value={selectedKey}
-                            onChange={(e) => selectRoaster(e.target.value)}
-                            disabled={isEdit}
-                        >
-                            <option value="">{t('addMachine.selectRoaster')}</option>
-                            {Object.entries(ROASTERS_BY_BRAND)
-                                .sort(([a], [b]) => a.localeCompare(b))
-                                .map(([brand, items]) => (
-                                    <optgroup key={brand} label={brand}>
-                                        {items.map(({ key, def }) => (
-                                            <option key={key} value={key}>
-                                                {def.display_name}
-                                            </option>
-                                        ))}
-                                    </optgroup>
-                                ))}
-                        </select>
-                        <ChevronDown
-                            size={14}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:!text-[#8a8580] pointer-events-none"
-                        />
-                    </div>
+                    <FormSelect
+                        className={cn(isEdit && 'opacity-70 cursor-default')}
+                        value={selectedKey}
+                        onChange={(e) => selectRoaster(e.target.value)}
+                        disabled={isEdit}
+                    >
+                        <option value="">{t('addMachine.selectRoaster')}</option>
+                        {Object.entries(ROASTERS_BY_BRAND)
+                            .sort(([a], [b]) => a.localeCompare(b))
+                            .map(([brand, items]) => (
+                                <optgroup key={brand} label={brand}>
+                                    {items.map(({ key, def }) => (
+                                        <option key={key} value={key}>
+                                            {def.display_name}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            ))}
+                    </FormSelect>
                 </div>
             )}
 
@@ -122,25 +116,19 @@ export const ConnectionMethodSection = ({
                             {t('addMachine.protocol')}
                             <span className="text-red-500"> *</span>
                         </label>
-                        <div className="relative">
-                            <select
-                                className={cn(selectCls, isEdit && 'opacity-70 cursor-default')}
-                                value={customProtocol}
-                                onChange={(e) => selectCustomProtocol(e.target.value)}
-                                disabled={isEdit}
-                            >
-                                <option value="">{t('addMachine.selectProtocol')}</option>
-                                {PROTOCOLS.map((p) => (
-                                    <option key={p} value={p}>
-                                        {p.toUpperCase()}
-                                    </option>
-                                ))}
-                            </select>
-                            <ChevronDown
-                                size={13}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:!text-[#8a8580] pointer-events-none"
-                            />
-                        </div>
+                        <FormSelect
+                            className={cn(isEdit && 'opacity-70 cursor-default')}
+                            value={customProtocol}
+                            onChange={(e) => selectCustomProtocol(e.target.value)}
+                            disabled={isEdit}
+                        >
+                            <option value="">{t('addMachine.selectProtocol')}</option>
+                            {PROTOCOLS.map((p) => (
+                                <option key={p} value={p}>
+                                    {p.toUpperCase()}
+                                </option>
+                            ))}
+                        </FormSelect>
                     </div>
                 </div>
             )}
