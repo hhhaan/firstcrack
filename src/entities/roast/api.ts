@@ -5,7 +5,10 @@ import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 const SELECT_WITH_RELATIONS =
     '*, beans(name, origin, region, variety, process, farm), roast_profiles!profile_id(name, target_level)';
 
-export type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at'>;
+/** Insert payload — created_by defaults to auth.uid() in DB. */
+export type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'created_by'> & {
+    created_by?: string | null;
+};
 type RoastSessionUpdate = { id: string } & Partial<Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;
 
 interface PaginatedParams {
