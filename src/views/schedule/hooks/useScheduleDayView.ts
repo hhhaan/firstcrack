@@ -434,6 +434,9 @@ export const useScheduleDayView = ({
                 });
             } catch (err) {
                 logger.error('Failed to start batch:', err);
+                alert(
+                    `${i18n.t('schedule.error.startBatch')} ${err instanceof Error ? err.message : JSON.stringify(err)}`,
+                );
             }
         },
         [commitStatusTransition, onStartBatch],

@@ -482,7 +482,8 @@
         "error": {
             "createRecurring": "반복 배치 추가 실패:",
             "createBatch": "배치 추가 실패:",
-            "completeBatch": "배치 완료 처리 실패:"
+            "completeBatch": "배치 완료 처리 실패:",
+            "startBatch": "배치 시작 실패:"
         },
         "recurringEditScope": {
             "title": "반복 일정 변경",
@@ -679,17 +680,7 @@
         "exportNoSessions": "내보낼 세션이 없습니다.",
         "exportTitle": "First Crack",
         "exportOkLabel": "내보내기",
-        "exportCancelLabel": "취소",
-        "componentReport": {
-            "title": "생두별 로스팅 집계",
-            "range30": "최근 30일",
-            "range90": "최근 90일",
-            "colBean": "생두",
-            "colGreen": "투입 (kg)",
-            "colRoasted": "배출 (kg)",
-            "colLoss": "감량률",
-            "estimateFootnote": "* 추정 입고 포함"
-        }
+        "exportCancelLabel": "취소"
     },
     "beans": {
         "title": "Bean Inventory",

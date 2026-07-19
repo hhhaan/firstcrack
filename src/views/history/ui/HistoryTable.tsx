@@ -78,10 +78,9 @@ const columns: Column[] = [
         width: '80px',
         sortable: false,
         hideOnMd: true,
-        // 미실측(output_weight 없음)은 roast_level 추정치 — 월간 리포트와 같은 * 표기
         render: (s) => {
             const w = computeRoastWeights(s.weight_grams, s.output_weight_grams, s.roast_level);
-            return w.inputKg > 0 ? `${w.lossRate.toFixed(1)}%${w.measured ? '' : '*'}` : '—';
+            return w.inputKg > 0 ? `${w.lossRate.toFixed(1)}%` : '—';
         },
     },
     {

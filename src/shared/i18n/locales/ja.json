@@ -704,7 +704,8 @@
         "error": {
             "createRecurring": "繰り返しバッチの追加に失敗しました:",
             "createBatch": "バッチの追加に失敗しました:",
-            "completeBatch": "バッチの完了処理に失敗しました:"
+            "completeBatch": "バッチの完了処理に失敗しました:",
+            "startBatch": "バッチの開始に失敗しました:"
         },
         "recurringEditScope": {
             "title": "繰り返し予定の変更",
@@ -895,16 +896,6 @@
             "colBy": "担当",
             "colScore": "スコア",
             "colSource": "ソース"
-        },
-        "componentReport": {
-            "title": "生豆別焙煎集計",
-            "range30": "直近30日",
-            "range90": "直近90日",
-            "colBean": "生豆",
-            "colGreen": "投入 (kg)",
-            "colRoasted": "排出 (kg)",
-            "colLoss": "減量率",
-            "estimateFootnote": "* 推定入庫を含む"
         }
     },
     "profiles": {

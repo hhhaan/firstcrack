@@ -704,7 +704,8 @@
         "error": {
             "createRecurring": "Failed to add recurring batch:",
             "createBatch": "Failed to add batch:",
-            "completeBatch": "Failed to complete batch:"
+            "completeBatch": "Failed to complete batch:",
+            "startBatch": "Failed to start batch:"
         },
         "recurringEditScope": {
             "title": "Change Recurring Schedule",
@@ -895,17 +896,7 @@
         "exportNoSessions": "No sessions to export.",
         "exportTitle": "First Crack",
         "exportOkLabel": "Export",
-        "exportCancelLabel": "Cancel",
-        "componentReport": {
-            "title": "Roast by green bean",
-            "range30": "Last 30 days",
-            "range90": "Last 90 days",
-            "colBean": "Bean",
-            "colGreen": "Green in (kg)",
-            "colRoasted": "Roasted out (kg)",
-            "colLoss": "Loss",
-            "estimateFootnote": "* includes estimated inbound"
-        }
+        "exportCancelLabel": "Cancel"
     },
     "profiles": {
         "title": "Roast Profiles",

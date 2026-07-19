@@ -109,14 +109,15 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         guideMarkLines.push({
             xAxis: currentTimeSec,
             lineStyle: nowLineStyle,
-            label: {
-                show: true,
-                position: 'insideEndTop' as const,
-                formatter: 'NOW',
-                color: colors.nowLabel,
-                fontSize: 10,
-                fontWeight: 700,
-            },
+            // label: {
+            //     show: true,
+            //     position: 'insideEndTop' as const,
+            //     formatter: 'NOW',
+            //     color: colors.nowLabel,
+            //     fontSize: 10,
+            //     fontWeight: 700,
+            // },
+            label: { show: false },
         });
         controlGuideMarkLines.push({
             xAxis: currentTimeSec,
