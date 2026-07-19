@@ -15,7 +15,7 @@ import {
     useUpdateFromThis,
     useUpdateSingleBatch,
 } from '@entities/plan';
-import { useDeductRoastStock } from '@features/active-roast';
+import { useDeductRoastStock, useRoastingStore } from '@features/active-roast';
 import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { batchGreenNeededGramsFromBatch, isBatchStockShort } from '@shared/lib/batch-stock';
 import { logger } from '@shared/lib/logger';
@@ -29,6 +29,24 @@ import { useCallback, useMemo, useState } from 'react';
 import { batchStatus, toDateKey } from '../lib';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
+
+/** PostgrestError 등은 Error가 아니어서 String(err) → "[object Object]" 가 됨 */
+function unknownErrorMessage(err: unknown): string {
+    if (err instanceof Error) return err.message;
+    if (
+        err &&
+        typeof err === 'object' &&
+        'message' in err &&
+        typeof (err as { message: unknown }).message === 'string'
+    ) {
+        return (err as { message: string }).message;
+    }
+    try {
+        return JSON.stringify(err);
+    } catch {
+        return String(err);
+    }
+}
 
 export const useScheduleDayView = ({
     userId,
@@ -98,6 +116,7 @@ export const useScheduleDayView = ({
                 status,
             };
 
+            // Virtual recurring instance → materialize as exception row
             if (batch.recurrence_rule_id && batch.id.includes(':') && batch.scheduled_date) {
                 const realBatch = await planBatchApi.materialize(
                     userId,
@@ -109,6 +128,9 @@ export const useScheduleDayView = ({
                 return { targetId: realBatch.id, targetPlanId: realBatch.plan_id };
             }
 
+            // Real row (one-off or already-materialized exception) → UPDATE only.
+            // Never pass meta here: updateSingle(meta) inserts a new exception and
+            // fails/duplicates when the row already exists.
             await updateSingleBatch.mutateAsync({
                 id: batch.id,
                 patch: {
@@ -130,9 +152,6 @@ export const useScheduleDayView = ({
                           }
                         : {}),
                 },
-                ...(batch.recurrence_rule_id && batch.original_date
-                    ? { meta: { recurrenceRuleId: batch.recurrence_rule_id, originalDate: batch.original_date } }
-                    : {}),
             });
 
             return { targetId: batch.id, targetPlanId: batch.plan_id };
@@ -253,13 +272,19 @@ export const useScheduleDayView = ({
                     const plan = await dayPlanApi.getOrCreate(userId, scheduleDate);
                     targetPlanId = plan.id;
                 }
+                const isVirtual = editingBatch.id.includes(':');
                 await updateSingleBatch.mutateAsync({
                     id: editingBatch.id,
                     patch: { ...basePatch, plan_id: targetPlanId ?? '' },
-                    meta: {
-                        recurrenceRuleId: editingBatch.recurrence_rule_id,
-                        originalDate: editingBatch.scheduled_date ?? dateKey,
-                    },
+                    // Virtual only: materialize via exception insert. Real exception → UPDATE.
+                    ...(isVirtual && editingBatch.recurrence_rule_id
+                        ? {
+                              meta: {
+                                  recurrenceRuleId: editingBatch.recurrence_rule_id,
+                                  originalDate: editingBatch.original_date ?? editingBatch.scheduled_date ?? dateKey,
+                              },
+                          }
+                        : {}),
                 });
             } else {
                 const instanceDate = editingBatch.scheduled_date ?? dateKey;
@@ -389,7 +414,7 @@ export const useScheduleDayView = ({
                     : data.recurringInterval
                       ? 'schedule.error.createRecurring'
                       : 'schedule.error.createBatch';
-                alert(`${i18n.t(key)} ${err instanceof Error ? err.message : String(err)}`);
+                alert(`${i18n.t(key)} ${unknownErrorMessage(err)}`);
                 throw err;
             }
         },
@@ -412,6 +437,10 @@ export const useScheduleDayView = ({
 
     const handleStart = useCallback(
         async (batch: PlanBatchWithProgress) => {
+            if (useRoastingStore.getState().phase !== 'idle') {
+                alert(i18n.t('schedule.error.roastInProgress'));
+                return;
+            }
             const handoffBeanId = batch.bean_id;
             const handoffBlendId = batch.blend_id ?? null;
             const handoffProfileId = batch.roast_profile_id;
@@ -434,9 +463,7 @@ export const useScheduleDayView = ({
                 });
             } catch (err) {
                 logger.error('Failed to start batch:', err);
-                alert(
-                    `${i18n.t('schedule.error.startBatch')} ${err instanceof Error ? err.message : JSON.stringify(err)}`,
-                );
+                alert(`${i18n.t('schedule.error.startBatch')} ${unknownErrorMessage(err)}`);
             }
         },
         [commitStatusTransition, onStartBatch],
@@ -474,7 +501,8 @@ export const useScheduleDayView = ({
                     }
                 }
             } catch (err) {
-                alert(`${i18n.t('schedule.error.completeBatch')} ${err instanceof Error ? err.message : String(err)}`);
+                logger.error('Failed to complete batch:', err);
+                alert(`${i18n.t('schedule.error.completeBatch')} ${unknownErrorMessage(err)}`);
             } finally {
                 handleCompleteClose();
             }

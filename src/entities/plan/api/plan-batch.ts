@@ -74,7 +74,6 @@ export const planBatchApi = {
                     order_index: patch.order_index ?? 0,
                     status: patch.status ?? 'pending',
                     green_lot: patch.green_lot ?? '',
-                    batch_count: patch.batch_count ?? 1,
                 })
                 .select()
                 .single();

@@ -49,7 +49,6 @@ export async function materializePlanBatch(
             order_index: 0,
             status: patch.status ?? 'pending',
             green_lot: patch.green_lot ?? '',
-            batch_count: 1,
         })
         .select()
         .single();
