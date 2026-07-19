@@ -1,21 +1,41 @@
 name: CI
 
-# apps/docs/**의 .md는 빌드에 영향 있으므로 루트 문서만 제외
+# 문서/에이전트 설정만 바뀌면 CI 스킵.
+# apps/docs/** .md는 빌드 영향 → **.md 말고 루트 *.md만.
+# .gitignore ≠ CI 필터: 이미 추적 중인 docs/plans 등은 ignore여도 push되면 트리거됨.
 on:
   pull_request:
     branches: [main]
     paths-ignore:
       - '*.md'
       - 'docs/**'
+      - 'plans/**'
+      - '.agents/**'
       - '.claude/**'
       - '.grok/**'
+      - '.cursor/**'
+      - '.vscode/**'
+      - '.codex/**'
+      - '.opencode/**'
+      - '.superpowers/**'
+      - 'repomix-output.xml'
+      - 'code_review.txt'
   push:
     branches: [main]
     paths-ignore:
       - '*.md'
       - 'docs/**'
+      - 'plans/**'
+      - '.agents/**'
       - '.claude/**'
       - '.grok/**'
+      - '.cursor/**'
+      - '.vscode/**'
+      - '.codex/**'
+      - '.opencode/**'
+      - '.superpowers/**'
+      - 'repomix-output.xml'
+      - 'code_review.txt'
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
