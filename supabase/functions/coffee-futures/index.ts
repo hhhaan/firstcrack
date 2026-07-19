@@ -1,6 +1,11 @@
 const SYMBOL = 'KC=F';
 const YAHOO_URL = 'https://query1.finance.yahoo.com/v8/finance/chart/' + SYMBOL + '?interval=1d&range=2d';
-const CACHE_MAX_AGE = 60;
+const CACHE_MAX_AGE = 300;
+const TTL_MS = 5 * 60 * 1000;
+
+type FuturesBody = { price: number; previousClose: number };
+
+let cached: { body: FuturesBody; at: number } | null = null;
 
 const cors = {
     'Access-Control-Allow-Origin': '*',
@@ -21,6 +26,10 @@ const json = (body: unknown, status = 200): Response =>
 Deno.serve(async (_req: Request) => {
     if (_req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
+    if (cached && Date.now() - cached.at < TTL_MS) {
+        return json(cached.body);
+    }
+
     try {
         const res = await fetch(YAHOO_URL, {
             headers: {
@@ -37,7 +46,9 @@ Deno.serve(async (_req: Request) => {
         const price = meta.regularMarketPrice;
         if (price == null || previousClose == null) return json({ error: 'incomplete data' }, 502);
 
-        return json({ price, previousClose });
+        const body: FuturesBody = { price, previousClose };
+        cached = { body, at: Date.now() };
+        return json(body);
     } catch {
         return json({ error: 'fetch failed' }, 502);
     }
