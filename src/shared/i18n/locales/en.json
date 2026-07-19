@@ -251,6 +251,10 @@
                 "label": "Team",
                 "title": "Team workspace",
                 "description": "Invite teammates and manage who can access this roastery workspace.",
+                "locked": {
+                    "title": "Team workspace is coming soon",
+                    "description": "Invite teammates and manage who can access this roastery workspace. This feature will unlock in a future update."
+                },
                 "ownOrgNote": "Team settings always manage your own organization, not the workspace currently selected in the sidebar.",
                 "membersTitle": "Members",
                 "membersDescription": "{{count}} / {{limit}} seats used",

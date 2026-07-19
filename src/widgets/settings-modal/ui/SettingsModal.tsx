@@ -2,6 +2,7 @@ import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
+import { Lock } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getTabs, type SettingsTabId } from './tabConfig';
@@ -68,7 +69,7 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
             <div className="grid grid-cols-[220px_minmax(0,1fr)] min-h-0 flex-1">
                 <aside className="p-4 bg-[#F9FAFB] dark:bg-[#181D21] dark:border-r border-[#585D61] overflow-y-auto">
                     <div className="grid gap-1">
-                        {tabs.map(({ id, label, icon: Icon }) => {
+                        {tabs.map(({ id, label, icon: Icon, locked }) => {
                             const active = id === activeTab;
 
                             return (
@@ -88,7 +89,7 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                         <Icon size={16} strokeWidth={1.8} />
                                     </div>
                                     <span
-                                        className={`text-[14px] ${
+                                        className={`text-[14px] flex-1 ${
                                             active
                                                 ? 'font-semibold text-[#111827] dark:text-[#e5e5e5]'
                                                 : 'font-medium text-[#374151] dark:text-[#ccc]'
@@ -96,6 +97,13 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                                     >
                                         {label}
                                     </span>
+                                    {locked && (
+                                        <Lock
+                                            size={12}
+                                            className="shrink-0 text-[#9CA3AF] dark:text-[#666]"
+                                            aria-hidden
+                                        />
+                                    )}
                                 </button>
                             );
                         })}
@@ -119,7 +127,24 @@ export const SettingsModal = ({ open, onClose, initialTab }: SettingsModalProps)
                             {activeTab === 'roast' && <RoastSettingsTab />}
                             {activeTab === 'account' && <AccountSettingsTab onClose={onClose} />}
                             {activeTab === 'billing' && <BillingSettingsTab />}
-                            {activeTab === 'team' && <TeamSettingsTab />}
+                            {activeTab === 'team' &&
+                                (activeConfig.locked ? (
+                                    <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#181d21] px-6 py-16 text-center">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white dark:bg-[#262B31]">
+                                            <Lock size={22} className="text-[#9CA3AF] dark:text-[#666]" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[15px] font-medium text-[#111827] dark:text-[#e5e5e5] m-0">
+                                                {t('settings.tabs.team.locked.title')}
+                                            </p>
+                                            <p className="mt-2 max-w-md text-[13px] leading-relaxed text-[#6B7280] dark:text-[#999] m-0">
+                                                {t('settings.tabs.team.locked.description')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <TeamSettingsTab />
+                                ))}
                             {activeTab === 'general' && <GeneralSettingsTab />}
                             {activeTab === 'software' && <SoftwareSettingsTab />}
                             {activeTab === 'support' && <SupportSettingsTab />}

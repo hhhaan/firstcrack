@@ -8,6 +8,8 @@ export interface TabConfig {
     icon: LucideIcon;
     title: string;
     description: string;
+    /** Sidebar lock affordance + gated content (same pattern as main-nav cupping). */
+    locked?: boolean;
 }
 
 export const getTabs = (t: (key: string) => string): TabConfig[] => {
@@ -49,6 +51,7 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
             icon: Users,
             title: tk('team', 'title'),
             description: tk('team', 'description'),
+            locked: true,
         },
         {
             id: 'software',
