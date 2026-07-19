@@ -622,6 +622,162 @@ A5 v1 한계: no curve copy into draft dir; wall clock lag on resume; single lat
 
 ---
 
+## MACHINE CONNECTION HARDENING
+
+스펙: `docs/machine-connection-hardening.md` (2026-07-20, 커밋 `dea9aec`)  
+착수 권장: H1 → H2 → H3 → 나머지 임의. PR 분할: A(사이드카 P1+P2) / B(프론트) / C(인증) / D(운영).
+
+### [H1] Phidget silent fail — 센서 분리 시 고정 온도 표시
+
+**What:** `_read_temps`가 BT `getTemperature()` 예외를 삼키고 `-1.0` 반환 → manager stale/reconnect 미진입 → UI에 마지막 EMA가 `stale=False`로 고정.
+
+**Why:** 로스팅 중 USB 분리 시 실물 피해 가능. **P1 최우선.**
+
+**How:**
+1. `adapters/phidget.py` — BT 실패는 raise, ET만 `-1.0` 유지 (선택 채널)
+2. `tests/test_phidget_adapter.py` 신설 (BT raise / ET-only fail / manager 3회 stale)
+
+**완료 기준:** USB 분리 후 ≈1.5s 내 UI reconnecting  
+**Priority:** P1  
+**Depends on:** 없음
+
+---
+
+### [H2] connect 타임아웃 5s < 사이드카 최대 15s
+
+**What:** `sidecar.ts` 전 요청 `AbortSignal.timeout(5000)`. Kaleido 15s / Phidget 최대 10s와 충돌 → UI 실패인데 사이드카는 뒤늦게 연결.
+
+**How:** `request()`에 `timeoutMs` 파라미터, `connect`만 `20_000`.
+
+**Priority:** P1  
+**Depends on:** 없음
+
+---
+
+### [H3] 사이드카 HTTP 무인증 (로컬 CSRF 벡터)
+
+**What:** `127.0.0.1:9999` 전 엔드포인트 무토큰. Safari/Firefox·로컬 프로세스가 `/shutdown`·`/disconnect` 가능.
+
+**How:**
+1. `lib.rs` spawn 시 `SIDECAR_TOKEN` env + 프론트 전달
+2. `main.py` 미들웨어 `X-Sidecar-Token` 검증 (env 부재 시 스킵 = dev)
+3. `sidecar.ts` 헤더 첨부 + CORS Allow-Headers
+
+**Priority:** P1  
+**Depends on:** 없음 (단독 PR-C 권장)
+
+---
+
+### [H4] manager read/control disconnect 경합
+
+**What:** `read_temperatures`/`control`이 `_adapter` 재참조 중 disconnect → `NoneType` → 하드웨어 에러·Sentry 노이즈.
+
+**How:** 로컬 `adapter = self._adapter` 스냅샷 + except에서 `_adapter is None`이면 조용히 null payload.
+
+**Priority:** P2  
+**Depends on:** 없음
+
+---
+
+### [H5] S7 `connected`가 이벤트 루프에서 네트워크 왕복
+
+**What:** `get_cpu_state()` 동기 호출이 `read()` 경로에서 루프 블로킹 → PLC 다운 시 전체 aiohttp 정지.
+
+**How:** 연결 검사를 `read` executor(`_read_all`) 안으로 이동. `connected` 프로퍼티 시그니처 유지.
+
+**Priority:** P2  
+**Depends on:** 없음
+
+---
+
+### [H6] `ror_window_sec` NaN/inf/음수 검증 부재
+
+**What:** NaN이면 RoR deque 무한 성장; 음수/0이면 RoR 항상 0.
+
+**How:** `math.isfinite` + clamp `[5, 120]` (프론트 슬라이더 범위와 일치).
+
+**Priority:** P2  
+**Depends on:** 없음
+
+---
+
+### [H7] `adapter.read()` 전역 타임아웃 부재
+
+**What:** 어댑터 hang 시 `/temperatures` 무기한 pending, 사이드카 태스크 누적.
+
+**How:** `asyncio.wait_for(..., timeout=config.READ_TIMEOUT)` (3.0s).
+
+**Priority:** P2  
+**Depends on:** 없음
+
+---
+
+### [H8] probat_ws 오류 시 소켓 close 누락
+
+**What:** `_on_ws_error`가 `self._ws = None`만 하고 close 안 함 → fd 누수.
+
+**How:** best-effort `ws.close()` 태스크 (`_close_quiet`, timeout 2s).
+
+**Priority:** P2  
+**Depends on:** 없음
+
+---
+
+### [H9] parent_watchdog EPERM 오판 + task 강참조 미보관
+
+**What:** (1) `PermissionError`⊂`OSError` → 산 부모를 죽었다고 판단 후 사이드카 자살. (2) `create_task` 반환값 버려 GC 가능.
+
+**How:** `PermissionError` → `True`; Windows ACCESS_DENIED도 True. `app["watchdog_task"]`에 강참조.
+
+**Priority:** P2  
+**Depends on:** 없음
+
+---
+
+### [H10] sidecar.spec `list_ports_windows` 누락
+
+**What:** Windows 빌드에서 `comports()` ImportError → 포트 목록 빈 배열.
+
+**How:** `sidecar.spec`에 `'serial.tools.list_ports_windows'` 한 줄. Windows 첫 빌드 시 `/serial-ports` 수동 확인.
+
+**Priority:** P3  
+**Depends on:** Windows 사이드카 빌드 경로
+
+---
+
+### [H11] 프로덕션 로그 레벨 DEBUG 고정
+
+**What:** modbus 2Hz 폴링 시 stdout 수백 줄/분 → Rust 드레인 노이즈.
+
+**How:** `SIDECAR_LOG_LEVEL` env, 기본 `INFO`.
+
+**Priority:** P3  
+**Depends on:** 없음
+
+---
+
+### [H12] `handle_serial_ports` ImportError만 캐치
+
+**What:** `comports()` OS 예외 → 500 → 연결 모달 UX 깨짐.
+
+**How:** `except Exception: ports = []` + 로그.
+
+**Priority:** P3  
+**Depends on:** 없음
+
+---
+
+### [H13] bt=null 경로에서 `status.reconnecting` 미반영
+
+**What:** 사이드카 자동 재연결 중인데 UI가 `setConnected(false)`만 해 "끊김" 표시.
+
+**How:** `useSidecarPolling.ts` 해당 분기에 `setReconnecting(status?.reconnecting ?? false)`.
+
+**Priority:** P3  
+**Depends on:** 없음
+
+---
+
 ## PRODUCT / BACKEND
 
 ### [PLAN1] 서버 권위 plan 한도 (월 배치 등)
@@ -921,22 +1077,27 @@ views/orders/ui/ChannelsTab.tsx
 
 | 우선 | ID | 한 줄 |
 |------|-----|--------|
-| 1 | T31 | Charge 전 bean 강제 선택 |
-| 2 | T15 | last machine auto-reconnect |
-| 3 | T38 | OAuth 중간 콜백 페이지 |
-| 4 | T16 / T17 | 포트 refresh / 네트워크 스캔 |
+| 0 | **H1** | Phidget silent fail (실물 피해) |
+| 1 | H2 / H3 | connect 타임아웃 · 사이드카 토큰 |
+| 2 | T31 | Charge 전 bean 강제 선택 |
+| 3 | T15 | last machine auto-reconnect |
+| 4 | T38 | OAuth 중간 콜백 페이지 |
+| 5 | T16 / T17 | 포트 refresh / 네트워크 스캔 |
 
 ---
 
 ## 권장 착수 순서
 
-1. AUTO10 / Q1 invalidation 커버리지
-2. PLAN1 서버 plan 한도 (Q2)
-3. T31 Charge 전 선택 강제
-4. T15 (체감 UX)
-5. AUTO4 GRANT 검사
-6. ORD2 · CQ* 점진 · T16/T17
-7. (별도) A2 TSV durability — 스펙 문서 참고, 본 목록 제외
+1. **H1** Phidget silent fail (P1, 실물 피해)
+2. **H2** connect 타임아웃 + **H13** reconnecting UI (프론트 PR-B)
+3. **H3** 사이드카 토큰 인증 (PR-C 단독)
+4. H4–H9 사이드카 P2 묶음 (PR-A)
+5. H10–H12 운영 잡일 (PR-D)
+6. AUTO10 / Q1 invalidation 커버리지
+7. PLAN1 서버 plan 한도 (Q2)
+8. T31 Charge 전 선택 강제 · T15
+9. AUTO4 · ORD2 · CQ* 점진 · T16/T17
+10. (별도) A2 TSV durability — 스펙 문서 참고, 본 목록 제외
 
 ---
 
