@@ -1,6 +1,6 @@
 # First Crack Sidecar API
 
-작성일: 2026-05-08
+작성일: 2026-05-08 · 갱신일: 2026-07-19
 
 이 문서는 `src-tauri/sidecar/main.py`의 현재 `aiohttp` 기반 HTTP API를 기준으로 한다. 프론트엔드는 `src/shared/lib/sidecar.ts`에서 이 API를 호출한다.
 
@@ -9,7 +9,7 @@
 - Framework: `aiohttp`
 - Base URL: `http://127.0.0.1:9999`
 - Content-Type: JSON 요청은 `application/json`
-- CORS: 모든 origin 허용
+- CORS: allowlist origin만 허용 — `tauri://localhost`(macOS 번들), `http://tauri.localhost`(Windows 번들), `http://localhost:1420`(dev). allowlist origin에는 `Access-Control-Allow-Private-Network: true`도 함께 반환 (Chromium PNA 정책 대응)
 - Startup behavior: 서버 시작 시 아무 로스터에도 자동 연결하지 않는다. 프론트엔드가 `POST /connect`를 호출해야 연결이 시작된다.
 
 ```py
@@ -372,6 +372,47 @@ Behavior:
 - 현재 adapter에 `start_roast()` 메서드가 있으면 호출한다.
 - virtual adapter는 이 호출 시 profile 재생 시작 시간을 현재 시각으로 리셋한다.
 
+### POST /reset
+
+로스트 종료/리셋 신호다. 어댑터 상태를 초기화해 다음 로스트를 예열 상태에서 시작한다.
+
+Request body: 없음
+
+Response:
+
+```json
+{ "ok": true }
+```
+
+Behavior:
+
+- `manager.reset_roast()`를 호출한다.
+
+### POST /settings
+
+프론트엔드 설정 변경을 사이드카 런타임에 반영한다.
+
+Request body:
+
+```ts
+{
+  ror_window_sec?: number;
+}
+```
+
+Response:
+
+```json
+{ "ok": true }
+```
+
+Error response: `{ "error": "invalid JSON" }` (status 400)
+
+Notes:
+
+- 현재 지원 키는 `ror_window_sec`(RoR 계산 윈도우, 초)뿐이다. 알 수 없는 키는 무시된다.
+- 숫자로 변환 불가한 값은 조용히 무시된다.
+
 ### POST /control
 
 장비 제어값을 adapter로 전달한다.
@@ -442,6 +483,52 @@ Notes:
 - `hwid`와 `description`이 모두 비어 있거나 `n/a`인 포트는 제외한다. 이 로직은 Bluetooth 가상 포트 필터링 목적이다.
 - `pyserial` import에 실패하면 빈 배열을 반환한다.
 
+## Debug & Lifecycle
+
+### GET /debug/trace
+
+프로토콜 트레이스 버퍼를 덤프한다.
+
+Response:
+
+```ts
+{
+  enabled: boolean;
+  count: number;
+  entries: TraceEntry[];
+}
+```
+
+### POST /debug/trace
+
+트레이스 on/off 및 버퍼 클리어.
+
+Request body:
+
+```ts
+{
+  enabled?: boolean;
+  clear?: boolean;
+}
+```
+
+Response: `{ "enabled": boolean }` · invalid JSON은 status 400.
+
+### GET /debug/probe
+
+단발 원시 읽기 + 그 동안의 트레이스를 반환한다 (Artisan A/B 비교용).
+
+Behavior:
+
+- probe 동안 트레이스를 일시 활성화하고, 완료 후 이전 활성화 상태로 복원한다 (best-effort — 동시 `POST /debug/trace`가 있으면 그 값이 우선).
+- Response는 `manager.probe()` 결과에 `trace` 배열(probe 구간 트레이스)을 덧붙인 형태다.
+
+### POST /shutdown
+
+Graceful shutdown. Tauri Exit 핸들러에서 호출한다.
+
+Response: `ok` (text) 반환 후 ~50ms 뒤 `os._exit(0)`.
+
 ## OPTIONS
 
 모든 path에 대해 `OPTIONS /{path}`를 받는다.
@@ -454,10 +541,13 @@ Response:
 Headers:
 
 ```http
-Access-Control-Allow-Origin: *
+Access-Control-Allow-Origin: <allowlist origin echo>
+Access-Control-Allow-Private-Network: true
 Access-Control-Allow-Methods: GET, POST, OPTIONS
 Access-Control-Allow-Headers: Content-Type
 ```
+
+`Access-Control-Allow-Origin`은 요청 Origin이 allowlist(`tauri://localhost`, `http://tauri.localhost`, `http://localhost:1420`)에 있을 때만 반환된다.
 
 ## Frontend Usage
 
@@ -476,10 +566,13 @@ const BASE = 'http://127.0.0.1:9999';
 | `sidecar.connect(roasterKey, params)` | `POST /connect`     |
 | `sidecar.disconnect()`                | `POST /disconnect`  |
 | `sidecar.getTemperatures()`           | `GET /temperatures` |
-| `sidecar.enterStandby()`             | `POST /standby`     |
+| `sidecar.updateSettings(settings)`    | `POST /settings`    |
+| `sidecar.enterStandby()`              | `POST /standby`     |
 | `sidecar.startRoast()`                | `POST /start`       |
-| `sidecar.control(params)`             | `POST /control`     |
+| `sidecar.resetRoast()`                | `POST /reset`       |
 | `sidecar.getSerialPorts()`            | `GET /serial-ports` |
+
+`POST /control`, `/shutdown`, `/debug/*`는 wrapper에 없다 — control은 현재 프론트에서 미사용, shutdown은 Tauri Rust 셸이 직접 호출, debug는 수동 진단용.
 
 ## Implementation Notes
 
