@@ -19,3 +19,4 @@ export {
 } from './plan-matrix';
 export { type FeatureContext, resolveFeature } from './resolve';
 export { useFeature } from './useFeature';
+export { useWriteAccess } from './useWriteAccess';
