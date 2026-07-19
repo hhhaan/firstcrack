@@ -16,14 +16,14 @@
     },
     "auth": {
         "oauthCompleting": "Completing sign-in…",
+        "sessionReplacedTitle": "Signed out",
         "errors": {
             "invalid_credentials": "Incorrect email or password. Please try again.",
             "network": "Network error. Check your connection and try again.",
             "oauth_failed": "Sign-in could not be completed. Please try again.",
-            "generic": "Sign-in failed. Please try again.",
-            "session_replaced": "You were signed out because this account signed in on another device."
-        },
-        "sessionReplacedTitle": "Signed out"
+            "session_replaced": "You were signed out because this account signed in on another device.",
+            "generic": "Sign-in failed. Please try again."
+        }
     },
     "updater": {
         "checking": "Checking for update…",
@@ -258,8 +258,8 @@
                 "title": "Team workspace",
                 "description": "Invite teammates and manage who can access this roastery workspace.",
                 "locked": {
-                    "title": "Team workspace is coming soon",
-                    "description": "Invite teammates and manage who can access this roastery workspace. This feature will unlock in a future update."
+                    "title": "Hosting a team requires Enterprise",
+                    "description": "Anyone can join a workspace with an invite code. Creating invites and hosting a shared roastery is available on the Enterprise plan."
                 },
                 "ownOrgNote": "Team settings always manage your own organization, not the workspace currently selected in the sidebar.",
                 "membersTitle": "Members",
@@ -275,7 +275,7 @@
                 "activeInvites": "Active invites",
                 "revoke": "Revoke",
                 "joinTitle": "Join a team",
-                "joinDescription": "Paste an invite code you received from a workspace owner.",
+                "joinDescription": "Paste an invite code you received from a workspace admin.",
                 "redeemPlaceholder": "Invite code",
                 "redeem": "Join workspace",
                 "errors": {
@@ -283,7 +283,7 @@
                     "revoked": "This invite was revoked.",
                     "already_used": "This invite was already used.",
                     "already_member": "You are already a member of this workspace.",
-                    "seat_limit": "Seat limit reached. Ask the owner to raise the limit.",
+                    "seat_limit": "Seat limit reached. Ask the admin to raise the limit.",
                     "invalid": "Invalid invite code.",
                     "network": "Network error. Check your connection.",
                     "generic": "Something went wrong. Please try again."
@@ -291,6 +291,11 @@
                 "success": {
                     "inviteCreated": "Invite code ready — copy and share it.",
                     "joined": "Joined workspace successfully."
+                },
+                "unknownMember": "Unknown member",
+                "roles": {
+                    "admin": "Admin",
+                    "member": "Member"
                 }
             },
             "software": {

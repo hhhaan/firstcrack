@@ -84,6 +84,14 @@ describe('roasted inventory / product stock gating', () => {
         expect(planHasFeature('enterprise', FEATURE.productStock)).toBe(true);
         expect(planHasFeature('team', FEATURE.productStock)).toBe(true);
     });
+
+    it('grants team to enterprise-class only', () => {
+        expect(planHasFeature('free', FEATURE.team)).toBe(false);
+        expect(planHasFeature('pro', FEATURE.team)).toBe(false);
+        expect(planHasFeature('pro_plus', FEATURE.team)).toBe(false);
+        expect(planHasFeature('enterprise', FEATURE.team)).toBe(true);
+        expect(planHasFeature('team', FEATURE.team)).toBe(true);
+    });
 });
 
 describe('resolveFeature', () => {

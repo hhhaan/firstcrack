@@ -37,6 +37,7 @@ export type Database = {
                 Row: {
                     bean_id: string;
                     created_at: string;
+                    created_by: string | null;
                     delta_grams: number;
                     event_type: string;
                     id: string;
@@ -47,6 +48,7 @@ export type Database = {
                 Insert: {
                     bean_id: string;
                     created_at?: string;
+                    created_by?: string | null;
                     delta_grams: number;
                     event_type: string;
                     id?: string;
@@ -57,6 +59,7 @@ export type Database = {
                 Update: {
                     bean_id?: string;
                     created_at?: string;
+                    created_by?: string | null;
                     delta_grams?: number;
                     event_type?: string;
                     id?: string;
@@ -593,6 +596,7 @@ export type Database = {
                     carrier: string;
                     confirmed_at: string | null;
                     connection_id: string;
+                    created_by: string | null;
                     id: string;
                     last_error: string | null;
                     line_results: Json | null;
@@ -609,6 +613,7 @@ export type Database = {
                     carrier: string;
                     confirmed_at?: string | null;
                     connection_id: string;
+                    created_by?: string | null;
                     id?: string;
                     last_error?: string | null;
                     line_results?: Json | null;
@@ -625,6 +630,7 @@ export type Database = {
                     carrier?: string;
                     confirmed_at?: string | null;
                     connection_id?: string;
+                    created_by?: string | null;
                     id?: string;
                     last_error?: string | null;
                     line_results?: Json | null;
@@ -988,6 +994,7 @@ export type Database = {
             product_stock_events: {
                 Row: {
                     created_at: string;
+                    created_by: string | null;
                     delta_units: number;
                     event_type: string;
                     id: string;
@@ -998,6 +1005,7 @@ export type Database = {
                 };
                 Insert: {
                     created_at?: string;
+                    created_by?: string | null;
                     delta_units: number;
                     event_type: string;
                     id?: string;
@@ -1008,6 +1016,7 @@ export type Database = {
                 };
                 Update: {
                     created_at?: string;
+                    created_by?: string | null;
                     delta_units?: number;
                     event_type?: string;
                     id?: string;
@@ -1482,6 +1491,7 @@ export type Database = {
                     bean_id: string | null;
                     charge_temp_celsius: number | null;
                     created_at: string;
+                    created_by: string | null;
                     drop_temp_celsius: number | null;
                     duration_seconds: number | null;
                     events: Json;
@@ -1507,6 +1517,7 @@ export type Database = {
                     bean_id?: string | null;
                     charge_temp_celsius?: number | null;
                     created_at?: string;
+                    created_by?: string | null;
                     drop_temp_celsius?: number | null;
                     duration_seconds?: number | null;
                     events?: Json;
@@ -1532,6 +1543,7 @@ export type Database = {
                     bean_id?: string | null;
                     charge_temp_celsius?: number | null;
                     created_at?: string;
+                    created_by?: string | null;
                     drop_temp_celsius?: number | null;
                     duration_seconds?: number | null;
                     events?: Json;
@@ -1585,6 +1597,7 @@ export type Database = {
                     bean_id: string | null;
                     blend_id: string | null;
                     created_at: string;
+                    created_by: string | null;
                     delta_grams: number;
                     event_type: string;
                     id: string;
@@ -1597,6 +1610,7 @@ export type Database = {
                     bean_id?: string | null;
                     blend_id?: string | null;
                     created_at?: string;
+                    created_by?: string | null;
                     delta_grams: number;
                     event_type: string;
                     id?: string;
@@ -1609,6 +1623,7 @@ export type Database = {
                     bean_id?: string | null;
                     blend_id?: string | null;
                     created_at?: string;
+                    created_by?: string | null;
                     delta_grams?: number;
                     event_type?: string;
                     id?: string;
@@ -1982,6 +1997,17 @@ export type Database = {
             };
             is_org_member_or_owner: { Args: { p_org_id: string }; Returns: boolean };
             is_org_owner: { Args: { p_org_id: string }; Returns: boolean };
+            list_org_members: {
+                Args: { p_org_id: string };
+                Returns: {
+                    business_name: string | null;
+                    created_at: string;
+                    display_name: string | null;
+                    email: string | null;
+                    role: string;
+                    user_id: string;
+                }[];
+            };
             redeem_org_invite: { Args: { p_token: string }; Returns: string };
             remove_org_member: {
                 Args: { p_member_id: string; p_org_id: string };

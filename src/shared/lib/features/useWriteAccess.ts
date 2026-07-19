@@ -1,14 +1,39 @@
 import { useAuthStore } from '@shared/store/auth';
+import { resolveWorkspaceOwnerId, useWorkspaceStore } from '@shared/store/workspace';
+import { resolveEffectivePlan } from './effective-plan';
 import { isWritablePlan, trialEndsAt } from './plan-matrix';
 
 /**
- * UX mirror of the server write gate — read_only plan or expired trial.
- * DB triggers (profile_write_error) are the authority; this only drives disabled states/CTA.
+ * UX mirror of the server write gate.
+ * Org workspace writes always target the host (admin) account — gates use host plan.
+ * Personal workspace uses personal plan + trial expiry.
  */
 export function useWriteAccess(): boolean {
-    const plan = useAuthStore((s) => s.plan);
+    const personalPlan = useAuthStore((s) => s.plan);
     const user = useAuthStore((s) => s.user);
+    const authUserId = user?.id ?? '';
+    const activeOwnerId = useWorkspaceStore((s) => s.activeOwnerId);
+    const ownerPlanById = useWorkspaceStore((s) => s.ownerPlanById);
+
+    const membershipOwnerIds = Object.keys(ownerPlanById);
+    const workspaceOwnerId = resolveWorkspaceOwnerId(activeOwnerId, authUserId, membershipOwnerIds);
+    const isForeignWorkspace = !!authUserId && !!workspaceOwnerId && workspaceOwnerId !== authUserId;
+
+    // Shared org workspace → admin/host plan only (unified R/W on owner account).
+    if (isForeignWorkspace) {
+        const hostPlan = ownerPlanById[workspaceOwnerId] ?? '';
+        return isWritablePlan(hostPlan) && hostPlan !== '';
+    }
+
+    const plan = resolveEffectivePlan({
+        personalPlan,
+        authUserId,
+        activeOwnerId,
+        ownerPlanById,
+    });
+
     if (!isWritablePlan(plan)) return false;
+
     if (plan === 'trial' && user?.created_at && Date.now() > trialEndsAt(user.created_at).getTime()) {
         return false;
     }

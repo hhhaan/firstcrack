@@ -1,11 +1,13 @@
 import { supabase } from '@shared/lib/supabase';
 import type { MineOrg, OrganizationMember, OrgMembership } from './types';
 
-type MemberRow = {
-    org_id: string;
+type OrgMemberDirectoryRow = {
     user_id: string;
     role: string;
     created_at: string;
+    display_name: string | null;
+    business_name: string | null;
+    email: string | null;
 };
 
 export const organizationApi = {
@@ -20,7 +22,7 @@ export const organizationApi = {
 
         const o = org;
         const [{ data: members, error: mErr }, { data: invites, error: iErr }] = await Promise.all([
-            supabase.from('organization_members').select('*').eq('org_id', o.id).order('created_at'),
+            supabase.rpc('list_org_members', { p_org_id: o.id }),
             supabase
                 .from('organization_invites')
                 .select('*')
@@ -31,34 +33,16 @@ export const organizationApi = {
         if (mErr) throw mErr;
         if (iErr) throw iErr;
 
-        const memberRows = (members ?? []) as MemberRow[];
-        const memberIds = memberRows.map((m) => m.user_id);
-        const profileById = new Map<string, { display_name: string | null; business_name: string | null }>();
-        if (memberIds.length > 0) {
-            const { data: profiles, error: pErr } = await supabase
-                .from('profiles')
-                .select('id, display_name, business_name')
-                .in('id', memberIds);
-            if (pErr) throw pErr;
-            for (const p of profiles ?? []) {
-                profileById.set(p.id, {
-                    display_name: p.display_name,
-                    business_name: p.business_name,
-                });
-            }
-        }
-
-        const enriched: OrganizationMember[] = memberRows.map((m) => {
-            const p = profileById.get(m.user_id);
-            return {
-                org_id: m.org_id,
-                user_id: m.user_id,
-                role: m.role as OrganizationMember['role'],
-                created_at: m.created_at,
-                display_name: p?.display_name ?? null,
-                business_name: p?.business_name ?? null,
-            };
-        });
+        const rows = (members ?? []) as OrgMemberDirectoryRow[];
+        const enriched: OrganizationMember[] = rows.map((m) => ({
+            org_id: o.id,
+            user_id: m.user_id,
+            role: m.role as OrganizationMember['role'],
+            created_at: m.created_at,
+            display_name: m.display_name ?? null,
+            business_name: m.business_name ?? null,
+            email: m.email ?? null,
+        }));
 
         return {
             id: o.id,
@@ -91,7 +75,7 @@ export const organizationApi = {
 
         const { data: profiles, error: pErr } = await supabase
             .from('profiles')
-            .select('id, display_name, business_name')
+            .select('id, display_name, business_name, plan')
             .in('id', ownerIds);
         if (pErr) throw pErr;
 
@@ -112,6 +96,7 @@ export const organizationApi = {
                     org_name: org.name,
                     owner_business_name: profile?.business_name ?? null,
                     owner_display_name: profile?.display_name ?? null,
+                    owner_plan: profile?.plan ?? '',
                 } satisfies OrgMembership;
             })
             .filter((x): x is OrgMembership => x != null);

@@ -1,6 +1,6 @@
 import type { Database } from '@shared/types/database.types';
 
-export type OrgRole = 'owner' | 'member';
+export type OrgRole = 'admin' | 'member';
 
 export type Organization = Database['public']['Tables']['organizations']['Row'];
 export type OrganizationInvite = Database['public']['Tables']['organization_invites']['Row'];
@@ -9,6 +9,7 @@ export type OrganizationMember = Database['public']['Tables']['organization_memb
     role: OrgRole;
     display_name?: string | null;
     business_name?: string | null;
+    email?: string | null;
 };
 
 export type OrgMembership = {
@@ -18,6 +19,8 @@ export type OrgMembership = {
     org_name: string;
     owner_business_name: string | null;
     owner_display_name: string | null;
+    /** Workspace host plan — members inherit this for workspace features. */
+    owner_plan: string;
 };
 
 export type MineOrg = Organization & {

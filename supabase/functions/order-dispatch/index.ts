@@ -54,7 +54,22 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
     if (orderErr || !order) return jsonResponse({ error: 'order not found' }, 404);
-    if (order.user_id !== user.id) return jsonResponse({ error: 'Forbidden' }, 403);
+    // Workspace host or org member of host may dispatch; user_id on row stays host.
+    if (order.user_id !== user.id) {
+        const { data: org } = await admin
+            .from('organizations')
+            .select('id')
+            .eq('owner_id', order.user_id)
+            .maybeSingle();
+        if (!org) return jsonResponse({ error: 'Forbidden' }, 403);
+        const { data: membership } = await admin
+            .from('organization_members')
+            .select('user_id')
+            .eq('org_id', org.id)
+            .eq('user_id', user.id)
+            .maybeSingle();
+        if (!membership) return jsonResponse({ error: 'Forbidden' }, 403);
+    }
     if (order.platform === 'manual') {
         return jsonResponse({ error: 'manual orders have no platform dispatch' }, 400);
     }
@@ -99,7 +114,8 @@ Deno.serve(async (req) => {
         const { data: created, error } = await admin
             .from('order_dispatches')
             .insert({
-                user_id: user.id,
+                user_id: order.user_id,
+                created_by: user.id,
                 order_id: order.id,
                 connection_id: order.connection_id,
                 carrier: body.carrier,

@@ -8,14 +8,13 @@ export interface TabConfig {
     icon: LucideIcon;
     title: string;
     description: string;
-    /** Sidebar lock affordance + gated content (same pattern as main-nav cupping). */
-    locked?: boolean;
 }
 
 export const getTabs = (t: (key: string) => string): TabConfig[] => {
     const tk = (tab: SettingsTabId, key: string) => t(`settings.tabs.${tab}.${key}`);
 
     // Order: frequent prefs → product domain → identity/billing → meta → help
+    // Team is always visible: redeem/join must work on any plan; invite-create is gated in-tab.
     return [
         {
             id: 'general',
@@ -51,7 +50,6 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
             icon: Users,
             title: tk('team', 'title'),
             description: tk('team', 'description'),
-            locked: true,
         },
         {
             id: 'software',

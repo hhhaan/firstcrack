@@ -16,14 +16,14 @@
     },
     "auth": {
         "oauthCompleting": "正在完成登录…",
+        "sessionReplacedTitle": "已退出登录",
         "errors": {
             "invalid_credentials": "邮箱或密码不正确，请重试。",
             "network": "网络错误，请检查连接后重试。",
             "oauth_failed": "无法完成登录，请重试。",
-            "generic": "登录失败，请重试。",
-            "session_replaced": "该账号已在其他设备登录，您已被退出。"
-        },
-        "sessionReplacedTitle": "已退出登录"
+            "session_replaced": "该账号已在其他设备登录，您已被退出。",
+            "generic": "登录失败，请重试。"
+        }
     },
     "updater": {
         "checking": "正在检查更新…",
@@ -258,8 +258,8 @@
                 "title": "团队工作区",
                 "description": "邀请队友并管理谁可以访问此烘焙工作室。",
                 "locked": {
-                    "title": "团队工作区即将推出",
-                    "description": "邀请队友并管理谁可以访问此烘焙工作室。将在后续更新中开放。"
+                    "title": "托管团队需要 Enterprise",
+                    "description": "使用邀请码加入工作区对所有套餐开放。创建邀请并托管共享烘焙工作区需 Enterprise 套餐。"
                 },
                 "ownOrgNote": "团队设置始终管理你自己的组织，而不是侧边栏当前选中的工作区。",
                 "membersTitle": "成员",
@@ -275,7 +275,7 @@
                 "activeInvites": "有效邀请",
                 "revoke": "撤销",
                 "joinTitle": "加入团队",
-                "joinDescription": "粘贴工作区所有者给你的邀请码。",
+                "joinDescription": "粘贴工作区 Admin 给你的邀请码。",
                 "redeemPlaceholder": "邀请码",
                 "redeem": "加入工作区",
                 "errors": {
@@ -283,7 +283,7 @@
                     "revoked": "此邀请已被撤销。",
                     "already_used": "此邀请已被使用。",
                     "already_member": "你已是此工作区成员。",
-                    "seat_limit": "席位已满。请让所有者提高上限。",
+                    "seat_limit": "席位已满。请让 Admin 提高上限。",
                     "invalid": "无效的邀请码。",
                     "network": "网络错误。请检查连接。",
                     "generic": "出了点问题。请重试。"
@@ -291,6 +291,11 @@
                 "success": {
                     "inviteCreated": "邀请码已就绪 — 复制并分享。",
                     "joined": "已成功加入工作区。"
+                },
+                "unknownMember": "未知成员",
+                "roles": {
+                    "admin": "Admin",
+                    "member": "成员"
                 }
             },
             "software": {
