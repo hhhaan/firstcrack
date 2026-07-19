@@ -2,7 +2,6 @@ import { useProfile, useUpdateProfile } from '@entities/profile';
 import { locationStore, parseLocationString } from '@shared/lib/locationStore';
 import { logger } from '@shared/lib/logger';
 import { weatherKeys } from '@shared/lib/query-keys';
-import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
 import { SectionCard } from '@shared/ui/SectionCard';
 import { useQueryClient } from '@tanstack/react-query';
@@ -66,6 +65,7 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
     const tk = (key: string) => t(`settings.tabs.account.${key}`);
     const qc = useQueryClient();
     const user = useAuthStore((s) => s.user);
+    const signOut = useAuthStore((s) => s.signOut);
     const { data: profile } = useProfile(user?.id ?? '');
     const updateProfile = useUpdateProfile(user?.id ?? '');
 
@@ -210,7 +210,9 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                 <SectionCard.Body>
                     <button
                         type="button"
-                        onClick={() => supabase.auth.signOut().then(() => onClose())}
+                        onClick={() => {
+                            void signOut().then(() => onClose());
+                        }}
                         className="flex items-center gap-2 px-4.5 py-2.5 rounded-lg border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-[13px] font-semibold hover:bg-red-100 dark:hover:bg-red-500/15 active:bg-red-200 dark:active:bg-red-500/20 transition-all"
                     >
                         <LogOut size={14} strokeWidth={2} />

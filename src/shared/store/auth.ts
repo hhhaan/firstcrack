@@ -1,16 +1,20 @@
 import type { User } from '@supabase/supabase-js';
+import i18n from 'i18next';
 import { create } from 'zustand';
 import { logger } from '../lib/logger';
+import { sendOsNotification } from '../lib/osNotification';
 import { supabase } from '../lib/supabase';
 
 /** Stable auth UI error codes — no raw Supabase strings in UI. */
-export type AuthErrorCode = 'invalid_credentials' | 'network' | 'oauth_failed' | 'generic';
+export type AuthErrorCode = 'invalid_credentials' | 'network' | 'oauth_failed' | 'session_replaced' | 'generic';
 
 /** SSOT states + legacy values still present mid-rollout. 'free' doubles as the loading placeholder (no features, writable). */
 export type Plan = 'trial' | 'read_only' | 'pro' | 'pro_plus' | 'enterprise' | 'free' | 'team';
 
 const OAUTH_TIMEOUT_MS = 90_000;
 let oauthTimeoutId: ReturnType<typeof setTimeout> | undefined;
+/** True only for explicit user-initiated sign-out (settings etc.). */
+let intentionalSignOut = false;
 
 const clearOAuthTimeout = () => {
     if (oauthTimeoutId) {
@@ -36,10 +40,26 @@ interface AuthActions {
     startOAuth: () => void;
     /** OAuth 실패/타임아웃 시 대기 상태 해제. 인자 없으면 조용히 취소(Cancel). */
     cancelOAuth: (error?: AuthErrorCode) => void;
-    /** 로그아웃 */
+    /** 로그아웃 (의도적 — 세션 교체 메시지 없음) */
     signOut: () => Promise<void>;
 }
 
+const fetchPlan = (userId: string, set: (partial: Partial<AuthState>) => void) => {
+    void (async () => {
+        try {
+            const { data } = await supabase.from('profiles').select('plan').eq('id', userId).single();
+            if (data?.plan) set({ plan: data.plan as Plan });
+        } catch (e) {
+            logger.capture(e, { context: 'auth plan fetch' });
+        }
+    })();
+};
+
+/**
+ * Concurrent sessions: Supabase "Single session per user" (Dashboard Auth → Sessions).
+ * Old sessions die on next token refresh — not mid-request / not Realtime kick.
+ * Client only surfaces a message when sign-out was not intentional.
+ */
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     user: null,
     plan: 'free',
@@ -65,29 +85,43 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 oauthPending: false,
                 oauthError: null,
             });
-            if (next) {
-                void (async () => {
-                    try {
-                        const { data } = await supabase.from('profiles').select('plan').eq('id', next.id).single();
-                        if (data?.plan) set({ plan: data.plan as Plan });
-                    } catch (e) {
-                        logger.capture(e, { context: 'auth plan fetch' });
-                    }
-                })();
-            }
+            if (next) fetchPlan(next.id, set);
         });
 
         // onAuthStateChange는 동기 콜백이어야 함 — async 사용 금지
         // Supabase v2: subscribe 시점에 INITIAL_SESSION으로 즉시 발화
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((_, session) => {
+        } = supabase.auth.onAuthStateChange((_event, session) => {
             clearTimeout(timeout);
 
+            const prevUser = get().user;
             const next = session?.user ?? null;
-            if (get().user?.id === next?.id && !get().loading && !get().oauthPending) return;
+
+            // Same user already applied (token refresh etc.)
+            if (get().user?.id === next?.id && !get().loading && !get().oauthPending) {
+                return;
+            }
 
             clearOAuthTimeout();
+
+            if (!next) {
+                const replaced = Boolean(prevUser) && !intentionalSignOut;
+                intentionalSignOut = false;
+                set({
+                    user: null,
+                    plan: 'free',
+                    loading: false,
+                    oauthPending: false,
+                    oauthError: replaced ? 'session_replaced' : null,
+                });
+                if (replaced) {
+                    sendOsNotification(i18n.t('auth.sessionReplacedTitle'), i18n.t('auth.errors.session_replaced'));
+                }
+                return;
+            }
+
+            intentionalSignOut = false;
             set({
                 user: next,
                 plan: 'free',
@@ -95,17 +129,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 oauthPending: false,
                 oauthError: null,
             });
-
-            if (next) {
-                void (async () => {
-                    try {
-                        const { data } = await supabase.from('profiles').select('plan').eq('id', next.id).single();
-                        if (data?.plan) set({ plan: data.plan as Plan });
-                    } catch (e) {
-                        logger.capture(e, { context: 'auth plan fetch' });
-                    }
-                })();
-            }
+            fetchPlan(next.id, set);
         });
 
         return () => {
@@ -116,6 +140,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     },
 
     signInWithEmail: async (email, password) => {
+        intentionalSignOut = false;
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
     },
@@ -140,8 +165,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     },
 
     signOut: async () => {
+        intentionalSignOut = true;
         const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        if (error) {
+            intentionalSignOut = false;
+            throw error;
+        }
         clearOAuthTimeout();
         set({ user: null, plan: 'free', oauthPending: false, oauthError: null });
     },
