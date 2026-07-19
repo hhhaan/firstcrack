@@ -20,6 +20,9 @@ class KaleidoAdapter:
 
     connect()은 extern/kaleido.py의 ws_initialize() (Ping→TU→SC) 완료를
     sid + TU 상태 폴링으로 확인한 뒤 반환한다.
+
+    KaleidoPort.getBTET/stop/send_request는 동기 future.result()를 쓰므로
+    aiohttp 이벤트 루프를 막지 않도록 to_thread로 오프로드한다.
     """
 
     def __init__(
@@ -65,29 +68,44 @@ class KaleidoAdapter:
                 "timeout": self._timeout,
                 "clear_HUPCL": False,
             }
-        self._driver.start(
-            mode="C",  # 온도 단위(C/F): roaster registry에서 항상 C 모드 가정
-            host=self._host,
-            port=self._port,
-            path=self._path,
-            serial=serial,
-        )
-        # ws_initialize()가 Ping→TU→SC 핸드셰이크를 백그라운드에서 수행.
-        # sid와 TU가 모두 설정되면 초기화 완료.
-        deadline = time.monotonic() + _CONNECT_TIMEOUT
-        while time.monotonic() < deadline:
-            await asyncio.sleep(_CONNECT_POLL)
-            if self._driver.get_state("sid") is not None and self._driver.get_state("TU") is not None:
-                self._connected = True
-                _log.info("Kaleido connected (mode=%s, TU=%s)", self._mode, self._driver.get_state("TU"))
-                return
-        raise ConnectionError(f"Kaleido 핸드셰이크 타임아웃 ({_CONNECT_TIMEOUT}s): Ping→TU→SC 미완료")
+        started = False
+        try:
+            self._driver.start(
+                mode="C",  # 온도 단위(C/F): roaster registry에서 항상 C 모드 가정
+                host=self._host,
+                port=self._port,
+                path=self._path,
+                serial=serial,
+            )
+            started = True
+            # ws_initialize()가 Ping→TU→SC 핸드셰이크를 백그라운드에서 수행.
+            # sid와 TU가 모두 설정되면 초기화 완료.
+            deadline = time.monotonic() + _CONNECT_TIMEOUT
+            while time.monotonic() < deadline:
+                await asyncio.sleep(_CONNECT_POLL)
+                if self._driver.get_state("sid") is not None and self._driver.get_state("TU") is not None:
+                    self._connected = True
+                    _log.info("Kaleido connected (mode=%s, TU=%s)", self._mode, self._driver.get_state("TU"))
+                    return
+            raise ConnectionError(f"Kaleido 핸드셰이크 타임아웃 ({_CONNECT_TIMEOUT}s): Ping→TU→SC 미완료")
+        except Exception:
+            if started:
+                await self._stop_driver()
+            self._connected = False
+            raise
+
+    async def _stop_driver(self) -> None:
+        """CL/AR 안전가드 포함 stop — 블로킹이므로 스레드로."""
+        try:
+            await asyncio.to_thread(self._driver.stop)
+        except Exception:
+            _log.exception("Kaleido driver.stop() failed")
 
     async def disconnect(self) -> None:
-        self._driver.stop()
+        await self._stop_driver()
         self._connected = False
 
-    async def read(self) -> Reading:
+    def _read_sync(self) -> Reading:
         bt, et, _sid = self._driver.getBTET()
         try:
             hp = float(self._driver.get_state("HP") or 0)
@@ -102,6 +120,9 @@ class KaleidoAdapter:
         except (KeyError, TypeError):
             drum = 0.0
         return Reading(bt=bt, et=et, heater=hp, fan=fc, drum=drum, timestamp=time.monotonic())
+
+    async def read(self) -> Reading:
+        return await asyncio.to_thread(self._read_sync)
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
         pass  # 제어 기능 미사용 — 제거 예정

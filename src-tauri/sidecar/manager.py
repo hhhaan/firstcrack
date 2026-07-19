@@ -177,6 +177,11 @@ class RoasterManager:
                     level="info",
                 )
             except Exception as exc:
+                # 부분 연결(소켓/스레드) 정리 — status용 메타는 유지
+                try:
+                    await self._adapter.disconnect()
+                except Exception:
+                    pass
                 self._error = _format_connection_error(exc, protocol, merged)
                 self._connected = False
                 self._protocol = protocol

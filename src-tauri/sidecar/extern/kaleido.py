@@ -583,7 +583,7 @@ class KaleidoPort:
                 task = self.write_await(msg, variable, await_var, send_timeout)
                 future = asyncio.run_coroutine_threadsafe(task, self._asyncLoopThread.loop)
                 try:
-                    return future.result()
+                    return future.result(send_timeout)
                 except TimeoutError:
                     # the coroutine took too long, cancelling the task...
                     if self._logging:

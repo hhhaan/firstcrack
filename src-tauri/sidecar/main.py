@@ -71,13 +71,22 @@ def _pid_alive(pid: int) -> bool:
         return False
 
 
-async def parent_watchdog(parent_pid: int) -> None:
-    """Tauri 부모 프로세스가 죽으면 sidecar도 즉시 종료."""
+async def _cleanup_manager(manager: RoasterManager) -> None:
+    """어댑터 정리(Kaleido CL/AR, 시리얼 해제 등). 실패해도 종료 경로를 막지 않음."""
+    try:
+        await manager.disconnect()
+    except Exception:
+        _log.exception("shutdown disconnect failed")
+
+
+async def parent_watchdog(parent_pid: int, manager: RoasterManager) -> None:
+    """Tauri 부모 프로세스가 죽으면 어댑터 정리 후 sidecar 종료."""
     import asyncio
     while True:
         await asyncio.sleep(1.0)
         if not _pid_alive(parent_pid):
             _log.info("부모 프로세스(PID %d) 종료 감지 — sidecar 종료", parent_pid)
+            await _cleanup_manager(manager)
             os._exit(0)
 
 class _SilencePolling(logging.Filter):
@@ -184,6 +193,10 @@ async def handle_settings(request: web.Request) -> web.Response:
 async def handle_shutdown(request: web.Request) -> web.Response:
     """Tauri Exit 핸들러에서 호출하는 graceful shutdown 엔드포인트."""
     import asyncio
+
+    manager: RoasterManager = request.app["manager"]
+    await _cleanup_manager(manager)
+    # 응답 flush 후 프로세스 종료
     asyncio.get_event_loop().call_later(0.05, os._exit, 0)
     return web.Response(text="ok")
 
@@ -303,9 +316,13 @@ def create_app() -> web.Application:
         import asyncio
         pid_str = os.environ.get("SIDECAR_PARENT_PID")
         if pid_str:
-            asyncio.create_task(parent_watchdog(int(pid_str)))
+            asyncio.create_task(parent_watchdog(int(pid_str), app["manager"]))
+
+    async def _cleanup_on_app_exit(app: web.Application) -> None:
+        await _cleanup_manager(app["manager"])
 
     app.on_startup.append(_start_watchdog)
+    app.on_cleanup.append(_cleanup_on_app_exit)
 
     # 클라이언트는 src/entities/machine/roasterRegistry.ts (정적 복사본)를 사용.
     # GET /roasters는 현재 호출되지 않음 — 향후 단일화 시 활성화.

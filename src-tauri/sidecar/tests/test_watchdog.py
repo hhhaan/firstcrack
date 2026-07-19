@@ -32,19 +32,21 @@ class TestPidAlive:
 
 class TestParentWatchdog:
     async def test_watchdog_calls_exit_on_dead_pid(self):
-        """존재하지 않는 PID를 넘기면 watchdog이 os._exit(0)을 호출해야 한다."""
+        """존재하지 않는 PID를 넘기면 disconnect 후 os._exit(0)을 호출해야 한다."""
         from main import parent_watchdog
 
         exit_called_with = []
+        manager = mock.AsyncMock()
 
         with mock.patch("main.os._exit", side_effect=lambda code: exit_called_with.append(code)):
             with mock.patch("main._pid_alive", return_value=False):
-                task = asyncio.create_task(parent_watchdog(999999999))
+                task = asyncio.create_task(parent_watchdog(999999999, manager))
                 try:
                     await asyncio.wait_for(task, timeout=2.0)
                 except (asyncio.TimeoutError, asyncio.CancelledError, SystemExit):
                     pass
 
+        manager.disconnect.assert_awaited_once()
         assert exit_called_with == [0], f"os._exit(0) 미호출: {exit_called_with}"
 
     async def test_watchdog_continues_if_parent_alive(self):
@@ -52,6 +54,7 @@ class TestParentWatchdog:
         from main import parent_watchdog
 
         call_count = 0
+        manager = mock.AsyncMock()
 
         def fake_pid_alive(pid):
             nonlocal call_count
@@ -59,7 +62,7 @@ class TestParentWatchdog:
             return True
 
         with mock.patch("main._pid_alive", side_effect=fake_pid_alive):
-            task = asyncio.create_task(parent_watchdog(os.getpid()))
+            task = asyncio.create_task(parent_watchdog(os.getpid(), manager))
             await asyncio.sleep(2.5)
             task.cancel()
             try:
@@ -68,6 +71,7 @@ class TestParentWatchdog:
                 pass
 
         assert call_count >= 2, f"기대: >=2 호출, 실제: {call_count}"
+        manager.disconnect.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +84,9 @@ class TestShutdownEndpoint:
         from main import create_app
 
         app = create_app()
+        app["manager"] = mock.AsyncMock()
         async with TestClient(TestServer(app)) as client:
             with mock.patch("main.os._exit"):
                 resp = await client.post("/shutdown")
                 assert resp.status == 200
+        app["manager"].disconnect.assert_awaited()
