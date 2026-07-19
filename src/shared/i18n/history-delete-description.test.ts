@@ -1,8 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import i18n from 'i18next';
 import { beforeAll, describe, expect, it } from 'vitest';
+import modalSrc from '../../views/history/ui/DeleteSessionModal.tsx?raw';
 import en from './locales/en.json';
 import ja from './locales/ja.json';
 import ko from './locales/ko.json';
@@ -57,10 +55,7 @@ describe('history.delete.description', () => {
     });
 
     it('DeleteSessionModal passes name into t (no outer sessionName + suffix compose)', () => {
-        const here = dirname(fileURLToPath(import.meta.url));
-        const modalPath = join(here, '../../views/history/ui/DeleteSessionModal.tsx');
-        const src = readFileSync(modalPath, 'utf8');
-        expect(src).toMatch(/t\(\s*['"]history\.delete\.description['"]\s*,\s*\{\s*name:\s*sessionName\s*\}\s*\)/);
-        expect(src).not.toMatch(/\{sessionName\}.*t\(\s*['"]history\.delete\.description['"]\s*\)/);
+        expect(modalSrc).toMatch(/t\(\s*['"]history\.delete\.description['"]\s*,\s*\{\s*name:\s*sessionName\s*\}\s*\)/);
+        expect(modalSrc).not.toMatch(/\{sessionName\}.*t\(\s*['"]history\.delete\.description['"]\s*\)/);
     });
 });
