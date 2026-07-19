@@ -56,13 +56,14 @@ export const blendApi = {
             .eq('id', id);
         if (blendErr) throw blendErr;
 
-        // replace all components
-        const { error: delErr } = await supabase.from('blend_components').delete().eq('blend_id', id);
-        if (delErr) throw delErr;
-
-        const { error: compErr } = await supabase
-            .from('blend_components')
-            .insert(components.map((c) => ({ ...c, blend_id: id })));
+        // Single TX replace — deferred ratio trigger sees final sum only (C4)
+        const { error: compErr } = await supabase.rpc('replace_blend_components', {
+            p_blend_id: id,
+            p_components: components.map((c) => ({
+                bean_id: c.bean_id,
+                ratio_pct: c.ratio_pct,
+            })),
+        });
         if (compErr) throw compErr;
 
         return blendApi.get(id);

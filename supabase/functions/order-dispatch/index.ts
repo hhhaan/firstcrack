@@ -12,10 +12,7 @@ import { mergeStatus } from '../_shared/channels/status-map.ts';
 import type { CanonicalStatus, ChannelSecrets, Platform } from '../_shared/channels/types.ts';
 
 function serviceClient() {
-    return createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
+    return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 }
 
 Deno.serve(async (req) => {
@@ -49,7 +46,9 @@ Deno.serve(async (req) => {
     const admin = serviceClient();
     const { data: order, error: orderErr } = await admin
         .from('orders')
-        .select('id, user_id, platform, platform_order_id, connection_id, status, order_lines(id, platform_line_id, status)')
+        .select(
+            'id, user_id, platform, platform_order_id, connection_id, status, fulfilled_at, order_lines(id, platform_line_id, status)',
+        )
         .eq('id', body.orderId)
         .maybeSingle();
 
@@ -96,10 +95,7 @@ Deno.serve(async (req) => {
             .update({
                 carrier: body.carrier,
                 tracking_number: tracking,
-                status: nextDispatchStatus(
-                    existingDispatch.status as 'pending' | 'failed',
-                    'retry',
-                ),
+                status: nextDispatchStatus(existingDispatch.status as 'pending' | 'failed', 'retry'),
                 attempt_count: (existingDispatch.attempt_count ?? 0) + 1,
                 last_error: null,
                 updated_at: now,
@@ -205,10 +201,39 @@ Deno.serve(async (req) => {
             })
             .eq('id', order.id);
 
+        // C3: app dispatch pre-sets shipped — auto-fulfill must run here (inbound path never fires).
+        let fulfilled = false;
+        let fulfillError: string | null = null;
+        if (!order.fulfilled_at) {
+            const { data: conn } = await admin
+                .from('sales_channels')
+                .select('auto_fulfill_on_shipped')
+                .eq('id', order.connection_id)
+                .maybeSingle();
+            if (conn?.auto_fulfill_on_shipped === true) {
+                const { error: fulfillErr } = await admin.rpc('fulfill_order', { p_order_id: order.id });
+                if (fulfillErr) {
+                    fulfillError = fulfillErr.message;
+                    console.error('[order-dispatch] fulfill_order', fulfillErr);
+                    await admin
+                        .from('order_dispatches')
+                        .update({
+                            last_error: `fulfill: ${fulfillErr.message}`.slice(0, 1000),
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq('id', dispatchId);
+                } else {
+                    fulfilled = true;
+                }
+            }
+        }
+
         return jsonResponse({
             status,
             alreadyShipped: result.alreadyShipped,
             lineResults: result.lineResults,
+            fulfilled,
+            fulfillError,
         });
     }
 

@@ -78,6 +78,28 @@ export const roastSessionApi = {
         return data;
     },
 
+    /**
+     * Atomic save: session + optional bean deduct + optional roasted inbound (C1).
+     * Server skips deduct when batch-level deduction already exists (C2).
+     */
+    saveOp: async (params: {
+        session: RoastSessionInsert;
+        deduct: boolean;
+        deductionGrams: number;
+        inboundGrams: number;
+        inboundIsEstimate: boolean;
+    }): Promise<RoastSession> => {
+        const { data, error } = await supabase.rpc('save_roast_op', {
+            p_session: params.session,
+            p_deduct: params.deduct,
+            p_deduction_grams: params.deductionGrams,
+            p_inbound_grams: params.inboundGrams,
+            p_inbound_is_estimate: params.inboundIsEstimate,
+        });
+        if (error) throw error;
+        return data as RoastSession;
+    },
+
     /** Lifetime completed sessions (trial 20-batch cap). */
     countCompletedTotal: async (userId: string): Promise<number> => {
         const { count, error } = await supabase

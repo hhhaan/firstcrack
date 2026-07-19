@@ -5,7 +5,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SaveRoastDeps, saveRoastCore } from './useSaveRoast';
 
 const baseParams = {
-    formData: { notes: '', weightGrams: 5, outputWeightKg: 4.2, roastLevel: 'city', beanId: 'bean-1' },
+    formData: {
+        notes: '',
+        weightGrams: 5,
+        outputWeightKg: 4.2,
+        roastLevel: 'city',
+        beanId: 'bean-1',
+        deductStock: true,
+    },
     handoffBeanName: null,
     sessionId: 'local-sess',
     userId: 'user-1',
@@ -42,9 +49,8 @@ function makeDeps(overrides: Partial<SaveRoastDeps> = {}): SaveRoastDeps {
         planBatchHandoff: null,
         countCompletedThisMonth: vi.fn().mockResolvedValue(0),
         countCompletedTotal: vi.fn().mockResolvedValue(0),
-        createSession: vi.fn().mockResolvedValue({ id: 'sess-db-1' }),
+        saveOp: vi.fn().mockResolvedValue({ id: 'sess-db-1' }),
         syncRoastCurve: vi.fn().mockResolvedValue(undefined),
-        upsertInbound: vi.fn().mockResolvedValue(undefined),
         updatePlanBatch: vi.fn().mockResolvedValue(undefined),
         startBatch: vi.fn(),
         recordAdhocSave: vi.fn(),
@@ -56,22 +62,21 @@ function makeDeps(overrides: Partial<SaveRoastDeps> = {}): SaveRoastDeps {
 describe('saveRoastCore', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('월 배치 캡 도달 → BatchLimitError, 세션 생성/차감 없음', async () => {
+    it('월 배치 캡 도달 → BatchLimitError, saveOp 없음', async () => {
         const deps = makeDeps({
-            countCompletedThisMonth: vi.fn().mockResolvedValue(9999), // pro 캡 이상
+            countCompletedThisMonth: vi.fn().mockResolvedValue(9999),
         });
         await expect(saveRoastCore(deps, baseParams)).rejects.toBeInstanceOf(BatchLimitError);
-        expect(deps.createSession).not.toHaveBeenCalled();
-        expect(deps.upsertInbound).not.toHaveBeenCalled();
+        expect(deps.saveOp).not.toHaveBeenCalled();
     });
 
-    it('trial 20회 도달 → trial_batch_cap, 세션 생성 없음', async () => {
+    it('trial 20회 도달 → trial_batch_cap, saveOp 없음', async () => {
         const deps = makeDeps({
             plan: 'trial',
             countCompletedTotal: vi.fn().mockResolvedValue(20),
         });
         await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'trial_batch_cap' });
-        expect(deps.createSession).not.toHaveBeenCalled();
+        expect(deps.saveOp).not.toHaveBeenCalled();
     });
 
     it('trial 19회 → 저장 통과 (월 캡 미적용)', async () => {
@@ -87,28 +92,32 @@ describe('saveRoastCore', () => {
     it('read_only → 즉시 거부', async () => {
         const deps = makeDeps({ plan: 'read_only' });
         await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'read_only_plan' });
-        expect(deps.createSession).not.toHaveBeenCalled();
+        expect(deps.saveOp).not.toHaveBeenCalled();
     });
 
     it('서버 게이트 RAISE → BatchLimitError로 매핑', async () => {
         const deps = makeDeps({
-            createSession: vi.fn().mockRejectedValue(new Error('trial_expired')),
+            saveOp: vi.fn().mockRejectedValue(new Error('trial_expired')),
         });
         await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'trial_expired' });
     });
 
-    it('해피패스: 이벤트 시간순 직렬화 + plan_batch_id + 마지막 배치 → done', async () => {
+    it('해피패스: save_roast_op 단일 호출 + plan_batch_id + 마지막 배치 → done', async () => {
         const deps = makeDeps({ planBatchHandoff: handoff });
         const result = await saveRoastCore(deps, { ...baseParams, planBatchHandoff: handoff });
 
-        const payload = (deps.createSession as ReturnType<typeof vi.fn>).mock.calls[0][0];
-        expect(payload.plan_batch_id).toBe('batch-1');
-        expect(payload.weight_grams).toBe(5000);
-        expect(payload.output_weight_grams).toBe(4200);
-        const times = (payload.events as Array<{ time_sec: number }>).map((e) => e.time_sec);
-        expect(times).toEqual([...times].sort((a, b) => a - b)); // 시간순
+        expect(deps.saveOp).toHaveBeenCalledTimes(1);
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.plan_batch_id).toBe('batch-1');
+        expect(arg.session.weight_grams).toBe(5000);
+        expect(arg.session.output_weight_grams).toBe(4200);
+        expect(arg.deduct).toBe(true);
+        expect(arg.deductionGrams).toBe(5000);
+        expect(arg.inboundGrams).toBe(4200);
+        expect(arg.inboundIsEstimate).toBe(false);
+        const times = (arg.session.events as Array<{ time_sec: number }>).map((e) => e.time_sec);
+        expect(times).toEqual([...times].sort((a, b) => a - b));
 
-        // completedSessions 1 + 1 == batchCount 2 → done 1회
         expect(deps.updatePlanBatch).toHaveBeenCalledTimes(1);
         expect(deps.updatePlanBatch).toHaveBeenCalledWith({
             id: 'batch-1',
@@ -117,9 +126,14 @@ describe('saveRoastCore', () => {
         expect(result.shouldOpenContinue).toBe(true);
     });
 
-    it('roasted inbound 실패해도 저장 플로우는 성공', async () => {
-        const deps = makeDeps({ upsertInbound: vi.fn().mockRejectedValue(new Error('rls')) });
-        const result = await saveRoastCore(deps, baseParams);
-        expect(result.savedSession).toEqual({ id: 'sess-db-1' });
+    it('deductStock false → deduct 플래그 false', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            formData: { ...baseParams.formData, deductStock: false },
+        });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.deduct).toBe(false);
+        expect(arg.deductionGrams).toBe(0);
     });
 });

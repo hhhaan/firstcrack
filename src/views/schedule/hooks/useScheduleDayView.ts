@@ -492,12 +492,22 @@ export const useScheduleDayView = ({
                     if (!batch.bean_id && !batch.blend_id) {
                         alert(i18n.t('schedule.completeBatch.deductStockDisabled'));
                     } else if (deductionGrams > 0) {
-                        await deductRoastStock({
-                            deductionGrams,
-                            singleBeanId: batch.bean_id ?? null,
-                            blendId: batch.blend_id ?? null,
-                            referenceId: targetId,
-                        });
+                        try {
+                            await deductRoastStock({
+                                deductionGrams,
+                                singleBeanId: batch.bean_id ?? null,
+                                blendId: batch.blend_id ?? null,
+                                referenceId: targetId,
+                            });
+                        } catch (deductErr) {
+                            const msg = unknownErrorMessage(deductErr);
+                            // C2: session path already deducted — batch status still done
+                            if (msg.includes('roast_already_deducted')) {
+                                alert(i18n.t('activeRoast.summary.deductSkippedAlreadyDeducted'));
+                            } else {
+                                throw deductErr;
+                            }
+                        }
                     }
                 }
             } catch (err) {

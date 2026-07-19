@@ -1,8 +1,9 @@
 import { beanKeys } from '@entities/bean/queries';
+import { stockEventKeys } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
 import { useUpdateSingleBatch } from '@entities/plan';
-import { type RoastSessionInsert, roastSessionApi, useCreateRoastSession } from '@entities/roast';
-import { roastedStockEventApi, roastedStockKeys } from '@entities/roasted-stock-event';
+import { invalidateAfterCreateRoastSession, type RoastSessionInsert, roastSessionApi } from '@entities/roast';
+import { roastedStockKeys } from '@entities/roasted-stock-event';
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
@@ -16,12 +17,13 @@ import {
     TRIAL_BATCH_CAP,
 } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
+import { inventoryQueryRoots } from '@shared/lib/query-keys';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
-import type { Bean, PlanBatchHandoff } from '@shared/types/database.types';
+import type { Bean, PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 /** Injected from upload feature (composed in views) — avoids feature→feature import. */
 export type SyncRoastCurve = (input: { sessionId: string; roastSessionId: string }) => Promise<unknown>;
@@ -37,6 +39,8 @@ export type SaveRoastFormData = {
     beanId: string | null;
     /** resolved handoff for ad-hoc schedule link (from day batches) */
     linkedBatch?: PlanBatchHandoff | null;
+    /** When true, server deducts green in the same TX as session save (C1). */
+    deductStock?: boolean;
 };
 
 export interface SaveRoastParams {
@@ -56,7 +60,7 @@ export interface SaveRoastParams {
 }
 
 export interface SaveRoastResult {
-    savedSession: Awaited<ReturnType<ReturnType<typeof useCreateRoastSession>['mutateAsync']>>;
+    savedSession: RoastSession;
     deductionPlan: ReturnType<typeof determineStockDeduction>;
     shouldOpenContinue: boolean;
 }
@@ -68,9 +72,8 @@ export type SaveRoastDeps = {
     planBatchHandoff: PlanBatchHandoff | null;
     countCompletedThisMonth: (userId: string) => Promise<number>;
     countCompletedTotal: (userId: string) => Promise<number>;
-    createSession: ReturnType<typeof useCreateRoastSession>['mutateAsync'];
+    saveOp: typeof roastSessionApi.saveOp;
     syncRoastCurve: SyncRoastCurve;
-    upsertInbound: typeof roastedStockEventApi.upsertInbound;
     updatePlanBatch: ReturnType<typeof useUpdateSingleBatch>['mutateAsync'];
     startBatch: (b: PlanBatchHandoff) => void;
     recordAdhocSave: (p: { beanId: string | null; weightKg: number; roastLevel: string | null }) => void;
@@ -92,9 +95,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         planBatchHandoff,
         countCompletedThisMonth,
         countCompletedTotal,
-        createSession,
+        saveOp,
         syncRoastCurve,
-        upsertInbound,
         updatePlanBatch,
         startBatch,
         recordAdhocSave,
@@ -169,32 +171,57 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         events: serializeRoastEvents(payloadParams.logEntries),
     };
 
-    const savedSession = await createSession(payload).catch((e: unknown) => {
+    const inbound = buildRoastedInbound({
+        greenGrams: weightGrams,
+        outputWeightGrams,
+        roastLevel: formData.roastLevel,
+    });
+
+    const cachedBeans = userId ? qc.getQueryData<Bean[]>(beanKeys.all(userId)) : undefined;
+    const resolvedBeanName =
+        effectiveBatch?.beanName ??
+        handoffBeanName ??
+        (resolvedBeanId ? (cachedBeans?.find((b) => b.id === resolvedBeanId)?.name ?? null) : null);
+
+    // provisional plan for grams/canDeduct — reference filled after save
+    const provisionalPlan = determineStockDeduction({
+        planBatchHandoff: effectiveBatch,
+        saveWeight: weightGrams,
+        selectedBeanId: resolvedBeanId,
+        referenceId: 'pending',
+        handoffBeanName: resolvedBeanName,
+    });
+
+    const wantDeduct = Boolean(formData.deductStock && provisionalPlan?.canDeduct);
+    const deductionGrams = wantDeduct ? (provisionalPlan?.deductionGrams ?? 0) : 0;
+
+    const savedSession = await saveOp({
+        session: payload,
+        deduct: wantDeduct,
+        deductionGrams,
+        inboundGrams: inbound?.grams ?? 0,
+        inboundIsEstimate: inbound?.isEstimate ?? false,
+    }).catch((e: unknown) => {
         throw mapServerBatchGateError(e) ?? e;
     });
+
+    invalidateAfterCreateRoastSession(qc, userId);
+    if (wantDeduct && provisionalPlan) {
+        void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
+        if (provisionalPlan.singleBeanId) {
+            void qc.invalidateQueries({ queryKey: stockEventKeys.summary(provisionalPlan.singleBeanId) });
+            void qc.invalidateQueries({ queryKey: stockEventKeys.byBean(provisionalPlan.singleBeanId) });
+        }
+    }
+    if (inbound) {
+        void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId) });
+    }
 
     // Meta returns immediately; curve sync background. Local TSV kept if sync fails.
     if (sessionId) {
         void syncRoastCurve({ sessionId, roastSessionId: savedSession.id }).catch((err) => {
             logger.capture(err, { context: 'saveRoast tsv' });
         });
-    }
-
-    // Loose roasted 자동 입고 — 전 플랜 기록, 실패해도 저장 플로우는 막지 않는다
-    const inbound = buildRoastedInbound({
-        greenGrams: weightGrams,
-        outputWeightGrams,
-        roastLevel: formData.roastLevel,
-    });
-    if (inbound) {
-        void upsertInbound({
-            sessionId: savedSession.id,
-            userId,
-            grams: inbound.grams,
-            isEstimate: inbound.isEstimate,
-        })
-            .then(() => qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId) }))
-            .catch((err) => logger.capture(err, { context: 'saveRoast roasted inbound' }));
     }
 
     if (effectiveBatch) {
@@ -218,12 +245,6 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         });
     }
 
-    const cachedBeans = userId ? qc.getQueryData<Bean[]>(beanKeys.all(userId)) : undefined;
-    const resolvedBeanName =
-        effectiveBatch?.beanName ??
-        handoffBeanName ??
-        (resolvedBeanId ? (cachedBeans?.find((b) => b.id === resolvedBeanId)?.name ?? null) : null);
-
     const deductionPlan = determineStockDeduction({
         planBatchHandoff: effectiveBatch,
         saveWeight: weightGrams,
@@ -245,8 +266,8 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const userId = workspaceOwnerId;
     const qc = useQueryClient();
+    const [isSaving, setIsSaving] = useState(false);
 
-    const { mutateAsync: saveRoastSession, isPending: isSaving } = useCreateRoastSession(userId);
     // Single-batch update: invalidates schedule roots regardless of which planId (ad-hoc link safe)
     const { mutateAsync: updatePlanBatch } = useUpdateSingleBatch();
     const startBatch = useRoastSessionStore((s) => s.startBatch);
@@ -260,37 +281,30 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
                 throw new Error('Workspace is still loading');
             }
 
-            return saveRoastCore(
-                {
-                    plan,
-                    userId,
-                    qc,
-                    planBatchHandoff,
-                    countCompletedThisMonth: roastSessionApi.countCompletedThisMonth,
-                    countCompletedTotal: roastSessionApi.countCompletedTotal,
-                    createSession: saveRoastSession,
-                    syncRoastCurve,
-                    upsertInbound: roastedStockEventApi.upsertInbound,
-                    updatePlanBatch,
-                    startBatch,
-                    recordAdhocSave: (p) => useRoastSessionStore.getState().recordAdhocSave(p),
-                    getFinalizedBbp: () => useBbpStore.getState().finalized,
-                },
-                params,
-            );
+            setIsSaving(true);
+            try {
+                return await saveRoastCore(
+                    {
+                        plan,
+                        userId,
+                        qc,
+                        planBatchHandoff,
+                        countCompletedThisMonth: roastSessionApi.countCompletedThisMonth,
+                        countCompletedTotal: roastSessionApi.countCompletedTotal,
+                        saveOp: roastSessionApi.saveOp,
+                        syncRoastCurve,
+                        updatePlanBatch,
+                        startBatch,
+                        recordAdhocSave: (p) => useRoastSessionStore.getState().recordAdhocSave(p),
+                        getFinalizedBbp: () => useBbpStore.getState().finalized,
+                    },
+                    params,
+                );
+            } finally {
+                setIsSaving(false);
+            }
         },
-        [
-            user,
-            userId,
-            isWorkspaceReady,
-            plan,
-            qc,
-            syncRoastCurve,
-            saveRoastSession,
-            planBatchHandoff,
-            startBatch,
-            updatePlanBatch,
-        ],
+        [user, userId, isWorkspaceReady, plan, qc, syncRoastCurve, planBatchHandoff, startBatch, updatePlanBatch],
     );
 
     return useMemo(

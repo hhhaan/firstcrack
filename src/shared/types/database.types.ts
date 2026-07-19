@@ -1944,6 +1944,21 @@ export type Database = {
                 Returns: string[];
             };
             fulfill_order: { Args: { p_order_id: string }; Returns: undefined };
+            replace_blend_components: {
+                Args: { p_blend_id: string; p_components: Json };
+                Returns: undefined;
+            };
+            roast_deduction_blocked: { Args: { p_reference_id: string }; Returns: boolean };
+            save_roast_op: {
+                Args: {
+                    p_session: Json;
+                    p_deduct: boolean;
+                    p_deduction_grams: number;
+                    p_inbound_grams: number;
+                    p_inbound_is_estimate: boolean;
+                };
+                Returns: Database['public']['Tables']['roast_sessions']['Row'];
+            };
             get_bean_available_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_current_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_effective_stock: {

@@ -2,7 +2,6 @@ import { beanStockEventApi } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
 import { useDayBatches } from '@entities/plan';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
-import { useDeductRoastStock } from '@features/active-roast/model/useDeductRoastStock';
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
@@ -52,7 +51,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     const flow = useRoastCompletionFlow();
     const { mutateAsync: syncRoastCurve } = useUploadRoastProfile();
     const { saveRoast, isSaving } = useSaveRoast(planBatchHandoff, syncRoastCurve);
-    const deductRoastStock = useDeductRoastStock();
 
     const handleSave = useCallback(
         async (formData: RoastSummaryForm) => {
@@ -67,7 +65,24 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     linkedBatch = toPlanBatchHandoff(row);
                 }
 
-                const { deductionPlan, shouldOpenContinue } = await saveRoast({
+                // UX: warn if schedule already deducted this batch; server also skips (C2).
+                let deductStock = formData.deductStock;
+                const guardBatchId = planBatchHandoff?.planBatchId ?? linkedBatch?.planBatchId ?? null;
+                if (deductStock && guardBatchId) {
+                    try {
+                        if (await beanStockEventApi.hasRoastDeductionForReference(guardBatchId)) {
+                            deductStock = false;
+                            await message(i18n.t('activeRoast.summary.deductSkippedAlreadyDeducted'), {
+                                title: '재고 차감',
+                                kind: 'warning',
+                            });
+                        }
+                    } catch (err) {
+                        logger.capture(err, { context: 'stockDeduct guard' });
+                    }
+                }
+
+                const { shouldOpenContinue } = await saveRoast({
                     formData: {
                         notes: formData.notes,
                         weightGrams: formData.weightGrams,
@@ -75,6 +90,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                         roastLevel: formData.roastLevel,
                         beanId: formData.beanId,
                         linkedBatch,
+                        deductStock,
                     },
                     userId: workspaceOwnerId,
                     elapsed,
@@ -90,49 +106,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     logEntries: flow.summaryData?.logEntries ?? [],
                 });
 
-                if (formData.deductStock && deductionPlan) {
-                    const { singleBeanId, blendId, deductionGrams, referenceId } = deductionPlan;
-                    if (!singleBeanId && !blendId) {
-                        await message('연결된 원두가 없어 재고를 차감할 수 없습니다.', {
-                            title: '재고 차감 불가',
-                            kind: 'warning',
-                        });
-                    } else {
-                        // F3 guard: schedule-complete may have already deducted this batch (reference_id = plan batch id).
-                        const guardBatchId = planBatchHandoff?.planBatchId ?? linkedBatch?.planBatchId ?? null;
-                        let alreadyDeducted = false;
-                        if (guardBatchId) {
-                            try {
-                                alreadyDeducted = await beanStockEventApi.hasRoastDeductionForReference(guardBatchId);
-                            } catch (err) {
-                                // Fail-open: a missed guard is better than blocking the save flow.
-                                logger.capture(err, { context: 'stockDeduct guard' });
-                            }
-                        }
-                        if (alreadyDeducted) {
-                            await message(i18n.t('activeRoast.summary.deductSkippedAlreadyDeducted'), {
-                                title: '재고 차감',
-                                kind: 'warning',
-                            });
-                        } else {
-                            try {
-                                await deductRoastStock({
-                                    deductionGrams,
-                                    singleBeanId,
-                                    blendId,
-                                    referenceId,
-                                });
-                            } catch (err) {
-                                logger.capture(err, { context: 'stockDeduct inline' });
-                                await message(
-                                    `재고 차감에 실패했습니다.\n\n${err instanceof Error ? err.message : String(err)}`,
-                                    { title: '재고 차감 실패', kind: 'error' },
-                                );
-                            }
-                        }
-                    }
-                }
-
                 flow.onSaveSuccess({ shouldOpenContinue });
                 onResetActiveRoast();
             } catch (err) {
@@ -147,7 +120,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             user,
             workspaceOwnerId,
             saveRoast,
-            deductRoastStock,
             elapsed,
             roastStartTimeRef,
             rawBT,
