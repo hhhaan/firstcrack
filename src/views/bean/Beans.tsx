@@ -3,6 +3,9 @@ import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import type { BlendWithComponents } from '@entities/blend';
 import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
+import type { Product } from '@entities/product';
+import { productStockEventApi, productStockKeys } from '@entities/product-stock-event';
+import { roastedStockEventApi, roastedStockKeys } from '@entities/roasted-stock-event';
 import { useRoastingStore } from '@features/active-roast';
 import { BlendRoastedModal } from '@features/blend-roasted';
 import { FEATURE, useFeature } from '@shared/lib/features';
@@ -14,33 +17,59 @@ import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
+import { useQueryClient } from '@tanstack/react-query';
 import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
 import { AddBlendModal } from '@widgets/add-blend-modal';
 import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
 import { BeanList } from '@widgets/bean-list/ui/BeanList';
 import { BlendList } from '@widgets/blend-list/ui/BlendList';
 import { Plus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { InventoryLocked } from './ui/InventoryLocked';
 import { type InventoryTab, InventoryTabBar } from './ui/InventoryTabBar';
 import { ProductsTab } from './ui/ProductsTab';
 import { RoastedInventoryTab } from './ui/RoastedInventoryTab';
 
-export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => {
+type BeansProps = {
+    onNavigate?: (view: View) => void;
+    onUpgrade?: () => void;
+};
+
+export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     const { t } = useTranslation();
+    const qc = useQueryClient();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: beans = [], isLoading } = useBeans(userId);
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
     const { data: blends = [] } = useBlends(userId);
     const { mutate: deleteBean } = useDeleteBean(userId);
-    /** Pro+ / enterprise — same gate for roasted + product tabs. */
-    const showInventoryTabs = useFeature(FEATURE.roastedInventory);
+    const canRoasted = useFeature(FEATURE.roastedInventory);
+    const canProducts = useFeature(FEATURE.productStock);
+
+    // Warm inventory caches so tab switches are cache hits.
+    useEffect(() => {
+        if (!userId) return;
+        if (canRoasted) {
+            void qc.prefetchQuery({
+                queryKey: roastedStockKeys.byUser(userId),
+                queryFn: () => roastedStockEventApi.getUserRoastedStock(userId),
+            });
+        }
+        if (canProducts) {
+            void qc.prefetchQuery({
+                queryKey: productStockKeys.byUser(userId),
+                queryFn: () => productStockEventApi.getStockByUser(userId),
+            });
+        }
+    }, [userId, canRoasted, canProducts, qc]);
 
     const [activeTab, setActiveTab] = useState<InventoryTab>('green');
-    const inventoryTab = showInventoryTabs ? activeTab : 'green';
     const [blendModalOpen, setBlendModalOpen] = useState(false);
     const [isBlendAddOpen, setIsBlendAddOpen] = useState(false);
     const [editingBlend, setEditingBlend] = useState<BlendWithComponents | null>(null);
+    const [productAddOpen, setProductAddOpen] = useState(false);
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
     const [tab, setTab] = useState<'single' | 'blend'>('single');
     const [search, setSearch] = useState('');
@@ -53,11 +82,11 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
     }>({ tab: 'new', beanId: null });
 
     const openModal = (
-        tab: 'new' | 'restock' | 'edit',
+        nextTab: 'new' | 'restock' | 'edit',
         beanId: string | null = null,
         initialData: Bean | null = null,
     ) => {
-        setModalConfig({ tab, beanId, initialData });
+        setModalConfig({ tab: nextTab, beanId, initialData });
         setIsAddModalOpen(true);
     };
 
@@ -72,6 +101,11 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
             return;
         }
         setIsBlendAddOpen(true);
+    };
+
+    const openProductAdd = () => {
+        setEditingProduct(null);
+        setProductAddOpen(true);
     };
 
     const selected = beans.find((b) => b.id === selectedId) ?? beans[0] ?? null;
@@ -125,7 +159,6 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
             onEdit={(bean) => openModal('edit', bean.id, bean)}
             onRestock={(id) => openModal('restock', id)}
             onStartRoast={() => {
-                // Free roast from inventory must not keep a leftover schedule batch handoff.
                 useRoastSessionStore.getState().completeBatch();
                 if (selected?.id) {
                     useRoastingStore.getState().setPendingBean(selected.id, selected.name);
@@ -186,6 +219,31 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
         </>
     );
 
+    const headerActions = (() => {
+        if (activeTab === 'green') {
+            return (
+                <PillButton onClick={() => (tab === 'blend' ? openBlendAdd() : openModal('new'))}>
+                    <Plus size={15} strokeWidth={2.5} />
+                    {tab === 'blend' ? t('beans.blend.addBlend') : t('beans.addBeanLot')}
+                </PillButton>
+            );
+        }
+        if (activeTab === 'roasted' && canRoasted) {
+            return (
+                <PillButton onClick={() => setBlendModalOpen(true)}>{t('inventory.roasted.blendAction')}</PillButton>
+            );
+        }
+        if (activeTab === 'products' && canProducts) {
+            return (
+                <PillButton onClick={openProductAdd}>
+                    <Plus size={15} strokeWidth={2.5} />
+                    {t('orders.product.newTitle')}
+                </PillButton>
+            );
+        }
+        return undefined;
+    })();
+
     return (
         <PageLayout>
             <AddBeanModal
@@ -201,27 +259,28 @@ export const Beans = ({ onNavigate }: { onNavigate?: (view: View) => void }) => 
                 }}
             />
 
-            <PageHeader
-                title={t('beans.title')}
-                actions={
-                    inventoryTab === 'green' ? (
-                        <PillButton onClick={() => (tab === 'blend' ? openBlendAdd() : openModal('new'))}>
-                            <Plus size={15} strokeWidth={2.5} />
-                            {tab === 'blend' ? t('beans.blend.addBlend') : t('beans.addBeanLot')}
-                        </PillButton>
-                    ) : undefined
-                }
-            />
+            <PageHeader title={t('beans.title')} actions={headerActions} />
 
-            {showInventoryTabs && <InventoryTabBar active={inventoryTab} onChange={setActiveTab} />}
+            <InventoryTabBar active={activeTab} onChange={setActiveTab} />
 
-            {inventoryTab === 'green' && greenBody}
+            {activeTab === 'green' && greenBody}
 
-            {inventoryTab === 'roasted' && <RoastedInventoryTab onOpenBlending={() => setBlendModalOpen(true)} />}
+            {activeTab === 'roasted' &&
+                (canRoasted ? <RoastedInventoryTab /> : <InventoryLocked tab="roasted" onUpgrade={onUpgrade} />)}
+
+            {activeTab === 'products' &&
+                (canProducts ? (
+                    <ProductsTab
+                        addOpen={productAddOpen}
+                        onAddOpenChange={setProductAddOpen}
+                        editing={editingProduct}
+                        onEditingChange={setEditingProduct}
+                    />
+                ) : (
+                    <InventoryLocked tab="products" onUpgrade={onUpgrade} />
+                ))}
 
             <BlendRoastedModal open={blendModalOpen} onClose={() => setBlendModalOpen(false)} />
-
-            {inventoryTab === 'products' && <ProductsTab />}
         </PageLayout>
     );
 };

@@ -262,7 +262,7 @@ export const App = () => {
                         )}
                         {view === 'beans' && (
                             <ViewErrorBoundary>
-                                <Beans onNavigate={setView} />
+                                <Beans onNavigate={setView} onUpgrade={openComparePlans} />
                             </ViewErrorBoundary>
                         )}
                         {view === 'pricing' && (

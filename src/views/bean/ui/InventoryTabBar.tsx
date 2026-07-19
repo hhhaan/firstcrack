@@ -17,19 +17,24 @@ export const InventoryTabBar = ({ active, onChange }: InventoryTabBarProps) => {
     ];
 
     return (
-        <div className="mb-4 flex gap-1 border-b border-border-subtle">
-            {tabs.map(({ id, label }) => (
-                <button
-                    key={id}
-                    type="button"
-                    onClick={() => onChange(id)}
-                    className={`px-3 py-2 text-[13px] font-medium transition-colors ${
-                        active === id ? 'border-b-2 border-primary text-primary' : 'text-muted hover:text-secondary'
-                    }`}
-                >
-                    {label}
-                </button>
-            ))}
+        <div className="mb-6 flex gap-1 border-b border-border-subtle dark:border-[#585d61]">
+            {tabs.map(({ id, label }) => {
+                const isActive = active === id;
+                return (
+                    <button
+                        key={id}
+                        type="button"
+                        onClick={() => onChange(id)}
+                        className={`-mb-px border-b-2 px-4 py-2.5 text-[13px] font-medium tracking-[0.14px] transition-colors cursor-pointer ${
+                            isActive
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-muted hover:text-secondary'
+                        }`}
+                    >
+                        {label}
+                    </button>
+                );
+            })}
         </div>
     );
 };

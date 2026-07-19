@@ -17,6 +17,6 @@ export const PageHeader = ({ title, subtitle, actions, className = '' }: PageHea
             </h1>
             {subtitle && <p className="text-sm text-muted tracking-[0.14px]">{subtitle}</p>}
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && <div className="flex shrink-0 items-center justify-end gap-2">{actions}</div>}
     </div>
 );
