@@ -1,9 +1,9 @@
 # 모바일 앱 릴리스 — 데스크톱 릴리스(release.yml, v* 태그)와 완전 분리.
 #
-# 트리거 (Actions 탭에서 수동 실행이 기본 운용):
+# 트리거 — 수동(Actions)·터미널(태그) 둘 다 지원:
 #   - workflow_dispatch          → 빌드만 (아티팩트 확인용)
 #   - workflow_dispatch + upload → 빌드 + 스토어 업로드 (TestFlight / Play 내부 트랙)
-#   - app-v* 태그 push           → 빌드 + 스토어 업로드 (태그 기반 자동화도 열어둠)
+#   - app-v* 태그 push           → 빌드 + 스토어 업로드
 #
 # 전제: src-tauri/gen/{apple,android} 커밋 + Secrets 등록 — docs/MOBILE.md 참고
 name: Release App (iOS/Android)

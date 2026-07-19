@@ -74,14 +74,15 @@
   Android versionCode는 버전에서 자동 파생(major×1,000,000 + minor×1,000 + patch)이라 버전만 올리면 된다.
 - `pnpm release <ver>`는 `v<ver>` 태그를 push해 **데스크톱 릴리스를 발동**시키므로 모바일 단독 배포에 쓰지 말 것.
 
-### 모바일 단독 배포 (기본: Actions 수동 실행)
+### 모바일 단독 배포 — 두 방법 모두 지원
 
-1. `pnpm version:bump <major.minor.patch>` → 커밋 → push (버전 범프 필수 — 스토어가 동일 버전 거부)
-2. GitHub → Actions → **Release App (iOS/Android)** → Run workflow
-   - `upload` 체크 안 함: 빌드만, ipa/aab 아티팩트 확인용
-   - `upload` 체크: 빌드 + **TestFlight + Play 내부 트랙** 업로드
+공통 선행: `pnpm version:bump <major.minor.patch>` → 커밋 → push (버전 범프 필수 — 스토어가 동일 버전 거부)
 
-태그 기반 자동화도 열려 있음: `git tag app-v<ver> && git push origin app-v<ver>` → 빌드 + 업로드.
+**방법 A. Actions 수동 실행**: GitHub → Actions → **Release App (iOS/Android)** → Run workflow
+- `upload` 체크 안 함: 빌드만, ipa/aab 아티팩트 확인용
+- `upload` 체크: 빌드 + **TestFlight + Play 내부 트랙** 업로드
+
+**방법 B. 터미널 태그**: `git tag app-v<ver> && git push origin app-v<ver>` → 빌드 + 업로드
 
 ### 스토어 반영 (수동 — 의도적)
 
