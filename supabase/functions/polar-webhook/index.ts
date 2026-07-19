@@ -1,5 +1,5 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { jsonResponse } from '../_shared/auth.ts';
+import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
+import { verifyPolarSignature } from '../_shared/webhook-auth.ts';
 
 const POLAR_WEBHOOK_SECRET = Deno.env.get('POLAR_WEBHOOK_SECRET');
 
@@ -8,30 +8,12 @@ const PLAN_MAP: Record<string, string> = {
     [Deno.env.get('POLAR_ENTERPRISE_PRODUCT_ID') ?? '']: 'enterprise',
 };
 
-async function verifySignature(body: string, signature: string | null): Promise<boolean> {
-    if (!signature || !POLAR_WEBHOOK_SECRET) return false;
-
-    const key = await crypto.subtle.importKey(
-        'raw',
-        new TextEncoder().encode(POLAR_WEBHOOK_SECRET),
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign'],
-    );
-    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body));
-    const expected = Array.from(new Uint8Array(sig))
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
-
-    return expected === signature;
-}
-
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', {
             headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'content-type, x-webhook-signature',
+                ...corsHeaders,
+                'Access-Control-Allow-Headers': `${corsHeaders['Access-Control-Allow-Headers']}, x-webhook-signature`,
             },
         });
     }
@@ -43,7 +25,7 @@ Deno.serve(async (req) => {
     const body = await req.text();
     const signature = req.headers.get('x-webhook-signature');
 
-    if (!(await verifySignature(body, signature))) {
+    if (!(await verifyPolarSignature(POLAR_WEBHOOK_SECRET, body, signature))) {
         console.error('[polar-webhook] invalid signature');
         return jsonResponse({ error: 'Unauthorized' }, 401);
     }
@@ -55,10 +37,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Invalid JSON' }, 400);
     }
 
-    const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
+    const supabase = serviceClient();
 
     switch (event.type) {
         case 'subscription.created':

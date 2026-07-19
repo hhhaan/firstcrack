@@ -30,3 +30,6 @@ export const getAuthenticatedUser = async (req: Request) => {
     if (error || !data.user) return null;
     return data.user;
 };
+
+export const serviceClient = () =>
+    createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
