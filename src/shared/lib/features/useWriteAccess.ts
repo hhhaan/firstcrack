@@ -1,5 +1,6 @@
 import { useAuthStore } from '@shared/store/auth';
 import { resolveWorkspaceOwnerId, useWorkspaceStore } from '@shared/store/workspace';
+import { useState } from 'react';
 import { resolveEffectivePlan } from './effective-plan';
 import { isWritablePlan, trialEndsAt } from './plan-matrix';
 
@@ -14,6 +15,7 @@ export function useWriteAccess(): boolean {
     const authUserId = user?.id ?? '';
     const activeOwnerId = useWorkspaceStore((s) => s.activeOwnerId);
     const ownerPlanById = useWorkspaceStore((s) => s.ownerPlanById);
+    const [nowMs] = useState(() => Date.now());
 
     const membershipOwnerIds = Object.keys(ownerPlanById);
     const workspaceOwnerId = resolveWorkspaceOwnerId(activeOwnerId, authUserId, membershipOwnerIds);
@@ -34,7 +36,7 @@ export function useWriteAccess(): boolean {
 
     if (!isWritablePlan(plan)) return false;
 
-    if (plan === 'trial' && user?.created_at && Date.now() > trialEndsAt(user.created_at).getTime()) {
+    if (plan === 'trial' && user?.created_at && nowMs > trialEndsAt(user.created_at).getTime()) {
         return false;
     }
     return true;

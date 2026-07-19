@@ -7,6 +7,7 @@ import { Badge } from '@shared/ui/Badge';
 import { SectionCard } from '@shared/ui/SectionCard';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { CreditCard, Mail, Settings, Star } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const CONTACT_EMAIL = 'contact@firstcrackiscoming.com';
@@ -132,7 +133,8 @@ function PlanStateCard({
     completedCount: number;
 }) {
     const { t } = useTranslation();
-    const daysLeft = Math.max(0, Math.ceil((trialEndsAt(createdAt).getTime() - Date.now()) / 86_400_000));
+    const [nowMs] = useState(() => Date.now());
+    const daysLeft = Math.max(0, Math.ceil((trialEndsAt(createdAt).getTime() - nowMs) / 86_400_000));
     const batchesLeft = Math.max(0, TRIAL_BATCH_CAP - completedCount);
     const trialActive = plan !== 'read_only' && daysLeft > 0 && batchesLeft > 0;
 
