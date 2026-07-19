@@ -6,7 +6,8 @@ import { supabase } from '../lib/supabase';
 /** Stable auth UI error codes — no raw Supabase strings in UI. */
 export type AuthErrorCode = 'invalid_credentials' | 'network' | 'oauth_failed' | 'generic';
 
-type Plan = 'free' | 'pro' | 'team';
+/** SSOT states + legacy values still present mid-rollout. 'free' doubles as the loading placeholder (no features, writable). */
+export type Plan = 'trial' | 'read_only' | 'pro' | 'pro_plus' | 'enterprise' | 'free' | 'team';
 
 const OAUTH_TIMEOUT_MS = 90_000;
 let oauthTimeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -145,6 +146,3 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         set({ user: null, plan: 'free', oauthPending: false, oauthError: null });
     },
 }));
-
-/** 현재 유저가 Pro 이상인지 반환 (pro / team 모두 true) */
-export const selectIsPro = (s: AuthState & AuthActions) => s.plan !== 'free';

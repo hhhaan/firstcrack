@@ -1,6 +1,6 @@
 import { FEATURE, type FeatureKey } from './keys';
 
-/** Current auth plan strings (`profiles.plan`). Later: trial | pro | pro_plus | enterprise. */
+/** `profiles.plan` states: trial | read_only | pro | pro_plus | enterprise (+ legacy free/team). */
 const PAID_PLANS = new Set(['pro', 'team', 'pro_plus', 'enterprise']);
 
 /** Multi-machine (2+): Pro+ and above. Legacy `team` maps to enterprise-class. */
@@ -13,13 +13,23 @@ export function isPaidPlan(plan: string): boolean {
     return PAID_PLANS.has(plan);
 }
 
+/** Trial runs at Pro core level; read_only (and legacy free) get nothing. */
+export function isCoreEntitled(plan: string): boolean {
+    return plan === 'trial' || isPaidPlan(plan);
+}
+
+/** read_only blocks all core writes — server-enforced; this mirrors it for UI. */
+export function isWritablePlan(plan: string): boolean {
+    return plan !== 'read_only';
+}
+
 /** Plan → feature. Only place that encodes “who gets what”. */
 export function planHasFeature(plan: string, key: FeatureKey): boolean {
     switch (key) {
         case FEATURE.cupping:
-            return isPaidPlan(plan);
+            return isCoreEntitled(plan);
         case FEATURE.bbp:
-            return isPaidPlan(plan);
+            return isCoreEntitled(plan);
         case FEATURE.orderIntegration:
             return ORDER_INTEGRATION_PLANS.has(plan);
         case FEATURE.roastedInventory:
@@ -49,8 +59,17 @@ export function canAddMachine(plan: string, realMachineCount: number): boolean {
 /** Completed roast sessions per calendar month. `null` = unlimited. Pro = 200; Pro+ = unlimited. */
 export const PRO_MONTHLY_BATCH_CAP = 200;
 
+/** Trial ends at whichever comes first: 14 days from signup or 20 lifetime completed batches. */
+export const TRIAL_DURATION_DAYS = 14;
+export const TRIAL_BATCH_CAP = 20;
+
+export function trialEndsAt(signupAt: string | Date): Date {
+    return new Date(new Date(signupAt).getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
+}
+
 export function planMaxBatchesPerMonth(plan: string): number | null {
     if (MULTI_MACHINE_PLANS.has(plan)) return null;
+    if (plan === 'read_only') return 0;
     return PRO_MONTHLY_BATCH_CAP;
 }
 

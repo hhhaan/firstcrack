@@ -119,9 +119,10 @@ Deno.serve(async (req) => {
                 .update({ status: event.type === 'subscription.canceled' ? 'canceled' : 'ended' })
                 .eq('polar_subscription_id', sub.id);
 
+            // Cancel/lapse never re-grants free usage — data stays readable, writes stop.
             const { error: planErr } = await supabase
                 .from('profiles')
-                .update({ plan: 'free' })
+                .update({ plan: 'read_only' })
                 .eq('id', userId);
 
             if (planErr) {
