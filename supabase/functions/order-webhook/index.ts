@@ -5,34 +5,12 @@
  * Shopify headers: X-Shopify-Shop-Domain, X-Shopify-Hmac-Sha256, X-Shopify-Topic
  * Cafe24: mall_id in payload; optional CAFE24_WEBHOOK_SECRET header check later.
  */
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { jsonResponse } from '../_shared/auth.ts';
+import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
+import { verifySharedSecret, verifyShopifyHmac } from '../_shared/webhook-auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import { upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { cafe24ToCanonical, shopifyToCanonical } from '../_shared/channels/status-map.ts';
 import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
-
-function serviceClient() {
-    return createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
-}
-
-async function hmacSha256Base64(secret: string, body: string): Promise<string> {
-    const key = await crypto.subtle.importKey(
-        'raw',
-        new TextEncoder().encode(secret),
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign'],
-    );
-    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body));
-    const bytes = new Uint8Array(sig);
-    let bin = '';
-    for (const b of bytes) bin += String.fromCharCode(b);
-    return btoa(bin);
-}
 
 function gidToId(gid: string): string {
     const parts = gid.split('/');
@@ -139,8 +117,8 @@ Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', {
             headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': '*',
+                ...corsHeaders,
+                'Access-Control-Allow-Headers': `${corsHeaders['Access-Control-Allow-Headers']}, x-shopify-hmac-sha256, x-shopify-shop-domain, x-shopify-topic, x-cafe24-webhook-secret, x-webhook-secret`,
             },
         });
     }
@@ -182,17 +160,12 @@ Deno.serve(async (req) => {
 
             const creds = (secretRow?.credentials ?? {}) as Record<string, string>;
             const secret =
-                creds.webhook_secret ||
-                creds.client_secret ||
-                Deno.env.get('SHOPIFY_WEBHOOK_SECRET') ||
-                '';
+                creds.webhook_secret || creds.client_secret || Deno.env.get('SHOPIFY_WEBHOOK_SECRET') || '';
 
-            if (secret && hmac) {
-                const expected = await hmacSha256Base64(secret, rawBody);
-                if (expected !== hmac) {
-                    console.error('[order-webhook] shopify hmac mismatch', shop);
-                    return jsonResponse({ error: 'invalid signature' }, 401);
-                }
+            // fail-closed: secret 또는 헤더 부재 = 검증 불가 = 거부 (기존: 조용히 통과)
+            if (!(await verifyShopifyHmac(secret, rawBody, hmac))) {
+                console.error('[order-webhook] shopify hmac reject', shop);
+                return jsonResponse({ error: 'Unauthorized' }, 401);
             }
 
             let payload: Record<string, unknown>;
@@ -248,12 +221,12 @@ Deno.serve(async (req) => {
             .toLowerCase();
         if (!mallId) return jsonResponse({ ok: true, skipped: 'no mall_id' });
 
-        const cafe24Secret = Deno.env.get('CAFE24_WEBHOOK_SECRET');
-        if (cafe24Secret) {
-            const hdr = req.headers.get('x-cafe24-webhook-secret') ?? req.headers.get('x-webhook-secret');
-            if (hdr !== cafe24Secret) {
-                return jsonResponse({ error: 'invalid signature' }, 401);
-            }
+        // fail-closed: env 미설정 포함 전부 거부 (기존: env 없으면 무검증 통과)
+        const cafe24Header =
+            req.headers.get('x-cafe24-webhook-secret') ?? req.headers.get('x-webhook-secret');
+        if (!verifySharedSecret(Deno.env.get('CAFE24_WEBHOOK_SECRET'), cafe24Header)) {
+            console.error('[order-webhook] cafe24 secret reject', mallId);
+            return jsonResponse({ error: 'Unauthorized' }, 401);
         }
 
         const { data: conn } = await admin
