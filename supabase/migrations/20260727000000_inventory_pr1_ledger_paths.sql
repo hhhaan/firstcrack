@@ -80,25 +80,14 @@ BEGIN
   END IF;
 
   -- reference = plan_batch.id
+  -- 배치 일괄 차감은 batch-level 이벤트만 본다.
+  -- 세션별 차감이 있어도 남은 세션분 일괄 차감은 허용 (remaining grams는 클라가 계산).
   IF EXISTS (SELECT 1 FROM roast_plan_batches WHERE id = p_reference_id) THEN
-    IF EXISTS (
+    RETURN EXISTS (
       SELECT 1 FROM bean_stock_events
       WHERE reference_id = p_reference_id AND event_type = 'roast'
       LIMIT 1
-    ) THEN
-      RETURN true;
-    END IF;
-    IF EXISTS (
-      SELECT 1
-      FROM bean_stock_events e
-      JOIN roast_sessions s ON s.id = e.reference_id
-      WHERE s.plan_batch_id = p_reference_id
-        AND e.event_type = 'roast'
-      LIMIT 1
-    ) THEN
-      RETURN true;
-    END IF;
-    RETURN false;
+    );
   END IF;
 
   -- reference = roast_session.id → batch-level 일괄 차감만 차단 (동일 세션 재시도는 ON CONFLICT)
