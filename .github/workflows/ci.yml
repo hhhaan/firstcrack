@@ -20,6 +20,8 @@ on:
       - '.superpowers/**'
       - 'repomix-output.xml'
       - 'code_review.txt'
+      - 'code_review.*'
+      - 'code-review.*'
   push:
     branches: [main]
     paths-ignore:
@@ -36,6 +38,8 @@ on:
       - '.superpowers/**'
       - 'repomix-output.xml'
       - 'code_review.txt'
+      - 'code_review.*'
+      - 'code-review.*'
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}

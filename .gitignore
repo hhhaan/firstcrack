@@ -86,6 +86,8 @@ memory.jsonl
 
 # Code review / scratch diffs (do not pack or ship)
 code_review.txt
+code_review.*
+code-review.*
 specific_file.diff
 *.diff
 react-doctor-report.json
