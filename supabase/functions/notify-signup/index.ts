@@ -1,4 +1,5 @@
-import { jsonResponse } from '../_shared/auth.ts';
+import { corsHeaders, jsonResponse } from '../_shared/auth.ts';
+import { verifySharedSecret } from '../_shared/webhook-auth.ts';
 import { postSlack } from '../_shared/slack.ts';
 
 /** Supabase Database Webhook payload for auth.users INSERT */
@@ -18,14 +19,18 @@ Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', {
             headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'authorization, content-type',
+                ...corsHeaders,
             },
         });
     }
 
     if (req.method !== 'POST') {
         return jsonResponse({ error: 'Method not allowed' }, 405);
+    }
+
+    if (!verifySharedSecret(Deno.env.get('NOTIFY_SIGNUP_SECRET'), req.headers.get('x-webhook-secret'))) {
+        console.error('[notify-signup] unauthorized');
+        return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
     let payload: DbWebhookPayload;
