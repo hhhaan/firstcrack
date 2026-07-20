@@ -1494,7 +1494,9 @@
             "blend_produce": "ブレンド生産",
             "adjustment": "調整",
             "write_off": "廃棄",
-            "history": "履歴"
+            "history": "履歴",
+            "order_fulfillment": "注文履行",
+            "order_cancel": "注文キャンセル"
         }
     }
 }

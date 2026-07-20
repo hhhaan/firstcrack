@@ -100,6 +100,7 @@ function EmptyState({ icon, message, action }: { icon: ReactNode; message: strin
 }
 
 function orderStatusTone(status: string, fulfilled: boolean): BadgeTone {
+    if (status === 'cancelled' || status === 'refunded') return 'bad';
     if (fulfilled) return 'good';
     switch (status) {
         case 'paid':
@@ -108,9 +109,6 @@ function orderStatusTone(status: string, fulfilled: boolean): BadgeTone {
         case 'shipped':
         case 'delivered':
             return 'green';
-        case 'cancelled':
-        case 'refunded':
-            return 'bad';
         case 'pending':
             return 'muted';
         default:
@@ -300,9 +298,11 @@ function OrderRow({
     const { t } = useTranslation();
     const [nowMs] = useState(() => Date.now());
     const itemCount = order.order_lines.filter((l) => l.status === 'active').reduce((n, l) => n + l.quantity, 0);
-    const fulfilled = !!order.fulfilled_at;
-    const canFulfill = !fulfilled && (order.status === 'paid' || order.status === 'preparing');
-    const canCancel = order.status !== 'cancelled' && order.status !== 'refunded';
+    const cancelled = order.status === 'cancelled' || order.status === 'refunded';
+    const fulfilled = !!order.fulfilled_at && !cancelled;
+    const canFulfill = !fulfilled && !cancelled && (order.status === 'paid' || order.status === 'preparing');
+    // Local cancel restores product stock; channel platforms sync cancel via webhook — avoid double-restoring.
+    const canCancel = order.platform === 'manual' && !cancelled;
     const canDispatch =
         order.platform !== 'manual' &&
         fulfilled &&
@@ -312,7 +312,11 @@ function OrderRow({
         dispatch?.status === 'sent' &&
         !!dispatch.sent_at &&
         nowMs - new Date(dispatch.sent_at).getTime() > 30 * 60 * 1000;
-    const statusLabel = fulfilled ? 'Fulfilled' : (ORDER_STATUS_EN[order.status] ?? order.status);
+    const statusLabel = cancelled
+        ? (ORDER_STATUS_EN[order.status] ?? order.status)
+        : fulfilled
+          ? 'Fulfilled'
+          : (ORDER_STATUS_EN[order.status] ?? order.status);
 
     return (
         <tr className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">

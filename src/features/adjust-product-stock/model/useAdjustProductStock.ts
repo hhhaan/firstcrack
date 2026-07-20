@@ -21,8 +21,9 @@ export const useAdjustProductStock = () => {
             await productStockEventApi.insertMany([event]);
             return workspaceOwnerId;
         },
-        onSuccess: (ownerId) => {
+        onSuccess: (ownerId, vars) => {
             void qc.invalidateQueries({ queryKey: productStockKeys.byUser(ownerId) });
+            void qc.invalidateQueries({ queryKey: productStockKeys.events(vars.productId) });
         },
     });
 };

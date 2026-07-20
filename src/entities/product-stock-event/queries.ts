@@ -5,6 +5,7 @@ import { productStockEventApi } from './api';
 export const productStockKeys = {
     root: inventoryQueryRoots.productStock,
     byUser: (userId: string) => [...inventoryQueryRoots.productStock, userId] as const,
+    events: (productId: string) => [...inventoryQueryRoots.productStock, 'events', productId] as const,
 };
 
 /** Cache-first product stock; fetches once if missing. */
@@ -19,4 +20,11 @@ export const useProductStock = (userId: string) =>
         queryKey: productStockKeys.byUser(userId),
         queryFn: () => productStockEventApi.getStockByUser(userId),
         enabled: !!userId,
+    });
+
+export const useProductStockEvents = (productId: string, enabled = true) =>
+    useQuery({
+        queryKey: productStockKeys.events(productId),
+        queryFn: () => productStockEventApi.listByProduct(productId),
+        enabled: !!productId && enabled,
     });

@@ -2,7 +2,7 @@ import { useBeans } from '@entities/bean/queries';
 import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import { type Product, useDeleteProduct, useProducts } from '@entities/product';
-import { useProductStock } from '@entities/product-stock-event';
+import { useProductStock, useProductStockEvents } from '@entities/product-stock-event';
 import { AdjustProductStockModal } from '@features/adjust-product-stock';
 import { usePackageProduct } from '@features/package-product';
 import { Badge } from '@shared/ui/Badge';
@@ -10,7 +10,7 @@ import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { TableSkeleton } from '@shared/ui/TableSkeleton';
 import { AddProductModal } from '@widgets/add-product-modal';
 import { Package, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const ghostBtn =
@@ -52,6 +52,7 @@ export const ProductsTab = ({ addOpen, onAddOpenChange, editing, onEditingChange
     const [warning, setWarning] = useState<string | null>(null);
     const [unitsDraft, setUnitsDraft] = useState<Record<string, string>>({});
     const [adjustProduct, setAdjustProduct] = useState<Product | null>(null);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const openNew = () => {
         onEditingChange(null);
@@ -156,78 +157,87 @@ export const ProductsTab = ({ addOpen, onAddOpenChange, editing, onEditingChange
                             {activeProducts.map((p) => {
                                 const units = stockByProduct[p.id] ?? 0;
                                 const low = units <= 0;
+                                const expanded = expandedId === p.id;
                                 return (
-                                    <tr
-                                        key={p.id}
-                                        className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40"
-                                    >
-                                        <td className="px-4 py-3.5 text-[13px] font-medium tracking-[0.14px] text-primary">
-                                            {p.name}
-                                        </td>
-                                        <td className="px-4 py-3.5 font-mono text-[12px] text-muted">{p.sku ?? '—'}</td>
-                                        <td className="px-4 py-3.5 text-[12px] tracking-[0.14px] text-secondary">
-                                            {resolveSource(p)}
-                                        </td>
-                                        <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">
-                                            {p.net_weight_grams} g
-                                        </td>
-                                        <td className="px-4 py-3.5">
-                                            <Badge tone={low ? 'bad' : 'good'} size="sm">
-                                                {units} {t('inventory.products.unitSuffix')}
-                                            </Badge>
-                                        </td>
-                                        <td className="px-4 py-3.5">
-                                            <div className="flex items-center justify-end gap-1.5">
-                                                <input
-                                                    type="number"
-                                                    min={1}
-                                                    value={unitsDraft[p.id] ?? ''}
-                                                    onChange={(e) =>
-                                                        setUnitsDraft((d) => ({ ...d, [p.id]: e.target.value }))
-                                                    }
-                                                    placeholder="+"
-                                                    className="w-14 rounded border border-border-subtle bg-transparent px-1.5 py-1 text-right font-mono text-[12px] text-primary outline-none focus:border-border dark:border-[#585d61]"
-                                                />
+                                    <Fragment key={p.id}>
+                                        <tr className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
+                                            <td className="px-4 py-3.5 text-[13px] font-medium tracking-[0.14px] text-primary">
                                                 <button
                                                     type="button"
-                                                    disabled={isPending}
-                                                    onClick={() => void inbound(p.id)}
-                                                    className={ghostBtn}
+                                                    className="text-left hover:underline"
+                                                    onClick={() => setExpandedId((id) => (id === p.id ? null : p.id))}
                                                 >
-                                                    <Package size={13} strokeWidth={1.75} />
-                                                    {t('inventory.products.inbound')}
+                                                    {p.name}
                                                 </button>
-                                                <button
-                                                    type="button"
-                                                    className={ghostBtn}
-                                                    onClick={() => setAdjustProduct(p)}
-                                                >
-                                                    <SlidersHorizontal size={13} strokeWidth={1.75} />
-                                                    {t('inventory.products.adjust')}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => openEdit(p)}
-                                                    className={iconBtn}
-                                                    aria-label={t('common.edit')}
-                                                >
-                                                    <Pencil size={14} strokeWidth={1.75} />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        if (window.confirm(t('orders.product.deleteConfirm'))) {
-                                                            deleteProduct.mutate(p.id);
+                                            </td>
+                                            <td className="px-4 py-3.5 font-mono text-[12px] text-muted">
+                                                {p.sku ?? '—'}
+                                            </td>
+                                            <td className="px-4 py-3.5 text-[12px] tracking-[0.14px] text-secondary">
+                                                {resolveSource(p)}
+                                            </td>
+                                            <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">
+                                                {p.net_weight_grams} g
+                                            </td>
+                                            <td className="px-4 py-3.5">
+                                                <Badge tone={low ? 'bad' : 'good'} size="sm">
+                                                    {units} {t('inventory.products.unitSuffix')}
+                                                </Badge>
+                                            </td>
+                                            <td className="px-4 py-3.5">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        value={unitsDraft[p.id] ?? ''}
+                                                        onChange={(e) =>
+                                                            setUnitsDraft((d) => ({ ...d, [p.id]: e.target.value }))
                                                         }
-                                                    }}
-                                                    className={dangerIconBtn}
-                                                    aria-label={t('common.delete')}
-                                                >
-                                                    <Trash2 size={14} strokeWidth={1.75} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                                        placeholder="+"
+                                                        className="w-14 rounded border border-border-subtle bg-transparent px-1.5 py-1 text-right font-mono text-[12px] text-primary outline-none focus:border-border dark:border-[#585d61]"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        disabled={isPending}
+                                                        onClick={() => void inbound(p.id)}
+                                                        className={ghostBtn}
+                                                    >
+                                                        <Package size={13} strokeWidth={1.75} />
+                                                        {t('inventory.products.inbound')}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={ghostBtn}
+                                                        onClick={() => setAdjustProduct(p)}
+                                                    >
+                                                        <SlidersHorizontal size={13} strokeWidth={1.75} />
+                                                        {t('inventory.products.adjust')}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openEdit(p)}
+                                                        className={iconBtn}
+                                                        aria-label={t('common.edit')}
+                                                    >
+                                                        <Pencil size={14} strokeWidth={1.75} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (window.confirm(t('orders.product.deleteConfirm'))) {
+                                                                deleteProduct.mutate(p.id);
+                                                            }
+                                                        }}
+                                                        className={dangerIconBtn}
+                                                        aria-label={t('common.delete')}
+                                                    >
+                                                        <Trash2 size={14} strokeWidth={1.75} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {expanded ? <ProductHistoryRow productId={p.id} /> : null}
+                                    </Fragment>
                                 );
                             })}
                         </tbody>
@@ -255,3 +265,52 @@ export const ProductsTab = ({ addOpen, onAddOpenChange, editing, onEditingChange
         </div>
     );
 };
+
+const PRODUCT_EVENT_I18N: Record<string, string> = {
+    roast_inbound: 'inventory.event.roast_inbound',
+    packaging: 'inventory.event.packaging',
+    order_fulfillment: 'inventory.event.order_fulfillment',
+    order_cancel: 'inventory.event.order_cancel',
+    adjustment: 'inventory.event.adjustment',
+    write_off: 'inventory.event.write_off',
+};
+
+function ProductHistoryRow({ productId }: { productId: string }) {
+    const { t } = useTranslation();
+    const { data: events = [], isLoading } = useProductStockEvents(productId, true);
+
+    return (
+        <tr className="border-b border-border-subtle dark:border-[#585d61]">
+            <td colSpan={6} className="bg-surface/40 px-4 py-3 dark:bg-surface-elevated/20">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                    {t('inventory.event.history')}
+                </p>
+                {isLoading ? (
+                    <p className="text-[12px] text-muted">…</p>
+                ) : events.length === 0 ? (
+                    <p className="text-[12px] text-muted">—</p>
+                ) : (
+                    <ul className="max-h-28 space-y-1.5 overflow-y-auto">
+                        {events.slice(0, 20).map((ev) => (
+                            <li key={ev.id} className="flex gap-2 font-mono text-[12px] text-secondary">
+                                <span className={ev.delta_units > 0 ? 'text-palette-green' : 'text-palette-purple'}>
+                                    {ev.delta_units > 0 ? '+' : ''}
+                                    {ev.delta_units}
+                                </span>
+                                <span>
+                                    {t(PRODUCT_EVENT_I18N[ev.event_type] ?? 'inventory.event.adjustment', {
+                                        defaultValue: ev.event_type,
+                                    })}
+                                </span>
+                                {ev.note ? <span className="text-muted">— {ev.note}</span> : null}
+                                <span className="ml-auto text-muted">
+                                    {new Date(ev.created_at).toLocaleDateString()}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </td>
+        </tr>
+    );
+}
