@@ -1485,7 +1485,9 @@
             "grams": "g",
             "units": "봉",
             "writeOffPlaceholder": "예: 손실, 샘플",
-            "adjustPlaceholder": "예: 실사"
+            "adjustPlaceholder": "예: 실사",
+            "currentStock": "현재 재고: {{stock}}",
+            "exceedsStock": "재고를 초과합니다 (보유 {{amount}})"
         },
         "event": {
             "roast_inbound": "로스팅 입고",

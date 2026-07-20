@@ -1485,7 +1485,9 @@
             "grams": "g",
             "units": "袋",
             "writeOffPlaceholder": "如：损耗、样品",
-            "adjustPlaceholder": "如：盘点"
+            "adjustPlaceholder": "如：盘点",
+            "currentStock": "当前库存：{{stock}}",
+            "exceedsStock": "超过库存（可用 {{amount}}）"
         },
         "event": {
             "roast_inbound": "烘焙入库",

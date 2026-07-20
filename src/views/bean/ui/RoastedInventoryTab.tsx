@@ -35,6 +35,8 @@ export const RoastedInventoryTab = () => {
         name: string;
         beanId: string | null;
         blendId: string | null;
+        grams: number;
+        kind: 'bean' | 'blend';
     } | null>(null);
 
     const rows = useMemo(() => {
@@ -159,6 +161,8 @@ export const RoastedInventoryTab = () => {
                                                             name: r.name,
                                                             beanId: r.kind === 'bean' ? r.id : null,
                                                             blendId: r.kind === 'blend' ? r.id : null,
+                                                            grams: r.grams,
+                                                            kind: r.kind,
                                                         })
                                                     }
                                                 >
@@ -228,6 +232,12 @@ export const RoastedInventoryTab = () => {
                     name={adjustTarget.name}
                     beanId={adjustTarget.beanId}
                     blendId={adjustTarget.blendId}
+                    currentGrams={adjustTarget.grams}
+                    kindLabel={
+                        adjustTarget.kind === 'blend'
+                            ? t('inventory.roasted.blendBadge')
+                            : t('inventory.roasted.singleBadge')
+                    }
                 />
             )}
         </div>

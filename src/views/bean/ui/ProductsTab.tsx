@@ -251,6 +251,7 @@ export const ProductsTab = ({ addOpen, onAddOpenChange, editing, onEditingChange
                     onClose={() => setAdjustProduct(null)}
                     productId={adjustProduct.id}
                     name={adjustProduct.name}
+                    currentUnits={stockByProduct[adjustProduct.id] ?? 0}
                 />
             )}
 

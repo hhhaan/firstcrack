@@ -1485,7 +1485,9 @@
             "grams": "g",
             "units": "袋",
             "writeOffPlaceholder": "例: ロス、サンプル",
-            "adjustPlaceholder": "例: 棚卸し"
+            "adjustPlaceholder": "例: 棚卸し",
+            "currentStock": "現在庫: {{stock}}",
+            "exceedsStock": "在庫を超えています（保有 {{amount}}）"
         },
         "event": {
             "roast_inbound": "焙煎入庫",

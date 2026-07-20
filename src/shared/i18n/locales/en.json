@@ -1485,7 +1485,9 @@
             "grams": "g",
             "units": "bags",
             "writeOffPlaceholder": "e.g. spoilage, sample",
-            "adjustPlaceholder": "e.g. recount"
+            "adjustPlaceholder": "e.g. recount",
+            "currentStock": "On hand: {{stock}}",
+            "exceedsStock": "Exceeds stock ({{amount}} available)"
         },
         "event": {
             "roast_inbound": "Roast inbound",
