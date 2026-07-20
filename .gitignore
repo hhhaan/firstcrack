@@ -44,10 +44,12 @@ src-tauri/binaries/sidecar-*
 # Python sidecar
 __pycache__/
 *.py[cod]
-sidecar/.venv/
-sidecar/__pycache__/
-sidecar/**/*.pyc
-sidecar/extern/
+.venv/
+src-tauri/sidecar/.venv/
+src-tauri/sidecar/venv/
+src-tauri/sidecar/__pycache__/
+src-tauri/sidecar/**/*.pyc
+src-tauri/sidecar/extern/
 
 # Documentation and planning
 plans/
