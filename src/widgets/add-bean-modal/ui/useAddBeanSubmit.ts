@@ -72,6 +72,7 @@ export const useAddBeanSubmit = ({
                         delta_grams: stockGrams,
                         event_type: 'purchase',
                         reference_id: crypto.randomUUID(),
+                        cost_per_kg: newBean.cost_per_kg,
                     });
                 }
                 onSuccess?.(newBean);
@@ -94,15 +95,17 @@ export const useAddBeanSubmit = ({
                 const amount = Math.round(parseFloat(restockAmount) * 1000);
                 if (!Number.isFinite(amount) || amount <= 0) return;
                 const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
+                const restockCostValue = restockCost ? parseFloat(restockCost) : NaN;
                 await insertStockEvent.mutateAsync({
                     user_id: userId,
                     bean_id: selectedBeanId,
                     delta_grams: amount,
                     event_type: 'purchase',
                     reference_id: crypto.randomUUID(),
+                    cost_per_kg: Number.isFinite(restockCostValue) ? restockCostValue : null,
                 });
-                if (restockCost && currentBean) {
-                    const newCost = parseFloat(restockCost);
+                if (currentBean) {
+                    const newCost = restockCostValue;
                     if (Number.isFinite(newCost) && newCost !== currentBean.cost_per_kg) {
                         // beanApi.update does a partial (PATCH) update — only changed fields needed.
                         await updateBean.mutateAsync({

@@ -36,6 +36,7 @@ export type Database = {
             bean_stock_events: {
                 Row: {
                     bean_id: string;
+                    cost_per_kg: number | null;
                     created_at: string;
                     created_by: string | null;
                     delta_grams: number;
@@ -47,6 +48,7 @@ export type Database = {
                 };
                 Insert: {
                     bean_id: string;
+                    cost_per_kg?: number | null;
                     created_at?: string;
                     created_by?: string | null;
                     delta_grams: number;
@@ -58,6 +60,7 @@ export type Database = {
                 };
                 Update: {
                     bean_id?: string;
+                    cost_per_kg?: number | null;
                     created_at?: string;
                     created_by?: string | null;
                     delta_grams?: number;
@@ -211,6 +214,7 @@ export type Database = {
             cupping_events: {
                 Row: {
                     created_at: string;
+                    ended_at: string | null;
                     held_at: string;
                     id: string;
                     notes: string | null;
@@ -220,6 +224,7 @@ export type Database = {
                 };
                 Insert: {
                     created_at?: string;
+                    ended_at?: string | null;
                     held_at?: string;
                     id?: string;
                     notes?: string | null;
@@ -229,6 +234,7 @@ export type Database = {
                 };
                 Update: {
                     created_at?: string;
+                    ended_at?: string | null;
                     held_at?: string;
                     id?: string;
                     notes?: string | null;
