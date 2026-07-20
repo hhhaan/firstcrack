@@ -108,9 +108,10 @@ Deno.serve(async (req) => {
     if (eventId) {
         const { data: event } = await supabase
             .from('cupping_events')
-            .select('id, title')
+            .select('id, title, ended_at')
             .eq('id', eventId)
             .maybeSingle();
+        if (event?.ended_at) return jsonResponse({ error: 'ended' }, 410);
         eventTitle = event?.title ?? null;
 
         const { data: sampleRows } = await supabase

@@ -1,6 +1,7 @@
 import { useCreateOrder } from '@entities/order';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProducts } from '@entities/product';
+import { cn } from '@shared/lib/cn';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { FormSelect } from '@shared/ui/FormSelect';
 import {
@@ -95,11 +96,11 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                     <label className={labelCls}>{t('orders.order.lines')}</label>
                     <div className="space-y-2">
                         {lines.map((l, idx) => (
-                            <div key={idx} className="flex gap-2">
+                            <div key={idx} className="flex w-full items-center gap-2">
                                 <FormSelect
                                     value={l.productId}
                                     onChange={(e) => setLine(idx, { productId: e.target.value })}
-                                    wrapperClassName="min-w-0 flex-1"
+                                    wrapperClassName="min-w-0 flex-1 basis-0"
                                 >
                                     <option value="">{t('orders.order.selectProduct')}</option>
                                     {products.map((p) => (
@@ -110,9 +111,18 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                                 </FormSelect>
                                 <input
                                     type="number"
+                                    min={1}
+                                    inputMode="numeric"
                                     value={l.quantity}
                                     onChange={(e) => setLine(idx, { quantity: e.target.value })}
-                                    className={`${inputCls} w-20`}
+                                    className={cn(
+                                        inputCls,
+                                        'w-20 shrink-0 text-center tabular-nums',
+                                        '[appearance:textfield]',
+                                        '[&::-webkit-inner-spin-button]:appearance-none',
+                                        '[&::-webkit-outer-spin-button]:appearance-none',
+                                    )}
+                                    aria-label={t('orders.order.quantity', { defaultValue: 'Quantity' })}
                                 />
                                 {lines.length > 1 && (
                                     <button

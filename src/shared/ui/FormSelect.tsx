@@ -14,16 +14,16 @@ type FormSelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
  */
 export const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
     ({ className, wrapperClassName, children, ...props }, ref) => (
-        <div className={cn('relative', wrapperClassName)}>
+        <div className={cn('relative min-w-0 w-full', wrapperClassName)}>
             <select ref={ref} className={cn(selectCls, className)} {...props}>
                 {children}
             </select>
-            <ChevronDown
-                size={16}
-                strokeWidth={2}
+            <span
                 aria-hidden
-                className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted dark:text-[#8a8580]"
-            />
+                className="pointer-events-none absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted dark:text-[#8a8580]"
+            >
+                <ChevronDown size={16} strokeWidth={2} />
+            </span>
         </div>
     ),
 );

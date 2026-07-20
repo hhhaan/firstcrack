@@ -17,6 +17,8 @@ type CuppingSampleSummaryProps = {
     eventId: string;
     samples: CuppingSampleWithMeta[];
     isLoading: boolean;
+    /** Ended session: view scores only (no add/reorder/delete). */
+    readOnly?: boolean;
     onAddClick: () => void;
 };
 
@@ -35,6 +37,7 @@ export const CuppingSampleSummary = ({
     eventId,
     samples,
     isLoading,
+    readOnly = false,
     onAddClick,
 }: CuppingSampleSummaryProps) => {
     const { t } = useTranslation();
@@ -50,11 +53,13 @@ export const CuppingSampleSummary = ({
         return (
             <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
                 <p className="max-w-md text-[13px] leading-relaxed text-muted tracking-[0.14px]">
-                    {t('cupping.noSamples')}
+                    {readOnly ? t('cupping.noSamplesEnded') : t('cupping.noSamples')}
                 </p>
-                <SurfaceButton onClick={onAddClick} icon={<Plus size={14} strokeWidth={2} />} className="px-4 py-2">
-                    {t('cupping.addSamples')}
-                </SurfaceButton>
+                {!readOnly ? (
+                    <SurfaceButton onClick={onAddClick} icon={<Plus size={14} strokeWidth={2} />} className="px-4 py-2">
+                        {t('cupping.addSamples')}
+                    </SurfaceButton>
+                ) : null}
             </div>
         );
     }
@@ -101,9 +106,11 @@ export const CuppingSampleSummary = ({
                         <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                             {t('cupping.colAvg')}
                         </th>
-                        <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                            {t('cupping.colActions')}
-                        </th>
+                        {!readOnly ? (
+                            <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
+                                {t('cupping.colActions')}
+                            </th>
+                        ) : null}
                     </tr>
                 </thead>
                 <tbody>
@@ -111,6 +118,7 @@ export const CuppingSampleSummary = ({
                         const bean = s.roast_sessions?.beans ?? null;
                         const beanMeta = formatBeanCuppingMeta(bean);
                         const open = expandedId === s.id;
+                        const colSpan = readOnly ? 6 : 7;
                         return (
                             <Fragment key={s.id}>
                                 <tr
@@ -146,51 +154,57 @@ export const CuppingSampleSummary = ({
                                     <td className="px-4 py-3 font-mono text-[13px] text-secondary">
                                         {s.avg_score != null ? s.avg_score.toFixed(2) : '—'}
                                     </td>
-                                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                        <div className="flex items-center justify-end gap-1">
-                                            {(
-                                                [
-                                                    { dir: 'up' as const, Icon: ChevronUp, label: t('cupping.moveUp') },
-                                                    {
-                                                        dir: 'down' as const,
-                                                        Icon: ChevronDown,
-                                                        label: t('cupping.moveDown'),
-                                                    },
-                                                ] as const
-                                            ).map(({ dir, Icon, label }) => (
+                                    {!readOnly ? (
+                                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                            <div className="flex items-center justify-end gap-1">
+                                                {(
+                                                    [
+                                                        {
+                                                            dir: 'up' as const,
+                                                            Icon: ChevronUp,
+                                                            label: t('cupping.moveUp'),
+                                                        },
+                                                        {
+                                                            dir: 'down' as const,
+                                                            Icon: ChevronDown,
+                                                            label: t('cupping.moveDown'),
+                                                        },
+                                                    ] as const
+                                                ).map(({ dir, Icon, label }) => (
+                                                    <button
+                                                        key={dir}
+                                                        type="button"
+                                                        onClick={() => handleMove(i, dir)}
+                                                        disabled={
+                                                            reorderSamples.isPending ||
+                                                            (dir === 'up' ? i === 0 : i === samples.length - 1)
+                                                        }
+                                                        title={label}
+                                                        aria-label={label}
+                                                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border-none bg-surface text-muted transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-30 dark:bg-surface-elevated"
+                                                    >
+                                                        <Icon size={13} strokeWidth={2} />
+                                                    </button>
+                                                ))}
                                                 <button
-                                                    key={dir}
                                                     type="button"
-                                                    onClick={() => handleMove(i, dir)}
-                                                    disabled={
-                                                        reorderSamples.isPending ||
-                                                        (dir === 'up' ? i === 0 : i === samples.length - 1)
-                                                    }
-                                                    title={label}
-                                                    aria-label={label}
-                                                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border-none bg-surface text-muted transition-colors hover:text-primary disabled:cursor-not-allowed disabled:opacity-30 dark:bg-surface-elevated"
+                                                    onClick={() => {
+                                                        if (window.confirm(t('cupping.deleteSampleConfirm'))) {
+                                                            void deleteSample.mutateAsync(s.id);
+                                                        }
+                                                    }}
+                                                    className="ml-1 inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500"
+                                                    aria-label={t('common.delete')}
                                                 >
-                                                    <Icon size={13} strokeWidth={2} />
+                                                    <Trash2 size={13} strokeWidth={1.75} />
                                                 </button>
-                                            ))}
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    if (window.confirm(t('cupping.deleteSampleConfirm'))) {
-                                                        void deleteSample.mutateAsync(s.id);
-                                                    }
-                                                }}
-                                                className="ml-1 inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500"
-                                                aria-label={t('common.delete')}
-                                            >
-                                                <Trash2 size={13} strokeWidth={1.75} />
-                                            </button>
-                                        </div>
-                                    </td>
+                                            </div>
+                                        </td>
+                                    ) : null}
                                 </tr>
                                 {open ? (
                                     <tr className="border-b border-border-subtle bg-surface/30 dark:border-[#585d61] dark:bg-[#1c1f22]">
-                                        <td colSpan={7} className="p-0">
+                                        <td colSpan={colSpan} className="p-0">
                                             <div className="border-t border-border-subtle dark:border-[#585d61]">
                                                 <div className="px-4 pt-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                                     {t('cupping.scoreDetail')}

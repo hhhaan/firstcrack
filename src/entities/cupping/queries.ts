@@ -1,5 +1,5 @@
-import type { CuppingSample } from '@shared/types/database.types';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CuppingEvent, CuppingSample } from '@shared/types/database.types';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     type AddSampleInput,
     type CreateEventInput,
@@ -19,14 +19,139 @@ export const cuppingKeys = {
     scores: (sampleId: string) => ['cuppings', 'sample', sampleId] as const,
 };
 
-export const useCuppingEvents = (userId: string, enabled = true) =>
-    useQuery({
+type ActiveInvite = CuppingEventSummary['active_invite'];
+
+function bumpEventSampleCount(
+    events: CuppingEventSummary[] | undefined,
+    eventId: string,
+    delta: number,
+): CuppingEventSummary[] | undefined {
+    if (!events) return events;
+    return events.map((e) => (e.id === eventId ? { ...e, sample_count: Math.max(0, e.sample_count + delta) } : e));
+}
+
+function setEventActiveInvite(
+    events: CuppingEventSummary[] | undefined,
+    eventId: string,
+    invite: ActiveInvite,
+): CuppingEventSummary[] | undefined {
+    if (!events) return events;
+    return events.map((e) => (e.id === eventId ? { ...e, active_invite: invite } : e));
+}
+
+/** Find event summary in any user events list cache (skips detail keys). */
+export function findEventSummaryInCache(qc: QueryClient, eventId: string): CuppingEventSummary | undefined {
+    const queries = qc.getQueriesData<CuppingEventSummary[]>({ queryKey: ['cupping_events'] });
+    for (const [key, data] of queries) {
+        if (key[1] === 'detail') continue;
+        if (!Array.isArray(data)) continue;
+        const found = data.find((e) => e.id === eventId);
+        if (found) return found;
+    }
+    return undefined;
+}
+
+/**
+ * Keep `cupping_invite[eventId]` and every events-list `active_invite` in lockstep.
+ * List badge + detail "Link active" share one write path (gcTime Infinity → miss = permanent desync).
+ */
+export function syncActiveInviteCache(qc: QueryClient, eventId: string, invite: ActiveInvite, userId?: string): void {
+    qc.setQueryData<ActiveInvite>(cuppingKeys.invite(eventId), invite);
+
+    if (userId) {
+        qc.setQueryData<CuppingEventSummary[]>(cuppingKeys.events(userId), (old) =>
+            setEventActiveInvite(old, eventId, invite),
+        );
+        return;
+    }
+
+    // No userId: patch every loaded events list that contains this event
+    const queries = qc.getQueriesData<CuppingEventSummary[]>({ queryKey: ['cupping_events'] });
+    for (const [key, data] of queries) {
+        if (key[1] === 'detail') continue;
+        if (!Array.isArray(data) || !data.some((e) => e.id === eventId)) continue;
+        qc.setQueryData<CuppingEventSummary[]>(key, setEventActiveInvite(data, eventId, invite));
+    }
+}
+
+/**
+ * Session end: set ended_at on list + detail, clear active invite everywhere.
+ * Idempotent for cache purposes — always forces invite null.
+ */
+export function syncEventEndedCache(
+    qc: QueryClient,
+    userId: string,
+    eventId: string,
+    endedAt: string,
+    eventPatch?: CuppingEvent | Partial<CuppingEvent>,
+): void {
+    qc.setQueryData<ActiveInvite>(cuppingKeys.invite(eventId), null);
+
+    qc.setQueryData<CuppingEvent | undefined>(cuppingKeys.event(eventId), (old) => {
+        if (eventPatch && 'id' in eventPatch && eventPatch.id) {
+            return { ...(old ?? (eventPatch as CuppingEvent)), ...eventPatch, ended_at: endedAt };
+        }
+        if (!old) return old;
+        return { ...old, ...eventPatch, ended_at: endedAt, updated_at: endedAt };
+    });
+
+    qc.setQueryData<CuppingEventSummary[]>(cuppingKeys.events(userId), (old = []) =>
+        old.map((e) =>
+            e.id === eventId
+                ? {
+                      ...e,
+                      ...eventPatch,
+                      ended_at: endedAt,
+                      updated_at: (eventPatch?.updated_at as string | undefined) ?? endedAt,
+                      active_invite: null,
+                  }
+                : e,
+        ),
+    );
+}
+
+/** After list fetch/refetch: write-through invite keys so detail remount matches list badges. */
+export function writeThroughInvitesFromEvents(qc: QueryClient, events: CuppingEventSummary[]): void {
+    for (const ev of events) {
+        const invite = ev.ended_at ? null : (ev.active_invite ?? null);
+        qc.setQueryData<ActiveInvite>(cuppingKeys.invite(ev.id), invite);
+
+        // Keep detail.ended_at aligned when detail is already cached
+        if (ev.ended_at) {
+            qc.setQueryData<CuppingEvent | undefined>(cuppingKeys.event(ev.id), (old) =>
+                old && old.ended_at !== ev.ended_at
+                    ? { ...old, ended_at: ev.ended_at, updated_at: ev.updated_at }
+                    : old,
+            );
+        }
+    }
+}
+
+function toSampleWithMeta(sample: CuppingSample, sortOrder: number): CuppingSampleWithMeta {
+    return {
+        ...sample,
+        sort_order: sample.sort_order ?? sortOrder,
+        roast_sessions: null,
+        score_count: 0,
+        avg_score: null,
+    };
+}
+
+export const useCuppingEvents = (userId: string, enabled = true) => {
+    const qc = useQueryClient();
+    return useQuery({
         queryKey: cuppingKeys.events(userId),
-        queryFn: () => cuppingApi.listEvents(userId),
+        queryFn: async () => {
+            const events = await cuppingApi.listEvents(userId);
+            // List is SSoT for link-active / ended → keep invite keys consistent on every fetch
+            writeThroughInvitesFromEvents(qc, events);
+            return events;
+        },
         staleTime: Infinity,
         enabled: !!userId && enabled,
         throwOnError: false,
     });
+};
 
 export const useCuppingEvent = (eventId: string, enabled = true) =>
     useQuery({
@@ -46,14 +171,39 @@ export const useCuppingSamples = (eventId: string, enabled = true) =>
         throwOnError: false,
     });
 
-export const useEventInvite = (eventId: string, enabled = true) =>
-    useQuery({
+/**
+ * Active session invite. Seeds from events-list cache so list "Link active" and detail
+ * agree immediately when navigating back (gcTime Infinity dual-cache).
+ * When session is ended, forced null and no network.
+ */
+export const useEventInvite = (eventId: string, enabled = true, isEnded = false) => {
+    const qc = useQueryClient();
+
+    return useQuery({
         queryKey: cuppingKeys.invite(eventId),
         queryFn: () => cuppingApi.getActiveInviteForEvent(eventId),
         staleTime: Infinity,
-        enabled: !!eventId && enabled,
+        enabled: !!eventId && enabled && !isEnded,
         throwOnError: false,
+        // Seed only when invite key empty — list/write-through/mutations own the value thereafter
+        initialData: () => {
+            if (isEnded) return null;
+            const existing = qc.getQueryData<ActiveInvite>(cuppingKeys.invite(eventId));
+            if (existing !== undefined) return existing;
+            const summary = findEventSummaryInCache(qc, eventId);
+            if (!summary) return undefined;
+            if (summary.ended_at) return null;
+            return summary.active_invite ?? null;
+        },
+        initialDataUpdatedAt: () => {
+            const state = qc.getQueryState(cuppingKeys.invite(eventId));
+            if (state?.dataUpdatedAt) return state.dataUpdatedAt;
+            // Seeded from list: treat as fresh so Infinity does not refetch stale dual-source
+            if (findEventSummaryInCache(qc, eventId)) return Date.now();
+            return 0;
+        },
     });
+};
 
 export const useCuppingScoresBySample = (sampleId: string, enabled = true) =>
     useQuery({
@@ -63,34 +213,6 @@ export const useCuppingScoresBySample = (sampleId: string, enabled = true) =>
         enabled: !!sampleId && enabled,
         throwOnError: false,
     });
-
-function bumpEventSampleCount(
-    events: CuppingEventSummary[] | undefined,
-    eventId: string,
-    delta: number,
-): CuppingEventSummary[] | undefined {
-    if (!events) return events;
-    return events.map((e) => (e.id === eventId ? { ...e, sample_count: Math.max(0, e.sample_count + delta) } : e));
-}
-
-function setEventActiveInvite(
-    events: CuppingEventSummary[] | undefined,
-    eventId: string,
-    invite: CuppingEventSummary['active_invite'],
-): CuppingEventSummary[] | undefined {
-    if (!events) return events;
-    return events.map((e) => (e.id === eventId ? { ...e, active_invite: invite } : e));
-}
-
-function toSampleWithMeta(sample: CuppingSample, sortOrder: number): CuppingSampleWithMeta {
-    return {
-        ...sample,
-        sort_order: sample.sort_order ?? sortOrder,
-        roast_sessions: null,
-        score_count: 0,
-        avg_score: null,
-    };
-}
 
 export const useCreateCuppingEvent = (userId: string) => {
     const qc = useQueryClient();
@@ -107,6 +229,7 @@ export const useCreateCuppingEvent = (userId: string) => {
                 title: input.title.trim() || 'Cupping',
                 held_at: input.heldAt ?? now,
                 notes: input.notes ?? null,
+                ended_at: null,
                 created_at: now,
                 updated_at: now,
                 sample_count: 0,
@@ -136,6 +259,34 @@ export const useCreateCuppingEvent = (userId: string) => {
                 old.map((e) => (e.id === ctx?.tempId ? summary : e)),
             );
             qc.setQueryData(cuppingKeys.event(real.id), real);
+            syncActiveInviteCache(qc, real.id, null, userId);
+        },
+    });
+};
+
+export const useEndCuppingEvent = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (eventId: string) => cuppingApi.endEvent(eventId),
+        onMutate: async (eventId) => {
+            await qc.cancelQueries({ queryKey: cuppingKeys.events(userId) });
+            await qc.cancelQueries({ queryKey: cuppingKeys.event(eventId) });
+            await qc.cancelQueries({ queryKey: cuppingKeys.invite(eventId) });
+            const prevEvents = qc.getQueryData<CuppingEventSummary[]>(cuppingKeys.events(userId));
+            const prevEvent = qc.getQueryData(cuppingKeys.event(eventId));
+            const prevInvite = qc.getQueryData(cuppingKeys.invite(eventId));
+            const now = new Date().toISOString();
+            syncEventEndedCache(qc, userId, eventId, now);
+            return { prevEvents, prevEvent, prevInvite, eventId };
+        },
+        onError: (_err, eventId, ctx) => {
+            if (ctx?.prevEvents) qc.setQueryData(cuppingKeys.events(userId), ctx.prevEvents);
+            if (ctx?.prevEvent !== undefined) qc.setQueryData(cuppingKeys.event(eventId), ctx.prevEvent);
+            if (ctx?.prevInvite !== undefined) qc.setQueryData(cuppingKeys.invite(eventId), ctx.prevInvite);
+        },
+        onSuccess: (real) => {
+            // Server timestamp wins; always clear invite (revoked on server)
+            syncEventEndedCache(qc, userId, real.id, real.ended_at ?? new Date().toISOString(), real);
         },
     });
 };
@@ -350,8 +501,7 @@ export const useCreateEventInvite = (userId: string, eventId: string) => {
                 created_at: now.toISOString(),
                 url: cuppingInviteUrl(token, base),
             };
-            qc.setQueryData(cuppingKeys.invite(eventId), optimistic);
-            qc.setQueryData(cuppingKeys.events(userId), setEventActiveInvite(prevEvents, eventId, optimistic));
+            syncActiveInviteCache(qc, eventId, optimistic, userId);
             return { prevInvite, prevEvents, tempId, skipped: false as const };
         },
         onError: (_err, _vars, ctx) => {
@@ -360,11 +510,9 @@ export const useCreateEventInvite = (userId: string, eventId: string) => {
             if (ctx?.prevEvents) qc.setQueryData(cuppingKeys.events(userId), ctx.prevEvents);
         },
         onSuccess: (real, _vars, ctx) => {
+            // Always sync real invite (even when skipped optimistic) so list/detail stay aligned
+            syncActiveInviteCache(qc, eventId, real, userId);
             if (ctx?.skipped) return;
-            qc.setQueryData(cuppingKeys.invite(eventId), real);
-            qc.setQueryData<CuppingEventSummary[]>(cuppingKeys.events(userId), (old) =>
-                setEventActiveInvite(old, eventId, real),
-            );
         },
     });
 };
@@ -378,15 +526,16 @@ export const useRevokeCuppingInvite = (eventId: string, userId?: string) => {
             if (userId) await qc.cancelQueries({ queryKey: cuppingKeys.events(userId) });
             const prevInvite = qc.getQueryData(cuppingKeys.invite(eventId));
             const prevEvents = userId ? qc.getQueryData<CuppingEventSummary[]>(cuppingKeys.events(userId)) : undefined;
-            qc.setQueryData(cuppingKeys.invite(eventId), null);
-            if (userId) {
-                qc.setQueryData(cuppingKeys.events(userId), setEventActiveInvite(prevEvents, eventId, null));
-            }
+            syncActiveInviteCache(qc, eventId, null, userId);
             return { prevInvite, prevEvents };
         },
         onError: (_err, _id, ctx) => {
             if (ctx?.prevInvite !== undefined) qc.setQueryData(cuppingKeys.invite(eventId), ctx.prevInvite);
             if (userId && ctx?.prevEvents) qc.setQueryData(cuppingKeys.events(userId), ctx.prevEvents);
+        },
+        onSuccess: () => {
+            // Confirm null on both keys after server revoke
+            syncActiveInviteCache(qc, eventId, null, userId);
         },
     });
 };

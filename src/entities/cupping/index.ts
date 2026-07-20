@@ -31,6 +31,9 @@ export {
 } from './lib/token';
 export {
     cuppingKeys,
+    findEventSummaryInCache,
+    syncActiveInviteCache,
+    syncEventEndedCache,
     useAddCuppingSample,
     useAddCuppingSamples,
     useCreateCuppingEvent,
@@ -41,7 +44,9 @@ export {
     useCuppingScoresBySample,
     useDeleteCuppingEvent,
     useDeleteCuppingSample,
+    useEndCuppingEvent,
     useEventInvite,
     useReorderCuppingSamples,
     useRevokeCuppingInvite,
+    writeThroughInvitesFromEvents,
 } from './queries';

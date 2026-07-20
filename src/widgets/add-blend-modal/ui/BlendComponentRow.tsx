@@ -1,3 +1,4 @@
+import { cn } from '@shared/lib/cn';
 import type { Bean } from '@shared/types/database.types';
 import { FormSelect } from '@shared/ui/FormSelect';
 import { inputCls } from '@shared/ui/form-styles';
@@ -30,7 +31,7 @@ export const BlendComponentRow = ({ index, register, beans, canRemove, onRemove 
             <input
                 type="number"
                 {...register(`components.${index}.ratio_pct`, { valueAsNumber: true })}
-                className={`${inputCls} w-20 text-right`}
+                className={cn(inputCls, 'w-20 shrink-0 text-right')}
                 placeholder="%"
                 min={1}
                 max={100}

@@ -72,6 +72,7 @@ Deno.serve(async (req) => {
         let roastSessionId = invite.roast_session_id as string | null;
         let sampleId = (body.sampleId?.trim() || invite.sample_id) as string | null;
         let profileId: string | null = null;
+        let resolvedEventId = invite.event_id as string | null;
 
         // Event-level invite: sample must belong to that event
         if (invite.event_id) {
@@ -89,18 +90,29 @@ Deno.serve(async (req) => {
             sampleId = invite.sample_id;
             const { data: sample } = await supabase
                 .from('cupping_samples')
-                .select('id, roast_session_id')
+                .select('id, roast_session_id, event_id')
                 .eq('id', sampleId)
                 .maybeSingle();
             if (sample?.roast_session_id) roastSessionId = sample.roast_session_id;
+            if (sample?.event_id) resolvedEventId = sample.event_id;
         } else if (sampleId) {
             const { data: sample } = await supabase
                 .from('cupping_samples')
-                .select('id, roast_session_id')
+                .select('id, roast_session_id, event_id')
                 .eq('id', sampleId)
                 .maybeSingle();
             if (!sample) return jsonResponse({ error: 'sample_not_found' }, 404);
             roastSessionId = sample.roast_session_id ?? roastSessionId;
+            if (sample.event_id) resolvedEventId = sample.event_id;
+        }
+
+        if (resolvedEventId) {
+            const { data: event } = await supabase
+                .from('cupping_events')
+                .select('ended_at')
+                .eq('id', resolvedEventId)
+                .maybeSingle();
+            if (event?.ended_at) return jsonResponse({ error: 'ended' }, 410);
         }
 
         if (!sampleId && !roastSessionId) {

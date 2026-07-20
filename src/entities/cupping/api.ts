@@ -71,6 +71,14 @@ function normalizeCupperName(raw: string | null | undefined): string {
 }
 
 async function loadActiveInviteForEvent(eventId: string): Promise<(CuppingInvite & { url: string }) | null> {
+    const { data: event, error: evErr } = await supabase
+        .from('cupping_events')
+        .select('ended_at')
+        .eq('id', eventId)
+        .maybeSingle();
+    if (evErr) throw evErr;
+    if (event?.ended_at) return null;
+
     const now = new Date().toISOString();
     const { data: invites, error } = await supabase
         .from('cupping_invites')
@@ -170,7 +178,7 @@ export const cuppingApi = {
                 allScores.length > 0
                     ? Math.round((allScores.reduce((a, b) => a + b, 0) / allScores.length) * 100) / 100
                     : null;
-            const inv = activeInviteByEvent.get(ev.id) ?? null;
+            const inv = ev.ended_at ? null : (activeInviteByEvent.get(ev.id) ?? null);
             return {
                 ...ev,
                 sample_count: sids.length,
@@ -209,6 +217,36 @@ export const cuppingApi = {
     deleteEvent: async (eventId: string): Promise<void> => {
         const { error } = await supabase.from('cupping_events').delete().eq('id', eventId);
         if (error) throw error;
+    },
+
+    /** Close session: set ended_at + revoke all active invites. Idempotent. */
+    endEvent: async (eventId: string): Promise<CuppingEvent> => {
+        const existing = await cuppingApi.getEvent(eventId);
+        if (existing.ended_at) return existing;
+
+        const now = new Date().toISOString();
+        const { data, error } = await supabase
+            .from('cupping_events')
+            .update({ ended_at: now, updated_at: now })
+            .eq('id', eventId)
+            .is('ended_at', null)
+            .select()
+            .single();
+        if (error) throw error;
+
+        const { error: revErr } = await supabase
+            .from('cupping_invites')
+            .update({ revoked_at: now })
+            .eq('event_id', eventId)
+            .is('revoked_at', null);
+        if (revErr) throw revErr;
+
+        return data;
+    },
+
+    assertEventOpen: async (eventId: string): Promise<void> => {
+        const ev = await cuppingApi.getEvent(eventId);
+        if (ev.ended_at) throw new Error('SESSION_ENDED');
     },
 
     listSamples: async (eventId: string): Promise<CuppingSampleWithMeta[]> => {
@@ -258,6 +296,7 @@ export const cuppingApi = {
         roastSessionId = null,
         sortOrder = 0,
     }: AddSampleInput): Promise<CuppingSample> => {
+        await cuppingApi.assertEventOpen(eventId);
         const { data, error } = await supabase
             .from('cupping_samples')
             .insert({
@@ -279,6 +318,7 @@ export const cuppingApi = {
         items: { label: string; roastSessionId?: string | null }[],
     ): Promise<CuppingSample[]> => {
         if (!items.length) return [];
+        await cuppingApi.assertEventOpen(eventId);
         const { data: existing, error: maxErr } = await supabase
             .from('cupping_samples')
             .select('sort_order')
@@ -332,6 +372,7 @@ export const cuppingApi = {
         // Session invite: many cuppers × many samples (parallel table use)
         maxUses = 10_000,
     }: CreateInviteForEventInput): Promise<CreateInviteResult> => {
+        await cuppingApi.assertEventOpen(eventId);
         const existing = await loadActiveInviteForEvent(eventId);
         if (existing) return existing;
 

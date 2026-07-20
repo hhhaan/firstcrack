@@ -849,7 +849,14 @@ A5 v1 한계: no curve copy into draft dir; wall clock lag on resume; single lat
 3. `docs/cropster-feature-map.md` §2 lot 매핑 참고
 
 **Depends on:** 없음 (독립 착수 가능, 단 스키마 영향 큼)  
-**Priority:** HIGH (구조적 — 스코프 크므로 별도 계획 문서 필요)
+**Priority:** ~~HIGH~~ → **보류 (2026-07-20 결정)** — Pro+ 고객이 실제 요구할 때 착수
+
+**결정 (2026-07-20):**
+- 소규모 로스터리 운영 패턴(소진 후 재입고)에선 로트 공존 기간이 짧아 실익 낮음 → 수요 검증 전 보류
+- 로트의 pain 중 **단가 소급 왜곡은 [INV7]로 분리** (컬럼 1개, 로트 불필요) — 로트가 진짜 필수인 건 트레이서빌리티뿐
+- 착수 시 구조: `beans` 1행 + `bean_lots` N행 (1:N) + `bean_stock_events.lot_id` 귀속. bean 레코드를 로트별로 늘리는 방식 금지 (프로파일·블렌드·스케줄 bean_id 참조 파괴)
+- 플랜 게이트: **전 플랜 기록, UI만 Pro+ 게이트** (`MULTI_MACHINE_PLANS` + `InventoryLocked` 기존 패턴). 하위 플랜도 입고 1건 = 암묵 로트 1개로 기록해야 업그레이드 시 소급 가능 — "Pro+만 기록"은 금지
+- 기존 데이터는 bean당 레거시 로트 1개로 이관
 
 ---
 
@@ -870,7 +877,7 @@ A5 v1 한계: no curve copy into draft dir; wall clock lag on resume; single lat
 
 ---
 
-### [INV3] 수동 재고 입력 멱등성
+### ~~[INV3] 수동 재고 입력 멱등성~~ ✅ 완료 (261cdeb — `useAddBeanSubmit`에 `crypto.randomUUID()` 적용)
 
 **What:** `bean_stock_events`의 수동 `purchase`/`adjustment` 삽입이 `reference_id` null이라 DB 멱등 보호가 없음 (클라이언트 `isSubmitting` 가드뿐).
 
@@ -882,7 +889,7 @@ A5 v1 한계: no curve copy into draft dir; wall clock lag on resume; single lat
 
 ---
 
-### [INV4] roasted/product 조정(adjustment)·폐기(write_off) UI
+### ~~[INV4] roasted/product 조정(adjustment)·폐기(write_off) UI~~ ✅ 완료 (261cdeb — adjust-roasted-stock/adjust-product-stock features; 잔여: 완제품 이력 뷰 `listByProduct` 미연결)
 
 **What:** `roasted_stock_events`/`product_stock_events` 스키마엔 `adjustment`/`write_off` 이벤트 타입이 정의돼 있으나 작성하는 UI가 없음 (생두만 `BeanAdjustTab`으로 있음).
 
@@ -894,7 +901,7 @@ A5 v1 한계: no curve copy into draft dir; wall clock lag on resume; single lat
 
 ---
 
-### [INV5] 주문 수동 취소 시 재고 복원
+### ~~[INV5] 주문 수동 취소 시 재고 복원~~ ✅ 완료 (261cdeb — `cancel_order` RPC + useCancelOrder; 잔여: 취소 후 'Fulfilled' 배지 표시 버그 `Orders.tsx:315`, 채널 주문 취소 노출 범위 결정)
 
 **What:** 이행된 주문을 수동으로 취소했을 때 `product_stock_events`에 `order_cancel` +복원 이벤트가 없음. 채널 동기화 경로(`inbound-actions.ts`)만 이 이벤트를 씀.
 
@@ -906,7 +913,7 @@ A5 v1 한계: no curve copy into draft dir; wall clock lag on resume; single lat
 
 ---
 
-### [INV6] 앱 시작 재고 알림 — 워크스페이스 오너 기준 통일
+### ~~[INV6] 앱 시작 재고 알림 — 워크스페이스 오너 기준 통일~~ ✅ 완료 (261cdeb — `App.tsx` `workspaceOwnerId || user.id`)
 
 **What:** `App.tsx`의 `useInventoryAlertSync(user?.id)`가 auth id를 쓰는데, 저장 후 재계산 경로는 `workspaceOwnerId`를 씀. 팀 멤버 로그인 시 시작 알림이 오너 재고가 아닌 자기 자신(빈 재고) 기준으로 계산됨.
 
@@ -915,6 +922,23 @@ A5 v1 한계: no curve copy into draft dir; wall clock lag on resume; single lat
 **How:** `App.tsx` 호출을 `workspaceOwnerId`로 교체 (한 줄, `useActiveWorkspace` 이미 다른 곳에서 쓰는 패턴).
 
 **Priority:** LOW (수정 자체는 작음, 발견 난이도가 낮아 버그로 재분류 가능)
+
+---
+
+### [INV7] purchase 이벤트 단가 이력
+
+**What:** `bean_stock_events`의 `purchase` 이벤트에 당시 단가 컬럼(`cost_per_kg`) 추가 — 입고 시점 원가 보존.
+
+**Why:** `beans.cost_per_kg`가 단일 값이라 재입고 때 단가를 바꾸면 과거 원가까지 소급 왜곡됨 ([INV1]의 pain 중 로트 없이 해결 가능한 절반). 가중평균·시점별 원가 계산의 근거 데이터.
+
+**How:**
+
+1. 마이그레이션: `bean_stock_events`에 `cost_per_kg numeric` (nullable, purchase만 기록)
+2. `useAddBeanSubmit` 구매/재입고 경로에서 입력 단가 전달
+3. 원가 계산 로직은 후속 (일단 이력만 쌓기 시작 — 늦출수록 소급 불가 데이터가 늘어남)
+
+**Depends on:** 없음  
+**Priority:** MEDIUM (작은 작업, 데이터는 미리 쌓을수록 좋음)
 
 ---
 

@@ -126,7 +126,16 @@ export const CuppingEventList = ({
                                     className="cursor-pointer border-b border-border-subtle transition hover:bg-surface/50 dark:border-[#585d61]"
                                     onClick={() => onSelect(ev.id)}
                                 >
-                                    <td className="px-4 py-3 text-[13px] font-medium text-primary">{ev.title}</td>
+                                    <td className="px-4 py-3 text-[13px] font-medium text-primary">
+                                        <span className="inline-flex flex-wrap items-center gap-1.5">
+                                            {ev.title}
+                                            {ev.ended_at ? (
+                                                <Badge tone="muted" size="sm">
+                                                    Ended
+                                                </Badge>
+                                            ) : null}
+                                        </span>
+                                    </td>
                                     <td className="px-4 py-3 font-mono text-[13px] text-secondary">
                                         {formatDateShort(ev.held_at)}
                                     </td>
@@ -151,8 +160,11 @@ export const CuppingEventList = ({
                                         {ev.avg_score != null ? ev.avg_score.toFixed(2) : '—'}
                                     </td>
                                     <td className="px-4 py-3">
-                                        <Badge tone={ev.active_invite ? 'good' : 'muted'} size="sm">
-                                            {ev.active_invite ? 'Link active' : 'No link yet'}
+                                        <Badge
+                                            tone={ev.ended_at ? 'muted' : ev.active_invite ? 'good' : 'muted'}
+                                            size="sm"
+                                        >
+                                            {ev.ended_at ? 'Ended' : ev.active_invite ? 'Active' : 'No link yet'}
                                         </Badge>
                                     </td>
                                     <td className="px-4 py-3">

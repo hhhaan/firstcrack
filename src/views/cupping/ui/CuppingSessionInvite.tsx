@@ -10,11 +10,19 @@ type CuppingSessionInviteProps = {
     userId: string;
     title: string;
     sampleCount: number;
+    /** When true, invite query forced null — matches list badge after session end. */
+    isEnded?: boolean;
 };
 
-export const CuppingSessionInvite = ({ eventId, userId, title, sampleCount }: CuppingSessionInviteProps) => {
+export const CuppingSessionInvite = ({
+    eventId,
+    userId,
+    title,
+    sampleCount,
+    isEnded = false,
+}: CuppingSessionInviteProps) => {
     const { t } = useTranslation();
-    const { data: activeInvite } = useEventInvite(eventId);
+    const { data: activeInvite } = useEventInvite(eventId, true, isEnded);
     const createInvite = useCreateEventInvite(userId, eventId);
     const revokeInvite = useRevokeCuppingInvite(eventId, userId);
 
@@ -66,7 +74,7 @@ export const CuppingSessionInvite = ({ eventId, userId, title, sampleCount }: Cu
                                 tone={activeInvite || sampleCount > 0 ? (activeInvite ? 'good' : 'muted') : 'muted'}
                                 size="sm"
                             >
-                                {activeInvite ? 'Link active' : 'No link yet'}
+                                {activeInvite ? 'Active' : 'No link yet'}
                             </Badge>
                         </div>
                         <p className="text-[12px] leading-relaxed text-muted tracking-[0.14px]">

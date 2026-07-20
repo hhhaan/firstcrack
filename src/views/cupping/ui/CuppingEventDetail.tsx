@@ -1,5 +1,12 @@
-import { type CuppingEventSummary, useCuppingSamples, useDeleteCuppingEvent } from '@entities/cupping';
+import {
+    type CuppingEventSummary,
+    useCuppingEvent,
+    useCuppingSamples,
+    useDeleteCuppingEvent,
+    useEndCuppingEvent,
+} from '@entities/cupping';
 import { formatDateShort } from '@shared/lib/format';
+import { Badge } from '@shared/ui/Badge';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
@@ -21,12 +28,16 @@ type CuppingEventDetailProps = {
 export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }: CuppingEventDetailProps) => {
     const { t } = useTranslation();
     const { data: samples = [], isLoading } = useCuppingSamples(eventId);
+    // Detail row backs list summary when navigating back mid-mutation (ended_at SSoT)
+    const { data: eventDetail } = useCuppingEvent(eventId);
     const deleteEvent = useDeleteCuppingEvent(userId);
+    const endEvent = useEndCuppingEvent(userId);
     const [showAdd, setShowAdd] = useState(false);
 
     const title = event?.title ?? t('cupping.title');
     const participants = event?.participants ?? [];
     const participantCount = event?.participant_count ?? 0;
+    const isEnded = !!(event?.ended_at ?? eventDetail?.ended_at);
 
     return (
         <PageLayout>
@@ -40,7 +51,16 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
             </button>
 
             <PageHeader
-                title={title}
+                title={
+                    <span className="inline-flex flex-wrap items-center gap-2">
+                        {title}
+                        {isEnded ? (
+                            <Badge tone="muted" size="sm">
+                                Ended
+                            </Badge>
+                        ) : null}
+                    </span>
+                }
                 subtitle={
                     event
                         ? t('cupping.eventSubtitle', {
@@ -53,9 +73,28 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                 }
                 actions={
                     <div className="flex w-full flex-wrap items-center justify-end gap-2">
-                        <SurfaceButton onClick={() => setShowAdd(true)} icon={<Plus size={13} strokeWidth={2} />}>
-                            {t('cupping.addSamples')}
-                        </SurfaceButton>
+                        {!isEnded ? (
+                            <>
+                                <SurfaceButton
+                                    onClick={() => setShowAdd(true)}
+                                    icon={<Plus size={13} strokeWidth={2} />}
+                                >
+                                    {t('cupping.addSamples')}
+                                </SurfaceButton>
+                                <button
+                                    type="button"
+                                    disabled={endEvent.isPending}
+                                    onClick={() => {
+                                        if (window.confirm(t('cupping.endEventConfirm'))) {
+                                            void endEvent.mutateAsync(eventId);
+                                        }
+                                    }}
+                                    className="rounded-full border border-border-subtle px-3 py-2 text-xs text-primary dark:border-[#585d61] cursor-pointer disabled:opacity-50"
+                                >
+                                    {endEvent.isPending ? t('cupping.endingEvent') : t('cupping.endEvent')}
+                                </button>
+                            </>
+                        ) : null}
                         <button
                             type="button"
                             onClick={() => {
@@ -71,7 +110,19 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                 }
             />
 
-            <CuppingSessionInvite eventId={eventId} userId={userId} title={title} sampleCount={samples.length} />
+            {isEnded ? (
+                <div className="mb-5 rounded-xl border border-border-subtle bg-surface/60 px-4 py-3 text-[12px] leading-relaxed text-muted dark:border-[#585d61]">
+                    {t('cupping.sessionEndedHint')}
+                </div>
+            ) : (
+                <CuppingSessionInvite
+                    eventId={eventId}
+                    userId={userId}
+                    title={title}
+                    sampleCount={samples.length}
+                    isEnded={isEnded}
+                />
+            )}
 
             <div className="mb-5 rounded-xl border border-border-subtle bg-main-bg p-4 dark:border-[#585d61]">
                 <div className="mb-2 flex items-center gap-2">
@@ -106,10 +157,11 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                 eventId={eventId}
                 samples={samples}
                 isLoading={isLoading}
+                readOnly={isEnded}
                 onAddClick={() => setShowAdd(true)}
             />
 
-            {showAdd ? (
+            {showAdd && !isEnded ? (
                 <CuppingAddSamplesForm userId={userId} eventId={eventId} onClose={() => setShowAdd(false)} />
             ) : null}
         </PageLayout>
