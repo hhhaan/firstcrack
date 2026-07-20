@@ -1219,8 +1219,14 @@
         "participantsTitle": "参与者 {{count}} 人",
         "participantsEmpty": "尚无提交评分的参与者。",
         "addSamples": "添加样品",
+        "addTabRoast": "烘焙",
+        "addTabCustom": "自定义",
         "addSamplesHint": "本场可添加任意数量咖啡，无固定数量。可选手动烘焙记录或自定义标签。",
+        "addSamplesHintRoast": "从已完成烘焙中选择，可多选。",
+        "addSamplesHintCustom": "无烘焙记录的咖啡请直接输入标签。",
         "addSamplesEmpty": "请选择烘焙记录或输入标签。",
+        "addSamplesEmptyRoast": "请至少选择一条烘焙记录。",
+        "addSamplesEmptyCustom": "请输入样品标签。",
         "freeLabel": "自定义标签",
         "freeLabelPlaceholder": "例如 Blind A、比赛批次…",
         "noRoasts": "暂无已完成烘焙。",
@@ -1230,6 +1236,12 @@
         "adding": "添加中…",
         "deleteEvent": "删除场次",
         "deleteEventConfirm": "删除本场次及其全部样品？",
+        "endEvent": "结束场次",
+        "endingEvent": "结束中…",
+        "endEventConfirm": "结束本场？邀请链接将作废，无法再添加样品或提交评分。已有记录仅可查看。",
+        "sessionEnded": "已结束",
+        "sessionEndedHint": "本场已结束。样品与评分仅可查看。",
+        "noSamplesEnded": "本场暂无样品。",
         "deleteSampleConfirm": "从本场移除该样品？",
         "qrHint": "在手机上扫描或打开场次链接。",
         "sessionQr": "场次 QR",
@@ -1299,7 +1311,9 @@
                 "action": "",
                 "platform": "渠道"
             },
-            "manual": "手动"
+            "manual": "手动",
+            "cancel": "取消",
+            "cancelConfirm": "取消此订单？已履约库存将恢复。"
         },
         "status": {
             "pending": "待处理",
@@ -1430,7 +1444,8 @@
                 "type": "类型",
                 "stock": "库存",
                 "status": "状态"
-            }
+            },
+            "adjust": "调整"
         },
         "products": {
             "inbound": "入库",
@@ -1446,7 +1461,8 @@
                 "source": "原料",
                 "weight": "净重",
                 "stock": "库存"
-            }
+            },
+            "adjust": "调整"
         },
         "blending": {
             "title": "烘焙后拼配",
@@ -1458,6 +1474,27 @@
             "actualOutput": "实测产出量",
             "submit": "记录拼配",
             "note": "备注（可选）"
+        },
+        "adjust": {
+            "title": "库存调整",
+            "adjustment": "调整",
+            "writeOff": "报废",
+            "amount": "数量",
+            "reason": "原因",
+            "submit": "保存",
+            "grams": "g",
+            "units": "袋",
+            "writeOffPlaceholder": "如：损耗、样品",
+            "adjustPlaceholder": "如：盘点"
+        },
+        "event": {
+            "roast_inbound": "烘焙入库",
+            "packaging": "包装",
+            "blend_consume": "拼配消耗",
+            "blend_produce": "拼配产出",
+            "adjustment": "调整",
+            "write_off": "报废",
+            "history": "历史"
         }
     }
 }

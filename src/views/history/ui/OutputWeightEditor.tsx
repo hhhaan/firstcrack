@@ -1,10 +1,8 @@
 import { useActiveWorkspace } from '@entities/organization';
-import { useUpdateRoastSession } from '@entities/roast';
-import { roastedStockEventApi, roastedStockKeys } from '@entities/roasted-stock-event';
+import { useSetOutputWeight } from '@entities/roast';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
-import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -15,12 +13,12 @@ interface OutputWeightEditorProps {
 /**
  * Post-roast output weight entry — the scale reading happens after cooling/bagging,
  * long after the save modal is gone, so History is where it actually gets typed in.
+ * Atomic RPC: session.output_weight_grams + roasted inbound upsert.
  */
 export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
     const { t } = useTranslation();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
-    const { mutateAsync: updateSession, isPending } = useUpdateRoastSession(workspaceOwnerId);
-    const qc = useQueryClient();
+    const { mutateAsync: setOutputWeight, isPending } = useSetOutputWeight(workspaceOwnerId);
 
     const [draft, setDraft] = useState(() =>
         session.output_weight_grams != null ? String(session.output_weight_grams) : '',
@@ -44,24 +42,19 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
         }
         setInvalid(false);
         if (next === (session.output_weight_grams ?? null)) return;
-        if (!isWorkspaceReady) return;
+        if (!isWorkspaceReady || !workspaceOwnerId) return;
         try {
-            await updateSession({ id: session.id, output_weight_grams: next });
             const inbound = buildRoastedInbound({
                 greenGrams: session.weight_grams,
                 outputWeightGrams: next,
                 roastLevel: session.roast_level,
             });
-            if (inbound && workspaceOwnerId) {
-                void roastedStockEventApi
-                    .upsertInbound({
-                        sessionId: session.id,
-                        userId: workspaceOwnerId,
-                        grams: inbound.grams,
-                        isEstimate: inbound.isEstimate,
-                    })
-                    .then(() => qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(workspaceOwnerId) }));
-            }
+            await setOutputWeight({
+                sessionId: session.id,
+                outputGrams: next,
+                inboundGrams: inbound?.grams ?? 0,
+                inboundIsEstimate: inbound?.isEstimate ?? false,
+            });
         } catch {
             setDraft(session.output_weight_grams != null ? String(session.output_weight_grams) : '');
         }

@@ -1219,8 +1219,14 @@
         "participantsTitle": "{{count}} participants",
         "participantsEmpty": "No scores submitted yet.",
         "addSamples": "Add samples",
+        "addTabRoast": "Roasts",
+        "addTabCustom": "Custom",
         "addSamplesHint": "Add as many coffees as you need for this session — no fixed count. Pick roasts and/or free labels.",
+        "addSamplesHintRoast": "Pick from completed roasts. Multi-select allowed.",
+        "addSamplesHintCustom": "Enter a label for coffees not linked to a roast.",
         "addSamplesEmpty": "Select at least one roast or enter a label.",
+        "addSamplesEmptyRoast": "Select at least one roast.",
+        "addSamplesEmptyCustom": "Enter a sample label.",
         "freeLabel": "Custom sample label",
         "freeLabelPlaceholder": "e.g. Blind A, Competition lot…",
         "noRoasts": "No completed roasts yet.",
@@ -1230,6 +1236,12 @@
         "adding": "Adding…",
         "deleteEvent": "Delete session",
         "deleteEventConfirm": "Delete this session and all its samples?",
+        "endEvent": "End session",
+        "endingEvent": "Ending…",
+        "endEventConfirm": "End this session? Invite links will be revoked and no new samples or scores can be added. Existing records stay viewable.",
+        "sessionEnded": "Ended",
+        "sessionEndedHint": "This session has ended. Samples and scores are view-only.",
+        "noSamplesEnded": "This session has no samples.",
         "deleteSampleConfirm": "Remove this sample from the session?",
         "qrHint": "Scan or open the session link on a phone.",
         "sessionQr": "Session QR",
@@ -1299,7 +1311,9 @@
                 "action": "",
                 "platform": "Channel"
             },
-            "manual": "Manual"
+            "manual": "Manual",
+            "cancel": "Cancel",
+            "cancelConfirm": "Cancel this order? Fulfilled stock will be restored."
         },
         "status": {
             "pending": "Pending",
@@ -1430,7 +1444,8 @@
                 "type": "Type",
                 "stock": "On hand",
                 "status": "Status"
-            }
+            },
+            "adjust": "Adjust"
         },
         "products": {
             "inbound": "Inbound",
@@ -1446,7 +1461,8 @@
                 "source": "Source",
                 "weight": "Net",
                 "stock": "In stock"
-            }
+            },
+            "adjust": "Adjust"
         },
         "blending": {
             "title": "Post-roast blending",
@@ -1458,6 +1474,27 @@
             "actualOutput": "Measured output (g)",
             "submit": "Record blend",
             "note": "Note (optional)"
+        },
+        "adjust": {
+            "title": "Adjust stock",
+            "adjustment": "Adjustment",
+            "writeOff": "Write-off",
+            "amount": "Amount",
+            "reason": "Reason",
+            "submit": "Save",
+            "grams": "g",
+            "units": "bags",
+            "writeOffPlaceholder": "e.g. spoilage, sample",
+            "adjustPlaceholder": "e.g. recount"
+        },
+        "event": {
+            "roast_inbound": "Roast inbound",
+            "packaging": "Packaging",
+            "blend_consume": "Blend consume",
+            "blend_produce": "Blend produce",
+            "adjustment": "Adjustment",
+            "write_off": "Write-off",
+            "history": "History"
         }
     }
 }

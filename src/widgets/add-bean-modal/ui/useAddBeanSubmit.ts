@@ -71,6 +71,7 @@ export const useAddBeanSubmit = ({
                         bean_id: newBean.id,
                         delta_grams: stockGrams,
                         event_type: 'purchase',
+                        reference_id: crypto.randomUUID(),
                     });
                 }
                 onSuccess?.(newBean);
@@ -98,6 +99,7 @@ export const useAddBeanSubmit = ({
                     bean_id: selectedBeanId,
                     delta_grams: amount,
                     event_type: 'purchase',
+                    reference_id: crypto.randomUUID(),
                 });
                 if (restockCost && currentBean) {
                     const newCost = parseFloat(restockCost);
@@ -120,6 +122,7 @@ export const useAddBeanSubmit = ({
                     delta_grams: amount,
                     event_type: 'expected_inbound',
                     note: expectedNote || null,
+                    reference_id: crypto.randomUUID(),
                 });
                 onSuccess?.(currentBean ?? null);
             } else if (tab === 'adjust' && selectedBeanId && adjustAmount) {
@@ -134,6 +137,7 @@ export const useAddBeanSubmit = ({
                     delta_grams: delta,
                     event_type: adjustType,
                     note: adjustNote || null,
+                    reference_id: crypto.randomUUID(),
                 });
                 onSuccess?.(currentBean ?? null);
             }

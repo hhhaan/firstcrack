@@ -1647,13 +1647,6 @@ export type Database = {
                         referencedRelation: 'blends';
                         referencedColumns: ['id'];
                     },
-                    {
-                        foreignKeyName: 'roasted_stock_events_user_id_fkey';
-                        columns: ['user_id'];
-                        isOneToOne: false;
-                        referencedRelation: 'profiles';
-                        referencedColumns: ['id'];
-                    },
                 ];
             };
             sales_channel_connections: {
@@ -1921,6 +1914,7 @@ export type Database = {
                 };
                 Returns: number;
             };
+            cancel_order: { Args: { p_order_id: string }; Returns: undefined };
             compute_inventory_alerts: {
                 Args: { p_horizon_days?: number; p_user_id: string };
                 Returns: undefined;
@@ -1933,6 +1927,10 @@ export type Database = {
                 Args: { p_expires_in?: string; p_token: string };
                 Returns: string;
             };
+            delete_roast_session: {
+                Args: { p_session_id: string };
+                Returns: undefined;
+            };
             expand_rrule_in_range: {
                 Args: {
                     p_dtstart: string;
@@ -1944,21 +1942,6 @@ export type Database = {
                 Returns: string[];
             };
             fulfill_order: { Args: { p_order_id: string }; Returns: undefined };
-            replace_blend_components: {
-                Args: { p_blend_id: string; p_components: Json };
-                Returns: undefined;
-            };
-            roast_deduction_blocked: { Args: { p_reference_id: string }; Returns: boolean };
-            save_roast_op: {
-                Args: {
-                    p_session: Json;
-                    p_deduct: boolean;
-                    p_deduction_grams: number;
-                    p_inbound_grams: number;
-                    p_inbound_is_estimate: boolean;
-                };
-                Returns: Database['public']['Tables']['roast_sessions']['Row'];
-            };
             get_bean_available_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_current_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_effective_stock: {
@@ -1998,7 +1981,84 @@ export type Database = {
                 Returns: undefined;
             };
             insert_stock_events_batch: {
-                Args: { p_events: Json };
+                Args: { p_events: Json; p_roasted_events?: Json };
+                Returns: undefined;
+            };
+            is_org_member_or_owner: { Args: { p_org_id: string }; Returns: boolean };
+            is_org_owner: { Args: { p_org_id: string }; Returns: boolean };
+            list_org_members: {
+                Args: { p_org_id: string };
+                Returns: {
+                    business_name: string;
+                    created_at: string;
+                    display_name: string;
+                    email: string;
+                    role: string;
+                    user_id: string;
+                }[];
+            };
+            redeem_org_invite: { Args: { p_token: string }; Returns: string };
+            remove_org_member: {
+                Args: { p_member_id: string; p_org_id: string };
+                Returns: undefined;
+            };
+            replace_blend_components: {
+                Args: { p_blend_id: string; p_components: Json };
+                Returns: undefined;
+            };
+            revoke_org_invite: { Args: { p_invite_id: string }; Returns: undefined };
+            roast_deduction_blocked: {
+                Args: { p_reference_id: string };
+                Returns: boolean;
+            };
+            save_roast_op: {
+                Args: {
+                    p_deduct: boolean;
+                    p_deduction_grams: number;
+                    p_inbound_grams: number;
+                    p_inbound_is_estimate: boolean;
+                    p_session: Json;
+                };
+                Returns: {
+                    ambient_humidity_pct: number | null;
+                    ambient_temp_celsius: number | null;
+                    bbp_seconds: number | null;
+                    bbp_tsv_path: string | null;
+                    bean_id: string | null;
+                    charge_temp_celsius: number | null;
+                    created_at: string;
+                    created_by: string | null;
+                    drop_temp_celsius: number | null;
+                    duration_seconds: number | null;
+                    events: Json;
+                    id: string;
+                    notes: string | null;
+                    output_weight_grams: number | null;
+                    plan_batch_id: string | null;
+                    profile_id: string | null;
+                    roast_level: string | null;
+                    roasted_at: string | null;
+                    scheduled_at: string | null;
+                    status: string;
+                    tsv_path: string | null;
+                    updated_at: string;
+                    user_id: string;
+                    weight_grams: number;
+                };
+                SetofOptions: {
+                    from: '*';
+                    to: 'roast_sessions';
+                    isOneToOne: true;
+                    isSetofReturn: false;
+                };
+            };
+            set_session_output_weight: {
+                Args: {
+                    p_inbound_grams: number;
+                    p_inbound_is_estimate: boolean;
+                    p_output_grams: number;
+                    p_session_id: string;
+                };
                 Returns: undefined;
             };
             upsert_roasted_inbound: {
@@ -2010,25 +2070,6 @@ export type Database = {
                 };
                 Returns: undefined;
             };
-            is_org_member_or_owner: { Args: { p_org_id: string }; Returns: boolean };
-            is_org_owner: { Args: { p_org_id: string }; Returns: boolean };
-            list_org_members: {
-                Args: { p_org_id: string };
-                Returns: {
-                    business_name: string | null;
-                    created_at: string;
-                    display_name: string | null;
-                    email: string | null;
-                    role: string;
-                    user_id: string;
-                }[];
-            };
-            redeem_org_invite: { Args: { p_token: string }; Returns: string };
-            remove_org_member: {
-                Args: { p_member_id: string; p_org_id: string };
-                Returns: undefined;
-            };
-            revoke_org_invite: { Args: { p_invite_id: string }; Returns: undefined };
         };
         Enums: {
             [_ in never]: never;

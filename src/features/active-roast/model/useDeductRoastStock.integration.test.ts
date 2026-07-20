@@ -14,7 +14,7 @@ describe('deductRoastStock integration', () => {
         qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     });
 
-    it('single-bean roast: insertMany receives buildRoastStockEvents payload', async () => {
+    it('single-bean roast: insertMany receives green + roasted estimate inbound', async () => {
         const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
 
         await deductRoastStock(
@@ -28,19 +28,32 @@ describe('deductRoastStock integration', () => {
         );
 
         expect(getBlend).not.toHaveBeenCalled();
-        expect(insertMany).toHaveBeenCalledWith([
-            {
-                user_id: 'user-1',
-                bean_id: 'bean-1',
-                delta_grams: -5000,
-                event_type: 'roast',
-                reference_id: 'sess-1',
-            },
-        ]);
+        expect(insertMany).toHaveBeenCalledWith(
+            [
+                {
+                    user_id: 'user-1',
+                    bean_id: 'bean-1',
+                    delta_grams: -5000,
+                    event_type: 'roast',
+                    reference_id: 'sess-1',
+                },
+            ],
+            [
+                {
+                    user_id: 'user-1',
+                    bean_id: 'bean-1',
+                    blend_id: null,
+                    delta_grams: 4100, // 5000 * 0.82 DEFAULT_SHRINK
+                    event_type: 'roast_inbound',
+                    reference_id: 'sess-1',
+                    is_estimate: true,
+                },
+            ],
+        );
         expect(invalidateSpy).toHaveBeenCalled();
     });
 
-    it('blend roast: splits by component ratios into insertMany', async () => {
+    it('blend roast: splits green by ratios and roasted inbound on blend', async () => {
         getBlend.mockResolvedValue({
             name: 'House',
             blend_components: [
@@ -60,11 +73,36 @@ describe('deductRoastStock integration', () => {
         );
 
         expect(getBlend).toHaveBeenCalledWith('blend-1');
-        const events = insertMany.mock.calls[0][0] as { bean_id: string; delta_grams: number }[];
-        expect(events).toHaveLength(2);
-        expect(events.reduce((s, e) => s + e.delta_grams, 0)).toBe(-1000);
-        expect(events[0]).toMatchObject({ bean_id: 'a', delta_grams: -600 });
-        expect(events[1]).toMatchObject({ bean_id: 'b', delta_grams: -400 });
+        const green = insertMany.mock.calls[0][0] as { bean_id: string; delta_grams: number }[];
+        const roasted = insertMany.mock.calls[0][1] as { blend_id: string | null; delta_grams: number }[];
+        expect(green).toHaveLength(2);
+        expect(green.reduce((s, e) => s + e.delta_grams, 0)).toBe(-1000);
+        expect(green[0]).toMatchObject({ bean_id: 'a', delta_grams: -600 });
+        expect(green[1]).toMatchObject({ bean_id: 'b', delta_grams: -400 });
+        expect(roasted).toHaveLength(1);
+        expect(roasted[0]).toMatchObject({
+            blend_id: 'blend-1',
+            bean_id: null,
+            delta_grams: 820,
+            event_type: 'roast_inbound',
+            is_estimate: true,
+        });
+    });
+
+    it('uses roastLevel shrink factor for roasted inbound', async () => {
+        await deductRoastStock(
+            { userId: 'user-1', qc, insertMany, getBlend },
+            {
+                deductionGrams: 5000,
+                singleBeanId: 'bean-1',
+                blendId: null,
+                referenceId: 'batch-1',
+                roastLevel: 'Light',
+            },
+        );
+
+        const roasted = insertMany.mock.calls[0][1] as { delta_grams: number }[];
+        expect(roasted[0].delta_grams).toBe(4400); // 5000 * 0.88
     });
 
     it('propagates insertMany failure', async () => {

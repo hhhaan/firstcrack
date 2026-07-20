@@ -41,4 +41,15 @@ export const productStockEventApi = {
         if (error) throw error;
         return (data as Record<string, number>) ?? {};
     },
+
+    listByProduct: async (productId: string, limit = 50): Promise<ProductStockEvent[]> => {
+        const { data, error } = await supabase
+            .from('product_stock_events')
+            .select('*')
+            .eq('product_id', productId)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+        if (error) throw error;
+        return data ?? [];
+    },
 };

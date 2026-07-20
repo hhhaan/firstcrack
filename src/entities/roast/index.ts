@@ -10,5 +10,6 @@ export {
     useRoastSessionFilterMeta,
     useRoastSessions,
     useRoastSessionsPaginated,
+    useSetOutputWeight,
     useUpdateRoastSession,
 } from './queries';

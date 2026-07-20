@@ -6,6 +6,18 @@ import type { Database } from '@shared/types/database.types';
 export type BeanStockEvent = Database['public']['Tables']['bean_stock_events']['Row'];
 export type BeanStockEventInsert = Database['public']['Tables']['bean_stock_events']['Insert'];
 
+/** Batch roasted inbound — structural (entities↔entities import forbidden). */
+export type RoastedInboundEvent = {
+    user_id: string;
+    bean_id?: string | null;
+    blend_id?: string | null;
+    delta_grams: number;
+    event_type: string;
+    reference_id?: string | null;
+    note?: string | null;
+    is_estimate?: boolean;
+};
+
 export type StockSummary = StockSummaryValues;
 
 const mapSummariesRecord = (raw: Record<string, unknown> | null): Record<string, StockSummary> => {
@@ -46,11 +58,18 @@ export const beanStockEventApi = {
         return data;
     },
 
-    /** Atomic batch insert via RPC — all events in one transaction. Idempotent: duplicate (reference_id, bean_id) pairs are silently skipped. */
-    insertMany: async (events: BeanStockEventInsert[]): Promise<void> => {
-        if (!events.length) return;
+    /**
+     * Atomic batch insert via RPC — bean events + optional roasted events in one TX.
+     * Idempotent: duplicate (reference_id, bean_id) / roast_inbound pairs are silently skipped.
+     * roastedEvents is a structural type (entities↔entities import forbidden).
+     */
+    insertMany: async (events: BeanStockEventInsert[], roastedEvents: RoastedInboundEvent[] = []): Promise<void> => {
+        if (!events.length && !roastedEvents.length) return;
 
-        const { error } = await supabase.rpc('insert_stock_events_batch', { p_events: events });
+        const { error } = await supabase.rpc('insert_stock_events_batch', {
+            p_events: events,
+            p_roasted_events: roastedEvents,
+        });
         if (error) throw error;
     },
 

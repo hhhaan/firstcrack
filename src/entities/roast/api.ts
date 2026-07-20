@@ -181,7 +181,24 @@ export const roastSessionApi = {
     },
 
     delete: async (id: string): Promise<void> => {
-        const { error } = await supabase.from('roast_sessions').delete().eq('id', id);
+        const { error } = await supabase.rpc('delete_roast_session', { p_session_id: id });
+        if (error) throw error;
+    },
+
+    /** Atomic: set output_weight_grams + upsert roasted inbound. */
+    setOutputWeight: async (p: {
+        sessionId: string;
+        outputGrams: number | null;
+        inboundGrams: number;
+        inboundIsEstimate: boolean;
+    }): Promise<void> => {
+        // Gen types mark integer args non-null; SQL accepts null to clear measured output.
+        const { error } = await supabase.rpc('set_session_output_weight', {
+            p_session_id: p.sessionId,
+            p_output_grams: p.outputGrams as number,
+            p_inbound_grams: p.inboundGrams,
+            p_inbound_is_estimate: p.inboundIsEstimate,
+        });
         if (error) throw error;
     },
 };

@@ -1219,8 +1219,14 @@
         "participantsTitle": "참여자 {{count}}명",
         "participantsEmpty": "아직 제출한 참여자가 없습니다.",
         "addSamples": "샘플 추가",
+        "addTabRoast": "로스팅",
+        "addTabCustom": "직접",
         "addSamplesHint": "이번 세션에 넣을 커피를 원하는 만큼 추가하세요. 개수 제한 없음. 로스트를 고르거나 직접 라벨을 넣을 수 있습니다.",
+        "addSamplesHintRoast": "완료된 로스트에서 샘플을 고르세요. 여러 개 선택 가능.",
+        "addSamplesHintCustom": "로스트에 없는 커피는 라벨을 직접 입력하세요.",
         "addSamplesEmpty": "로스트를 고르거나 라벨을 입력하세요.",
+        "addSamplesEmptyRoast": "로스트를 하나 이상 선택하세요.",
+        "addSamplesEmptyCustom": "라벨을 입력하세요.",
         "freeLabel": "직접 라벨",
         "freeLabelPlaceholder": "예: Blind A, 대회 랏…",
         "noRoasts": "완료된 로스트가 없습니다",
@@ -1230,6 +1236,12 @@
         "adding": "추가 중…",
         "deleteEvent": "세션 삭제",
         "deleteEventConfirm": "이 세션과 샘플을 모두 삭제할까요?",
+        "endEvent": "세션 종료",
+        "endingEvent": "종료 중…",
+        "endEventConfirm": "세션을 종료할까요? 초대 링크가 무효화되고 샘플 추가·점수 제출이 막힙니다. 기록은 조회만 가능합니다.",
+        "sessionEnded": "종료됨",
+        "sessionEndedHint": "이 세션은 종료되었습니다. 점수와 샘플은 조회만 가능합니다.",
+        "noSamplesEnded": "이 세션에 샘플이 없습니다.",
         "deleteSampleConfirm": "이 샘플을 세션에서 제거할까요?",
         "qrHint": "세션 링크를 폰에서 스캔하거나 여세요",
         "sessionQr": "세션 QR",
@@ -1299,7 +1311,9 @@
                 "action": "",
                 "platform": "채널"
             },
-            "manual": "수동"
+            "manual": "수동",
+            "cancel": "취소",
+            "cancelConfirm": "이 주문을 취소할까요? 이행된 재고는 복원됩니다."
         },
         "status": {
             "pending": "대기",
@@ -1430,7 +1444,8 @@
                 "type": "유형",
                 "stock": "잔량",
                 "status": "상태"
-            }
+            },
+            "adjust": "조정"
         },
         "products": {
             "inbound": "입고",
@@ -1446,7 +1461,8 @@
                 "source": "원료",
                 "weight": "용량",
                 "stock": "재고"
-            }
+            },
+            "adjust": "조정"
         },
         "blending": {
             "title": "로스팅 후 블렌딩",
@@ -1458,6 +1474,27 @@
             "actualOutput": "실측 산출량",
             "submit": "블렌딩 기록",
             "note": "메모 (선택)"
+        },
+        "adjust": {
+            "title": "재고 조정",
+            "adjustment": "조정",
+            "writeOff": "폐기",
+            "amount": "수량",
+            "reason": "사유",
+            "submit": "저장",
+            "grams": "g",
+            "units": "봉",
+            "writeOffPlaceholder": "예: 손실, 샘플",
+            "adjustPlaceholder": "예: 실사"
+        },
+        "event": {
+            "roast_inbound": "로스팅 입고",
+            "packaging": "포장",
+            "blend_consume": "블렌드 소진",
+            "blend_produce": "블렌드 생산",
+            "adjustment": "조정",
+            "write_off": "폐기",
+            "history": "이력"
         }
     }
 }

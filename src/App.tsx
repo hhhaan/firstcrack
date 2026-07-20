@@ -10,6 +10,8 @@ import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
 import { Spinner } from '@shared/ui/Spinner';
 import { useTranslation } from 'react-i18next';
+// import { BottomToolbar } from './widgets/bottom-toolbar';
+import { useActiveWorkspace } from './entities/organization';
 import { useSidecarDeadListener } from './features/sidecar';
 import { useUpdateChecker } from './features/updater';
 import { useAuthStore } from './shared/store/auth';
@@ -27,7 +29,6 @@ import { Orders } from './views/orders/Orders';
 import { Pricing } from './views/pricing/Pricing';
 import { Profiles } from './views/profiles/Profiles';
 import { Schedule } from './views/schedule/Schedule';
-// import { BottomToolbar } from './widgets/bottom-toolbar';
 import { InventoryAlertBanner } from './widgets/inventory-alert-banner';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
@@ -37,6 +38,7 @@ const COMPARE_PLANS_URL = 'https://firstcrackiscoming.com/compare-plans';
 
 export const App = () => {
     const user = useAuthStore((s) => s.user);
+    const { workspaceOwnerId } = useActiveWorkspace();
     const loading = useAuthStore((s) => s.loading);
     const oauthPending = useAuthStore((s) => s.oauthPending);
     const cancelOAuth = useAuthStore((s) => s.cancelOAuth);
@@ -219,7 +221,7 @@ export const App = () => {
                             background: 'var(--color-surface)',
                         }}
                     >
-                        <InventoryAlertBanner userId={user.id} onNavigate={setView} />
+                        <InventoryAlertBanner userId={workspaceOwnerId || user.id} onNavigate={setView} />
                         {view === 'dashboard' && (
                             <ViewErrorBoundary>
                                 <Dashboard onNavigate={setView} />

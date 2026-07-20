@@ -1219,8 +1219,14 @@
         "participantsTitle": "参加者 {{count}}名",
         "participantsEmpty": "まだ提出した参加者はいません。",
         "addSamples": "サンプル追加",
+        "addTabRoast": "ロースト",
+        "addTabCustom": "カスタム",
         "addSamplesHint": "このセッションに必要な分だけコーヒーを追加できます（数の固定なし）。ロースト選択またはラベル入力。",
+        "addSamplesHintRoast": "完了したローストから選びます。複数選択可。",
+        "addSamplesHintCustom": "ローストにないコーヒーはラベルを直接入力。",
         "addSamplesEmpty": "ローストを選ぶかラベルを入力してください。",
+        "addSamplesEmptyRoast": "ローストを1つ以上選択してください。",
+        "addSamplesEmptyCustom": "ラベルを入力してください。",
         "freeLabel": "カスタムラベル",
         "freeLabelPlaceholder": "例: Blind A, 競技ロット…",
         "noRoasts": "完了したローストがありません。",
@@ -1230,6 +1236,12 @@
         "adding": "追加中…",
         "deleteEvent": "セッション削除",
         "deleteEventConfirm": "このセッションとサンプルをすべて削除しますか？",
+        "endEvent": "セッション終了",
+        "endingEvent": "終了中…",
+        "endEventConfirm": "セッションを終了しますか？招待リンクは無効になり、サンプル追加・スコア提出ができなくなります。記録は閲覧のみ可能です。",
+        "sessionEnded": "終了",
+        "sessionEndedHint": "このセッションは終了しました。サンプルとスコアは閲覧のみです。",
+        "noSamplesEnded": "このセッションにサンプルがありません。",
         "deleteSampleConfirm": "このサンプルをセッションから外しますか？",
         "qrHint": "セッションリンクをスマホで開くかスキャンしてください。",
         "sessionQr": "セッションQR",
@@ -1299,7 +1311,9 @@
                 "action": "",
                 "platform": "チャネル"
             },
-            "manual": "手動"
+            "manual": "手動",
+            "cancel": "キャンセル",
+            "cancelConfirm": "この注文をキャンセルしますか？出荷済み在庫は復元されます。"
         },
         "status": {
             "pending": "保留中",
@@ -1430,7 +1444,8 @@
                 "type": "種類",
                 "stock": "在庫",
                 "status": "状態"
-            }
+            },
+            "adjust": "調整"
         },
         "products": {
             "inbound": "入庫",
@@ -1446,7 +1461,8 @@
                 "source": "原料",
                 "weight": "内容量",
                 "stock": "在庫"
-            }
+            },
+            "adjust": "調整"
         },
         "blending": {
             "title": "焙煎後ブレンド",
@@ -1458,6 +1474,27 @@
             "actualOutput": "実測産出量",
             "submit": "ブレンドを記録",
             "note": "メモ（任意）"
+        },
+        "adjust": {
+            "title": "在庫調整",
+            "adjustment": "調整",
+            "writeOff": "廃棄",
+            "amount": "数量",
+            "reason": "理由",
+            "submit": "保存",
+            "grams": "g",
+            "units": "袋",
+            "writeOffPlaceholder": "例: ロス、サンプル",
+            "adjustPlaceholder": "例: 棚卸し"
+        },
+        "event": {
+            "roast_inbound": "焙煎入庫",
+            "packaging": "パッケージ",
+            "blend_consume": "ブレンド消費",
+            "blend_produce": "ブレンド生産",
+            "adjustment": "調整",
+            "write_off": "廃棄",
+            "history": "履歴"
         }
     }
 }

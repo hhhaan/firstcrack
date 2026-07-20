@@ -67,6 +67,12 @@ export const orderApi = {
         if (error) throw error;
     },
 
+    /** Atomic RPC: restore stock for fulfilled lines + set status cancelled. */
+    cancel: async (orderId: string): Promise<void> => {
+        const { error } = await supabase.rpc('cancel_order', { p_order_id: orderId });
+        if (error) throw error;
+    },
+
     getRoastingRequirements: async (userId: string): Promise<RoastingRequirements> => {
         const { data, error } = await supabase.rpc('get_roasting_requirements', { p_user_id: userId });
         if (error) throw error;

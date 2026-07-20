@@ -11,6 +11,7 @@ import {
     useSetAutoFulfill,
     useSyncOrders,
 } from '@entities/sales-channel';
+import { useCancelOrder } from '@features/cancel-order';
 import { DispatchModal } from '@features/dispatch-order';
 import { useFulfillOrder } from '@features/fulfill-order';
 import { usePackageProduct } from '@features/package-product';
@@ -194,6 +195,7 @@ function OrdersTab() {
     const { data: orders = [], isLoading } = useOrders(userId);
     const { data: dispatches = [] } = useOrderDispatches(userId);
     const fulfill = useFulfillOrder();
+    const cancel = useCancelOrder();
     const [showAdd, setShowAdd] = useState(false);
     const [dispatchOrderId, setDispatchOrderId] = useState<string | null>(null);
 
@@ -245,6 +247,11 @@ function OrdersTab() {
                                     order={o}
                                     dispatch={dispatchByOrder.get(o.id)}
                                     onFulfill={() => fulfill.mutate(o.id)}
+                                    onCancel={() => {
+                                        if (window.confirm(t('orders.order.cancelConfirm'))) {
+                                            cancel.mutate(o.id);
+                                        }
+                                    }}
                                     onDispatch={() => setDispatchOrderId(o.id)}
                                 />
                             ))}
@@ -281,11 +288,13 @@ function OrderRow({
     order,
     dispatch,
     onFulfill,
+    onCancel,
     onDispatch,
 }: {
     order: OrderWithLines;
     dispatch?: OrderDispatch;
     onFulfill: () => void;
+    onCancel: () => void;
     onDispatch: () => void;
 }) {
     const { t } = useTranslation();
@@ -293,6 +302,7 @@ function OrderRow({
     const itemCount = order.order_lines.filter((l) => l.status === 'active').reduce((n, l) => n + l.quantity, 0);
     const fulfilled = !!order.fulfilled_at;
     const canFulfill = !fulfilled && (order.status === 'paid' || order.status === 'preparing');
+    const canCancel = order.status !== 'cancelled' && order.status !== 'refunded';
     const canDispatch =
         order.platform !== 'manual' &&
         fulfilled &&
@@ -343,6 +353,7 @@ function OrderRow({
                             {t('orders.order.fulfill')}
                         </GhostButton>
                     ) : null}
+                    {canCancel ? <GhostButton onClick={onCancel}>{t('orders.order.cancel')}</GhostButton> : null}
                     {canDispatch ? (
                         <GhostButton onClick={onDispatch}>
                             <Truck size={13} strokeWidth={1.75} />

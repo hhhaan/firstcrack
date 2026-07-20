@@ -3,12 +3,13 @@ import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import { type Product, useDeleteProduct, useProducts } from '@entities/product';
 import { useProductStock } from '@entities/product-stock-event';
+import { AdjustProductStockModal } from '@features/adjust-product-stock';
 import { usePackageProduct } from '@features/package-product';
 import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { TableSkeleton } from '@shared/ui/TableSkeleton';
 import { AddProductModal } from '@widgets/add-product-modal';
-import { Package, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Package, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -50,6 +51,7 @@ export const ProductsTab = ({ addOpen, onAddOpenChange, editing, onEditingChange
     const [search, setSearch] = useState('');
     const [warning, setWarning] = useState<string | null>(null);
     const [unitsDraft, setUnitsDraft] = useState<Record<string, string>>({});
+    const [adjustProduct, setAdjustProduct] = useState<Product | null>(null);
 
     const openNew = () => {
         onEditingChange(null);
@@ -98,15 +100,6 @@ export const ProductsTab = ({ addOpen, onAddOpenChange, editing, onEditingChange
         setUnitsDraft((d) => ({ ...d, [productId]: '' }));
     };
 
-    if (isLoading) {
-        return (
-            <div className="space-y-3">
-                <div className="h-10 w-full max-w-xs animate-pulse rounded-lg bg-surface" />
-                <TableSkeleton cols={skeletonCols} rows={5} minWidth="640px" />
-            </div>
-        );
-    }
-
     const hasActive = products.some((p) => p.is_active);
 
     return (
@@ -127,7 +120,9 @@ export const ProductsTab = ({ addOpen, onAddOpenChange, editing, onEditingChange
                 />
             </div>
 
-            {!hasActive ? (
+            {isLoading ? (
+                <TableSkeleton cols={skeletonCols} rows={5} minWidth="640px" />
+            ) : !hasActive ? (
                 <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
                     <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-muted dark:bg-surface-elevated">
                         <Package size={20} strokeWidth={1.5} />
@@ -204,6 +199,14 @@ export const ProductsTab = ({ addOpen, onAddOpenChange, editing, onEditingChange
                                                 </button>
                                                 <button
                                                     type="button"
+                                                    className={ghostBtn}
+                                                    onClick={() => setAdjustProduct(p)}
+                                                >
+                                                    <SlidersHorizontal size={13} strokeWidth={1.75} />
+                                                    {t('inventory.products.adjust')}
+                                                </button>
+                                                <button
+                                                    type="button"
                                                     onClick={() => openEdit(p)}
                                                     className={iconBtn}
                                                     aria-label={t('common.edit')}
@@ -230,6 +233,15 @@ export const ProductsTab = ({ addOpen, onAddOpenChange, editing, onEditingChange
                         </tbody>
                     </table>
                 </div>
+            )}
+
+            {adjustProduct && (
+                <AdjustProductStockModal
+                    open
+                    onClose={() => setAdjustProduct(null)}
+                    productId={adjustProduct.id}
+                    name={adjustProduct.name}
+                />
             )}
 
             <AddProductModal
