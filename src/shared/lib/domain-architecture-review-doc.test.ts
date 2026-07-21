@@ -2,85 +2,80 @@
  * Structural guard for docs/domain-architecture-code-review.md.
  * Drives the shipped review artifact: ≥8 domains, three lenses, real path citations,
  * and greppable FSD patterns the doc claims are still present.
+ *
+ * Uses Vite `?raw` imports (same pattern as history-delete-description.test.ts)
+ * so `tsc` under the browser tsconfig does not need Node types.
  */
-import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import docBody from '../../../docs/domain-architecture-code-review.md?raw';
+import orderDispatch from '../../../supabase/functions/order-dispatch/index.ts?raw';
+import beanQueries from '../../entities/bean/queries.ts?raw';
+import planQueries from '../../entities/plan/queries.ts?raw';
+import roastQueries from '../../entities/roast/queries.ts?raw';
+import mainTsx from '../../main.tsx?raw';
+import roastTempChart from '../../views/active-roast/ui/RoastTempChart.tsx?raw';
+import orders from '../../views/orders/Orders.tsx?raw';
+import scheduleHook from '../../views/schedule/hooks/useScheduleDayView.ts?raw';
+import useDashboard from '../../widgets/dashboard-summary/api/useDashboard.ts?raw';
+import sidecar from './sidecar.ts?raw';
 
-const ROOT = resolve(import.meta.dirname, '../../..');
-const DOC = join(ROOT, 'docs/domain-architecture-code-review.md');
-
-const REQUIRED_CITATIONS = [
-    'src/views/schedule/hooks/useScheduleDayView.ts',
-    'src/entities/plan/queries.ts',
-    'src/entities/roast/queries.ts',
-    'src/shared/lib/sidecar.ts',
-    'src/views/orders/Orders.tsx',
-    'src/views/active-roast/ui/RoastTempChart.tsx',
-    'supabase/functions/order-dispatch/index.ts',
-    'src/widgets/dashboard-summary/api/useDashboard.ts',
-    'src/entities/bean/queries.ts',
-    'src/main.tsx',
+const CITED_SOURCES = [
+    { rel: 'src/views/schedule/hooks/useScheduleDayView.ts', body: scheduleHook },
+    { rel: 'src/entities/plan/queries.ts', body: planQueries },
+    { rel: 'src/entities/roast/queries.ts', body: roastQueries },
+    { rel: 'src/shared/lib/sidecar.ts', body: sidecar },
+    { rel: 'src/views/orders/Orders.tsx', body: orders },
+    { rel: 'src/views/active-roast/ui/RoastTempChart.tsx', body: roastTempChart },
+    { rel: 'supabase/functions/order-dispatch/index.ts', body: orderDispatch },
+    { rel: 'src/widgets/dashboard-summary/api/useDashboard.ts', body: useDashboard },
+    { rel: 'src/entities/bean/queries.ts', body: beanQueries },
+    { rel: 'src/main.tsx', body: mainTsx },
 ] as const;
 
 describe('docs/domain-architecture-code-review.md', () => {
     it('exists and is non-empty', () => {
-        expect(existsSync(DOC)).toBe(true);
-        const body = readFileSync(DOC, 'utf8');
-        expect(body.length).toBeGreaterThan(2000);
+        expect(docBody.length).toBeGreaterThan(2000);
     });
 
     it('covers at least 8 numbered domain sections from the live product tree', () => {
-        const body = readFileSync(DOC, 'utf8');
-        const sections = body.match(/^## \d+\. .+$/gm) ?? [];
+        const sections = docBody.match(/^## \d+\. .+$/gm) ?? [];
         expect(sections.length).toBeGreaterThanOrEqual(8);
-        expect(body).toMatch(/Active roast/i);
-        expect(body).toMatch(/Inventory/i);
-        expect(body).toMatch(/Orders/i);
-        expect(body).toMatch(/Schedule/i);
-        expect(body).toMatch(/History/i);
-        expect(body).toMatch(/Sidecar/i);
-        expect(body).toMatch(/Auth/i);
-        expect(body).toMatch(/Supabase/i);
+        expect(docBody).toMatch(/Active roast/i);
+        expect(docBody).toMatch(/Inventory/i);
+        expect(docBody).toMatch(/Orders/i);
+        expect(docBody).toMatch(/Schedule/i);
+        expect(docBody).toMatch(/History/i);
+        expect(docBody).toMatch(/Sidecar/i);
+        expect(docBody).toMatch(/Auth/i);
+        expect(docBody).toMatch(/Supabase/i);
     });
 
     it('tags findings with smell, readability, and architecture lenses', () => {
-        const body = readFileSync(DOC, 'utf8');
         for (const lens of ['smell', 'readability', 'architecture'] as const) {
-            expect(body.toLowerCase().includes(lens)).toBe(true);
+            expect(docBody.toLowerCase().includes(lens)).toBe(true);
         }
     });
 
     it('reconciles prior audits instead of only restating them', () => {
-        const body = readFileSync(DOC, 'utf8');
-        expect(body).toMatch(/Prior audit reconcile/i);
-        expect(body).toMatch(/still true/i);
-        expect(body).toMatch(/fixed/i);
-        expect(body).toMatch(/production-readiness-audit/);
-        expect(body).toMatch(/refactor-plan/);
+        expect(docBody).toMatch(/Prior audit reconcile/i);
+        expect(docBody).toMatch(/still true/i);
+        expect(docBody).toMatch(/fixed/i);
+        expect(docBody).toMatch(/production-readiness-audit/);
+        expect(docBody).toMatch(/refactor-plan/);
     });
 
-    it('cites real paths that still exist on disk', () => {
-        const body = readFileSync(DOC, 'utf8');
-        for (const rel of REQUIRED_CITATIONS) {
-            const abs = join(ROOT, rel);
-            expect(existsSync(abs), `cited path missing: ${rel}`).toBe(true);
+    it('cites real paths that still resolve as source modules', () => {
+        for (const { rel, body } of CITED_SOURCES) {
+            expect(body.length, `cited path empty/missing: ${rel}`).toBeGreaterThan(0);
             const fragment = rel.split('/').slice(-2).join('/');
-            expect(body.includes(fragment) || body.includes(rel), `doc missing citation for ${rel}`).toBe(true);
+            expect(docBody.includes(fragment) || docBody.includes(rel), `doc missing citation for ${rel}`).toBe(true);
         }
     });
 
     it('documents still-present FSD patterns that greps find in shipped code', () => {
-        const roastQueries = readFileSync(join(ROOT, 'src/entities/roast/queries.ts'), 'utf8');
         expect(roastQueries).toMatch(/bean-stock-event|roasted-stock-event/);
-
-        const sidecar = readFileSync(join(ROOT, 'src/shared/lib/sidecar.ts'), 'utf8');
         expect(sidecar).toMatch(/@entities\/machine/);
-
-        const schedule = readFileSync(join(ROOT, 'src/views/schedule/hooks/useScheduleDayView.ts'), 'utf8');
-        expect(schedule).toMatch(/useDayBatches\(userId, dateKey, 14\)/);
-
-        const dispatch = readFileSync(join(ROOT, 'supabase/functions/order-dispatch/index.ts'), 'utf8');
-        expect(dispatch).toMatch(/sales_channels/);
+        expect(scheduleHook).toMatch(/useDayBatches\(userId, dateKey, 14\)/);
+        expect(orderDispatch).toMatch(/sales_channels/);
     });
 });
