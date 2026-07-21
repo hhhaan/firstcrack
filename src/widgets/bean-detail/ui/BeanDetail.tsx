@@ -1,7 +1,8 @@
 import { processColor } from '@entities/bean/lib';
-import { useBeanStockEvents, useBeanStockSummary } from '@entities/bean-stock-event';
+import { type BeanAssetLine, useBeanStockEvents, useBeanStockSummary } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
+import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
 import { Edit3, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +19,7 @@ interface BeanDetailProps {
     bean: Bean | null;
     isLoading: boolean;
     affectedBlendNames: string[];
+    assetLine?: BeanAssetLine | null;
     onEdit: (bean: Bean) => void;
     onRestock: (id: string) => void;
     onStartRoast: () => void;
@@ -62,12 +64,13 @@ export const BeanDetail = ({
     bean,
     isLoading,
     affectedBlendNames,
+    assetLine = null,
     onEdit,
     onRestock,
     onStartRoast,
     onDelete,
 }: BeanDetailProps) => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const [confirming, setConfirming] = useState(false);
     const { data: summary } = useBeanStockSummary(bean?.id ?? '');
     const { data: events = [] } = useBeanStockEvents(bean?.id ?? '');
@@ -78,6 +81,16 @@ export const BeanDetail = ({
     const currentGrams = summary?.currentGrams ?? 0;
     const availableGrams = summary?.availableGrams ?? 0;
     const effectiveGrams = summary?.effectiveGrams ?? 0;
+
+    const cur = currencySymbol(i18n.language);
+    const unitCostLabel =
+        assetLine?.unitCostPerKg != null ? `${cur}${formatAmount(assetLine.unitCostPerKg, i18n.language)}/kg` : '—';
+    const assetValueLabel =
+        assetLine?.assetValue != null
+            ? `${cur}${formatAmount(assetLine.assetValue, i18n.language)}`
+            : assetLine?.costSource === 'none'
+              ? t('inventoryAsset.missingCost')
+              : '—';
 
     return (
         <>
@@ -150,12 +163,31 @@ export const BeanDetail = ({
                             label: t('beanDetail.effective'),
                             value: `${(effectiveGrams / 1000).toFixed(2)}kg`,
                         },
-                    ].map(({ label, value }) => (
+                        {
+                            label: t('inventoryAsset.avgCost'),
+                            value: unitCostLabel,
+                            hint:
+                                assetLine?.costSource === 'master'
+                                    ? t('inventoryAsset.masterFallbackHint')
+                                    : assetLine?.costSource === 'none' && (assetLine.valuedGrams ?? 0) > 0
+                                      ? t('inventoryAsset.missingCostHint')
+                                      : undefined,
+                        },
+                        {
+                            label: t('inventoryAsset.stockValue'),
+                            value: assetValueLabel,
+                        },
+                    ].map(({ label, value, hint }) => (
                         <div key={label}>
                             <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-0.75">
                                 {label}
                             </div>
                             <div className="text-sm font-medium text-primary tracking-[0.14px]">{value}</div>
+                            {hint && (
+                                <div className="text-[11px] text-muted tracking-[0.14px] mt-0.5 leading-snug">
+                                    {hint}
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>

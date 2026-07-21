@@ -1087,7 +1087,7 @@
         },
         "restock": {
             "weight": "添加重量 (kg)",
-            "cost": "成本 (韩元/kg)",
+            "cost": "成本 (元/kg)",
             "clear": "清除"
         }
     },
@@ -1513,5 +1513,17 @@
             "order_fulfillment": "订单履约",
             "order_cancel": "订单取消"
         }
+    },
+    "inventoryAsset": {
+        "totalLabel": "生豆库存资产合计",
+        "summary": "已评估 {{evaluated}} 种",
+        "summaryWithMissing": "已评估 {{evaluated}} 种 · 未填单价 {{missing}} 种",
+        "missingCost": "未填单价",
+        "missingCostCount": "未填单价 {{count}} 种",
+        "missingCostHint": "未填单价 — 请在入库/编辑中填写单价",
+        "masterFallbackHint": "无入库单价历史 · 使用主档单价",
+        "avgCost": "加权平均单价",
+        "stockValue": "库存资产",
+        "error": "资产计算失败"
     }
 }

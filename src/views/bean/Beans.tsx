@@ -1,5 +1,4 @@
 import { useBeans, useDeleteBean } from '@entities/bean/queries';
-import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import type { BlendWithComponents } from '@entities/blend';
 import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
@@ -23,9 +22,11 @@ import { AddBlendModal } from '@widgets/add-blend-modal';
 import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
 import { BeanList } from '@widgets/bean-list/ui/BeanList';
 import { BlendList } from '@widgets/blend-list/ui/BlendList';
+import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
 import { Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useGreenInventoryAssets } from './model/useGreenInventoryAssets';
 import { InventoryLocked } from './ui/InventoryLocked';
 import { type InventoryTab, InventoryTabBar } from './ui/InventoryTabBar';
 import { ProductsTab } from './ui/ProductsTab';
@@ -37,11 +38,16 @@ type BeansProps = {
 };
 
 export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const qc = useQueryClient();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: beans = [], isLoading } = useBeans(userId);
-    const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
+    const {
+        summary: assetSummary,
+        stockSummaries,
+        isLoading: assetsLoading,
+        isError: assetsError,
+    } = useGreenInventoryAssets(userId, beans);
     const { data: blends = [] } = useBlends(userId);
     const { mutate: deleteBean } = useDeleteBean(userId);
     const canRoasted = useFeature(FEATURE.roastedInventory);
@@ -147,6 +153,8 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
                 search={search}
                 onSearchChange={setSearch}
                 stockSummaries={stockSummaries}
+                assetByBeanId={assetSummary.byBeanId}
+                assetsReady={!assetsLoading}
             />
         </div>
     );
@@ -156,6 +164,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
             bean={selected}
             isLoading={isLoading}
             affectedBlendNames={affectedBlendNames}
+            assetLine={selected ? (assetSummary.byBeanId[selected.id] ?? null) : null}
             onEdit={(bean) => openModal('edit', bean.id, bean)}
             onRestock={(id) => openModal('restock', id)}
             onStartRoast={() => {
@@ -173,21 +182,41 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
 
     const greenBody = (
         <>
-            <div className="flex border-b border-(--color-border) dark:border-[#585d61] mb-4">
-                <button
-                    type="button"
-                    className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'single' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
-                    onClick={() => setTab('single')}
-                >
-                    {t('beans.tab.single')}
-                </button>
-                <button
-                    type="button"
-                    className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'blend' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'text-(--color-muted)'}`}
-                    onClick={() => setTab('blend')}
-                >
-                    {t('beans.tab.blend')}
-                </button>
+            <div className="mb-4 flex items-end justify-between gap-3 border-b border-(--color-border) dark:border-[#585d61]">
+                <div className="flex min-w-0">
+                    <button
+                        type="button"
+                        className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'single' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'border-b-2 border-transparent text-(--color-muted)'}`}
+                        onClick={() => setTab('single')}
+                    >
+                        {t('beans.tab.single')}
+                    </button>
+                    <button
+                        type="button"
+                        className={`px-4 py-2 text-sm font-medium cursor-pointer ${tab === 'blend' ? 'border-b-2 border-(--color-primary) text-(--color-primary)' : 'border-b-2 border-transparent text-(--color-muted)'}`}
+                        onClick={() => setTab('blend')}
+                    >
+                        {t('beans.tab.blend')}
+                    </button>
+                </div>
+                {tab === 'single' && beans.length > 0 && (
+                    <div className="shrink-0 pb-2 text-right">
+                        <div className="font-mono text-[13px] font-medium tracking-[0.14px] text-primary">
+                            {assetsError
+                                ? t('inventoryAsset.error')
+                                : assetsLoading
+                                  ? '—'
+                                  : `${currencySymbol(i18n.language)}${formatAmount(assetSummary.totalAssetValue, i18n.language)}`}
+                        </div>
+                        {!assetsLoading && !assetsError && assetSummary.unevaluatedCount > 0 && (
+                            <div className="text-[11px] tracking-[0.14px] text-muted">
+                                {t('inventoryAsset.missingCostCount', {
+                                    count: assetSummary.unevaluatedCount,
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {tab === 'single' &&

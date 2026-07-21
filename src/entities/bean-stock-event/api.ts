@@ -118,6 +118,25 @@ export const beanStockEventApi = {
         return mapSummariesRecord((data ?? {}) as Record<string, unknown>);
     },
 
+    /** Purchase events with cost — client WAC input (minimal columns). */
+    listPurchaseCostsByUser: async (
+        userId: string,
+    ): Promise<{ bean_id: string; delta_grams: number; cost_per_kg: number }[]> => {
+        const { data, error } = await supabase
+            .from('bean_stock_events')
+            .select('bean_id, delta_grams, cost_per_kg')
+            .eq('user_id', userId)
+            .eq('event_type', 'purchase')
+            .not('cost_per_kg', 'is', null)
+            .gt('delta_grams', 0);
+        if (error) throw error;
+        return (data ?? []).map((row) => ({
+            bean_id: row.bean_id,
+            delta_grams: row.delta_grams,
+            cost_per_kg: row.cost_per_kg as number,
+        }));
+    },
+
     computeInventoryAlerts: async (userId: string, horizonDays?: number): Promise<void> => {
         const horizon = horizonDays ?? (await inventoryStore.getHorizonDays());
 

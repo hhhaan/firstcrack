@@ -57,7 +57,7 @@ export const CostFlowStrip = ({
                                 </span>
                             </div>
                             <div className="font-mono text-[13px] font-medium text-primary tabular-nums pl-3">
-                                {step.display ?? formatKrw(step.value)}
+                                {step.display ?? formatKrw(step.value, i18n.language)}
                             </div>
                         </div>
                     );

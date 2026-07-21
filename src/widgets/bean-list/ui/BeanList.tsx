@@ -1,7 +1,8 @@
 import { getStatus, statusConfig } from '@entities/bean/lib';
-import type { StockSummary } from '@entities/bean-stock-event';
+import type { BeanAssetLine, StockSummary } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
+import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
 import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -13,6 +14,8 @@ interface BeanListProps {
     search: string;
     onSearchChange: (value: string) => void;
     stockSummaries: Record<string, StockSummary>;
+    assetByBeanId?: Record<string, BeanAssetLine>;
+    assetsReady?: boolean;
 }
 
 const Skeleton = () => (
@@ -33,8 +36,17 @@ const Skeleton = () => (
     </div>
 );
 
-export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, stockSummaries }: BeanListProps) => {
-    const { t } = useTranslation();
+export const BeanList = ({
+    beans,
+    isLoading,
+    onSelect,
+    search,
+    onSearchChange,
+    stockSummaries,
+    assetByBeanId = {},
+    assetsReady = false,
+}: BeanListProps) => {
+    const { t, i18n } = useTranslation();
     const searchLower = search.toLowerCase();
     const filtered = beans.filter(
         (b) => b.name.toLowerCase().includes(searchLower) || (b.origin ?? '').toLowerCase().includes(searchLower),
@@ -42,13 +54,13 @@ export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, s
 
     return (
         <div>
-            <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-[9px] mb-2.5 dark:border dark:border-[#585d61]">
-                <Search size={14} strokeWidth={2} className="text-muted shrink-0" />
+            <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-main-bg px-3 py-[9px] dark:border dark:border-[#585d61]">
+                <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                 <input
                     value={search}
                     onChange={(e) => onSearchChange(e.target.value)}
                     placeholder={t('beanList.searchPlaceholder')}
-                    className="border-none bg-transparent outline-none text-[13px] text-primary font-body w-full tracking-[0.14px]"
+                    className="w-full border-none bg-transparent font-body text-[13px] tracking-[0.14px] text-primary outline-none"
                 />
             </div>
 
@@ -62,19 +74,21 @@ export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, s
                         const status = getStatus(currentGrams, bean.low_stock_threshold_grams);
                         const cfg = statusConfig[status];
                         const pct = Math.min(100, (currentGrams / bean.capacity_grams) * 100);
+                        const asset = assetsReady ? assetByBeanId[bean.id] : undefined;
+                        const showAssetMeta = asset && asset.valuedGrams > 0;
 
                         return (
                             <div
                                 key={bean.id}
                                 onClick={() => onSelect(bean.id)}
-                                className="bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150 dark:border dark:border-[#585d61]"
+                                className="cursor-pointer rounded-lg bg-main-bg px-4 py-3.5 transition-all duration-150 dark:border dark:border-[#585d61]"
                             >
-                                <div className="flex items-start justify-between mb-2">
+                                <div className="mb-2 flex items-start justify-between">
                                     <div>
-                                        <div className="text-[13px] font-medium text-primary tracking-[0.14px] mb-0.5">
+                                        <div className="mb-0.5 text-[13px] font-medium tracking-[0.14px] text-primary">
                                             {bean.name}
                                         </div>
-                                        <div className="text-xs text-muted tracking-[0.14px]">
+                                        <div className="text-xs tracking-[0.14px] text-muted">
                                             {bean.origin ?? '—'} · {bean.process ?? '—'}
                                         </div>
                                     </div>
@@ -83,7 +97,7 @@ export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, s
                                     </Badge>
                                 </div>
 
-                                <div className="h-1 bg-surface rounded-full overflow-hidden mb-1">
+                                <div className="mb-1 h-1 overflow-hidden rounded-full bg-surface">
                                     <div
                                         className="h-full rounded-full bg-palette-green"
                                         style={{
@@ -92,15 +106,29 @@ export const BeanList = ({ beans, isLoading, onSelect, search, onSearchChange, s
                                         }}
                                     />
                                 </div>
-                                <div className="text-xs text-muted font-mono">
-                                    {(currentGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
+                                <div className="flex items-baseline justify-between gap-2 font-mono text-xs">
+                                    <span className="text-muted">
+                                        {(currentGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}
+                                        kg
+                                    </span>
+                                    {showAssetMeta &&
+                                        (asset.assetValue != null ? (
+                                            <span className="shrink-0 text-secondary">
+                                                {currencySymbol(i18n.language)}
+                                                {formatAmount(asset.assetValue, i18n.language)}
+                                            </span>
+                                        ) : asset.costSource === 'none' ? (
+                                            <span className="shrink-0 font-body text-muted">
+                                                {t('inventoryAsset.missingCost')}
+                                            </span>
+                                        ) : null)}
                                 </div>
                             </div>
                         );
                     })}
 
                     {filtered.length === 0 && (
-                        <div className="px-5 py-10 text-center text-muted text-sm tracking-[0.14px]">
+                        <div className="px-5 py-10 text-center text-sm tracking-[0.14px] text-muted">
                             {beans.length === 0 ? t('beanList.empty') : t('beanList.noResults')}
                         </div>
                     )}

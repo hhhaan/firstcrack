@@ -1087,7 +1087,7 @@
         },
         "restock": {
             "weight": "追加数量 (kg)",
-            "cost": "原価 (ウォン/kg)",
+            "cost": "原価 (円/kg)",
             "clear": "クリア"
         }
     },
@@ -1513,5 +1513,17 @@
             "order_fulfillment": "注文履行",
             "order_cancel": "注文キャンセル"
         }
+    },
+    "inventoryAsset": {
+        "totalLabel": "生豆在庫資産合計",
+        "summary": "評価 {{evaluated}}種",
+        "summaryWithMissing": "評価 {{evaluated}}種 · 単価未入力 {{missing}}種",
+        "missingCost": "単価未入力",
+        "missingCostCount": "単価未入力 {{count}}種",
+        "missingCostHint": "単価未入力 — 入荷/編集で単価を入力してください",
+        "masterFallbackHint": "入荷単価履歴なし · マスタ単価を使用",
+        "avgCost": "加重平均単価",
+        "stockValue": "在庫資産",
+        "error": "資産計算失敗"
     }
 }

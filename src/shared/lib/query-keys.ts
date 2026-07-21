@@ -13,6 +13,7 @@ export const inventoryQueryRoots = {
     beanStockSummaries: ['bean-stock-summaries'] as const,
     beanStockSummary: ['bean-stock-summary'] as const,
     beanStockEvents: ['bean-stock-events'] as const,
+    beanPurchaseCosts: ['bean-purchase-costs'] as const,
     inventoryAlerts: ['inventory-alerts'] as const,
     roastedStock: ['roasted-stock'] as const,
     productStock: ['product-stock'] as const,

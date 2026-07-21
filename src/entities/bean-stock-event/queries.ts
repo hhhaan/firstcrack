@@ -21,6 +21,8 @@ export const stockEventKeys = {
     summary: (beanId: string) => [...inventoryQueryRoots.beanStockSummary, beanId] as const,
     summariesRoot: inventoryQueryRoots.beanStockSummaries,
     summariesByUser: (userId: string) => [...inventoryQueryRoots.beanStockSummaries, userId] as const,
+    purchaseCostsRoot: inventoryQueryRoots.beanPurchaseCosts,
+    purchaseCostsByUser: (userId: string) => [...inventoryQueryRoots.beanPurchaseCosts, userId] as const,
 };
 
 export const useBeanStockEvents = (beanId: string) =>
@@ -41,6 +43,13 @@ export const useBeanStockSummaries = (userId: string) =>
     useQuery({
         queryKey: stockEventKeys.summariesByUser(userId),
         queryFn: () => beanStockEventApi.getStockSummariesByUser(userId),
+        enabled: !!userId,
+    });
+
+export const useBeanPurchaseCosts = (userId: string) =>
+    useQuery({
+        queryKey: stockEventKeys.purchaseCostsByUser(userId),
+        queryFn: () => beanStockEventApi.listPurchaseCostsByUser(userId),
         enabled: !!userId,
     });
 
@@ -84,6 +93,7 @@ export const useInsertStockEvent = () => {
             void qc.invalidateQueries({ queryKey: stockEventKeys.byBean(beanId) });
             void qc.invalidateQueries({ queryKey: stockEventKeys.summary(beanId) });
             void qc.invalidateQueries({ queryKey: stockEventKeys.summariesRoot });
+            void qc.invalidateQueries({ queryKey: stockEventKeys.purchaseCostsRoot });
             void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
             if (newEvent.user_id) {
                 await beanStockEventApi.computeInventoryAlerts(newEvent.user_id);

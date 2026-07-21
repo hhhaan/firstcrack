@@ -1074,8 +1074,8 @@
             "altitudePlaceholder": "e.g. 2100",
             "stock": "Stock (kg)",
             "capacity": "Bag Capacity (kg)",
-            "cost": "Cost (KRW/kg)",
-            "costPlaceholder": "e.g. 32000",
+            "cost": "Cost ($/kg)",
+            "costPlaceholder": "e.g. 12",
             "tastingNotes": "Tasting Notes",
             "tastingNotesPlaceholder": "e.g. Jasmine, Blueberry, Milk Chocolate"
         },
@@ -1087,7 +1087,7 @@
         },
         "restock": {
             "weight": "Weight to Add (kg)",
-            "cost": "Cost (KRW/kg)",
+            "cost": "Cost ($/kg)",
             "clear": "Clear"
         }
     },
@@ -1136,8 +1136,8 @@
             },
             "bean": "Green Bean",
             "selectBean": "Search or type a name",
-            "greenCost": "Green Cost (KRW/kg)",
-            "greenCostPlaceholder": "e.g. 32000 KRW",
+            "greenCost": "Green Cost ($/kg)",
+            "greenCostPlaceholder": "e.g. 12",
             "missingCost": "No cost recorded for this bean.",
             "goToBeans": "Go to Inventory",
             "emptyBeans": "No beans yet. Add one in Inventory.",
@@ -1151,7 +1151,7 @@
             },
             "components": "Components",
             "ratioHeader": "Ratio",
-            "costShort": "KRW/kg",
+            "costShort": "$/kg",
             "addComponent": "Add component",
             "toggleList": "Toggle list"
         },
@@ -1161,27 +1161,27 @@
             "blendGreenCost": "Blend Green Cost",
             "yield": "Roast Yield",
             "roastedCost": "Roasted Cost",
-            "overhead": "Overhead (KRW/kg)",
+            "overhead": "Overhead ($/kg)",
             "totalCost": "Total Cost (incl. overhead)",
             "fixedOverhead": "Fixed overhead",
             "fixedOverheadHint": "Applied to every bean calculation until you change it.",
             "itemName": "Item",
-            "itemAmount": "KRW/kg",
+            "itemAmount": "$/kg",
             "itemNamePlaceholder": "e.g. Bag, shipping",
             "addItem": "Add item",
             "removeItem": "Remove item",
             "overheadSum": "Overhead total",
-            "itemAmountPlaceholder": "e.g. 500 KRW"
+            "itemAmountPlaceholder": "e.g. 0.5"
         },
         "selling": {
             "title": "Selling Price",
             "hint": "Gross margin on selling price — 40% margin means 40% of the price is profit.",
             "margin": "Gross Margin",
-            "price": "Selling Price (KRW/kg)",
+            "price": "Selling Price ($/kg)",
             "priceEdit": "Adjust selling price",
             "costBasis": "Cost Basis",
             "profit": "Profit",
-            "pricePlaceholder": "e.g. 45000 KRW",
+            "pricePlaceholder": "e.g. 20",
             "unit": "/ kg"
         },
         "flow": {
@@ -1513,5 +1513,17 @@
             "order_fulfillment": "Order fulfillment",
             "order_cancel": "Order cancel"
         }
+    },
+    "inventoryAsset": {
+        "totalLabel": "Total green inventory value",
+        "summary": "{{evaluated}} evaluated",
+        "summaryWithMissing": "{{evaluated}} evaluated · {{missing}} missing cost",
+        "missingCost": "No unit cost",
+        "missingCostCount": "{{count}} missing cost",
+        "missingCostHint": "No unit cost — add cost on restock or edit",
+        "masterFallbackHint": "No purchase cost history · using master unit cost",
+        "avgCost": "Avg cost",
+        "stockValue": "Stock value",
+        "error": "Value unavailable"
     }
 }

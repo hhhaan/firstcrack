@@ -9,10 +9,22 @@ export const formatAmount = (value: number, lang?: string): string => {
     return Math.round(value).toLocaleString(locale);
 };
 
-export const formatKrw = (value: number, lang?: string): string => {
-    if (!Number.isFinite(value) || value <= 0) return '—';
-    return `₩${formatAmount(value, lang)}`;
+/** ko→₩, ja→¥, zh→¥, else→$ (USD fallback). */
+export const currencySymbol = (lang?: string): string => {
+    const l = lang?.toLowerCase() ?? '';
+    if (l.startsWith('ko')) return '₩';
+    if (l.startsWith('ja')) return '¥';
+    if (l.startsWith('zh')) return '¥';
+    return '$';
 };
+
+export const formatCurrency = (value: number, lang?: string): string => {
+    if (!Number.isFinite(value) || value <= 0) return '—';
+    return `${currencySymbol(lang)}${formatAmount(value, lang)}`;
+};
+
+/** @deprecated Prefer formatCurrency — kept for existing call sites. */
+export const formatKrw = formatCurrency;
 
 export const normalizePct = (value: number, _lang?: string): number => {
     if (!Number.isFinite(value)) return 0;

@@ -1513,5 +1513,17 @@
             "order_fulfillment": "주문 이행",
             "order_cancel": "주문 취소"
         }
+    },
+    "inventoryAsset": {
+        "totalLabel": "총 재고 자산",
+        "summary": "평가 {{evaluated}}종",
+        "summaryWithMissing": "평가 {{evaluated}}종 · 단가 미입력 {{missing}}종",
+        "missingCost": "단가 미입력",
+        "missingCostCount": "단가 미입력 {{count}}종",
+        "missingCostHint": "단가 미입력 — 입고/수정에서 단가를 입력하세요",
+        "masterFallbackHint": "입고 단가 이력 없음 · 마스터 단가 사용",
+        "avgCost": "가중평균 단가",
+        "stockValue": "재고 자산",
+        "error": "자산 계산 실패"
     }
 }
