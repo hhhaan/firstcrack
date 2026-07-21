@@ -4,7 +4,9 @@ import { modalPanel } from './modalPanel';
 
 describe('modalPanel + form-styles tokens', () => {
     it('exposes size keys used by form and confirm modals', () => {
-        expect(Object.keys(modalPanel).sort()).toEqual(['formLg', 'formMd', 'formSm', 'settings', 'sm'].sort());
+        expect(Object.keys(modalPanel).sort()).toEqual(
+            ['compare', 'formLg', 'formMd', 'formSm', 'settings', 'sm'].sort(),
+        );
         for (const cls of Object.values(modalPanel)) {
             expect(cls.length).toBeGreaterThan(20);
             expect(cls).toMatch(/max-w-|rounded/);
