@@ -42,12 +42,25 @@ docs/                 # Detailed docs (index below)
 
 Dev rules (FSD layers, SRP, commit hooks, secrets policy): [AGENTS.md](AGENTS.md). Design tokens: [DESIGN.md](DESIGN.md).
 
-## Docs index (`docs/`)
+## Docs index
+
+### Agent guides (English — primary for coding agents)
+
+- [docs/agent/gap-inventory.md](docs/agent/gap-inventory.md) — domain gap map + what was documented
+- [docs/inventory-architecture.md](docs/inventory-architecture.md) — 3-ledger inventory SSoT (writes, RPCs, idempotency)
+- [docs/agent/inventory-ledger.md](docs/agent/inventory-ledger.md) — inventory quick index
+- [docs/agent/active-roast-save.md](docs/agent/active-roast-save.md) — roast save, deduct, R2 curves
+- [docs/agent/schedule-plan.md](docs/agent/schedule-plan.md) — plan/recurrence writes + batch stock
+- [docs/agent/sales-channels-orders.md](docs/agent/sales-channels-orders.md) — channels, fulfill/dispatch/cancel
+- [docs/agent/workspace-auth.md](docs/agent/workspace-auth.md) — workspace owner id / RLS identity
+- [docs/agent/data-fetching.md](docs/agent/data-fetching.md) — React Query invalidation conventions
+- [supabase/AGENTS.md](supabase/AGENTS.md) — Edge Functions catalog, secrets, write authority
+
+### Other tracked docs
 
 - [sidecar-api.md](docs/sidecar-api.md) — Sidecar HTTP API reference
 - [phidget-driver-setup.md](docs/phidget-driver-setup.md) — Phidget system driver install
-- [inventory-architecture.md](docs/inventory-architecture.md) — Inventory domain
 - [MOBILE.md](docs/MOBILE.md) — Mobile strategy
 - [abstraction-roi.md](docs/abstraction-roi.md) — Abstraction ROI guide
 
-Other files under `docs/` are local working notes (gitignored): deploy/release (RELEASE, DEPLOY, UPDATER, SENTRY), architecture notes (registry-and-connection, simulator-architecture, data-fetching), domain/integration planning (order-status-sync, cafe24-oauth-setup, cupping, team-workspaces, db-cost-*, pricing/, research/). Track individually with `git add -f` if they need to be shared.
+Other files under `docs/` are local working notes (gitignored): deploy/release (RELEASE, DEPLOY, UPDATER, SENTRY), architecture notes (registry-and-connection, simulator-architecture), domain/integration planning (order-status-sync, cafe24-oauth-setup, cupping, team-workspaces, db-cost-*, pricing/, research/). Force-track with `git add -f` when sharing.

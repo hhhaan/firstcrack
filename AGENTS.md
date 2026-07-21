@@ -42,14 +42,27 @@ CI still runs on remote — local skip is **not** a quality pass.
 Prefer `SKIP_VERIFY=1` over `--no-verify` (keeps other hooks; explicit intent in shell history).
 
 ## External Services
-- Supabase: BaaS — auth, DB (roast records, inventory), Edge Functions (R2 presigned URL issuer)
-- R2: storage — roast profiles via presigned URL (upload/download issued by Supabase Edge Function; credentials never in client)
-- Slack webhook: CI/CD notifications only (build/release success/failure)
+- Supabase: BaaS — auth, DB (roast records, inventory), Edge Functions (R2, channels, Polar, cupping). Catalog: `supabase/AGENTS.md`
+- R2: storage — roast profiles via presigned URL (upload/download issued by Edge Function; credentials never in client)
+- Sales channels: Naver / Shopify / Cafe24 — desktop never holds platform secrets; see `docs/agent/sales-channels-orders.md`
+- Slack webhook: CI/CD notifications + signup notify EF only
 
 ## Security — Secrets
 - NO `VITE_*` prefix for any secret → bundled into client JS, extractable. If found: rotate immediately, don't just remove
 - R2/S3 from frontend: NO direct credentials → presigned URL only (issued by Edge Function)
 - presigned URL: ≤5min expiry, scoped to single key, validate user ownership
+- `sales_channel_secrets`, Polar/billing columns, service role: server/EF only — see `supabase/AGENTS.md`
+
+## Agent domain docs (English)
+Read before changing write paths:
+- Inventory ledgers: `docs/inventory-architecture.md` · `docs/agent/inventory-ledger.md`
+- Roast save / stock: `docs/agent/active-roast-save.md`
+- Schedule / plan: `docs/agent/schedule-plan.md`
+- Orders / channels: `docs/agent/sales-channels-orders.md`
+- Workspace identity: `docs/agent/workspace-auth.md` (prefer over stale `docs/team-workspaces.md`)
+- Data fetching: `docs/agent/data-fetching.md`
+- Edge + migrations: `supabase/AGENTS.md`
+- Gap inventory: `docs/agent/gap-inventory.md`
 
 ## Agent Rules
 - Respond briefly and directly, fewest words possible. Core point only — no elaboration, no follow-up questions.
