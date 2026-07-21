@@ -3,7 +3,8 @@
 **Audience:** coding agents  
 **Date:** 2026-07-21  
 **Deeper Korean notes (local, often gitignored):** `docs/sales-channel-integration.md`, `docs/order-status-sync.md`, `docs/cafe24-oauth-setup.md`  
-**Toss Place POS (planned):** `docs/agent/toss-place-integration.md` — offline sales / ERP pull via Open API (`toss_place`, not Toss Payments).
+**Offline POS Open API (multi-region):** `docs/agent/pos-openapi-integrations.md` (KR/JP/US catalog).  
+**Toss Place detail (KR):** `docs/agent/toss-place-integration.md` — `toss_place`, not Toss Payments.
 
 ---
 

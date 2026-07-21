@@ -3,7 +3,7 @@
 **Audience:** coding agents  
 **Date:** 2026-07-22  
 **Status:** plan only (no connector code in this doc’s goal)  
-**Related:** `docs/agent/sales-channels-orders.md`, `TODOS.md` [ORD3], `docs/pricing/07-integrations-catalog.md`  
+**Related:** `docs/agent/sales-channels-orders.md`, `docs/agent/pos-openapi-integrations.md` (KR/JP/US POS catalog), `TODOS.md` [ORD3], `docs/pricing/07-integrations-catalog.md`  
 **External SSoT:** [Open API 소개](https://docs.tossplace.com/reference/open-api/intro.html) · [공통 가이드](https://docs.tossplace.com/reference/open-api/common.html) · [개발 튜토리얼](https://docs.tossplace.com/guide/pos-integration/open-api/develop-tutorial.html) · [연동 이해하기](https://docs.tossplace.com/guide/understanding.html)
 
 ---
@@ -79,6 +79,13 @@ Content-Type: application/json
 
 **Connect UX (v1):** workspace owner pastes **merchantId** (from POS/partner install). EF `channel-connect` calls `GET .../merchants/{merchantId}` with app keys; on SUCCESS store connection `platform='toss_place'`, status `active`. Do **not** ask the user for access/secret if FC owns the partner app.
 
+**Ownership verification (required):** app keys are FC-global, so `GET /merchants/{id}` succeeds for **any** merchant that installed the app — pasting someone else's merchantId (Long, enumerable) must not grant access to their sales. `channel-connect` must bind installation → workspace, not just check the GET succeeds:
+
+1. Persist `app.installation.created.v1` events (merchantId + installedAt) into a claimable table/log.
+2. On connect, require the merchantId to be an **unclaimed** installation; reject if already linked to another workspace (unique on `merchantId` across workspaces, not just `(user_id, platform, shop_identifier)`).
+3. Show merchant `display_name` from the Merchant API and require explicit user confirmation ("이 매장이 맞습니까?") before activating.
+4. If webhook-based install discovery isn't live yet (Phase 1 before webhooks), interim proof: match a recent order timestamp or amount the owner reads off their POS screen — do not skip verification.
+
 **Multi-store:** one workspace may have N connections (unique `(user_id, platform, shop_identifier)`). Each store = one `merchantId`.
 
 Aligns with invariants in `docs/agent/sales-channels-orders.md` and `supabase/AGENTS.md`.
@@ -111,7 +118,7 @@ Docs: Order is the unit that tracks line items, charges, discounts, and payments
 |--------------|------------------|------------|
 | Order | `id`, `merchantId`, `source` (`POS`, `KIOSK`, …), `orderState`, `orderKey`, `orderNumber`, `createdAt`, `completedAt`, `cancelledAt` | `orders.platform_order_id` = `id`; `ordered_at` = `createdAt` or `completedAt` for completed sales; `raw` = full Order JSON |
 | OrderLineItem | `item.title`, **`item.code`**, `quantity`, `itemPrice.priceValue`, `itemPrice.isTaxFree` | `order_lines`; SKU key = `item.code` (see §7) |
-| OrderChargePrice | `totalAmount`, `taxAmount`, `supplyAmount`, `taxExemptAmount`, discounts, tip, service charge | `orders.total_amount` ← `chargePrice.totalAmount` (KRW minor units as Long — store as numeric; document unit = 원) |
+| OrderChargePrice | `totalAmount`, `taxAmount`, `supplyAmount`, `taxExemptAmount`, discounts, tip, service charge | `orders.total_amount` ← `chargePrice.totalAmount` (Long, unit = 원; KRW has no sub-unit — store as numeric, no /100) |
 | Payment[] | Embedded on Order; also queryable by order | Keep inside `orders.raw`; optional later table |
 | Discount[] | title, amount, code | raw only in v1 |
 
@@ -185,6 +192,8 @@ Outbound order-dispatch: not used for POS walk-in
 5. If `payments` empty but needed, optional `by-order-id` (rate-limit aware).
 6. `upsertCanonicalOrders` (existing `normalize.ts`).
 7. Advance `poll_cursor.since` to last successful window end (overlap 1–2 min to avoid clock skew).
+
+**Late-cancellation rescan (required while poll-only):** if `from`/`to` filters on order creation time, a COMPLETED order refunded days later falls outside the advancing window and its CANCELLED transition is silently missed — retail refunds routinely happen days after sale. Until Phase 2 webhooks are live, each poll must also re-fetch a trailing window (e.g. last 7d, `orderStates=CANCELLED` only) or use an updated-at filter if the API supports one (verify against OAS). The 1–2 min overlap covers clock skew only, not refunds.
 
 Respect 100 burst / 10 rps per merchant; page size ≤100 default OK, max 500.
 
@@ -363,6 +372,8 @@ Touch points (absolute):
 | Kiosk/Front not in Open API orders | Document store must use POS order flow for ERP |
 | Partner 검수 delay | Phase 0 parallel with Phase 1 against test merchant |
 | Multi-tenant app keys | Env app keys + per-connection merchantId (default) |
+| **merchantId hijack** — any workspace can paste another installed merchant's id and pull their sales | Ownership verification in §3.4: installation-event claim + cross-workspace unique merchantId + user confirmation |
+| **Late refunds missed** — creation-time poll window skips CANCELLED transitions on old orders | Trailing CANCELLED rescan (§6.1) until webhooks live |
 
 ---
 
@@ -382,6 +393,8 @@ Touch points (absolute):
 ## 13. Verification checklist (when implementing)
 
 - [ ] `GET merchant` succeeds with stored merchantId  
+- [ ] Connect rejects a merchantId already claimed by another workspace; requires user confirmation of store name  
+- [ ] Order CANCELLED days after COMPLETED is picked up by trailing rescan (poll-only mode)  
 - [ ] Poll inserts COMPLETED order with lines and `raw.chargePrice` tax fields present  
 - [ ] CANCELLED updates status without double stock deduct  
 - [ ] SKU `products.sku` = line `item.code` → `product_id` set  

@@ -1,29 +1,26 @@
 /**
- * Structural contract for the Toss Place offline sales / ERP integration plan.
- * Reads the real shipped markdown (not a re-implemented summary).
+ * Structural contracts for offline POS / ERP integration docs.
+ * Reads real shipped markdown (not re-implemented summaries).
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const planPath = join(
-    dirname(fileURLToPath(import.meta.url)),
-    '../../../docs/agent/toss-place-integration.md',
-);
+const docsAgent = join(dirname(fileURLToPath(import.meta.url)), '../../../docs/agent');
 
-function loadPlan(): string {
-    return readFileSync(planPath, 'utf8');
+function loadDoc(name: string): string {
+    return readFileSync(join(docsAgent, name), 'utf8');
 }
 
 describe('docs/agent/toss-place-integration.md', () => {
     it('exists and is non-empty', () => {
-        const plan = loadPlan();
+        const plan = loadDoc('toss-place-integration.md');
         expect(plan.length).toBeGreaterThan(2000);
     });
 
     it('covers auth/tenancy with real Toss key headers and merchant path', () => {
-        const plan = loadPlan();
+        const plan = loadDoc('toss-place-integration.md');
         expect(plan).toMatch(/x-access-key/);
         expect(plan).toMatch(/x-secret-key/);
         expect(plan).toMatch(/merchantId/);
@@ -33,7 +30,7 @@ describe('docs/agent/toss-place-integration.md', () => {
     });
 
     it('defines order+payment pull, webhooks, rate limits from docs', () => {
-        const plan = loadPlan();
+        const plan = loadDoc('toss-place-integration.md');
         expect(plan).toMatch(/GET.*\/order\/orders|\/order\/orders\?from/);
         expect(plan).toMatch(/payment\/payments\/by-order-id/);
         expect(plan).toMatch(/order\.order\.completed\.v1/);
@@ -47,7 +44,7 @@ describe('docs/agent/toss-place-integration.md', () => {
     });
 
     it('maps offline ERP to orders SSoT and pull-only POS (no dispatch)', () => {
-        const plan = loadPlan();
+        const plan = loadDoc('toss-place-integration.md');
         expect(plan).toMatch(/orders/);
         expect(plan).toMatch(/order_lines/);
         expect(plan).toMatch(/COMPLETED/);
@@ -58,7 +55,7 @@ describe('docs/agent/toss-place-integration.md', () => {
     });
 
     it('defers tax accounting and states catalog SKU mapping', () => {
-        const plan = loadPlan();
+        const plan = loadDoc('toss-place-integration.md');
         expect(plan).toMatch(/taxAmount/);
         expect(plan).toMatch(/supplyAmount/);
         expect(plan).toMatch(/taxExemptAmount/);
@@ -69,11 +66,29 @@ describe('docs/agent/toss-place-integration.md', () => {
     });
 
     it('names concrete repo touch points', () => {
-        const plan = loadPlan();
+        const plan = loadDoc('toss-place-integration.md');
         expect(plan).toMatch(/docs\/agent\/sales-channels-orders\.md/);
         expect(plan).toMatch(/supabase\/functions\/_shared\/channels/);
         expect(plan).toMatch(/channel-connect/);
         expect(plan).toMatch(/order-sync/);
         expect(plan).toMatch(/order-webhook/);
+    });
+});
+
+describe('docs/agent/pos-openapi-integrations.md', () => {
+    it('covers KR JP US Open API POS targets', () => {
+        const doc = loadDoc('pos-openapi-integrations.md');
+        expect(doc.length).toBeGreaterThan(2000);
+        expect(doc).toMatch(/toss_place/);
+        expect(doc).toMatch(/smaregi|スマレジ/);
+        expect(doc).toMatch(/square/i);
+        expect(doc).toMatch(/shopify/i);
+        expect(doc).toMatch(/## 4\. Korea|## 5\. Japan|## 6\. United States/);
+        expect(doc).toMatch(/developers\.smaregi\.dev|smaregi\.jp\/developers/);
+        expect(doc).toMatch(/developer\.squareup\.com/);
+        expect(doc).toMatch(/orders\/order_lines|order_lines/);
+        expect(doc).toMatch(/outboundDispatch:\s*false|pull-only/i);
+        expect(doc).toMatch(/Ubiregi|ユビレジ/);
+        expect(doc).toMatch(/AirREGI|Airレジ/);
     });
 });
