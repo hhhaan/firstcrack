@@ -287,6 +287,9 @@ verify_jwt = false
 [functions.get-cupping-session]
 verify_jwt = false
 
+[functions.get-cupping-results]
+verify_jwt = false
+
 [functions.submit-cupping]
 verify_jwt = false
 

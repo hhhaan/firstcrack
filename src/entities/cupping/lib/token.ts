@@ -13,6 +13,11 @@ export function cuppingInviteUrl(token: string, base?: string): string {
     return `${(base ?? cuppingPublicBaseUrl()).replace(/\/$/, '')}/c/${token}`;
 }
 
+/** Post-session public results (host + cuppers). */
+export function cuppingResultsUrl(token: string, base?: string): string {
+    return `${(base ?? cuppingPublicBaseUrl()).replace(/\/$/, '')}/r/${token}`;
+}
+
 /** Alias for call sites that previously resolved LAN IP async. */
 export async function resolveCuppingPublicBaseUrl(): Promise<string> {
     return cuppingPublicBaseUrl();

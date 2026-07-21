@@ -1276,7 +1276,13 @@
             "title": "杯测包含在 Pro 中",
             "description": "在一场次中管理多样品，用整场一个 QR 分享，并关联烘焙历史。",
             "cta": "查看方案"
-        }
+        },
+        "resultsShareTitle": "场次结果",
+        "resultsShareBody": "分享排名、均分与风味标签摘要。仅持有链接者可访问，非公开列表。",
+        "resultsQr": "结果二维码",
+        "resultsQrHint": "扫描后在手机上查看结果摘要。",
+        "resultsLinkPreparing": "正在准备结果链接…",
+        "resultsLinkError": "无法生成结果链接。"
     },
     "orders": {
         "title": "订单",

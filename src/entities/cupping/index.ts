@@ -25,6 +25,7 @@ export {
 export {
     cuppingInviteUrl,
     cuppingPublicBaseUrl,
+    cuppingResultsUrl,
     generateCuppingToken,
     resolveCuppingInviteUrl,
     resolveCuppingPublicBaseUrl,

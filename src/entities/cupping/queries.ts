@@ -230,6 +230,7 @@ export const useCreateCuppingEvent = (userId: string) => {
                 held_at: input.heldAt ?? now,
                 notes: input.notes ?? null,
                 ended_at: null,
+                results_token: null,
                 created_at: now,
                 updated_at: now,
                 sample_count: 0,

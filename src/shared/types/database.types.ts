@@ -218,6 +218,7 @@ export type Database = {
                     held_at: string;
                     id: string;
                     notes: string | null;
+                    results_token: string | null;
                     title: string;
                     updated_at: string;
                     user_id: string;
@@ -228,6 +229,7 @@ export type Database = {
                     held_at?: string;
                     id?: string;
                     notes?: string | null;
+                    results_token?: string | null;
                     title: string;
                     updated_at?: string;
                     user_id: string;
@@ -238,6 +240,7 @@ export type Database = {
                     held_at?: string;
                     id?: string;
                     notes?: string | null;
+                    results_token?: string | null;
                     title?: string;
                     updated_at?: string;
                     user_id?: string;

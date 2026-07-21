@@ -1276,7 +1276,13 @@
             "title": "カッピングはProで利用できます",
             "description": "複数サンプルを1セッションで管理し、テーブル用QRを1つ共有し、ロースト履歴に連携します。",
             "cta": "プランを見る"
-        }
+        },
+        "resultsShareTitle": "セッション結果",
+        "resultsShareBody": "順位・平均・ディスクリプタ要約を共有するリンクです。トークン保持者のみアクセスできます。",
+        "resultsQr": "結果QR",
+        "resultsQrHint": "スキャンするとスマホで結果サマリーを表示します。",
+        "resultsLinkPreparing": "結果リンクを準備中…",
+        "resultsLinkError": "結果リンクを作成できませんでした。"
     },
     "orders": {
         "title": "注文",

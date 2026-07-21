@@ -1276,7 +1276,13 @@
             "title": "커핑은 Pro에서 사용할 수 있습니다",
             "description": "여러 샘플을 한 세션에 모아 관리하고, 테이블용 QR 하나로 공유하며, 로스팅 히스토리에 연결하세요.",
             "cta": "요금제 보기"
-        }
+        },
+        "resultsShareTitle": "세션 결과",
+        "resultsShareBody": "참여자에게 순위·평균·디스크립터 요약을 공유하는 링크입니다. 토큰 보유자만 접근합니다.",
+        "resultsQr": "결과 QR",
+        "resultsQrHint": "스캔하면 폰에서 결과 요약을 볼 수 있습니다.",
+        "resultsLinkPreparing": "결과 링크 준비 중…",
+        "resultsLinkError": "결과 링크를 만들지 못했습니다."
     },
     "orders": {
         "title": "Orders",

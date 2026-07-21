@@ -108,10 +108,22 @@ Deno.serve(async (req) => {
     if (eventId) {
         const { data: event } = await supabase
             .from('cupping_events')
-            .select('id, title, ended_at')
+            .select('id, title, ended_at, results_token')
             .eq('id', eventId)
             .maybeSingle();
-        if (event?.ended_at) return jsonResponse({ error: 'ended' }, 410);
+        // Session closed: clients should open results (same invite token works via get-cupping-results)
+        if (event?.ended_at) {
+            return jsonResponse(
+                {
+                    error: 'ended',
+                    ended: true,
+                    eventId: event.id,
+                    eventTitle: event.title ?? null,
+                    resultsToken: event.results_token ?? null,
+                },
+                410,
+            );
+        }
         eventTitle = event?.title ?? null;
 
         const { data: sampleRows } = await supabase

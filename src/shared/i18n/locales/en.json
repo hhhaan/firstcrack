@@ -1276,7 +1276,13 @@
             "title": "Cupping is included with Pro",
             "description": "Run multi-sample cupping sessions, share one QR for the table, and link samples to roast history.",
             "cta": "View billing plans"
-        }
+        },
+        "resultsShareTitle": "Session results",
+        "resultsShareBody": "Share this link so cuppers can see rankings, averages, and descriptors. Token-only — not a public feed.",
+        "resultsQr": "Results QR",
+        "resultsQrHint": "Scan to open the results summary on a phone.",
+        "resultsLinkPreparing": "Preparing results link…",
+        "resultsLinkError": "Could not prepare results link."
     },
     "orders": {
         "title": "Orders",

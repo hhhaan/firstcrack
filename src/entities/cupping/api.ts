@@ -219,15 +219,42 @@ export const cuppingApi = {
         if (error) throw error;
     },
 
-    /** Close session: set ended_at + revoke all active invites. Idempotent. */
-    endEvent: async (eventId: string): Promise<CuppingEvent> => {
+    /** Ensure results_token exists (ended sessions only). Idempotent. */
+    ensureResultsToken: async (eventId: string): Promise<CuppingEvent> => {
         const existing = await cuppingApi.getEvent(eventId);
-        if (existing.ended_at) return existing;
+        if (existing.results_token) return existing;
+        if (!existing.ended_at) throw new Error('SESSION_OPEN');
 
-        const now = new Date().toISOString();
+        const token = generateCuppingToken();
         const { data, error } = await supabase
             .from('cupping_events')
-            .update({ ended_at: now, updated_at: now })
+            .update({ results_token: token, updated_at: new Date().toISOString() })
+            .eq('id', eventId)
+            .is('results_token', null)
+            .select()
+            .single();
+        if (error) {
+            // Concurrent ensure: re-read
+            const again = await cuppingApi.getEvent(eventId);
+            if (again.results_token) return again;
+            throw error;
+        }
+        return data;
+    },
+
+    /** Close session: set ended_at + results_token + revoke invites. Idempotent. */
+    endEvent: async (eventId: string): Promise<CuppingEvent> => {
+        const existing = await cuppingApi.getEvent(eventId);
+        if (existing.ended_at) {
+            if (existing.results_token) return existing;
+            return cuppingApi.ensureResultsToken(eventId);
+        }
+
+        const now = new Date().toISOString();
+        const resultsToken = existing.results_token ?? generateCuppingToken();
+        const { data, error } = await supabase
+            .from('cupping_events')
+            .update({ ended_at: now, updated_at: now, results_token: resultsToken })
             .eq('id', eventId)
             .is('ended_at', null)
             .select()

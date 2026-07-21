@@ -14,6 +14,7 @@ import { ChevronLeft, Plus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CuppingAddSamplesForm } from './CuppingAddSamplesForm';
+import { CuppingResultsShare } from './CuppingResultsShare';
 import { CuppingSampleSummary } from './CuppingSampleSummary';
 import { CuppingSessionInvite } from './CuppingSessionInvite';
 
@@ -111,9 +112,12 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
             />
 
             {isEnded ? (
-                <div className="mb-5 rounded-xl border border-border-subtle bg-surface/60 px-4 py-3 text-[12px] leading-relaxed text-muted dark:border-[#585d61]">
-                    {t('cupping.sessionEndedHint')}
-                </div>
+                <>
+                    <div className="mb-5 rounded-xl border border-border-subtle bg-surface/60 px-4 py-3 text-[12px] leading-relaxed text-muted dark:border-[#585d61]">
+                        {t('cupping.sessionEndedHint')}
+                    </div>
+                    <CuppingResultsShare eventId={eventId} userId={userId} listEvent={event} />
+                </>
             ) : (
                 <CuppingSessionInvite
                     eventId={eventId}

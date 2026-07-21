@@ -22,6 +22,7 @@ function makeSummary(overrides: Partial<CuppingEventSummary> = {}): CuppingEvent
         held_at: now,
         notes: null,
         ended_at: null,
+        results_token: null,
         created_at: now,
         updated_at: now,
         sample_count: 2,
@@ -90,6 +91,7 @@ describe('cupping invite/end cache sync', () => {
             held_at: '2026-07-01T00:00:00.000Z',
             notes: null,
             ended_at: null,
+            results_token: null,
             created_at: '2026-07-01T00:00:00.000Z',
             updated_at: '2026-07-01T00:00:00.000Z',
         } satisfies CuppingEvent);
