@@ -26,7 +26,7 @@ export const eventLabelText = (event: string, timeStr: string, temp: string) =>
 /** 하단 라벨 — 상단 이벤트와 겹침 완화 */
 const LABEL_BELOW_EVENTS = new Set(['FC End', 'Drop', 'TP']);
 
-const buildPointLabel = (color: string, text: string, below = false) => ({
+const buildPointLabel = (text: string, below = false) => ({
     show: true,
     position: (below ? 'bottom' : 'top') as 'top' | 'bottom',
     distance: 5,
@@ -34,7 +34,7 @@ const buildPointLabel = (color: string, text: string, below = false) => ({
     fontSize: 10,
     fontWeight: 600 as const,
     fontFamily: 'monospace',
-    color,
+    color: '#0b0b0b',
     backgroundColor: 'transparent',
     borderWidth: 0,
     padding: 0,
@@ -193,7 +193,6 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                               borderWidth: 1,
                           },
                           label: buildPointLabel(
-                              m.color,
                               eventLabelText(m.event, m.timeStr, tempStr),
                               LABEL_BELOW_EVENTS.has(m.event),
                           ),
@@ -213,7 +212,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                           borderColor: colors.markerLabelColor,
                           borderWidth: 1,
                       },
-                      label: buildPointLabel(colors.tp, `TP ${fmtSec(tp.timeSec)} ${tempStr}`, true),
+                      label: buildPointLabel(`TP ${fmtSec(tp.timeSec)} ${tempStr}`, true),
                   };
               }),
           ]

@@ -3,11 +3,12 @@ import { useEffect, useMemo, useRef } from 'react';
 import uPlot from 'uplot';
 import { buildProfileCurvePlotData } from '../lib/buildPlotData';
 
+/** Distinct overlay colors for multi-profile / multi-session compare. */
 export const COMPARE_COLORS = [
-    'var(--color-palette-green)',
     'var(--color-palette-blue)',
-    'var(--color-palette-purple)',
+    'var(--color-palette-indigo)',
     'var(--color-palette-yellow)',
+    'var(--color-palette-teal)',
 ] as const;
 
 export interface SeriesData {

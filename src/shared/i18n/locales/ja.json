@@ -862,7 +862,14 @@
             "curveOverlay": "カーブオーバーレイ",
             "noCurves": "選択したセッションにカーブデータがありません",
             "noCurveData": "カーブデータなし",
-            "events": "イベント"
+            "events": "イベント",
+            "tempAndRor": "温度とRoR",
+            "phases": "進行段階",
+            "phaseDrying": "ドライ",
+            "phaseMaillard": "メイラード",
+            "phaseDevelopment": "デベロップメント",
+            "sidebarTitle": "{{count}}件選択",
+            "charge": "投入"
         },
         "table": {
             "date": "日付",

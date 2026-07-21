@@ -862,7 +862,14 @@
             "curveOverlay": "曲线叠加",
             "noCurves": "所选记录没有曲线数据",
             "noCurveData": "无曲线数据",
-            "events": "事件"
+            "events": "事件",
+            "tempAndRor": "温度与 RoR",
+            "phases": "阶段进度",
+            "phaseDrying": "脱水",
+            "phaseMaillard": "美拉德",
+            "phaseDevelopment": "发展",
+            "sidebarTitle": "已选 {{count}} 条",
+            "charge": "入豆"
         },
         "table": {
             "date": "日期",

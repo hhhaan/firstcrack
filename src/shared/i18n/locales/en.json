@@ -862,7 +862,14 @@
             "curveOverlay": "Curve Overlay",
             "noCurves": "No curve data in selected sessions",
             "noCurveData": "No curve data",
-            "events": "Events"
+            "events": "Events",
+            "tempAndRor": "Temperature & RoR",
+            "phases": "Phases",
+            "phaseDrying": "Drying",
+            "phaseMaillard": "Maillard",
+            "phaseDevelopment": "Development",
+            "sidebarTitle": "{{count}} selected",
+            "charge": "Charge"
         },
         "cupping": {
             "title": "Cupping",

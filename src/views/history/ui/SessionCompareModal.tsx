@@ -1,37 +1,18 @@
 import { useHistoryCharts } from '@entities/roast';
-import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
-import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
-import { formatDateShort, formatDuration, formatElapsed } from '@shared/lib/format';
+import { computePhaseSegments } from '@features/active-roast';
+import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
+import { formatDateShort, formatDuration } from '@shared/lib/format';
+import { deriveSessionDevMetrics } from '@shared/lib/roast-delta';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
-import type { SeriesData } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
-import { COMPARE_COLORS, ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
-import { AlertCircle, X } from 'lucide-react';
-import { type ReactNode, useMemo } from 'react';
+import { COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
+import { X } from 'lucide-react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-/** 이벤트 정렬 표 행 순서 — 로스팅 진행 순 */
-const EVENT_ORDER = ['Charge', 'TP', 'Yellow', 'FC Start', 'FC End', 'Drop', 'End'] as const;
-
-const sessionLabel = (s: RoastSessionWithRelations): string =>
-    `${s.beans?.name ?? '—'} · ${formatDateShort(s.roasted_at)}`;
-
-const useMetaRows = (): { label: string; getValue: (s: RoastSessionWithRelations) => string }[] => {
-    const { t } = useTranslation();
-    return [
-        { label: t('history.table.date'), getValue: (s) => formatDateShort(s.roasted_at) },
-        { label: t('history.table.bean'), getValue: (s) => s.beans?.name ?? '—' },
-        { label: t('history.table.profile'), getValue: (s) => s.roast_profiles?.name ?? '—' },
-        { label: t('history.table.weight'), getValue: (s) => `${s.weight_grams}g` },
-        {
-            label: t('history.table.dropTemp'),
-            getValue: (s) => (s.drop_temp_celsius != null ? `${s.drop_temp_celsius}°C` : '—'),
-        },
-        { label: t('history.table.duration'), getValue: (s) => formatDuration(s.duration_seconds) },
-        { label: t('history.table.level'), getValue: (s) => s.roast_level ?? '—' },
-    ];
-};
+import { CompareMultiChart, type CompareSeries } from './compare/CompareMultiChart';
+import { ComparePhaseBars, type PhaseBarRow } from './compare/ComparePhaseBars';
+import { CompareSessionSidebar, type CompareSidebarItem } from './compare/CompareSessionSidebar';
 
 interface SessionCompareModalProps {
     sessions: RoastSessionWithRelations[];
@@ -40,32 +21,99 @@ interface SessionCompareModalProps {
 
 export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalProps): ReactNode => {
     const { t } = useTranslation();
-    const metaRows = useMetaRows();
+    const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
+
     const curveQueries = useHistoryCharts(
         sessions.map((s) => s.tsv_path ?? null),
         sessions.map((s) => s.id),
     );
 
     const isLoading = curveQueries.some((q) => q.isLoading);
-    const chartSeries: SeriesData[] = sessions.flatMap((s, i) => {
-        const points = curveQueries[i]?.data ?? [];
-        if (points.length === 0) return [];
-        return [
-            {
-                curve: points.map((p) => ({ t: p.t, bt: p.bt })),
-                color: COMPARE_COLORS[i % COMPARE_COLORS.length],
-                label: sessionLabel(s),
-            },
-        ];
-    });
-    const chartKey = sessions.map((s) => `${s.id}:${s.tsv_path ?? ''}`).join('|');
 
     const eventsBySession = useMemo(() => sessions.map((s) => parseStoredRoastEvents(s.events)), [sessions]);
-    const eventRows = EVENT_ORDER.filter((type) => eventsBySession.some((evts) => evts.some((e) => e.type === type)));
+
+    const items: CompareSidebarItem[] = useMemo(
+        () =>
+            sessions.map((s, i) => {
+                const points = curveQueries[i]?.data ?? [];
+                const first = points[0];
+                const last = points[points.length - 1];
+                const events = eventsBySession[i];
+                const dropEvt = events.find((e) => e.type === 'Drop');
+                const chargeEvt = events.find((e) => e.type === 'Charge');
+                return {
+                    session: s,
+                    color: COMPARE_COLORS[i % COMPARE_COLORS.length],
+                    hasCurve: points.length > 0,
+                    events,
+                    chargeBt: chargeEvt?.temp_c ?? first?.bt ?? null,
+                    dropBt: dropEvt?.temp_c ?? s.drop_temp_celsius ?? last?.bt ?? null,
+                    chargeEt: first?.et ?? null,
+                    dropEt: last?.et ?? null,
+                    visible: !hiddenIds.has(s.id),
+                };
+            }),
+        [sessions, curveQueries, eventsBySession, hiddenIds],
+    );
+
+    const chartSeries: CompareSeries[] = useMemo(
+        () =>
+            sessions.map((s, i) => {
+                const points = curveQueries[i]?.data ?? [];
+                return {
+                    id: s.id,
+                    label: s.beans?.name ?? formatDateShort(s.roasted_at),
+                    color: COMPARE_COLORS[i % COMPARE_COLORS.length],
+                    points,
+                    markers: eventsBySession[i]
+                        .filter((e) => e.type !== 'Charge' && e.type !== 'End')
+                        .map((e) => ({ timeSec: e.time_sec, event: e.type })),
+                    visible: !hiddenIds.has(s.id),
+                };
+            }),
+        [sessions, curveQueries, eventsBySession, hiddenIds],
+    );
+
+    const phaseRows: PhaseBarRow[] = useMemo(
+        () =>
+            sessions.map((s, i) => {
+                const events = eventsBySession[i];
+                const logs = storedEventsToLogEntries(events);
+                const totalSec =
+                    s.duration_seconds ??
+                    events.find((e) => e.type === 'Drop')?.time_sec ??
+                    events.find((e) => e.type === 'End')?.time_sec ??
+                    0;
+                return {
+                    id: s.id,
+                    color: COMPARE_COLORS[i % COMPARE_COLORS.length],
+                    label: s.beans?.name ?? '—',
+                    segments: computePhaseSegments(logs, totalSec, totalSec > 0),
+                    totalSec,
+                    visible: !hiddenIds.has(s.id),
+                };
+            }),
+        [sessions, eventsBySession, hiddenIds],
+    );
+
+    const maxPhaseSec = Math.max(1, ...phaseRows.map((r) => r.totalSec));
+    const hasAnyCurve = chartSeries.some((s) => s.points.length > 0);
+    const hasAnyPhase = phaseRows.some((r) => r.segments.length > 0);
+
+    const onToggle = (id: string) => {
+        setHiddenIds((prev) => {
+            const next = new Set(prev);
+            // keep at least one visible
+            if (!next.has(id) && sessions.filter((s) => !next.has(s.id)).length <= 1) return prev;
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
 
     return (
-        <ModalShell onClose={onClose} labelledBy="session-compare-title" contentClassName={modalPanel.formLg}>
-            <div className="flex items-center justify-between px-8 pt-7 pb-4">
+        <ModalShell onClose={onClose} labelledBy="session-compare-title" contentClassName={modalPanel.compare}>
+            <div className="flex items-center justify-between border-b border-black/5 px-6 py-4 dark:border-[#585d61]">
                 <h2 id="session-compare-title" className="text-[15px] font-medium tracking-[0.14px] text-primary">
                     {t('history.compare.title', { count: sessions.length })}
                 </h2>
@@ -79,134 +127,155 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 </button>
             </div>
 
-            <div className="overflow-y-auto px-8 pb-7">
-                <div className="mb-3 rounded-lg bg-surface dark:bg-surface-elevated px-4 pt-4 pb-2">
-                    <div className="mb-2 text-[12px] font-medium uppercase tracking-[0.5px] text-muted">
-                        {t('history.compare.curveOverlay')}
+            <div className="flex min-h-0 flex-1 overflow-hidden">
+                {/* Main: charts + phases */}
+                <div className="min-w-0 flex-1 overflow-y-auto px-6 py-5">
+                    <div className="mb-1 text-[12px] font-medium tracking-[0.14px] text-primary">
+                        {t('history.compare.tempAndRor')}
                     </div>
                     {isLoading ? (
-                        <div className="flex h-[160px] items-center justify-center text-xs text-muted">
+                        <div className="flex h-[320px] items-center justify-center text-xs text-muted">
                             {t('history.expanded.chartLoading')}
                         </div>
-                    ) : chartSeries.length > 0 ? (
-                        <ProfileCurveChart key={chartKey} series={chartSeries} />
+                    ) : hasAnyCurve ? (
+                        <CompareMultiChart series={chartSeries} height={320} showRoR />
                     ) : (
-                        <div className="flex h-[160px] items-center justify-center text-xs text-muted">
+                        <div className="flex h-[200px] items-center justify-center text-xs text-muted">
                             {t('history.compare.noCurves')}
                         </div>
                     )}
-                </div>
 
-                <div className="mb-5 flex flex-wrap gap-2">
-                    {sessions.map((s, i) => {
-                        const hasCurve = (curveQueries[i]?.data?.length ?? 0) > 0;
-                        return (
-                            <div
-                                key={s.id}
-                                className="flex items-center gap-1.5 rounded-full bg-surface dark:bg-surface-elevated px-2.5 py-1"
-                            >
-                                <div
-                                    className="h-2 w-2 flex-shrink-0 rounded-full"
-                                    style={{ backgroundColor: COMPARE_COLORS[i % COMPARE_COLORS.length] }}
-                                />
-                                <span className="text-[12px] font-medium tracking-[0.14px] text-secondary">
-                                    {sessionLabel(s)}
-                                </span>
-                                {!hasCurve && !isLoading && (
-                                    <span title={t('history.compare.noCurveData')} className="flex items-center">
-                                        <AlertCircle size={10} strokeWidth={2} className="text-amber-500" />
-                                    </span>
-                                )}
+                    {hasAnyPhase && (
+                        <div className="mt-5">
+                            <div className="mb-2 text-[12px] font-medium tracking-[0.14px] text-primary">
+                                {t('history.compare.phases')}
                             </div>
-                        );
-                    })}
-                </div>
-
-                <div className="overflow-hidden rounded-lg bg-surface dark:bg-surface-elevated">
-                    <div className="grid" style={{ gridTemplateColumns: `110px repeat(${sessions.length}, 1fr)` }}>
-                        <div className="border-b border-black/5 dark:border-[#585d61] px-3.5 py-2.5" />
-                        {sessions.map((s, i) => (
-                            <div
-                                key={s.id}
-                                className="border-b border-l border-black/5 border-l-black/5 dark:border-[#585d61] dark:border-l-[#585d61] px-3.5 py-2.5"
-                            >
-                                <div className="flex items-center gap-1.5">
-                                    <div
-                                        className="h-2 w-2 flex-shrink-0 rounded-full"
-                                        style={{ backgroundColor: COMPARE_COLORS[i % COMPARE_COLORS.length] }}
-                                    />
-                                    <span className="truncate text-[11px] font-semibold tracking-[0.14px] text-primary">
-                                        {s.beans?.name ?? '—'}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                        {metaRows.flatMap(({ label, getValue }, rowIdx) => [
-                            <div
-                                key={`lbl-${label}`}
-                                className={`px-3.5 py-2.5 ${rowIdx < metaRows.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
-                            >
-                                <span className="text-[11px] font-medium uppercase tracking-[0.4px] text-muted">
-                                    {label}
-                                </span>
-                            </div>,
-                            ...sessions.map((s) => (
-                                <div
-                                    key={`${s.id}-${label}`}
-                                    className={`border-l border-l-black/5 dark:border-l-[#585d61] px-3.5 py-2.5 ${rowIdx < metaRows.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
-                                >
-                                    <span className="font-mono text-[12px] font-semibold tracking-[-0.2px] text-primary">
-                                        {getValue(s)}
-                                    </span>
-                                </div>
-                            )),
-                        ])}
-                    </div>
-                </div>
-
-                {eventRows.length > 0 && (
-                    <div className="mt-3 overflow-hidden rounded-lg bg-surface dark:bg-surface-elevated">
-                        <div className="px-3.5 pt-2.5 text-[11px] font-medium uppercase tracking-[0.4px] text-muted">
-                            {t('history.compare.events')}
-                        </div>
-                        <div className="grid" style={{ gridTemplateColumns: `110px repeat(${sessions.length}, 1fr)` }}>
-                            {eventRows.flatMap((type, rowIdx) => [
-                                <div
-                                    key={`evt-lbl-${type}`}
-                                    className={`flex items-center gap-1.5 px-3.5 py-2.5 ${rowIdx < eventRows.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
-                                >
-                                    <div
-                                        className="h-2 w-2 flex-shrink-0 rounded-full"
+                            <ComparePhaseBars rows={phaseRows} maxSec={maxPhaseSec} />
+                            <div className="mt-1.5 flex gap-3 pl-4.5 text-[10px] text-muted">
+                                <span className="flex items-center gap-1">
+                                    <span
+                                        className="inline-block h-2 w-2 rounded-sm"
                                         style={{
-                                            backgroundColor: EVENT_MARKER_COLORS[type] ?? 'var(--color-muted)',
+                                            background:
+                                                'color-mix(in srgb, var(--color-phase-drying) 45%, transparent)',
                                         }}
                                     />
-                                    <span className="text-[11px] font-medium uppercase tracking-[0.4px] text-muted">
-                                        {type}
-                                    </span>
-                                </div>,
-                                ...sessions.map((s, i) => {
-                                    const evt = eventsBySession[i].find((e) => e.type === type);
-                                    return (
-                                        <div
-                                            key={`evt-${s.id}-${type}`}
-                                            className={`border-l border-l-black/5 dark:border-l-[#585d61] px-3.5 py-2.5 ${rowIdx < eventRows.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
-                                        >
-                                            <span className="font-mono text-[12px] font-semibold tracking-[-0.2px] text-primary">
-                                                {evt ? formatElapsed(evt.time_sec) : '—'}
-                                            </span>
-                                            {evt?.temp_c != null && (
-                                                <span className="ml-1.5 font-mono text-[11px] text-muted">
-                                                    {Math.round(evt.temp_c)}°
-                                                </span>
-                                            )}
-                                        </div>
-                                    );
-                                }),
-                            ])}
+                                    {t('history.compare.phaseDrying')}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <span
+                                        className="inline-block h-2 w-2 rounded-sm"
+                                        style={{
+                                            background:
+                                                'color-mix(in srgb, var(--color-phase-maillard) 45%, transparent)',
+                                        }}
+                                    />
+                                    {t('history.compare.phaseMaillard')}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <span
+                                        className="inline-block h-2 w-2 rounded-sm"
+                                        style={{
+                                            background:
+                                                'color-mix(in srgb, var(--color-phase-development) 45%, transparent)',
+                                        }}
+                                    />
+                                    {t('history.compare.phaseDevelopment')}
+                                </span>
+                            </div>
                         </div>
+                    )}
+
+                    {/* Compact metrics strip */}
+                    <div className="mt-6 overflow-x-auto rounded-lg border border-black/5 dark:border-[#585d61]">
+                        <table className="w-full min-w-[480px] border-collapse text-left">
+                            <thead>
+                                <tr className="border-b border-black/5 dark:border-[#585d61]">
+                                    <th className="px-3 py-2 text-[10px] font-medium uppercase tracking-[0.4px] text-muted" />
+                                    {items.map((item) => (
+                                        <th key={item.session.id} className="px-3 py-2">
+                                            <div className="flex items-center gap-1.5">
+                                                <span
+                                                    className="h-2 w-2 shrink-0 rounded-full"
+                                                    style={{ backgroundColor: item.color }}
+                                                />
+                                                <span className="truncate text-[11px] font-semibold text-primary">
+                                                    {item.session.beans?.name ?? '—'}
+                                                </span>
+                                            </div>
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(
+                                    [
+                                        {
+                                            key: 'date',
+                                            label: t('history.table.date'),
+                                            get: (it: CompareSidebarItem) => formatDateShort(it.session.roasted_at),
+                                        },
+                                        {
+                                            key: 'profile',
+                                            label: t('history.table.profile'),
+                                            get: (it: CompareSidebarItem) => it.session.roast_profiles?.name ?? '—',
+                                        },
+                                        {
+                                            key: 'duration',
+                                            label: t('history.table.duration'),
+                                            get: (it: CompareSidebarItem) =>
+                                                formatDuration(it.session.duration_seconds),
+                                        },
+                                        {
+                                            key: 'drop',
+                                            label: t('history.table.dropTemp'),
+                                            get: (it: CompareSidebarItem) =>
+                                                it.dropBt != null ? `${it.dropBt.toFixed(1)}°C` : '—',
+                                        },
+                                        {
+                                            key: 'dtr',
+                                            label: t('history.table.dtr'),
+                                            get: (it: CompareSidebarItem) => {
+                                                const d = deriveSessionDevMetrics(
+                                                    it.events,
+                                                    it.session.duration_seconds,
+                                                );
+                                                return d.devPct != null ? `${d.devPct.toFixed(1)}%` : '—';
+                                            },
+                                        },
+                                        {
+                                            key: 'level',
+                                            label: t('history.table.level'),
+                                            get: (it: CompareSidebarItem) => it.session.roast_level ?? '—',
+                                        },
+                                    ] as const
+                                ).map((row) => (
+                                    <tr
+                                        key={row.key}
+                                        className="border-b border-black/5 last:border-b-0 dark:border-[#585d61]"
+                                    >
+                                        <td className="px-3 py-2 text-[11px] font-medium uppercase tracking-[0.4px] text-muted">
+                                            {row.label}
+                                        </td>
+                                        {items.map((it) => (
+                                            <td
+                                                key={`${it.session.id}-${row.key}`}
+                                                className="px-3 py-2 font-mono text-[12px] font-semibold tabular-nums tracking-[-0.2px] text-primary"
+                                            >
+                                                {row.get(it)}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
-                )}
+                </div>
+
+                {/* Right sidebar */}
+                <aside className="w-[240px] shrink-0 border-l border-black/5 bg-[rgba(248,246,244,0.55)] px-3 py-4 dark:border-[#585d61] dark:bg-[rgba(24,29,33,0.65)]">
+                    <CompareSessionSidebar items={items} onToggle={onToggle} />
+                </aside>
             </div>
         </ModalShell>
     );

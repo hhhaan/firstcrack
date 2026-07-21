@@ -27,10 +27,10 @@ import { useTranslation } from 'react-i18next';
 import { NewProfileModal } from './NewProfileModal';
 
 const COMPARE_COLORS = [
-    'var(--color-palette-green)',
     'var(--color-palette-blue)',
-    'var(--color-palette-purple)',
+    'var(--color-palette-indigo)',
     'var(--color-palette-yellow)',
+    'var(--color-palette-teal)',
 ] as const;
 
 interface ProfilesProps {
