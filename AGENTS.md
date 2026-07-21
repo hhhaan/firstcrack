@@ -79,7 +79,8 @@ Read before changing write paths:
 
 ## Sidecar
 - src-tauri/sidecar/: main.py(aiohttp :9999) + manager.py + adapters/ (modbus,phidget,kaleido,probat_ws,s7,virtual)
-- registry: roaster_registry.py (기기별 프로토콜/주소맵) | API doc: docs/sidecar-api.md
+- registry dual SSoT (manual sync): `src-tauri/sidecar/roaster_registry.py` (connect + address maps) ↔ `src/entities/machine/roasterRegistry.ts` (UI form/display). Gate: `pnpm check:registry` (in `verify`)
+- API doc: docs/sidecar-api.md
 - Phidget: OS-level libphidget22 필요 → docs/phidget-driver-setup.md
 
 ## UI
