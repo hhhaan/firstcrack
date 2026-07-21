@@ -42,7 +42,7 @@ Typical sequence:
 1. Resolve workspace (`useActiveWorkspace`) — abort if not ready
 2. Optional schedule link: pick `plan_batch` → `toPlanBatchHandoff`
 3. **F3 client guard:** if deduct requested and batch id known, `beanStockEventApi.hasRoastDeductionForReference(planBatchId)` → skip deduct + warn
-4. Plan gates: monthly/trial batch caps (`src/shared/lib/features.ts`)
+4. Plan gates: monthly/trial batch caps (`src/shared/lib/features/` — `plan-matrix.ts`, `useWriteAccess.ts`)
 5. Build session payload + serialized events
 6. **Server atomic path:** `roastSessionApi.saveOp` / RPC `save_roast_op` — session + green events + roasted inbound when deduct/inbound flags set (see latest `supabase/migrations/*inventory_flow_hardening*`)
 7. Upload curve: local TSV → presigned PUT (`uploadRoastProfile` / BBP) with **owner** user id

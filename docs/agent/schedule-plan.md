@@ -74,7 +74,7 @@ Set `planBatchHandoff` on `useRoastSessionStore`. Save path in Active Roast may 
 1. Complete-batch green ref = **`plan_batch.id`**. Session save ref = **session id**. Never invent a third ref scheme.
 2. Deduction grams for complete-batch use **remaining** sessions only (`batch_count - completed_sessions`), not full `batch_count` if some sessions already roasted.
 3. Reserved green stock for UI uses the same remaining-session math (see inventory architecture).
-4. Plan/trial gates: writes may be blocked by plan readonly / monthly batch caps (`src/shared/lib/features.ts`) — honor server errors from batch gates.
+4. Plan/trial gates: writes may be blocked by plan readonly / monthly batch caps (`src/shared/lib/features/` — `plan-matrix.ts`, `useWriteAccess.ts`) — honor server errors from batch gates.
 
 ---
 

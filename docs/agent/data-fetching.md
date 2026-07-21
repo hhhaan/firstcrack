@@ -17,8 +17,8 @@ Desktop app uses React Query with **no background refetch**. UI freshness comes 
 | Concern | Path |
 |---------|------|
 | QueryClient defaults | `src/main.tsx` |
-| Axios singleton | `src/shared/lib/axios.ts` |
-| Supabase client | `src/shared/lib/supabase.ts` |
+| Supabase client (server data) | `src/shared/lib/supabase.ts` |
+| Sidecar HTTP (localhost) | `src/shared/lib/sidecar.ts` |
 | Cross-slice key roots | `src/shared/lib/query-keys.ts` |
 | View error isolation | `src/shared/ui/ErrorBoundary.tsx` (used from `src/App.tsx`) |
 | Entity reads | `src/entities/<slice>/queries.ts` |
