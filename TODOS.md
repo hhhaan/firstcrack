@@ -810,6 +810,26 @@ A5 v1 한계: no curve copy into draft dir; wall clock lag on resume; single lat
 
 ---
 
+### [ORD3] 토스플레이스 연동
+
+**What:** 토스플레이스(Toss Place) 판매 채널 연동 — 주문/판매 pull, (가능 시) 출고·재고 아웃바운드.
+
+**Why:** KR 오프라인·POS 로스터리 수요. 기존 네이버·카페24·쇼피파이와 같은 sales-channel 파이프라인에 추가 커넥터.
+
+**How:**
+
+1. 토스플레이스 파트너/Open API 스펙·인증 방식 조사 (OAuth vs API key)
+2. `ChannelPlatform` + `sales_channel_connections`에 `toss_place` 추가
+3. `channel-connect` 자격증명 검증·저장
+4. `order-sync` normalize upsert (`orders` / `order_lines`)
+5. 아웃바운드 가능 시 `order-dispatch` 확장; 불가 시 pull-only + 문서화
+6. `docs/sales-channel-integration.md`, `docs/pricing/07-integrations-catalog.md` 갱신
+
+**Depends on:** ORD2 안정화, 토스플레이스 API 접근/파트너 등록  
+**Priority:** MEDIUM (KR Pro+)
+
+---
+
 ### [SID1] sidecar 복구 실패 토스트
 
 **What:** 자동 재시작 3회 실패 후 프론트에 토스트/배너 emit.
