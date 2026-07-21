@@ -11,8 +11,6 @@ interface UseAddBeanSubmitParams {
     selectedBeanId: string | null;
     restockAmount: string;
     restockCost: string;
-    expectedAmount: string;
-    expectedNote: string;
     adjustType: 'adjustment' | 'write_off';
     adjustSign: '+' | '-';
     adjustAmount: string;
@@ -29,8 +27,6 @@ export const useAddBeanSubmit = ({
     selectedBeanId,
     restockAmount,
     restockCost,
-    expectedAmount,
-    expectedNote,
     adjustType,
     adjustSign,
     adjustAmount,
@@ -114,19 +110,6 @@ export const useAddBeanSubmit = ({
                         });
                     }
                 }
-                onSuccess?.(currentBean ?? null);
-            } else if (tab === 'expected' && selectedBeanId && expectedAmount) {
-                const amount = Math.round(parseFloat(expectedAmount) * 1000);
-                if (!Number.isFinite(amount) || amount <= 0) return;
-                const currentBean = existingBeans.find((b) => b.id === selectedBeanId);
-                await insertStockEvent.mutateAsync({
-                    user_id: userId,
-                    bean_id: selectedBeanId,
-                    delta_grams: amount,
-                    event_type: 'expected_inbound',
-                    note: expectedNote || null,
-                    reference_id: crypto.randomUUID(),
-                });
                 onSuccess?.(currentBean ?? null);
             } else if (tab === 'adjust' && selectedBeanId && adjustAmount) {
                 const rawGrams = Math.round(parseFloat(adjustAmount) * 1000);

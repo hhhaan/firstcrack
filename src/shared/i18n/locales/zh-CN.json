@@ -1032,11 +1032,9 @@
         "newTitle": "新批次",
         "editTitle": "编辑生豆信息",
         "restockTitle": "补货",
-        "expectedTitle": "预计入库",
         "adjustTitle": "库存调整",
         "newTab": "新批次",
         "restockTab": "补货",
-        "expectedTab": "预计入库",
         "adjustTab": "调整",
         "selectBean": "选择生豆",
         "selectBeanRestock": "选择要补货的生豆",
@@ -1046,7 +1044,6 @@
         "create": "创建批次",
         "update": "更新生豆信息",
         "confirmRestock": "确认补货",
-        "confirmExpected": "确认预计入库",
         "confirmWriteOff": "确认报废",
         "confirmAdjustment": "确认调整",
         "adjust": {
@@ -1079,12 +1076,6 @@
             "tastingNotes": "风味描述",
             "tastingNotesPlaceholder": "例如：茉莉花、蓝莓、牛奶巧克力"
         },
-        "expected": {
-            "inbound": "预计入库 (kg)",
-            "note": "备注 (可选)",
-            "notePlaceholder": "例如：PO #1234，下周到货",
-            "countsNote": "计入库存短缺提醒的可使用库存，非实际库存。"
-        },
         "restock": {
             "weight": "添加重量 (kg)",
             "cost": "成本 (元/kg)",
@@ -1102,7 +1093,7 @@
         "altitude": "海拔",
         "received": "入库日期",
         "currentStock": "当前库存",
-        "available": "可用 (含预计入库)",
+        "available": "可用",
         "effective": "有效 (28天计划)",
         "tastingNotes": "风味描述",
         "stockLevel": "库存水平",
@@ -1117,7 +1108,6 @@
             "title": "库存历史",
             "empty": "无记录",
             "purchase": "入库",
-            "expectedInbound": "预计入库",
             "roast": "烘焙",
             "adjustment": "调整",
             "writeOff": "报废处理",

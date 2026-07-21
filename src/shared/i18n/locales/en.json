@@ -1032,11 +1032,9 @@
         "newTitle": "New Bean Lot",
         "editTitle": "Edit Bean Details",
         "restockTitle": "Restock Existing",
-        "expectedTitle": "Expected Inbound",
         "adjustTitle": "Adjust Stock",
         "newTab": "New Lot",
         "restockTab": "Restock",
-        "expectedTab": "Expected",
         "adjustTab": "Adjust",
         "selectBean": "Select Bean",
         "selectBeanRestock": "Select Bean to Restock",
@@ -1046,7 +1044,6 @@
         "create": "Create Bean Lot",
         "update": "Update Bean Details",
         "confirmRestock": "Confirm Restock",
-        "confirmExpected": "Confirm Expected Inbound",
         "confirmWriteOff": "Confirm Write-off",
         "confirmAdjustment": "Confirm Adjustment",
         "adjust": {
@@ -1079,12 +1076,6 @@
             "tastingNotes": "Tasting Notes",
             "tastingNotesPlaceholder": "e.g. Jasmine, Blueberry, Milk Chocolate"
         },
-        "expected": {
-            "inbound": "Expected Inbound (kg)",
-            "note": "Note (optional)",
-            "notePlaceholder": "e.g. PO #1234, ETA next week",
-            "countsNote": "Counts toward available stock for shortage alerts, not physical on-hand stock."
-        },
         "restock": {
             "weight": "Weight to Add (kg)",
             "cost": "Cost ($/kg)",
@@ -1102,7 +1093,7 @@
         "altitude": "Altitude",
         "received": "Received",
         "currentStock": "Current Stock",
-        "available": "Available (incl. inbound)",
+        "available": "Available",
         "effective": "Effective (28d plan)",
         "tastingNotes": "Tasting Notes",
         "stockLevel": "Stock Level",
@@ -1117,7 +1108,6 @@
             "title": "Stock History",
             "empty": "No history",
             "purchase": "Inbound",
-            "expectedInbound": "Expected Inbound",
             "roast": "Roast",
             "adjustment": "Adjustment",
             "writeOff": "Write-off",

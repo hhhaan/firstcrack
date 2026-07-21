@@ -10,7 +10,6 @@ import { DeleteBeanModal } from './DeleteBeanModal';
 
 const EVENT_TYPE_LABEL_KEY: Record<string, string> = {
     purchase: 'beanDetail.stockHistory.purchase',
-    expected_inbound: 'beanDetail.stockHistory.expectedInbound',
     roast: 'beanDetail.stockHistory.roast',
     write_off: 'beanDetail.stockHistory.writeOff',
 };
@@ -79,7 +78,6 @@ export const BeanDetail = ({
     if (!bean) return <Empty hasAny={false} />;
 
     const currentGrams = summary?.currentGrams ?? 0;
-    const availableGrams = summary?.availableGrams ?? 0;
     const effectiveGrams = summary?.effectiveGrams ?? 0;
 
     const cur = currencySymbol(i18n.language);
@@ -155,10 +153,6 @@ export const BeanDetail = ({
                         },
                         { label: t('beanDetail.received'), value: bean.purchase_date ?? '—' },
                         { label: t('beanDetail.currentStock'), value: `${(currentGrams / 1000).toFixed(2)}kg` },
-                        {
-                            label: t('beanDetail.available'),
-                            value: `${(availableGrams / 1000).toFixed(2)}kg`,
-                        },
                         {
                             label: t('beanDetail.effective'),
                             value: `${(effectiveGrams / 1000).toFixed(2)}kg`,

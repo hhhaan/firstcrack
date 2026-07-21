@@ -5,8 +5,7 @@ import { beanStockEventApi } from './api';
 
 /** Optimistic stock summary patch (also used by insert mutation onMutate). */
 export const applyStockEventDelta = (summary: StockSummary, event: BeanStockEventInsert): StockSummary => {
-    const affectsCurrent = event.event_type !== 'expected_inbound';
-    const nextCurrent = affectsCurrent ? summary.currentGrams + event.delta_grams : summary.currentGrams;
+    const nextCurrent = summary.currentGrams + event.delta_grams;
     const nextAvailable = summary.availableGrams + event.delta_grams;
     return {
         currentGrams: nextCurrent,

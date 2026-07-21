@@ -1,7 +1,7 @@
 import type { StockSummary } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
 
-export type BeanModalTab = 'new' | 'restock' | 'expected' | 'edit' | 'adjust';
+export type BeanModalTab = 'new' | 'restock' | 'edit' | 'adjust';
 
 export type BeanPickerProps = {
     visibleBeans: Bean[];

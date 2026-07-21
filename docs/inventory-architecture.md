@@ -13,12 +13,13 @@ All stock is the **SUM of append-only events**. There are no denormalized quanti
 
 | Ledger | Unit | Target | event_type |
 |---|---|---|---|
-| `bean_stock_events` | g (green) | bean | `purchase` + / `roast` − / `adjustment` ± / `write_off` − / `expected_inbound` + |
+| `bean_stock_events` | g (green) | bean | `purchase` + / `roast` − / `adjustment` ± / `write_off` − |
 | `roasted_stock_events` | g (bulk roasted) | bean **or** blend (`single_source` CHECK: exactly one) | `roast_inbound` + / `packaging` − / `blend_consume` − / `blend_produce` + / `adjustment` ± / `write_off` − |
 | `product_stock_events` | bags (units) | product | `roast_inbound` + / `order_fulfillment` − / `order_cancel` + / `adjustment` ± / `write_off` − |
 
 - `roasted_stock_events.is_estimate`: when output weight is not measured, roast-level estimates inbound grams. Measured weight later **replaces** the same session row via `upsert_roasted_inbound` (the only intentional exception to pure append-only).
 - Happy path: green `purchase` → roast green `roast` − + bulk `roast_inbound` + → packaging bulk − + product `roast_inbound` + → order `order_fulfillment` −.
+- Green pipeline `expected_inbound` was removed (`20260731000000`); physical inbound is `purchase` only (create + restock). `current` and `available` are the same event sum; `effective = available − reserved`.
 
 **Name collision:** `roast_inbound` means bulk roast output on `roasted_stock_events`, and packaging inbound on `product_stock_events`. Same name, different meaning.
 

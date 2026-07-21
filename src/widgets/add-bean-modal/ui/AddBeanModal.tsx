@@ -14,7 +14,6 @@ import { beanFormSchema, EMPTY_BEAN_FORM } from '../lib/schema';
 import { tabCls } from '../lib/styles';
 import { BEAN_LIST_LIMIT, type BeanModalTab } from '../lib/types';
 import { BeanAdjustTab } from './BeanAdjustTab';
-import { BeanExpectedTab } from './BeanExpectedTab';
 import { BeanFormFields } from './BeanFormFields';
 import { BeanRestockTab } from './BeanRestockTab';
 import { useAddBeanFormReset } from './useAddBeanFormReset';
@@ -46,8 +45,6 @@ export const AddBeanModal = ({
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(initialBeanId);
     const [restockAmount, setRestockAmount] = useState('');
     const [restockCost, setRestockCost] = useState('');
-    const [expectedAmount, setExpectedAmount] = useState('');
-    const [expectedNote, setExpectedNote] = useState('');
     const [adjustType, setAdjustType] = useState<'adjustment' | 'write_off'>('adjustment');
     const [adjustSign, setAdjustSign] = useState<'+' | '-'>('+');
     const [adjustAmount, setAdjustAmount] = useState('');
@@ -76,8 +73,6 @@ export const AddBeanModal = ({
         selectedBeanId,
         restockAmount,
         restockCost,
-        expectedAmount,
-        expectedNote,
         adjustType,
         adjustSign,
         adjustAmount,
@@ -101,8 +96,6 @@ export const AddBeanModal = ({
         setSelectedBeanId,
         setRestockAmount,
         setRestockCost,
-        setExpectedAmount,
-        setExpectedNote,
         setAdjustType,
         setAdjustSign,
         setAdjustAmount,
@@ -112,7 +105,6 @@ export const AddBeanModal = ({
     });
 
     const restockGrams = Math.round((parseFloat(restockAmount) || 0) * 1000);
-    const expectedGrams = Math.round((parseFloat(expectedAmount) || 0) * 1000);
     const adjustGrams = Math.round((parseFloat(adjustAmount) || 0) * 1000);
     const adjustCurrentGrams = selectedBeanId ? (stockSummaries[selectedBeanId]?.effectiveGrams ?? 0) : 0;
     const isAdjustDeduction = adjustType === 'write_off' || (adjustType === 'adjustment' && adjustSign === '-');
@@ -121,7 +113,6 @@ export const AddBeanModal = ({
     const isSubmitDisabled =
         isSubmitting ||
         (tab === 'restock' && (!selectedBeanId || restockGrams <= 0)) ||
-        (tab === 'expected' && (!selectedBeanId || expectedGrams <= 0)) ||
         (tab === 'adjust' && (!selectedBeanId || adjustGrams <= 0 || adjustExceedsStock));
 
     const visibleBeans = showAllBeans ? existingBeans : existingBeans.slice(0, BEAN_LIST_LIMIT);
@@ -142,9 +133,7 @@ export const AddBeanModal = ({
               ? 'addBeanModal.editTitle'
               : tab === 'restock'
                 ? 'addBeanModal.restockTitle'
-                : tab === 'expected'
-                  ? 'addBeanModal.expectedTitle'
-                  : 'addBeanModal.adjustTitle';
+                : 'addBeanModal.adjustTitle';
 
     if (!open) return null;
 
@@ -162,7 +151,7 @@ export const AddBeanModal = ({
                 {tab !== 'edit' && (
                     <div className="px-8 pb-5">
                         <div className="flex bg-surface p-1 rounded-2xl shadow-(--shadow-inset)">
-                            {(['new', 'restock', 'expected', 'adjust'] as const).map((tabKey) => (
+                            {(['new', 'restock', 'adjust'] as const).map((tabKey) => (
                                 <button
                                     type="button"
                                     key={tabKey}
@@ -205,15 +194,6 @@ export const AddBeanModal = ({
                             handleSubmit={rhfSubmit}
                         />
                     </FormProvider>
-                ) : tab === 'expected' ? (
-                    <BeanExpectedTab
-                        {...pickerProps}
-                        selectedBeanId={selectedBeanId}
-                        expectedAmount={expectedAmount}
-                        expectedNote={expectedNote}
-                        onExpectedAmountChange={setExpectedAmount}
-                        onExpectedNoteChange={setExpectedNote}
-                    />
                 ) : (
                     <BeanRestockTab
                         {...pickerProps}
@@ -255,11 +235,9 @@ export const AddBeanModal = ({
                                 ? t('addBeanModal.saving')
                                 : tab === 'restock'
                                   ? t('addBeanModal.confirmRestock')
-                                  : tab === 'expected'
-                                    ? t('addBeanModal.confirmExpected')
-                                    : adjustType === 'write_off'
-                                      ? t('addBeanModal.confirmWriteOff')
-                                      : t('addBeanModal.confirmAdjustment')}
+                                  : adjustType === 'write_off'
+                                    ? t('addBeanModal.confirmWriteOff')
+                                    : t('addBeanModal.confirmAdjustment')}
                         </button>
                     )}
                 </div>

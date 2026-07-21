@@ -1032,11 +1032,9 @@
         "newTitle": "新規生豆ロット",
         "editTitle": "豆の詳細を編集",
         "restockTitle": "在庫補充",
-        "expectedTitle": "入荷予定",
         "adjustTitle": "在庫調整",
         "newTab": "新規ロット",
         "restockTab": "補充",
-        "expectedTab": "入荷予定",
         "adjustTab": "調整",
         "selectBean": "豆を選択",
         "selectBeanRestock": "補充する豆を選択",
@@ -1046,7 +1044,6 @@
         "create": "生豆ロットを作成",
         "update": "豆の詳細を更新",
         "confirmRestock": "補充を確認",
-        "confirmExpected": "入荷予定を確認",
         "confirmWriteOff": "廃棄を確認",
         "confirmAdjustment": "調整を確認",
         "adjust": {
@@ -1079,12 +1076,6 @@
             "tastingNotes": "テイスティングノート",
             "tastingNotesPlaceholder": "例: ジャスミン、ブルーベリー、ミルクチョコレート"
         },
-        "expected": {
-            "inbound": "入荷予定 (kg)",
-            "note": "メモ (任意)",
-            "notePlaceholder": "例: PO #1234、来週到着予定",
-            "countsNote": "不足アラートの利用可能在庫に含めますが、実在庫には含みません。"
-        },
         "restock": {
             "weight": "追加数量 (kg)",
             "cost": "原価 (円/kg)",
@@ -1102,7 +1093,7 @@
         "altitude": "標高",
         "received": "受入日",
         "currentStock": "現在の在庫",
-        "available": "利用可能 (入荷予定含む)",
+        "available": "利用可能",
         "effective": "実効 (28日計画)",
         "tastingNotes": "テイスティングノート",
         "stockLevel": "在庫レベル",
@@ -1117,7 +1108,6 @@
             "title": "在庫履歴",
             "empty": "履歴なし",
             "purchase": "入荷",
-            "expectedInbound": "入荷予定",
             "roast": "ロースト",
             "adjustment": "調整",
             "writeOff": "廃棄処理",

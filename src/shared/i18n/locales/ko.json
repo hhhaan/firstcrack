@@ -1032,11 +1032,9 @@
         "newTitle": "새 생두 추가",
         "editTitle": "생두 정보 수정",
         "restockTitle": "기존 생두 재입고",
-        "expectedTitle": "입고 예정",
         "adjustTitle": "재고 조정",
         "newTab": "새 생두",
         "restockTab": "재입고",
-        "expectedTab": "입고 예정",
         "adjustTab": "조정",
         "selectBean": "생두 선택",
         "selectBeanRestock": "재입고할 생두 선택",
@@ -1046,7 +1044,6 @@
         "create": "생두 Lot 생성",
         "update": "생두 정보 업데이트",
         "confirmRestock": "재입고 확인",
-        "confirmExpected": "입고 예정 확인",
         "confirmWriteOff": "폐기 확인",
         "confirmAdjustment": "조정 확인",
         "adjust": {
@@ -1078,12 +1075,6 @@
             "costPlaceholder": "예: 32000",
             "tastingNotes": "시음 노트",
             "tastingNotesPlaceholder": "예: 자스민, 블루베리, 밀크 초콜릿"
-        },
-        "expected": {
-            "inbound": "입고 예정량 (kg)",
-            "note": "메모 (선택)",
-            "notePlaceholder": "예: PO #1234, 다음 주 도착 예정",
-            "countsNote": "재고 부족 알림에 사용되는 가용 재고에 포함됩니다. 실제 보유 재고와는 다릅니다."
         },
         "restock": {
             "weight": "추가 중량 (kg)",
@@ -1169,7 +1160,7 @@
         "altitude": "고도",
         "received": "입고일",
         "currentStock": "현재 재고",
-        "available": "가용 재고 (입고 예정 포함)",
+        "available": "가용 재고",
         "effective": "실효 재고 (28일 계획)",
         "tastingNotes": "시음 노트",
         "stockLevel": "재고 수준",
@@ -1184,7 +1175,6 @@
             "title": "재고 이력",
             "empty": "이력 없음",
             "purchase": "입고",
-            "expectedInbound": "입고 예정",
             "roast": "로스팅",
             "adjustment": "조정",
             "writeOff": "폐기 처리",

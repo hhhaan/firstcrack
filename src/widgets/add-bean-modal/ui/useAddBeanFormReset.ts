@@ -16,8 +16,6 @@ type Params = {
     setSelectedBeanId: (id: string | null) => void;
     setRestockAmount: (v: string) => void;
     setRestockCost: (v: string) => void;
-    setExpectedAmount: (v: string) => void;
-    setExpectedNote: (v: string) => void;
     setAdjustType: (v: 'adjustment' | 'write_off') => void;
     setAdjustSign: (v: '+' | '-') => void;
     setAdjustAmount: (v: string) => void;
@@ -37,8 +35,6 @@ export const useAddBeanFormReset = ({
     setSelectedBeanId,
     setRestockAmount,
     setRestockCost,
-    setExpectedAmount,
-    setExpectedNote,
     setAdjustType,
     setAdjustSign,
     setAdjustAmount,
@@ -52,8 +48,6 @@ export const useAddBeanFormReset = ({
         setSelectedBeanId(initialBeanId);
         setRestockAmount('');
         setRestockCost('');
-        setExpectedAmount('');
-        setExpectedNote('');
         setAdjustType('adjustment');
         setAdjustSign('+');
         setAdjustAmount('');
@@ -83,14 +77,12 @@ export const useAddBeanFormReset = ({
         initialTab,
         initialBeanId,
         initialData,
-        reset,
         stockSummaries,
+        reset,
         setTab,
         setSelectedBeanId,
         setRestockAmount,
         setRestockCost,
-        setExpectedAmount,
-        setExpectedNote,
         setAdjustType,
         setAdjustSign,
         setAdjustAmount,
