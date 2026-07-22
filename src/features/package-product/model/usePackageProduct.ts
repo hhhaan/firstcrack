@@ -2,9 +2,11 @@ import { useActiveWorkspace } from '@entities/organization';
 import { type Product, productKeys } from '@entities/product';
 import { productStockEventApi, productStockKeys } from '@entities/product-stock-event';
 import { ensureRoastedStock, type RoastedStockSummary, roastedStockKeys } from '@entities/roasted-stock-event';
+import { createActionOpIdSession } from '@shared/lib/action-op-id';
 import { orderKeys } from '@shared/lib/query-keys';
 import { supabase } from '@shared/lib/supabase';
 import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { buildPackagingEvents } from '../lib/buildPackagingEvents';
 
 export interface PackageProductParams {
@@ -38,13 +40,15 @@ async function resolveProduct(qc: QueryClient, userId: string, productId: string
 export const usePackageProduct = () => {
     const qc = useQueryClient();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
+    // H5: retry after timeout must reuse opId (partial unique), not mint a new one per attempt
+    const opSession = useRef(createActionOpIdSession());
 
     const mutation = useMutation({
         mutationFn: async ({ productId, units, note }: PackageProductParams) => {
             if (!isWorkspaceReady || !workspaceOwnerId) throw new Error('Workspace is still loading');
 
             const product = await resolveProduct(qc, workspaceOwnerId, productId);
-            const opId = crypto.randomUUID();
+            const opId = opSession.current.getOrCreate();
             const { productEvents, roastedEvents } = buildPackagingEvents({
                 userId: workspaceOwnerId,
                 productId,
@@ -67,6 +71,7 @@ export const usePackageProduct = () => {
             }
 
             await productStockEventApi.insertPackagingOp(productEvents, roastedEvents);
+            opSession.current.markSucceeded();
 
             return { ownerId: workspaceOwnerId, product, units, shortageGrams };
         },

@@ -1,6 +1,8 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { type RoastedStockSummary, roastedStockEventApi, roastedStockKeys } from '@entities/roasted-stock-event';
+import { createActionOpIdSession } from '@shared/lib/action-op-id';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import { type BuildBlendingEventsParams, buildBlendingEvents } from '../lib/buildBlendingEvents';
 
 export type BlendRoastedParams = Omit<BuildBlendingEventsParams, 'userId' | 'opId'>;
@@ -8,12 +10,19 @@ export type BlendRoastedParams = Omit<BuildBlendingEventsParams, 'userId' | 'opI
 export const useBlendRoasted = () => {
     const qc = useQueryClient();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
+    // H5: retry reuses opId so blend partial unique indexes no-op on double submit
+    const opSession = useRef(createActionOpIdSession());
 
     const mutation = useMutation({
         mutationFn: async (p: BlendRoastedParams) => {
             if (!isWorkspaceReady || !workspaceOwnerId) throw new Error('Workspace is still loading');
-            const events = buildBlendingEvents({ ...p, userId: workspaceOwnerId, opId: crypto.randomUUID() });
+            const events = buildBlendingEvents({
+                ...p,
+                userId: workspaceOwnerId,
+                opId: opSession.current.getOrCreate(),
+            });
             await roastedStockEventApi.insertBatch(events);
+            opSession.current.markSucceeded();
             return workspaceOwnerId;
         },
         onMutate: async (p) => {
