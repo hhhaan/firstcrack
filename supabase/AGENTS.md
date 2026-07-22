@@ -64,6 +64,26 @@ Presign expiry: **300s** (`_shared/r2.ts`). Profile keys: `profiles/{uuid}/{uuid
 
 ---
 
+## Local stack (Docker)
+
+Full local Supabase (Postgres 17 + auth + REST + edge runtime + Studio) via supabase CLI; Docker Desktop must be running.
+
+- `pnpm db:start` — one shot: boots Docker if needed → starts stack → applies pending migrations (API :54321, DB :54322, Studio :54323). `db:stop` / `db:status` — lifecycle
+- `pnpm db:reset` — replay migrations + `seed.sql` from scratch (wipes local data)
+- `pnpm db:migrate` — apply only new/pending migrations, keeps local data
+- `pnpm db:env` — write `.env.local` pointing the app at the local stack (`rm .env.local` → back to remote)
+- `pnpm functions:serve` — serve edge functions locally (hot reload)
+- `pnpm types:gen:local` — gen types from local DB (test a migration before `db push`)
+
+Migration layout (squashed 2026-07-22):
+
+- `migrations/20260717000002_baseline_remote_schema.sql` — dump of remote schema. Its version already exists in remote history, so `db push` skips it — **never** `migration repair` it.
+- `migrations/*` after baseline — genuinely pending vs remote; `db push` will apply these.
+- `migrations-archive/` — already applied on remote (incl. former 0-byte placeholders and 6 files whose content reached remote via MCP `apply_migration` under different versions). Never replayed; history only. New migrations go in `migrations/` as usual.
+- `seed.sql` — local-only; also recreates the `on_auth_user_created` trigger on `auth.users` (pg_dump can't capture auth-schema triggers, remote has it already).
+
+---
+
 ## Migration themes
 
 Filenames under `supabase/migrations/` (group by prefix):
