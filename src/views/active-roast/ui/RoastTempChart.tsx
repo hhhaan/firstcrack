@@ -7,11 +7,15 @@ import {
     TEMP_Y_MAX_C,
     TEMP_Y_MIN_C,
 } from '@features/active-roast/lib/chart-config';
+import {
+    buildRoastChartOption,
+    type ControlData,
+    type RoastEventMarker,
+} from '@features/active-roast/lib/chart-option';
 import { useThemeStore } from '@shared/store/theme';
 import * as echarts from 'echarts';
 import type React from 'react';
 import { useEffect, useMemo, useRef } from 'react';
-import { buildRoastChartOption, type ControlData, type RoastEventMarker } from '../lib/chart-option';
 
 export type { RoastEventMarker };
 
