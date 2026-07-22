@@ -118,9 +118,7 @@ export const BeanList = ({
                                                 {formatAmount(asset.assetValue, i18n.language)}
                                             </span>
                                         ) : asset.costSource === 'none' ? (
-                                            <span className="shrink-0 font-body text-muted">
-                                                {t('inventoryAsset.missingCost')}
-                                            </span>
+                                            <span className="shrink-0 text-muted">—</span>
                                         ) : null)}
                                 </div>
                             </div>
