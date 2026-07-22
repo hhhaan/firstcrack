@@ -212,29 +212,29 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                     [
                                         {
                                             key: 'date',
-                                            label: t('history.table.date'),
+                                            label: t('history.compare.date'),
                                             get: (it: CompareSidebarItem) => formatDateShort(it.session.roasted_at),
                                         },
                                         {
                                             key: 'profile',
-                                            label: t('history.table.profile'),
+                                            label: t('history.compare.profile'),
                                             get: (it: CompareSidebarItem) => it.session.roast_profiles?.name ?? '—',
                                         },
                                         {
                                             key: 'duration',
-                                            label: t('history.table.duration'),
+                                            label: t('history.compare.duration'),
                                             get: (it: CompareSidebarItem) =>
                                                 formatDuration(it.session.duration_seconds),
                                         },
                                         {
                                             key: 'drop',
-                                            label: t('history.table.dropTemp'),
+                                            label: t('history.compare.dropTemp'),
                                             get: (it: CompareSidebarItem) =>
                                                 it.dropBt != null ? `${it.dropBt.toFixed(1)}°C` : '—',
                                         },
                                         {
                                             key: 'dtr',
-                                            label: t('history.table.dtr'),
+                                            label: t('history.compare.dtr'),
                                             get: (it: CompareSidebarItem) => {
                                                 const d = deriveSessionDevMetrics(
                                                     it.events,
@@ -245,7 +245,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                         },
                                         {
                                             key: 'level',
-                                            label: t('history.table.level'),
+                                            label: t('history.compare.level'),
                                             get: (it: CompareSidebarItem) => it.session.roast_level ?? '—',
                                         },
                                     ] as const

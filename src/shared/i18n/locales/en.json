@@ -863,13 +863,20 @@
             "noCurves": "No curve data in selected sessions",
             "noCurveData": "No curve data",
             "events": "Events",
-            "tempAndRor": "Temperature & RoR",
+            "tempAndRor": "Temp & RoR",
             "phases": "Phases",
             "phaseDrying": "Drying",
             "phaseMaillard": "Maillard",
             "phaseDevelopment": "Development",
             "sidebarTitle": "{{count}} selected",
-            "charge": "Charge"
+            "charge": "Charge",
+            "date": "Date",
+            "profile": "Profile",
+            "duration": "Duration",
+            "dropTemp": "Drop Temp",
+            "dtr": "DTR",
+            "level": "Level",
+            "weight": "Weight"
         },
         "cupping": {
             "title": "Cupping",

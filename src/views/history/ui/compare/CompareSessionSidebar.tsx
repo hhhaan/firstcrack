@@ -118,7 +118,7 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
                                 </div>
                                 <div className="flex items-baseline justify-between gap-1">
                                     <span className="text-[10px] font-medium uppercase tracking-[0.4px] text-muted">
-                                        {t('history.table.duration')}
+                                        {t('history.compare.duration')}
                                     </span>
                                     <span className="font-mono text-[11px] tabular-nums text-secondary">
                                         {formatDuration(s.duration_seconds)}
@@ -140,7 +140,7 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
                                 </div>
                                 {s.weight_grams != null && (
                                     <div className="flex justify-between gap-2 opacity-90">
-                                        <span className="text-muted">{t('history.table.weight')}</span>
+                                        <span className="text-muted">{t('history.compare.weight')}</span>
                                         <span className="font-mono tabular-nums text-secondary">{s.weight_grams}g</span>
                                     </div>
                                 )}
