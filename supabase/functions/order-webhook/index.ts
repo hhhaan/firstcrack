@@ -10,9 +10,9 @@ import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import { upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { cafe24ToCanonical, shopifyToCanonical } from '../_shared/channels/status-map.ts';
-import { fetchTossPlaceOrderById, mapTossPlaceOrder, type TossPlaceOrderRaw } from '../_shared/channels/toss-place.ts';
+import { handleTossPlaceWebhook } from '../_shared/channels/toss-place-webhook.ts';
 import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
-import { verifySharedSecret, verifyShopifyHmac, verifyTossPlaceSignature } from '../_shared/webhook-auth.ts';
+import { verifySharedSecret, verifyShopifyHmac } from '../_shared/webhook-auth.ts';
 
 function gidToId(gid: string): string {
     const parts = gid.split('/');
@@ -133,119 +133,12 @@ Deno.serve(async (req) => {
 
     try {
         if (platform === 'toss_place') {
-            const sig = req.headers.get('x-toss-signature');
-            const ts = req.headers.get('x-toss-timestamp');
-            if (!(await verifyTossPlaceSignature(Deno.env.get('TOSS_PLACE_WEBHOOK_SECRET'), rawBody, sig, ts))) {
-                console.error('[order-webhook] toss_place signature reject');
-                return jsonResponse({ error: 'Unauthorized' }, 401);
-            }
-
-            let payload: Record<string, unknown>;
-            try {
-                payload = JSON.parse(rawBody);
-            } catch {
-                return jsonResponse({ error: 'Invalid JSON' }, 400);
-            }
-
-            const eventType = String(payload.eventType ?? payload.type ?? payload.event ?? '');
-            const data = (payload.data ?? payload.payload ?? payload) as Record<string, unknown>;
-            const merchantId = String(data.merchantId ?? payload.merchantId ?? data.merchant_id ?? '').trim();
-            if (!merchantId) return jsonResponse({ ok: true, skipped: 'no merchantId' });
-
-            if (eventType === 'app.installation.deleted.v1') {
-                await admin
-                    .from('sales_channel_connections')
-                    .update({
-                        status: 'disabled',
-                        last_error: 'app uninstalled',
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('platform', 'toss_place')
-                    .eq('shop_identifier', merchantId)
-                    .eq('status', 'active');
-                return jsonResponse({ ok: true, disabled: true });
-            }
-
-            const { data: conn } = await admin
-                .from('sales_channel_connections')
-                .select('id, user_id, auto_fulfill_on_shipped, status')
-                .eq('platform', 'toss_place')
-                .eq('shop_identifier', merchantId)
-                .eq('status', 'active')
-                .maybeSingle();
-
-            if (!conn) return jsonResponse({ ok: true, skipped: 'unknown merchant' });
-
-            let orderRaw = (data.order ?? data) as TossPlaceOrderRaw;
-            const orderId = String(data.orderId ?? orderRaw.id ?? '').trim();
-            const thin =
-                eventType.startsWith('payment.') ||
-                (!orderRaw.orderState && !orderRaw.lineItems && !orderRaw.orderLineItems);
-
-            if (thin && orderId) {
-                try {
-                    const full = await fetchTossPlaceOrderById(merchantId, orderId);
-                    if (full) {
-                        await upsertCanonicalOrders(
-                            admin,
-                            {
-                                userId: conn.user_id,
-                                connectionId: conn.id,
-                                platform: 'toss_place',
-                                autoFulfillOnShipped: conn.auto_fulfill_on_shipped === true,
-                            },
-                            [full],
-                        );
-                        await admin.from('order_sync_runs').insert({
-                            connection_id: conn.id,
-                            user_id: conn.user_id,
-                            trigger: 'webhook',
-                            status: 'success',
-                            finished_at: new Date().toISOString(),
-                            orders_upserted: 1,
-                        });
-                        return jsonResponse({ ok: true, upserted: 1, via: 'refetch' });
-                    }
-                } catch (e) {
-                    console.error('[order-webhook] toss_place refetch', e);
-                }
-            }
-
-            if (!orderRaw.orderState) {
-                if (eventType.includes('cancelled') || eventType.includes('canceled')) {
-                    orderRaw = { ...orderRaw, orderState: 'CANCELLED' };
-                } else if (eventType.includes('completed') || eventType.includes('approved')) {
-                    orderRaw = { ...orderRaw, orderState: 'COMPLETED' };
-                }
-            }
-            if (orderRaw.id == null && orderId) {
-                orderRaw = { ...orderRaw, id: orderId };
-            }
-
-            const order = mapTossPlaceOrder(orderRaw);
-            if (!order) return jsonResponse({ ok: true, skipped: 'unparseable' });
-
-            await upsertCanonicalOrders(
-                admin,
-                {
-                    userId: conn.user_id,
-                    connectionId: conn.id,
-                    platform: 'toss_place',
-                    autoFulfillOnShipped: conn.auto_fulfill_on_shipped === true,
-                },
-                [order],
-            );
-
-            await admin.from('order_sync_runs').insert({
-                connection_id: conn.id,
-                user_id: conn.user_id,
-                trigger: 'webhook',
-                status: 'success',
-                finished_at: new Date().toISOString(),
-                orders_upserted: 1,
+            const result = await handleTossPlaceWebhook(admin, rawBody, {
+                signature: req.headers.get('x-toss-signature'),
+                timestamp: req.headers.get('x-toss-timestamp'),
+                webhookId: req.headers.get('x-toss-webhook-id'),
             });
-
-            return jsonResponse({ ok: true, upserted: 1 });
+            return jsonResponse(result.body, result.status);
         }
 
         if (platform === 'shopify') {

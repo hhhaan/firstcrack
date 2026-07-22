@@ -5,8 +5,8 @@ import { type Product, useDeleteProduct, useProducts } from '@entities/product';
 import { useProductStock } from '@entities/product-stock-event';
 import {
     type ChannelPlatform,
-    OUTBOUND_DISPATCH_PLATFORMS,
     type SalesChannelConnection,
+    supportsOutboundDispatch,
     useDisconnectChannel,
     useSalesChannels,
     useSetAutoFulfill,
@@ -59,14 +59,6 @@ const DISPATCH_STATUS_EN: Record<string, string> = {
     sent: 'Ship requested',
     confirmed: 'Shipped (confirmed)',
     failed: 'Ship failed',
-};
-
-const PLATFORM_EN: Record<string, string> = {
-    manual: 'Manual',
-    naver: 'Naver',
-    cafe24: 'Cafe24',
-    shopify: 'Shopify',
-    toss_place: 'Toss Place',
 };
 
 const CHANNEL_STATUS_EN: Record<string, string> = {
@@ -306,8 +298,7 @@ function OrderRow({
     // Local cancel restores product stock; channel platforms sync cancel via webhook — avoid double-restoring.
     const canCancel = order.platform === 'manual' && !cancelled;
     const canDispatch =
-        order.platform !== 'manual' &&
-        OUTBOUND_DISPATCH_PLATFORMS.has(order.platform as ChannelPlatform) &&
+        supportsOutboundDispatch(order.platform) &&
         fulfilled &&
         !!order.connection_id &&
         (!dispatch || dispatch.status === 'failed');
@@ -326,7 +317,9 @@ function OrderRow({
             <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">{formatDateShort(order.ordered_at)}</td>
             <td className="px-4 py-3.5">
                 <Badge tone="soft" size="sm">
-                    {PLATFORM_EN[order.platform] ?? order.platform}
+                    {order.platform === 'manual'
+                        ? t('orders.list.manual')
+                        : t(`orders.channel.platform.${order.platform}`, { defaultValue: order.platform })}
                 </Badge>
             </td>
             <td className="px-4 py-3.5 text-[13px] text-primary tracking-[0.14px]">{order.buyer_name ?? '—'}</td>
@@ -613,7 +606,7 @@ function ChannelCard({
                         {CHANNEL_STATUS_EN[channel.status] ?? channel.status}
                     </Badge>
                     <Badge tone="soft" size="sm">
-                        {PLATFORM_EN[channel.platform] ?? channel.platform}
+                        {t(`orders.channel.platform.${channel.platform}`, { defaultValue: channel.platform })}
                     </Badge>
                 </div>
                 <p className="mt-1 text-[12px] text-muted tracking-[0.14px]">
@@ -622,7 +615,7 @@ function ChannelCard({
                         ? ` · ${t('orders.channel.lastSync', { at: formatDateShort(channel.last_polled_at) })}`
                         : ''}
                 </p>
-                {OUTBOUND_DISPATCH_PLATFORMS.has(channel.platform) ? (
+                {supportsOutboundDispatch(channel.platform) ? (
                     <label className="mt-2 flex cursor-pointer items-center gap-2 text-[12px] text-secondary tracking-[0.14px]">
                         <input
                             type="checkbox"

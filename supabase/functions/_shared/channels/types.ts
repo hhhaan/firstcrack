@@ -2,9 +2,19 @@
 
 export type Platform = 'naver' | 'cafe24' | 'shopify' | 'toss_place';
 
+/** Sales channel taxonomy — insights/UI branch on this, never on platform string. */
+export type ChannelKind = 'marketplace' | 'pos' | 'manual';
+
 export type CanonicalStatus = 'pending' | 'paid' | 'preparing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
 
 export type LineStatus = 'active' | 'cancelled' | 'refunded';
+
+export interface ChannelCapabilities {
+    webhooks: boolean;
+    /** Marketplace ship API. POS walk-in = false. */
+    outboundDispatch: boolean;
+    channelKind: ChannelKind;
+}
 
 export interface CanonicalOrderLine {
     platformLineId: string;
@@ -70,7 +80,7 @@ export interface MarkShippedResult {
 
 export interface ChannelAdapter {
     platform: Platform;
-    capabilities: { webhooks: boolean; outboundDispatch: boolean };
+    capabilities: ChannelCapabilities;
     /** Validate credentials against the live platform API. */
     testConnection(secrets: ChannelSecrets): Promise<TestConnectionResult>;
     /** Refresh short-lived tokens; return null if secrets are long-lived / unchanged. */

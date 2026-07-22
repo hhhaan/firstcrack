@@ -235,7 +235,7 @@ function mapCafe24Order(order: Record<string, unknown>): CanonicalOrder | null {
 
 export const cafe24Adapter: ChannelAdapter = {
     platform: 'cafe24',
-    capabilities: { webhooks: true, outboundDispatch: true },
+    capabilities: { webhooks: true, outboundDispatch: true, channelKind: 'marketplace' },
 
     async testConnection(secrets): Promise<TestConnectionResult> {
         const s = requireCafe24(secrets);

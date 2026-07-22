@@ -1399,7 +1399,10 @@
                 "disabled": "Disabled"
             },
             "autoFulfill": "Auto-deduct finished goods when platform marks shipped",
-            "merchantId": "Merchant ID"
+            "merchantId": "Merchant ID",
+            "lookUpMerchant": "Look up store",
+            "lookingUp": "Looking up…",
+            "confirmMerchantPrompt": "Is this the correct store? Confirm to connect."
         },
         "dispatch": {
             "title": "Mark as shipped",

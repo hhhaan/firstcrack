@@ -1,10 +1,10 @@
 /**
  * POST /channel-connect
- * Body: { platform: 'naver'|'cafe24'|'shopify'|'toss_place', credentials: {...}, displayName?: string }
+ * Body: { platform: 'naver'|'cafe24'|'shopify'|'toss_place', credentials: {...}, displayName?: string, confirmMerchant?: boolean }
  *
  * Validates credentials against the live platform API, then stores connection + secrets.
  * Secrets are written with service role only.
- * toss_place: app keys from env; credentials = { merchant_id }; cross-workspace merchant unique.
+ * toss_place: app keys from env; credentials = { merchant_id }; claim install + confirmMerchant (§3.4).
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
@@ -50,6 +50,8 @@ Deno.serve(async (req) => {
         credentials?: ChannelSecrets;
         displayName?: string;
         connectionId?: string; // re-auth existing
+        /** toss_place §3.4: user confirmed "이 매장이 맞습니까?" after preview */
+        confirmMerchant?: boolean;
     };
     try {
         body = await req.json();
@@ -68,11 +70,11 @@ Deno.serve(async (req) => {
     const credErr = validateCredentials(platform, body.credentials);
     if (credErr) return jsonResponse({ error: credErr }, 400);
 
-    // Normalize toss_place merchant_id (accept merchantId alias)
+    // Normalize toss_place merchant_id (client sends merchant_id only)
     let credentials: ChannelSecrets = { ...body.credentials };
     if (platform === 'toss_place') {
         credentials = {
-            merchant_id: String(credentials.merchant_id ?? credentials.merchantId ?? '').trim(),
+            merchant_id: String(credentials.merchant_id ?? '').trim(),
         };
     }
 
@@ -80,10 +82,12 @@ Deno.serve(async (req) => {
     let shopIdentifier: string;
     let displayName: string;
     let secretsToStore: ChannelSecrets = { ...credentials };
+    let apiDisplayName: string | undefined;
 
     try {
         const test = await adapter.testConnection(credentials);
         shopIdentifier = test.shopIdentifier;
+        apiDisplayName = test.displayName;
         displayName = body.displayName?.trim() || test.displayName;
 
         // Persist refreshed tokens if adapter minted any during test
@@ -104,8 +108,21 @@ Deno.serve(async (req) => {
     const admin = serviceClient();
     const now = new Date().toISOString();
 
-    // toss_place: merchantId may only bind to one workspace (unique index)
+    // toss_place §3.4: claim install + confirm store name (not just unique index)
     if (platform === 'toss_place') {
+        const { data: install } = await admin
+            .from('toss_place_installations')
+            .select('merchant_id, uninstalled_at, claimed_user_id, claimed_connection_id')
+            .eq('merchant_id', shopIdentifier)
+            .maybeSingle();
+
+        if (install?.uninstalled_at) {
+            return jsonResponse({ error: 'This merchant uninstalled the First Crack app' }, 400);
+        }
+        if (install?.claimed_user_id && install.claimed_user_id !== user.id) {
+            return jsonResponse({ error: 'This merchantId is already linked to another workspace' }, 409);
+        }
+
         const { data: claimed } = await admin
             .from('sales_channel_connections')
             .select('id, user_id')
@@ -114,6 +131,15 @@ Deno.serve(async (req) => {
             .maybeSingle();
         if (claimed && claimed.user_id !== user.id) {
             return jsonResponse({ error: 'This merchantId is already linked to another workspace' }, 409);
+        }
+
+        // Preview step: return store name; client must re-POST with confirmMerchant: true
+        if (!body.confirmMerchant) {
+            return jsonResponse({
+                needsConfirm: true,
+                merchantId: shopIdentifier,
+                displayName: apiDisplayName ?? displayName,
+            });
         }
     }
 
@@ -176,6 +202,20 @@ Deno.serve(async (req) => {
     if (secretErr) {
         console.error('[channel-connect] secrets', secretErr);
         return jsonResponse({ error: 'Failed to store credentials' }, 500);
+    }
+
+    if (platform === 'toss_place') {
+        // Claim only if installation.created already recorded — never invent install rows here
+        await admin
+            .from('toss_place_installations')
+            .update({
+                claimed_connection_id: connectionId,
+                claimed_user_id: user.id,
+                claimed_at: now,
+                updated_at: now,
+            })
+            .eq('merchant_id', shopIdentifier)
+            .is('uninstalled_at', null);
     }
 
     return jsonResponse({

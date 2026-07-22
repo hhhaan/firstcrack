@@ -211,6 +211,24 @@ export type Database = {
                 };
                 Relationships: [];
             };
+            channel_webhook_deliveries: {
+                Row: {
+                    delivery_id: string;
+                    platform: string;
+                    received_at: string;
+                };
+                Insert: {
+                    delivery_id: string;
+                    platform: string;
+                    received_at?: string;
+                };
+                Update: {
+                    delivery_id?: string;
+                    platform?: string;
+                    received_at?: string;
+                };
+                Relationships: [];
+            };
             cupping_events: {
                 Row: {
                     created_at: string;
@@ -1730,6 +1748,47 @@ export type Database = {
                         foreignKeyName: 'sales_channel_secrets_connection_id_fkey';
                         columns: ['connection_id'];
                         isOneToOne: true;
+                        referencedRelation: 'sales_channel_connections';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            toss_place_installations: {
+                Row: {
+                    claimed_at: string | null;
+                    claimed_connection_id: string | null;
+                    claimed_user_id: string | null;
+                    installed_at: string;
+                    merchant_id: string;
+                    raw: Json | null;
+                    uninstalled_at: string | null;
+                    updated_at: string;
+                };
+                Insert: {
+                    claimed_at?: string | null;
+                    claimed_connection_id?: string | null;
+                    claimed_user_id?: string | null;
+                    installed_at?: string;
+                    merchant_id: string;
+                    raw?: Json | null;
+                    uninstalled_at?: string | null;
+                    updated_at?: string;
+                };
+                Update: {
+                    claimed_at?: string | null;
+                    claimed_connection_id?: string | null;
+                    claimed_user_id?: string | null;
+                    installed_at?: string;
+                    merchant_id?: string;
+                    raw?: Json | null;
+                    uninstalled_at?: string | null;
+                    updated_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'toss_place_installations_claimed_connection_id_fkey';
+                        columns: ['claimed_connection_id'];
+                        isOneToOne: false;
                         referencedRelation: 'sales_channel_connections';
                         referencedColumns: ['id'];
                     },

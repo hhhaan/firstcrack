@@ -83,9 +83,11 @@ async function tossFetch<T>(
             if (attempt > 4) throw new Error('toss_place: rate limited (429)');
             const reset = res.headers.get('x-ratelimit-reset');
             const resetMs = reset ? Number(reset) : NaN;
-            const wait = Number.isFinite(resetMs)
-                ? Math.max(200, Math.min(resetMs - Date.now(), 5_000))
-                : 500 * attempt;
+            // Prefer x-ratelimit-reset (epoch ms); cap wait so EF doesn't hang forever
+            const untilReset = Number.isFinite(resetMs) ? resetMs - Date.now() : NaN;
+            const wait = Number.isFinite(untilReset)
+                ? Math.max(200, Math.min(untilReset, 30_000))
+                : Math.min(500 * 2 ** (attempt - 1), 8_000);
             await new Promise((r) => setTimeout(r, wait));
             continue;
         }
@@ -156,7 +158,10 @@ export function mapTossPlaceOrder(order: TossPlaceOrderRaw): CanonicalOrder | nu
     const id = order.id != null ? String(order.id) : '';
     if (!id) return null;
 
-    const status = tossPlaceToCanonical(order.orderState) ?? 'paid';
+    // §5.2: UNDEFINED / unknown → ignore (null). Never default to paid.
+    const status = tossPlaceToCanonical(order.orderState);
+    if (!status) return null;
+
     const lineSrc = order.lineItems ?? order.orderLineItems ?? [];
     const lines: CanonicalOrderLine[] = lineSrc.map((li, i) => {
         const code = li.item?.code != null && String(li.item.code).trim() ? String(li.item.code).trim() : null;
@@ -252,7 +257,7 @@ export async function fetchTossPlaceOrderById(merchantId: string, orderId: strin
 
 export const tossPlaceAdapter: ChannelAdapter = {
     platform: 'toss_place',
-    capabilities: { webhooks: true, outboundDispatch: false },
+    capabilities: { webhooks: true, outboundDispatch: false, channelKind: 'pos' },
 
     async testConnection(secrets: ChannelSecrets): Promise<TestConnectionResult> {
         const s = requireTossPlace(secrets);

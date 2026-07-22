@@ -269,7 +269,7 @@ function mergeByOrderId(parts: CanonicalOrder[]): CanonicalOrder[] {
 
 export const naverAdapter: ChannelAdapter = {
     platform: 'naver',
-    capabilities: { webhooks: false, outboundDispatch: true },
+    capabilities: { webhooks: false, outboundDispatch: true, channelKind: 'marketplace' },
 
     async testConnection(secrets): Promise<TestConnectionResult> {
         const s = requireNaver(secrets);

@@ -17,13 +17,6 @@ import { Info } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const PLATFORM_EN: Record<string, string> = {
-    naver: 'Naver',
-    cafe24: 'Cafe24',
-    shopify: 'Shopify',
-    toss_place: 'Toss Place',
-};
-
 type Props = {
     open: boolean;
     platform: ChannelPlatform | null;
@@ -44,6 +37,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
     const [accessToken, setAccessToken] = useState('');
     const [mallId, setMallId] = useState('');
     const [merchantId, setMerchantId] = useState('');
+    const [tossPreviewName, setTossPreviewName] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [cafe24Waiting, setCafe24Waiting] = useState(false);
     const waitSinceRef = useRef<number>(0);
@@ -60,6 +54,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
         setAccessToken('');
         setMallId('');
         setMerchantId('');
+        setTossPreviewName(null);
         setError(null);
         setCafe24Waiting(false);
         waitSinceRef.current = 0;
@@ -129,11 +124,17 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                     setError(t('orders.channel.errRequired'));
                     return;
                 }
-                await connect.mutateAsync({
+                const result = await connect.mutateAsync({
                     platform,
                     credentials: { merchant_id: merchantId.trim() },
                     displayName: displayName.trim() || undefined,
+                    confirmMerchant: tossPreviewName != null,
                 });
+                if (result && 'needsConfirm' in result) {
+                    setTossPreviewName(result.displayName || result.merchantId);
+                    if (!displayName.trim()) setDisplayName(result.displayName);
+                    return;
+                }
                 onClose();
             } else {
                 if (!mallId.trim()) {
@@ -160,9 +161,13 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
             ? cafe24Waiting
                 ? t('orders.channel.oauthWaiting')
                 : t('orders.channel.oauthCta')
-            : connect.isPending
-              ? t('orders.channel.connecting')
-              : t('orders.channel.connectCta');
+            : platform === 'toss_place' && tossPreviewName == null
+              ? connect.isPending
+                  ? t('orders.channel.lookingUp')
+                  : t('orders.channel.lookUpMerchant')
+              : connect.isPending
+                ? t('orders.channel.connecting')
+                : t('orders.channel.connectCta');
 
     return (
         <ModalShell onClose={onClose} labelledBy="connect-channel-title" contentClassName={modalPanel.formSm}>
@@ -173,7 +178,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                     subtitle={
                         <div className="mt-2">
                             <Badge tone="soft" size="sm">
-                                {(platform && PLATFORM_EN[platform]) ?? platform}
+                                {t(`orders.channel.platform.${platform}`)}
                             </Badge>
                         </div>
                     }
@@ -284,20 +289,36 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                 )}
 
                 {platform === 'toss_place' && (
-                    <div>
-                        <label className={labelCls} htmlFor="channel-merchant-id">
-                            {t('orders.channel.merchantId')}
-                        </label>
-                        <input
-                            id="channel-merchant-id"
-                            className={inputCls}
-                            value={merchantId}
-                            onChange={(e) => setMerchantId(e.target.value)}
-                            placeholder="1234567890"
-                            autoComplete="off"
-                            inputMode="numeric"
-                        />
-                    </div>
+                    <>
+                        <div>
+                            <label className={labelCls} htmlFor="channel-merchant-id">
+                                {t('orders.channel.merchantId')}
+                            </label>
+                            <input
+                                id="channel-merchant-id"
+                                className={inputCls}
+                                value={merchantId}
+                                onChange={(e) => {
+                                    setMerchantId(e.target.value);
+                                    setTossPreviewName(null);
+                                }}
+                                placeholder="1234567890"
+                                autoComplete="off"
+                                inputMode="numeric"
+                            />
+                        </div>
+                        {tossPreviewName ? (
+                            <div className="rounded-xl border border-border-subtle bg-surface-warm-solid px-3.5 py-3 dark:bg-surface-elevated">
+                                <p className="text-[12px] text-muted tracking-[0.14px]">
+                                    {t('orders.channel.confirmMerchantPrompt')}
+                                </p>
+                                <p className="mt-1 text-[14px] font-medium text-primary tracking-[0.14px]">
+                                    {tossPreviewName}
+                                </p>
+                                <p className="mt-0.5 font-mono text-[12px] text-secondary">ID {merchantId.trim()}</p>
+                            </div>
+                        ) : null}
+                    </>
                 )}
 
                 {error ? (

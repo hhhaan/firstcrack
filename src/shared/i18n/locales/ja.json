@@ -1399,7 +1399,10 @@
                 "disabled": "無効"
             },
             "autoFulfill": "プラットフォームが出荷済みにすると完成品在庫を自動減算",
-            "merchantId": "Merchant ID"
+            "merchantId": "Merchant ID",
+            "lookUpMerchant": "店舗を確認",
+            "lookingUp": "確認中…",
+            "confirmMerchantPrompt": "この店舗で正しいですか？確認して接続します。"
         },
         "dispatch": {
             "title": "出荷処理",

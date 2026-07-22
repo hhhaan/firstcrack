@@ -60,13 +60,23 @@ describe('mapTossPlaceOrder', () => {
     it('returns null without id', () => {
         expect(mapTossPlaceOrder({ orderState: 'COMPLETED' })).toBeNull();
     });
+
+    it('returns null for UNDEFINED / unknown (never default paid)', () => {
+        expect(mapTossPlaceOrder({ id: 1, orderState: 'UNDEFINED' })).toBeNull();
+        expect(mapTossPlaceOrder({ id: 1, orderState: 'WEIRD' })).toBeNull();
+        expect(mapTossPlaceOrder({ id: 1 })).toBeNull();
+    });
 });
 
 describe('tossPlaceAdapter capabilities', () => {
     it('is pull-only POS', async () => {
         const { tossPlaceAdapter } = await import('./toss-place.ts');
         expect(tossPlaceAdapter.platform).toBe('toss_place');
-        expect(tossPlaceAdapter.capabilities).toEqual({ webhooks: true, outboundDispatch: false });
+        expect(tossPlaceAdapter.capabilities).toEqual({
+            webhooks: true,
+            outboundDispatch: false,
+            channelKind: 'pos',
+        });
         const shipped = await tossPlaceAdapter.markShipped({ merchant_id: '1' }, {
             platformOrderId: '1',
             lines: [],

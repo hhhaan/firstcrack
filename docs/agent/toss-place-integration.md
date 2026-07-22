@@ -86,6 +86,8 @@ Content-Type: application/json
 3. Show merchant `display_name` from the Merchant API and require explicit user confirmation ("이 매장이 맞습니까?") before activating.
 4. If webhook-based install discovery isn't live yet (Phase 1 before webhooks), interim proof: match a recent order timestamp or amount the owner reads off their POS screen — do not skip verification.
 
+**Implemented:** `toss_place_installations` (claimable) + `channel_webhook_deliveries` (x-toss-webhook-id dedupe); connect returns `needsConfirm` + API `displayName` and requires `confirmMerchant: true`; install claim on success when row exists. **Still open:** Phase-1 order amount/timestamp proof when no `installation.created` row yet (confirm + cross-workspace unique only).
+
 **Multi-store:** one workspace may have N connections (unique `(user_id, platform, shop_identifier)`). Each store = one `merchantId`.
 
 Aligns with invariants in `docs/agent/sales-channels-orders.md` and `supabase/AGENTS.md`.

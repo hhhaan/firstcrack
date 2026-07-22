@@ -21,12 +21,15 @@ export const useConnectChannel = (userId: string) => {
             platform,
             credentials,
             displayName,
+            confirmMerchant,
         }: {
             platform: ChannelPlatform;
             credentials: ConnectCredentials;
             displayName?: string;
-        }) => salesChannelApi.connect(platform, credentials, displayName),
-        onSuccess: () => {
+            confirmMerchant?: boolean;
+        }) => salesChannelApi.connect(platform, credentials, displayName, { confirmMerchant }),
+        onSuccess: (result) => {
+            if (result && 'needsConfirm' in result) return;
             void qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
         },
     });

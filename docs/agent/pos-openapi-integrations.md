@@ -33,6 +33,9 @@ Pull **offline POS sales** (completed tickets / orders + line items + payments) 
 | Platform ID | snake_case enum: `toss_place`, `smaregi`, `square`, `shopify` (existing), … |
 | Secrets | `sales_channel_secrets` +/or function env — **never** `VITE_*` |
 | Canonical unit | Closed sale → `CanonicalStatus` **`paid`**; cancel/refund → `cancelled` / `refunded` |
+| Adapter shape | `ChannelAdapter` + `capabilities: { webhooks, outboundDispatch, channelKind }` — POS = `channelKind: 'pos'`, `outboundDispatch: false` |
+| Client dual SSoT | `src/shared/lib/channel-registry.ts` must mirror each adapter row (insights use kind, not platform string) |
+| Sales insights | `computeSalesFacts(orders, period)` over `orders`/`order_lines` only — no POS SDK |
 | Primary pull | Time-window list (order/transaction) + pagination + rate-limit backoff |
 | Optional push | Webhooks when signature is documented (HMAC / OAuth app secret) |
 | Tax | Keep `tax` / `taxAmount` / VAT fields in `orders.raw` (and optional later columns); no tax product in v1 |

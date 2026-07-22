@@ -140,7 +140,7 @@ function mapOrder(node: ShopifyOrderNode): CanonicalOrder {
 
 export const shopifyAdapter: ChannelAdapter = {
     platform: 'shopify',
-    capabilities: { webhooks: true, outboundDispatch: true },
+    capabilities: { webhooks: true, outboundDispatch: true, channelKind: 'marketplace' },
 
     async testConnection(secrets): Promise<TestConnectionResult> {
         const s = requireShopify(secrets);

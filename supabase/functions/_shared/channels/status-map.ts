@@ -150,14 +150,16 @@ export function shopifyToCanonical(
 /**
  * Toss Place Open API orderState → canonical.
  * COMPLETED = closed offline sale → paid; CANCELLED → cancelled.
- * REQUESTED/OPENED optional; default poll excludes them.
+ * UNDEFINED → ignore (null). REQUESTED/OPENED optional; default poll excludes them.
  */
 export function tossPlaceToCanonical(orderState: string | null | undefined): CanonicalStatus | null {
-    switch ((orderState ?? '').toUpperCase()) {
+    const state = (orderState ?? '').toUpperCase();
+    if (state === 'UNDEFINED' || !state) return null;
+    switch (state) {
         case 'COMPLETED':
             return 'paid';
         case 'CANCELLED':
-        case 'CANCELED':
+        case 'CANCELED': // API typo / US spelling
             return 'cancelled';
         case 'REQUESTED':
             return 'pending';

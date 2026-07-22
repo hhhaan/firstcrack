@@ -1399,7 +1399,10 @@
                 "disabled": "비활성"
             },
             "autoFulfill": "플랫폼 배송 시작 시 완제품 재고 자동 차감",
-            "merchantId": "Merchant ID"
+            "merchantId": "Merchant ID",
+            "lookUpMerchant": "매장 조회",
+            "lookingUp": "조회 중…",
+            "confirmMerchantPrompt": "이 매장이 맞습니까? 확인 후 연결합니다."
         },
         "dispatch": {
             "title": "발송 처리",

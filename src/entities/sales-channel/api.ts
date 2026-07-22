@@ -1,10 +1,11 @@
+import { type ChannelPlatform, OUTBOUND_DISPATCH_PLATFORMS } from '@shared/lib/channel-registry';
 import { supabase } from '@shared/lib/supabase';
 
-export type ChannelPlatform = 'naver' | 'cafe24' | 'shopify' | 'toss_place';
+export type { ChannelPlatform };
 export type ChannelStatus = 'pending' | 'active' | 'error' | 'disabled';
 
-/** Platforms that support outbound ship (order-dispatch). POS walk-in = false. */
-export const OUTBOUND_DISPATCH_PLATFORMS: ReadonlySet<ChannelPlatform> = new Set(['naver', 'cafe24', 'shopify']);
+/** @see @shared/lib/channel-registry — derived from CHANNEL_REGISTRY */
+export { OUTBOUND_DISPATCH_PLATFORMS };
 
 export interface SalesChannelConnection {
     id: string;
@@ -44,12 +45,25 @@ export const salesChannelApi = {
         platform: ChannelPlatform,
         credentials: ConnectCredentials,
         displayName?: string,
-    ): Promise<SalesChannelConnection> => {
+        opts?: { confirmMerchant?: boolean },
+    ): Promise<SalesChannelConnection | { needsConfirm: true; merchantId: string; displayName: string }> => {
         const { data, error } = await supabase.functions.invoke('channel-connect', {
-            body: { platform, credentials, displayName },
+            body: {
+                platform,
+                credentials,
+                displayName,
+                confirmMerchant: opts?.confirmMerchant === true,
+            },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
+        if (data?.needsConfirm) {
+            return {
+                needsConfirm: true as const,
+                merchantId: String(data.merchantId ?? ''),
+                displayName: String(data.displayName ?? ''),
+            };
+        }
         return data.connection as SalesChannelConnection;
     },
 

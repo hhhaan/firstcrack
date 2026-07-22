@@ -1399,7 +1399,10 @@
                 "disabled": "已禁用"
             },
             "autoFulfill": "平台标记发货时自动扣减成品库存",
-            "merchantId": "Merchant ID"
+            "merchantId": "Merchant ID",
+            "lookUpMerchant": "查询门店",
+            "lookingUp": "查询中…",
+            "confirmMerchantPrompt": "确认是此门店吗？确认后连接。"
         },
         "dispatch": {
             "title": "发货处理",

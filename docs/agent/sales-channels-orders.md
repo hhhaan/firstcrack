@@ -96,10 +96,28 @@ Client may read `sales_channel_connections` metadata only.
 
 ---
 
+## Channel taxonomy (multi-POS ready)
+
+| Layer | Path |
+|-------|------|
+| EF adapter capabilities | `supabase/functions/_shared/channels/types.ts` → `ChannelCapabilities` (`webhooks`, `outboundDispatch`, **`channelKind`**) |
+| Client registry (dual SSoT) | `src/shared/lib/channel-registry.ts` — must match each EF adapter row |
+| Sales rollups | `src/entities/order/sales-facts.ts` → `computeSalesFacts` over `orders`/`order_lines` only |
+
+`channelKind`: `marketplace` | `pos` | `manual`. Insights/UI branch on **kind / outboundDispatch**, never `platform === 'toss_place'`.
+
+New offline POS (e.g. `smaregi`, `square`):
+
+1. Add `Platform` + DB CHECK + EF `ChannelAdapter` (`channelKind: 'pos'`, `outboundDispatch: false`)
+2. Map closed sale → `CanonicalOrder` status `paid`; keep tax/payment in `raw` until a second POS needs promoted columns
+3. One row in `CHANNEL_REGISTRY`
+4. No new insight code if rollups already use kind/platform maps
+
 ## Agent invariants
 
 1. App → Supabase tables / RPCs / order EFs only — no platform SDKs in `src/`.
 2. Stock for orders only through `fulfill_order` / `cancel_order` (or documented inbound EF paths) — not raw `product_stock_events` inserts from UI.
 3. Dispatch after (or independent of) fulfill is a product choice; do not merge the two code paths.
 4. Invalidate `orderKeys.*` and product stock keys after fulfill/cancel (`query-keys.ts`).
-5. New marketplace = new adapter under `_shared/channels` + connect/sync/dispatch paths — do not bolt secrets into the desktop bundle.
+5. New marketplace/POS = new adapter under `_shared/channels` + registry row + connect/sync (dispatch only if `outboundDispatch`) — do not bolt secrets into the desktop bundle.
+6. Do not invent `pos_orders` or Toss-only insight services; SSoT remains `orders` / `order_lines`.
