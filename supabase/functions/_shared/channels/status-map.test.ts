@@ -4,6 +4,7 @@ import {
     mergeStatus,
     naverToCanonical,
     shopifyToCanonical,
+    tossPlaceToCanonical,
 } from './status-map.ts';
 
 describe('mergeStatus', () => {
@@ -82,5 +83,21 @@ describe('cafe24ToCanonical (official property list)', () => {
     it('process_status prepare*', () => {
         expect(cafe24ToCanonical({ paid: 'T', processStatus: 'prepare' })).toBe('preparing');
         expect(cafe24ToCanonical({ paid: 'T', processStatus: 'prepareproduct' })).toBe('preparing');
+    });
+});
+
+describe('tossPlaceToCanonical', () => {
+    it('maps COMPLETED / CANCELLED', () => {
+        expect(tossPlaceToCanonical('COMPLETED')).toBe('paid');
+        expect(tossPlaceToCanonical('CANCELLED')).toBe('cancelled');
+        expect(tossPlaceToCanonical('CANCELED')).toBe('cancelled');
+    });
+    it('maps optional REQUESTED / OPENED', () => {
+        expect(tossPlaceToCanonical('REQUESTED')).toBe('pending');
+        expect(tossPlaceToCanonical('OPENED')).toBe('preparing');
+    });
+    it('unknown → null', () => {
+        expect(tossPlaceToCanonical('UNDEFINED')).toBeNull();
+        expect(tossPlaceToCanonical('')).toBeNull();
     });
 });

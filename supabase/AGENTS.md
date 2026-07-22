@@ -42,7 +42,7 @@ Shared modules: `functions/_shared/auth.ts`, `r2.ts`, `channels/*`, `webhook-aut
 | Area | Env names (typical) |
 |------|---------------------|
 | R2 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` |
-| Channels | `ORDER_SYNC_CRON_SECRET`, `CAFE24_CLIENT_ID`, `CAFE24_CLIENT_SECRET`, `CAFE24_REDIRECT_URI`, `CAFE24_OAUTH_STATE_SECRET`, Shopify/Cafe24 webhook secrets |
+| Channels | `ORDER_SYNC_CRON_SECRET`, `CAFE24_CLIENT_ID`, `CAFE24_CLIENT_SECRET`, `CAFE24_REDIRECT_URI`, `CAFE24_OAUTH_STATE_SECRET`, Shopify/Cafe24 webhook secrets, `TOSS_PLACE_ACCESS_KEY`, `TOSS_PLACE_SECRET_KEY`, `TOSS_PLACE_WEBHOOK_SECRET` |
 | Billing | `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET` |
 | Ops | `NOTIFY_SIGNUP_SECRET` |
 | Platform | `SUPABASE_SERVICE_ROLE_KEY` (server only) |

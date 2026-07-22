@@ -5,6 +5,7 @@ import { type Product, useDeleteProduct, useProducts } from '@entities/product';
 import { useProductStock } from '@entities/product-stock-event';
 import {
     type ChannelPlatform,
+    OUTBOUND_DISPATCH_PLATFORMS,
     type SalesChannelConnection,
     useDisconnectChannel,
     useSalesChannels,
@@ -65,6 +66,7 @@ const PLATFORM_EN: Record<string, string> = {
     naver: 'Naver',
     cafe24: 'Cafe24',
     shopify: 'Shopify',
+    toss_place: 'Toss Place',
 };
 
 const CHANNEL_STATUS_EN: Record<string, string> = {
@@ -305,6 +307,7 @@ function OrderRow({
     const canCancel = order.platform === 'manual' && !cancelled;
     const canDispatch =
         order.platform !== 'manual' &&
+        OUTBOUND_DISPATCH_PLATFORMS.has(order.platform as ChannelPlatform) &&
         fulfilled &&
         !!order.connection_id &&
         (!dispatch || dispatch.status === 'failed');
@@ -491,7 +494,7 @@ function ProductsTab() {
     );
 }
 
-const PLATFORMS: ChannelPlatform[] = ['naver', 'cafe24', 'shopify'];
+const PLATFORMS: ChannelPlatform[] = ['naver', 'cafe24', 'shopify', 'toss_place'];
 
 function ChannelsTab() {
     const { t } = useTranslation();
@@ -619,16 +622,18 @@ function ChannelCard({
                         ? ` · ${t('orders.channel.lastSync', { at: formatDateShort(channel.last_polled_at) })}`
                         : ''}
                 </p>
-                <label className="mt-2 flex cursor-pointer items-center gap-2 text-[12px] text-secondary tracking-[0.14px]">
-                    <input
-                        type="checkbox"
-                        className="rounded border-border-subtle"
-                        checked={channel.auto_fulfill_on_shipped}
-                        disabled={busy}
-                        onChange={(e) => onToggleAutoFulfill(e.target.checked)}
-                    />
-                    {t('orders.channel.autoFulfill')}
-                </label>
+                {OUTBOUND_DISPATCH_PLATFORMS.has(channel.platform) ? (
+                    <label className="mt-2 flex cursor-pointer items-center gap-2 text-[12px] text-secondary tracking-[0.14px]">
+                        <input
+                            type="checkbox"
+                            className="rounded border-border-subtle"
+                            checked={channel.auto_fulfill_on_shipped}
+                            disabled={busy}
+                            onChange={(e) => onToggleAutoFulfill(e.target.checked)}
+                        />
+                        {t('orders.channel.autoFulfill')}
+                    </label>
+                ) : null}
                 {channel.last_error ? (
                     <p className="mt-1.5 text-[11px] leading-relaxed text-red-600 dark:text-red-400">
                         {channel.last_error}

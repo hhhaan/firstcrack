@@ -1377,17 +1377,20 @@
             "connect": {
                 "naver": "네이버 스마트스토어 연결",
                 "cafe24": "카페24 연결",
-                "shopify": "Shopify 연결"
+                "shopify": "Shopify 연결",
+                "toss_place": "토스플레이스 POS 연결"
             },
             "help": {
                 "naver": "커머스API 센터 → 애플리케이션 → Client ID / Client Secret 복사 (SELF).",
                 "cafe24": "Mall ID를 입력한 뒤 카페24에서 권한에 동의하면 연결됩니다. 토큰은 서버에만 저장됩니다.",
-                "shopify": "Shopify 관리자 → 앱 개발 → custom app(read_orders, read_products) 설치 후 도메인과 Admin API access token 입력."
+                "shopify": "Shopify 관리자 → 앱 개발 → custom app(read_orders, read_products) 설치 후 도메인과 Admin API access token 입력.",
+                "toss_place": "First Crack Open API 앱을 설치한 뒤 merchantId를 붙여넣으세요. 파트너 API 키는 서버에만 보관됩니다. 연결 전 매장명이 맞는지 확인하세요."
             },
             "platform": {
                 "naver": "네이버",
                 "cafe24": "카페24",
-                "shopify": "Shopify"
+                "shopify": "Shopify",
+                "toss_place": "토스플레이스"
             },
             "status": {
                 "pending": "대기",
@@ -1395,7 +1398,8 @@
                 "error": "오류",
                 "disabled": "비활성"
             },
-            "autoFulfill": "플랫폼 배송 시작 시 완제품 재고 자동 차감"
+            "autoFulfill": "플랫폼 배송 시작 시 완제품 재고 자동 차감",
+            "merchantId": "Merchant ID"
         },
         "dispatch": {
             "title": "발송 처리",

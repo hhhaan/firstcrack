@@ -21,6 +21,7 @@ const PLATFORM_EN: Record<string, string> = {
     naver: 'Naver',
     cafe24: 'Cafe24',
     shopify: 'Shopify',
+    toss_place: 'Toss Place',
 };
 
 type Props = {
@@ -42,6 +43,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
     const [shop, setShop] = useState('');
     const [accessToken, setAccessToken] = useState('');
     const [mallId, setMallId] = useState('');
+    const [merchantId, setMerchantId] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [cafe24Waiting, setCafe24Waiting] = useState(false);
     const waitSinceRef = useRef<number>(0);
@@ -57,6 +59,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
         setShop('');
         setAccessToken('');
         setMallId('');
+        setMerchantId('');
         setError(null);
         setCafe24Waiting(false);
         waitSinceRef.current = 0;
@@ -118,6 +121,17 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                 await connect.mutateAsync({
                     platform,
                     credentials: { shop: shop.trim(), access_token: accessToken.trim() },
+                    displayName: displayName.trim() || undefined,
+                });
+                onClose();
+            } else if (platform === 'toss_place') {
+                if (!merchantId.trim()) {
+                    setError(t('orders.channel.errRequired'));
+                    return;
+                }
+                await connect.mutateAsync({
+                    platform,
+                    credentials: { merchant_id: merchantId.trim() },
                     displayName: displayName.trim() || undefined,
                 });
                 onClose();
@@ -265,6 +279,23 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                             placeholder="yourmall"
                             autoComplete="off"
                             disabled={cafe24Waiting}
+                        />
+                    </div>
+                )}
+
+                {platform === 'toss_place' && (
+                    <div>
+                        <label className={labelCls} htmlFor="channel-merchant-id">
+                            {t('orders.channel.merchantId')}
+                        </label>
+                        <input
+                            id="channel-merchant-id"
+                            className={inputCls}
+                            value={merchantId}
+                            onChange={(e) => setMerchantId(e.target.value)}
+                            placeholder="1234567890"
+                            autoComplete="off"
+                            inputMode="numeric"
                         />
                     </div>
                 )}

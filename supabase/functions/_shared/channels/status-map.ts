@@ -36,10 +36,7 @@ export function mergeStatus(current: CanonicalStatus, incoming: CanonicalStatus)
  *
  * claimStatus CANCEL_DONE / RETURN_DONE / ADMIN_CANCEL_DONE take precedence when present.
  */
-export function naverToCanonical(
-    productOrderStatus: string,
-    claimStatus?: string | null,
-): CanonicalStatus | null {
+export function naverToCanonical(productOrderStatus: string, claimStatus?: string | null): CanonicalStatus | null {
     const claim = (claimStatus ?? '').toUpperCase();
     if (
         claim === 'CANCEL_DONE' ||
@@ -148,4 +145,25 @@ export function shopifyToCanonical(
         return 'preparing';
     }
     return null;
+}
+
+/**
+ * Toss Place Open API orderState → canonical.
+ * COMPLETED = closed offline sale → paid; CANCELLED → cancelled.
+ * REQUESTED/OPENED optional; default poll excludes them.
+ */
+export function tossPlaceToCanonical(orderState: string | null | undefined): CanonicalStatus | null {
+    switch ((orderState ?? '').toUpperCase()) {
+        case 'COMPLETED':
+            return 'paid';
+        case 'CANCELLED':
+        case 'CANCELED':
+            return 'cancelled';
+        case 'REQUESTED':
+            return 'pending';
+        case 'OPENED':
+            return 'preparing';
+        default:
+            return null;
+    }
 }

@@ -41,8 +41,10 @@ User → connect channel
 | Naver | Client ID + secret | client_credentials + signed requests | product-orders dispatch |
 | Shopify | shop domain + Admin token | custom app token header | fulfillmentCreateV2 |
 | Cafe24 | Mall ID only (OAuth) | Bearer + refresh via app env `CAFE24_CLIENT_*` | shipments |
+| Toss Place (`toss_place`) | merchantId | Partner app `x-access-key`/`x-secret-key` in EF env (`TOSS_PLACE_*`) | **none** (pull-only POS) |
 
-**Invariant:** Cafe24 must not accept pasted access tokens. Client must not store or re-display platform secrets.
+**Invariant:** Cafe24 must not accept pasted access tokens. Client must not store or re-display platform secrets.  
+**Toss Place:** never paste Access/Secret keys in the desktop app; one merchantId may bind to only one workspace (unique claim).
 
 ---
 

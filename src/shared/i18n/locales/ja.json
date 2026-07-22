@@ -1377,17 +1377,20 @@
             "connect": {
                 "naver": "Naverスマートストアを接続",
                 "cafe24": "Cafe24を接続",
-                "shopify": "Shopifyを接続"
+                "shopify": "Shopifyを接続",
+                "toss_place": "Toss Place POS を接続"
             },
             "help": {
                 "naver": "Commerce API Center → アプリケーション → Client IDとClient Secretをコピー（SELFタイプ）。",
                 "cafe24": "Mall IDを入力し、Cafe24で権限に同意すると接続されます。トークンはサーバーのみに保存されます。",
-                "shopify": "Shopify管理画面 → アプリ開発 → read_orders・read_products権限のカスタムアプリをインストール → ショップドメインとAdmin APIアクセストークンを貼り付け。"
+                "shopify": "Shopify管理画面 → アプリ開発 → read_orders・read_products権限のカスタムアプリをインストール → ショップドメインとAdmin APIアクセストークンを貼り付け。",
+                "toss_place": "First Crack Open API アプリをインストール後、merchantId を入力してください。パートナー API キーはサーバー側のみに保存されます。接続前に店舗名を確認してください。"
             },
             "platform": {
                 "naver": "Naver",
                 "cafe24": "Cafe24",
-                "shopify": "Shopify"
+                "shopify": "Shopify",
+                "toss_place": "Toss Place"
             },
             "status": {
                 "pending": "保留中",
@@ -1395,7 +1398,8 @@
                 "error": "エラー",
                 "disabled": "無効"
             },
-            "autoFulfill": "プラットフォームが出荷済みにすると完成品在庫を自動減算"
+            "autoFulfill": "プラットフォームが出荷済みにすると完成品在庫を自動減算",
+            "merchantId": "Merchant ID"
         },
         "dispatch": {
             "title": "出荷処理",

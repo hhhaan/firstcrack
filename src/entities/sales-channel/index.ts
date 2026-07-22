@@ -1,5 +1,5 @@
 export type { ChannelPlatform, ChannelStatus, ConnectCredentials, SalesChannelConnection } from './api';
-export { salesChannelApi } from './api';
+export { OUTBOUND_DISPATCH_PLATFORMS, salesChannelApi } from './api';
 export {
     salesChannelKeys,
     useConnectChannel,

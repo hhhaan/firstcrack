@@ -1,22 +1,20 @@
 /**
  * POST /channel-connect
- * Body: { platform: 'naver'|'cafe24'|'shopify', credentials: {...}, displayName?: string }
+ * Body: { platform: 'naver'|'cafe24'|'shopify'|'toss_place', credentials: {...}, displayName?: string }
  *
  * Validates credentials against the live platform API, then stores connection + secrets.
  * Secrets are written with service role only.
+ * toss_place: app keys from env; credentials = { merchant_id }; cross-workspace merchant unique.
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import type { ChannelSecrets, Platform } from '../_shared/channels/types.ts';
 
-const PLATFORMS = new Set(['naver', 'cafe24', 'shopify']);
+const PLATFORMS = new Set(['naver', 'cafe24', 'shopify', 'toss_place']);
 
 function serviceClient() {
-    return createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
+    return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 }
 
 function validateCredentials(platform: Platform, credentials: ChannelSecrets): string | null {
@@ -31,6 +29,11 @@ function validateCredentials(platform: Platform, credentials: ChannelSecrets): s
     } else if (platform === 'cafe24') {
         // Cafe24 production connect is OAuth (cafe24-oauth-start / callback).
         return 'cafe24 requires OAuth — use cafe24-oauth-start';
+    } else if (platform === 'toss_place') {
+        const mid = credentials.merchant_id ?? credentials.merchantId;
+        if (mid == null || String(mid).trim() === '') {
+            return 'toss_place requires merchant_id';
+        }
     }
     return null;
 }
@@ -56,7 +59,7 @@ Deno.serve(async (req) => {
 
     const platform = body.platform as Platform;
     if (!platform || !PLATFORMS.has(platform)) {
-        return jsonResponse({ error: 'platform must be naver | cafe24 | shopify' }, 400);
+        return jsonResponse({ error: 'platform must be naver | cafe24 | shopify | toss_place' }, 400);
     }
     if (!body.credentials || typeof body.credentials !== 'object') {
         return jsonResponse({ error: 'credentials required' }, 400);
@@ -65,18 +68,26 @@ Deno.serve(async (req) => {
     const credErr = validateCredentials(platform, body.credentials);
     if (credErr) return jsonResponse({ error: credErr }, 400);
 
+    // Normalize toss_place merchant_id (accept merchantId alias)
+    let credentials: ChannelSecrets = { ...body.credentials };
+    if (platform === 'toss_place') {
+        credentials = {
+            merchant_id: String(credentials.merchant_id ?? credentials.merchantId ?? '').trim(),
+        };
+    }
+
     const adapter = getAdapter(platform);
     let shopIdentifier: string;
     let displayName: string;
-    let secretsToStore: ChannelSecrets = { ...body.credentials };
+    let secretsToStore: ChannelSecrets = { ...credentials };
 
     try {
-        const test = await adapter.testConnection(body.credentials);
+        const test = await adapter.testConnection(credentials);
         shopIdentifier = test.shopIdentifier;
         displayName = body.displayName?.trim() || test.displayName;
 
         // Persist refreshed tokens if adapter minted any during test
-        const refreshed = await adapter.refreshAuth(body.credentials);
+        const refreshed = await adapter.refreshAuth(credentials);
         if (refreshed) secretsToStore = { ...secretsToStore, ...refreshed };
 
         // Naver: store access_token from a second exchange so first sync is fast
@@ -92,6 +103,19 @@ Deno.serve(async (req) => {
 
     const admin = serviceClient();
     const now = new Date().toISOString();
+
+    // toss_place: merchantId may only bind to one workspace (unique index)
+    if (platform === 'toss_place') {
+        const { data: claimed } = await admin
+            .from('sales_channel_connections')
+            .select('id, user_id')
+            .eq('platform', 'toss_place')
+            .eq('shop_identifier', shopIdentifier)
+            .maybeSingle();
+        if (claimed && claimed.user_id !== user.id) {
+            return jsonResponse({ error: 'This merchantId is already linked to another workspace' }, 409);
+        }
+    }
 
     // Upsert connection by (user, platform, shop_identifier)
     const { data: existing } = await admin
@@ -136,6 +160,9 @@ Deno.serve(async (req) => {
             .single();
         if (error || !created) {
             console.error('[channel-connect] insert', error);
+            if (error?.code === '23505') {
+                return jsonResponse({ error: 'This merchantId is already linked to another workspace' }, 409);
+            }
             return jsonResponse({ error: 'Failed to create connection' }, 500);
         }
         connectionId = created.id;

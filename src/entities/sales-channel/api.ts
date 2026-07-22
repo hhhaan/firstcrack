@@ -1,7 +1,10 @@
 import { supabase } from '@shared/lib/supabase';
 
-export type ChannelPlatform = 'naver' | 'cafe24' | 'shopify';
+export type ChannelPlatform = 'naver' | 'cafe24' | 'shopify' | 'toss_place';
 export type ChannelStatus = 'pending' | 'active' | 'error' | 'disabled';
+
+/** Platforms that support outbound ship (order-dispatch). POS walk-in = false. */
+export const OUTBOUND_DISPATCH_PLATFORMS: ReadonlySet<ChannelPlatform> = new Set(['naver', 'cafe24', 'shopify']);
 
 export interface SalesChannelConnection {
     id: string;
@@ -21,7 +24,8 @@ export interface SalesChannelConnection {
 
 export type ConnectCredentials =
     | { client_id: string; client_secret: string } // naver
-    | { shop: string; access_token: string }; // shopify
+    | { shop: string; access_token: string } // shopify
+    | { merchant_id: string }; // toss_place
 
 export const salesChannelApi = {
     list: async (userId: string): Promise<SalesChannelConnection[]> => {

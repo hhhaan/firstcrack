@@ -53,3 +53,34 @@ export function verifySharedSecret(expected: string | undefined, provided: strin
     if (!expected || !provided) return false;
     return timingSafeEqual(expected, provided);
 }
+
+/**
+ * Toss Place webhook: x-toss-signature = `v1=` + hex(HMAC-SHA256(secret, `${timestamp}.${rawBody}`))
+ * Rejects missing secret/headers and large timestamp skew (default 5 min).
+ */
+export async function verifyTossPlaceSignature(
+    secret: string | undefined,
+    rawBody: string,
+    signatureHeader: string | null,
+    timestampHeader: string | null,
+    maxSkewMs = 5 * 60 * 1000,
+): Promise<boolean> {
+    if (!secret || !signatureHeader || !timestampHeader) return false;
+    const ts = Number(timestampHeader);
+    if (!Number.isFinite(ts)) return false;
+    // timestamp may be seconds or ms
+    const tsMs = ts < 1e12 ? ts * 1000 : ts;
+    if (Math.abs(Date.now() - tsMs) > maxSkewMs) return false;
+
+    const payload = `${timestampHeader}.${rawBody}`;
+    const expectedHex = toHex(await hmacSha256(secret, payload));
+    const candidates = signatureHeader
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    for (const c of candidates) {
+        const hex = c.startsWith('v1=') ? c.slice(3) : c;
+        if (timingSafeEqual(hex.toLowerCase(), expectedHex.toLowerCase())) return true;
+    }
+    return false;
+}

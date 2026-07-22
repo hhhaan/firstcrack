@@ -1377,17 +1377,20 @@
             "connect": {
                 "naver": "Connect Naver Smart Store",
                 "cafe24": "Connect Cafe24",
-                "shopify": "Connect Shopify"
+                "shopify": "Connect Shopify",
+                "toss_place": "Connect Toss Place POS"
             },
             "help": {
                 "naver": "Commerce API Center → application → copy Client ID and Client Secret (SELF type).",
                 "cafe24": "Enter your Mall ID, then approve permissions in Cafe24. Tokens stay on the server only.",
-                "shopify": "Shopify admin → Develop apps → install custom app with read_orders, read_products → paste shop domain and Admin API access token."
+                "shopify": "Shopify admin → Develop apps → install custom app with read_orders, read_products → paste shop domain and Admin API access token.",
+                "toss_place": "Paste the Toss Place merchantId after installing the First Crack Open API app. Server holds partner API keys — not your POS password. Confirm the store name matches before connecting."
             },
             "platform": {
                 "naver": "Naver",
                 "cafe24": "Cafe24",
-                "shopify": "Shopify"
+                "shopify": "Shopify",
+                "toss_place": "Toss Place"
             },
             "status": {
                 "pending": "Pending",
@@ -1395,7 +1398,8 @@
                 "error": "Error",
                 "disabled": "Disabled"
             },
-            "autoFulfill": "Auto-deduct finished goods when platform marks shipped"
+            "autoFulfill": "Auto-deduct finished goods when platform marks shipped",
+            "merchantId": "Merchant ID"
         },
         "dispatch": {
             "title": "Mark as shipped",

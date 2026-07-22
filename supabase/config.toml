@@ -299,6 +299,10 @@ verify_jwt = true
 [functions.cafe24-oauth-callback]
 verify_jwt = false
 
+# External platform push (HMAC / shared secret); JWT not used
+[functions.order-webhook]
+verify_jwt = false
+
 # [functions.MY_FUNCTION_NAME]
 # enabled = true
 # verify_jwt = true
