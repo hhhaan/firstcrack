@@ -5,6 +5,7 @@ import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandof
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
+import { isGreenRoastAlreadyClaimed } from '@shared/lib/f3-green-deduct';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
@@ -65,12 +66,19 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     linkedBatch = toPlanBatchHandoff(row);
                 }
 
-                // UX: warn if schedule already deducted this batch; server also skips (C2).
+                // F3 UX: warn if schedule already deducted this batch; server also skips (C2).
                 let deductStock = formData.deductStock;
                 const guardBatchId = planBatchHandoff?.planBatchId ?? linkedBatch?.planBatchId ?? null;
                 if (deductStock && guardBatchId) {
                     try {
-                        if (await beanStockEventApi.hasRoastDeductionForReference(guardBatchId)) {
+                        const batchClaimed = await beanStockEventApi.hasRoastDeductionForReference(guardBatchId);
+                        if (
+                            isGreenRoastAlreadyClaimed(
+                                batchClaimed ? [guardBatchId] : [],
+                                sessionId ?? '',
+                                guardBatchId,
+                            )
+                        ) {
                             deductStock = false;
                             await message(i18n.t('activeRoast.summary.deductSkippedAlreadyDeducted'), {
                                 title: '재고 차감',
