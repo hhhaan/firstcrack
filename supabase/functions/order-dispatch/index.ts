@@ -7,6 +7,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import { isCarrierId, platformCarrierCode } from '../_shared/channels/carriers.ts';
+import { shouldAutoFulfillOnDispatch } from '../_shared/channels/auto-fulfill.ts';
 import { nextDispatchStatus, validateTrackingNumber } from '../_shared/channels/dispatch.ts';
 import { mergeStatus } from '../_shared/channels/status-map.ts';
 import type { CanonicalStatus, ChannelSecrets, Platform } from '../_shared/channels/types.ts';
@@ -204,27 +205,30 @@ Deno.serve(async (req) => {
         // C3: app dispatch pre-sets shipped — auto-fulfill must run here (inbound path never fires).
         let fulfilled = false;
         let fulfillError: string | null = null;
-        if (!order.fulfilled_at) {
-            const { data: conn } = await admin
-                .from('sales_channels')
-                .select('auto_fulfill_on_shipped')
-                .eq('id', order.connection_id)
-                .maybeSingle();
-            if (conn?.auto_fulfill_on_shipped === true) {
-                const { error: fulfillErr } = await admin.rpc('fulfill_order', { p_order_id: order.id });
-                if (fulfillErr) {
-                    fulfillError = fulfillErr.message;
-                    console.error('[order-dispatch] fulfill_order', fulfillErr);
-                    await admin
-                        .from('order_dispatches')
-                        .update({
-                            last_error: `fulfill: ${fulfillErr.message}`.slice(0, 1000),
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq('id', dispatchId);
-                } else {
-                    fulfilled = true;
-                }
+        const { data: conn } = await admin
+            .from('sales_channels')
+            .select('auto_fulfill_on_shipped')
+            .eq('id', order.connection_id)
+            .maybeSingle();
+        if (
+            shouldAutoFulfillOnDispatch({
+                fulfilledAt: order.fulfilled_at,
+                autoFulfillOnShipped: conn?.auto_fulfill_on_shipped,
+            })
+        ) {
+            const { error: fulfillErr } = await admin.rpc('fulfill_order', { p_order_id: order.id });
+            if (fulfillErr) {
+                fulfillError = fulfillErr.message;
+                console.error('[order-dispatch] fulfill_order', fulfillErr);
+                await admin
+                    .from('order_dispatches')
+                    .update({
+                        last_error: `fulfill: ${fulfillErr.message}`.slice(0, 1000),
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', dispatchId);
+            } else {
+                fulfilled = true;
             }
         }
 
