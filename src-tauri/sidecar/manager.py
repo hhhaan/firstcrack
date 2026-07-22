@@ -136,6 +136,21 @@ class RoasterManager:
                     "comport": self._merged_params.get("comport"),
                 })
             sentry_sdk.capture_exception(exc)
+            try:
+                from slack_notify import notify_hardware_error
+
+                # Sync HTTP — do not block aiohttp event loop during reconnect/temp reads.
+                asyncio.get_running_loop().run_in_executor(
+                    None,
+                    lambda: notify_hardware_error(
+                        event=event,
+                        roaster=self._roaster_key,
+                        protocol=self._protocol,
+                        exc=exc,
+                    ),
+                )
+            except Exception:
+                pass
         except Exception:
             pass
 

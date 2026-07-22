@@ -17,10 +17,11 @@ export async function postSlack(payload: SlackPayload): Promise<boolean> {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(5000),
         });
 
         if (!res.ok) {
-            console.error('[slack] webhook failed', res.status, await res.text());
+            console.error('[slack] webhook failed', res.status);
             return false;
         }
 

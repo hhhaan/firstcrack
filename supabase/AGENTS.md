@@ -28,6 +28,9 @@ Schema lives in `supabase/migrations/`. Privileged network and secret handling l
 | `create-polar-checkout` | user JWT | Polar checkout URL | `functions/create-polar-checkout/` |
 | `polar-webhook` | Polar HMAC | **Only** path that mutates `subscriptions` / plan fields | `functions/polar-webhook/` |
 | `notify-signup` | DB webhook secret | Slack new-user | `functions/notify-signup/`, `_shared/slack.ts` |
+| `polar-webhook` | Polar HMAC | Subscription + **Slack payment notify** + Sentry on error | `functions/polar-webhook/`, `_shared/slack.ts`, `_shared/sentry.ts` |
+
+Secrets: `SLACK_WEBHOOK_URL` (signup + payment + errors), optional `SENTRY_DSN` for Edge.
 | `coffee-futures` | public | Yahoo `KC=F` proxy (short cache) | `functions/coffee-futures/` |
 | `get-cupping-session` | invite token | Public cupping payload | `functions/get-cupping-session/` |
 | `submit-cupping` | invite/owner | Score upsert | `functions/submit-cupping/` |
