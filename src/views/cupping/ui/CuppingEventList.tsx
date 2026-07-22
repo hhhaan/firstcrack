@@ -126,16 +126,7 @@ export const CuppingEventList = ({
                                     className="cursor-pointer border-b border-border-subtle transition hover:bg-surface/50 dark:border-[#585d61]"
                                     onClick={() => onSelect(ev.id)}
                                 >
-                                    <td className="px-4 py-3 text-[13px] font-medium text-primary">
-                                        <span className="inline-flex flex-wrap items-center gap-1.5">
-                                            {ev.title}
-                                            {ev.ended_at ? (
-                                                <Badge tone="muted" size="sm">
-                                                    Ended
-                                                </Badge>
-                                            ) : null}
-                                        </span>
-                                    </td>
+                                    <td className="px-4 py-3 text-[13px] font-medium text-primary">{ev.title}</td>
                                     <td className="px-4 py-3 font-mono text-[13px] text-secondary">
                                         {formatDateShort(ev.held_at)}
                                     </td>
