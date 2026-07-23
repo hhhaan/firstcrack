@@ -16,7 +16,7 @@ import { createAxisTooltipFormatter } from './tooltip';
 import type { ChartOptionParams } from './types';
 
 export { fmtSec } from './axes';
-export { buildCompareChartOption, type CompareChartSeries, compareChartXMax } from './compare';
+export { buildCompareChartOption, type CompareChartSeries } from './compare';
 export type { ChartOptionParams, ControlData, ResolvedChartColors, RoastEventMarker } from './types';
 
 export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption => {
