@@ -16,9 +16,12 @@ export const DashboardHeader = ({ onNavigate }: DashboardHeaderProps) => {
     const { t } = useTranslation();
 
     return (
-        <div className="mb-8 flex items-end justify-between">
+        <div className="mb-8 flex items-end justify-between" data-testid="dashboard-header">
             <div>
-                <h1 className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5">
+                <h1
+                    data-testid="dashboard-greeting"
+                    className="font-(--font-display) text-[32px] leading-[1.13] text-primary tracking-[-0.4px] mb-1.5"
+                >
                     {t(`dashboard.greeting.${getGreeting()}`)}
                 </h1>
                 <p className="text-[15px] text-secondary tracking-[0.15px] font-normal flex items-center gap-2.5">

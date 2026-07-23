@@ -44,6 +44,7 @@ export const EndRoastModal = ({ open, timeStr, onClose, onConfirm }: EndRoastMod
                 </button>
                 <button
                     type="button"
+                    data-testid="end-roast-confirm"
                     onClick={onConfirm}
                     className="w-full py-3 rounded-lg border-none bg-[rgba(254,226,226,0.8)] dark:bg-[rgba(220,38,38,0.15)] text-[#dc2626] dark:text-[#f87171] text-sm font-(--font-mono) cursor-pointer tracking-[0.14px]"
                 >

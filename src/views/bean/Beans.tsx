@@ -251,7 +251,10 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     const headerActions = (() => {
         if (activeTab === 'green') {
             return (
-                <PillButton onClick={() => (tab === 'blend' ? openBlendAdd() : openModal('new'))}>
+                <PillButton
+                    data-testid="beans-add-lot"
+                    onClick={() => (tab === 'blend' ? openBlendAdd() : openModal('new'))}
+                >
                     <Plus size={15} strokeWidth={2.5} />
                     {tab === 'blend' ? t('beans.blend.addBlend') : t('beans.addBeanLot')}
                 </PillButton>

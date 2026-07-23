@@ -79,6 +79,7 @@ export const BeanDetail = ({
 
     const currentGrams = summary?.currentGrams ?? 0;
     const effectiveGrams = summary?.effectiveGrams ?? 0;
+    const currentStockKg = (currentGrams / 1000).toFixed(2);
 
     const cur = currencySymbol(i18n.language);
     const unitCostLabel =
@@ -152,7 +153,11 @@ export const BeanDetail = ({
                             value: bean.altitude_masl ? `${bean.altitude_masl.toLocaleString()} masl` : '—',
                         },
                         { label: t('beanDetail.received'), value: bean.purchase_date ?? '—' },
-                        { label: t('beanDetail.currentStock'), value: `${(currentGrams / 1000).toFixed(2)}kg` },
+                        {
+                            label: t('beanDetail.currentStock'),
+                            value: `${currentStockKg}kg`,
+                            testId: 'bean-current-stock',
+                        },
                         {
                             label: t('beanDetail.effective'),
                             value: `${(effectiveGrams / 1000).toFixed(2)}kg`,
@@ -171,19 +176,31 @@ export const BeanDetail = ({
                             label: t('inventoryAsset.stockValue'),
                             value: assetValueLabel,
                         },
-                    ].map(({ label, value, hint }) => (
-                        <div key={label}>
-                            <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-0.75">
-                                {label}
-                            </div>
-                            <div className="text-sm font-medium text-primary tracking-[0.14px]">{value}</div>
-                            {hint && (
-                                <div className="text-[11px] text-muted tracking-[0.14px] mt-0.5 leading-snug">
-                                    {hint}
+                    ].map(
+                        ({
+                            label,
+                            value,
+                            hint,
+                            testId,
+                        }: {
+                            label: string;
+                            value: string;
+                            hint?: string;
+                            testId?: string;
+                        }) => (
+                            <div key={label} data-testid={testId}>
+                                <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-0.75">
+                                    {label}
                                 </div>
-                            )}
-                        </div>
-                    ))}
+                                <div className="text-sm font-medium text-primary tracking-[0.14px]">{value}</div>
+                                {hint && (
+                                    <div className="text-[11px] text-muted tracking-[0.14px] mt-0.5 leading-snug">
+                                        {hint}
+                                    </div>
+                                )}
+                            </div>
+                        ),
+                    )}
                 </div>
 
                 {bean.tasting_notes && (

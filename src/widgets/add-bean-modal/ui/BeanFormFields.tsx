@@ -54,12 +54,18 @@ export const BeanFormFields = ({
     );
 
     return (
-        <form id="bean-form" onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-6">
+        <form
+            id="bean-form"
+            data-testid="bean-form"
+            onSubmit={handleSubmit(onSubmit)}
+            className="grid grid-cols-2 gap-6"
+        >
             <div className="col-span-2">
                 <label className={labelCls}>
                     <Info size={14} /> {t('addBeanModal.form.lotName')}
                 </label>
                 <input
+                    data-testid="bean-form-name"
                     className={inputCls}
                     placeholder={t('addBeanModal.form.lotNamePlaceholder')}
                     {...register('name', { onChange: () => setNameIsAuto(false) })}
@@ -206,6 +212,7 @@ export const BeanFormFields = ({
                 </label>
                 <input
                     {...numericInputProps}
+                    data-testid="bean-form-stock"
                     className={inputCls}
                     placeholder="5"
                     value={stock}

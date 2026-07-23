@@ -48,6 +48,11 @@ if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
 const bootstrap = async () => {
     await initI18n();
 
+    if (import.meta.env.VITE_E2E === '1' || import.meta.env.VITE_E2E === 'true') {
+        const { installE2eBridge } = await import('./shared/lib/e2e-bridge');
+        installE2eBridge();
+    }
+
     ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
         <React.StrictMode>
             <QueryClientProvider client={queryClient}>

@@ -432,6 +432,7 @@ export const RoastSummaryModal = ({
                                     }`}
                                 >
                                     <select
+                                        data-testid="roast-summary-bean"
                                         value={formBeanId ?? ''}
                                         onChange={(e) =>
                                             setValue('beanId', e.target.value || null, {
@@ -482,6 +483,7 @@ export const RoastSummaryModal = ({
                             type="number"
                             min={0}
                             step={0.1}
+                            data-testid="roast-summary-weight"
                             {...register('weightGrams', { valueAsNumber: true })}
                             placeholder="0.0"
                             className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
@@ -552,6 +554,7 @@ export const RoastSummaryModal = ({
                 >
                     <input
                         type="checkbox"
+                        data-testid="roast-summary-deduct"
                         checked={deductStock && canDeduct}
                         disabled={!canDeduct}
                         onChange={(e) => setValue('deductStock', e.target.checked)}
@@ -568,6 +571,7 @@ export const RoastSummaryModal = ({
             <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-[#585d61] flex flex-col gap-2 bg-main-bg dark:bg-[#181d21]">
                 <button
                     type="button"
+                    data-testid="roast-summary-save"
                     onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
                     disabled={isSaving}
                     className="w-full py-2.5 rounded-lg border-none bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"

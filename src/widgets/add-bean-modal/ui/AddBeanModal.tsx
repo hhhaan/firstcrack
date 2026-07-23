@@ -138,7 +138,12 @@ export const AddBeanModal = ({
     if (!open) return null;
 
     return (
-        <ModalShell onClose={onClose} labelledBy="add-bean-modal-title" contentClassName={modalPanel.formLg}>
+        <ModalShell
+            onClose={onClose}
+            labelledBy="add-bean-modal-title"
+            contentClassName={modalPanel.formLg}
+            data-testid="add-bean-modal"
+        >
             <div className={modalHeaderChrome}>
                 <ModalHeader
                     titleId="add-bean-modal-title"
@@ -215,6 +220,7 @@ export const AddBeanModal = ({
                         <button
                             type="submit"
                             form="bean-form"
+                            data-testid="bean-form-submit"
                             disabled={isSubmitting}
                             className={`${modalPrimaryBtnCls} flex-[2]`}
                         >

@@ -80,6 +80,8 @@ export const BeanList = ({
                         return (
                             <div
                                 key={bean.id}
+                                data-testid={`bean-list-item-${bean.id}`}
+                                data-stock-kg={(currentGrams / 1000).toFixed(2)}
                                 onClick={() => onSelect(bean.id)}
                                 className="cursor-pointer rounded-lg bg-main-bg px-4 py-3.5 transition-all duration-150 dark:border dark:border-[#585d61]"
                             >

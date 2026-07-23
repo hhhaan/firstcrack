@@ -22,7 +22,7 @@ Package manager is **pnpm only**. Do not use npm/yarn.
 
 | Task | Command |
 |------|---------|
-| Test | `pnpm test` (vitest) / `pnpm verify:sidecar` (pytest) |
+| Test | `pnpm test` (vitest) / `pnpm test:e2e` (playwright) / `pnpm verify:sidecar` (pytest) |
 | Lint / types | `pnpm check` (biome) / `pnpm lint` (eslint) / `pnpm typecheck` |
 | Full verify | `pnpm verify:all` — required before push |
 | Release build | `pnpm build:sidecar && pnpm tauri build` |

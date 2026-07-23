@@ -6,9 +6,18 @@ interface ModalShellProps {
     labelledBy: string;
     overlayClassName?: string;
     contentClassName?: string;
+    /** Stable selector for e2e (dialog root). */
+    'data-testid'?: string;
 }
 
-export const ModalShell = ({ children, onClose, labelledBy, overlayClassName, contentClassName }: ModalShellProps) => {
+export const ModalShell = ({
+    children,
+    onClose,
+    labelledBy,
+    overlayClassName,
+    contentClassName,
+    'data-testid': testId,
+}: ModalShellProps) => {
     return (
         <div
             onClick={onClose}
@@ -20,6 +29,7 @@ export const ModalShell = ({ children, onClose, labelledBy, overlayClassName, co
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={labelledBy}
+                data-testid={testId}
                 className={contentClassName}
             >
                 {children}

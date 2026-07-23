@@ -193,6 +193,7 @@ export const RoastSidePanel = ({
             <div className="flex flex-col gap-1.5">
                 {phase === 'preheating' && (
                     <button
+                        data-testid="roast-ready"
                         onClick={onEnterStandby}
                         className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
                         style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
@@ -204,6 +205,7 @@ export const RoastSidePanel = ({
                 )}
                 {phase === 'standby' && (
                     <button
+                        data-testid="roast-charge"
                         onClick={onManualCharge}
                         className="flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold cursor-pointer"
                         style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
@@ -214,6 +216,7 @@ export const RoastSidePanel = ({
                     </button>
                 )}
                 <button
+                    data-testid="roast-end"
                     onClick={onEndRoast}
                     disabled={roastEnded || !charged}
                     aria-label="End roast"

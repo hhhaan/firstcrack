@@ -51,6 +51,9 @@ const navItems: { id: View; labelKey: string; icon: SidebarIcon }[] = [
     { id: 'machines', labelKey: 'sidebar.nav.machines', icon: Chip },
 ];
 
+/** Stable e2e selectors — view id is the product route key. */
+const navTestId = (id: View) => `nav-${id}`;
+
 export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, onOpenSettings }: SidebarProps) => {
     const { t } = useTranslation();
     const [isHeaderHovered, setIsHeaderHovered] = useState(false);
@@ -78,6 +81,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
 
     return (
         <aside
+            data-testid="app-sidebar"
             className="shrink-0 h-full bg-main-bg border-r border-border dark:border-[#585d61] flex flex-col overflow-hidden transition-[width] duration-220 ease-in-out"
             style={{ width: collapsed ? 68 : 240 }}
         >
@@ -244,6 +248,7 @@ export const Sidebar = ({ activeView, onNavigate, collapsed, onToggleCollapse, o
                             <button
                                 type="button"
                                 key={id}
+                                data-testid={navTestId(id)}
                                 onClick={() => onNavigate(id)}
                                 aria-label={label}
                                 title={collapsed ? label : undefined}

@@ -93,3 +93,8 @@ code-review.*
 specific_file.diff
 *.diff
 react-doctor-report.json
+
+# Playwright e2e
+test-results/
+e2e-report/
+playwright-report/
