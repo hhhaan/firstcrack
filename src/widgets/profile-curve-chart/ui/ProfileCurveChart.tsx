@@ -102,7 +102,7 @@ export const ProfileCurveChart = ({ series }: ProfileCurveChartProps) => {
         };
 
         const opts: uPlot.Options = {
-            width: el.offsetWidth,
+            width: el.clientWidth || el.offsetWidth,
             height: 160,
             padding: [4, 12, 0, 0],
             cursor: { focus: { prox: 16 }, drag: { x: false, y: false } },
@@ -137,7 +137,10 @@ export const ProfileCurveChart = ({ series }: ProfileCurveChartProps) => {
         plotRef.current = new uPlot(opts, [xs, ...ysArrays] as any, el);
 
         const obs = new ResizeObserver(() => {
-            if (plotRef.current && el) plotRef.current.setSize({ width: el.offsetWidth, height: 160 });
+            if (!plotRef.current || !el) return;
+            const w = el.clientWidth;
+            if (w <= 0) return;
+            plotRef.current.setSize({ width: w, height: 160 });
         });
         obs.observe(el);
 
@@ -148,5 +151,7 @@ export const ProfileCurveChart = ({ series }: ProfileCurveChartProps) => {
         };
     }, [plotDataKey]);
 
-    return <div ref={containerRef} className="w-full" />;
+    // min-w-0 + overflow-hidden: grid/flex parents default min-width:auto; uPlot canvas
+    // otherwise locks the track width so shrink/zoom-out never fires a smaller size.
+    return <div ref={containerRef} className="w-full min-w-0 overflow-hidden" />;
 };

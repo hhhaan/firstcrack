@@ -122,7 +122,7 @@ export const ProfileDetail = ({
     );
 
     return (
-        <div className="bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
+        <div className="min-w-0 bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
             <div className="flex items-start justify-between mb-5">
                 <div>
                     <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">

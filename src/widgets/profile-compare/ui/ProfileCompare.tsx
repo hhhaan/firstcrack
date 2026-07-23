@@ -126,7 +126,7 @@ export const ProfileCompare = ({
     }
 
     return (
-        <div className="rounded-lg bg-main-bg dark:border dark:border-[#585d61]">
+        <div className="min-w-0 rounded-lg bg-main-bg dark:border dark:border-[#585d61]">
             <div className="flex items-center justify-between border-b border-black/5 px-6 py-4 dark:border-[#585d61]">
                 <div className="flex items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 dark:bg-surface-elevated">
                     <GitCompare size={11} strokeWidth={2} color="var(--color-secondary)" />
