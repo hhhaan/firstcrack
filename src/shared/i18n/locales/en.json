@@ -331,7 +331,6 @@
         "addMachine": "Add Machine",
         "empty": "No machines yet",
         "addFirst": "Add your first machine",
-        "searchPlaceholder": "Search machines...",
         "removeMachine": "Remove machine",
         "editMachine": "Edit connection settings",
         "temperature": {
@@ -937,6 +936,7 @@
         "newProfile": "New Profile",
         "empty": "No profiles yet",
         "createFirst": "Create your first profile",
+        "searchPlaceholder": "Search profiles...",
         "subtitle_one": "{{count}} profile",
         "subtitle_other": "{{count}} profiles",
         "compare": {

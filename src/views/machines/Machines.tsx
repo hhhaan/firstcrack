@@ -14,7 +14,7 @@ import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
 import { useMachinesPageState } from '@widgets/add-machine-modal/model/useMachinesPageState';
 import { AddMachineModal } from '@widgets/add-machine-modal/ui/AddMachineModal';
-import { Activity, AlertCircle, Cpu, Flame, Pencil, Plus, Search, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { Activity, AlertCircle, Cpu, Flame, Pencil, Plus, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -29,7 +29,6 @@ export const Machines = ({
 }) => {
     const { t } = useTranslation();
     const { machines, removeMachine } = useMachines();
-    const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
     const [sidecarStatus, setSidecarStatus] = useState<SidecarStatus | null>(null);
@@ -94,11 +93,6 @@ export const Machines = ({
         if (connectedId) setSelectedId(connectedId);
         // selectedId 제외: 사용자 클릭 시 effect 재실행 방지
     }, [sidecarStatus?.connected, sidecarStatus?.roaster]);
-
-    const filtered = machines.filter(
-        (m) =>
-            m.name.toLowerCase().includes(search.toLowerCase()) || m.brand.toLowerCase().includes(search.toLowerCase()),
-    );
 
     const selected = machines.find((m) => m.id === selectedId) ?? null;
 
@@ -242,52 +236,40 @@ export const Machines = ({
             ) : (
                 <MasterDetailLayout
                     left={
-                        <div>
-                            <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5 dark:border dark:border-[#585d61]">
-                                <Search size={14} strokeWidth={2} color="var(--color-muted)" />
-                                <input
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    placeholder={t('machines.searchPlaceholder')}
-                                    className="border-none bg-transparent outline-none text-[13px] text-primary font-body w-full tracking-[0.14px]"
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                {filtered.map((machine) => {
-                                    const isConnected = isThisMachineConnected(machine);
-                                    return (
-                                        <div
-                                            key={machine.id}
-                                            onClick={() => setSelectedId(machine.id)}
-                                            className={`bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150 border border-[#E5E5E5] dark:border-[#585d61]`}
-                                        >
-                                            <div className="flex items-start justify-between mb-2">
-                                                <div>
-                                                    <div className="text-[13px] font-medium text-primary mb-0.5">
-                                                        {machine.name}
-                                                    </div>
-                                                    <div className="text-[12px] text-muted)">{machine.displayName}</div>
+                        <div className="flex flex-col gap-2">
+                            {machines.map((machine) => {
+                                const isConnected = isThisMachineConnected(machine);
+                                return (
+                                    <div
+                                        key={machine.id}
+                                        onClick={() => setSelectedId(machine.id)}
+                                        className={`bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150 border border-[#E5E5E5] dark:border-[#585d61]`}
+                                    >
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div>
+                                                <div className="text-[13px] font-medium text-primary mb-0.5">
+                                                    {machine.name}
                                                 </div>
-                                                <Badge
-                                                    size="sm"
-                                                    uppercase
-                                                    tone={isConnected ? 'good' : 'bad'}
-                                                    className="px-1.75"
-                                                >
-                                                    {isConnected ? 'Live' : 'Offline'}
-                                                </Badge>
+                                                <div className="text-[12px] text-muted)">{machine.displayName}</div>
                                             </div>
-                                            <div className="flex gap-2.5">
-                                                <span className="text-[11px] text-muted flex items-center gap-0.75">
-                                                    <Activity size={11} /> {machine.protocol.toUpperCase()}
-                                                </span>
-                                                <span className="text-[11px] text-muted">{machine.brand}</span>
-                                            </div>
+                                            <Badge
+                                                size="sm"
+                                                uppercase
+                                                tone={isConnected ? 'good' : 'bad'}
+                                                className="px-1.75"
+                                            >
+                                                {isConnected ? 'Live' : 'Offline'}
+                                            </Badge>
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                        <div className="flex gap-2.5">
+                                            <span className="text-[11px] text-muted flex items-center gap-0.75">
+                                                <Activity size={11} /> {machine.protocol.toUpperCase()}
+                                            </span>
+                                            <span className="text-[11px] text-muted">{machine.brand}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     }
                     detail={

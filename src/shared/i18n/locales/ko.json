@@ -331,7 +331,6 @@
         "addMachine": "머신 추가",
         "empty": "등록된 머신이 없습니다",
         "addFirst": "첫 머신 추가",
-        "searchPlaceholder": "머신 검색...",
         "removeMachine": "머신 제거",
         "editMachine": "연결 설정 수정",
         "temperature": {
@@ -937,6 +936,7 @@
         "newProfile": "새 프로파일",
         "empty": "아직 프로파일이 없습니다.",
         "createFirst": "첫 프로파일 만들기",
+        "searchPlaceholder": "프로파일 검색...",
         "subtitle_one": "프로파일 {{count}}개",
         "subtitle_other": "프로파일 {{count}}개",
         "compare": {

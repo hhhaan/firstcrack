@@ -331,7 +331,6 @@
         "addMachine": "添加设备",
         "empty": "暂无设备",
         "addFirst": "添加第一台设备",
-        "searchPlaceholder": "搜索设备...",
         "removeMachine": "移除设备",
         "editMachine": "编辑连接设置",
         "temperature": {
@@ -949,6 +948,7 @@
         "newProfile": "新建曲线",
         "empty": "尚无曲线",
         "createFirst": "创建第一条曲线",
+        "searchPlaceholder": "搜索曲线...",
         "subtitle_one": "{{count}}条曲线",
         "subtitle_other": "{{count}}条曲线",
         "compare": {

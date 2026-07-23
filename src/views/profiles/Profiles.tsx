@@ -21,8 +21,8 @@ import { PillButton } from '@shared/ui/PillButton';
 import { Sparkline } from '@shared/ui/Sparkline';
 import { ProfileCompare } from '@widgets/profile-compare/ui/ProfileCompare';
 import { ProfileDetail } from '@widgets/profile-detail/ui/ProfileDetail';
-import { Check, GitCompare, Plus, Star } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Check, GitCompare, Plus, Search, Star } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NewProfileModal } from './NewProfileModal';
 
@@ -54,6 +54,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const [compareIds, setCompareIds] = useState<string[]>([]);
     const [showNewModal, setShowNewModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [search, setSearch] = useState('');
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
@@ -69,12 +70,24 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         }
     }, [userProfile?.default_roast_profile_id]);
 
-    const sortedProfiles = [...profiles].sort((a, b) => {
-        if (!defaultId) return 0;
-        if (a.id === defaultId) return -1;
-        if (b.id === defaultId) return 1;
-        return 0;
-    });
+    const sortedProfiles = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        const filtered = q
+            ? profiles.filter((p) => {
+                  const haystack = [p.name, p.target_level, p.default_bean?.name, p.default_blend?.name]
+                      .filter(Boolean)
+                      .join(' ')
+                      .toLowerCase();
+                  return haystack.includes(q);
+              })
+            : profiles;
+        return [...filtered].sort((a, b) => {
+            if (!defaultId) return 0;
+            if (a.id === defaultId) return -1;
+            if (b.id === defaultId) return 1;
+            return 0;
+        });
+    }, [profiles, search, defaultId]);
 
     const selected = profiles.find((p) => p.id === selectedId) ?? null;
 
@@ -147,74 +160,87 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         : `${selectedId ?? ''}|${selectedRealCurve.length}`;
 
     const profileList = (
-        <div className="flex flex-col gap-2">
-            {compareMode && (
-                <p className="text-[11px] font-medium text-muted tracking-[0.4px] px-1 mb-0.5">
-                    {compareIds.length === 0
-                        ? t('profiles.compare.selectPrompt')
-                        : compareIds.length >= 4
-                          ? t('profiles.compare.maxSelected')
-                          : t('profiles.compare.selected', { count: compareIds.length })}
-                </p>
-            )}
-            {sortedProfiles.map((profile) => {
-                const isSelected = !compareMode && selectedId === profile.id;
-                const compareIdx = compareMode ? compareIds.indexOf(profile.id) : -1;
-                const isCompareSelected = compareIdx !== -1;
-                const atCapacity = compareMode && compareIds.length >= 4 && !isCompareSelected;
-                const sparkColor = isCompareSelected
-                    ? COMPARE_COLORS[compareIdx]
-                    : isSelected
-                      ? 'var(--color-primary)'
-                      : '#b3b0aa';
+        <div>
+            <div className="flex items-center gap-2 bg-main-bg rounded-lg px-3 py-2.25 mb-2.5 dark:border dark:border-[#585d61]">
+                <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
+                <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={t('profiles.searchPlaceholder')}
+                    className="border-none bg-transparent outline-none text-[13px] text-primary font-body w-full tracking-[0.14px]"
+                />
+            </div>
+            <div className="flex flex-col gap-2">
+                {compareMode && (
+                    <p className="text-[11px] font-medium text-muted tracking-[0.4px] px-1 mb-0.5">
+                        {compareIds.length === 0
+                            ? t('profiles.compare.selectPrompt')
+                            : compareIds.length >= 4
+                              ? t('profiles.compare.maxSelected')
+                              : t('profiles.compare.selected', { count: compareIds.length })}
+                    </p>
+                )}
+                {sortedProfiles.map((profile) => {
+                    const isSelected = !compareMode && selectedId === profile.id;
+                    const compareIdx = compareMode ? compareIds.indexOf(profile.id) : -1;
+                    const isCompareSelected = compareIdx !== -1;
+                    const atCapacity = compareMode && compareIds.length >= 4 && !isCompareSelected;
+                    const sparkColor = isCompareSelected
+                        ? COMPARE_COLORS[compareIdx]
+                        : isSelected
+                          ? 'var(--color-primary)'
+                          : '#b3b0aa';
 
-                return (
-                    <div
-                        key={profile.id}
-                        onClick={(e) => !atCapacity && handleProfileClick(profile.id, e.shiftKey)}
-                        className={`bg-main-bg rounded-lg px-4 pb-2 pt-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8 dark:border-[#585d61]' : 'border-[#E5E5E5] dark:border-[#585d61]'}`}
-                    >
-                        {compareMode && (
-                            <div className="flex justify-end -mt-1 mb-1">
-                                <div
-                                    className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface dark:bg-surface-elevated '}`}
-                                    style={
-                                        isCompareSelected ? { backgroundColor: COMPARE_COLORS[compareIdx] } : undefined
-                                    }
-                                >
-                                    {isCompareSelected && <Check size={9} strokeWidth={3} />}
+                    return (
+                        <div
+                            key={profile.id}
+                            onClick={(e) => !atCapacity && handleProfileClick(profile.id, e.shiftKey)}
+                            className={`bg-main-bg rounded-lg px-4 pb-2 pt-4 transition-all duration-150 border ${atCapacity ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${isSelected || isCompareSelected ? 'border-black/8 dark:border-[#585d61]' : 'border-[#E5E5E5] dark:border-[#585d61]'}`}
+                        >
+                            {compareMode && (
+                                <div className="flex justify-end -mt-1 mb-1">
+                                    <div
+                                        className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface dark:bg-surface-elevated '}`}
+                                        style={
+                                            isCompareSelected
+                                                ? { backgroundColor: COMPARE_COLORS[compareIdx] }
+                                                : undefined
+                                        }
+                                    >
+                                        {isCompareSelected && <Check size={9} strokeWidth={3} />}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        <Sparkline data={syntheticCurve(profile)} color={sparkColor} />
+                            <Sparkline data={syntheticCurve(profile)} color={sparkColor} />
 
-                        <div className="flex items-start justify-between mt-3">
-                            <div>
-                                <div className="flex items-center gap-1.25 mb-px">
-                                    <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
-                                        {profile.name}
-                                    </span>
-                                    {defaultId === profile.id && (
-                                        <Star
-                                            size={11}
-                                            strokeWidth={2}
-                                            fill="currentColor"
-                                            className="text-amber-400"
-                                        />
-                                    )}
-                                </div>
-                                <div className="text-[12px] text-muted tracking-[0.14px]">
-                                    {profile.drop_temp_celsius != null
-                                        ? `${t('profiles.drop')} ${profile.drop_temp_celsius}°C`
-                                        : profile.target_level}
-                                    {profile.duration_sec != null && ` · ${formatDuration(profile.duration_sec)}`}
+                            <div className="flex items-start justify-between mt-3">
+                                <div>
+                                    <div className="flex items-center gap-1.25 mb-px">
+                                        <span className="text-[13px] font-medium text-primary tracking-[0.14px]">
+                                            {profile.name}
+                                        </span>
+                                        {defaultId === profile.id && (
+                                            <Star
+                                                size={11}
+                                                strokeWidth={2}
+                                                fill="currentColor"
+                                                className="text-amber-400"
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="text-[12px] text-muted tracking-[0.14px]">
+                                        {profile.drop_temp_celsius != null
+                                            ? `${t('profiles.drop')} ${profile.drop_temp_celsius}°C`
+                                            : profile.target_level}
+                                        {profile.duration_sec != null && ` · ${formatDuration(profile.duration_sec)}`}
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                );
-            })}
+                    );
+                })}
+            </div>
         </div>
     );
 

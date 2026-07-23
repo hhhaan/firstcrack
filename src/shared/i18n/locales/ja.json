@@ -331,7 +331,6 @@
         "addMachine": "マシンを追加",
         "empty": "登録されたマシンがありません",
         "addFirst": "最初のマシンを追加",
-        "searchPlaceholder": "マシンを検索...",
         "removeMachine": "マシンを削除",
         "editMachine": "接続設定を編集",
         "temperature": {
@@ -937,6 +936,7 @@
         "newProfile": "新規プロファイル",
         "empty": "プロファイルがまだありません",
         "createFirst": "最初のプロファイルを作成",
+        "searchPlaceholder": "プロファイルを検索...",
         "subtitle_one": "{{count}} 件のプロファイル",
         "subtitle_other": "{{count}} 件のプロファイル",
         "compare": {
