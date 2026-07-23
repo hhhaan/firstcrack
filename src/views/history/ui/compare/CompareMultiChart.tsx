@@ -1,4 +1,11 @@
-import { buildCompareChartOption, type CompareChartSeries } from '@features/active-roast/lib/chart-option';
+import { CHART_GRID_RIGHT, CHART_GRID_RIGHT_WITH_ROR } from '@features/active-roast/lib/chart-config';
+import {
+    buildCompareChartOption,
+    type CompareChartSeries,
+    compareChartXMax,
+} from '@features/active-roast/lib/chart-option';
+import { useChartZoom } from '@features/active-roast/model/useChartZoom';
+import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
 import { useThemeStore } from '@shared/store/theme';
 import * as echarts from 'echarts';
 import { useEffect, useMemo, useRef } from 'react';
@@ -18,6 +25,16 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
 
     const active = useMemo(() => series.filter((s) => s.visible !== false && s.points.length > 0), [series]);
 
+    const xMax = useMemo(() => compareChartXMax(active), [active]);
+    const zoom = useChartZoom(xMax, 0, showRoR ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT);
+    const { setZoomRange, effectiveZoomRange } = zoom;
+
+    // 세션 토글로 전체 범위가 바뀌면 이전 줌이 무효 — 리셋
+    // biome-ignore lint/correctness/useExhaustiveDependencies: xMax 변경 시에만 리셋
+    useEffect(() => {
+        setZoomRange(null);
+    }, [xMax, setZoomRange]);
+
     // useQueries returns fresh array identities every render — fingerprint the
     // content so setOption only runs when the data actually changed.
     const fingerprint = useMemo(
@@ -27,8 +44,10 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
                     const last = s.points[s.points.length - 1];
                     return `${s.id}:${s.points.length}:${last?.t ?? 0}:${last?.bt ?? 0}:${s.color}`;
                 })
-                .join('|')}|ror:${showRoR}|${resolvedTheme}`,
-        [active, showRoR, resolvedTheme],
+                .join(
+                    '|',
+                )}|ror:${showRoR}|${resolvedTheme}|zoom:${effectiveZoomRange?.start ?? ''}:${effectiveZoomRange?.end ?? ''}`,
+        [active, showRoR, resolvedTheme, effectiveZoomRange],
     );
 
     useEffect(() => {
@@ -59,8 +78,16 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
     useEffect(() => {
         const chart = chartRef.current;
         if (!chart) return;
-        chart.setOption(buildCompareChartOption(active, showRoR), { notMerge: true });
+        const xView =
+            effectiveZoomRange && effectiveZoomRange.start < effectiveZoomRange.end
+                ? effectiveZoomRange
+                : { start: 0, end: xMax };
+        chart.setOption(buildCompareChartOption(active, showRoR, xView), { notMerge: true });
     }, [fingerprint]);
 
-    return <div ref={elRef} className="w-full" style={{ height }} />;
+    return (
+        <ChartZoomSurface zoom={zoom} className="w-full" style={{ height }}>
+            <div ref={elRef} className="h-full w-full" />
+        </ChartZoomSurface>
+    );
 };

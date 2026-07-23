@@ -1,6 +1,7 @@
 import type { RoastEventMarker } from '@features/active-roast/lib/chart-option';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import type { EventMarkerStyle, TemperatureUnit } from '@features/active-roast/model/settings';
+import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
 import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
 import type { RefObject } from 'react';
 import { ChartLegend } from './ChartLegend';
@@ -21,6 +22,7 @@ interface RoastChartContainerProps {
     targetXs: number[];
     targetBt: number[];
     showTargetCurve: boolean;
+    showTargetDeltaLabel?: boolean;
     showET: boolean;
     showRoR: boolean;
     showRoRET: boolean;
@@ -69,6 +71,7 @@ export const RoastChartContainer = ({
     targetXs,
     targetBt,
     showTargetCurve,
+    showTargetDeltaLabel = false,
     showET,
     showRoR,
     showRoRET,
@@ -96,23 +99,18 @@ export const RoastChartContainer = ({
     onEventMarkerDrag,
 }: RoastChartContainerProps) => {
     return (
-        <div
-            ref={chartAreaRef}
-            className={`relative flex-1 flex flex-col min-w-0 min-h-0 outline-none ${
-                effectiveZoomRange
-                    ? isChartDragging
-                        ? 'cursor-grabbing select-none touch-none'
-                        : 'cursor-grab touch-none'
-                    : 'cursor-default'
-            }`}
-            // wheel: native listener on chartAreaRef (useChartZoom) — ECharts steals bubble wheel
-            // pointer capture: ECharts canvas stops bubble
-            onPointerDownCapture={handleChartPointerDown}
-            onPointerMoveCapture={handleChartPointerMove}
-            onPointerUpCapture={endChartDrag}
-            onPointerCancelCapture={endChartDrag}
-            role="region"
-            aria-label="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
+        <ChartZoomSurface
+            zoom={{
+                chartAreaRef,
+                effectiveZoomRange,
+                isChartDragging,
+                handleChartPointerDown,
+                handleChartPointerMove,
+                endChartDrag,
+            }}
+            className="relative flex-1 flex flex-col min-w-0 min-h-0 outline-none"
+            idleCursorClassName="cursor-default"
+            ariaLabel="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
         >
             <ChartLegend
                 showTarget={showTargetCurve}
@@ -140,6 +138,7 @@ export const RoastChartContainer = ({
                 onEventMarkerDrag={onEventMarkerDrag}
                 showET={showET}
                 showTargetCurve={showTargetCurve}
+                showTargetDeltaLabel={showTargetDeltaLabel}
                 showRoR={showRoR}
                 showRoRET={showRoRET}
                 rorEtActual={rorEtActual}
@@ -160,6 +159,6 @@ export const RoastChartContainer = ({
                 rorYMin={rorYMin}
                 rorYMax={rorYMax}
             />
-        </div>
+        </ChartZoomSurface>
     );
 };

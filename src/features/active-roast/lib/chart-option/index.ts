@@ -16,7 +16,7 @@ import { createAxisTooltipFormatter } from './tooltip';
 import type { ChartOptionParams } from './types';
 
 export { fmtSec } from './axes';
-export { buildCompareChartOption, type CompareChartSeries } from './compare';
+export { buildCompareChartOption, type CompareChartSeries, compareChartXMax } from './compare';
 export type { ChartOptionParams, ControlData, ResolvedChartColors, RoastEventMarker } from './types';
 
 export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption => {
@@ -33,6 +33,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         temperatureUnit,
         showET,
         showTargetCurve,
+        showTargetDeltaLabel = false,
         targetXs,
         targetBt,
         showRoR,
@@ -102,6 +103,9 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             tempYMin,
             hasControlSeries,
             showFcBand,
+            showTargetDeltaLabel,
+            targetXs,
+            targetBt,
         });
 
     const hasRightYAxis = showRoR || hasControlSeries;
