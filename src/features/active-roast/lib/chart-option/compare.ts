@@ -36,14 +36,21 @@ const resolveCssColor = (color: string): string => {
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+/** 전체 X축 범위 (초) — useChartZoom의 MAX_TIME과 옵션 xMax의 공용 SSoT */
+export const compareChartXMax = (active: CompareChartSeries[]): number =>
+    Math.ceil(Math.max(60, ...active.flatMap((s) => s.points.map((p) => p.t))) / 30) * 30;
+
 /** Multi-session overlay chart (History compare) — same visual grammar as the live roast chart. */
-export const buildCompareChartOption = (active: CompareChartSeries[], showRoR: boolean): EChartsOption => {
+export const buildCompareChartOption = (
+    active: CompareChartSeries[],
+    showRoR: boolean,
+    xView?: { start: number; end: number } | null,
+): EChartsOption => {
     const colors = getResolvedChartColors();
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
     const crossLineStyle = buildCrossLineStyle(colors);
     const { leftMargin, rightMargin, topMargin } = computeGridMargins(showRoR);
 
-    const maxT = Math.max(60, ...active.flatMap((s) => s.points.map((p) => p.t)));
     const allBt = active.flatMap((s) => s.points.map((p) => p.bt)).filter(Number.isFinite);
     const tempYMin = allBt.length
         ? Math.min(100, Math.floor((Math.min(...allBt) - 10) / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL)
@@ -56,8 +63,8 @@ export const buildCompareChartOption = (active: CompareChartSeries[], showRoR: b
         leftMargin,
         rightMargin,
         topMargin,
-        xMin: 0,
-        xMax: Math.ceil(maxT / 30) * 30,
+        xMin: xView?.start ?? 0,
+        xMax: xView?.end ?? compareChartXMax(active),
         tempYMin,
         tempYMax,
         rorYMin: ROR_Y_MIN,

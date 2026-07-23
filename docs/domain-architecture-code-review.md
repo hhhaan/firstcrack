@@ -131,7 +131,7 @@ Features already own some writes (`useFulfillOrder`, `usePackageProduct`, `useSa
 |------|------|
 | `views/active-roast/ActiveRoast.tsx` | 597 |
 | `views/active-roast/ui/RoastSummaryModal.tsx` | 588 |
-| `views/active-roast/ui/RoastTempChart.tsx` | 350 |
+| `features/active-roast/ui/RoastTempChart.tsx` | 350 |
 | `features/active-roast/model/useSaveRoast.ts` | 317 |
 | `views/active-roast/model/useSidecarPolling.ts` | 279 |
 
@@ -282,7 +282,7 @@ Features already own some writes (`useFulfillOrder`, `usePackageProduct`, `useSa
 |-----|-----|---------|----------|
 | architecture | high | Domain pure-fns in shared | `roast-profiles.ts`, `sessionFilter.ts`, `roast-delta.ts` |
 | architecture | high | Leaf view components fetch (ExpandedRow chart + profiles) | `HistoryTable.tsx` ~148-156 |
-| architecture | med | View→view imports | History → `NewProfileModal`; HistoryTable → `RoastTempChart` |
+| architecture | med | View→view imports | History/Profiles → `@widgets/new-profile-modal`; HistoryTable → `@features/active-roast/ui/RoastTempChart` (fixed) |
 | smell | high | Duplicate profile chrome (DefaultBadge / fmtDuration / table rows) | ProfileDetail vs ProfileCompare |
 | smell | med | Dual pagination (server page vs full list for search/compare/export) | `History.tsx` |
 | smell | med | Magic defaults 200°C / 720s reimplemented | Profiles, ProfileDetail, Compare |

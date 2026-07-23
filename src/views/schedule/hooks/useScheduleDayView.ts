@@ -26,27 +26,7 @@ import type { NewBatchData } from '@widgets/add-batch-modal';
 import type { EditScope } from '@widgets/recurring-edit-scope-modal';
 import { format } from 'date-fns';
 import { useCallback, useMemo, useState } from 'react';
-import { batchStatus, toDateKey } from '../lib';
-
-// ── Shared helpers ─────────────────────────────────────────────────────────────
-
-/** PostgrestError 등은 Error가 아니어서 String(err) → "[object Object]" 가 됨 */
-function unknownErrorMessage(err: unknown): string {
-    if (err instanceof Error) return err.message;
-    if (
-        err &&
-        typeof err === 'object' &&
-        'message' in err &&
-        typeof (err as { message: unknown }).message === 'string'
-    ) {
-        return (err as { message: string }).message;
-    }
-    try {
-        return JSON.stringify(err);
-    } catch {
-        return String(err);
-    }
-}
+import { batchStatus, toDateKey, unknownErrorMessage } from '../lib';
 
 export const useScheduleDayView = ({
     userId,

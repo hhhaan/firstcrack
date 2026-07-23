@@ -1,9 +1,9 @@
+import type { RoastEventMarker } from '@features/active-roast/lib/chart-option';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import type { EventMarkerStyle, TemperatureUnit } from '@features/active-roast/model/settings';
+import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
 import type { RefObject } from 'react';
 import { ChartLegend } from './ChartLegend';
-import type { RoastEventMarker } from './RoastTempChart';
-import { RoastTempChart } from './RoastTempChart';
 
 interface RoastChartContainerProps {
     chartAreaRef: RefObject<HTMLDivElement | null>;

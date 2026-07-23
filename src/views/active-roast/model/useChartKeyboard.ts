@@ -1,6 +1,6 @@
+import { MIN_VISIBLE_SECS } from '@features/active-roast/model/useChartZoom';
 import type { RefObject } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
-import { MIN_VISIBLE_SECS } from './useChartZoom';
 
 interface UseChartKeyboardParams {
     isActive: boolean;

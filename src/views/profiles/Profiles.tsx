@@ -19,12 +19,12 @@ import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
 import { Sparkline } from '@shared/ui/Sparkline';
+import { NewProfileModal } from '@widgets/new-profile-modal';
 import { ProfileCompare } from '@widgets/profile-compare/ui/ProfileCompare';
 import { ProfileDetail } from '@widgets/profile-detail/ui/ProfileDetail';
 import { Check, GitCompare, Plus, Search, Star } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NewProfileModal } from './NewProfileModal';
 
 const COMPARE_COLORS = [
     'var(--color-palette-blue)',

@@ -201,4 +201,52 @@ export const roastSessionApi = {
         });
         if (error) throw error;
     },
+
+    /**
+     * Dashboard recent/KPI sessions (completed since lastMonthStart).
+     * Narrow select — no events jsonb.
+     */
+    listCompletedDashboard: async (
+        userId: string,
+        sinceIso: string,
+    ): Promise<
+        Array<{
+            id: string;
+            roasted_at: string | null;
+            weight_grams: number;
+            duration_seconds: number | null;
+            drop_temp_celsius: number | null;
+            roast_level: string | null;
+            beans: { name: string; origin: string | null } | null;
+            roast_profiles: { name: string; target_level: string | null } | null;
+        }>
+    > => {
+        const { data, error } = await supabase
+            .from('roast_sessions')
+            .select(
+                'id, roasted_at, weight_grams, duration_seconds, drop_temp_celsius, roast_level, beans(name, origin), roast_profiles!profile_id(name, target_level)',
+            )
+            .eq('user_id', userId)
+            .eq('status', 'completed')
+            .gte('roasted_at', sinceIso)
+            .order('roasted_at', { ascending: false });
+        if (error) throw error;
+        return data ?? [];
+    },
+
+    /** Dashboard monthly batch chart: completed sessions since sixMonthsAgo (weight + date only). */
+    listCompletedWeightsSince: async (
+        userId: string,
+        sinceIso: string,
+    ): Promise<Array<{ roasted_at: string | null; weight_grams: number }>> => {
+        const { data, error } = await supabase
+            .from('roast_sessions')
+            .select('roasted_at, weight_grams')
+            .eq('user_id', userId)
+            .eq('status', 'completed')
+            .gte('roasted_at', sinceIso)
+            .order('roasted_at', { ascending: true });
+        if (error) throw error;
+        return data ?? [];
+    },
 };

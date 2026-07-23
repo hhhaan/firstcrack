@@ -12,8 +12,8 @@ import orderDispatch from '../../../supabase/functions/order-dispatch/index.ts?r
 import beanQueries from '../../entities/bean/queries.ts?raw';
 import planQueries from '../../entities/plan/queries.ts?raw';
 import roastQueries from '../../entities/roast/queries.ts?raw';
+import roastTempChart from '../../features/active-roast/ui/RoastTempChart.tsx?raw';
 import mainTsx from '../../main.tsx?raw';
-import roastTempChart from '../../views/active-roast/ui/RoastTempChart.tsx?raw';
 import orders from '../../views/orders/Orders.tsx?raw';
 import scheduleHook from '../../views/schedule/hooks/useScheduleDayView.ts?raw';
 import useDashboard from '../../widgets/dashboard-summary/api/useDashboard.ts?raw';
@@ -25,7 +25,7 @@ const CITED_SOURCES = [
     { rel: 'src/entities/roast/queries.ts', body: roastQueries },
     { rel: 'src/shared/lib/sidecar.ts', body: sidecar },
     { rel: 'src/views/orders/Orders.tsx', body: orders },
-    { rel: 'src/views/active-roast/ui/RoastTempChart.tsx', body: roastTempChart },
+    { rel: 'src/features/active-roast/ui/RoastTempChart.tsx', body: roastTempChart },
     { rel: 'supabase/functions/order-dispatch/index.ts', body: orderDispatch },
     { rel: 'src/widgets/dashboard-summary/api/useDashboard.ts', body: useDashboard },
     { rel: 'src/entities/bean/queries.ts', body: beanQueries },

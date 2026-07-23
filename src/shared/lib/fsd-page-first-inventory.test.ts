@@ -12,6 +12,7 @@ import history from '../../views/history/History.tsx?raw';
 import historyTable from '../../views/history/ui/HistoryTable.tsx?raw';
 import machines from '../../views/machines/Machines.tsx?raw';
 import orders from '../../views/orders/Orders.tsx?raw';
+import ordersTab from '../../views/orders/ui/OrdersTab.tsx?raw';
 import scheduleHook from '../../views/schedule/hooks/useScheduleDayView.ts?raw';
 import beanList from '../../widgets/bean-list/ui/BeanList.tsx?raw';
 import useDashboard from '../../widgets/dashboard-summary/api/useDashboard.ts?raw';
@@ -83,7 +84,7 @@ describe('docs/agent/fsd-page-first-inventory.md', () => {
             'views/machines/Machines.tsx',
             'views/history/History.tsx',
             'widgets/dashboard-summary/api/useDashboard.ts',
-            'views/active-roast/ui/RoastTempChart',
+            'RoastTempChart',
         ];
         for (const frag of requiredFragments) {
             expect(inventory.includes(frag), `doc missing path ${frag}`).toBe(true);
@@ -106,27 +107,25 @@ describe('docs/agent/fsd-page-first-inventory.md', () => {
         }
     });
 
-    it('documents hard violations that greps still find in shipped code', () => {
-        // V1 cross-view NewProfileModal
-        expect(history).toMatch(/@views\/profiles\/NewProfileModal/);
-        expect(inventory).toMatch(/NewProfileModal/);
+    it('documents architecture fixes still present in shipped code', () => {
+        // V1/V2 fixed: no view→view imports for shared modal/chart
+        expect(history).not.toMatch(/@views\/profiles\/NewProfileModal/);
+        expect(history).toMatch(/@widgets\/new-profile-modal/);
+        expect(historyTable).not.toMatch(/@views\/active-roast\/ui\/RoastTempChart/);
+        expect(historyTable).toMatch(/@features\/active-roast\/ui\/RoastTempChart/);
 
-        // V2 cross-view RoastTempChart
-        expect(historyTable).toMatch(/@views\/active-roast\/ui\/RoastTempChart/);
-        expect(inventory).toMatch(/RoastTempChart/);
+        // V3 fixed: dashboard uses entity APIs, not raw supabase
+        expect(useDashboard).not.toMatch(/@shared\/lib\/supabase/);
+        expect(useDashboard).toMatch(/roastSessionApi|@entities\/roast/);
 
-        // V3 widget supabase
-        expect(useDashboard).toMatch(/@shared\/lib\/supabase/);
-        expect(inventory).toMatch(/useDashboard\.ts/);
+        // V4 fixed: Machines page poll/connect lives in feature hook
+        expect(machines).not.toMatch(/setInterval/);
+        expect(machines).toMatch(/useMachineSidecarConnection/);
 
-        // V4 machines setInterval poll
-        expect(machines).toMatch(/setInterval/);
-        expect(machines).toMatch(/sidecar/);
-
-        // V5 schedule god hook still plan-heavy
+        // V5 remaining: schedule god hook still plan-heavy
         expect(scheduleHook).toMatch(/useCreatePlanBatch|createBatch|complete/);
 
-        // V7 shared→entities
+        // V7 remaining: shared→entities reverse type import
         expect(sidecar).toMatch(/@entities\/machine/);
     });
 
@@ -138,8 +137,9 @@ describe('docs/agent/fsd-page-first-inventory.md', () => {
         expect(inventory).toMatch(/bean-list/);
         expect(inventory).toMatch(/profile-detail/);
         expect(inventory).toMatch(/roasting-requirements-card/);
-        // Orders is the roasting card consumer
-        expect(orders).toMatch(/RoastingRequirementsCard|roasting-requirements-card/);
+        // Orders tab (page-first split) is the roasting card consumer
+        expect(ordersTab).toMatch(/RoastingRequirementsCard|roasting-requirements-card/);
+        expect(orders).toMatch(/OrdersTab/);
     });
 
     it('orders by practical maintenance risk with schedule/orders first', () => {

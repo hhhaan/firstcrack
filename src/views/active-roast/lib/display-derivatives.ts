@@ -1,11 +1,11 @@
 import { getResolvedEventColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
+import type { RoastEventMarker } from '@features/active-roast/lib/chart-option';
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { interpolateProfileBT } from '@shared/data/roast-profiles';
 import type { LogEntry } from '@shared/types/roast';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
-import type { RoastEventMarker } from '../ui/RoastTempChart';
 
 export interface DevTimeResult {
     devTimeStr: string;

@@ -1,6 +1,6 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { describe, expect, it } from 'vitest';
-import { batchStatus, getRecurrenceLabel, toDateKey } from './lib';
+import { batchStatus, getRecurrenceLabel, toDateKey, unknownErrorMessage } from './lib';
 
 const batch = (partial: Partial<PlanBatchWithProgress>): PlanBatchWithProgress =>
     ({
@@ -44,5 +44,13 @@ describe('getRecurrenceLabel / toDateKey', () => {
 
     it('formats local date key', () => {
         expect(toDateKey(new Date(2026, 6, 18))).toBe('2026-07-18');
+    });
+});
+
+describe('unknownErrorMessage', () => {
+    it('reads Error and Postgrest-like message fields', () => {
+        expect(unknownErrorMessage(new Error('boom'))).toBe('boom');
+        expect(unknownErrorMessage({ message: 'pg-fail' })).toBe('pg-fail');
+        expect(unknownErrorMessage({ code: 1 })).toBe('{"code":1}');
     });
 });

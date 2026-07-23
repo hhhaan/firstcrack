@@ -432,14 +432,14 @@ src/views/pricing/
 
 | # | Kind | Location | Grep / read evidence | Recommended home |
 |---|------|----------|----------------------|------------------|
-| V1 | Cross-view import | history → profiles | `History.tsx`: `@views/profiles/NewProfileModal` | widgets / features |
-| V2 | Cross-view import | history → active-roast | `HistoryTable.tsx`: `@views/active-roast/ui/RoastTempChart` | features/active-roast/ui or widgets |
-| V3 | Widget supabase | dashboard-summary | `useDashboard.ts`: `import { supabase } from '@shared/lib/supabase'` | entities (CQ-R6) |
-| V4 | View sidecar poll | machines | `Machines.tsx`: `setInterval` + `sidecar.getTemperatures` | features/machine-connection (CQ-R2) |
-| V5 | View god orchestration | schedule | `useScheduleDayView.ts` plan mutations + stock | features scenarios (CQ-R1) |
+| V1 | Cross-view import | history → profiles | **fixed** → `@widgets/new-profile-modal` | — |
+| V2 | Cross-view import | history → active-roast | **fixed** → `@features/active-roast/ui/RoastTempChart` | — |
+| V3 | Widget supabase | dashboard-summary | **fixed** → `roastSessionApi.listCompleted*` + other entity APIs | — |
+| V4 | View sidecar poll | machines | **fixed** → `@features/machine-connection` | — |
+| V5 | View god orchestration | schedule | `useScheduleDayView.ts` plan mutations + stock (partial: error helper extracted) | features scenarios (CQ-R1 remainder) |
 | V6 | entities↔entities | roast, order-dispatch, … | e.g. `entities/roast/queries.ts` → bean-stock-event keys | shared query-keys hub (partially exists) |
 | V7 | shared→entities reverse | sidecar | `shared/lib/sidecar.ts` type import `@entities/machine` | shared types or entity client |
-| V8 | View god monofile | orders | `Orders.tsx` multi-tab | views/orders/ui/* in-place (CQ-R3) — **not** widgets |
+| V8 | View god monofile | orders | **fixed** → `views/orders/ui/{Orders,Products,Channels}Tab.tsx` (CQ-R3) | — |
 
 **Not counted as placement violations:** large page-local UI under `views/*` (desired under custom rule #1).
 

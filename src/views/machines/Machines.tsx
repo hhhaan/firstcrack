@@ -1,10 +1,7 @@
-import type { Machine, SidecarStatus, TemperatureReading } from '@entities/machine';
-import { isSameSidecarStatus, useMachines, VIRTUAL_ID } from '@entities/machine';
+import type { Machine } from '@entities/machine';
+import { useMachines, VIRTUAL_ID } from '@entities/machine';
 import { useRoastingStore } from '@features/active-roast/model/status';
-import * as Sentry from '@sentry/react';
-import { logger } from '@shared/lib/logger';
-import { sendOsNotification } from '@shared/lib/osNotification';
-import { sidecar } from '@shared/lib/sidecar';
+import { useMachineSidecarConnection } from '@features/machine-connection';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
@@ -18,8 +15,6 @@ import { Activity, AlertCircle, Cpu, Flame, Pencil, Plus, Trash2, Wifi, WifiOff 
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const POLL_INTERVAL_MS = 3000;
-
 export const Machines = ({
     isActive = false,
     onNavigate,
@@ -30,10 +25,23 @@ export const Machines = ({
     const { t } = useTranslation();
     const { machines, removeMachine } = useMachines();
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    /** Bridges page-state modalOpen into sidecar poll gate (hook order). */
+    const [modalOpenForPoll, setModalOpenForPoll] = useState(false);
 
-    const [sidecarStatus, setSidecarStatus] = useState<SidecarStatus | null>(null);
-    const [temps, setTemps] = useState<TemperatureReading | null>(null);
-    const [connecting, setConnecting] = useState(false);
+    const {
+        sidecarStatus,
+        setSidecarStatus,
+        temps,
+        setTemps,
+        connecting,
+        handleConnect: connectMachine,
+        handleDisconnect,
+    } = useMachineSidecarConnection({
+        isActive,
+        modalOpen: modalOpenForPoll,
+        machines,
+        onConnectedMachineId: setSelectedId,
+    });
 
     const {
         modalOpen,
@@ -51,120 +59,26 @@ export const Machines = ({
         dismissLimitBlocked,
     } = useMachinesPageState({ sidecarStatus, setSidecarStatus, setTemps });
 
-    // 마운트 시 & 모달 닫힐 때 status fetch — "Add & Connect" 흐름에서 연결 상태 즉시 반영
     useEffect(() => {
-        if (!isActive) return;
-        if (!modalOpen) {
-            sidecar
-                .getStatus()
-                .then(setSidecarStatus)
-                .catch(() => null);
-        }
-    }, [isActive, modalOpen]);
-
-    useEffect(() => {
-        if (!isActive || !sidecarStatus?.connected || modalOpen) {
-            if (!sidecarStatus?.connected) setTemps(null);
-            return;
-        }
-
-        const poll = async () => {
-            const [nextTemps, nextStatus] = await Promise.all([
-                sidecar.getTemperatures().catch(() => null),
-                sidecar.getStatus().catch(() => null),
-            ]);
-            if (nextTemps) setTemps(nextTemps);
-            if (nextStatus) {
-                setSidecarStatus((prev) => (isSameSidecarStatus(prev, nextStatus) ? prev : nextStatus));
-            }
-        };
-        void poll();
-        const id = setInterval(() => {
-            void poll();
-        }, POLL_INTERVAL_MS);
-        return () => clearInterval(id);
-    }, [isActive, sidecarStatus?.connected, modalOpen]);
-
-    // 연결 상태가 바뀔 때만 자동 select — 사용자가 수동으로 다른 카드를 클릭할 수 있음
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
-    useEffect(() => {
-        if (!sidecarStatus?.connected) return;
-        const connectedId = machines.find((m) => m.roasterKey === sidecarStatus.roaster)?.id;
-        if (connectedId) setSelectedId(connectedId);
-        // selectedId 제외: 사용자 클릭 시 effect 재실행 방지
-    }, [sidecarStatus?.connected, sidecarStatus?.roaster]);
+        setModalOpenForPoll(modalOpen);
+    }, [modalOpen]);
 
     const selected = machines.find((m) => m.id === selectedId) ?? null;
 
     const handleConnect = async (machine: Machine) => {
-        setConnecting(true);
-        setSidecarStatus((prev) => (prev ? { ...prev, error: null } : prev));
-        try {
-            const status = await sidecar.connect(machine.roasterKey, machine.connectionParams);
-            setSidecarStatus(status);
-            if (status.connected) {
-                // ActiveRoast와 동일: phase → preheating 이면 폴링·타이틀 온도 갱신
-                const { phase, enterPreheating, setConnected } = useRoastingStore.getState();
-                if (phase === 'idle' || phase === 'ended') {
-                    enterPreheating(status.capabilities);
-                } else {
-                    setConnected(true, status.capabilities);
-                }
-                Sentry.addBreadcrumb({
-                    category: 'hardware.connection',
-                    message: `로스터 연결 성공: ${machine.name}`,
-                    level: 'info',
-                    data: { roasterKey: machine.roasterKey, protocol: machine.protocol },
-                });
-            } else if (status.error) {
-                Sentry.addBreadcrumb({
-                    category: 'hardware.connection',
-                    message: `로스터 연결 실패: ${machine.name}`,
-                    level: 'error',
-                    data: { roasterKey: machine.roasterKey, protocol: machine.protocol, error: status.error },
-                });
-                Sentry.captureMessage(`로스터 연결 실패: ${machine.name} — ${status.error}`, 'warning');
-                sendOsNotification(
-                    '연결 실패',
-                    `「${machine.name}」로스터에 연결할 수 없습니다. 연결 정보와 네트워크 상태를 확인해 주세요.`,
-                );
+        const status = await connectMachine(machine);
+        if (status?.connected) {
+            const { phase, enterPreheating, setConnected } = useRoastingStore.getState();
+            if (phase === 'idle' || phase === 'ended') {
+                enterPreheating(status.capabilities);
+            } else {
+                setConnected(true, status.capabilities);
             }
-        } catch (e) {
-            logger.capture(e, { context: 'machine connect' });
-            Sentry.addBreadcrumb({
-                category: 'hardware.connection',
-                message: `로스터 연결 중 예외: ${machine.name}`,
-                level: 'error',
-                data: { roasterKey: machine.roasterKey, error: String(e) },
-            });
-            sendOsNotification(
-                '연결 오류',
-                `「${machine.name}」로스터 연결 중 문제가 발생했습니다. 사이드카 상태와 네트워크를 확인해 주세요.`,
-            );
-        } finally {
-            setConnecting(false);
-        }
-    };
-
-    const handleDisconnect = async () => {
-        const prevStatus = sidecarStatus;
-        const status = await sidecar.disconnect().catch(() => null);
-        if (status) setSidecarStatus(status);
-        setTemps(null);
-        if (prevStatus?.connected) {
-            Sentry.addBreadcrumb({
-                category: 'hardware.connection',
-                message: '로스터 연결 해제',
-                level: 'info',
-                data: {
-                    prevRoaster: prevStatus.roaster,
-                    uptimeSec: prevStatus.uptime,
-                },
-            });
         }
     };
 
     const connectedMachine = machines.find(isThisMachineConnected);
+
     const isSelectedConnected = selected ? isThisMachineConnected(selected) : false;
 
     return (

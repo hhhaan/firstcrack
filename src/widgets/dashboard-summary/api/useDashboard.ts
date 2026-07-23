@@ -2,9 +2,9 @@ import { beanApi } from '@entities/bean';
 import { beanStockEventApi } from '@entities/bean-stock-event';
 import { type InventoryAlert, inventoryAlertApi } from '@entities/inventory-alert';
 import { planBatchApi } from '@entities/plan';
+import { roastSessionApi } from '@entities/roast';
 import { isBatchStockShort } from '@shared/lib/batch-stock';
 import { dashboardKeys } from '@shared/lib/query-keys';
-import { supabase } from '@shared/lib/supabase';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
@@ -88,34 +88,13 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
 
-    const [completedRes, beans, stockSummaries, monthlyRes, inventoryAlertsRes] = await Promise.all([
-        supabase
-            .from('roast_sessions')
-            .select(
-                'id, roasted_at, weight_grams, duration_seconds, drop_temp_celsius, roast_level, beans(name, origin), roast_profiles!profile_id(name, target_level)',
-            )
-            .eq('user_id', userId)
-            .eq('status', 'completed')
-            .gte('roasted_at', lastMonthStart)
-            .order('roasted_at', { ascending: false }),
-
+    const [completedRows, beans, stockSummaries, monthlyRows, inventoryAlertsRes] = await Promise.all([
+        roastSessionApi.listCompletedDashboard(userId, lastMonthStart),
         beanApi.list(userId),
-
         beanStockEventApi.getStockSummariesByUser(userId),
-
-        supabase
-            .from('roast_sessions')
-            .select('roasted_at, weight_grams')
-            .eq('user_id', userId)
-            .eq('status', 'completed')
-            .gte('roasted_at', sixMonthsAgo)
-            .order('roasted_at', { ascending: true }),
-
+        roastSessionApi.listCompletedWeightsSince(userId, sixMonthsAgo),
         inventoryAlertApi.listActive(userId),
     ]);
-
-    if (completedRes.error) throw completedRes.error;
-    if (monthlyRes.error) throw monthlyRes.error;
 
     const horizonEnd14 = format(addDays(now, 14), 'yyyy-MM-dd');
     const rangeBatches14 = await planBatchApi.listForDateRange(userId, today, horizonEnd14);
@@ -143,7 +122,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
             };
         });
 
-    const completed = (completedRes.data ?? []).filter((s) => !!s.roasted_at) as Array<
+    const completed = completedRows.filter((s) => !!s.roasted_at) as Array<
         DashboardRecentSession & { roasted_at: string }
     >;
     const thisMonth = completed.filter((s) => s.roasted_at >= thisMonthStart);
@@ -158,7 +137,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         monthlyMap.set(`${d.getFullYear()}-${d.getMonth()}`, 0);
     }
-    for (const s of (monthlyRes.data ?? []) as { roasted_at: string | null }[]) {
+    for (const s of monthlyRows) {
         if (!s.roasted_at) continue;
         const d = new Date(s.roasted_at);
         const key = `${d.getFullYear()}-${d.getMonth()}`;

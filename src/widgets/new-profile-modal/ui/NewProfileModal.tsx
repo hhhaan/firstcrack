@@ -2,10 +2,10 @@ import type { RoastProfileWithSource } from '@entities/roast-profile';
 import type { RoastProfile } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
-import { useNewProfileForm } from './model/useNewProfileForm';
-import { ProfileFormBody } from './ui/ProfileFormBody';
-import { ProfileModePicker } from './ui/ProfileModePicker';
-import { ProfileSessionPicker } from './ui/ProfileSessionPicker';
+import { useNewProfileForm } from '../model/useNewProfileForm';
+import { ProfileFormBody } from './ProfileFormBody';
+import { ProfileModePicker } from './ProfileModePicker';
+import { ProfileSessionPicker } from './ProfileSessionPicker';
 
 interface NewProfileModalProps {
     open: boolean;

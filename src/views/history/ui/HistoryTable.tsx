@@ -1,12 +1,12 @@
 import { useHistoryChart } from '@entities/roast';
 import { useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
+import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { deriveSessionDevMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
-import { RoastTempChart } from '@views/active-roast/ui/RoastTempChart';
 import { COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { BookmarkPlus, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from 'lucide-react';
 import { Fragment, type ReactNode, useMemo } from 'react';
