@@ -16,6 +16,8 @@ export type RoastSettings = {
     temperatureUnit: TemperatureUnit;
     showET: boolean;
     showTargetCurve: boolean;
+    /** Current-time BT−target ° label on the temp chart */
+    showTargetDeltaLabel: boolean;
     showRoRChart: boolean;
     showRoRET: boolean;
     showControlChart: boolean;
@@ -53,6 +55,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     temperatureUnit: 'C',
     showET: true,
     showTargetCurve: true,
+    showTargetDeltaLabel: false,
     showRoRChart: true,
     showRoRET: false,
     showControlChart: true,
@@ -113,6 +116,7 @@ const normalize = (raw: Partial<RoastSettings> | null | undefined): RoastSetting
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),
         showControlHeat: asBool(merged.showControlHeat, DEFAULT_SETTINGS.showControlHeat),
         showControlFan: asBool(merged.showControlFan, DEFAULT_SETTINGS.showControlFan),
+        showTargetDeltaLabel: asBool(merged.showTargetDeltaLabel, DEFAULT_SETTINGS.showTargetDeltaLabel),
         showFcBand: asBool(merged.showFcBand, DEFAULT_SETTINGS.showFcBand),
         controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
         controlYMin,

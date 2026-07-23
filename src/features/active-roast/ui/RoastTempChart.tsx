@@ -36,6 +36,7 @@ interface Props {
     onEventMarkerDrag?: (event: string, newTimeSec: number) => void;
     showET?: boolean;
     showTargetCurve?: boolean;
+    showTargetDeltaLabel?: boolean;
     targetXs?: number[];
     targetBt?: (number | null)[];
     showRoR?: boolean;
@@ -75,6 +76,7 @@ export const RoastTempChart: React.FC<Props> = ({
     onEventMarkerDrag,
     showET = true,
     showTargetCurve = true,
+    showTargetDeltaLabel = false,
     targetXs,
     targetBt,
     showRoR = true,
@@ -156,6 +158,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 temperatureUnit,
                 showET,
                 showTargetCurve,
+                showTargetDeltaLabel,
                 targetXs,
                 targetBt,
                 showRoR,
@@ -194,6 +197,7 @@ export const RoastTempChart: React.FC<Props> = ({
             temperatureUnit,
             showET,
             showTargetCurve,
+            showTargetDeltaLabel,
             showRoR,
             showRoRET,
             rorEtActual,

@@ -110,6 +110,11 @@ export const getResolvedChartColors = () => {
         eventDrop: gv('--color-event-drop', '#7483e0'),
         // FC Start–End band fill on temp chart (lighter than phase bar)
         fcBandFill: gv('--color-fc-band-fill', 'rgba(105,103,225,0.1)'),
+
+        // BT−target delta label (canvas)
+        targetDeltaWithin: gv('--color-phase-ready', '#81fba5'),
+        targetDeltaOver: gv('--color-phase-danger', '#dc2626'),
+        targetDeltaUnder: gv('--color-sensor-et', '#0091cb'),
     };
 };
 

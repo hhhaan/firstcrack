@@ -150,6 +150,8 @@
                 "showETDescription": "温度图上的蓝色虚线",
                 "showTargetCurve": "目标曲线",
                 "showTargetCurveDescription": "目标 BT 曲线的淡参考线",
+                "showTargetDeltaLabel": "目标差值标签",
+                "showTargetDeltaLabelDescription": "在图表当前时间点显示 BT 与目标的温度差（°）",
                 "showRoRChart": "BT RoR",
                 "showRoRChartDescription": "温度曲线下方的 BT RoR 子图",
                 "showRoRET": "ET RoR",

@@ -46,6 +46,11 @@ const visibilityOptions = [
         descKey: 'settings.tabs.roast.showTargetCurveDescription',
     },
     {
+        key: 'showTargetDeltaLabel' as const,
+        labelKey: 'settings.tabs.roast.showTargetDeltaLabel',
+        descKey: 'settings.tabs.roast.showTargetDeltaLabelDescription',
+    },
+    {
         key: 'showRoRChart' as const,
         labelKey: 'settings.tabs.roast.showRoRChart',
         descKey: 'settings.tabs.roast.showRoRChartDescription',

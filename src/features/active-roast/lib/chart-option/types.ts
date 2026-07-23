@@ -32,6 +32,8 @@ export interface ChartOptionParams {
     temperatureUnit: TemperatureUnit;
     showET: boolean;
     showTargetCurve: boolean;
+    /** Current-time BT−target ° label on the temp chart */
+    showTargetDeltaLabel?: boolean;
     targetXs?: number[];
     targetBt?: (number | null)[];
     showRoR: boolean;

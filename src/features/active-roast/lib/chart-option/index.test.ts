@@ -35,6 +35,9 @@ const mockColors: ResolvedChartColors = {
     eventNote: '#1e',
     eventDrop: '#1f',
     fcBandFill: 'rgba(105,103,225,0.1)',
+    targetDeltaWithin: '#20',
+    targetDeltaOver: '#21',
+    targetDeltaUnder: '#22',
 };
 
 const baseParams = (): ChartOptionParams => ({

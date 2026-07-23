@@ -486,6 +486,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         showTargetCurve={
                             roastSettings.showTargetCurve && !!targetProfileId && targetCurvePoints.length > 0
                         }
+                        showTargetDeltaLabel={
+                            roastSettings.showTargetDeltaLabel && !!targetProfileId && targetCurvePoints.length > 0
+                        }
                         showET={roastSettings.showET}
                         showRoR={roastSettings.showRoRChart}
                         showRoRET={roastSettings.showRoRET}

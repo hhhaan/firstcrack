@@ -1,6 +1,7 @@
 import type { EventMarkerStyle, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { fmtSec } from './axes';
+import { buildTargetDeltaMarkPoint } from './target-delta-label';
 import type { ResolvedChartColors, RoastEventMarker } from './types';
 
 /** 시간축에서 가장 가까운 BT 표시값 조회 */
@@ -56,6 +57,9 @@ export interface MarkerBuildParams {
     tempYMin: number;
     hasControlSeries: boolean;
     showFcBand?: boolean;
+    showTargetDeltaLabel?: boolean;
+    targetXs?: number[];
+    targetBt?: (number | null)[];
 }
 
 export interface MarkerBuildResult {
@@ -85,6 +89,9 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         tempYMin,
         hasControlSeries,
         showFcBand = true,
+        showTargetDeltaLabel = false,
+        targetXs,
+        targetBt,
     } = params;
 
     // Charge: eventMarkers 경유 → eventMarkerStyle(point|line)과 동일 처리
@@ -175,8 +182,8 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     }));
 
     // ── point style: 작은 점 + 텍스트만 (박스/배경 없음) ────────────────
-    const markPointData = usePointMarkers
-        ? [
+    const markPointData: object[] = usePointMarkers
+        ? ([
               ...eventMarkers
                   .map((m) => {
                       const y = nearestBtAt(xs, btActual, m.timeSec);
@@ -215,8 +222,25 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                       label: buildPointLabel(`TP ${fmtSec(tp.timeSec)} ${tempStr}`, true),
                   };
               }),
-          ]
+          ] as object[])
         : [];
+
+    const targetDeltaPoint = buildTargetDeltaMarkPoint({
+        show: showTargetDeltaLabel && currentTimeSec >= xMin && currentTimeSec <= xMax,
+        charged,
+        currentTimeSec,
+        xs,
+        btActual,
+        targetXs,
+        targetBt,
+        temperatureUnit,
+        colors: {
+            within: colors.targetDeltaWithin,
+            over: colors.targetDeltaOver,
+            under: colors.targetDeltaUnder,
+        },
+    });
+    if (targetDeltaPoint) markPointData.push(targetDeltaPoint);
 
     const allMarkLines = usePointMarkers ? guideMarkLines : [...guideMarkLines, ...eventMarkLines, ...tpMarkLines];
 

@@ -150,6 +150,8 @@
                 "showETDescription": "温度チャート上の青い破線",
                 "showTargetCurve": "ターゲットカーブ",
                 "showTargetCurveDescription": "ターゲット BT プロファイルの薄い参照線",
+                "showTargetDeltaLabel": "ターゲット差ラベル",
+                "showTargetDeltaLabelDescription": "現在時点の BT とターゲットの温度差（°）をチャートに表示",
                 "showRoRChart": "BT RoR",
                 "showRoRChartDescription": "温度曲線下の BT RoR サブチャート",
                 "showRoRET": "ET RoR",
