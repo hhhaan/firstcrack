@@ -136,4 +136,35 @@ describe('saveRoastCore', () => {
         expect(arg.deduct).toBe(false);
         expect(arg.deductionGrams).toBe(0);
     });
+
+    it('차감 중량 > 0 + 생두 없음 → 거부', async () => {
+        const deps = makeDeps();
+        await expect(
+            saveRoastCore(deps, {
+                ...baseParams,
+                formData: { ...baseParams.formData, beanId: null, weightGrams: 5 },
+                selectedBeanId: null,
+            }),
+        ).rejects.toThrow(/green bean/i);
+        expect(deps.saveOp).not.toHaveBeenCalled();
+    });
+
+    it('차감 중량 0 + 생두 없음 → 저장 허용, bean_id null', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            formData: {
+                ...baseParams.formData,
+                beanId: null,
+                weightGrams: 0,
+                outputWeightKg: undefined,
+                deductStock: false,
+            },
+            selectedBeanId: null,
+        });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.bean_id).toBeNull();
+        expect(arg.session.weight_grams).toBe(0);
+        expect(arg.deduct).toBe(false);
+    });
 });

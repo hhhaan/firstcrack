@@ -133,8 +133,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     const resolvedBeanId = effectiveBatch?.beanId ?? formData.beanId ?? payloadParams.selectedBeanId;
     const blendId = effectiveBatch?.blendId ?? null;
 
-    // Stock deduct / session bean link: require single bean or blend
-    if (!resolvedBeanId && !blendId) {
+    // Bean/blend required only when green charge weight is set (deduction amount).
+    if (weightGrams > 0 && !resolvedBeanId && !blendId) {
         throw new Error('Select a green bean before saving.');
     }
 

@@ -122,7 +122,8 @@ export const RoastSummaryModal = ({
                     }
                     return;
                 }
-                if (!data.beanId) {
+                // Bean only required when green charge weight is set (stock-deduct path).
+                if (data.weightGrams > 0 && !data.beanId) {
                     ctx.addIssue({
                         code: 'custom',
                         path: ['beanId'],
