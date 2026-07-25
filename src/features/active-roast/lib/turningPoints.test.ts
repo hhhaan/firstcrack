@@ -8,6 +8,13 @@ const axis = (bt: number[]) => ({
 });
 
 describe('detectTurningPoints', () => {
+    it('handles empty/tiny series without throwing (called from the first poll tick)', () => {
+        expect(detectTurningPoints([], [])).toEqual([]);
+        expect(detectTurningPoints([0], [200])).toEqual([]);
+        const bt = [200, 199, 198, 197, 196];
+        expect(detectTurningPoints(axis(bt).xs, bt)).toEqual([]);
+    });
+
     it('returns empty before 20s post-charge floor', () => {
         const bt = Array.from({ length: 10 }, (_, i) => 200 - i);
         expect(detectTurningPoints(axis(bt).xs, bt)).toEqual([]);

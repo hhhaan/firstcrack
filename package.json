@@ -97,6 +97,7 @@
         "globals": "^17.6.0",
         "husky": "^9.1.7",
         "imagemin-lint-staged": "^0.5.1",
+        "jsdom": "^29.1.1",
         "lint-staged": "^17.0.5",
         "react-doctor": "^0.2.8",
         "secretlint": "^13.0.2",
