@@ -95,7 +95,7 @@ export const useRoastActions = ({
                     event: 'TP',
                     temp: formatTemp(tp.temp, unit),
                     tempC: tp.temp,
-                    note: 'Turning Point detected',
+                    note: tp.fallback ? 'Turning Point (fallback timeout)' : 'Turning Point detected',
                 };
                 return [...prev, newEntry].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
             });

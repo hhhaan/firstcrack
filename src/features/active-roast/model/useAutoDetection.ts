@@ -7,11 +7,26 @@ import { toDisplayTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
 
-const AUTO_CHARGE_WINDOW = 5;
+// 낙차 윈도우는 시간 기준 — 샘플 수 기준이면 pollIntervalMs(500|1000) 설정에 따라 민감도가 2배 달라진다
+const AUTO_WINDOW_S = 2.5; // ≈기존 500ms×5샘플 span(2.0s) 수준
+const AUTO_WINDOW_MIN_SPAN_S = 2; // 윈도우가 이만큼 차기 전엔 판정 안 함
 
 const AUTO_DROP_DROP_C = 8;
-const AUTO_DROP_WINDOW = 5;
 const AUTO_DROP_MIN_ELAPSED_S = 180;
+
+// TP 미확정이 이 시간을 넘으면 현재 시점을 TP로 강제 확정해 Yellow/FC 게이트를 연다
+// (Artisan TP_max_roasttime 동일 — 에어로스터 등 TP 골짜기가 없는 머신 대응)
+const TP_FALLBACK_S = 120;
+
+type TimedSample = { t: number; bt: number };
+
+/** 최근 AUTO_WINDOW_S초 슬라이딩 윈도우 갱신 후, 윈도우 내 낙차가 dropC 이상이면 true */
+const slideAndCheckDrop = (ref: { current: TimedSample[] }, bt: number, dropC: number): boolean => {
+    const now = Date.now() / 1000;
+    const w = [...ref.current, { t: now, bt }].filter((p) => now - p.t <= AUTO_WINDOW_S);
+    ref.current = w;
+    return now - w[0].t >= AUTO_WINDOW_MIN_SPAN_S && w[0].bt - bt >= dropC;
+};
 
 export type AutoDropOnset = { timeSec: number; bt: number };
 
@@ -27,13 +42,16 @@ export const useAutoDetection = (
     markEvent?: (event: string, note: string) => void,
     logEntries: LogEntry[] = [],
 ) => {
-    const btWindowRef = useRef<number[]>([]);
-    const dropWindowRef = useRef<number[]>([]);
+    const btWindowRef = useRef<TimedSample[]>([]);
+    const dropWindowRef = useRef<TimedSample[]>([]);
     const autoChargedRef = useRef(false);
     const autoDroppedRef = useRef(false);
     const tpFiredRef = useRef(false);
     const yellowFiredRef = useRef(false);
     const fcStartFiredRef = useRef(false);
+    const yellowPendingRef = useRef(false);
+    const fcPendingRef = useRef(false);
+    const prevDisplayBTRef = useRef<number | null>(null);
     // livePoints는 effect 클로저 최신값 필요 — ref로 동기화
     const livePointsRef = useRef(livePoints);
     useEffect(() => {
@@ -51,27 +69,21 @@ export const useAutoDetection = (
     useEffect(() => {
         if (phase !== 'standby' || bt == null || autoChargedRef.current) return;
 
-        btWindowRef.current = [...btWindowRef.current.slice(-(AUTO_CHARGE_WINDOW - 1)), bt];
-
-        if (btWindowRef.current.length >= AUTO_CHARGE_WINDOW) {
-            const first = btWindowRef.current[0];
-            const last = btWindowRef.current[btWindowRef.current.length - 1];
-            if (first - last >= autoChargeDropC) {
-                autoChargedRef.current = true;
-                const series = livePointsRef.current.map((p) => ({ timeSec: p.time, bt: p.bt }));
-                // 폴링 포인트에 현재 bt가 아직 없을 수 있어 끝점 보강
-                if (series.length === 0 || series[series.length - 1].bt !== bt) {
-                    const t = series.length > 0 ? series[series.length - 1].timeSec + 0.5 : 0;
-                    series.push({ timeSec: t, bt });
-                }
-                const onset = detectChargeOnset(series, {
-                    minDropC: Math.max(2, autoChargeDropC * 0.4),
-                });
-                const lastT = series[series.length - 1].timeSec;
-                const lagSec = onset != null ? Math.max(0, lastT - onset.timeSec) : 0;
-                const chargeTimeMs = Date.now() - lagSec * 1000;
-                onAutoCharge(onset?.bt ?? bt, chargeTimeMs);
+        if (slideAndCheckDrop(btWindowRef, bt, autoChargeDropC)) {
+            autoChargedRef.current = true;
+            const series = livePointsRef.current.map((p) => ({ timeSec: p.time, bt: p.bt }));
+            // 폴링 포인트에 현재 bt가 아직 없을 수 있어 끝점 보강
+            if (series.length === 0 || series[series.length - 1].bt !== bt) {
+                const t = series.length > 0 ? series[series.length - 1].timeSec + 0.5 : 0;
+                series.push({ timeSec: t, bt });
             }
+            const onset = detectChargeOnset(series, {
+                minDropC: Math.max(2, autoChargeDropC * 0.4),
+            });
+            const lastT = series[series.length - 1].timeSec;
+            const lagSec = onset != null ? Math.max(0, lastT - onset.timeSec) : 0;
+            const chargeTimeMs = Date.now() - lagSec * 1000;
+            onAutoCharge(onset?.bt ?? bt, chargeTimeMs);
         }
     }, [phase, bt, onAutoCharge, autoChargeDropC]);
 
@@ -80,27 +92,19 @@ export const useAutoDetection = (
         if (phase !== 'roasting' || bt == null || autoDroppedRef.current) return;
         if (elapsed < AUTO_DROP_MIN_ELAPSED_S) return;
 
-        dropWindowRef.current = [...dropWindowRef.current.slice(-(AUTO_DROP_WINDOW - 1)), bt];
-
-        if (dropWindowRef.current.length >= AUTO_DROP_WINDOW) {
-            const first = dropWindowRef.current[0];
-            const last = dropWindowRef.current[dropWindowRef.current.length - 1];
-            if (first - last >= AUTO_DROP_DROP_C) {
-                autoDroppedRef.current = true;
-                const series = livePointsRef.current
-                    .filter((p) => p.time >= 0)
-                    .map((p) => ({ timeSec: p.time, bt: p.bt }));
-                if (series.length === 0 || series[series.length - 1].bt !== bt) {
-                    const t = series.length > 0 ? series[series.length - 1].timeSec + 0.5 : elapsed;
-                    series.push({ timeSec: t, bt });
-                }
-                const onset = detectChargeOnset(series, {
-                    minDropC: Math.max(2, AUTO_DROP_DROP_C * 0.4),
-                });
-                onAutoDrop(
-                    onset != null ? { timeSec: Math.max(0, onset.timeSec), bt: onset.bt } : { timeSec: elapsed, bt },
-                );
+        if (slideAndCheckDrop(dropWindowRef, bt, AUTO_DROP_DROP_C)) {
+            autoDroppedRef.current = true;
+            const series = livePointsRef.current.filter((p) => p.time >= 0).map((p) => ({ timeSec: p.time, bt: p.bt }));
+            if (series.length === 0 || series[series.length - 1].bt !== bt) {
+                const t = series.length > 0 ? series[series.length - 1].timeSec + 0.5 : elapsed;
+                series.push({ timeSec: t, bt });
             }
+            const onset = detectChargeOnset(series, {
+                minDropC: Math.max(2, AUTO_DROP_DROP_C * 0.4),
+            });
+            onAutoDrop(
+                onset != null ? { timeSec: Math.max(0, onset.timeSec), bt: onset.bt } : { timeSec: elapsed, bt },
+            );
         }
     }, [phase, bt, elapsed, onAutoDrop]);
 
@@ -108,31 +112,39 @@ export const useAutoDetection = (
     useEffect(() => {
         if (phase !== 'roasting' || bt == null || !markEvent) return;
         if (logEntries.some((e) => e.event === 'Drop' || e.event === 'End')) return;
-        if (!tpFiredRef.current) return;
 
+        // 상승 크로싱만 발화: 레벨 비교(≥)는 뜨거운 드럼 투입 직후 하강 중에도
+        // 임계 이상이라 TP 게이트가 열리는 순간 Yellow·FC가 즉시 오발된다.
+        // 크로싱은 게이트와 무관하게 상시 추적(pending 래치) — TP 확정 직전에 일어난
+        // 크로싱이 유실되면 Yellow/FC가 그 로스팅 내내 침묵한다. 하강으로 임계 아래로
+        // 되돌아가면 래치 해제(노이즈 업크로스가 골짜기 이전에 잔류하는 것 방지)
         const displayBT = toDisplayTemp(bt, unit);
-        if (
-            !yellowFiredRef.current &&
-            !logEntries.some((e) => e.event === 'Yellow') &&
-            displayBT >= toDisplayTemp(yellowTempC, unit)
-        ) {
+        const prev = prevDisplayBTRef.current;
+        prevDisplayBTRef.current = displayBT;
+        if (prev == null) return;
+        const track = (pending: { current: boolean }, thresholdC: number) => {
+            const th = toDisplayTemp(thresholdC, unit);
+            if (prev < th && displayBT >= th) pending.current = true;
+            else if (displayBT < th) pending.current = false;
+        };
+        track(yellowPendingRef, yellowTempC);
+        track(fcPendingRef, fcStartTempC);
+
+        if (!tpFiredRef.current) return;
+        if (!yellowFiredRef.current && yellowPendingRef.current && !logEntries.some((e) => e.event === 'Yellow')) {
             yellowFiredRef.current = true;
             markEvent('Yellow', 'Auto-marked by temperature');
             return; // 한 tick당 자동 이벤트 1개 — Yellow·FC Start 동시 마킹 방지
         }
-        if (
-            !fcStartFiredRef.current &&
-            !logEntries.some((e) => e.event === 'FC Start') &&
-            displayBT >= toDisplayTemp(fcStartTempC, unit)
-        ) {
+        if (!fcStartFiredRef.current && fcPendingRef.current && !logEntries.some((e) => e.event === 'FC Start')) {
             fcStartFiredRef.current = true;
             markEvent('FC Start', 'Auto-marked by temperature');
         }
     }, [phase, bt, unit, yellowTempC, fcStartTempC, markEvent, logEntries]);
 
-    // Turning Point detection
+    // Turning Point detection — 샘플 수 게이트 없음: 시간 기준 floor는 detectTurningPoints가 소유
     const detectedTPs = useMemo(() => {
-        if (phase !== 'roasting' || livePoints.length < 15) return [];
+        if (phase !== 'roasting') return [];
         return detectTurningPoints(
             livePoints.map((p) => p.time),
             livePoints.map((p) => p.bt),
@@ -144,6 +156,14 @@ export const useAutoDetection = (
         if (confirmedTP !== null || detectedTPs.length === 0) return;
         setConfirmedTP(detectedTPs[0]);
     }, [detectedTPs, confirmedTP]);
+
+    // TP 타임아웃 폴백 — 미탐 시 Yellow/FC 자동마킹이 조용히 죽는 것 방지.
+    // detectedTPs 가드: 같은 tick에 실감지가 있으면 lock-in effect에 양보 (폴백이 덮어쓰기 방지)
+    useEffect(() => {
+        if (phase !== 'roasting' || confirmedTP !== null || bt == null) return;
+        if (elapsed < TP_FALLBACK_S || detectedTPs.length > 0) return;
+        setConfirmedTP({ timeSec: elapsed, temp: bt, fallback: true });
+    }, [phase, elapsed, bt, confirmedTP, detectedTPs]);
 
     // Fire callback exactly once
     useEffect(() => {
@@ -167,6 +187,9 @@ export const useAutoDetection = (
         tpFiredRef.current = false;
         yellowFiredRef.current = false;
         fcStartFiredRef.current = false;
+        yellowPendingRef.current = false;
+        fcPendingRef.current = false;
+        prevDisplayBTRef.current = null;
         setConfirmedTP(null);
     }, []);
 
