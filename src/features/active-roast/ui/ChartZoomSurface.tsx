@@ -1,19 +1,12 @@
-import type { CSSProperties, ReactNode } from 'react';
-import type { ChartZoom } from '../model/useChartZoom';
-
-/** useChartZoom outputs the interaction surface needs — the rest of ChartZoom (setZoomRange, height, keyboard refs) stays with the caller. */
-type ZoomSurface = Pick<
-    ChartZoom,
-    | 'chartAreaRef'
-    | 'effectiveZoomRange'
-    | 'isChartDragging'
-    | 'handleChartPointerDown'
-    | 'handleChartPointerMove'
-    | 'endChartDrag'
->;
+import type { CSSProperties, PointerEvent, ReactNode, RefObject } from 'react';
 
 interface ChartZoomSurfaceProps {
-    zoom: ZoomSurface;
+    chartAreaRef: RefObject<HTMLDivElement | null>;
+    effectiveZoomRange: { start: number; end: number } | null;
+    isChartDragging: boolean;
+    handleChartPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
+    handleChartPointerMove: (event: PointerEvent<HTMLDivElement>) => void;
+    endChartDrag: (event: PointerEvent<HTMLDivElement>) => void;
     className?: string;
     /** cursor class when not zoomed (live chart: 'cursor-default'; compare: none) */
     idleCursorClassName?: string;
@@ -29,7 +22,12 @@ interface ChartZoomSurfaceProps {
  * (wheel is a native listener bound inside useChartZoom — ECharts steals bubble wheel).
  */
 export const ChartZoomSurface = ({
-    zoom,
+    chartAreaRef,
+    effectiveZoomRange,
+    isChartDragging,
+    handleChartPointerDown,
+    handleChartPointerMove,
+    endChartDrag,
     className = '',
     idleCursorClassName = '',
     style,
@@ -37,19 +35,19 @@ export const ChartZoomSurface = ({
     children,
 }: ChartZoomSurfaceProps) => {
     let cursor = idleCursorClassName;
-    if (zoom.effectiveZoomRange) {
-        cursor = zoom.isChartDragging ? 'cursor-grabbing select-none touch-none' : 'cursor-grab touch-none';
+    if (effectiveZoomRange) {
+        cursor = isChartDragging ? 'cursor-grabbing select-none touch-none' : 'cursor-grab touch-none';
     }
 
     return (
         <div
-            ref={zoom.chartAreaRef}
+            ref={chartAreaRef}
             className={`${className} ${cursor}`.trim()}
             style={style}
-            onPointerDownCapture={zoom.handleChartPointerDown}
-            onPointerMoveCapture={zoom.handleChartPointerMove}
-            onPointerUpCapture={zoom.endChartDrag}
-            onPointerCancelCapture={zoom.endChartDrag}
+            onPointerDownCapture={handleChartPointerDown}
+            onPointerMoveCapture={handleChartPointerMove}
+            onPointerUpCapture={endChartDrag}
+            onPointerCancelCapture={endChartDrag}
             {...(ariaLabel ? { role: 'region', 'aria-label': ariaLabel } : {})}
         >
             {children}

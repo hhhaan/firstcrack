@@ -26,8 +26,15 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
     const active = useMemo(() => series.filter((s) => s.visible !== false && s.points.length > 0), [series]);
 
     const xMax = useMemo(() => compareChartXMax(active), [active]);
-    const zoom = useChartZoom(xMax, 0, showRoR ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT);
-    const { setZoomRange, effectiveZoomRange } = zoom;
+    const {
+        setZoomRange,
+        effectiveZoomRange,
+        chartAreaRef,
+        isChartDragging,
+        handleChartPointerDown,
+        handleChartPointerMove,
+        endChartDrag,
+    } = useChartZoom(xMax, 0, showRoR ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT);
 
     // 세션 토글로 전체 범위가 바뀌면 이전 줌이 무효 — 리셋
     // biome-ignore lint/correctness/useExhaustiveDependencies: xMax 변경 시에만 리셋
@@ -86,7 +93,16 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
     }, [fingerprint]);
 
     return (
-        <ChartZoomSurface zoom={zoom} className="w-full" style={{ height }}>
+        <ChartZoomSurface
+            chartAreaRef={chartAreaRef}
+            effectiveZoomRange={effectiveZoomRange}
+            isChartDragging={isChartDragging}
+            handleChartPointerDown={handleChartPointerDown}
+            handleChartPointerMove={handleChartPointerMove}
+            endChartDrag={endChartDrag}
+            className="w-full"
+            style={{ height }}
+        >
             <div ref={elRef} className="h-full w-full" />
         </ChartZoomSurface>
     );

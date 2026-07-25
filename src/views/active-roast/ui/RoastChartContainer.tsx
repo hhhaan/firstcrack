@@ -100,14 +100,12 @@ export const RoastChartContainer = ({
 }: RoastChartContainerProps) => {
     return (
         <ChartZoomSurface
-            zoom={{
-                chartAreaRef,
-                effectiveZoomRange,
-                isChartDragging,
-                handleChartPointerDown,
-                handleChartPointerMove,
-                endChartDrag,
-            }}
+            chartAreaRef={chartAreaRef}
+            effectiveZoomRange={effectiveZoomRange}
+            isChartDragging={isChartDragging}
+            handleChartPointerDown={handleChartPointerDown}
+            handleChartPointerMove={handleChartPointerMove}
+            endChartDrag={endChartDrag}
             className="relative flex-1 flex flex-col min-w-0 min-h-0 outline-none"
             idleCursorClassName="cursor-default"
             ariaLabel="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
