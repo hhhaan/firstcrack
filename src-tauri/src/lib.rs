@@ -119,6 +119,44 @@ fn kill_zombie_sidecar() {
 }
 
 
+/// 메인 창 크기: Windows는 기본 시작 크기 축소, 모든 OS는 모니터 work area에 맞춤.
+/// `tauri.conf.json`의 min은 OS 공통(1024×680). default(1260×810)는 mac 유지.
+#[cfg(desktop)]
+fn configure_main_window(app: &tauri::App) {
+    use tauri::{LogicalSize, Size};
+
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    // Windows: conf 기본값(1260×810)이 DPI 스케일에서 체감상 큼 → 시작 크기만 축소
+    #[cfg(target_os = "windows")]
+    {
+        let _ = window.set_size(Size::Logical(LogicalSize::new(1100.0, 720.0)));
+        let _ = window.center();
+    }
+
+    // 고DPI / 작은 노트북: preferred가 work area를 넘으면 클램프 (전 OS)
+    if let Ok(Some(monitor)) = window.current_monitor() {
+        let scale = monitor.scale_factor();
+        let work = monitor.work_area().size;
+        let max_w = work.width as f64 / scale * 0.95;
+        let max_h = work.height as f64 / scale * 0.95;
+
+        if let Ok(physical) = window.inner_size() {
+            let cur_w = physical.width as f64 / scale;
+            let cur_h = physical.height as f64 / scale;
+            if cur_w > max_w || cur_h > max_h {
+                let _ = window.set_size(Size::Logical(LogicalSize::new(
+                    cur_w.min(max_w),
+                    cur_h.min(max_h),
+                )));
+                let _ = window.center();
+            }
+        }
+    }
+}
+
 /// 사이드카 스폰 + stdout/stderr 드레인 + 백오프 재시작 워치독. 데스크톱 전용.
 #[cfg(desktop)]
 fn spawn_and_watch_sidecar(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -301,7 +339,10 @@ pub fn run() {
                 );
             }
             #[cfg(desktop)]
-            spawn_and_watch_sidecar(app)?;
+            {
+                configure_main_window(app);
+                spawn_and_watch_sidecar(app)?;
+            }
 
             Ok(())
         })
