@@ -95,10 +95,14 @@ After schema migrations: **`pnpm types:gen`** updates `src/shared/types/database
    `supabase functions deploy order-webhook --no-verify-jwt`. `order-sync` keeps
    `verify_jwt = true`, so a cron caller must send `Authorization: Bearer <ANON_KEY>`
    **and** `x-cron-secret`.
-5. Client-writable columns are a security boundary: `sales_channel_connections` grants
+5. A service-role EF bypasses RLS, so it must resolve the **workspace owner** for any
+   `user_id` it writes — RLS is `has_workspace_access(user_id)`, not `auth.uid() = user_id`.
+   Use `resolveWorkspaceOwner` (`_shared/auth.ts`); it verifies a client-supplied owner id
+   with the same predicate. Writing `auth.uid()` creates rows a member can never see.
+6. Client-writable columns are a security boundary: `sales_channel_connections` grants
    `authenticated` only `SELECT`, `DELETE` and `UPDATE (auto_fulfill_on_shipped, updated_at)`
    (`20260801000000_*`). Never widen it back to a table-level UPDATE — EF-owned columns
    (`poll_cursor`, `shop_identifier`, `status`, …) must stay service-role only.
-6. Do not "fix" stock by direct table edits in EF unless matching existing inbound-actions patterns and idempotency indexes.
+7. Do not "fix" stock by direct table edits in EF unless matching existing inbound-actions patterns and idempotency indexes.
 
 Frontend domain guides: `docs/agent/*.md`, inventory SSoT `docs/inventory-architecture.md`.

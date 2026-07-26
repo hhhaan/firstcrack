@@ -50,6 +50,18 @@ User → connect channel
 connection id is always derived from `(user_id, platform, shop_identifier)`;
 **never** accept a connection id from the request body (issue #122).
 
+**Row ownership = workspace owner, not `auth.uid()`.** RLS on
+`sales_channel_connections` is `has_workspace_access(user_id)`, so a row inserted
+under the acting user is invisible to a member's workspace-scoped list.
+`channel-connect` and `cafe24-oauth-start` accept an optional `workspaceOwnerId`
+and resolve it through `resolveWorkspaceOwner` (`_shared/auth.ts`), which runs the
+**same** `has_workspace_access` predicate on the user's client — a client-supplied
+owner id is verified, never trusted. Cafe24's callback is a public redirect with no
+JWT, so the verified owner rides in the HMAC-signed OAuth state
+(`CAFE24_OAUTH_STATE_SECRET`); it must never be re-read from the query string.
+`channel-disconnect` therefore filters by id + RLS only — an `auth.uid()` filter
+there silently deleted nothing for members.
+
 ---
 
 ## Inbound order sync

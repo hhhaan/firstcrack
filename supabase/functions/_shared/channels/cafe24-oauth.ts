@@ -59,7 +59,14 @@ async function hmacSha256(secret: string, message: string): Promise<string> {
 }
 
 export type Cafe24OAuthState = {
+    /** Acting user (auth.uid) — who clicked connect. */
     userId: string;
+    /**
+     * Workspace owner the connection is created under. Verified against
+     * `has_workspace_access` in cafe24-oauth-start *before* signing; the callback
+     * is a public redirect with no JWT, so it can only trust the HMAC.
+     */
+    ownerId?: string;
     mallId: string;
     displayName?: string;
     nonce: string;
@@ -87,6 +94,8 @@ export async function verifyCafe24OAuthState(raw: string): Promise<Cafe24OAuthSt
     if (Date.now() > json.exp) throw new Error('state expired');
     return {
         userId: String(json.userId),
+        // States signed before ownerId existed fall back to the acting user (self).
+        ownerId: json.ownerId ? String(json.ownerId) : String(json.userId),
         mallId: String(json.mallId).trim().toLowerCase(),
         displayName: json.displayName ? String(json.displayName) : undefined,
         nonce: String(json.nonce ?? ''),

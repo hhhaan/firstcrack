@@ -4,7 +4,12 @@
  * Auth: user JWT
  * Returns: { authorizeUrl: string }
  */
-import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
+import {
+    corsHeaders,
+    getAuthenticatedUser,
+    jsonResponse,
+    resolveWorkspaceOwner,
+} from '../_shared/auth.ts';
 import {
     buildCafe24AuthorizeUrl,
     cafe24AppCredentials,
@@ -20,7 +25,7 @@ Deno.serve(async (req) => {
     const user = await getAuthenticatedUser(req);
     if (!user) return jsonResponse({ error: 'Unauthorized' }, 401);
 
-    let body: { mallId?: string; displayName?: string };
+    let body: { mallId?: string; displayName?: string; workspaceOwnerId?: string };
     try {
         body = await req.json();
     } catch {
@@ -32,11 +37,17 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'valid mallId required' }, 400);
     }
 
+    // Verified here, while the user JWT is present — the callback is a public
+    // redirect and can only trust the signed state, never re-check membership.
+    const ownerId = await resolveWorkspaceOwner(req, body.workspaceOwnerId, user.id);
+    if (!ownerId) return jsonResponse({ error: 'Forbidden' }, 403);
+
     try {
         const { clientId } = cafe24AppCredentials();
         const redirectUri = cafe24RedirectUri();
         const state = await signCafe24OAuthState({
             userId: user.id,
+            ownerId,
             mallId,
             displayName: body.displayName?.trim() || undefined,
             nonce: crypto.randomUUID(),

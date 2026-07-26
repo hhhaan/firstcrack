@@ -12,7 +12,12 @@
  * credentials (issue #122).
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
+import {
+    corsHeaders,
+    getAuthenticatedUser,
+    jsonResponse,
+    resolveWorkspaceOwner,
+} from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import { pickConnectCredentials } from '../_shared/channels/connect-credentials.ts';
 import type { ChannelSecrets, Platform } from '../_shared/channels/types.ts';
@@ -53,6 +58,8 @@ Deno.serve(async (req) => {
         platform?: string;
         credentials?: ChannelSecrets;
         displayName?: string;
+        /** Workspace owner to connect under; verified below, defaults to self. */
+        workspaceOwnerId?: string;
     };
     try {
         body = await req.json();
@@ -64,6 +71,12 @@ Deno.serve(async (req) => {
     if (!platform || !PLATFORMS.has(platform)) {
         return jsonResponse({ error: 'platform must be naver | cafe24 | shopify' }, 400);
     }
+
+    // Rows must be owned by the workspace owner or a member's workspace-scoped
+    // list never sees them. Membership is verified server-side — an unverified
+    // client-supplied owner id would be the same hole as issue #122.
+    const ownerId = await resolveWorkspaceOwner(req, body.workspaceOwnerId, user.id);
+    if (!ownerId) return jsonResponse({ error: 'Forbidden' }, 403);
     if (!body.credentials || typeof body.credentials !== 'object') {
         return jsonResponse({ error: 'credentials required' }, 400);
     }
@@ -102,11 +115,11 @@ Deno.serve(async (req) => {
     const admin = serviceClient();
     const now = new Date().toISOString();
 
-    // Upsert connection by (user, platform, shop_identifier)
+    // Upsert connection by (workspace owner, platform, shop_identifier)
     const { data: existing } = await admin
         .from('sales_channel_connections')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', ownerId)
         .eq('platform', platform)
         .eq('shop_identifier', shopIdentifier)
         .maybeSingle();
@@ -141,7 +154,7 @@ Deno.serve(async (req) => {
                 updated_at: now,
             })
             .eq('id', connectionId)
-            .eq('user_id', user.id);
+            .eq('user_id', ownerId);
         if (error) {
             console.error('[channel-connect] update', error);
             return jsonResponse({ error: 'Failed to update connection' }, 500);
@@ -150,7 +163,7 @@ Deno.serve(async (req) => {
         const { data: created, error } = await admin
             .from('sales_channel_connections')
             .insert({
-                user_id: user.id,
+                user_id: ownerId,
                 platform,
                 shop_identifier: shopIdentifier,
                 display_name: displayName,

@@ -21,11 +21,13 @@ export const useConnectChannel = (userId: string) => {
             platform,
             credentials,
             displayName,
+            workspaceOwnerId,
         }: {
             platform: ChannelPlatform;
             credentials: ConnectCredentials;
             displayName?: string;
-        }) => salesChannelApi.connect(platform, credentials, displayName),
+            workspaceOwnerId?: string;
+        }) => salesChannelApi.connect(platform, credentials, displayName, workspaceOwnerId),
         onSuccess: () => {
             void qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
         },
@@ -34,8 +36,15 @@ export const useConnectChannel = (userId: string) => {
 
 export const useStartCafe24OAuth = () =>
     useMutation({
-        mutationFn: ({ mallId, displayName }: { mallId: string; displayName?: string }) =>
-            salesChannelApi.startCafe24OAuth(mallId, displayName),
+        mutationFn: ({
+            mallId,
+            displayName,
+            workspaceOwnerId,
+        }: {
+            mallId: string;
+            displayName?: string;
+            workspaceOwnerId?: string;
+        }) => salesChannelApi.startCafe24OAuth(mallId, displayName, workspaceOwnerId),
     });
 
 export const useDisconnectChannel = (userId: string) => {

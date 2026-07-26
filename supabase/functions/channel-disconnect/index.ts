@@ -22,23 +22,28 @@ Deno.serve(async (req) => {
     }
     if (!connectionId) return jsonResponse({ error: 'connectionId required' }, 400);
 
-    // Client RLS allows delete on own connections; secrets cascade.
+    // Client RLS allows delete on workspace connections; secrets cascade.
     const supabase = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_ANON_KEY') ?? '',
         { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } },
     );
 
-    const { error } = await supabase
+    // No `user_id` filter: connections are owned by the workspace owner, so
+    // matching on auth.uid() silently deleted nothing for members. Authorization
+    // is the RLS policy (has_workspace_access) on the anon-key client above.
+    const { data: deleted, error } = await supabase
         .from('sales_channel_connections')
         .delete()
         .eq('id', connectionId)
-        .eq('user_id', user.id);
+        .select('id');
 
     if (error) {
         console.error('[channel-disconnect]', error);
         return jsonResponse({ error: 'Failed to disconnect' }, 500);
     }
+    // RLS filtered it out or it never existed — do not report success.
+    if (!deleted?.length) return jsonResponse({ error: 'connection not found' }, 404);
 
     return jsonResponse({ ok: true });
 });
