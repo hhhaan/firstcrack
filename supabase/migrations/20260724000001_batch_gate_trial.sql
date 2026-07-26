@@ -3,6 +3,9 @@
 -- cannot persist the flip and RAISE in the same transaction (the RAISE rolls it back).
 -- read_only rows come only from the cancel webhook / backfill.
 -- profile_write_error() is shared with the read_only write-block triggers.
+-- Cap values below are anchors parsed by scripts/check-plan-caps.mjs (parity with plan-matrix.ts):
+--   the trial interval 'N days', the completed-count >= N trial cap, and cap int := N.
+--   Changing the shape of those expressions (not just the number) requires updating that script.
 
 CREATE OR REPLACE FUNCTION public.profile_write_error(p_user_id uuid)
 RETURNS text
