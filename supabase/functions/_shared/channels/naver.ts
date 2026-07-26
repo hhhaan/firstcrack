@@ -22,7 +22,11 @@
  *   https://apicenter.commerce.naver.com/docs/commerce-api/current/schemas/상품-주문-정보-구조체
  */
 
-import { hash as bcryptHash } from 'npm:bcryptjs@2.4.3';
+// bcryptjs 2.x is CommonJS: it has no named ESM exports, so `import { hash }` throws
+// SyntaxError while the module is evaluated — which the edge runtime reports as BOOT_ERROR
+// for every function importing this file. Type-checking does not catch it (the .d.ts
+// declares the named export); only running it does. Default import is the working form.
+import bcrypt from 'npm:bcryptjs@2.4.3';
 import {
     buildNaverDispatchPayload,
     type NaverDispatchResponse,
@@ -85,7 +89,7 @@ function requireNaver(secrets: ChannelSecrets): NaverSecrets {
 /** Official Node sample: bcrypt.hashSync(password, clientSecret) then Buffer utf-8 → base64 */
 export async function buildNaverSignature(clientId: string, clientSecret: string, timestampMs: number): Promise<string> {
     const password = `${clientId}_${timestampMs}`;
-    const hashed = await bcryptHash(password, clientSecret);
+    const hashed = await bcrypt.hash(password, clientSecret);
     // hashed is ASCII bcrypt string; standard base64 of UTF-8 bytes (matches official Node/Python samples)
     return btoa(hashed);
 }
