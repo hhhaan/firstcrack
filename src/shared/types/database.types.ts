@@ -2045,6 +2045,7 @@ export type Database = {
                     user_id: string;
                 }[];
             };
+            profile_write_error: { Args: { p_user_id: string }; Returns: string };
             redeem_org_invite: { Args: { p_token: string }; Returns: string };
             remove_org_member: {
                 Args: { p_member_id: string; p_org_id: string };
@@ -2059,6 +2060,7 @@ export type Database = {
                 Args: { p_reference_id: string };
                 Returns: boolean;
             };
+            run_daily_inventory_maintenance: { Args: never; Returns: undefined };
             save_roast_op: {
                 Args: {
                     p_deduct: boolean;
