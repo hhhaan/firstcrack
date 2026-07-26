@@ -4,6 +4,7 @@ import {
     buildNaverDispatchPayload,
     buildShopifyFulfillmentInput,
     nextDispatchStatus,
+    readNaverDispatchResult,
     validateTrackingNumber,
 } from './dispatch.ts';
 import type { MarkShippedRequest } from './types.ts';
@@ -74,6 +75,80 @@ describe('payload builders', () => {
         ]);
         expect(p.trackingInfo).toEqual({ company: 'CJGLS', number: '123456789' });
         expect(p.notifyCustomer).toBe(true);
+    });
+});
+
+describe('readNaverDispatchResult (N3 — ok drives fulfill_order, so fail-closed)', () => {
+    it('all lines confirmed → ok', () => {
+        const r = readNaverDispatchResult(
+            { data: { successProductOrderIds: ['L1', 'L2', 'L3'] } },
+            req.lines,
+        );
+        expect(r.ok).toBe(true);
+        expect(r.alreadyShipped).toBe(false);
+        expect(r.lineResults?.every((l) => l.ok)).toBe(true);
+        expect(r.error).toBeUndefined();
+    });
+
+    it('partial dispatch: only the listed ids are ok, and the whole result is not ok', () => {
+        const r = readNaverDispatchResult(
+            {
+                data: {
+                    successProductOrderIds: ['L1'],
+                    failProductOrderInfos: [{ productOrderId: 'L2' }, { productOrderId: 'L3' }],
+                },
+            },
+            req.lines,
+        );
+        expect(r.ok).toBe(false);
+        expect(r.lineResults).toEqual([
+            { platformLineId: 'L1', ok: true, error: undefined },
+            { platformLineId: 'L2', ok: false, error: 'not listed in successProductOrderIds' },
+            { platformLineId: 'L3', ok: false, error: 'not listed in successProductOrderIds' },
+        ]);
+        expect(r.error).toContain('L2');
+        expect(r.error).toContain('L3');
+    });
+
+    it('every line failed → not ok', () => {
+        const r = readNaverDispatchResult(
+            { data: { successProductOrderIds: [], failProductOrderInfos: [{}, {}, {}] } },
+            req.lines,
+        );
+        expect(r.ok).toBe(false);
+        expect(r.lineResults?.some((l) => l.ok)).toBe(false);
+    });
+
+    it('fails closed on an unexpected data shape', () => {
+        // The old code read `data` as an array, so this shape silently marked every line ok and
+        // let order-dispatch deduct stock for orders that never shipped.
+        for (const json of [
+            {},
+            { data: undefined },
+            { data: {} },
+            { data: { successProductOrderIds: 'L1' } },
+            { data: [{ productOrderId: 'L1', code: 'SUCCESS' }] } as never,
+        ]) {
+            const r = readNaverDispatchResult(json, req.lines);
+            expect(r.ok).toBe(false);
+            expect(r.lineResults?.some((l) => l.ok)).toBe(false);
+        }
+    });
+
+    it('ignores success ids that were not requested', () => {
+        const r = readNaverDispatchResult(
+            { data: { successProductOrderIds: ['L1', 'L2', 'L3', 'L9'] } },
+            [{ platformLineId: 'L1' }],
+        );
+        expect(r.ok).toBe(true);
+        expect(r.lineResults).toHaveLength(1);
+    });
+
+    it('coerces numeric product order ids', () => {
+        const r = readNaverDispatchResult({ data: { successProductOrderIds: [1234] } }, [
+            { platformLineId: '1234' },
+        ]);
+        expect(r.ok).toBe(true);
     });
 });
 

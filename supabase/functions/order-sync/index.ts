@@ -37,6 +37,10 @@ function isCron(req: Request): boolean {
 /**
  * An invocation killed mid-run (wall-clock timeout, deploy) leaves its row on 'running' forever,
  * and the partial unique index would keep that connection locked out for good.
+ *
+ * Webhook runs are deliberately excluded: order-webhook owns their lifecycle (it clears its own
+ * idempotency key on failure so the platform retry is let through), and reclaiming one here would
+ * leave the key in place and turn a legitimate retry into a discarded "duplicate".
  */
 async function reclaimStaleRuns(admin: ReturnType<typeof serviceClient>): Promise<void> {
     const { error } = await admin
@@ -47,6 +51,7 @@ async function reclaimStaleRuns(admin: ReturnType<typeof serviceClient>): Promis
             error_message: 'run timed out — reclaimed',
         })
         .eq('status', 'running')
+        .neq('trigger', 'webhook')
         .lt('started_at', new Date(Date.now() - STALE_RUN_MS).toISOString());
     if (error) console.error('[order-sync] reclaim stale runs', error);
 }
@@ -66,7 +71,8 @@ async function syncOne(
     conn: ConnRow,
     trigger: 'cron' | 'manual',
 ): Promise<{ ok: boolean; upserted: number; skipped?: boolean; error?: string }> {
-    // The insert is the lock: a partial unique index allows one 'running' row per connection.
+    // The insert is the lock: a partial unique index allows one 'running' row per connection for
+    // cron/manual triggers. Webhook runs are outside it — see the migration for why.
     const { data: run, error: runErr } = await admin
         .from('order_sync_runs')
         .insert({

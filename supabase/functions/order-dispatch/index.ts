@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
 
     const { data: existingDispatch } = await admin
         .from('order_dispatches')
-        .select('id, status, attempt_count')
+        .select('id, status, attempt_count, line_results')
         .eq('order_id', order.id)
         .maybeSingle();
 
@@ -163,17 +163,32 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'no active order lines' }, 400);
     }
 
+    // A previous attempt may have dispatched only part of the order (Naver returns successes and
+    // failures in the same 200). Re-sending a line the platform already shipped never lands in the
+    // success list again, so without this filter the order could never be completed — or fulfilled.
+    const priorOk = new Set(
+        ((existingDispatch?.line_results ?? []) as Array<{ platformLineId?: string; ok?: boolean }>)
+            .filter((r) => r.ok === true)
+            .map((r) => String(r.platformLineId)),
+    );
+    const retryLines = lines.filter((l) => !priorOk.has(l.platformLineId));
+    const linesToSend = retryLines.length ? retryLines : lines;
+    const carriedResults = retryLines.length
+        ? [...priorOk].map((platformLineId) => ({ platformLineId, ok: true }))
+        : [];
+
     const carrierCode = platformCarrierCode(body.carrier, platform);
     const result = await adapter.markShipped(
         session.current(),
         {
             platformOrderId: order.platform_order_id,
-            lines,
+            lines: linesToSend,
             carrierCode,
             trackingNumber: tracking,
         },
         session.rotate,
     );
+    const lineResults = [...carriedResults, ...(result.lineResults ?? [])];
 
     if (result.ok || result.alreadyShipped) {
         const event = result.alreadyShipped ? 'api_already_shipped' : 'api_ok';
@@ -184,7 +199,7 @@ Deno.serve(async (req) => {
             .update({
                 status,
                 sent_at: now,
-                line_results: result.lineResults ?? null,
+                line_results: lineResults.length ? lineResults : null,
                 last_error: null,
                 updated_at: now,
             })
@@ -232,7 +247,7 @@ Deno.serve(async (req) => {
         return jsonResponse({
             status,
             alreadyShipped: result.alreadyShipped,
-            lineResults: result.lineResults,
+            lineResults,
             fulfilled,
             fulfillError,
         });
@@ -243,7 +258,7 @@ Deno.serve(async (req) => {
         .update({
             status: nextDispatchStatus('pending', 'api_err'),
             last_error: (result.error ?? 'dispatch failed').slice(0, 1000),
-            line_results: result.lineResults ?? null,
+            line_results: lineResults.length ? lineResults : null,
             updated_at: now,
         })
         .eq('id', dispatchId);
@@ -252,7 +267,7 @@ Deno.serve(async (req) => {
         {
             status: 'failed',
             error: result.error,
-            lineResults: result.lineResults,
+            lineResults,
         },
         502,
     );

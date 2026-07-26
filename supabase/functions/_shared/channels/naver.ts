@@ -23,7 +23,11 @@
  */
 
 import { hash as bcryptHash } from 'npm:bcryptjs@2.4.3';
-import { buildNaverDispatchPayload } from './dispatch.ts';
+import {
+    buildNaverDispatchPayload,
+    type NaverDispatchResponse,
+    readNaverDispatchResult,
+} from './dispatch.ts';
 import { nextPollCursor } from './poll-cursor.ts';
 import { naverToCanonical } from './status-map.ts';
 import type {
@@ -42,8 +46,21 @@ import type {
 
 const BASE = 'https://api.commerce.naver.com/external';
 
-/** last-changed pages walked per 24h window before the scan is declared incomplete. */
+/**
+ * last-changed pages walked per 24h window before the scan is declared incomplete.
+ *
+ * No API basis — the official flow is "keep paging until `more` disappears". This is purely an
+ * app-side wall-clock bound so one connection cannot eat a whole cron invocation. It is only safe
+ * because hitting it pins the cursor (see `truncatedAt`); the next poll resumes the same window.
+ */
 const MAX_PAGES_PER_WINDOW = 20;
+
+/**
+ * Also no API basis: an app policy that stops a long-dead connection from scanning forever.
+ * Unlike the page cap this one DOES lose orders — a connection more than 7 days behind has its
+ * watermark pulled forward. Logged rather than silent; a real fix needs a backfill path.
+ */
+const MAX_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface NaverSecrets extends ChannelSecrets {
     client_id: string;
@@ -303,11 +320,20 @@ export const naverAdapter: ChannelAdapter = {
         const token = await authorizedToken(secrets, onRotate);
 
         const end = Date.now();
-        // Official: omit lastChangedTo → 24h from lastChangedFrom. Walk day windows, cap 7d.
-        const maxLookback = 7 * 24 * 60 * 60 * 1000;
-        let windowStart = cursor.since
-            ? Math.max(new Date(cursor.since).getTime(), end - maxLookback)
+        // Official: omit lastChangedTo → 24h from lastChangedFrom. Walk day windows.
+        const requestedStart = cursor.since
+            ? new Date(cursor.since).getTime()
             : end - 24 * 60 * 60 * 1000;
+        let windowStart = Math.max(requestedStart, end - MAX_LOOKBACK_MS);
+        if (windowStart > requestedStart) {
+            console.error(
+                '[naver] lookback clamp skipped',
+                new Date(requestedStart).toISOString(),
+                '→',
+                new Date(windowStart).toISOString(),
+                '— orders in the skipped range are not recoverable from this endpoint',
+            );
+        }
 
         const productOrderIds: string[] = [];
         // Lightweight status from last-changed when detail fails
@@ -433,11 +459,7 @@ export const naverAdapter: ChannelAdapter = {
             body: JSON.stringify(body),
         });
         const text = await res.text();
-        let json: {
-            data?: Array<{ productOrderId?: string; code?: string; message?: string }>;
-            code?: string;
-            message?: string;
-        } = {};
+        let json: NaverDispatchResponse = {};
         try {
             json = text ? JSON.parse(text) : {};
         } catch {
@@ -455,28 +477,6 @@ export const naverAdapter: ChannelAdapter = {
             return { ok: false, alreadyShipped: false, error: `naver dispatch ${res.status}: ${msg}` };
         }
 
-        const rows = Array.isArray(json.data) ? json.data : [];
-        const lineResults = req.lines.map((l) => {
-            const row = rows.find((r) => String(r.productOrderId) === l.platformLineId);
-            if (!row) return { platformLineId: l.platformLineId, ok: true };
-            const code = String(row.code ?? '');
-            const ok = !code || code === 'SUCCESS' || code === '0000';
-            const already = /ALREADY|DISPATCHED/i.test(code) || /already/i.test(String(row.message ?? ''));
-            return {
-                platformLineId: l.platformLineId,
-                ok: ok || already,
-                error: ok || already ? undefined : String(row.message ?? code),
-            };
-        });
-        const anyFail = lineResults.some((r) => !r.ok);
-        const allAlready =
-            rows.length > 0 &&
-            rows.every((r) => /ALREADY|DISPATCHED/i.test(String(r.code ?? r.message ?? '')));
-        return {
-            ok: !anyFail,
-            alreadyShipped: allAlready,
-            lineResults,
-            error: anyFail ? lineResults.find((r) => !r.ok)?.error : undefined,
-        };
+        return readNaverDispatchResult(json, req.lines);
     },
 };

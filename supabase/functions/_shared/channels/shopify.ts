@@ -323,7 +323,7 @@ export const shopifyAdapter: ChannelAdapter = {
 
         const fulfillment = buildShopifyFulfillmentInput(req, openIds);
         type CreateData = {
-            fulfillmentCreateV2: {
+            fulfillmentCreate: {
                 fulfillment?: { id: string } | null;
                 userErrors: Array<{ message: string }>;
             };
@@ -332,8 +332,8 @@ export const shopifyAdapter: ChannelAdapter = {
         const created = await gql<CreateData>(
             s.shop,
             s.access_token,
-            `mutation ($fulfillment: FulfillmentV2Input!) {
-              fulfillmentCreateV2(fulfillment: $fulfillment) {
+            `mutation ($fulfillment: FulfillmentInput!) {
+              fulfillmentCreate(fulfillment: $fulfillment) {
                 fulfillment { id }
                 userErrors { message }
               }
@@ -341,14 +341,14 @@ export const shopifyAdapter: ChannelAdapter = {
             { fulfillment },
         );
 
-        const errors = created.fulfillmentCreateV2.userErrors ?? [];
+        const errors = created.fulfillmentCreate.userErrors ?? [];
         if (errors.length) {
             const msg = errors.map((e) => e.message).join('; ');
             const already = /already|fulfilled|closed/i.test(msg);
             if (already) return { ok: true, alreadyShipped: true, error: msg };
             return { ok: false, alreadyShipped: false, error: msg };
         }
-        if (!created.fulfillmentCreateV2.fulfillment?.id) {
+        if (!created.fulfillmentCreate.fulfillment?.id) {
             return { ok: false, alreadyShipped: false, error: 'shopify: no fulfillment created' };
         }
         return {
