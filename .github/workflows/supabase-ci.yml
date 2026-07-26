@@ -58,6 +58,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so origin/main...HEAD diff works for the GRANT check.
+          fetch-depth: 0
 
       - name: Check for missing RLS policies
         run: |
@@ -73,3 +76,33 @@ jobs:
             exit 1
           fi
           echo "✅ All migrations have RLS coverage"
+
+      # New migrations only (diff vs main) — existing files are never retroactively flagged.
+      - name: Check for missing GRANTs
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin main
+          added=$(git diff --name-only --diff-filter=A origin/main...HEAD -- 'supabase/migrations/*.sql')
+          if [ -z "$added" ]; then
+            echo "✅ No new migration files — GRANT check skipped"
+            exit 0
+          fi
+
+          missing=0
+          while IFS= read -r f; do
+            [ -f "$f" ] || continue
+            grep -qi 'create table' "$f" || continue
+            if grep -q 'skip-grant-check' "$f"; then
+              echo "$f: '-- skip-grant-check' present — skipped"
+              continue
+            fi
+            if ! grep -qi 'grant' "$f" || ! grep -qi 'to authenticated' "$f"; then
+              echo "::error::$f: CREATE TABLE without 'GRANT ... TO authenticated' — API calls will 403. Add 'GRANT SELECT, INSERT, UPDATE, DELETE ON <table> TO authenticated;' in the same file, or opt out with a '-- skip-grant-check: <reason>' comment (service_role-only tables)."
+              missing=1
+            fi
+          done <<< "$added"
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+          echo "✅ All new CREATE TABLE migrations have GRANT coverage"
