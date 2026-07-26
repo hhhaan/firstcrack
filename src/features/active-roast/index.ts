@@ -18,12 +18,13 @@ export type {
     RorSpanSec,
     TemperatureUnit,
 } from './model/settings';
-export { updateRoastSettings, useRoastSettings } from './model/settings';
+export { coercePollIntervalForPlan, updateRoastSettings, useRoastSettings } from './model/settings';
 export type { RoastingState, RoastPhase } from './model/status';
 export { useRoastingStore } from './model/status';
 export { useBbpTimer } from './model/useBbpTimer';
 export type { DeductRoastStockParams } from './model/useDeductRoastStock';
 export { useDeductRoastStock } from './model/useDeductRoastStock';
+export { useEffectivePollIntervalMs } from './model/useEffectivePollInterval';
 export { useRoastActions } from './model/useRoastActions';
 export { useRoastKeyboardShortcuts } from './model/useRoastKeyboardShortcuts';
 export type { SaveRoastFormData, SaveRoastParams, SaveRoastResult } from './model/useSaveRoast';

@@ -6,6 +6,7 @@ import {
     computePhaseSegments,
     formatTemp,
     toDisplayRoR,
+    useEffectivePollIntervalMs,
     useRoastActions,
     useRoastKeyboardShortcuts,
     useRoastSettings,
@@ -61,6 +62,7 @@ interface ActiveRoastProps {
 export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
     // ── 설정 ──────────────────────────────────────────────────────
     const roastSettings = useRoastSettings();
+    const pollIntervalMs = useEffectivePollIntervalMs();
     const unit = roastSettings.temperatureUnit;
 
     // ── 스토어 구독 ───────────────────────────────────────────────
@@ -126,7 +128,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const { livePoints, setLivePoints } = useSidecarPolling({
         isActive,
         phase,
-        pollIntervalMs: roastSettings.pollIntervalMs,
+        pollIntervalMs,
         enterPreheating,
         setConnected,
         roastStartTimeRef,

@@ -47,6 +47,8 @@ type SettingsCheckRowProps = {
     label: string;
     description?: string;
     name?: string;
+    /** Right-aligned decoration (lock icon, plan badge, …) */
+    trailing?: ReactNode;
 } & Pick<InputHTMLAttributes<HTMLInputElement>, 'disabled'>;
 
 /** Checkbox / radio option row used across settings sections. */
@@ -58,6 +60,7 @@ export function SettingsCheckRow({
     description,
     name,
     disabled,
+    trailing,
 }: SettingsCheckRowProps) {
     return (
         <SettingsOptionRow as="label" interactive align={description ? 'start' : 'center'}>
@@ -77,6 +80,7 @@ export function SettingsCheckRow({
             ) : (
                 <span className={labelCls}>{label}</span>
             )}
+            {trailing ? <span className="ml-auto flex items-center gap-1.5 shrink-0">{trailing}</span> : null}
         </SettingsOptionRow>
     );
 }

@@ -1,8 +1,8 @@
+import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import { useCompletedSessionCount } from '@entities/roast';
 import { isPaidPlan, TRIAL_BATCH_CAP, trialEndsAt } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
-import { useAuthStore } from '@shared/store/auth';
 import { Badge } from '@shared/ui/Badge';
 import { SectionCard } from '@shared/ui/SectionCard';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -170,25 +170,42 @@ function PlanStateCard({
 
 export function BillingSettingsTab() {
     const { t } = useTranslation();
-    const user = useAuthStore((s) => s.user);
-    const { data: profile } = useProfile(user?.id ?? '');
-    const { data: completedCount } = useCompletedSessionCount(user?.id ?? '');
+    // Plan/usage must mirror the server batch gate, which reads the workspace
+    // owner's profile — not the signed-in member's (issue #154).
+    const { workspaceOwnerId, isForeignWorkspace, isWorkspaceReady } = useActiveWorkspace();
+    const { data: profile } = useProfile(workspaceOwnerId);
+    const { data: completedCount } = useCompletedSessionCount(workspaceOwnerId);
     const currentPlan = profile?.plan ?? '';
 
     return (
         <SectionCard className="self-start">
-            <SectionCard.Header title={t('settings.tabs.billing.currentPlan')} />
+            <SectionCard.Header
+                title={t('settings.tabs.billing.currentPlan')}
+                description={isForeignWorkspace ? t('settings.tabs.billing.workspaceNote') : undefined}
+            />
             <SectionCard.Body className="grid grid-cols-2 gap-3 items-stretch">
-                {profile && !isPaidPlan(currentPlan) && (
-                    <PlanStateCard
-                        plan={currentPlan}
-                        createdAt={profile.created_at}
-                        completedCount={completedCount ?? 0}
-                    />
+                {!isWorkspaceReady ? (
+                    [0, 1].map((i) => (
+                        <div
+                            key={i}
+                            className="h-40 rounded-xl border border-[#E5E7EB] dark:border-[#585d61] bg-[#F9FAFB] dark:bg-[#262b31] animate-pulse"
+                            aria-hidden
+                        />
+                    ))
+                ) : (
+                    <>
+                        {profile && !isPaidPlan(currentPlan) && (
+                            <PlanStateCard
+                                plan={currentPlan}
+                                createdAt={profile.created_at}
+                                completedCount={completedCount ?? 0}
+                            />
+                        )}
+                        {PLANS.map((plan) => (
+                            <PlanCard key={plan.key} plan={plan} isCurrent={currentPlan === plan.key} />
+                        ))}
+                    </>
                 )}
-                {PLANS.map((plan) => (
-                    <PlanCard key={plan.key} plan={plan} isCurrent={currentPlan === plan.key} />
-                ))}
             </SectionCard.Body>
         </SectionCard>
     );

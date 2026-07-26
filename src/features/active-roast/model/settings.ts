@@ -98,6 +98,15 @@ const migratePollIntervalMs = (ms: unknown): PollIntervalMs => {
     return isPollIntervalMs(ms) ? ms : DEFAULT_SETTINGS.pollIntervalMs;
 };
 
+/**
+ * 500ms polling is Pro-gated (FEATURE.fastPolling). Applied at read time, never persisted:
+ * `auth.plan` starts as the 'free' placeholder before the profile fetch resolves, so a
+ * persisted coercion (the 250→500 migration pattern) would clobber a Pro user's stored
+ * 500ms on every launch. Read-time coercion also restores 500ms if the user re-upgrades.
+ */
+export const coercePollIntervalForPlan = (ms: PollIntervalMs, canFastPoll: boolean): PollIntervalMs =>
+    ms === 500 && !canFastPoll ? 1000 : ms;
+
 const normalize = (raw: Partial<RoastSettings> | null | undefined): RoastSettings => {
     const merged = { ...DEFAULT_SETTINGS, ...(raw ?? {}) };
     let controlYMin = clampNum(merged.controlYMin, -50, 500, DEFAULT_SETTINGS.controlYMin);

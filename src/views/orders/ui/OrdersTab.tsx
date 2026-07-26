@@ -126,7 +126,9 @@ function OrderRow({
     const cancelled = order.status === 'cancelled' || order.status === 'refunded';
     const fulfilled = !!order.fulfilled_at && !cancelled;
     const canFulfill = !fulfilled && !cancelled && (order.status === 'paid' || order.status === 'preparing');
-    // Local cancel restores product stock; channel platforms sync cancel via webhook — avoid double-restoring.
+    // Local cancel restores product stock; channel-platform cancellations are synced FROM the platform
+    // (webhook and/or poll — Naver has no webhook, cancels arrive via poll claim statuses), so manual-only
+    // local cancel avoids double-restoring.
     const canCancel = order.platform === 'manual' && !cancelled;
     const canDispatch =
         order.platform !== 'manual' &&
