@@ -15,10 +15,39 @@ export interface UpsertContext {
     autoFulfillOnShipped?: boolean;
 }
 
+/** One stock event the batch RPC refused to insert (#109 EF-path terminal guard). */
+export interface StockEventSkip {
+    referenceId: string;
+    orderId: string;
+    orderStatus: string;
+    reason: string;
+}
+
 export interface UpsertResult {
     upserted: number;
     cancelledCompensations: number;
     autoFulfillments: number;
+    /** Never silent: every skip the RPC reported, surfaced into the sync result and logged. */
+    stockEventSkips: StockEventSkip[];
+}
+
+/** Shape of insert_product_stock_events_batch's jsonb return (20260802000002). */
+type BatchInsertReturn = {
+    skipped?: Array<{
+        reference_id?: string;
+        order_id?: string;
+        order_status?: string;
+        reason?: string;
+    }>;
+} | null;
+
+function parseBatchSkips(data: BatchInsertReturn): StockEventSkip[] {
+    return (data?.skipped ?? []).map((s) => ({
+        referenceId: String(s.reference_id ?? ''),
+        orderId: String(s.order_id ?? ''),
+        orderStatus: String(s.order_status ?? ''),
+        reason: String(s.reason ?? ''),
+    }));
 }
 
 type OrderRow = {
@@ -126,12 +155,15 @@ export async function upsertCanonicalOrders(
     ctx: UpsertContext,
     orders: CanonicalOrder[],
 ): Promise<UpsertResult> {
-    if (!orders.length) return { upserted: 0, cancelledCompensations: 0, autoFulfillments: 0 };
+    if (!orders.length) {
+        return { upserted: 0, cancelledCompensations: 0, autoFulfillments: 0, stockEventSkips: [] };
+    }
 
     const productMap = await buildProductMap(supabase, ctx.userId, orders);
     let upserted = 0;
     let cancelledCompensations = 0;
     let autoFulfillments = 0;
+    const stockEventSkips: StockEventSkip[] = [];
     const now = new Date().toISOString();
     const autoFulfill = ctx.autoFulfillOnShipped === true;
 
@@ -195,9 +227,7 @@ export async function upsertCanonicalOrders(
             .select('id, platform_line_id, product_id, quantity, status')
             .eq('order_id', orderId);
 
-        const lineByPlatform = new Map(
-            ((existingLines ?? []) as LineRow[]).map((l) => [l.platform_line_id, l]),
-        );
+        const lineByPlatform = new Map(((existingLines ?? []) as LineRow[]).map((l) => [l.platform_line_id, l]));
 
         type DiffLine = {
             lineId: string;
@@ -273,16 +303,41 @@ export async function upsertCanonicalOrders(
             diffs,
         );
 
+        const skippedRefs = new Set<string>();
         if (planned.events.length) {
-            const { error } = await supabase.rpc('insert_product_stock_events_batch', {
+            const { data, error } = await supabase.rpc('insert_product_stock_events_batch', {
                 p_events: planned.events,
             });
             if (error) throw error;
+
+            // #109 EF-path guard: the RPC skips (never inserts) fulfillment events whose order
+            // went terminal between our read and the locked insert. Surface every skip.
+            const skips = parseBatchSkips(data as BatchInsertReturn);
+            for (const skip of skips) {
+                skippedRefs.add(skip.referenceId);
+                stockEventSkips.push(skip);
+            }
+            if (skips.length) {
+                console.error(
+                    `[order-sync] stock events skipped for connection ${ctx.connectionId}:`,
+                    JSON.stringify(skips),
+                );
+            }
+
             cancelledCompensations += planned.events.filter((e) => e.event_type === 'order_cancel').length;
-            autoFulfillments += planned.events.filter((e) => e.event_type === 'order_fulfillment').length;
+            autoFulfillments += planned.events.filter(
+                (e) => e.event_type === 'order_fulfillment' && !skippedRefs.has(e.reference_id),
+            ).length;
         }
 
-        if (planned.setFulfilledAt) {
+        // Never stamp fulfilled_at when the terminal guard skipped every planned deduction —
+        // a fulfilled_at without fulfillment events would later gate an order_cancel restore
+        // that has nothing to compensate (phantom +stock).
+        const fulfillmentPlanned = planned.events.filter((e) => e.event_type === 'order_fulfillment');
+        const allFulfillmentsSkipped =
+            fulfillmentPlanned.length > 0 && fulfillmentPlanned.every((e) => skippedRefs.has(e.reference_id));
+
+        if (planned.setFulfilledAt && !allFulfillmentsSkipped) {
             const { error } = await supabase
                 .from('orders')
                 .update({ fulfilled_at: now, updated_at: now })
@@ -297,5 +352,5 @@ export async function upsertCanonicalOrders(
         upserted += 1;
     }
 
-    return { upserted, cancelledCompensations, autoFulfillments };
+    return { upserted, cancelledCompensations, autoFulfillments, stockEventSkips };
 }

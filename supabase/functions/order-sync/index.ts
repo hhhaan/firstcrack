@@ -68,7 +68,14 @@ async function syncOne(
     admin: ReturnType<typeof serviceClient>,
     conn: ConnRow,
     trigger: 'cron' | 'manual',
-): Promise<{ ok: boolean; upserted: number; skipped?: boolean; error?: string }> {
+): Promise<{
+    ok: boolean;
+    upserted: number;
+    skipped?: boolean;
+    error?: string;
+    /** #109 EF-path guard: stock events the batch RPC refused (terminal orders) — never silent. */
+    stockEventSkips?: Array<{ referenceId: string; orderId: string; orderStatus: string; reason: string }>;
+}> {
     // The insert is the lock: a partial unique index allows one 'running' row per connection for
     // cron/manual triggers. Webhook runs are outside it — see the migration for why.
     const { data: run, error: runErr } = await admin
@@ -104,7 +111,7 @@ async function syncOne(
 
         const cursor = (conn.poll_cursor ?? {}) as PollCursor;
         const { orders, nextCursor } = await adapter.fetchOrdersSince(session.current(), cursor, session.rotate);
-        const { upserted } = await upsertCanonicalOrders(
+        const { upserted, stockEventSkips } = await upsertCanonicalOrders(
             admin,
             {
                 userId: conn.user_id,
@@ -134,10 +141,14 @@ async function syncOne(
                 status: 'success',
                 finished_at: now,
                 orders_upserted: upserted,
+                // Success run with refused deductions: keep the evidence on the run row.
+                ...(stockEventSkips.length
+                    ? { error_message: `stock events skipped: ${JSON.stringify(stockEventSkips).slice(0, 900)}` }
+                    : {}),
             })
             .eq('id', run.id);
 
-        return { ok: true, upserted };
+        return { ok: true, upserted, ...(stockEventSkips.length ? { stockEventSkips } : {}) };
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error('[order-sync] connection', conn.id, msg);
