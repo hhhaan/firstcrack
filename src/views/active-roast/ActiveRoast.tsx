@@ -1,3 +1,4 @@
+import { useBeans } from '@entities/bean';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import { useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
@@ -92,6 +93,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const { workspaceOwnerId } = useActiveWorkspace();
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
     const { data: userProfile } = useProfile(user?.id ?? '');
+    // Same key as RoastHeader/PreChargeSelectionModal — React Query dedupes the fetch.
+    const { data: beans = [] } = useBeans(workspaceOwnerId);
 
     // ── 배치 핸드오프 ─────────────────────────────────────────────
     const planBatchHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
@@ -178,6 +181,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         rawBT,
         selectedBeanId,
         planBatchHandoff,
+        hasSelectableBeans: beans.length > 0,
         onBeanSelectionRequired: openPreChargeSelection,
         unit,
         logEntries,

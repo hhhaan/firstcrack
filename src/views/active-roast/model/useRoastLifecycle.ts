@@ -23,6 +23,8 @@ export interface UseRoastLifecycleParams {
      */
     selectedBeanId: string | null;
     planBatchHandoff: PlanBatchHandoff | null;
+    /** No registered beans → nothing to select, so the gate must not lock a first-run user out. */
+    hasSelectableBeans: boolean;
     onBeanSelectionRequired: () => void;
     unit: TemperatureUnit;
     logEntries: LogEntry[];
@@ -61,6 +63,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         rawBT,
         selectedBeanId,
         planBatchHandoff,
+        hasSelectableBeans,
         onBeanSelectionRequired,
         unit,
         logEntries,
@@ -112,7 +115,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             return;
         }
         // Asked last so the selection modal only appears when charge would otherwise start.
-        if (!selectedBeanId && !planBatchHandoff) {
+        if (!selectedBeanId && !planBatchHandoff && hasSelectableBeans) {
             onBeanSelectionRequired();
             return;
         }
@@ -124,6 +127,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         rawBT,
         selectedBeanId,
         planBatchHandoff,
+        hasSelectableBeans,
         onBeanSelectionRequired,
         triggerChargeRef,
         setConnected,
