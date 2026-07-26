@@ -14,6 +14,27 @@ from roaster_registry import ROASTER_REGISTRY
 _log = logging.getLogger(__name__)
 
 
+class SensorReadError(RuntimeError):
+    """어댑터가 예외 없이 반환했지만 값이 센서 고장/분리를 뜻할 때 발생한다.
+
+    실패를 -1.0 같은 센티넬 값으로 인코딩하는 어댑터(Phidget 분리, Kaleido
+    핸드셰이크 유실, Probat 노드 누락)를 공통 read 경로에서 잡아, manager의
+    stale → 재연결 계약으로 되돌리기 위한 예외다.
+    """
+
+
+def _validate_bt(bt: float) -> None:
+    """BT는 필수 채널 — 물리적으로 불가능한 값이면 읽기 실패로 승격한다.
+
+    ET는 검증하지 않는다. ET 미장착 머신에서 -1.0은 정상적인 "채널 없음" 값이라
+    로스팅을 중단시킬 이유가 되지 않는다 (의도적 비대칭).
+    """
+    if not math.isfinite(bt) or bt <= config.BT_VALID_MIN_C or bt >= config.BT_VALID_MAX_C:
+        raise SensorReadError(
+            f"BT 센서 값이 유효 범위를 벗어났습니다 ({bt}). 프로브 연결과 센서 상태를 확인하세요."
+        )
+
+
 def _format_connection_error(
     exc: Exception, protocol: str, params: dict[str, Any]
 ) -> str:
@@ -179,6 +200,9 @@ class RoasterManager:
             self._et_display_ema = None
             self._error = None
             self._ror_warmup = config.ROR_WARMUP_READS
+            # 이전 머신의 값이 stale 응답으로 새 연결에 새어나오지 않게 한다
+            self._consecutive_errors = 0
+            self._last_good = None
 
             try:
                 await self._adapter.connect()
@@ -297,26 +321,40 @@ class RoasterManager:
         finally:
             self._reconnect_attempt = 0
 
+    def _reconnecting(self) -> bool:
+        return self._reconnect_task is not None and not self._reconnect_task.done()
+
+    def _null_payload(self, reconnecting: bool) -> dict[str, Any]:
+        """연결 없음/읽기 실패 시의 빈 응답. bt=None은 프론트의 연결 끊김 신호다."""
+        return {
+            "bt": None,
+            "et": None,
+            "ror": 0.0,
+            "ror_et": 0.0,
+            "heater": 0,
+            "fan": 0,
+            "drum": 0,
+            "timestamp": time.monotonic(),
+            "stale": False,
+            "reconnecting": reconnecting,
+        }
+
     async def read_temperatures(self) -> dict[str, Any]:
-        reconnecting = (
-            self._reconnect_task is not None and not self._reconnect_task.done()
-        )
-        if not self._connected or self._adapter is None:
-            return {
-                "bt": None,
-                "et": None,
-                "ror": 0.0,
-                "ror_et": 0.0,
-                "heater": 0,
-                "fan": 0,
-                "drum": 0,
-                "timestamp": time.monotonic(),
-                "stale": False,
-                "reconnecting": reconnecting,
-            }
+        reconnecting = self._reconnecting()
+        # await 도중 disconnect/재연결로 self._adapter가 교체될 수 있어 스냅샷을 잡는다 (H4)
+        adapter = self._adapter
+        if not self._connected or adapter is None:
+            return self._null_payload(reconnecting)
         try:
-            reading = await self._adapter.read()
+            # 어댑터 hang 시 /temperatures가 무기한 pending 되지 않도록 전역 타임아웃 (H7).
+            # 주의: executor 스레드에서 도는 동기 드라이버 자체는 중단되지 않는다.
+            reading = await asyncio.wait_for(adapter.read(), timeout=config.READ_TIMEOUT)
+            # 예외 없이 돌아온 센티넬/NaN도 실패로 승격 — 아래 except가 stale/재연결을 담당 (H1)
+            _validate_bt(reading.bt)
         except Exception as exc:
+            if self._adapter is not adapter:
+                # 읽는 도중 disconnect/재연결됨 — 사라진 어댑터의 실패는 조용히 버린다 (H4)
+                return self._null_payload(self._reconnecting())
             self._consecutive_errors += 1
             if (
                 self._consecutive_errors <= config.STALE_TOLERANCE_READS
@@ -353,18 +391,11 @@ class RoasterManager:
             self._capture_hardware_error(exc, "read_failed_disconnected")
             if self._reconnect_task is None or self._reconnect_task.done():
                 self._reconnect_task = asyncio.create_task(self._reconnect_loop())
-            return {
-                "bt": None,
-                "et": None,
-                "ror": 0.0,
-                "ror_et": 0.0,
-                "heater": 0,
-                "fan": 0,
-                "drum": 0,
-                "timestamp": time.monotonic(),
-                "stale": False,
-                "reconnecting": True,
-            }
+            return self._null_payload(reconnecting=True)
+
+        if self._adapter is not adapter:
+            # 성공 응답이 disconnect 이후에 도착 — _last_good/에러 카운터를 오염시키지 않는다 (H4)
+            return self._null_payload(self._reconnecting())
 
         if self._consecutive_errors > 0:
             sentry_sdk.add_breadcrumb(
@@ -403,8 +434,16 @@ class RoasterManager:
         return payload
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
-        if self._adapter is not None and hasattr(self._adapter, "control"):
-            await self._adapter.control(heater=heater, fan=fan, drum=drum)
+        # read와 동일하게 어댑터를 스냅샷 — await 도중 disconnect되면 조용히 무시한다 (H4)
+        adapter = self._adapter
+        if adapter is None or not hasattr(adapter, "control"):
+            return
+        try:
+            await adapter.control(heater=heater, fan=fan, drum=drum)
+        except Exception:
+            if self._adapter is not adapter:
+                return
+            raise
 
     async def enter_standby(self) -> None:
         """UI의 READY 버튼과 연동. 어댑터가 지원하면 standby 진입을 알린다."""

@@ -25,10 +25,40 @@ class TestPidAlive:
         result = _pid_alive(os.getpid())
         assert isinstance(result, bool)
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX os.kill 경로")
+    def test_permission_error_means_alive(self):
+        """EPERM은 '권한 없음'이지 '죽음'이 아니다 — True여야 사이드카가 자살하지 않는다 (H9)."""
+        from main import _pid_alive
+        with mock.patch("main.os.kill", side_effect=PermissionError(1, "Operation not permitted")):
+            assert _pid_alive(os.getpid()) is True
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX os.kill 경로")
+    def test_process_lookup_error_means_dead(self):
+        from main import _pid_alive
+        with mock.patch("main.os.kill", side_effect=ProcessLookupError(3, "No such process")):
+            assert _pid_alive(os.getpid()) is False
+
 
 # ---------------------------------------------------------------------------
 # parent_watchdog
 # ---------------------------------------------------------------------------
+
+class TestWatchdogTaskReference:
+    async def test_task_stored_on_app(self, monkeypatch):
+        """create_task 반환값을 app에 보관해야 GC가 워치독을 수거하지 않는다 (H9)."""
+        from aiohttp.test_utils import TestClient, TestServer
+        from main import create_app
+
+        monkeypatch.setenv("SIDECAR_PARENT_PID", str(os.getpid()))
+        app = create_app()
+        app["manager"] = mock.AsyncMock()
+        async with TestClient(TestServer(app)):
+            task = app.get("watchdog_task")
+            assert task is not None
+            assert not task.done()
+        # on_cleanup에서 취소돼야 teardown 경고가 남지 않는다
+        assert app["watchdog_task"].cancelled() or app["watchdog_task"].done()
+
 
 class TestParentWatchdog:
     async def test_watchdog_calls_exit_on_dead_pid(self):
@@ -79,10 +109,11 @@ class TestParentWatchdog:
 # ---------------------------------------------------------------------------
 
 class TestShutdownEndpoint:
-    async def test_shutdown_returns_200(self):
+    async def test_shutdown_returns_200(self, monkeypatch):
         from aiohttp.test_utils import TestClient, TestServer
         from main import create_app
 
+        monkeypatch.delenv("SIDECAR_TOKEN", raising=False)
         app = create_app()
         app["manager"] = mock.AsyncMock()
         async with TestClient(TestServer(app)) as client:

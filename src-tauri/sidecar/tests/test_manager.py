@@ -403,3 +403,170 @@ class TestManagerStaleData:
         assert manager._connected is False
         if manager._reconnect_task is not None:
             manager._reconnect_task.cancel()
+
+
+# ---------------------------------------------------------------------------
+# BT 유효성 검증 — 어댑터가 예외 대신 센티넬을 반환하는 silent fail (H1)
+# ---------------------------------------------------------------------------
+
+class TestBtValidation:
+    async def _connect_with(self, manager, adapter):
+        manager._adapter = adapter
+        manager._connected = True
+        manager._protocol = "virtual"
+        manager._merged_params = {}
+
+    @pytest.mark.parametrize("bad_bt", [-1.0, 0.0, 400.0, 1372.0, float("nan"), float("inf")])
+    async def test_invalid_bt_is_treated_as_read_failure(self, manager, bad_bt):
+        """센티넬/NaN/범위 밖 BT는 성공이 아니라 stale로 표면화돼야 한다."""
+        adapter = FakeAdapter(readings=[make_reading(bt=180.0), make_reading(bt=bad_bt)])
+        await self._connect_with(manager, adapter)
+
+        good = await manager.read_temperatures()
+        assert good["stale"] is False
+
+        data = await manager.read_temperatures()
+        assert data["stale"] is True, f"bt={bad_bt}는 실패로 처리돼야 한다"
+        assert manager._consecutive_errors == 1
+
+    async def test_sentinel_bt_eventually_disconnects(self, manager):
+        """센티넬이 계속 오면 tolerance 소진 후 재연결 루프로 넘어간다."""
+        import config
+
+        readings = [make_reading(bt=180.0)] + [
+            make_reading(bt=-1.0) for _ in range(config.STALE_TOLERANCE_READS + 1)
+        ]
+        adapter = FakeAdapter(readings=readings)
+        await self._connect_with(manager, adapter)
+
+        await manager.read_temperatures()  # 정상 1회
+        for _ in range(config.STALE_TOLERANCE_READS):
+            assert (await manager.read_temperatures())["stale"] is True
+
+        data = await manager.read_temperatures()
+        assert data["bt"] is None
+        assert manager._connected is False
+        assert manager._reconnect_task is not None
+        manager._reconnect_task.cancel()
+
+    async def test_et_sentinel_does_not_fail_read(self, manager):
+        """ET는 선택 채널 — -1.0이어도 세션을 죽이지 않는다."""
+        adapter = FakeAdapter(readings=[make_reading(bt=180.0, et=-1.0)])
+        await self._connect_with(manager, adapter)
+
+        data = await manager.read_temperatures()
+        assert data["stale"] is False
+        assert data["bt"] == 180.0
+        assert manager._connected is True
+
+    async def test_bounds_come_from_config(self, manager, monkeypatch):
+        """임계값은 config로 조정 가능해야 한다 (실기기 튜닝 포인트)."""
+        import config
+
+        monkeypatch.setattr(config, "BT_VALID_MAX_C", 100.0)
+        adapter = FakeAdapter(readings=[make_reading(bt=180.0)])
+        await self._connect_with(manager, adapter)
+
+        data = await manager.read_temperatures()
+        assert data["bt"] is None  # 상한을 낮추면 정상 로스팅 온도도 실패로 본다
+        assert manager._connected is False
+        if manager._reconnect_task is not None:
+            manager._reconnect_task.cancel()
+
+
+# ---------------------------------------------------------------------------
+# read 타임아웃 (H7) / disconnect 경합 (H4)
+# ---------------------------------------------------------------------------
+
+class HangingAdapter:
+    """read()가 영원히 끝나지 않는 어댑터."""
+
+    def __init__(self) -> None:
+        self.connected = True
+
+    async def connect(self) -> None:
+        self.connected = True
+
+    async def disconnect(self) -> None:
+        self.connected = False
+
+    async def read(self):
+        await asyncio.sleep(3600)
+
+
+class TestReadTimeout:
+    async def test_hanging_read_times_out(self, manager, monkeypatch):
+        import config
+
+        monkeypatch.setattr(config, "READ_TIMEOUT", 0.05)
+        manager._adapter = HangingAdapter()
+        manager._connected = True
+        manager._protocol = "virtual"
+        manager._merged_params = {}
+
+        data = await asyncio.wait_for(manager.read_temperatures(), timeout=1.0)
+        assert data["bt"] is None
+        assert manager._connected is False
+        if manager._reconnect_task is not None:
+            manager._reconnect_task.cancel()
+
+
+class TestDisconnectRace:
+    async def test_read_success_after_disconnect_is_discarded(self, manager):
+        """read await 중 disconnect되면 성공 응답도 버리고 _last_good을 오염시키지 않는다."""
+
+        class DisconnectingAdapter:
+            connected = True
+
+            async def connect(self) -> None:
+                pass
+
+            async def disconnect(self) -> None:
+                pass
+
+            async def read(inner):
+                manager._adapter = None  # await 도중 /disconnect 상당
+                return make_reading(bt=180.0)
+
+        manager._adapter = DisconnectingAdapter()
+        manager._connected = True
+
+        data = await manager.read_temperatures()
+        assert data["bt"] is None
+        assert manager._last_good is None
+        assert manager._reconnect_task is None
+
+    async def test_read_failure_after_disconnect_is_silent(self, manager):
+        """read 실패 시점에 어댑터가 이미 사라졌으면 재연결을 띄우지 않는다."""
+
+        class FailingAfterDisconnect:
+            connected = True
+
+            async def connect(self) -> None:
+                pass
+
+            async def disconnect(self) -> None:
+                pass
+
+            async def read(inner):
+                manager._adapter = None
+                raise ConnectionError("cable pulled")
+
+        manager._adapter = FailingAfterDisconnect()
+        manager._connected = True
+
+        data = await manager.read_temperatures()
+        assert data["bt"] is None
+        assert manager._consecutive_errors == 0
+        assert manager._reconnect_task is None
+
+    async def test_control_after_disconnect_is_silent(self, manager):
+        class ControlFailsAfterDisconnect:
+            connected = True
+
+            async def control(inner, heater=None, fan=None, drum=None):
+                manager._adapter = None
+                raise ConnectionError("cable pulled")
+
+        manager._adapter = ControlFailsAfterDisconnect()
+        await manager.control(heater=50)  # 예외가 새어나오지 않아야 한다
