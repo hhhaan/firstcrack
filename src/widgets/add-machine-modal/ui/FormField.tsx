@@ -9,12 +9,14 @@ export const FormField = ({
     onChange,
     serialPorts,
     registryDefault,
+    onRefreshPorts,
 }: {
     field: RoasterFormField;
     value: string;
     onChange: (v: string) => void;
     serialPorts: SerialPort[];
     registryDefault: string;
+    onRefreshPorts?: () => void;
 }) => (
     <div className={field.key === 'mode' ? 'col-span-2' : ''}>
         <label className={labelCls}>
@@ -22,7 +24,13 @@ export const FormField = ({
             {field.required && <span className="text-red-500"> *</span>}
         </label>
         {field.key === 'comport' ? (
-            <ComportField value={value} onChange={onChange} ports={serialPorts} registryDefault={registryDefault} />
+            <ComportField
+                value={value}
+                onChange={onChange}
+                ports={serialPorts}
+                registryDefault={registryDefault}
+                onRefresh={onRefreshPorts}
+            />
         ) : field.options ? (
             <FormSelect value={value} onChange={(e) => onChange(e.target.value)}>
                 {field.options.map((opt) => (

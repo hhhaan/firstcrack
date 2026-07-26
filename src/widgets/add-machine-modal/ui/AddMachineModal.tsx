@@ -86,6 +86,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                     params={form.params}
                     setParam={form.setParam}
                     serialPorts={form.serialPorts}
+                    onRefreshPorts={form.refreshSerialPorts}
                     showAddressMap={form.showAddressMap}
                     addressFields={form.addressFields}
                 />

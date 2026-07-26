@@ -32,6 +32,14 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
     const testConnectedRef = useRef(false);
     const [serialPorts, setSerialPorts] = useState<SerialPort[]>([]);
 
+    /** Re-fetch serial ports on demand (USB plugged in while the modal is open). */
+    const refreshSerialPorts = useCallback(() => {
+        void sidecar
+            .getSerialPorts()
+            .catch(() => [])
+            .then((ports) => setSerialPorts(ports as SerialPort[]));
+    }, []);
+
     const editingIsCustom = isEdit && !!editing && isCustomConnectKey(editing.roasterKey);
     const isCustom = (!isEdit && tab === 'custom') || editingIsCustom;
 
@@ -163,6 +171,7 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
         testState,
         testMessage,
         serialPorts,
+        refreshSerialPorts,
         isCustom,
         selectedDef,
         showAddressMap,

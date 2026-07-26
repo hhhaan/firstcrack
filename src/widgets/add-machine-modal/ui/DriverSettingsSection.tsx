@@ -27,6 +27,7 @@ type Props = {
     params: Record<string, string>;
     setParam: (key: string, value: string) => void;
     serialPorts: SerialPort[];
+    onRefreshPorts?: () => void;
     showAddressMap: boolean;
     addressFields: RoasterFormField[];
 };
@@ -37,6 +38,7 @@ export const DriverSettingsSection = ({
     params,
     setParam,
     serialPorts,
+    onRefreshPorts,
     showAddressMap,
     addressFields,
 }: Props) => {
@@ -122,6 +124,7 @@ export const DriverSettingsSection = ({
                                 onChange={(v) => setParam(field.key, v)}
                                 serialPorts={serialPorts}
                                 registryDefault={(selectedDef?.default_params[field.key] as string) ?? ''}
+                                onRefreshPorts={onRefreshPorts}
                             />
                         ))}
                 </div>
@@ -147,6 +150,7 @@ export const DriverSettingsSection = ({
                             onChange={(v) => setParam(field.key, v)}
                             serialPorts={serialPorts}
                             registryDefault=""
+                            onRefreshPorts={onRefreshPorts}
                         />
                     ))}
                 </div>
