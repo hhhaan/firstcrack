@@ -155,6 +155,7 @@ export const useSidecarPolling = ({
                     const status = await sidecar.getStatus().catch(() => null);
                     if (!status?.connected) {
                         useRoastingStore.getState().setError(status?.error ?? null);
+                        useRoastingStore.getState().setReconnecting(status?.reconnecting ?? data.reconnecting ?? false);
                         setConnected(false);
                         return;
                     }

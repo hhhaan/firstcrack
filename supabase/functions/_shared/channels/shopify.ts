@@ -293,7 +293,7 @@ export const shopifyAdapter: ChannelAdapter = {
             s.access_token,
             `query ($id: ID!) {
               order(id: $id) {
-                fulfillmentOrders(first: 20, display: "status:OPEN") {
+                fulfillmentOrders(first: 20) {
                   edges { node { id status } }
                 }
               }

@@ -384,7 +384,8 @@ export const cafe24Adapter: ChannelAdapter = {
         });
         const text = await res.text();
         if (!res.ok) {
-            const already = /already|exist|shipping|shipped/i.test(text);
+            // 오탐 시 fulfill_order까지 진행되어 재고가 차감된다 → 명시적 "이미 처리됨"만 성공 취급
+            const already = /already|이미/i.test(text);
             if (already || res.status === 409) {
                 return { ok: true, alreadyShipped: true, error: text.slice(0, 300) };
             }

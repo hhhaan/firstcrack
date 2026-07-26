@@ -78,10 +78,16 @@ class ProbatWSAdapter:
             self._ws = None
         self._connected = False
 
-    def _on_ws_error(self, exc: Exception) -> ConnectionError:
-        """WS 오류 시 상태를 정리하고 ConnectionError로 변환."""
-        self._ws = None
+    async def _on_ws_error(self, exc: Exception) -> ConnectionError:
+        """WS 오류 시 소켓을 닫고 상태를 정리한 뒤 ConnectionError로 변환."""
+        ws, self._ws = self._ws, None
         self._connected = False
+        if ws is not None:
+            # _ws를 먼저 비우면 disconnect()의 가드에 걸려 소켓이 고아가 된다
+            try:
+                await ws.close()
+            except Exception:
+                pass
         return ConnectionError(f"Probat WS 연결 끊김: {exc}")
 
     async def read(self) -> Reading:
@@ -97,7 +103,7 @@ class ProbatWSAdapter:
             TRACE.record("tx", "probat_ws", f"getData id={msg_id}", request)
             await self._ws.send(request)
         except Exception as exc:
-            raise self._on_ws_error(exc) from exc
+            raise await self._on_ws_error(exc) from exc
 
         deadline = time.monotonic() + self._REQUEST_TIMEOUT
         while time.monotonic() < deadline:
@@ -109,7 +115,7 @@ class ProbatWSAdapter:
             except asyncio.TimeoutError:
                 break
             except Exception as exc:
-                raise self._on_ws_error(exc) from exc
+                raise await self._on_ws_error(exc) from exc
             try:
                 j = json.loads(raw)
             except json.JSONDecodeError:

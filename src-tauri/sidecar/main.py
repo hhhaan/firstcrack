@@ -49,7 +49,10 @@ if _SENTRY_DSN:
         send_default_pii=False,
     )
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
+logging.basicConfig(
+    level=os.environ.get("SIDECAR_LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(message)s",
+)
 _log = logging.getLogger(__name__)
 
 
@@ -235,7 +238,8 @@ async def handle_serial_ports(request: web.Request) -> web.Response:
                     "description": desc if not _is_na(desc) else p.device,
                 }
             )
-    except ImportError:
+    except Exception:  # ImportError + OS 열거 실패(Windows 레지스트리 등)
+        _log.warning("포트 열거 실패", exc_info=True)
         ports = []
     return web.json_response(ports)
 

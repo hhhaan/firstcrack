@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 import time
 from collections import deque
 from typing import Any
@@ -444,7 +445,10 @@ class RoasterManager:
         """프론트엔드 설정 변경을 런타임에 반영."""
         if "ror_window_sec" in settings:
             try:
-                self._ror_window_secs = float(settings["ror_window_sec"])
+                v = float(settings["ror_window_sec"])
+                # NaN이면 cutoff 비교가 항상 False → deque가 무한 증가한다
+                if math.isfinite(v):
+                    self._ror_window_secs = max(5.0, min(120.0, v))
             except (TypeError, ValueError):
                 pass
 
