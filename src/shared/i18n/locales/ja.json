@@ -649,6 +649,14 @@
         "alerts": {
             "rorCrash": "RoRクラッシュ — 火力が落ちています",
             "btOver": "BT上限超過"
+        },
+        "preCharge": {
+            "title": "豆とプロファイルを選択",
+            "description": "チャージ前に豆を選択してください。焙煎記録と在庫控除に必要です。ターゲットプロファイルは任意です。",
+            "bean": "豆",
+            "beanPlaceholder": "豆を選択",
+            "profile": "ターゲットプロファイル",
+            "profilePlaceholder": "指定しない（任意）"
         }
     },
     "schedule": {
@@ -1404,7 +1412,8 @@
                 "error": "エラー",
                 "disabled": "無効"
             },
-            "autoFulfill": "プラットフォームが出荷済みにすると完成品在庫を自動減算"
+            "autoFulfill": "プラットフォームが出荷済みにすると完成品在庫を自動減算",
+            "errWorkspaceLoading": "ワークスペースを読み込んでいます。しばらくしてからもう一度お試しください。"
         },
         "dispatch": {
             "title": "出荷処理",
@@ -1524,5 +1533,9 @@
         "avgCost": "加重平均単価",
         "stockValue": "在庫資産",
         "error": "資産計算失敗"
+    },
+    "errors": {
+        "mutationFailed": "処理に失敗しました。しばらくしてからもう一度お試しください。",
+        "mutationFailedDetail": "処理に失敗しました: {{message}}"
     }
 }

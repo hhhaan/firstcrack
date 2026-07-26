@@ -3,8 +3,11 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
-import { initI18n } from './shared/i18n';
+import { i18n, initI18n } from './shared/i18n';
 import { logger } from './shared/lib/logger';
+import { resolveMutationErrorText } from './shared/lib/mutationErrorMessage';
+import { useToastStore } from './shared/store/toast';
+import { ToastViewport } from './shared/ui/ToastViewport';
 import 'uplot/dist/uPlot.min.css';
 
 const is4xx = (error: unknown) => {
@@ -18,9 +21,26 @@ const onQueryError = (error: Error) => {
     if (import.meta.env.PROD) logger.capture(error);
 };
 
+/**
+ * A failed write must never look like a success. Mutations that already render their
+ * own inline error opt out with `meta: { silentError: true }` so nothing is told twice.
+ */
+const onMutationError = (error: Error, mutationMeta: { silentError?: boolean } | undefined) => {
+    onQueryError(error);
+    if (mutationMeta?.silentError) return;
+    const text = resolveMutationErrorText(error);
+    useToastStore
+        .getState()
+        .show(
+            text.key === 'errors.mutationFailedDetail' ? i18n.t(text.key, { message: text.detail }) : i18n.t(text.key),
+        );
+};
+
 const queryClient = new QueryClient({
     queryCache: new QueryCache({ onError: onQueryError }),
-    mutationCache: new MutationCache({ onError: onQueryError }),
+    mutationCache: new MutationCache({
+        onError: (error, _variables, _onMutateResult, mutation) => onMutationError(error, mutation.meta),
+    }),
     defaultOptions: {
         queries: {
             // Desktop: mutation invalidation only — no background refetch churn.
@@ -57,6 +77,7 @@ const bootstrap = async () => {
         <React.StrictMode>
             <QueryClientProvider client={queryClient}>
                 <App />
+                <ToastViewport />
             </QueryClientProvider>
         </React.StrictMode>,
     );

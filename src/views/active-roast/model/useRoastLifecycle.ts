@@ -15,6 +15,9 @@ export interface UseRoastLifecycleParams {
     charged: boolean;
     sidecarConnected: boolean;
     rawBT: number | null;
+    /** Bean is required before charge — saving and stock deduction both key off it. */
+    selectedBeanId: string | null;
+    onBeanSelectionRequired: () => void;
     unit: TemperatureUnit;
     logEntries: LogEntry[];
     timeStr: string;
@@ -50,6 +53,8 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         charged,
         sidecarConnected,
         rawBT,
+        selectedBeanId,
+        onBeanSelectionRequired,
         unit,
         logEntries,
         timeStr,
@@ -99,9 +104,23 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             }
             return;
         }
+        // Asked last so the selection modal only appears when charge would otherwise start.
+        if (!selectedBeanId) {
+            onBeanSelectionRequired();
+            return;
+        }
         disableAutoChargeRef.current?.();
         triggerChargeRef.current?.(rawBT);
-    }, [charged, canWrite, rawBT, triggerChargeRef, setConnected, disableAutoChargeRef]);
+    }, [
+        charged,
+        canWrite,
+        rawBT,
+        selectedBeanId,
+        onBeanSelectionRequired,
+        triggerChargeRef,
+        setConnected,
+        disableAutoChargeRef,
+    ]);
 
     const resetActiveRoast = useCallback(() => {
         roastStartTimeRef.current = 0;

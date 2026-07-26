@@ -24,6 +24,7 @@ import { useRoastSessionStore } from '@shared/store/roastSession';
 import { useThemeStore } from '@shared/store/theme';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
+import { PreChargeSelectionModal } from '@widgets/pre-charge-selection-modal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useShallow } from 'zustand/react/shallow';
@@ -102,6 +103,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         useRoastProfileSelection({ isActive, charged, userProfile });
 
     // ── UI 상태 ───────────────────────────────────────────────────
+    const [preChargeSelectionOpen, setPreChargeSelectionOpen] = useState(false);
+    const openPreChargeSelection = useCallback(() => setPreChargeSelectionOpen(true), []);
+    const closePreChargeSelection = useCallback(() => setPreChargeSelectionOpen(false), []);
     const [isRunning, setIsRunning] = useState(false);
     const isRunningRef = useRef(isRunning);
     useEffect(() => {
@@ -172,6 +176,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         charged,
         sidecarConnected,
         rawBT,
+        selectedBeanId,
+        onBeanSelectionRequired: openPreChargeSelection,
         unit,
         logEntries,
         timeStr,
@@ -583,6 +589,19 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     lifecycle.resetActiveRoast();
                 }}
                 onSave={saveFlow.handleSave}
+            />
+
+            <PreChargeSelectionModal
+                open={preChargeSelectionOpen}
+                selectedBeanId={selectedBeanId}
+                targetProfileId={targetProfileId}
+                onBeanChange={setSelectedBeanId}
+                onProfileChange={setUserSelectedTarget}
+                onClose={closePreChargeSelection}
+                onConfirm={() => {
+                    closePreChargeSelection();
+                    void lifecycle.handleManualCharge();
+                }}
             />
 
             <PlanBatchContinueModal

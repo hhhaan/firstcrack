@@ -930,6 +930,14 @@
         "alerts": {
             "rorCrash": "RoR 크래시 — 화력이 죽고 있습니다",
             "btOver": "BT 상한 초과"
+        },
+        "preCharge": {
+            "title": "원두와 프로파일 선택",
+            "description": "차지 전에 원두를 선택하세요. 로스팅 기록과 재고 차감에 필요합니다. 타겟 프로파일은 선택 사항입니다.",
+            "bean": "원두",
+            "beanPlaceholder": "원두 선택",
+            "profile": "타겟 프로파일",
+            "profilePlaceholder": "선택 안 함 (선택 사항)"
         }
     },
     "profiles": {
@@ -1404,7 +1412,8 @@
                 "error": "오류",
                 "disabled": "비활성"
             },
-            "autoFulfill": "플랫폼 배송 시작 시 완제품 재고 자동 차감"
+            "autoFulfill": "플랫폼 배송 시작 시 완제품 재고 자동 차감",
+            "errWorkspaceLoading": "워크스페이스를 불러오는 중입니다. 잠시 후 다시 시도해 주세요."
         },
         "dispatch": {
             "title": "발송 처리",
@@ -1524,5 +1533,9 @@
         "avgCost": "가중평균 단가",
         "stockValue": "재고 자산",
         "error": "자산 계산 실패"
+    },
+    "errors": {
+        "mutationFailed": "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        "mutationFailedDetail": "요청을 처리하지 못했습니다: {{message}}"
     }
 }

@@ -26,6 +26,8 @@ export const useConnectChannel = (userId: string) => {
             credentials: ConnectCredentials;
             displayName?: string;
         }) => salesChannelApi.connect(platform, credentials, displayName),
+        // ConnectChannelModal renders the failure inline.
+        meta: { silentError: true },
         onSuccess: () => {
             void qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
         },
@@ -36,6 +38,8 @@ export const useStartCafe24OAuth = () =>
     useMutation({
         mutationFn: ({ mallId, displayName }: { mallId: string; displayName?: string }) =>
             salesChannelApi.startCafe24OAuth(mallId, displayName),
+        // ConnectChannelModal renders the failure inline.
+        meta: { silentError: true },
     });
 
 export const useDisconnectChannel = (userId: string) => {
@@ -52,6 +56,8 @@ export const useSyncOrders = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (connectionId?: string) => salesChannelApi.syncNow(connectionId),
+        // ChannelsTab renders the sync result (including failures) inline.
+        meta: { silentError: true },
         onSuccess: () => {
             void qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
             void qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) });

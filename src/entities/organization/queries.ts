@@ -27,10 +27,14 @@ export const useMyMemberships = (userId: string) =>
         enabled: !!userId,
     });
 
+/** Team settings map every failure to an inline message (`mapInviteError`) — no global toast. */
+const inlineErrorMeta = { silentError: true } as const;
+
 export const useCreateOrgInvite = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (token: string) => organizationApi.createInvite(token),
+        meta: inlineErrorMeta,
         onSuccess: () => invalidateOrganizationQueries(qc, userId),
     });
 };
@@ -39,6 +43,7 @@ export const useRedeemOrgInvite = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (token: string) => organizationApi.redeemInvite(token),
+        meta: inlineErrorMeta,
         onSuccess: () => invalidateOrganizationQueries(qc, userId),
     });
 };
@@ -48,6 +53,7 @@ export const useRemoveOrgMember = (userId: string) => {
     return useMutation({
         mutationFn: ({ orgId, memberId }: { orgId: string; memberId: string }) =>
             organizationApi.removeMember(orgId, memberId),
+        meta: inlineErrorMeta,
         onSuccess: () => invalidateOrganizationQueries(qc, userId),
     });
 };
@@ -56,6 +62,7 @@ export const useRevokeOrgInvite = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (inviteId: string) => organizationApi.revokeInvite(inviteId),
+        meta: inlineErrorMeta,
         onSuccess: () => invalidateOrganizationQueries(qc, userId),
     });
 };
