@@ -1,4 +1,5 @@
 import { useBeanStockSummaries } from '@entities/bean-stock-event';
+import { useActiveWorkspace } from '@entities/organization';
 import {
     dayPlanApi,
     planBatchApi,
@@ -15,7 +16,7 @@ import {
     useUpdateFromThis,
     useUpdateSingleBatch,
 } from '@entities/plan';
-import { useDeductRoastStock, useRoastingStore } from '@features/active-roast';
+import { type DeductRoastStockParams, useDeductRoastStock, useRoastingStore } from '@features/active-roast';
 import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { batchGreenNeededGramsFromBatch, isBatchStockShort } from '@shared/lib/batch-stock';
 import { logger } from '@shared/lib/logger';
@@ -27,6 +28,57 @@ import type { EditScope } from '@widgets/recurring-edit-scope-modal';
 import { format } from 'date-fns';
 import { useCallback, useMemo, useState } from 'react';
 import { batchStatus, toDateKey, unknownErrorMessage } from '../lib';
+
+export type BatchTarget = { targetId: string; targetPlanId: string };
+
+export type CompleteBatchFlowDeps = {
+    /** Virtual recurring → real exception row (status preserved); real row → identity. */
+    ensureMaterialized: (batch: PlanBatchWithProgress) => Promise<BatchTarget>;
+    /** Status UPDATE only. */
+    commitStatus: (batch: PlanBatchWithProgress, target: BatchTarget, status: 'done') => Promise<void>;
+    deduct: (params: DeductRoastStockParams) => Promise<void>;
+    /** i18n key → user-facing alert */
+    notify: (key: string) => void;
+};
+
+/**
+ * Complete-batch order (#108): materialize first (deduct needs the real reference id),
+ * then deduct BEFORE committing status=done. A deduct failure leaves the batch
+ * not-done, so retry is safe — the reference-unique deduct is idempotent.
+ * `roast_already_deducted` still completes (the session save path already took stock).
+ */
+export async function runCompleteBatchFlow(
+    deps: CompleteBatchFlowDeps,
+    batch: PlanBatchWithProgress,
+    deductStock: boolean,
+): Promise<void> {
+    const target = await deps.ensureMaterialized(batch);
+
+    if (deductStock) {
+        const deductionGrams = batchGreenNeededGramsFromBatch(batch);
+        if (!batch.bean_id && !batch.blend_id) {
+            deps.notify('schedule.completeBatch.deductStockDisabled');
+        } else if (deductionGrams > 0) {
+            try {
+                await deps.deduct({
+                    deductionGrams,
+                    singleBeanId: batch.bean_id ?? null,
+                    blendId: batch.blend_id ?? null,
+                    referenceId: target.targetId,
+                });
+            } catch (deductErr) {
+                // C2: session path already deducted — completing is still correct
+                if (unknownErrorMessage(deductErr).includes('roast_already_deducted')) {
+                    deps.notify('activeRoast.summary.deductSkippedAlreadyDeducted');
+                } else {
+                    throw deductErr; // status untouched — batch stays incomplete for retry
+                }
+            }
+        }
+    }
+
+    await deps.commitStatus(batch, target, 'done');
+}
 
 export const useScheduleDayView = ({
     userId,
@@ -49,6 +101,8 @@ export const useScheduleDayView = ({
     const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
 
     const deductRoastStock = useDeductRoastStock();
+    // Deduct throws while the workspace is loading — keep confirm disabled until ready.
+    const { isWorkspaceReady } = useActiveWorkspace();
 
     const { data: dayPlan, isLoading: isDayPlanLoading } = useDayPlan(userId, dateKey);
     const planId = dayPlan?.id ?? '';
@@ -79,43 +133,48 @@ export const useScheduleDayView = ({
     const updateFromThis = useUpdateFromThis();
     const updateAllBatches = useUpdateAllBatches();
 
-    const commitStatusTransition = useCallback(
-        async (batch: PlanBatchWithProgress, status: 'in-progress' | 'done') => {
-            const patch = {
-                bean_name: batch.bean_name,
-                batch_size_kg: Number(batch.batch_size_kg),
-                target_roasted_kg: Number(batch.target_roasted_kg),
-                machine_id: batch.machine_id,
-                bean_id: batch.bean_id,
-                blend_id: batch.blend_id ?? null,
-                roast_profile_id: batch.roast_profile_id,
-                notes: batch.notes,
-                green_lot: batch.green_lot,
-                batch_type: batch.batch_type,
-                yield_pct: batch.yield_pct,
-                status,
-            };
-
-            // Virtual recurring instance → materialize as exception row
+    // Virtual recurring instance → materialize as exception row with its CURRENT
+    // status (no transition here — commitStatus does that after side-effects succeed).
+    const ensureMaterialized = useCallback(
+        async (batch: PlanBatchWithProgress): Promise<BatchTarget> => {
             if (batch.recurrence_rule_id && batch.id.includes(':') && batch.scheduled_date) {
                 const realBatch = await planBatchApi.materialize(
                     userId,
                     batch.recurrence_rule_id,
                     batch.scheduled_date,
                     batch.original_date ?? batch.scheduled_date,
-                    patch,
+                    {
+                        bean_name: batch.bean_name,
+                        batch_size_kg: Number(batch.batch_size_kg),
+                        target_roasted_kg: Number(batch.target_roasted_kg),
+                        machine_id: batch.machine_id,
+                        bean_id: batch.bean_id,
+                        blend_id: batch.blend_id ?? null,
+                        roast_profile_id: batch.roast_profile_id,
+                        notes: batch.notes,
+                        green_lot: batch.green_lot,
+                        batch_type: batch.batch_type,
+                        yield_pct: batch.yield_pct,
+                        status: batch.status ?? 'pending',
+                    },
                 );
                 return { targetId: realBatch.id, targetPlanId: realBatch.plan_id };
             }
+            return { targetId: batch.id, targetPlanId: batch.plan_id };
+        },
+        [userId],
+    );
 
-            // Real row (one-off or already-materialized exception) → UPDATE only.
-            // Never pass meta here: updateSingle(meta) inserts a new exception and
-            // fails/duplicates when the row already exists.
+    // Status UPDATE only — target must already be a real row (ensureMaterialized).
+    // Never pass meta here: updateSingle(meta) inserts a new exception and
+    // fails/duplicates when the row already exists.
+    const commitStatus = useCallback(
+        async (batch: PlanBatchWithProgress, target: BatchTarget, status: 'in-progress' | 'done') => {
             await updateSingleBatch.mutateAsync({
-                id: batch.id,
+                id: target.targetId,
                 patch: {
-                    id: batch.id,
-                    plan_id: batch.plan_id,
+                    id: target.targetId,
+                    plan_id: target.targetPlanId,
                     status,
                     ...(batch.recurrence_rule_id
                         ? {
@@ -133,10 +192,8 @@ export const useScheduleDayView = ({
                         : {}),
                 },
             });
-
-            return { targetId: batch.id, targetPlanId: batch.plan_id };
         },
-        [updateSingleBatch, userId],
+        [updateSingleBatch],
     );
 
     const handleScopeDelete = useCallback(
@@ -426,13 +483,12 @@ export const useScheduleDayView = ({
             const handoffProfileId = batch.roast_profile_id;
 
             try {
-                const result = await commitStatusTransition(batch, 'in-progress');
-                const targetId = result.targetId;
-                const targetPlanId = result.targetPlanId;
+                const target = await ensureMaterialized(batch);
+                await commitStatus(batch, target, 'in-progress');
 
                 onStartBatch({
-                    planBatchId: targetId,
-                    planId: targetPlanId,
+                    planBatchId: target.targetId,
+                    planId: target.targetPlanId,
                     beanId: handoffBeanId,
                     blendId: handoffBlendId,
                     beanName: batch.bean_name,
@@ -446,7 +502,7 @@ export const useScheduleDayView = ({
                 alert(`${i18n.t('schedule.error.startBatch')} ${unknownErrorMessage(err)}`);
             }
         },
-        [commitStatusTransition, onStartBatch],
+        [ensureMaterialized, commitStatus, onStartBatch],
     );
 
     const handleCompleteClick = useCallback((batch: PlanBatchWithProgress) => {
@@ -465,31 +521,16 @@ export const useScheduleDayView = ({
             if (!batch) return;
 
             try {
-                const { targetId } = await commitStatusTransition(batch, 'done');
-
-                if (deductStock) {
-                    const deductionGrams = batchGreenNeededGramsFromBatch(batch);
-                    if (!batch.bean_id && !batch.blend_id) {
-                        alert(i18n.t('schedule.completeBatch.deductStockDisabled'));
-                    } else if (deductionGrams > 0) {
-                        try {
-                            await deductRoastStock({
-                                deductionGrams,
-                                singleBeanId: batch.bean_id ?? null,
-                                blendId: batch.blend_id ?? null,
-                                referenceId: targetId,
-                            });
-                        } catch (deductErr) {
-                            const msg = unknownErrorMessage(deductErr);
-                            // C2: session path already deducted — batch status still done
-                            if (msg.includes('roast_already_deducted')) {
-                                alert(i18n.t('activeRoast.summary.deductSkippedAlreadyDeducted'));
-                            } else {
-                                throw deductErr;
-                            }
-                        }
-                    }
-                }
+                await runCompleteBatchFlow(
+                    {
+                        ensureMaterialized,
+                        commitStatus,
+                        deduct: deductRoastStock,
+                        notify: (key) => alert(i18n.t(key)),
+                    },
+                    batch,
+                    deductStock,
+                );
             } catch (err) {
                 logger.error('Failed to complete batch:', err);
                 alert(`${i18n.t('schedule.error.completeBatch')} ${unknownErrorMessage(err)}`);
@@ -497,7 +538,7 @@ export const useScheduleDayView = ({
                 handleCompleteClose();
             }
         },
-        [completingBatch, commitStatusTransition, deductRoastStock, handleCompleteClose],
+        [completingBatch, ensureMaterialized, commitStatus, deductRoastStock, handleCompleteClose],
     );
 
     const isRecurringStockShort = useCallback(
@@ -559,6 +600,7 @@ export const useScheduleDayView = ({
         handleCompleteClose,
         completingBatch,
         isCompleteModalOpen,
+        isCompleteConfirmDisabled: !isWorkspaceReady,
         handleEdit,
         handleBatchDelete,
         handleEditScopeConfirm,

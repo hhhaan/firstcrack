@@ -71,7 +71,10 @@ export const useDeductRoastStock = () => {
 
     return useCallback(
         async (params: DeductRoastStockParams) => {
-            if (!isWorkspaceReady || !workspaceOwnerId) return;
+            // Never skip silently — a caller may treat the resolved promise as "stock deducted".
+            if (!isWorkspaceReady || !workspaceOwnerId) {
+                throw new Error('Workspace is still loading');
+            }
             await deductRoastStock({ userId: workspaceOwnerId, qc }, params);
         },
         [workspaceOwnerId, isWorkspaceReady, qc],

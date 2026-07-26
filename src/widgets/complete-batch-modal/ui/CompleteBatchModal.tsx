@@ -11,9 +11,11 @@ interface CompleteBatchModalProps {
     batch: PlanBatchWithProgress | null;
     onClose: () => void;
     onConfirm: (deductStock: boolean) => void;
+    /** e.g. workspace still loading — stock deduction would fail */
+    confirmDisabled?: boolean;
 }
 
-export const CompleteBatchModal = ({ open, batch, onClose, onConfirm }: CompleteBatchModalProps) => {
+export const CompleteBatchModal = ({ open, batch, onClose, onConfirm, confirmDisabled }: CompleteBatchModalProps) => {
     const { t } = useTranslation();
     const [deductStock, setDeductStock] = useState(false);
 
@@ -98,7 +100,8 @@ export const CompleteBatchModal = ({ open, batch, onClose, onConfirm }: Complete
                 <button
                     type="button"
                     onClick={handleConfirm}
-                    className="flex-1 px-4 py-2.5 rounded-full border-none bg-black text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity"
+                    disabled={confirmDisabled}
+                    className="flex-1 px-4 py-2.5 rounded-full border-none bg-black text-white text-[13px] font-semibold cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {t('schedule.completeBatch.confirm')}
                 </button>

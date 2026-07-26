@@ -144,6 +144,7 @@ export const ScheduleDayView = ({
                 batch={hooks.completingBatch}
                 onClose={hooks.handleCompleteClose}
                 onConfirm={hooks.handleCompleteConfirm}
+                confirmDisabled={hooks.isCompleteConfirmDisabled}
             />
 
             <AddBatchModal
