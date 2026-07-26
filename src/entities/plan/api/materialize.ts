@@ -2,29 +2,35 @@ import { supabase } from '@shared/lib/supabase';
 import type { PlanBatch } from '@shared/types/database.types';
 import { dayPlanApi } from './day-plan';
 
+type MaterializePatch = {
+    status?: string;
+    machine_id?: string | null;
+    bean_id?: string | null;
+    blend_id?: string | null;
+    bean_name?: string;
+    roast_profile_id?: string | null;
+    batch_size_kg?: number;
+    target_roasted_kg?: number;
+    yield_pct?: number;
+    notes?: string;
+    green_lot?: string;
+    batch_type?: string;
+};
+
 /**
  * Materialize a virtual (computed) recurring batch into a real exception row.
  * Creates the day_plan if missing, then inserts a modified exception row.
+ *
+ * (rule, original_date) is unique (partial index uq_plan_batch_rule_original), but
+ * PostgREST upsert cannot use a partial unique index as arbiter — so on 23505
+ * (double-click / concurrent tab / retry) we converge by updating the existing row.
  */
 export async function materializePlanBatch(
     userId: string,
     ruleId: string,
     scheduledDate: string,
     originalDate: string,
-    patch: {
-        status?: string;
-        machine_id?: string | null;
-        bean_id?: string | null;
-        blend_id?: string | null;
-        bean_name?: string;
-        roast_profile_id?: string | null;
-        batch_size_kg?: number;
-        target_roasted_kg?: number;
-        yield_pct?: number;
-        notes?: string;
-        green_lot?: string;
-        batch_type?: string;
-    },
+    patch: MaterializePatch,
 ): Promise<PlanBatch> {
     const plan = await dayPlanApi.getOrCreate(userId, scheduledDate);
 
@@ -52,6 +58,24 @@ export async function materializePlanBatch(
         })
         .select()
         .single();
-    if (error) throw error;
-    return data;
+    if (!error) return data;
+    if (error.code !== '23505') throw error;
+
+    // The exception row already exists — apply only the caller's explicit fields
+    // (plus scheduling context) so a partial patch does not reset the row to defaults.
+    const definedPatch = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+    const { data: existing, error: updateError } = await supabase
+        .from('roast_plan_batches')
+        .update({
+            ...definedPatch,
+            plan_id: plan.id,
+            scheduled_date: scheduledDate,
+            exception_type: 'modified',
+        })
+        .eq('recurrence_rule_id', ruleId)
+        .eq('original_date', originalDate)
+        .select()
+        .single();
+    if (updateError) throw updateError;
+    return existing;
 }
