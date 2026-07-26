@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
         return new Response('ok', {
             headers: {
                 ...corsHeaders,
-                'Access-Control-Allow-Headers': `${corsHeaders['Access-Control-Allow-Headers']}, x-shopify-hmac-sha256, x-shopify-shop-domain, x-shopify-topic, x-shopify-webhook-id, x-cafe24-webhook-secret, x-webhook-secret`,
+                'Access-Control-Allow-Headers': `${corsHeaders['Access-Control-Allow-Headers']}, x-shopify-hmac-sha256, x-shopify-shop-domain, x-shopify-topic, x-shopify-webhook-id, x-api-key, x-cafe24-webhook-secret, x-webhook-secret`,
             },
         });
     }
@@ -309,19 +309,49 @@ Deno.serve(async (req) => {
             .toLowerCase();
         if (!mallId) return jsonResponse({ ok: true, skipped: 'no mall_id' });
 
-        // fail-closed: env 미설정 포함 전부 거부 (기존: env 없으면 무검증 통과)
-        const cafe24Header =
-            req.headers.get('x-cafe24-webhook-secret') ?? req.headers.get('x-webhook-secret');
-        if (!verifySharedSecret(Deno.env.get('CAFE24_WEBHOOK_SECRET'), cafe24Header)) {
-            console.error('[order-webhook] cafe24 secret reject', mallId);
-            return jsonResponse({ error: 'Unauthorized' }, 401);
-        }
-
         const { conn, ambiguous } = await resolveConnection(admin, 'cafe24', mallId);
         if (ambiguous) {
             console.error('[order-webhook] cafe24 ambiguous mall', mallId);
             return jsonResponse({ ok: true, skipped: 'ambiguous mall' });
         }
+
+        // Per-connection shared secret (service-role only) wins over the app-wide
+        // env secret, mirroring the Shopify path. Cafe24 connects via OAuth, so
+        // nothing writes the per-connection slot yet — CAFE24_WEBHOOK_SECRET stays
+        // the SSoT until a Cafe24 secret write path exists.
+        let cafe24Secret = Deno.env.get('CAFE24_WEBHOOK_SECRET');
+        if (conn) {
+            const { data: secretRow } = await admin
+                .from('sales_channel_secrets')
+                .select('credentials')
+                .eq('connection_id', conn.id)
+                .maybeSingle();
+            const creds = (secretRow?.credentials ?? {}) as Record<string, string>;
+            if (creds.webhook_secret) cafe24Secret = creds.webhook_secret;
+        }
+
+        // Cafe24 authenticates webhooks with `X-API-Key` (issue #132 C1). Reading
+        // only x-cafe24-webhook-secret / x-webhook-secret — names Cafe24 never
+        // sends — left the header permanently null, so fail-closed rejected 100%
+        // of deliveries. Those names stay as a fallback for manual relays.
+        //
+        // UNVERIFIED: what the X-API-Key *value* is (app key vs. a developer-set
+        // secret) could not be confirmed against Cafe24's official docs, so it is
+        // compared against our stored shared secret. Confirm against live traffic
+        // before treating Cafe24 push ingest as working.
+        //
+        // fail-closed: 헤더 또는 시크릿 부재 = 검증 불가 = 거부.
+        const cafe24Header =
+            req.headers.get('x-api-key') ??
+            req.headers.get('x-cafe24-webhook-secret') ??
+            req.headers.get('x-webhook-secret');
+        // Verified before the unknown-mall ack so an unauthenticated caller cannot
+        // probe which malls are connected.
+        if (!verifySharedSecret(cafe24Secret, cafe24Header)) {
+            console.error('[order-webhook] cafe24 secret reject', mallId);
+            return jsonResponse({ error: 'Unauthorized' }, 401);
+        }
+
         if (!conn) return jsonResponse({ ok: true, skipped: 'unknown mall' });
 
         const order = parseCafe24Order(payload);

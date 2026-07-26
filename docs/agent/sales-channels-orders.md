@@ -71,6 +71,14 @@ connection id is always derived from `(user_id, platform, shop_identifier)`;
   a failed run releases the key so the platform retry is processed.
 - Duplicate `(platform, shop_identifier)` rows across tenants are rejected explicitly
   (`ambiguous shop`) instead of resolving to an arbitrary tenant.
+- Cafe24 authenticates with **`X-API-Key`** (issue #132 C1). The old
+  `x-cafe24-webhook-secret` / `x-webhook-secret` names are a manual-relay fallback
+  only — Cafe24 never sends them, so reading them alone rejected every delivery.
+  The value is compared against the connection's `webhook_secret` in
+  `sales_channel_secrets`, falling back to the app-wide `CAFE24_WEBHOOK_SECRET` env.
+  **Unverified:** what Cafe24 actually puts in `X-API-Key` is not confirmed against
+  official docs — validate against live traffic before trusting Cafe24 push ingest.
+  Cafe24 connects via OAuth, so nothing writes the per-connection slot yet.
 
 SKU mapping: when platform product/variant ids match `products.sku`, lines get `product_id` for stock + roasting requirements.
 
