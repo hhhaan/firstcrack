@@ -88,6 +88,12 @@ export function readNaverDispatchResult(
     json: NaverDispatchResponse,
     lines: { platformLineId: string }[],
 ): MarkShippedResult {
+    // No lines requested means nothing was confirmed. Returning ok here would let order-dispatch
+    // run fulfill_order off zero confirmations.
+    if (!lines.length) {
+        return { ok: false, alreadyShipped: false, lineResults: [], error: 'no lines to dispatch' };
+    }
+
     const raw = json.data?.successProductOrderIds;
     const successIds = new Set((Array.isArray(raw) ? raw : []).map(String));
 

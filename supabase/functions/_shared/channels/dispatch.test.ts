@@ -135,6 +135,11 @@ describe('readNaverDispatchResult (N3 — ok drives fulfill_order, so fail-close
         }
     });
 
+    it('an empty request set is not a success', () => {
+        const r = readNaverDispatchResult({ data: { successProductOrderIds: [] } }, []);
+        expect(r.ok).toBe(false);
+    });
+
     it('ignores success ids that were not requested', () => {
         const r = readNaverDispatchResult(
             { data: { successProductOrderIds: ['L1', 'L2', 'L3', 'L9'] } },
