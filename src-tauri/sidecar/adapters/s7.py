@@ -64,7 +64,8 @@ class S7Adapter:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _connect)
 
-        if not self.connected:
+        # connected는 get_cpu_state() 네트워크 왕복을 포함 → 이벤트 루프 밖에서 평가 (H5)
+        if not await loop.run_in_executor(None, lambda: self.connected):
             raise ConnectionError(
                 f"S7 연결 실패: {self._host}:{self._port} (rack={self._rack}, slot={self._slot})"
             )
@@ -136,10 +137,14 @@ class S7Adapter:
         raise last_exc
 
     async def read(self) -> Reading:
-        if not self.connected:
+        # 여기서는 핸들 유무만 확인한다. 실제 연결 검사(connected)는 get_cpu_state()
+        # 네트워크 왕복이라 이벤트 루프에서 하면 PLC 다운 시 aiohttp 전체가 멈춘다 (H5).
+        if self._plc is None:
             raise ConnectionError("S7 PLC가 연결되지 않음")
 
         def _read_all() -> tuple[float, float, float, float, float]:
+            if not self.connected:
+                raise ConnectionError("S7 PLC가 연결되지 않음")
             bt = self._read_channel_sync(self._bt_ch) if self._bt_ch else -1.0
             et = self._read_channel_sync(self._et_ch) if self._et_ch else -1.0
             hp = self._read_channel_sync(self._hp_ch) if self._hp_ch else 0.0

@@ -13,9 +13,47 @@ use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 #[cfg(desktop)]
 struct SidecarChild(Mutex<Option<CommandChild>>);
 
+/// 사이드카 HTTP 인증 토큰. 앱 프로세스당 1개 — 최초 spawn·respawn·/shutdown이 모두 이 값을 쓴다.
+#[cfg(desktop)]
+struct SidecarToken(String);
+
 /// 사이드카 자동 재시작 백오프 (초). 길이 = 최대 시도 횟수.
 #[cfg(desktop)]
 const RESTART_BACKOFFS_SECS: [u64; 3] = [2, 5, 10];
+
+/// 사이드카 HTTP 토큰 생성.
+///
+/// 위협 모델: `127.0.0.1:9999`는 로컬 브라우저(Safari/Firefox)나 다른 로컬 프로세스가
+/// 그냥 호출할 수 있어 `/shutdown`·`/disconnect`가 로컬 CSRF 벡터다. 토큰은 프로세스
+/// env로만 전달되며 웹 페이지는 이를 읽을 수 없다 — 즉 "추측 불가"면 충분하고,
+/// 암호학적 키가 아니다. 그래서 외부 crypto 의존성 없이 OS 엔트로피로 시드되는
+/// `RandomState`(SipHash 키)를 사용한다.
+#[cfg(desktop)]
+fn generate_sidecar_token() -> String {
+    use std::collections::hash_map::RandomState;
+    use std::hash::{BuildHasher, Hasher};
+
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or_default();
+
+    let mut token = String::with_capacity(32);
+    for salt in 0..2u64 {
+        let mut hasher = RandomState::new().build_hasher();
+        hasher.write_u64(nanos ^ salt);
+        hasher.write_u32(std::process::id());
+        token.push_str(&format!("{:016x}", hasher.finish()));
+    }
+    token
+}
+
+/// 프론트엔드(`src/shared/lib/sidecar.ts`)가 `X-Sidecar-Token` 헤더에 실을 토큰.
+#[cfg(desktop)]
+#[tauri::command]
+fn sidecar_token(app: tauri::AppHandle) -> String {
+    app.state::<SidecarToken>().0.clone()
+}
 
 /// 업데이트 적용 재시작. single-instance 소켓을 먼저 제거해 재시작 프로세스가 즉시 종료되지 않도록 한다.
 #[cfg(desktop)]
@@ -157,9 +195,39 @@ fn configure_main_window(app: &tauri::App) {
     }
 }
 
-/// 사이드카 스폰 + stdout/stderr 드레인 + 백오프 재시작 워치독. 데스크톱 전용.
+/// 사이드카 1회 스폰. 최초 spawn과 워치독 재시작이 같은 env를 쓰도록 한 곳에 모은다.
+/// (예전에는 재시작 경로가 `SIDECAR_VERSION`을 빠뜨려 Sentry release가 어긋났다.)
 #[cfg(desktop)]
-fn spawn_and_watch_sidecar(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+fn spawn_sidecar(
+    app: &tauri::AppHandle,
+) -> Result<
+    (
+        tauri::async_runtime::Receiver<CommandEvent>,
+        CommandChild,
+    ),
+    Box<dyn std::error::Error>,
+> {
+    let parent_pid = std::process::id().to_string();
+    let version = app.package_info().version.to_string();
+    let token = app.state::<SidecarToken>().0.clone();
+    let (rx, child) = app
+        .shell()
+        .sidecar("sidecar")?
+        .env("SIDECAR_PARENT_PID", &parent_pid)
+        .env("SIDECAR_VERSION", &version)
+        .env("SIDECAR_TOKEN", &token)
+        .spawn()?;
+    Ok((rx, child))
+}
+
+/// 사이드카 스폰 + stdout/stderr 드레인 + 백오프 재시작 워치독. 데스크톱 전용.
+///
+/// 최초 spawn 실패는 **비치명**이다 — 바이너리 누락/권한/안티바이러스 차단으로
+/// 앱 전체가 못 뜨면 재고·히스토리 등 사이드카가 필요 없는 기능까지 막힌다.
+/// 실패 시에는 자식 없이 워치독 루프에 진입해 백오프 재시도하고, 모두 실패하면
+/// 기존 `sidecar-dead` 이벤트로 UI에 알린다 (그 시점엔 webview가 리스너를 붙인 뒤다).
+#[cfg(desktop)]
+fn spawn_and_watch_sidecar(app: &tauri::App) {
     // DEBUG: `tauri dev` 시 beforeDevCommand가 띄운 venv Python 사이드카를
     // 존중한다. 포트 9999가 이미 응답하면 스폰을 건너뜀 (X1).
     #[cfg(debug_assertions)]
@@ -169,7 +237,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) -> Result<(), Box<dyn std::error::E
             std::time::Duration::from_millis(300),
         ).is_ok() {
             eprintln!("[sidecar-guard] debug: 포트 9999 감지 — 외부 dev 사이드카 존중, 스폰 건너뜀");
-            return Ok(());
+            return;
         }
     }
 
@@ -179,53 +247,63 @@ fn spawn_and_watch_sidecar(app: &tauri::App) -> Result<(), Box<dyn std::error::E
     kill_zombie_sidecar();
     std::thread::sleep(std::time::Duration::from_millis(200));
 
-    let sidecar_command = app.shell().sidecar("sidecar")?;
-    let parent_pid = std::process::id().to_string();
-    let version = app.package_info().version.to_string();
-    let (rx, child) = sidecar_command
-        .env("SIDECAR_PARENT_PID", &parent_pid)
-        .env("SIDECAR_VERSION", &version)
-        .spawn()?;
-    *app.state::<SidecarChild>().0.lock().unwrap() = Some(child);
+    let app_handle = app.handle().clone();
+    let initial_rx = match spawn_sidecar(&app_handle) {
+        Ok((rx, child)) => {
+            *app_handle.state::<SidecarChild>().0.lock().unwrap() = Some(child);
+            Some(rx)
+        }
+        Err(e) => {
+            eprintln!("[sidecar] 최초 spawn 실패 (앱은 계속 기동): {e}");
+            sentry::capture_message(
+                &format!("[sidecar-spawn-failed] 최초 spawn 실패: {e}"),
+                sentry::Level::Error,
+            );
+            None
+        }
+    };
 
     // stdout/stderr 드레인 + Terminated 감지 시 백오프 재시작.
     // 30초 미만 생존은 "빠른 사망"으로 간주해 attempts 증가 (C2).
-    let app_handle = app.handle().clone();
     tauri::async_runtime::spawn(async move {
-        let mut current_rx = rx;
-        let mut attempts: usize = 0;
+        let mut current_rx = initial_rx;
+        // 최초 spawn이 실패했으면 이미 1회 실패한 상태로 루프를 시작한다.
+        let mut attempts: usize = if current_rx.is_some() { 0 } else { 1 };
         let mut spawned_at = Instant::now();
 
         loop {
-            while let Some(event) = current_rx.recv().await {
-                match event {
-                    CommandEvent::Stdout(line) => {
-                        print!("[sidecar] {}", String::from_utf8_lossy(&line));
+            if let Some(rx) = current_rx.as_mut() {
+                while let Some(event) = rx.recv().await {
+                    match event {
+                        CommandEvent::Stdout(line) => {
+                            print!("[sidecar] {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Stderr(line) => {
+                            eprint!("[sidecar] {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Terminated(payload) => {
+                            eprintln!("[sidecar] terminated: code={:?}", payload.code);
+                            sentry::capture_message(
+                                &format!(
+                                    "[sidecar-terminated] code={:?} after {:.0}s",
+                                    payload.code,
+                                    spawned_at.elapsed().as_secs_f64(),
+                                ),
+                                sentry::Level::Warning,
+                            );
+                            break;
+                        }
+                        _ => {}
                     }
-                    CommandEvent::Stderr(line) => {
-                        eprint!("[sidecar] {}", String::from_utf8_lossy(&line));
-                    }
-                    CommandEvent::Terminated(payload) => {
-                        eprintln!("[sidecar] terminated: code={:?}", payload.code);
-                        sentry::capture_message(
-                            &format!(
-                                "[sidecar-terminated] code={:?} after {:.0}s",
-                                payload.code,
-                                spawned_at.elapsed().as_secs_f64(),
-                            ),
-                            sentry::Level::Warning,
-                        );
-                        break;
-                    }
-                    _ => {}
                 }
-            }
 
-            // 30초 미만 생존 = 빠른 사망 → 실패로 카운트. 충분히 살았으면 리셋.
-            if spawned_at.elapsed() < std::time::Duration::from_secs(30) {
-                attempts += 1;
-            } else {
-                attempts = 0;
+                // 30초 미만 생존 = 빠른 사망 → 실패로 카운트. 충분히 살았으면 리셋.
+                if spawned_at.elapsed() < std::time::Duration::from_secs(30) {
+                    attempts += 1;
+                } else {
+                    attempts = 0;
+                }
+                current_rx = None;
             }
 
             if attempts >= RESTART_BACKOFFS_SECS.len() {
@@ -257,27 +335,20 @@ fn spawn_and_watch_sidecar(app: &tauri::App) -> Result<(), Box<dyn std::error::E
             kill_zombie_sidecar();
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
-            let parent_pid = std::process::id().to_string();
-            let respawn = app_handle
-                .shell()
-                .sidecar("sidecar")
-                .and_then(|cmd| cmd.env("SIDECAR_PARENT_PID", &parent_pid).spawn().map_err(Into::into));
-
-            match respawn {
+            match spawn_sidecar(&app_handle) {
                 Ok((new_rx, new_child)) => {
                     *app_handle.state::<SidecarChild>().0.lock().unwrap() = Some(new_child);
-                    current_rx = new_rx;
+                    current_rx = Some(new_rx);
                     spawned_at = Instant::now();
                     eprintln!("[sidecar-restart] 재시작 성공");
                 }
                 Err(e) => {
                     eprintln!("[sidecar-restart] spawn 실패: {e}");
+                    attempts += 1;
                 }
             }
         }
     });
-
-    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -314,7 +385,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::default().build())
         // CommandChild has no Drop impl — storing via manage() keeps it alive for the app lifetime.
         .manage(SidecarChild(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![relaunch_for_update]);
+        .manage(SidecarToken(generate_sidecar_token()))
+        .invoke_handler(tauri::generate_handler![relaunch_for_update, sidecar_token]);
 
     let app = builder
         .plugin(tauri_plugin_deep_link::init())
@@ -341,7 +413,8 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 configure_main_window(app);
-                spawn_and_watch_sidecar(app)?;
+                // 실패해도 setup을 깨뜨리지 않는다 — 사이드카 없이도 앱은 떠야 한다
+                spawn_and_watch_sidecar(app);
             }
 
             Ok(())
@@ -362,9 +435,12 @@ pub fn run() {
                         &"127.0.0.1:9999".parse().unwrap(),
                         Duration::from_millis(200),
                     ) {
-                        let _ = stream.write_all(
-                            b"POST /shutdown HTTP/1.0\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                        // 사이드카가 토큰 검증 중이면 헤더 없이는 401 → graceful shutdown 실패
+                        let token = _app.state::<SidecarToken>().0.clone();
+                        let request = format!(
+                            "POST /shutdown HTTP/1.0\r\nHost: 127.0.0.1\r\nX-Sidecar-Token: {token}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                         );
+                        let _ = stream.write_all(request.as_bytes());
                         // sidecar가 /shutdown 후 os._exit(0) — 0.3초면 충분
                         std::thread::sleep(Duration::from_millis(300));
                     }

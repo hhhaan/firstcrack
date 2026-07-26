@@ -17,6 +17,8 @@ binaries += collect_dynamic_libs('snap7')
 hiddenimports += [
     'serial.tools.list_ports',
     'serial.tools.list_ports_posix',
+    # Windows 빌드에서 comports()가 ImportError로 빈 배열을 내는 것 방지 (H10)
+    'serial.tools.list_ports_windows',
     'snap7',
     'adapters.virtual',
     'adapters.modbus',

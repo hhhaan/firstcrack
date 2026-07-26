@@ -241,6 +241,50 @@ class TestCors:
 
 
 # ---------------------------------------------------------------------------
+# 토큰 인증 (H3)
+# ---------------------------------------------------------------------------
+
+class TestTokenAuth:
+    @pytest.fixture
+    async def token_client(self, monkeypatch):
+        monkeypatch.setenv("SIDECAR_TOKEN", "secret-token")
+        app = create_app()
+        async with TestClient(TestServer(app)) as c:
+            yield c
+
+    async def test_request_without_token_is_rejected(self, token_client):
+        resp = await token_client.get("/status")
+        assert resp.status == 401
+
+    async def test_request_with_wrong_token_is_rejected(self, token_client):
+        resp = await token_client.post("/shutdown", headers={"X-Sidecar-Token": "nope"})
+        assert resp.status == 401
+
+    async def test_request_with_token_passes(self, token_client):
+        resp = await token_client.get("/status", headers={"X-Sidecar-Token": "secret-token"})
+        assert resp.status == 200
+
+    async def test_preflight_passes_without_token(self, token_client):
+        """브라우저 preflight에는 커스텀 헤더가 실리지 않는다."""
+        resp = await token_client.options("/status", headers={"Origin": "tauri://localhost"})
+        assert resp.status == 200
+
+    async def test_rejected_response_still_has_cors_headers(self, token_client):
+        resp = await token_client.get("/status", headers={"Origin": "tauri://localhost"})
+        assert resp.status == 401
+        assert resp.headers.get("Access-Control-Allow-Origin") == "tauri://localhost"
+
+    async def test_no_token_env_means_no_auth(self, client):
+        """env 부재 시 인증을 건너뛴다 (dev 호환)."""
+        resp = await client.get("/status")
+        assert resp.status == 200
+
+    async def test_token_header_is_allowed_by_cors(self, client):
+        resp = await client.options("/status", headers={"Origin": "tauri://localhost"})
+        assert "X-Sidecar-Token" in resp.headers.get("Access-Control-Allow-Headers", "")
+
+
+# ---------------------------------------------------------------------------
 # GET/POST /debug/trace, GET /debug/probe
 # ---------------------------------------------------------------------------
 

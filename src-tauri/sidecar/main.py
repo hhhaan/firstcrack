@@ -57,19 +57,28 @@ _log = logging.getLogger(__name__)
 
 
 def _pid_alive(pid: int) -> bool:
-    """부모 프로세스 생존 여부 확인 (표준 라이브러리만 사용)."""
+    """부모 프로세스 생존 여부 확인 (표준 라이브러리만 사용).
+
+    권한 부족은 "죽음"이 아니다. EPERM/ACCESS_DENIED는 프로세스가 존재하지만
+    시그널/핸들 권한이 없다는 뜻이므로 True로 판정한다. 오판하면 살아 있는
+    부모를 두고 사이드카가 스스로 종료한다 (H9).
+    """
     try:
         if sys.platform == "win32":
             import ctypes
             SYNCHRONIZE = 0x00100000
-            handle = ctypes.windll.kernel32.OpenProcess(SYNCHRONIZE, False, pid)
+            ERROR_ACCESS_DENIED = 5
+            kernel32 = ctypes.windll.kernel32
+            handle = kernel32.OpenProcess(SYNCHRONIZE, False, pid)
             if handle:
-                ctypes.windll.kernel32.CloseHandle(handle)
+                kernel32.CloseHandle(handle)
                 return True
-            return False
+            return kernel32.GetLastError() == ERROR_ACCESS_DENIED
         else:
             os.kill(pid, 0)
             return True
+    except PermissionError:  # OSError 하위 — 반드시 아래 arm보다 먼저 잡아야 한다
+        return True
     except (OSError, ProcessLookupError):
         return False
 
@@ -295,6 +304,9 @@ _ALLOWED_ORIGINS = frozenset({
 })
 
 
+TOKEN_HEADER = "X-Sidecar-Token"
+
+
 @web.middleware
 async def cors_middleware(request: web.Request, handler: Any) -> web.Response:
     if request.method == "OPTIONS":
@@ -308,21 +320,63 @@ async def cors_middleware(request: web.Request, handler: Any) -> web.Response:
         # Chromium의 Private Network Access(LNA) 정책 대응 — preflight에서 요구됨
         resp.headers["Access-Control-Allow-Private-Network"] = "true"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    resp.headers["Access-Control-Allow-Headers"] = f"Content-Type, {TOKEN_HEADER}"
     return resp
 
 
+def _make_token_middleware(expected: str) -> Any:
+    """X-Sidecar-Token 검증 미들웨어.
+
+    127.0.0.1:9999는 다른 로컬 프로세스·브라우저(Safari/Firefox)에서도 접근 가능해
+    /shutdown·/disconnect가 로컬 CSRF 벡터가 된다. Tauri가 spawn 시 env로 넘긴
+    토큰을 요구해 이를 막는다.
+
+    - OPTIONS는 통과: 브라우저 preflight에는 커스텀 헤더가 실리지 않는다.
+    - 401은 raise가 아니라 반환한다 — 바깥 cors_middleware가 헤더를 붙일 수 있어야 한다.
+    """
+
+    @web.middleware
+    async def token_middleware(request: web.Request, handler: Any) -> web.Response:
+        if request.method == "OPTIONS":
+            return await handler(request)
+        if request.headers.get(TOKEN_HEADER) != expected:
+            _log.warning("토큰 불일치 요청 거부: %s %s", request.method, request.path)
+            return web.json_response({"error": "unauthorized"}, status=401)
+        return await handler(request)
+
+    return token_middleware
+
+
 def create_app() -> web.Application:
-    app = web.Application(middlewares=[cors_middleware])
+    middlewares = [cors_middleware]
+    # 토큰은 Tauri가 spawn 시 주입한다. env가 없으면(venv 직접 실행 dev) 검증을 건너뛴다.
+    token = os.environ.get("SIDECAR_TOKEN")
+    if token:
+        middlewares.append(_make_token_middleware(token))
+    else:
+        _log.info("SIDECAR_TOKEN 미설정 — HTTP 토큰 인증 비활성 (dev 모드)")
+
+    app = web.Application(middlewares=middlewares)
     app["manager"] = RoasterManager()
 
     async def _start_watchdog(app: web.Application) -> None:
         import asyncio
         pid_str = os.environ.get("SIDECAR_PARENT_PID")
         if pid_str:
-            asyncio.create_task(parent_watchdog(int(pid_str), app["manager"]))
+            # 강참조 보관 — 로컬 변수로 두면 GC가 태스크를 수거할 수 있다 (H9)
+            app["watchdog_task"] = asyncio.create_task(
+                parent_watchdog(int(pid_str), app["manager"])
+            )
 
     async def _cleanup_on_app_exit(app: web.Application) -> None:
+        import asyncio
+        task = app.get("watchdog_task")
+        if task is not None and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
         await _cleanup_manager(app["manager"])
 
     app.on_startup.append(_start_watchdog)

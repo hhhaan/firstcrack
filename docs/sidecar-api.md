@@ -1,6 +1,6 @@
 # First Crack Sidecar API
 
-작성일: 2026-05-08 · 갱신일: 2026-07-19
+작성일: 2026-05-08 · 갱신일: 2026-07-26
 
 이 문서는 `src-tauri/sidecar/main.py`의 현재 `aiohttp` 기반 HTTP API를 기준으로 한다. 프론트엔드는 `src/shared/lib/sidecar.ts`에서 이 API를 호출한다.
 
@@ -11,6 +11,19 @@
 - Content-Type: JSON 요청은 `application/json`
 - CORS: allowlist origin만 허용 — `tauri://localhost`(macOS 번들), `http://tauri.localhost`(Windows 번들), `http://localhost:1420`(dev). allowlist origin에는 `Access-Control-Allow-Private-Network: true`도 함께 반환 (Chromium PNA 정책 대응)
 - Startup behavior: 서버 시작 시 아무 로스터에도 자동 연결하지 않는다. 프론트엔드가 `POST /connect`를 호출해야 연결이 시작된다.
+
+### 인증 — `X-Sidecar-Token`
+
+`127.0.0.1:9999`는 로컬 브라우저나 다른 로컬 프로세스도 호출할 수 있어 `/shutdown`·`/disconnect`가 로컬 CSRF 벡터가 된다. 이를 막기 위한 토큰 검증이 있다.
+
+| 주체 | 동작 |
+| ---- | ---- |
+| `src-tauri/src/lib.rs` | 앱 프로세스당 토큰 1개 생성 → spawn/respawn 시 `SIDECAR_TOKEN` env로 주입. `RunEvent::Exit`의 `/shutdown` 요청에도 같은 토큰을 헤더로 실는다 |
+| `main.py` | `SIDECAR_TOKEN`이 있으면 모든 요청에 `X-Sidecar-Token` 헤더를 요구하고 불일치 시 `401 {"error":"unauthorized"}`. **env가 없으면 검증을 건너뛴다** (venv 직접 실행 dev 호환) |
+| `src/shared/lib/sidecar.ts` | Tauri 커맨드 `sidecar_token`으로 토큰을 받아 모든 요청 헤더에 첨부. 브라우저(web-only dev)에서는 invoke가 실패해 헤더 없이 호출한다 |
+
+- `OPTIONS`는 토큰 없이 통과한다 — 브라우저 preflight에는 커스텀 헤더가 실리지 않는다.
+- 401 응답에도 CORS 헤더가 붙는다 (토큰 미들웨어가 CORS 미들웨어 안쪽에 있다).
 
 ```py
 web.run_app(create_app(), host="127.0.0.1", port=9999, print=None)
@@ -25,9 +38,12 @@ web.run_app(create_app(), host="127.0.0.1", port=9999, print=None)
 ```ts
 interface SidecarStatus {
     connected: boolean;
+    reconnecting: boolean;
+    reconnect_attempt: number;
     roaster: string;
     display_name: string;
     brand: string;
+    capabilities: string[];
     uptime: number;
     error: string | null;
 }
@@ -47,6 +63,8 @@ interface TemperatureReading {
     fan: number;
     drum: number;
     timestamp: number;
+    stale: boolean;
+    reconnecting: boolean;
 }
 ```
 
@@ -62,6 +80,8 @@ interface TemperatureReading {
 | `fan`       | 팬 출력 값. adapter에 따라 0-100 또는 장비 raw 값.                               |
 | `drum`      | 드럼 속도 값. adapter에 따라 0-100, RPM %, 또는 raw speed.                       |
 | `timestamp` | Python `time.monotonic()` 값.                                                    |
+| `stale`     | 직전 read가 실패해 이전 성공 값을 그대로 반환 중임 (fail-open, 최대 `STALE_TOLERANCE_READS`회). |
+| `reconnecting` | 백그라운드 자동 재연결 태스크가 동작 중임.                                    |
 
 연결이 없거나 읽기에 실패하면 아래 fallback을 반환한다.
 
@@ -324,6 +344,14 @@ Notes:
 - 연결이 없거나 읽기 실패 시 fallback temperature response를 반환한다.
 - 읽기 실패 시 manager는 `connected=false`로 전환하고 `error`를 기록한다.
 
+읽기 실패 판정 (manager 공통 경로):
+
+- `adapter.read()`는 `config.READ_TIMEOUT`(3.0s) 전역 타임아웃 안에서 await한다. 초과하면 읽기 실패로 처리한다. 단, executor 스레드에서 도는 동기 드라이버 자체는 중단되지 않는다 — HTTP 핸들러만 풀려난다.
+- BT가 `config.BT_VALID_MIN_C` 이하이거나 `config.BT_VALID_MAX_C` 이상, 또는 NaN/Inf면 **예외 없이 반환됐더라도 읽기 실패로 승격**한다. 어댑터가 실패를 `-1.0` 같은 센티넬로 인코딩하는 경우(Phidget 분리, Kaleido 핸드셰이크 유실, Probat 노드 누락)를 잡기 위한 것이다.
+- ET는 검증하지 않는다. ET 미장착 머신에서 `-1.0`은 정상적인 "채널 없음" 값이다.
+- 실패가 `STALE_TOLERANCE_READS`회 이하이고 직전 성공 값이 있으면 그 값을 `stale=true`로 반환한다. 초과하면 `connected=false` + 재연결 루프로 전환하고 `bt=null`을 반환한다.
+- read await 도중 `/disconnect` 등으로 어댑터가 교체되면 그 응답(성공/실패 모두)은 버리고 null payload를 반환한다 — 사라진 머신의 값이 `stale`로 새어나오지 않게 한다.
+
 Adapter별 원천:
 
 | Protocol    | BT/ET source                                                  | Heater/Fan/Drum source                          |
@@ -544,7 +572,7 @@ Headers:
 Access-Control-Allow-Origin: <allowlist origin echo>
 Access-Control-Allow-Private-Network: true
 Access-Control-Allow-Methods: GET, POST, OPTIONS
-Access-Control-Allow-Headers: Content-Type
+Access-Control-Allow-Headers: Content-Type, X-Sidecar-Token
 ```
 
 `Access-Control-Allow-Origin`은 요청 Origin이 allowlist(`tauri://localhost`, `http://tauri.localhost`, `http://localhost:1420`)에 있을 때만 반환된다.
@@ -556,6 +584,8 @@ Access-Control-Allow-Headers: Content-Type
 ```ts
 const BASE = 'http://127.0.0.1:9999';
 ```
+
+요청 타임아웃: 기본 5s, `connect`만 20s. 사이드카 내부 핸드셰이크(Kaleido 15s, Phidget attach 최대 10s)가 끝나기 전에 UI가 실패로 단정하지 않도록 한 것이다.
 
 현재 wrapper:
 
@@ -599,7 +629,7 @@ npm run tauri build     # Tauri가 위 바이너리를 앱 번들에 포함
 | ---- | ---- |
 | `src-tauri/sidecar/sidecar.spec` | PyInstaller spec — `main.py` 기준, arm64 타겟, 의존성 전체 포함 |
 | `scripts/build-sidecar.sh` | `pyinstaller sidecar.spec` 실행 후 rustc target triple 이름으로 `src-tauri/binaries/`에 복사 |
-| `src-tauri/src/lib.rs` | Tauri 앱 시작 시 `tauri_plugin_shell`로 sidecar 프로세스 spawn, stdout/stderr drain |
+| `src-tauri/src/lib.rs` | Tauri 앱 시작 시 `tauri_plugin_shell`로 sidecar 프로세스 spawn, stdout/stderr drain. spawn 실패는 비치명 — 앱은 정상 기동하고 워치독이 백오프 재시도하며, 모두 실패하면 `sidecar-dead` 이벤트를 emit한다 |
 
 바이너리(`src-tauri/binaries/sidecar-*`)는 `.gitignore`에 등록되어 있으므로 배포 전 반드시 `npm run build:sidecar`를 먼저 실행해야 한다.
 
