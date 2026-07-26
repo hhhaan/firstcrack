@@ -73,6 +73,7 @@ function parseShopifyOrder(payload: Record<string, unknown>): CanonicalOrder | n
             platformLineId: li.id != null ? String(li.id) : `${id}-${i}`,
             platformProductId: li.product_id != null ? String(li.product_id) : null,
             platformVariantId: li.variant_id != null ? String(li.variant_id) : null,
+            sku: li.sku ? String(li.sku) : null,
             title: String(li.name ?? li.title ?? 'Item'),
             quantity: Number(li.quantity ?? 1) || 1,
             unitPrice: li.price != null ? Number(li.price) : null,

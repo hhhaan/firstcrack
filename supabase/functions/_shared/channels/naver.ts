@@ -32,7 +32,9 @@ import {
     type NaverDispatchResponse,
     readNaverDispatchResult,
 } from './dispatch.ts';
+import { planNaverScan } from './naver-windows.ts';
 import { nextPollCursor } from './poll-cursor.ts';
+import { type HttpAttempt, naverThrottle, readHttpAttempt, withRetry } from './rate-limit.ts';
 import { naverToCanonical } from './status-map.ts';
 import type {
     CanonicalOrder,
@@ -60,11 +62,17 @@ const BASE = 'https://api.commerce.naver.com/external';
 const MAX_PAGES_PER_WINDOW = 20;
 
 /**
- * Also no API basis: an app policy that stops a long-dead connection from scanning forever.
- * Unlike the page cap this one DOES lose orders — a connection more than 7 days behind has its
- * watermark pulled forward. Logged rather than silent; a real fix needs a backfill path.
+ * Single choke point for every Naver HTTP call, so 429 / gateway-5xx backoff exists in exactly one
+ * place instead of at each call site. `readHttpAttempt` drains the body on every attempt — an
+ * abandoned response body would leak across a retry.
  */
-const MAX_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+async function naverRequest(url: URL | string, init?: RequestInit): Promise<HttpAttempt> {
+    return withRetry(() => fetch(url, init).then(readHttpAttempt), naverThrottle, { label: 'naver' });
+}
+
+function okStatus(attempt: HttpAttempt): boolean {
+    return attempt.status >= 200 && attempt.status < 300;
+}
 
 export interface NaverSecrets extends ChannelSecrets {
     client_id: string;
@@ -108,15 +116,17 @@ export async function exchangeNaverToken(clientId: string, clientSecret: string)
         type: 'SELF',
     });
 
-    const res = await fetch(`${BASE}/v1/oauth2/token`, {
+    // Safe to retry: `client_credentials` is stateless here — a re-issue mints an additional token
+    // and revokes nothing, unlike Cafe24's refresh_token grant.
+    const res = await naverRequest(`${BASE}/v1/oauth2/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body,
     });
-    if (!res.ok) {
-        throw new Error(`naver token ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    if (!okStatus(res)) {
+        throw new Error(`naver token ${res.status}: ${res.body.slice(0, 300)}`);
     }
-    const json = (await res.json()) as { access_token?: string; expires_in?: number };
+    const json = JSON.parse(res.body) as { access_token?: string; expires_in?: number };
     if (!json.access_token) throw new Error('naver token: missing access_token');
     return { access_token: json.access_token, expires_in: json.expires_in ?? 10800 };
 }
@@ -177,13 +187,13 @@ async function getLastChanged(
     if (lastChangedTo) url.searchParams.set('lastChangedTo', lastChangedTo);
     if (moreSequence) url.searchParams.set('moreSequence', moreSequence);
 
-    const res = await fetch(url, {
+    const res = await naverRequest(url, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
-    if (!res.ok) {
-        throw new Error(`naver last-changed ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    if (!okStatus(res)) {
+        throw new Error(`naver last-changed ${res.status}: ${res.body.slice(0, 300)}`);
     }
-    const json = (await res.json()) as LastChangedResponse;
+    const json = JSON.parse(res.body) as LastChangedResponse;
     const rows = json.data?.lastChangeStatuses ?? json.lastChangeStatuses ?? [];
     const more = json.data?.more ?? json.more;
     return {
@@ -196,7 +206,7 @@ async function getLastChanged(
 /** POST query body: productOrderIds (max 300) — official 상품 주문 상세 내역 조회 */
 async function queryProductOrders(token: string, productOrderIds: string[]): Promise<unknown[]> {
     if (!productOrderIds.length) return [];
-    const res = await fetch(`${BASE}/v1/pay-order/seller/product-orders/query`, {
+    const res = await naverRequest(`${BASE}/v1/pay-order/seller/product-orders/query`, {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${token}`,
@@ -205,10 +215,10 @@ async function queryProductOrders(token: string, productOrderIds: string[]): Pro
         },
         body: JSON.stringify({ productOrderIds }),
     });
-    if (!res.ok) {
-        throw new Error(`naver product-orders/query ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    if (!okStatus(res)) {
+        throw new Error(`naver product-orders/query ${res.status}: ${res.body.slice(0, 300)}`);
     }
-    const json = (await res.json()) as {
+    const json = JSON.parse(res.body) as {
         data?: unknown[] | { data?: unknown[] };
         // schema wraps as productOrdersInfo array under data
     };
@@ -328,16 +338,9 @@ export const naverAdapter: ChannelAdapter = {
         const requestedStart = cursor.since
             ? new Date(cursor.since).getTime()
             : end - 24 * 60 * 60 * 1000;
-        let windowStart = Math.max(requestedStart, end - MAX_LOOKBACK_MS);
-        if (windowStart > requestedStart) {
-            console.error(
-                '[naver] lookback clamp skipped',
-                new Date(requestedStart).toISOString(),
-                '→',
-                new Date(windowStart).toISOString(),
-                '— orders in the skipped range are not recoverable from this endpoint',
-            );
-        }
+        // Bounded by a window budget, not by a lookback clamp — see naver-windows.ts for why the
+        // clamp lost orders and why the budget cannot.
+        const plan = planNaverScan(requestedStart, end);
 
         const productOrderIds: string[] = [];
         // Lightweight status from last-changed when detail fails
@@ -345,18 +348,17 @@ export const naverAdapter: ChannelAdapter = {
             string,
             { status: string; claim?: string; orderId?: string; orderedAt?: string }
         >();
-        /** ms of the first window left half-read by the page cap; null = whole range scanned. */
-        let truncatedAt: number | null = null;
+        /** ms of the first window this run does not fully read; null = whole range scanned. */
+        let truncatedAt: number | null = plan.unscannedFrom;
 
-        while (windowStart < end) {
-            const windowEnd = Math.min(windowStart + 24 * 60 * 60 * 1000, end);
+        for (const scan of plan.windows) {
             let moreFrom: string | undefined;
             let moreSequence: string | undefined;
             let pages = 0;
 
             do {
-                const from = moreFrom ?? toNaverDateTime(new Date(windowStart));
-                const to = moreFrom ? undefined : toNaverDateTime(new Date(windowEnd));
+                const from = moreFrom ?? toNaverDateTime(new Date(scan.start));
+                const to = moreFrom ? undefined : toNaverDateTime(new Date(scan.end));
                 const page = await getLastChanged(token, from, to, moreSequence);
                 for (const row of page.rows) {
                     if (row.productOrderId) {
@@ -376,11 +378,11 @@ export const naverAdapter: ChannelAdapter = {
 
             if (moreFrom) {
                 // Page cap hit with pages still unread: stop and leave the watermark inside this
-                // window so the next poll re-reads it instead of skipping the remainder.
-                truncatedAt = windowStart;
+                // window so the next poll re-reads it instead of skipping the remainder. Earlier
+                // than any budget cut-off, so it overrides `plan.unscannedFrom`.
+                truncatedAt = scan.start;
                 break;
             }
-            windowStart = windowEnd;
         }
 
         const uniqueIds = [...new Set(productOrderIds)];
@@ -453,7 +455,9 @@ export const naverAdapter: ChannelAdapter = {
         const token = await authorizedToken(secrets, onRotate);
 
         const body = buildNaverDispatchPayload(req);
-        const res = await fetch(`${BASE}/v1/pay-order/seller/product-orders/dispatch`, {
+        // Retries here are 429 / 502-504 only: the gateway rejected the call, so nothing was
+        // dispatched. A plain 500 is never replayed — that one could have shipped already.
+        const res = await naverRequest(`${BASE}/v1/pay-order/seller/product-orders/dispatch`, {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -462,7 +466,7 @@ export const naverAdapter: ChannelAdapter = {
             },
             body: JSON.stringify(body),
         });
-        const text = await res.text();
+        const text = res.body;
         let json: NaverDispatchResponse = {};
         try {
             json = text ? JSON.parse(text) : {};
@@ -470,7 +474,7 @@ export const naverAdapter: ChannelAdapter = {
             // keep empty
         }
 
-        if (!res.ok) {
+        if (!okStatus(res)) {
             const msg = (json.message ?? text).slice(0, 500);
             const already =
                 /already|already.?dispatched|ALREADY|DISPATCHED/i.test(msg) ||

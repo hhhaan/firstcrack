@@ -6,7 +6,7 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { planInboundStockActions } from './inbound-actions.ts';
 import { mergeStatus } from './status-map.ts';
-import type { CanonicalOrder, CanonicalStatus, LineStatus, Platform } from './types.ts';
+import type { CanonicalOrder, CanonicalOrderLine, CanonicalStatus, LineStatus, Platform } from './types.ts';
 
 export interface UpsertContext {
     userId: string;
@@ -50,8 +50,26 @@ type LineRow = {
     status: string;
 };
 
-/** Map platform product id → local product via products.sku matching platform product/variant id or sku. */
-async function buildProductMap(
+/**
+ * Values a line may be matched against `products.sku`, highest priority first.
+ *
+ * The platform's internal variant/product ids stay ahead of the merchant SKU so existing
+ * id-based mappings keep resolving exactly as before; the SKU (Shopify reports one per line)
+ * is only a fallback for lines those ids miss.
+ *
+ * `buildProductMap` collects and `resolveProductId` looks up through this same list — the
+ * lookup can never consider a key the collection pass did not fetch.
+ */
+export function lineMatchKeys(line: CanonicalOrderLine): string[] {
+    const keys: string[] = [];
+    if (line.platformVariantId) keys.push(line.platformVariantId);
+    if (line.platformProductId) keys.push(line.platformProductId);
+    if (line.sku) keys.push(line.sku);
+    return keys;
+}
+
+/** Map platform product id / variant id / SKU → local product id, via exact `products.sku` match. */
+export async function buildProductMap(
     supabase: SupabaseClient,
     userId: string,
     orders: CanonicalOrder[],
@@ -59,8 +77,7 @@ async function buildProductMap(
     const keys = new Set<string>();
     for (const o of orders) {
         for (const l of o.lines) {
-            if (l.platformProductId) keys.add(l.platformProductId);
-            if (l.platformVariantId) keys.add(l.platformVariantId);
+            for (const k of lineMatchKeys(l)) keys.add(k);
         }
     }
     if (!keys.size) return new Map();
@@ -78,13 +95,11 @@ async function buildProductMap(
     return map;
 }
 
-function resolveProductId(
-    productMap: Map<string, string>,
-    platformProductId: string | null,
-    platformVariantId: string | null,
-): string | null {
-    if (platformVariantId && productMap.has(platformVariantId)) return productMap.get(platformVariantId)!;
-    if (platformProductId && productMap.has(platformProductId)) return productMap.get(platformProductId)!;
+export function resolveProductId(productMap: Map<string, string>, line: CanonicalOrderLine): string | null {
+    for (const key of lineMatchKeys(line)) {
+        const productId = productMap.get(key);
+        if (productId) return productId;
+    }
     return null;
 }
 
@@ -195,9 +210,7 @@ export async function upsertCanonicalOrders(
 
         for (const line of order.lines) {
             const prevLine = lineByPlatform.get(line.platformLineId);
-            const productId =
-                prevLine?.product_id ??
-                resolveProductId(productMap, line.platformProductId, line.platformVariantId);
+            const productId = prevLine?.product_id ?? resolveProductId(productMap, line);
 
             if (prevLine) {
                 diffs.push({

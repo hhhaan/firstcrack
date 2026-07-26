@@ -17,6 +17,11 @@ export interface CanonicalOrderLine {
     platformLineId: string;
     platformProductId: string | null;
     platformVariantId: string | null;
+    /**
+     * Merchant-facing SKU the platform reports on the line, when it has one (Shopify).
+     * Matched against `products.sku` after the internal ids — see `lineMatchKeys` in normalize.ts.
+     */
+    sku?: string | null;
     title: string;
     quantity: number;
     unitPrice: number | null;

@@ -1333,7 +1333,9 @@
             },
             "manual": "Manual",
             "cancel": "Cancel",
-            "cancelConfirm": "Cancel this order? Fulfilled stock will be restored."
+            "cancelConfirm": "Cancel this order? Fulfilled stock will be restored.",
+            "unmapped": "{{n}} unmapped",
+            "unmappedHelp": "No product matches these lines, so fulfilling the order deducts no stock and they are excluded from roasting needs. Set the product SKU to the store's SKU or product/variant ID, then sync again."
         },
         "status": {
             "pending": "Pending",

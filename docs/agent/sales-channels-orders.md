@@ -108,7 +108,12 @@ page cap means `complete: false` and the watermark stays put; advancing it drops
 rotated `sales_channel_secrets` — Cafe24 revokes the previous refresh_token immediately, so a
 rotation that never reaches the DB permanently breaks the connection.
 
-SKU mapping: when platform product/variant ids match `products.sku`, lines get `product_id` for stock + roasting requirements.
+SKU mapping (`_shared/channels/normalize.ts`, `lineMatchKeys`): a line resolves to `product_id` when
+`products.sku` exactly equals — in priority order — the platform **variant id**, the platform **product id**,
+or the line's merchant **SKU** (Shopify only; Naver/Cafe24 report none). Unmatched ⇒ `product_id = null`,
+which makes `fulfill_order` deduct nothing for that line and drops it from roasting requirements. The Orders
+tab flags those lines per order; re-syncing a line re-attempts resolution while `product_id` is still null,
+so fixing a SKU repairs the line on the next update the platform reports (issue #131).
 
 ---
 

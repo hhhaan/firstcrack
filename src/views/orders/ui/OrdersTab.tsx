@@ -9,7 +9,7 @@ import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { AddOrderModal } from '@widgets/add-order-modal';
 import { RoastingRequirementsCard } from '@widgets/roasting-requirements-card';
-import { Plus, ShoppingBag, Truck } from 'lucide-react';
+import { AlertTriangle, Plus, ShoppingBag, Truck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { OrdersTableSkeleton } from './OrdersSkeleton';
@@ -119,7 +119,10 @@ function OrderRow({
 }) {
     const { t } = useTranslation();
     const [nowMs] = useState(() => Date.now());
-    const itemCount = order.order_lines.filter((l) => l.status === 'active').reduce((n, l) => n + l.quantity, 0);
+    const activeLines = order.order_lines.filter((l) => l.status === 'active');
+    const itemCount = activeLines.reduce((n, l) => n + l.quantity, 0);
+    // No product_id ⇒ fulfill_order deducts nothing for that line and it never reaches roasting needs.
+    const unmappedCount = activeLines.filter((l) => !l.product_id).length;
     const cancelled = order.status === 'cancelled' || order.status === 'refunded';
     const fulfilled = !!order.fulfilled_at && !cancelled;
     const canFulfill = !fulfilled && !cancelled && (order.status === 'paid' || order.status === 'preparing');
@@ -149,7 +152,21 @@ function OrderRow({
                 </Badge>
             </td>
             <td className="px-4 py-3.5 text-[13px] text-primary tracking-[0.14px]">{order.buyer_name ?? '—'}</td>
-            <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">{itemCount}</td>
+            <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">
+                <div className="flex flex-wrap items-center gap-1.5">
+                    {itemCount}
+                    {unmappedCount > 0 ? (
+                        <Badge
+                            tone="warn"
+                            size="sm"
+                            icon={<AlertTriangle size={11} strokeWidth={1.75} />}
+                            title={t('orders.order.unmappedHelp')}
+                        >
+                            {t('orders.order.unmapped', { n: unmappedCount })}
+                        </Badge>
+                    ) : null}
+                </div>
+            </td>
             <td className="px-4 py-3.5">
                 <div className="flex flex-wrap items-center gap-1.5">
                     <Badge tone={orderStatusTone(order.status, fulfilled)} size="sm">

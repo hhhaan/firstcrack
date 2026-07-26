@@ -29,6 +29,7 @@
 import { tokenExpiresAtMs } from './cafe24-oauth.ts';
 import { buildCafe24ShipmentPayload } from './dispatch.ts';
 import { nextPollCursor } from './poll-cursor.ts';
+import { cafe24Throttle, type HttpAttempt, readHttpAttempt, withRetry } from './rate-limit.ts';
 import { cafe24ToCanonical } from './status-map.ts';
 import type {
     CanonicalOrder,
@@ -86,6 +87,15 @@ class Cafe24HttpError extends Error {
     }
 }
 
+/**
+ * Single choke point for every Admin API call, so leaky-bucket backoff (429 + `X-Cafe24-Call-Remain`)
+ * exists in one place. The OAuth token endpoint deliberately does NOT go through here — see
+ * `refreshCafe24Token`.
+ */
+async function cafe24Request(url: URL | string, init?: RequestInit): Promise<HttpAttempt> {
+    return withRetry(() => fetch(url, init).then(readHttpAttempt), cafe24Throttle, { label: 'cafe24' });
+}
+
 async function cafe24Get(
     mallId: string,
     token: string,
@@ -98,20 +108,17 @@ async function cafe24Get(
             if (v) url.searchParams.set(k, v);
         }
     }
-    const res = await fetch(url, {
+    const res = await cafe24Request(url, {
         headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
             Accept: 'application/json',
         },
     });
-    if (!res.ok) {
-        throw new Cafe24HttpError(
-            res.status,
-            `cafe24 ${path} ${res.status}: ${(await res.text()).slice(0, 300)}`,
-        );
+    if (res.status < 200 || res.status >= 300) {
+        throw new Cafe24HttpError(res.status, `cafe24 ${path} ${res.status}: ${res.body.slice(0, 300)}`);
     }
-    return res.json();
+    return JSON.parse(res.body);
 }
 
 /** App credentials from env (production OAuth app). Falls back to secrets for legacy paste tokens. */
@@ -138,6 +145,10 @@ export async function refreshCafe24Token(secrets: Cafe24Secrets): Promise<Cafe24
         refresh_token: secrets.refresh_token,
     });
     const basic = btoa(`${client.clientId}:${client.clientSecret}`);
+    // Intentionally NOT wrapped in cafe24Request: the refresh grant is not replayable. Cafe24
+    // revokes the previous refresh_token the moment a new one is minted, so a 502/504 arriving
+    // *after* issuance would make a retry present a token the platform already killed — an
+    // invalid_grant that bricks the connection until the merchant re-runs OAuth.
     const res = await fetch(`https://${secrets.mall_id}.cafe24api.com/api/v2/oauth/token`, {
         method: 'POST',
         headers: {
@@ -428,9 +439,11 @@ export const cafe24Adapter: ChannelAdapter = {
 
         const payload = buildCafe24ShipmentPayload(req);
         // Retried through session.run only on 401 — the shipment was never created in that case.
-        const { res, text } = await session.run(async (s) => {
+        // cafe24Request adds 429 / 502-504 retries on top; those are gateway rejections, so the
+        // shipment was not created there either. A plain 500 is never replayed.
+        const res = await session.run(async (s) => {
             const url = `${adminBase(s.mall_id)}/orders/${encodeURIComponent(req.platformOrderId)}/shipments`;
-            const response = await fetch(url, {
+            const attempt = await cafe24Request(url, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${s.access_token}`,
@@ -439,14 +452,14 @@ export const cafe24Adapter: ChannelAdapter = {
                 },
                 body: JSON.stringify(payload),
             });
-            const body = await response.text();
-            if (response.status === 401) {
-                throw new Cafe24HttpError(401, `cafe24 shipments 401: ${body.slice(0, 300)}`);
+            if (attempt.status === 401) {
+                throw new Cafe24HttpError(401, `cafe24 shipments 401: ${attempt.body.slice(0, 300)}`);
             }
-            return { res: response, text: body };
+            return attempt;
         });
+        const text = res.body;
 
-        if (!res.ok) {
+        if (res.status < 200 || res.status >= 300) {
             // 오탐 시 fulfill_order까지 진행되어 재고가 차감된다 → 명시적 "이미 처리됨"만 성공 취급
             const already = /already|이미/i.test(text);
             if (already || res.status === 409) {

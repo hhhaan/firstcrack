@@ -19,6 +19,7 @@
 
 import { buildShopifyFulfillmentInput } from './dispatch.ts';
 import { nextPollCursor } from './poll-cursor.ts';
+import { readHttpAttempt, shopifyThrottle, withRetry } from './rate-limit.ts';
 import { shopifyToCanonical } from './status-map.ts';
 import type {
     CanonicalOrder,
@@ -55,19 +56,30 @@ function requireShopify(secrets: ChannelSecrets): ShopifySecrets {
     return { ...secrets, shop, access_token };
 }
 
+/**
+ * Every Shopify call goes through here, which is also where cost-throttle backoff lives.
+ * A GraphQL throttle arrives as HTTP **200** with `errors[].extensions.code = "THROTTLED"`, so the
+ * retry decision has to read the body — `shopifyThrottle` does that; when the wait budget runs out
+ * it raises `RateLimitError` instead of letting a throttled page look like an empty result.
+ */
 async function gql<T>(shop: string, token: string, query: string, variables?: Record<string, unknown>): Promise<T> {
-    const res = await fetch(`https://${shop}/admin/api/${API_VERSION}/graphql.json`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Shopify-Access-Token': token,
-        },
-        body: JSON.stringify({ query, variables }),
-    });
-    if (!res.ok) {
-        throw new Error(`shopify ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const res = await withRetry(
+        () =>
+            fetch(`https://${shop}/admin/api/${API_VERSION}/graphql.json`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Shopify-Access-Token': token,
+                },
+                body: JSON.stringify({ query, variables }),
+            }).then(readHttpAttempt),
+        shopifyThrottle,
+        { label: 'shopify' },
+    );
+    if (res.status < 200 || res.status >= 300) {
+        throw new Error(`shopify ${res.status}: ${res.body.slice(0, 300)}`);
     }
-    const json = (await res.json()) as { data?: T; errors?: Array<{ message: string }> };
+    const json = JSON.parse(res.body) as { data?: T; errors?: Array<{ message: string }> };
     if (json.errors?.length) {
         throw new Error(`shopify gql: ${json.errors.map((e) => e.message).join('; ')}`);
     }
@@ -118,6 +130,7 @@ function mapOrder(node: ShopifyOrderNode): CanonicalOrder {
             platformLineId: gidToId(li.id),
             platformProductId: li.product?.id ? gidToId(li.product.id) : null,
             platformVariantId: li.variant?.id ? gidToId(li.variant.id) : null,
+            sku: li.sku || null,
             title: li.name || li.title || 'Item',
             quantity: li.quantity,
             unitPrice: unit != null ? Number(unit) : null,
