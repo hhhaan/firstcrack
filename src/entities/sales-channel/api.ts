@@ -83,11 +83,21 @@ export const salesChannelApi = {
         if (data?.error) throw new Error(data.error);
     },
 
+    /**
+     * `workspaceOwnerId` scopes sync-all to the owner's connections. Omit for
+     * self. The Edge Function verifies membership (`has_workspace_access`)
+     * before trusting it — filtering on auth.uid() instead shows a workspace
+     * member zero connections.
+     */
     syncNow: async (
         connectionId?: string,
+        workspaceOwnerId?: string,
     ): Promise<{ results: Array<{ connectionId: string; ok: boolean; upserted: number; error?: string }> }> => {
         const { data, error } = await supabase.functions.invoke('order-sync', {
-            body: connectionId ? { connectionId } : {},
+            body: {
+                ...(connectionId ? { connectionId } : {}),
+                ...(workspaceOwnerId ? { workspaceOwnerId } : {}),
+            },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);

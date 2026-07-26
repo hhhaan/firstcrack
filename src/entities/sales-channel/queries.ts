@@ -61,10 +61,11 @@ export const useDisconnectChannel = (userId: string) => {
     });
 };
 
+/** `userId` is the workspace owner id (callers pass `workspaceOwnerId` from `useActiveWorkspace`). */
 export const useSyncOrders = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (connectionId?: string) => salesChannelApi.syncNow(connectionId),
+        mutationFn: (connectionId?: string) => salesChannelApi.syncNow(connectionId, userId),
         // ChannelsTab renders the sync result (including failures) inline.
         meta: { silentError: true },
         onSuccess: () => {

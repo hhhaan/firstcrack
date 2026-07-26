@@ -1,10 +1,11 @@
 /**
  * POST /order-sync
  * Auth: user JWT (manual "Sync now") OR header x-cron-secret (pg_cron / scheduler).
- * Body: { connectionId?: string } — omit to sync all active connections (cron).
+ * Body: { connectionId?: string, workspaceOwnerId?: string } — omit connectionId to
+ * sync all active connections (cron / manual sync-all).
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
+import { corsHeaders, getAuthenticatedUser, jsonResponse, resolveWorkspaceOwner } from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import { upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { loadSecretsSession } from '../_shared/channels/secrets-session.ts';
@@ -22,10 +23,7 @@ const INVOCATION_BUDGET_MS = 90 * 1000;
 const MAX_CONNECTIONS_PER_RUN = 25;
 
 function serviceClient() {
-    return createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
+    return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 }
 
 function isCron(req: Request): boolean {
@@ -105,17 +103,17 @@ async function syncOne(
         if (refreshed) await session.rotate(refreshed);
 
         const cursor = (conn.poll_cursor ?? {}) as PollCursor;
-        const { orders, nextCursor } = await adapter.fetchOrdersSince(
-            session.current(),
-            cursor,
-            session.rotate,
+        const { orders, nextCursor } = await adapter.fetchOrdersSince(session.current(), cursor, session.rotate);
+        const { upserted } = await upsertCanonicalOrders(
+            admin,
+            {
+                userId: conn.user_id,
+                connectionId: conn.id,
+                platform: conn.platform as Platform,
+                autoFulfillOnShipped: conn.auto_fulfill_on_shipped === true,
+            },
+            orders,
         );
-        const { upserted } = await upsertCanonicalOrders(admin, {
-            userId: conn.user_id,
-            connectionId: conn.id,
-            platform: conn.platform as Platform,
-            autoFulfillOnShipped: conn.auto_fulfill_on_shipped === true,
-        }, orders);
 
         const now = new Date().toISOString();
         await admin
@@ -184,9 +182,11 @@ Deno.serve(async (req) => {
     }
 
     let connectionId: string | undefined;
+    let workspaceOwnerId: string | undefined;
     try {
         const body = await req.json().catch(() => ({}));
         connectionId = body?.connectionId;
+        workspaceOwnerId = body?.workspaceOwnerId;
     } catch {
         // empty body ok
     }
@@ -200,15 +200,20 @@ Deno.serve(async (req) => {
     let query = admin.from('sales_channel_connections').select(connSelect);
 
     if (connectionId && userId) {
-        // When user provides a specific connection, allow error status re-sync too
-        query = query
-            .eq('id', connectionId)
-            .eq('user_id', userId)
-            .in('status', ['active', 'error', 'pending']);
+        // When user provides a specific connection, allow error status re-sync too.
+        // Ownership is verified after the fetch against the row's user_id —
+        // connection rows belong to the workspace owner, not auth.uid() (#155).
+        query = query.eq('id', connectionId).in('status', ['active', 'error', 'pending']);
     } else {
         query = query.eq('status', 'active');
         if (connectionId) query = query.eq('id', connectionId);
-        if (userId) query = query.eq('user_id', userId);
+        if (userId) {
+            // Manual sync-all: rows belong to the workspace owner, so a member
+            // filtering on auth.uid() would always see zero connections (#155).
+            const owner = await resolveWorkspaceOwner(req, workspaceOwnerId, userId);
+            if (!owner) return jsonResponse({ error: 'Forbidden' }, 403);
+            query = query.eq('user_id', owner);
+        }
     }
 
     const { data: conns, error } = await query
@@ -217,6 +222,15 @@ Deno.serve(async (req) => {
     if (error) {
         console.error('[order-sync] list', error);
         return jsonResponse({ error: 'Failed to list connections' }, 500);
+    }
+
+    if (connectionId && userId) {
+        // Verify workspace access against the row's owner via the caller's own
+        // client (has_workspace_access RLS predicate). 403 for both "not yours"
+        // and "does not exist" so existence is never revealed.
+        const conn = (conns ?? [])[0] as ConnRow | undefined;
+        const owner = conn ? await resolveWorkspaceOwner(req, conn.user_id, userId) : null;
+        if (!owner) return jsonResponse({ error: 'Forbidden' }, 403);
     }
 
     if (!conns?.length) {
