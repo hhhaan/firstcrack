@@ -115,6 +115,21 @@ Deno.serve(async (req) => {
 
     if (existing?.id) {
         connectionId = existing.id;
+
+        // Re-auth (e.g. rotating a Shopify Admin token) submits only the fields the
+        // user retyped. The secrets upsert below replaces the whole jsonb, so merge
+        // over what is stored — otherwise an omitted optional field such as
+        // `webhook_secret` is wiped and every later webhook fails HMAC.
+        // Clearing a stored secret therefore requires disconnect + reconnect.
+        const { data: storedSecrets } = await admin
+            .from('sales_channel_secrets')
+            .select('credentials')
+            .eq('connection_id', connectionId)
+            .maybeSingle();
+        if (storedSecrets?.credentials) {
+            secretsToStore = { ...(storedSecrets.credentials as ChannelSecrets), ...secretsToStore };
+        }
+
         const { error } = await admin
             .from('sales_channel_connections')
             .update({
