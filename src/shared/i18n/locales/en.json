@@ -362,6 +362,7 @@
         "roasterModel": "Roaster Model",
         "loadingRoasters": "Loading roasters...",
         "selectPort": "Select a port...",
+        "refreshPorts": "Refresh ports",
         "defaultPort": "default",
         "selectRoaster": "Select a roaster...",
         "tabSupported": "Supported",

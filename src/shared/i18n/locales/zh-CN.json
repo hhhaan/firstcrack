@@ -362,6 +362,7 @@
         "roasterModel": "烘焙机型号",
         "loadingRoasters": "正在加载烘焙机...",
         "selectPort": "选择端口...",
+        "refreshPorts": "刷新端口列表",
         "defaultPort": "默认",
         "selectRoaster": "选择烘焙机...",
         "tabSupported": "已支持型号",

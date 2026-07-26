@@ -362,6 +362,7 @@
         "roasterModel": "ロースターモデル",
         "loadingRoasters": "ロースターを読み込み中...",
         "selectPort": "ポートを選択...",
+        "refreshPorts": "ポート一覧を更新",
         "defaultPort": "既定値",
         "selectRoaster": "ロースターを選択...",
         "tabSupported": "対応モデル",

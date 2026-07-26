@@ -362,6 +362,7 @@
         "roasterModel": "로스터 모델",
         "loadingRoasters": "로스터 불러오는 중...",
         "selectPort": "포트 선택...",
+        "refreshPorts": "포트 목록 새로고침",
         "defaultPort": "기본값",
         "selectRoaster": "로스터 선택...",
         "tabSupported": "지원 모델",

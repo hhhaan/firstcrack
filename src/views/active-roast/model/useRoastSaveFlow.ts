@@ -9,6 +9,7 @@ import { i18n } from '@shared/i18n';
 import { isGreenRoastAlreadyClaimed } from '@shared/lib/f3-green-deduct';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
+import { useToastStore } from '@shared/store/toast';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQueryClient } from '@tanstack/react-query';
 import { message } from '@tauri-apps/plugin-dialog';
@@ -103,7 +104,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     }
                 }
 
-                await saveRoast({
+                const saveResult = await saveRoast({
                     formData: {
                         notes: formData.notes,
                         weightGrams: formData.weightGrams,
@@ -126,6 +127,10 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     handoffBeanName,
                     logEntries: flow.summaryData?.logEntries ?? [],
                 });
+
+                if (saveResult.batchStatusUpdateFailed) {
+                    useToastStore.getState().show(i18n.t('activeRoast.summary.batchStatusUpdateFailed'));
+                }
 
                 const preferBatchId = planBatchHandoff?.planBatchId ?? linkedBatch?.planBatchId ?? null;
 

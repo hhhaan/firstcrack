@@ -89,6 +89,25 @@ describe('saveRoastCore', () => {
         expect(result.savedSession).toEqual({ id: 'sess-db-1' });
     });
 
+    it('월 카운트 API 실패 → fail-open, 저장 성공 (서버 게이트 위임)', async () => {
+        const deps = makeDeps({
+            countCompletedThisMonth: vi.fn().mockRejectedValue(new Error('network down')),
+        });
+        const result = await saveRoastCore(deps, baseParams);
+        expect(result.savedSession).toEqual({ id: 'sess-db-1' });
+        expect(deps.saveOp).toHaveBeenCalledTimes(1);
+    });
+
+    it('trial 카운트 API 실패 → fail-open, 저장 성공', async () => {
+        const deps = makeDeps({
+            plan: 'trial',
+            countCompletedTotal: vi.fn().mockRejectedValue(new Error('network down')),
+        });
+        const result = await saveRoastCore(deps, baseParams);
+        expect(result.savedSession).toEqual({ id: 'sess-db-1' });
+        expect(deps.saveOp).toHaveBeenCalledTimes(1);
+    });
+
     it('read_only → 즉시 거부', async () => {
         const deps = makeDeps({ plan: 'read_only' });
         await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'read_only_plan' });
@@ -124,6 +143,22 @@ describe('saveRoastCore', () => {
             patch: { id: 'batch-1', status: 'done' },
         });
         expect(result.shouldOpenContinue).toBe(true);
+    });
+
+    it('마지막 배치 status 업데이트 실패 → 저장 성공 유지 + batchStatusUpdateFailed', async () => {
+        const deps = makeDeps({
+            planBatchHandoff: handoff,
+            updatePlanBatch: vi.fn().mockRejectedValue(new Error('network down')),
+        });
+        const result = await saveRoastCore(deps, { ...baseParams, planBatchHandoff: handoff });
+        expect(result.savedSession).toEqual({ id: 'sess-db-1' });
+        expect(result.batchStatusUpdateFailed).toBe(true);
+    });
+
+    it('status 업데이트 성공 → batchStatusUpdateFailed false', async () => {
+        const deps = makeDeps({ planBatchHandoff: handoff });
+        const result = await saveRoastCore(deps, { ...baseParams, planBatchHandoff: handoff });
+        expect(result.batchStatusUpdateFailed).toBe(false);
     });
 
     it('deductStock false → deduct 플래그 false', async () => {

@@ -64,6 +64,8 @@ export interface SaveRoastResult {
     savedSession: RoastSession;
     deductionPlan: ReturnType<typeof determineStockDeduction>;
     shouldOpenContinue: boolean;
+    /** Session saved but plan_batch status=done update failed — user should complete it in Schedule. */
+    batchStatusUpdateFailed?: boolean;
 }
 
 export type SaveRoastDeps = {
@@ -105,20 +107,32 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     } = deps;
 
     // UX pre-checks only — the DB trigger (enforce_batch_gate) is the authority.
+    // Count failures (network etc.) fail open: skip the pre-check and let the
+    // server trigger decide. Only a successful count that exceeds the cap blocks.
     if (!isWritablePlan(plan)) {
         throw new BatchLimitError(0, 0, 'read_only_plan');
     }
     if (plan === 'trial') {
-        const used = await countCompletedTotal(userId);
-        if (used >= TRIAL_BATCH_CAP) {
-            throw new BatchLimitError(used, TRIAL_BATCH_CAP, 'trial_batch_cap');
+        try {
+            const used = await countCompletedTotal(userId);
+            if (used >= TRIAL_BATCH_CAP) {
+                throw new BatchLimitError(used, TRIAL_BATCH_CAP, 'trial_batch_cap');
+            }
+        } catch (err) {
+            if (err instanceof BatchLimitError) throw err;
+            logger.capture(err, { context: 'saveRoast trial count pre-check' });
         }
     } else {
         const monthCap = planMaxBatchesPerMonth(plan);
         if (monthCap != null) {
-            const used = await countCompletedThisMonth(userId);
-            if (!canCompleteBatch(plan, used)) {
-                throw new BatchLimitError(used, monthCap);
+            try {
+                const used = await countCompletedThisMonth(userId);
+                if (!canCompleteBatch(plan, used)) {
+                    throw new BatchLimitError(used, monthCap);
+                }
+            } catch (err) {
+                if (err instanceof BatchLimitError) throw err;
+                logger.capture(err, { context: 'saveRoast monthly count pre-check' });
             }
         }
     }
@@ -225,6 +239,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         });
     }
 
+    let batchStatusUpdateFailed = false;
     if (effectiveBatch) {
         const newCompletedCount = effectiveBatch.completedSessions + 1;
         // Keep store in sync for Continue modal (covers ad-hoc link too)
@@ -232,10 +247,17 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
 
         if (newCompletedCount >= effectiveBatch.batchCount) {
             // useUpdateSingleBatch invalidates plan + schedule roots (not tied to handoff planId)
-            updatePlanBatch({
-                id: effectiveBatch.planBatchId,
-                patch: { id: effectiveBatch.planBatchId, status: 'done' },
-            }).catch((err) => logger.capture(err, { context: 'saveRoast batch status' }));
+            try {
+                await updatePlanBatch({
+                    id: effectiveBatch.planBatchId,
+                    patch: { id: effectiveBatch.planBatchId, status: 'done' },
+                });
+            } catch (err) {
+                // Session save stays successful — surface for a toast; user reconciles
+                // via the Schedule complete flow (deduct is idempotent there).
+                logger.capture(err, { context: 'saveRoast batch status' });
+                batchStatusUpdateFailed = true;
+            }
         }
     } else {
         // 애드혹 연속 배치: 다음 저장 폼 프리필용으로 이번 값을 기록
@@ -258,6 +280,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         savedSession,
         deductionPlan,
         shouldOpenContinue: effectiveBatch != null,
+        batchStatusUpdateFailed,
     };
 }
 
