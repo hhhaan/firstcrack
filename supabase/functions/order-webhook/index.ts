@@ -10,11 +10,12 @@
  * Cafe24: mall_id in payload; x-cafe24-webhook-secret / x-webhook-secret vs CAFE24_WEBHOOK_SECRET
  */
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
-import { verifySharedSecret, verifyShopifyHmac } from '../_shared/webhook-auth.ts';
+import { isCafe24Uninstall } from '../_shared/channels/cafe24-webhook.ts';
 import { upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { classifyShopifyTopic } from '../_shared/channels/shopify-webhook.ts';
 import { cafe24ToCanonical, shopifyToCanonical } from '../_shared/channels/status-map.ts';
 import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
+import { verifySharedSecret, verifyShopifyHmac } from '../_shared/webhook-auth.ts';
 
 type ConnRow = {
     id: string;
@@ -54,21 +55,22 @@ function gidToId(gid: string): string {
 }
 
 function parseShopifyOrder(payload: Record<string, unknown>): CanonicalOrder | null {
-    const id = payload.id != null ? String(payload.id) : payload.admin_graphql_api_id
-        ? gidToId(String(payload.admin_graphql_api_id))
-        : '';
+    const id =
+        payload.id != null
+            ? String(payload.id)
+            : payload.admin_graphql_api_id
+              ? gidToId(String(payload.admin_graphql_api_id))
+              : '';
     if (!id) return null;
 
     const financial = payload.financial_status != null ? String(payload.financial_status) : null;
     const fulfillment = payload.fulfillment_status != null ? String(payload.fulfillment_status) : null;
     const cancelledAt = payload.cancelled_at != null ? String(payload.cancelled_at) : null;
-    const status =
-        shopifyToCanonical(financial, fulfillment, cancelledAt) ?? 'paid';
+    const status = shopifyToCanonical(financial, fulfillment, cancelledAt) ?? 'paid';
 
     const lineItems = (payload.line_items as Array<Record<string, unknown>> | undefined) ?? [];
     const lines: CanonicalOrderLine[] = lineItems.map((li, i) => {
-        const lineStatus =
-            status === 'cancelled' ? 'cancelled' : status === 'refunded' ? 'refunded' : 'active';
+        const lineStatus = status === 'cancelled' ? 'cancelled' : status === 'refunded' ? 'refunded' : 'active';
         return {
             platformLineId: li.id != null ? String(li.id) : `${id}-${i}`,
             platformProductId: li.product_id != null ? String(li.product_id) : null,
@@ -119,12 +121,7 @@ function parseCafe24Order(payload: Record<string, unknown>): CanonicalOrder | nu
               title: String(it.product_name ?? 'Item'),
               quantity: Number(it.quantity ?? 1) || 1,
               unitPrice: it.product_price != null ? Number(it.product_price) : null,
-              status:
-                  status === 'cancelled'
-                      ? 'cancelled'
-                      : status === 'refunded'
-                        ? 'refunded'
-                        : 'active',
+              status: status === 'cancelled' ? 'cancelled' : status === 'refunded' ? 'refunded' : 'active',
           }))
         : [
               {
@@ -301,11 +298,7 @@ Deno.serve(async (req) => {
             return jsonResponse({ error: 'Invalid JSON' }, 400);
         }
 
-        const mallId = String(
-            payload.mall_id ??
-                (payload.resource as { mall_id?: string } | undefined)?.mall_id ??
-                '',
-        )
+        const mallId = String(payload.mall_id ?? (payload.resource as { mall_id?: string } | undefined)?.mall_id ?? '')
             .trim()
             .toLowerCase();
         if (!mallId) return jsonResponse({ ok: true, skipped: 'no mall_id' });
@@ -354,6 +347,24 @@ Deno.serve(async (req) => {
         }
 
         if (!conn) return jsonResponse({ ok: true, skipped: 'unknown mall' });
+
+        // App-deleted event (90077) — never an order; branch before parsing.
+        // Token is dead; stop polling. Secrets are kept, mirroring the Shopify
+        // uninstall path but more conservatively: this route is shared-secret
+        // verified (weaker than HMAC), so a forged uninstall must not wipe
+        // credentials. Re-install recovers via OAuth reconnect. The update is
+        // idempotent — a repeat delivery is a no-op success.
+        if (isCafe24Uninstall(payload)) {
+            await admin
+                .from('sales_channel_connections')
+                .update({
+                    status: 'disabled',
+                    last_error: 'app uninstalled on Cafe24',
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', conn.id);
+            return jsonResponse({ ok: true, handled: 'app/uninstalled' });
+        }
 
         const order = parseCafe24Order(payload);
         if (!order) return jsonResponse({ ok: true, skipped: 'unparseable' });
