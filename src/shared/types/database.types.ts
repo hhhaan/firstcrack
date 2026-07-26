@@ -768,6 +768,7 @@ export type Database = {
                 Row: {
                     connection_id: string | null;
                     error_message: string | null;
+                    external_event_id: string | null;
                     finished_at: string | null;
                     id: string;
                     orders_upserted: number;
@@ -779,6 +780,7 @@ export type Database = {
                 Insert: {
                     connection_id?: string | null;
                     error_message?: string | null;
+                    external_event_id?: string | null;
                     finished_at?: string | null;
                     id?: string;
                     orders_upserted?: number;
@@ -790,6 +792,7 @@ export type Database = {
                 Update: {
                     connection_id?: string | null;
                     error_message?: string | null;
+                    external_event_id?: string | null;
                     finished_at?: string | null;
                     id?: string;
                     orders_upserted?: number;

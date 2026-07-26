@@ -37,13 +37,17 @@ async function syncOne(
     conn: ConnRow,
     trigger: 'cron' | 'manual',
 ): Promise<{ ok: boolean; upserted: number; error?: string }> {
-    // Skip if a run is still "running" for this connection within 10 minutes
+    // Skip if a poll is still "running" for this connection within 10 minutes.
+    // Webhook runs are excluded: order-webhook now opens its run row up front for
+    // idempotency, and one in flight (or stranded by an EF timeout) must not make
+    // a manual "Sync now" silently return 0 orders for the next 10 minutes.
     const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const { data: running } = await admin
         .from('order_sync_runs')
         .select('id')
         .eq('connection_id', conn.id)
         .eq('status', 'running')
+        .neq('trigger', 'webhook')
         .gte('started_at', tenMinAgo)
         .limit(1)
         .maybeSingle();

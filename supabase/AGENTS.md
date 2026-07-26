@@ -23,7 +23,7 @@ Schema lives in `supabase/migrations/`. Privileged network and secret handling l
 | `cafe24-oauth-start` | user JWT | Signed OAuth state → authorize URL | `functions/cafe24-oauth-start/` |
 | `cafe24-oauth-callback` | public redirect | Code exchange → connection + secrets | `functions/cafe24-oauth-callback/` |
 | `order-sync` | user JWT **or** `x-cron-secret` | Pull/upsert orders; token refresh | `functions/order-sync/`, `_shared/channels/*` |
-| `order-webhook` | platform signature | Push ingest | `functions/order-webhook/`, `_shared/webhook-auth.ts` |
+| `order-webhook` | platform signature (**`verify_jwt = false` — deploy `--no-verify-jwt`**) | Push ingest; topic-routed, idempotent per `X-Shopify-Webhook-Id` | `functions/order-webhook/`, `_shared/webhook-auth.ts`, `_shared/channels/shopify-webhook.ts` |
 | `order-dispatch` | user JWT (+ workspace/org rules) | Mark shipped on platform; `order_dispatches` | `functions/order-dispatch/` |
 | `create-polar-checkout` | user JWT | Polar checkout URL | `functions/create-polar-checkout/` |
 | `polar-webhook` | Polar HMAC | **Only** path that mutates `subscriptions` / plan fields | `functions/polar-webhook/` |
@@ -89,6 +89,20 @@ After schema migrations: **`pnpm types:gen`** updates `src/shared/types/database
 2. Prefer `SECURITY INVOKER` RPCs so RLS still applies (existing stock RPCs follow this).
 3. New Edge Function: put shared crypto/auth in `_shared/`; document auth mode in this table.
 4. Deploy: `supabase functions deploy <name>` after reviewing JWT verify settings for that function.
-5. Do not "fix" stock by direct table edits in EF unless matching existing inbound-actions patterns and idempotency indexes.
+   Every function needs a `[functions.<name>]` block in `config.toml` — the default is
+   `verify_jwt = true`, which silently 401s any platform-signed webhook at the gateway.
+   `order-webhook` is the only channel function with `verify_jwt = false`; deploy it as
+   `supabase functions deploy order-webhook --no-verify-jwt`. `order-sync` keeps
+   `verify_jwt = true`, so a cron caller must send `Authorization: Bearer <ANON_KEY>`
+   **and** `x-cron-secret`.
+5. A service-role EF bypasses RLS, so it must resolve the **workspace owner** for any
+   `user_id` it writes — RLS is `has_workspace_access(user_id)`, not `auth.uid() = user_id`.
+   Use `resolveWorkspaceOwner` (`_shared/auth.ts`); it verifies a client-supplied owner id
+   with the same predicate. Writing `auth.uid()` creates rows a member can never see.
+6. Client-writable columns are a security boundary: `sales_channel_connections` grants
+   `authenticated` only `SELECT`, `DELETE` and `UPDATE (auto_fulfill_on_shipped, updated_at)`
+   (`20260801000000_*`). Never widen it back to a table-level UPDATE — EF-owned columns
+   (`poll_cursor`, `shop_identifier`, `status`, …) must stay service-role only.
+7. Do not "fix" stock by direct table edits in EF unless matching existing inbound-actions patterns and idempotency indexes.
 
 Frontend domain guides: `docs/agent/*.md`, inventory SSoT `docs/inventory-architecture.md`.

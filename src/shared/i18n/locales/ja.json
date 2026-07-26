@@ -1386,6 +1386,8 @@
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
             "accessToken": "アクセストークン",
+            "webhookSecret": "Webhook署名シークレット（任意）",
+            "webhookSecretHelp": "Shopify管理画面 → 設定 → 通知 → Webhook → signing secret。Shopifyストアを2つ以上接続する場合は必須です。",
             "oauthCta": "Cafe24で接続",
             "oauthWaiting": "ブラウザでの同意を待っています…",
             "oauthWaitTimeout": "接続確認がタイムアウトしました。同意後、チャネル一覧を更新してください。",

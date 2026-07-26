@@ -84,6 +84,15 @@
         }
     ],
     "files": {
-        "includes": ["**", "!**/dist", "!**/build", "!**/.next", "!**/coverage", "!**/src-tauri", "!**/node_modules"]
+        "includes": [
+            "**",
+            "!**/dist",
+            "!**/build",
+            "!**/.next",
+            "!**/coverage",
+            "!**/src-tauri",
+            "!**/node_modules",
+            "!**/.claude"
+        ]
     }
 }

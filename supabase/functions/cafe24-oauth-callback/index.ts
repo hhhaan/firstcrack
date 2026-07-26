@@ -87,10 +87,16 @@ Deno.serve(async (req) => {
         const admin = serviceClient();
         const now = new Date().toISOString();
 
+        // Workspace owner, not the acting user: rows owned by auth.uid() are
+        // invisible to a member's workspace-scoped list (RLS is
+        // has_workspace_access(user_id)). Membership was verified in
+        // cafe24-oauth-start before the state was HMAC-signed.
+        const ownerId = state.ownerId ?? state.userId;
+
         const { data: existing } = await admin
             .from('sales_channel_connections')
             .select('id')
-            .eq('user_id', state.userId)
+            .eq('user_id', ownerId)
             .eq('platform', 'cafe24')
             .eq('shop_identifier', shopIdentifier)
             .maybeSingle();
@@ -108,13 +114,13 @@ Deno.serve(async (req) => {
                     updated_at: now,
                 })
                 .eq('id', connectionId)
-                .eq('user_id', state.userId);
+                .eq('user_id', ownerId);
             if (error) throw new Error(error.message);
         } else {
             const { data: created, error } = await admin
                 .from('sales_channel_connections')
                 .insert({
-                    user_id: state.userId,
+                    user_id: ownerId,
                     platform: 'cafe24',
                     shop_identifier: shopIdentifier,
                     display_name: displayName,

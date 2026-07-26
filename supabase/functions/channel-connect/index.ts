@@ -4,10 +4,22 @@
  *
  * Validates credentials against the live platform API, then stores connection + secrets.
  * Secrets are written with service role only.
+ *
+ * The target connection id is always derived server-side from
+ * (user_id, platform, shop_identifier) — never taken from the request body.
+ * A client-supplied id would be used as the service-role key for the
+ * `sales_channel_secrets` upsert and could overwrite another tenant's
+ * credentials (issue #122).
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
+import {
+    corsHeaders,
+    getAuthenticatedUser,
+    jsonResponse,
+    resolveWorkspaceOwner,
+} from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
+import { pickConnectCredentials } from '../_shared/channels/connect-credentials.ts';
 import type { ChannelSecrets, Platform } from '../_shared/channels/types.ts';
 
 const PLATFORMS = new Set(['naver', 'cafe24', 'shopify']);
@@ -46,7 +58,8 @@ Deno.serve(async (req) => {
         platform?: string;
         credentials?: ChannelSecrets;
         displayName?: string;
-        connectionId?: string; // re-auth existing
+        /** Workspace owner to connect under; verified below, defaults to self. */
+        workspaceOwnerId?: string;
     };
     try {
         body = await req.json();
@@ -58,25 +71,34 @@ Deno.serve(async (req) => {
     if (!platform || !PLATFORMS.has(platform)) {
         return jsonResponse({ error: 'platform must be naver | cafe24 | shopify' }, 400);
     }
+
+    // Rows must be owned by the workspace owner or a member's workspace-scoped
+    // list never sees them. Membership is verified server-side — an unverified
+    // client-supplied owner id would be the same hole as issue #122.
+    const ownerId = await resolveWorkspaceOwner(req, body.workspaceOwnerId, user.id);
+    if (!ownerId) return jsonResponse({ error: 'Forbidden' }, 403);
     if (!body.credentials || typeof body.credentials !== 'object') {
         return jsonResponse({ error: 'credentials required' }, 400);
     }
 
-    const credErr = validateCredentials(platform, body.credentials);
+    // Filter the *request body* only — adapter-minted tokens are merged in below.
+    const credentials = pickConnectCredentials(platform, body.credentials);
+
+    const credErr = validateCredentials(platform, credentials);
     if (credErr) return jsonResponse({ error: credErr }, 400);
 
     const adapter = getAdapter(platform);
     let shopIdentifier: string;
     let displayName: string;
-    let secretsToStore: ChannelSecrets = { ...body.credentials };
+    let secretsToStore: ChannelSecrets = { ...credentials };
 
     try {
-        const test = await adapter.testConnection(body.credentials);
+        const test = await adapter.testConnection(credentials);
         shopIdentifier = test.shopIdentifier;
         displayName = body.displayName?.trim() || test.displayName;
 
         // Persist refreshed tokens if adapter minted any during test
-        const refreshed = await adapter.refreshAuth(body.credentials);
+        const refreshed = await adapter.refreshAuth(credentials);
         if (refreshed) secretsToStore = { ...secretsToStore, ...refreshed };
 
         // Naver: store access_token from a second exchange so first sync is fast
@@ -93,19 +115,34 @@ Deno.serve(async (req) => {
     const admin = serviceClient();
     const now = new Date().toISOString();
 
-    // Upsert connection by (user, platform, shop_identifier)
+    // Upsert connection by (workspace owner, platform, shop_identifier)
     const { data: existing } = await admin
         .from('sales_channel_connections')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', ownerId)
         .eq('platform', platform)
         .eq('shop_identifier', shopIdentifier)
         .maybeSingle();
 
     let connectionId: string;
 
-    if (existing?.id || body.connectionId) {
-        connectionId = (existing?.id ?? body.connectionId) as string;
+    if (existing?.id) {
+        connectionId = existing.id;
+
+        // Re-auth (e.g. rotating a Shopify Admin token) submits only the fields the
+        // user retyped. The secrets upsert below replaces the whole jsonb, so merge
+        // over what is stored — otherwise an omitted optional field such as
+        // `webhook_secret` is wiped and every later webhook fails HMAC.
+        // Clearing a stored secret therefore requires disconnect + reconnect.
+        const { data: storedSecrets } = await admin
+            .from('sales_channel_secrets')
+            .select('credentials')
+            .eq('connection_id', connectionId)
+            .maybeSingle();
+        if (storedSecrets?.credentials) {
+            secretsToStore = { ...(storedSecrets.credentials as ChannelSecrets), ...secretsToStore };
+        }
+
         const { error } = await admin
             .from('sales_channel_connections')
             .update({
@@ -117,7 +154,7 @@ Deno.serve(async (req) => {
                 updated_at: now,
             })
             .eq('id', connectionId)
-            .eq('user_id', user.id);
+            .eq('user_id', ownerId);
         if (error) {
             console.error('[channel-connect] update', error);
             return jsonResponse({ error: 'Failed to update connection' }, 500);
@@ -126,7 +163,7 @@ Deno.serve(async (req) => {
         const { data: created, error } = await admin
             .from('sales_channel_connections')
             .insert({
-                user_id: user.id,
+                user_id: ownerId,
                 platform,
                 shop_identifier: shopIdentifier,
                 display_name: displayName,

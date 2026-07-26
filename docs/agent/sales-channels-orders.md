@@ -39,10 +39,28 @@ User → connect channel
 | Platform | Client input | Auth model | Outbound ship API |
 |----------|--------------|------------|-------------------|
 | Naver | Client ID + secret | client_credentials + signed requests | product-orders dispatch |
-| Shopify | shop domain + Admin token | custom app token header | fulfillmentCreateV2 |
+| Shopify | shop domain + Admin token + *optional* webhook signing secret | custom app token header | fulfillmentCreateV2 |
 | Cafe24 | Mall ID only (OAuth) | Bearer + refresh via app env `CAFE24_CLIENT_*` | shipments |
 
 **Invariant:** Cafe24 must not accept pasted access tokens. Client must not store or re-display platform secrets.
+
+`channel-connect` runs the body through a per-platform key allow-list
+(`_shared/channels/connect-credentials.ts`) before anything reaches
+`sales_channel_secrets` — clients cannot inject adapter-managed keys. The target
+connection id is always derived from `(user_id, platform, shop_identifier)`;
+**never** accept a connection id from the request body (issue #122).
+
+**Row ownership = workspace owner, not `auth.uid()`.** RLS on
+`sales_channel_connections` is `has_workspace_access(user_id)`, so a row inserted
+under the acting user is invisible to a member's workspace-scoped list.
+`channel-connect` and `cafe24-oauth-start` accept an optional `workspaceOwnerId`
+and resolve it through `resolveWorkspaceOwner` (`_shared/auth.ts`), which runs the
+**same** `has_workspace_access` predicate on the user's client — a client-supplied
+owner id is verified, never trusted. Cafe24's callback is a public redirect with no
+JWT, so the verified owner rides in the HMAC-signed OAuth state
+(`CAFE24_OAUTH_STATE_SECRET`); it must never be re-read from the query string.
+`channel-disconnect` therefore filters by id + RLS only — an `auth.uid()` filter
+there silently deleted nothing for members.
 
 ---
 
@@ -52,6 +70,27 @@ User → connect channel
 2. Adapter pulls platform orders → normalize → upsert `orders` / `order_lines`
 3. Webhooks: `order-webhook` (Shopify HMAC / Cafe24 shared secret) — fail closed on bad signature
 4. App reads tables only via `orderApi.list(workspaceOwnerId)`
+
+`order-webhook` specifics (deploy with `--no-verify-jwt`; see `supabase/config.toml`):
+
+- Shopify HMAC uses the **per-connection** `webhook_secret`; `SHOPIFY_WEBHOOK_SECRET`
+  env is a single-tenant fallback — with 2+ stores each needs its own secret.
+- `X-Shopify-Topic` is routed by `classifyShopifyTopic` (fail closed): only order
+  topics are parsed, `app/uninstalled` disables the connection, GDPR /
+  `orders/delete` / unknown topics are acked with 200 and never parsed.
+- Idempotency: `X-Shopify-Webhook-Id` → `order_sync_runs.external_event_id`
+  (partial unique index with `connection_id`). Replays return 200 `duplicate delivery`;
+  a failed run releases the key so the platform retry is processed.
+- Duplicate `(platform, shop_identifier)` rows across tenants are rejected explicitly
+  (`ambiguous shop`) instead of resolving to an arbitrary tenant.
+- Cafe24 authenticates with **`X-API-Key`** (issue #132 C1). The old
+  `x-cafe24-webhook-secret` / `x-webhook-secret` names are a manual-relay fallback
+  only — Cafe24 never sends them, so reading them alone rejected every delivery.
+  The value is compared against the connection's `webhook_secret` in
+  `sales_channel_secrets`, falling back to the app-wide `CAFE24_WEBHOOK_SECRET` env.
+  **Unverified:** what Cafe24 actually puts in `X-API-Key` is not confirmed against
+  official docs — validate against live traffic before trusting Cafe24 push ingest.
+  Cafe24 connects via OAuth, so nothing writes the per-connection slot yet.
 
 SKU mapping: when platform product/variant ids match `products.sku`, lines get `product_id` for stock + roasting requirements.
 
@@ -91,6 +130,12 @@ Roasting needs: RPC `get_roasting_requirements` / `orderKeys.requirements(userId
 | R2 | unrelated to channels; still EF-only (see `supabase/AGENTS.md`) |
 
 Client may read `sales_channel_connections` metadata only.
+
+Client grants on `sales_channel_connections` (migration `20260801000000_*`):
+`SELECT`, `DELETE`, and `UPDATE (auto_fulfill_on_shipped, updated_at)` — nothing else.
+`poll_cursor` / `shop_identifier` / `status` / `consecutive_failures` /
+`webhook_registered` are Edge-Function-owned; a client write there would rewind the
+sync window or repoint webhook routing.
 
 ---
 

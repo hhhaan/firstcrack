@@ -19,9 +19,13 @@ export interface SalesChannelConnection {
     updated_at: string;
 }
 
+/**
+ * Write-only: the Edge Function stores these in `sales_channel_secrets`
+ * (service role). They are never read back into the client.
+ */
 export type ConnectCredentials =
     | { client_id: string; client_secret: string } // naver
-    | { shop: string; access_token: string }; // shopify
+    | { shop: string; access_token: string; webhook_secret?: string }; // shopify
 
 export const salesChannelApi = {
     list: async (userId: string): Promise<SalesChannelConnection[]> => {
@@ -36,13 +40,20 @@ export const salesChannelApi = {
         return (data ?? []) as SalesChannelConnection[];
     },
 
+    /**
+     * `workspaceOwnerId` decides who owns the connection row. Omit for self.
+     * The Edge Function verifies membership (`has_workspace_access`) before
+     * trusting it — connections created under auth.uid() instead of the owner
+     * are invisible to a workspace-scoped list.
+     */
     connect: async (
         platform: ChannelPlatform,
         credentials: ConnectCredentials,
         displayName?: string,
+        workspaceOwnerId?: string,
     ): Promise<SalesChannelConnection> => {
         const { data, error } = await supabase.functions.invoke('channel-connect', {
-            body: { platform, credentials, displayName },
+            body: { platform, credentials, displayName, workspaceOwnerId },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
@@ -50,9 +61,13 @@ export const salesChannelApi = {
     },
 
     /** Cafe24 OAuth: returns authorize URL for browser open. Callback stores connection. */
-    startCafe24OAuth: async (mallId: string, displayName?: string): Promise<{ authorizeUrl: string }> => {
+    startCafe24OAuth: async (
+        mallId: string,
+        displayName?: string,
+        workspaceOwnerId?: string,
+    ): Promise<{ authorizeUrl: string }> => {
         const { data, error } = await supabase.functions.invoke('cafe24-oauth-start', {
-            body: { mallId, displayName },
+            body: { mallId, displayName, workspaceOwnerId },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);

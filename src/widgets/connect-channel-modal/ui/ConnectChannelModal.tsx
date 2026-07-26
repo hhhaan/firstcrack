@@ -43,6 +43,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
     const [clientSecret, setClientSecret] = useState('');
     const [shop, setShop] = useState('');
     const [accessToken, setAccessToken] = useState('');
+    const [webhookSecret, setWebhookSecret] = useState('');
     const [mallId, setMallId] = useState('');
     const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +71,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
         setClientSecret('');
         setShop('');
         setAccessToken('');
+        setWebhookSecret('');
         setMallId('');
         setError(null);
         stopOauthWait();
@@ -94,6 +96,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                     platform,
                     credentials: { client_id: clientId.trim(), client_secret: clientSecret.trim() },
                     displayName: displayName.trim() || undefined,
+                    workspaceOwnerId: userId,
                 });
                 onClose();
             } else if (platform === 'shopify') {
@@ -103,8 +106,13 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                 }
                 await connect.mutateAsync({
                     platform,
-                    credentials: { shop: shop.trim(), access_token: accessToken.trim() },
+                    credentials: {
+                        shop: shop.trim(),
+                        access_token: accessToken.trim(),
+                        webhook_secret: webhookSecret.trim() || undefined,
+                    },
                     displayName: displayName.trim() || undefined,
+                    workspaceOwnerId: userId,
                 });
                 onClose();
             } else {
@@ -115,6 +123,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                 const { authorizeUrl } = await startCafe24.mutateAsync({
                     mallId: mallId.trim(),
                     displayName: displayName.trim() || undefined,
+                    workspaceOwnerId: userId,
                 });
                 oauthWait.start();
                 await openUrl(authorizeUrl);
@@ -235,6 +244,22 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                                 onChange={(e) => setAccessToken(e.target.value)}
                                 autoComplete="off"
                             />
+                        </div>
+                        <div>
+                            <label className={labelCls} htmlFor="channel-webhook-secret">
+                                {t('orders.channel.webhookSecret')}
+                            </label>
+                            <input
+                                id="channel-webhook-secret"
+                                className={inputCls}
+                                type="password"
+                                value={webhookSecret}
+                                onChange={(e) => setWebhookSecret(e.target.value)}
+                                autoComplete="off"
+                            />
+                            <p className="mt-1.5 text-[11px] leading-relaxed text-muted tracking-[0.14px]">
+                                {t('orders.channel.webhookSecretHelp')}
+                            </p>
                         </div>
                     </>
                 )}

@@ -299,6 +299,32 @@ verify_jwt = true
 [functions.cafe24-oauth-callback]
 verify_jwt = false
 
+# ── Sales channels / orders ─────────────────────────────────────────────────
+# Deploy: `supabase functions deploy <name>` picks these up.
+# order-webhook additionally needs `--no-verify-jwt` when deployed by itself.
+
+[functions.channel-connect]
+verify_jwt = true
+
+[functions.channel-disconnect]
+verify_jwt = true
+
+# Dual auth inside the function: user JWT (manual "Sync now") OR x-cron-secret.
+# The gateway check stays on, so a scheduler must also send
+# `Authorization: Bearer <ANON_KEY>` alongside `x-cron-secret`.
+[functions.order-sync]
+verify_jwt = true
+
+[functions.order-dispatch]
+verify_jwt = true
+
+# REQUIRED false: platform HMAC / shared secret is the only credential —
+# Shopify and Cafe24 never send a Supabase JWT. With the default (true) the
+# gateway rejects every delivery before the function runs.
+# Deploy: supabase functions deploy order-webhook --no-verify-jwt
+[functions.order-webhook]
+verify_jwt = false
+
 # [functions.MY_FUNCTION_NAME]
 # enabled = true
 # verify_jwt = true
