@@ -69,12 +69,20 @@ jobs:
           echo "Checking CI status for commit ${GITHUB_SHA}..."
 
           # Retry up to 10 minutes (20×30s) to wait for CI to start/finish
+          # NOTE: check names must match ci.yml job names — renaming there breaks this gate.
           for i in $(seq 1 20); do
             RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
               --jq '[.check_runs[] | select(.name == "typecheck" or .name == "lint" or .name == "eslint" or .name == "test" or .name == "sidecar")]')
             TOTAL=$(echo "$RESPONSE" | jq 'length')
 
             if [ "$TOTAL" -eq 0 ]; then
+              # CI check-runs appear within seconds of a push. If none exist after
+              # ~2 min, this SHA was never a push head (e.g. tag on a stacked commit
+              # pushed in a batch — v1.1.18) and checks will NEVER appear. Fail fast.
+              if [ "$i" -ge 4 ]; then
+                echo "::error::No CI check-runs on ${GITHUB_SHA} after $i attempts — this commit was likely never a push head (tag points at a stacked commit). Tag the pushed main HEAD via 'pnpm release' instead."
+                exit 1
+              fi
               echo "::warning::No CI checks found yet (attempt $i/20). Waiting 30s..."
               sleep 30
               continue
@@ -163,12 +171,15 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      # Restore-only: tag refs can only restore caches saved on main, and caches
+      # saved on a tag ref are never reusable. Warming happens in
+      # warm-release-cache.yml (main) with the same shared-key.
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
           shared-key: rust-${{ matrix.target }}
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: false
 
       - name: Install frontend deps
         run: pnpm install

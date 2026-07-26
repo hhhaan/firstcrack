@@ -599,6 +599,42 @@ export type Database = {
                 };
                 Relationships: [];
             };
+            market_roastery_contacts: {
+                Row: {
+                    contacted: boolean;
+                    contacted_at: string;
+                    roastery_id: string;
+                    updated_at: string;
+                };
+                Insert: {
+                    contacted?: boolean;
+                    contacted_at?: string;
+                    roastery_id: string;
+                    updated_at?: string;
+                };
+                Update: {
+                    contacted?: boolean;
+                    contacted_at?: string;
+                    roastery_id?: string;
+                    updated_at?: string;
+                };
+                Relationships: [];
+            };
+            market_roastery_hidden: {
+                Row: {
+                    hidden_at: string;
+                    roastery_id: string;
+                };
+                Insert: {
+                    hidden_at?: string;
+                    roastery_id: string;
+                };
+                Update: {
+                    hidden_at?: string;
+                    roastery_id?: string;
+                };
+                Relationships: [];
+            };
             order_dispatches: {
                 Row: {
                     attempt_count: number;

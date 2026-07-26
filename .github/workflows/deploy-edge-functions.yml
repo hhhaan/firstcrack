@@ -79,6 +79,27 @@ jobs:
           echo "functions=$FUNCTIONS" >> "$GITHUB_OUTPUT"
           echo "project_ref=$PROJECT_REF" >> "$GITHUB_OUTPUT"
 
+      # EFs auto-deploy on main push but migrations deploy is manual — an EF
+      # referencing new schema can go live before the schema exists. Warn loudly.
+      - name: Warn if this push also touches migrations
+        if: github.event_name == 'push' && steps.changed.outputs.functions != '[]'
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            MIG=$(git diff --name-only "${BEFORE_SHA}...HEAD" -- supabase/migrations/ || true)
+          else
+            MIG=$(git diff --name-only HEAD~1 -- supabase/migrations/ || true)
+          fi
+          if [ -n "$MIG" ]; then
+            echo "::warning::This push also changes supabase/migrations/** — migrations deploy is MANUAL (Actions → Deploy migrations). Apply them before relying on the deployed functions."
+            if [ -n "$SLACK_WEBHOOK" ]; then
+              curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+                --data "{\"text\":\":warning: *EF 자동배포에 마이그레이션 동반 변경* — 마이그레이션은 수동 배포 필요 (Actions → Deploy migrations) | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
+            fi
+          fi
+
       - name: Validate Supabase access token
         if: steps.changed.outputs.functions != '[]'
         env:
