@@ -39,7 +39,7 @@ User → connect channel
 | Platform | Client input | Auth model | Outbound ship API |
 |----------|--------------|------------|-------------------|
 | Naver | Client ID + secret | client_credentials + signed requests | product-orders dispatch |
-| Shopify | shop domain + Admin token + *optional* webhook signing secret | custom app token header | fulfillmentCreateV2 |
+| Shopify | shop domain + Admin token + *optional* webhook signing secret | custom app token header | `fulfillmentCreateV2` — **deprecated** since API 2024-10; migrate to `fulfillmentCreate` + `FulfillmentInput` |
 | Cafe24 | Mall ID only (OAuth) | Bearer + refresh via app env `CAFE24_CLIENT_*` | shipments |
 
 **Invariant:** Cafe24 must not accept pasted access tokens. Client must not store or re-display platform secrets.
