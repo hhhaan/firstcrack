@@ -13,7 +13,9 @@ from tests.conftest import FakeAdapter, make_reading
 
 
 @pytest.fixture
-async def client():
+async def client(monkeypatch):
+    # 개발 셸에 SIDECAR_TOKEN이 export돼 있어도 기본 fixture는 인증 없이 동작해야 한다
+    monkeypatch.delenv("SIDECAR_TOKEN", raising=False)
     app = create_app()
     async with TestClient(TestServer(app)) as c:
         yield c

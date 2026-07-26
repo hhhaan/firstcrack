@@ -18,7 +18,11 @@ const TOKEN_HEADER = 'X-Sidecar-Token';
  */
 let tokenPromise: Promise<string | null> | null = null;
 const getSidecarToken = (): Promise<string | null> => {
-    tokenPromise ??= invoke<string>('sidecar_token').catch(() => null);
+    // 실패는 캐시하지 않는다 — 일시 실패를 물고 있으면 이후 모든 요청이 401이 된다
+    tokenPromise ??= invoke<string>('sidecar_token').catch(() => {
+        tokenPromise = null;
+        return null;
+    });
     return tokenPromise;
 };
 

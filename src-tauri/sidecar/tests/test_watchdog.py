@@ -109,10 +109,11 @@ class TestParentWatchdog:
 # ---------------------------------------------------------------------------
 
 class TestShutdownEndpoint:
-    async def test_shutdown_returns_200(self):
+    async def test_shutdown_returns_200(self, monkeypatch):
         from aiohttp.test_utils import TestClient, TestServer
         from main import create_app
 
+        monkeypatch.delenv("SIDECAR_TOKEN", raising=False)
         app = create_app()
         app["manager"] = mock.AsyncMock()
         async with TestClient(TestServer(app)) as client:

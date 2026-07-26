@@ -68,12 +68,14 @@ def _pid_alive(pid: int) -> bool:
             import ctypes
             SYNCHRONIZE = 0x00100000
             ERROR_ACCESS_DENIED = 5
-            kernel32 = ctypes.windll.kernel32
+            # use_last_error=True + get_last_error(): ctypes가 호출 직후 저장한 에러 코드를
+            # 읽는다. windll.kernel32.GetLastError()는 그 사이 다른 호출이 끼면 값이 덮인다.
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
             handle = kernel32.OpenProcess(SYNCHRONIZE, False, pid)
             if handle:
                 kernel32.CloseHandle(handle)
                 return True
-            return kernel32.GetLastError() == ERROR_ACCESS_DENIED
+            return ctypes.get_last_error() == ERROR_ACCESS_DENIED
         else:
             os.kill(pid, 0)
             return True
