@@ -177,6 +177,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         sidecarConnected,
         rawBT,
         selectedBeanId,
+        planBatchHandoff,
         onBeanSelectionRequired: openPreChargeSelection,
         unit,
         logEntries,

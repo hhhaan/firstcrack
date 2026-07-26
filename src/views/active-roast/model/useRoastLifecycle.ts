@@ -4,6 +4,7 @@ import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { FEATURE, useFeature, useWriteAccess } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
+import type { PlanBatchHandoff } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
 import { message } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
@@ -15,8 +16,13 @@ export interface UseRoastLifecycleParams {
     charged: boolean;
     sidecarConnected: boolean;
     rawBT: number | null;
-    /** Bean is required before charge — saving and stock deduction both key off it. */
+    /**
+     * Bean is required before charge — saving and stock deduction both key off it.
+     * A scheduled batch is exempt: a blend-only batch legitimately hands off with
+     * `beanId === null` and deducts through the blend path instead.
+     */
     selectedBeanId: string | null;
+    planBatchHandoff: PlanBatchHandoff | null;
     onBeanSelectionRequired: () => void;
     unit: TemperatureUnit;
     logEntries: LogEntry[];
@@ -54,6 +60,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         sidecarConnected,
         rawBT,
         selectedBeanId,
+        planBatchHandoff,
         onBeanSelectionRequired,
         unit,
         logEntries,
@@ -105,7 +112,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             return;
         }
         // Asked last so the selection modal only appears when charge would otherwise start.
-        if (!selectedBeanId) {
+        if (!selectedBeanId && !planBatchHandoff) {
             onBeanSelectionRequired();
             return;
         }
@@ -116,6 +123,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         canWrite,
         rawBT,
         selectedBeanId,
+        planBatchHandoff,
         onBeanSelectionRequired,
         triggerChargeRef,
         setConnected,
