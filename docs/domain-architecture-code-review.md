@@ -400,7 +400,7 @@ Covered in **Cross-cutting** above. Additional App notes:
 
 | Tag | Sev | Finding | Evidence |
 |-----|-----|---------|----------|
-| smell | high | **Bug:** auto-fulfill reads `sales_channels` not `sales_channel_connections` | `order-dispatch/index.ts` ~208-212 |
+| smell | high | ~~**Bug:** auto-fulfill reads `sales_channels` not `sales_channel_connections`~~ **fixed** (#123) — table name corrected, lookup error now logged | `order-dispatch/index.ts` ~208-212 |
 | architecture | high | **Security smell:** channel-connect can upsert secrets when ownership update matches 0 rows if client supplies foreign `connectionId` | `channel-connect/index.ts` ~107-145 |
 | architecture | med | `config.toml` may not list all functions' `verify_jwt` (webhook/cron risk vs dashboard overrides) | `supabase/config.toml` |
 | smell | med | Polar fallback `external_id ?? customer_id` | `polar-webhook` |
@@ -412,7 +412,7 @@ Covered in **Cross-cutting** above. Additional App notes:
 ### Top 3
 
 1. Fix `channel-connect` ownership before secrets upsert.  
-2. Fix `order-dispatch` → `sales_channel_connections` (+ verify fulfill).  
+2. ~~Fix `order-dispatch` → `sales_channel_connections` (+ verify fulfill).~~ done (#123).  
 3. Align `verify_jwt` for webhook/cron with production runtime.
 
 ---
@@ -495,7 +495,7 @@ Status relative to live tree on 2026-07-21. Legend: **still true** | **fixed / l
 |------|--------|-------|
 | C1 session 3-call save | **fixed** (session) | `save_roast_op` |
 | C2 double deduct batch vs session | **still true** | client guard one-way + fail-open |
-| C3 auto-fulfill on app dispatch | **still true** (broken differently) | code attempts fulfill but queries wrong table `sales_channels` |
+| C3 auto-fulfill on app dispatch | **fixed** (#123) | queried a non-existent `sales_channels`; now `sales_channel_connections` |
 | C4 blend deferred trigger | **not re-verified** | leave as prior claim until remote check |
 | H1 expected_inbound | **still true** | no consume path |
 | H2 blend UX | **still true** | overstock/output checks weak |

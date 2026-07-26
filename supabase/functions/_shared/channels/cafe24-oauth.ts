@@ -146,13 +146,27 @@ export async function exchangeCafe24Code(
     return (await res.json()) as Cafe24TokenResponse;
 }
 
-export function tokenExpiresAtMs(json: Cafe24TokenResponse): number | undefined {
-    if (json.expires_in != null) return Date.now() + Number(json.expires_in) * 1000;
-    if (json.expires_at) {
-        const t = Date.parse(json.expires_at);
-        return Number.isFinite(t) ? t : undefined;
-    }
-    return undefined;
+/** Documented Cafe24 access token lifetime. Refresh tokens rotate on every refresh. */
+export const CAFE24_ACCESS_TOKEN_TTL_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Absolute expiry for a Cafe24 token response — always a number.
+ *
+ * An undefined expiry short-circuits the refresh skew guard, so every single API call would mint
+ * a new refresh_token and revoke the previous one. `expires_at` also carries no timezone offset,
+ * so a mis-parse can land hours in the future and hand out an already-dead access token.
+ * Both are handled by clamping into `(now, now + TTL]`.
+ */
+export function tokenExpiresAtMs(json: Cafe24TokenResponse, nowMs: number = Date.now()): number {
+    const ceiling = nowMs + CAFE24_ACCESS_TOKEN_TTL_MS;
+    const raw =
+        json.expires_in != null
+            ? nowMs + Number(json.expires_in) * 1000
+            : json.expires_at
+              ? Date.parse(json.expires_at)
+              : Number.NaN;
+    if (!Number.isFinite(raw)) return ceiling;
+    return Math.min(Math.max(raw, nowMs), ceiling);
 }
 
 export function assertCafe24Scopes(scopes: string[] | string | undefined): void {

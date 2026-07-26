@@ -75,6 +75,14 @@ export interface MarkShippedResult {
     error?: string;
 }
 
+/**
+ * Adapters rotate credentials in the middle of a call (Cafe24 mints a new refresh_token and
+ * revokes the previous one). The rotation must reach `sales_channel_secrets` before the next
+ * platform call, otherwise the stored token is already dead. Required, not optional: a missing
+ * sink is exactly the bug this exists to prevent.
+ */
+export type SecretsRotationSink = (rotated: ChannelSecrets) => Promise<void>;
+
 export interface ChannelAdapter {
     platform: Platform;
     capabilities: { webhooks: boolean; outboundDispatch: boolean };
@@ -82,7 +90,15 @@ export interface ChannelAdapter {
     testConnection(secrets: ChannelSecrets): Promise<TestConnectionResult>;
     /** Refresh short-lived tokens; return null if secrets are long-lived / unchanged. */
     refreshAuth(secrets: ChannelSecrets): Promise<ChannelSecrets | null>;
-    fetchOrdersSince(secrets: ChannelSecrets, cursor: PollCursor): Promise<FetchOrdersResult>;
-    listProducts(secrets: ChannelSecrets): Promise<PlatformListing[]>;
-    markShipped(secrets: ChannelSecrets, req: MarkShippedRequest): Promise<MarkShippedResult>;
+    fetchOrdersSince(
+        secrets: ChannelSecrets,
+        cursor: PollCursor,
+        onRotate: SecretsRotationSink,
+    ): Promise<FetchOrdersResult>;
+    listProducts(secrets: ChannelSecrets, onRotate: SecretsRotationSink): Promise<PlatformListing[]>;
+    markShipped(
+        secrets: ChannelSecrets,
+        req: MarkShippedRequest,
+        onRotate: SecretsRotationSink,
+    ): Promise<MarkShippedResult>;
 }

@@ -18,6 +18,7 @@
  */
 
 import { buildShopifyFulfillmentInput } from './dispatch.ts';
+import { nextPollCursor } from './poll-cursor.ts';
 import { shopifyToCanonical } from './status-map.ts';
 import type {
     CanonicalOrder,
@@ -33,6 +34,9 @@ import type {
 } from './types.ts';
 
 const API_VERSION = '2026-07';
+
+/** Order pages walked per sync before the scan is declared incomplete. */
+const MAX_ORDER_PAGES = 5;
 
 export interface ShopifySecrets extends ChannelSecrets {
     shop: string;
@@ -176,9 +180,10 @@ export const shopifyAdapter: ChannelAdapter = {
         const orders: CanonicalOrder[] = [];
         let after: string | undefined = cursor.token;
         let endCursor: string | undefined;
+        let hasNextPage = false;
         let pages = 0;
 
-        while (pages < 5) {
+        do {
             const data = await gql<OrdersData>(
                 s.shop,
                 s.access_token,
@@ -213,14 +218,21 @@ export const shopifyAdapter: ChannelAdapter = {
                 orders.push(mapOrder(edge.node));
             }
             endCursor = data.orders.pageInfo.endCursor ?? undefined;
-            if (!data.orders.pageInfo.hasNextPage) break;
+            hasNextPage = data.orders.pageInfo.hasNextPage;
             after = endCursor;
             pages += 1;
-        }
+        } while (hasNextPage && pages < MAX_ORDER_PAGES);
 
         return {
             orders,
-            nextCursor: { since: new Date().toISOString(), token: endCursor },
+            nextCursor: nextPollCursor({
+                complete: !hasNextPage,
+                windowEnd: new Date().toISOString(),
+                // Keeping `since` also keeps the `updated_at:>` filter identical, which is what
+                // makes the stored endCursor a valid resume point on the next run.
+                resumeFrom: cursor.since ?? sinceRaw,
+                resumeToken: endCursor,
+            }),
         };
     },
 

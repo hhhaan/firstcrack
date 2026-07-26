@@ -299,6 +299,15 @@ verify_jwt = true
 [functions.cafe24-oauth-callback]
 verify_jwt = false
 
+# Authenticates in-function: x-cron-secret (pg_cron) or user JWT via getAuthenticatedUser.
+# The gateway JWT gate would reject the cron POST, which carries no Authorization header.
+[functions.order-sync]
+verify_jwt = false
+
+# Authenticates in-function: Shopify HMAC / Cafe24 shared secret, fail-closed on both.
+[functions.order-webhook]
+verify_jwt = false
+
 # [functions.MY_FUNCTION_NAME]
 # enabled = true
 # verify_jwt = true

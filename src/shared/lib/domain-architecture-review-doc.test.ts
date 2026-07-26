@@ -76,6 +76,7 @@ describe('docs/domain-architecture-code-review.md', () => {
         expect(roastQueries).toMatch(/bean-stock-event|roasted-stock-event/);
         expect(sidecar).toMatch(/@entities\/machine/);
         expect(scheduleHook).toMatch(/useDayBatches\(userId, dateKey, 14\)/);
-        expect(orderDispatch).toMatch(/sales_channels/);
+        // Was `sales_channels` (a table that never existed), which made auto-fulfill dead code.
+        expect(orderDispatch).toMatch(/from\('sales_channel_connections'\)/);
     });
 });

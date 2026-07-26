@@ -24,6 +24,7 @@
 
 import { hash as bcryptHash } from 'npm:bcryptjs@2.4.3';
 import { buildNaverDispatchPayload } from './dispatch.ts';
+import { nextPollCursor } from './poll-cursor.ts';
 import { naverToCanonical } from './status-map.ts';
 import type {
     CanonicalOrder,
@@ -35,10 +36,14 @@ import type {
     MarkShippedResult,
     PlatformListing,
     PollCursor,
+    SecretsRotationSink,
     TestConnectionResult,
 } from './types.ts';
 
 const BASE = 'https://api.commerce.naver.com/external';
+
+/** last-changed pages walked per 24h window before the scan is declared incomplete. */
+const MAX_PAGES_PER_WINDOW = 20;
 
 export interface NaverSecrets extends ChannelSecrets {
     client_id: string;
@@ -108,6 +113,13 @@ async function withToken(secrets: NaverSecrets): Promise<{ token: string; refres
         token_expires_at: Date.now() + expires_in * 1000,
     };
     return { token: access_token, refreshed: next };
+}
+
+/** Mint/reuse an access token for one call and persist the re-issue before it is used. */
+async function authorizedToken(secrets: ChannelSecrets, onRotate: SecretsRotationSink): Promise<string> {
+    const { token, refreshed } = await withToken(requireNaver(secrets));
+    if (refreshed) await onRotate(refreshed);
+    return token;
 }
 
 /** Official date-time example: 2023-01-16T17:14:51.794+09:00 — ISO-8601 with offset is accepted. */
@@ -287,10 +299,8 @@ export const naverAdapter: ChannelAdapter = {
         return refreshed;
     },
 
-    async fetchOrdersSince(secrets, cursor): Promise<FetchOrdersResult> {
-        let s = requireNaver(secrets);
-        const { token, refreshed } = await withToken(s);
-        if (refreshed) s = refreshed;
+    async fetchOrdersSince(secrets, cursor, onRotate): Promise<FetchOrdersResult> {
+        const token = await authorizedToken(secrets, onRotate);
 
         const end = Date.now();
         // Official: omit lastChangedTo → 24h from lastChangedFrom. Walk day windows, cap 7d.
@@ -301,7 +311,12 @@ export const naverAdapter: ChannelAdapter = {
 
         const productOrderIds: string[] = [];
         // Lightweight status from last-changed when detail fails
-        const statusHint = new Map<string, { status: string; claim?: string; orderId?: string }>();
+        const statusHint = new Map<
+            string,
+            { status: string; claim?: string; orderId?: string; orderedAt?: string }
+        >();
+        /** ms of the first window left half-read by the page cap; null = whole range scanned. */
+        let truncatedAt: number | null = null;
 
         while (windowStart < end) {
             const windowEnd = Math.min(windowStart + 24 * 60 * 60 * 1000, end);
@@ -320,14 +335,21 @@ export const naverAdapter: ChannelAdapter = {
                             status: String(row.productOrderStatus ?? ''),
                             claim: row.claimStatus != null ? String(row.claimStatus) : undefined,
                             orderId: row.orderId != null ? String(row.orderId) : undefined,
+                            orderedAt: row.paymentDate ?? row.lastChangedDate,
                         });
                     }
                 }
                 moreFrom = page.moreFrom;
                 moreSequence = page.moreSequence;
                 pages += 1;
-            } while (moreFrom && pages < 20);
+            } while (moreFrom && pages < MAX_PAGES_PER_WINDOW);
 
+            if (moreFrom) {
+                // Page cap hit with pages still unread: stop and leave the watermark inside this
+                // window so the next poll re-reads it instead of skipping the remainder.
+                truncatedAt = windowStart;
+                break;
+            }
             windowStart = windowEnd;
         }
 
@@ -353,7 +375,9 @@ export const naverAdapter: ChannelAdapter = {
                     mapped.push({
                         platformOrderId: hint.orderId ?? id,
                         status,
-                        orderedAt: new Date().toISOString(),
+                        // Real platform timestamps only; `now` would be written to a NOT NULL
+                        // column and outlive the outage (see earliestOrderedAt in normalize.ts).
+                        orderedAt: hint.orderedAt ?? new Date().toISOString(),
                         buyerName: null,
                         currency: 'KRW',
                         totalAmount: null,
@@ -381,20 +405,22 @@ export const naverAdapter: ChannelAdapter = {
 
         return {
             orders: mergeByOrderId(mapped),
-            nextCursor: { since: new Date(end).toISOString() },
+            nextCursor: nextPollCursor({
+                complete: truncatedAt === null,
+                windowEnd: new Date(end).toISOString(),
+                resumeFrom: new Date(truncatedAt ?? end).toISOString(),
+            }),
         };
     },
 
-    async listProducts(_secrets): Promise<PlatformListing[]> {
+    async listProducts(): Promise<PlatformListing[]> {
         // Product catalog APIs are under a separate product API group; map via sellerProductCode on orders first.
         // Keep empty until product-search endpoint is wired from product docs.
         return [];
     },
 
-    async markShipped(secrets, req: MarkShippedRequest): Promise<MarkShippedResult> {
-        let s = requireNaver(secrets);
-        const { token, refreshed } = await withToken(s);
-        if (refreshed) s = refreshed;
+    async markShipped(secrets, req: MarkShippedRequest, onRotate): Promise<MarkShippedResult> {
+        const token = await authorizedToken(secrets, onRotate);
 
         const body = buildNaverDispatchPayload(req);
         const res = await fetch(`${BASE}/v1/pay-order/seller/product-orders/dispatch`, {

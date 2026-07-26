@@ -26,7 +26,9 @@
  *   POST https://{mallid}.cafe24api.com/api/v2/oauth/token
  */
 
+import { tokenExpiresAtMs } from './cafe24-oauth.ts';
 import { buildCafe24ShipmentPayload } from './dispatch.ts';
+import { nextPollCursor } from './poll-cursor.ts';
 import { cafe24ToCanonical } from './status-map.ts';
 import type {
     CanonicalOrder,
@@ -38,6 +40,7 @@ import type {
     MarkShippedResult,
     PlatformListing,
     PollCursor,
+    SecretsRotationSink,
     TestConnectionResult,
 } from './types.ts';
 
@@ -140,16 +143,26 @@ export async function refreshCafe24Token(secrets: Cafe24Secrets): Promise<Cafe24
         expires_in?: number;
     };
     // Official: new refresh_token revokes the previous one — always persist rotation.
+    // token_expires_at is never left undefined; that would disable the skew guard above and
+    // rotate (and revoke) the refresh token on every single call.
     return {
         ...secrets,
         access_token: json.access_token,
         refresh_token: json.refresh_token ?? secrets.refresh_token,
-        token_expires_at: json.expires_in
-            ? Date.now() + json.expires_in * 1000
-            : json.expires_at
-              ? Date.parse(json.expires_at)
-              : undefined,
+        token_expires_at: tokenExpiresAtMs(json),
     };
+}
+
+/**
+ * Resolve usable credentials for one API call, persisting any rotation before it is used.
+ * Cafe24 revokes the old refresh_token immediately, so the write cannot wait for the caller.
+ */
+async function authorize(secrets: ChannelSecrets, onRotate: SecretsRotationSink): Promise<Cafe24Secrets> {
+    const s = requireCafe24(secrets);
+    const rotated = await refreshCafe24Token(s);
+    if (!rotated) return s;
+    await onRotate(rotated);
+    return rotated;
 }
 
 function amountOf(order: Record<string, unknown>): number | null {
@@ -253,10 +266,8 @@ export const cafe24Adapter: ChannelAdapter = {
         return refreshCafe24Token(requireCafe24(secrets));
     },
 
-    async fetchOrdersSince(secrets, cursor): Promise<FetchOrdersResult> {
-        let s = requireCafe24(secrets);
-        const refreshed = await refreshCafe24Token(s);
-        if (refreshed) s = refreshed;
+    async fetchOrdersSince(secrets, cursor, onRotate): Promise<FetchOrdersResult> {
+        const s = await authorize(secrets, onRotate);
 
         // Official: start_date + end_date required together; date_type default order_date
         const end = new Date();
@@ -317,19 +328,18 @@ export const cafe24Adapter: ChannelAdapter = {
             }
         }
 
-        // Do not advance watermark past unread pages (avoids permanent order loss).
         return {
             orders,
-            nextCursor: {
-                since: complete ? end.toISOString() : (cursor.since ?? start.toISOString()),
-            },
+            nextCursor: nextPollCursor({
+                complete,
+                windowEnd: end.toISOString(),
+                resumeFrom: cursor.since ?? start.toISOString(),
+            }),
         };
     },
 
-    async listProducts(secrets): Promise<PlatformListing[]> {
-        let s = requireCafe24(secrets);
-        const refreshed = await refreshCafe24Token(s);
-        if (refreshed) s = refreshed;
+    async listProducts(secrets, onRotate): Promise<PlatformListing[]> {
+        const s = await authorize(secrets, onRotate);
 
         const data = (await cafe24Get(s.mall_id, s.access_token, '/products', {
             limit: '50',
@@ -366,10 +376,8 @@ export const cafe24Adapter: ChannelAdapter = {
         return out;
     },
 
-    async markShipped(secrets, req: MarkShippedRequest): Promise<MarkShippedResult> {
-        let s = requireCafe24(secrets);
-        const refreshed = await refreshCafe24Token(s);
-        if (refreshed) s = refreshed;
+    async markShipped(secrets, req: MarkShippedRequest, onRotate): Promise<MarkShippedResult> {
+        const s = await authorize(secrets, onRotate);
 
         const payload = buildCafe24ShipmentPayload(req);
         const url = `${adminBase(s.mall_id)}/orders/${encodeURIComponent(req.platformOrderId)}/shipments`;
