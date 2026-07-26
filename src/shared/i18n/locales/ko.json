@@ -1378,6 +1378,8 @@
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
             "accessToken": "Access token",
+            "webhookSecret": "웹훅 서명 시크릿 (선택)",
+            "webhookSecretHelp": "Shopify 관리자 → 설정 → 알림 → 웹훅 → signing secret. Shopify 스토어를 2개 이상 연결하면 필수입니다.",
             "oauthCta": "카페24에서 연결",
             "oauthWaiting": "브라우저에서 동의 후 대기 중…",
             "oauthWaitTimeout": "연결 확인 시간이 초과되었습니다. 동의 후 채널 목록을 새로고침하세요.",

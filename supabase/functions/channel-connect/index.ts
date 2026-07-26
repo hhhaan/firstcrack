@@ -4,10 +4,17 @@
  *
  * Validates credentials against the live platform API, then stores connection + secrets.
  * Secrets are written with service role only.
+ *
+ * The target connection id is always derived server-side from
+ * (user_id, platform, shop_identifier) — never taken from the request body.
+ * A client-supplied id would be used as the service-role key for the
+ * `sales_channel_secrets` upsert and could overwrite another tenant's
+ * credentials (issue #122).
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
+import { pickConnectCredentials } from '../_shared/channels/connect-credentials.ts';
 import type { ChannelSecrets, Platform } from '../_shared/channels/types.ts';
 
 const PLATFORMS = new Set(['naver', 'cafe24', 'shopify']);
@@ -46,7 +53,6 @@ Deno.serve(async (req) => {
         platform?: string;
         credentials?: ChannelSecrets;
         displayName?: string;
-        connectionId?: string; // re-auth existing
     };
     try {
         body = await req.json();
@@ -62,21 +68,24 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'credentials required' }, 400);
     }
 
-    const credErr = validateCredentials(platform, body.credentials);
+    // Filter the *request body* only — adapter-minted tokens are merged in below.
+    const credentials = pickConnectCredentials(platform, body.credentials);
+
+    const credErr = validateCredentials(platform, credentials);
     if (credErr) return jsonResponse({ error: credErr }, 400);
 
     const adapter = getAdapter(platform);
     let shopIdentifier: string;
     let displayName: string;
-    let secretsToStore: ChannelSecrets = { ...body.credentials };
+    let secretsToStore: ChannelSecrets = { ...credentials };
 
     try {
-        const test = await adapter.testConnection(body.credentials);
+        const test = await adapter.testConnection(credentials);
         shopIdentifier = test.shopIdentifier;
         displayName = body.displayName?.trim() || test.displayName;
 
         // Persist refreshed tokens if adapter minted any during test
-        const refreshed = await adapter.refreshAuth(body.credentials);
+        const refreshed = await adapter.refreshAuth(credentials);
         if (refreshed) secretsToStore = { ...secretsToStore, ...refreshed };
 
         // Naver: store access_token from a second exchange so first sync is fast
@@ -104,8 +113,8 @@ Deno.serve(async (req) => {
 
     let connectionId: string;
 
-    if (existing?.id || body.connectionId) {
-        connectionId = (existing?.id ?? body.connectionId) as string;
+    if (existing?.id) {
+        connectionId = existing.id;
         const { error } = await admin
             .from('sales_channel_connections')
             .update({

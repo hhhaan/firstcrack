@@ -41,6 +41,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
     const [clientSecret, setClientSecret] = useState('');
     const [shop, setShop] = useState('');
     const [accessToken, setAccessToken] = useState('');
+    const [webhookSecret, setWebhookSecret] = useState('');
     const [mallId, setMallId] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [cafe24Waiting, setCafe24Waiting] = useState(false);
@@ -56,6 +57,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
         setClientSecret('');
         setShop('');
         setAccessToken('');
+        setWebhookSecret('');
         setMallId('');
         setError(null);
         setCafe24Waiting(false);
@@ -117,7 +119,11 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                 }
                 await connect.mutateAsync({
                     platform,
-                    credentials: { shop: shop.trim(), access_token: accessToken.trim() },
+                    credentials: {
+                        shop: shop.trim(),
+                        access_token: accessToken.trim(),
+                        webhook_secret: webhookSecret.trim() || undefined,
+                    },
                     displayName: displayName.trim() || undefined,
                 });
                 onClose();
@@ -248,6 +254,22 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                                 onChange={(e) => setAccessToken(e.target.value)}
                                 autoComplete="off"
                             />
+                        </div>
+                        <div>
+                            <label className={labelCls} htmlFor="channel-webhook-secret">
+                                {t('orders.channel.webhookSecret')}
+                            </label>
+                            <input
+                                id="channel-webhook-secret"
+                                className={inputCls}
+                                type="password"
+                                value={webhookSecret}
+                                onChange={(e) => setWebhookSecret(e.target.value)}
+                                autoComplete="off"
+                            />
+                            <p className="mt-1.5 text-[11px] leading-relaxed text-muted tracking-[0.14px]">
+                                {t('orders.channel.webhookSecretHelp')}
+                            </p>
                         </div>
                     </>
                 )}

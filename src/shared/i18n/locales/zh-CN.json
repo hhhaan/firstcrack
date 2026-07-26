@@ -1378,6 +1378,8 @@
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
             "accessToken": "访问令牌",
+            "webhookSecret": "Webhook 签名密钥（可选）",
+            "webhookSecretHelp": "Shopify 后台 → 设置 → 通知 → Webhook → signing secret。连接两个及以上 Shopify 店铺时必填。",
             "oauthCta": "通过 Cafe24 连接",
             "oauthWaiting": "等待浏览器授权…",
             "oauthWaitTimeout": "连接确认超时。授权后请刷新渠道列表。",

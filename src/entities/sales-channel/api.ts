@@ -19,9 +19,13 @@ export interface SalesChannelConnection {
     updated_at: string;
 }
 
+/**
+ * Write-only: the Edge Function stores these in `sales_channel_secrets`
+ * (service role). They are never read back into the client.
+ */
 export type ConnectCredentials =
     | { client_id: string; client_secret: string } // naver
-    | { shop: string; access_token: string }; // shopify
+    | { shop: string; access_token: string; webhook_secret?: string }; // shopify
 
 export const salesChannelApi = {
     list: async (userId: string): Promise<SalesChannelConnection[]> => {
