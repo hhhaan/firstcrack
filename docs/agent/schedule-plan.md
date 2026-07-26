@@ -20,7 +20,7 @@ Day-based roast planning: `day_plans` + `roast_plan_batches` (+ recurrence rules
 | View | `src/views/schedule/` (`Schedule.tsx`, `ScheduleDayView.tsx`, `hooks/useScheduleDayView.ts`, `WeekView.tsx`, `MonthView.tsx`) |
 | Widgets | `src/widgets/add-batch-modal/`, `complete-batch-modal/`, `recurring-edit-scope-modal/`, `today-schedule-modal/` |
 | Shared math | `src/shared/lib/batch-stock.ts`, `src/shared/lib/stock-calc.ts`, `src/shared/lib/rrule.ts` |
-| Session handoff | `src/shared/store/roastSession.ts` (`planBatchHandoff`) |
+| Session handoff | `src/shared/store/roastSession.ts` (`planBatchHandoff`); post-save next-roast modal uses fresh `useDayBatches` / `getRemainingDayBatches` → `startBatch` |
 | RLS | `supabase/migrations/20260722000000_plan_tables_rls.sql` (+ grant migrations) |
 
 Key roots: `planQueryRoots` in `src/shared/lib/query-keys.ts`.

@@ -98,8 +98,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 배치 핸드오프 ─────────────────────────────────────────────
     const planBatchHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
-    const sessionsAfter = planBatchHandoff?.completedSessions ?? 0;
-    const batchDone = planBatchHandoff ? sessionsAfter >= planBatchHandoff.batchCount : false;
+    const startBatch = useRoastSessionStore((s) => s.startBatch);
+    const completeBatch = useRoastSessionStore((s) => s.completeBatch);
 
     // ── 프로파일/원두 선택 ─────────────────────────────────────────
     const { targetProfileId, selectedBeanId, setSelectedBeanId, handoffBeanName, setUserSelectedTarget } =
@@ -611,11 +611,19 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
             <PlanBatchContinueModal
                 show={saveFlow.flow.continueModal}
-                planBatchHandoff={planBatchHandoff}
-                batchDone={batchDone}
-                sessionsAfter={sessionsAfter}
-                onPlanBatchComplete={onPlanBatchComplete}
-                onDismiss={saveFlow.flow.dismissContinue}
+                candidates={saveFlow.flow.continueCandidates}
+                onStartNext={(handoff) => {
+                    startBatch(handoff);
+                    saveFlow.flow.dismissContinue();
+                }}
+                onDismiss={() => {
+                    completeBatch();
+                    saveFlow.flow.dismissContinue();
+                }}
+                onGoToSchedule={() => {
+                    saveFlow.flow.dismissContinue();
+                    onPlanBatchComplete?.();
+                }}
             />
 
             <ActiveRoastOnboarding isActive={isActive} />

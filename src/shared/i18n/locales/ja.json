@@ -605,9 +605,14 @@
             "lossRateEstimated": "未計量 — 減量率は焙煎レベルに基づく推定値になります。"
         },
         "planBatch": {
+            "title": "次のローストを続けますか？",
+            "remainingBatches": "今日の予定に {{count}} 件のバッチが残っています。",
             "backToSchedule": "スケジュールに戻る",
             "doneForToday": "今日はここまで",
-            "nextSession": "次のセッション",
+            "nextSession": "次のセッションを開始",
+            "nextBatch": "次のローストを開始",
+            "nextLabel": "次",
+            "kgPerBatch": "{{kg}}kg / バッチ",
             "sessionsComplete": "セッション {{done}}/{{total}} 完了。次のセッションを開始しますか？",
             "allDone": "{{done}}/{{total}} バッチ完了"
         },

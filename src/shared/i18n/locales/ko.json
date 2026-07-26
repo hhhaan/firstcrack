@@ -896,11 +896,16 @@
             "lossRateEstimated": "미계량 — 감량률은 로스팅 레벨 기반 추정치로 대체됩니다."
         },
         "planBatch": {
+            "title": "다음 로스팅을 진행할까요?",
+            "remainingBatches": "오늘 일정에 {{count}}개 배치가 남아 있습니다.",
             "allDone": "{{done}}/{{total}} 배치 완료",
             "sessionsComplete": "세션 {{done}}/{{total}} 완료. 다음 세션을 시작할까요?",
-            "nextSession": "다음 세션",
+            "nextSession": "다음 세션 시작",
+            "nextBatch": "다음 로스팅 시작",
+            "nextLabel": "다음",
+            "kgPerBatch": "{{kg}}kg / 배치",
             "backToSchedule": "일정으로 돌아가기",
-            "doneForToday": "오늘 일정 완료"
+            "doneForToday": "오늘은 여기까지"
         },
         "stockDeduct": {
             "title": "재고 차감",

@@ -605,9 +605,14 @@
             "lossRateEstimated": "Not weighed — loss rate is estimated from the roast level."
         },
         "planBatch": {
+            "title": "Continue with the next roast?",
+            "remainingBatches": "{{count}} batch(es) left on today's schedule.",
             "backToSchedule": "Back to Schedule",
-            "doneForToday": "Done for Today",
-            "nextSession": "Next Session",
+            "doneForToday": "Done for today",
+            "nextSession": "Start next session",
+            "nextBatch": "Start next roast",
+            "nextLabel": "Next",
+            "kgPerBatch": "{{kg}}kg / batch",
             "sessionsComplete": "Session {{done}}/{{total}} complete. Start the next session?",
             "allDone": "{{done}}/{{total}} batches complete"
         },

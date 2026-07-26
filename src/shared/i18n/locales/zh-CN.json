@@ -605,9 +605,14 @@
             "lossRateEstimated": "未称重 — 失重率将按烘焙度估算。"
         },
         "planBatch": {
+            "title": "继续下一次烘焙？",
+            "remainingBatches": "今日计划还剩 {{count}} 个批次。",
             "backToSchedule": "返回计划",
             "doneForToday": "今天到此为止",
-            "nextSession": "下一批次",
+            "nextSession": "开始下一会话",
+            "nextBatch": "开始下一次烘焙",
+            "nextLabel": "下一个",
+            "kgPerBatch": "{{kg}}kg / 批次",
             "sessionsComplete": "批次 {{done}}/{{total}} 完成。开始下一批次？",
             "allDone": "{{done}}/{{total}} 批次完成"
         },

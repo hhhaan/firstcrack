@@ -46,7 +46,8 @@ Typical sequence:
 5. Build session payload + serialized events
 6. **Server atomic path:** `roastSessionApi.saveOp` / RPC `save_roast_op` — session + green events + roasted inbound when deduct/inbound flags set (see latest `supabase/migrations/*inventory_flow_hardening*`)
 7. Upload curve: local TSV → presigned PUT (`uploadRoastProfile` / BBP) with **owner** user id
-8. Invalidate roast + inventory query roots; maybe continue batch handoff
+8. Invalidate roast + inventory query roots
+9. **Post-save next roast:** `fetchQuery` today's day batches → `getRemainingDayBatches` (`completed_sessions < batch_count`) → if any, open `PlanBatchContinueModal` with candidates; **Start next** calls `startBatch(handoff)` so bean/profile prefill via existing handoff path
 
 Form field semantics (`SaveRoastFormData` in `useSaveRoast.ts`):
 

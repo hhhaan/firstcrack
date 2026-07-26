@@ -1,6 +1,7 @@
 import { beanStockEventApi } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
-import { useDayBatches } from '@entities/plan';
+import { planBatchApi, planKeys, useDayBatches } from '@entities/plan';
+import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
@@ -8,7 +9,8 @@ import { i18n } from '@shared/i18n';
 import { isGreenRoastAlreadyClaimed } from '@shared/lib/f3-green-deduct';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
-import type { PlanBatchHandoff } from '@shared/types/database.types';
+import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
+import { useQueryClient } from '@tanstack/react-query';
 import { message } from '@tauri-apps/plugin-dialog';
 import { format } from 'date-fns';
 import { useCallback } from 'react';
@@ -27,6 +29,16 @@ export interface UseRoastSaveFlowParams {
     ambientTemperature?: number | null;
     ambientHumidity?: number | null;
     onResetActiveRoast: () => void;
+}
+
+/** After save, load fresh day batches and map remaining → handoffs. */
+export async function resolveContinueCandidates(params: {
+    preferBatchId: string | null;
+    fetchDayBatches: () => Promise<PlanBatchWithProgress[]>;
+}): Promise<PlanBatchHandoff[]> {
+    const fresh = await params.fetchDayBatches();
+    const remaining = getRemainingDayBatches(fresh, { preferBatchId: params.preferBatchId });
+    return remaining.map(toPlanBatchHandoff);
 }
 
 export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
@@ -48,6 +60,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const today = format(new Date(), 'yyyy-MM-dd');
     const { data: dayBatches = [] } = useDayBatches(isWorkspaceReady ? workspaceOwnerId : '', today);
+    const qc = useQueryClient();
 
     const flow = useRoastCompletionFlow();
     const { mutateAsync: syncRoastCurve } = useUploadRoastProfile();
@@ -90,7 +103,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     }
                 }
 
-                const { shouldOpenContinue } = await saveRoast({
+                await saveRoast({
                     formData: {
                         notes: formData.notes,
                         weightGrams: formData.weightGrams,
@@ -114,7 +127,33 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     logEntries: flow.summaryData?.logEntries ?? [],
                 });
 
-                flow.onSaveSuccess({ shouldOpenContinue });
+                const preferBatchId = planBatchHandoff?.planBatchId ?? linkedBatch?.planBatchId ?? null;
+
+                let continueCandidates: PlanBatchHandoff[] = [];
+                if (isWorkspaceReady && workspaceOwnerId) {
+                    try {
+                        continueCandidates = await resolveContinueCandidates({
+                            preferBatchId,
+                            fetchDayBatches: async () => {
+                                await qc.invalidateQueries({
+                                    queryKey: planKeys.dayBatches(workspaceOwnerId, today),
+                                });
+                                return qc.fetchQuery({
+                                    queryKey: planKeys.dayBatches(workspaceOwnerId, today),
+                                    queryFn: () => planBatchApi.listForDateRange(workspaceOwnerId, today, today),
+                                });
+                            },
+                        });
+                    } catch (err) {
+                        logger.capture(err, { context: 'resolveContinueCandidates' });
+                        continueCandidates = [];
+                    }
+                }
+
+                flow.onSaveSuccess({
+                    shouldOpenContinue: continueCandidates.length > 0,
+                    continueCandidates,
+                });
                 onResetActiveRoast();
             } catch (err) {
                 logger.capture(err, { context: 'roastSummary save' });
@@ -127,6 +166,9 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         [
             user,
             workspaceOwnerId,
+            isWorkspaceReady,
+            today,
+            qc,
             saveRoast,
             elapsed,
             roastStartTimeRef,

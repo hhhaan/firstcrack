@@ -1,3 +1,4 @@
+import type { PlanBatchHandoff } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useReducer } from 'react';
 
@@ -10,6 +11,7 @@ export interface RoastSummaryData {
 
 export interface SaveFlowResult {
     shouldOpenContinue: boolean;
+    continueCandidates?: PlanBatchHandoff[];
 }
 
 interface FlowState {
@@ -17,6 +19,7 @@ interface FlowState {
     summaryModal: boolean;
     summaryData: RoastSummaryData | null;
     continueModal: boolean;
+    continueCandidates: PlanBatchHandoff[];
 }
 
 const INITIAL_FLOW_STATE: FlowState = {
@@ -24,6 +27,7 @@ const INITIAL_FLOW_STATE: FlowState = {
     summaryModal: false,
     summaryData: null,
     continueModal: false,
+    continueCandidates: [],
 };
 
 type FlowAction =
@@ -36,7 +40,7 @@ type FlowAction =
     | { type: 'DISMISS_CONTINUE' }
     | { type: 'RESET' };
 
-function flowReducer(state: FlowState, action: FlowAction): FlowState {
+export function flowReducer(state: FlowState, action: FlowAction): FlowState {
     switch (action.type) {
         case 'OPEN_END_ROAST':
             return { ...state, endRoastModal: true };
@@ -65,17 +69,20 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
                     summaryModal: false,
                     summaryData: null,
                     continueModal: true,
+                    continueCandidates: action.payload.continueCandidates ?? [],
                 };
             }
             return {
                 ...state,
                 summaryModal: false,
                 summaryData: null,
+                continueModal: false,
+                continueCandidates: [],
             };
         }
 
         case 'DISMISS_CONTINUE':
-            return { ...state, continueModal: false };
+            return { ...state, continueModal: false, continueCandidates: [] };
 
         case 'RESET':
             return INITIAL_FLOW_STATE;
