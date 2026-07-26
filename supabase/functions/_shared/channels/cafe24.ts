@@ -235,24 +235,16 @@ function amountOf(order: Record<string, unknown>): number | null {
 
 function mapItems(order: Record<string, unknown>, orderStatus: string): CanonicalOrderLine[] {
     const items = (order.items ?? []) as Array<Record<string, unknown>>;
-    const lineStatus =
-        orderStatus === 'cancelled' ? 'cancelled' : orderStatus === 'refunded' ? 'refunded' : 'active';
+    const lineStatus = orderStatus === 'cancelled' ? 'cancelled' : orderStatus === 'refunded' ? 'refunded' : 'active';
 
     return items.map((it, i) => ({
         platformLineId: String(it.order_item_code ?? it.item_no ?? `${order.order_id}-${i}`),
         platformProductId: it.product_no != null ? String(it.product_no) : null,
-        platformVariantId: it.variant_code != null
-            ? String(it.variant_code)
-            : it.option_id != null
-              ? String(it.option_id)
-              : null,
+        platformVariantId:
+            it.variant_code != null ? String(it.variant_code) : it.option_id != null ? String(it.option_id) : null,
         title: String(it.product_name ?? it.product_name_default ?? 'Item'),
         quantity: Number(it.quantity ?? 1) || 1,
-        unitPrice: it.product_price != null
-            ? Number(it.product_price)
-            : it.price != null
-              ? Number(it.price)
-              : null,
+        unitPrice: it.product_price != null ? Number(it.product_price) : it.price != null ? Number(it.price) : null,
         status: lineStatus as CanonicalOrderLine['status'],
     }));
 }
@@ -303,6 +295,64 @@ function mapCafe24Order(order: Record<string, unknown>): CanonicalOrder | null {
     };
 }
 
+/**
+ * #141: the orders API has no `updated_date` date_type (official enum: order_date / pay_date /
+ * shipbegin_date / cancel_date / …), so a poll windowed on order_date permanently misses status
+ * changes on orders placed before the window. Each sync therefore runs one primary poll
+ * (order_date, cursor window) plus two secondary polls (cancel_date / shipbegin_date) over a
+ * wider fixed lookback. `GET /orders/changes` is the proper fix but is "limited to certain
+ * clients only" — tracked separately.
+ */
+export const CAFE24_SECONDARY_DATE_TYPES = ['cancel_date', 'shipbegin_date'] as const;
+/** Secondary-poll lookback — covers status flips on orders far older than the 7-day cursor window. */
+export const CAFE24_SECONDARY_LOOKBACK_DAYS = 30;
+/** Page budget split of the previous single-poll maxPages=50: primary 40, secondaries 5 each. */
+export const CAFE24_PRIMARY_MAX_PAGES = 40;
+export const CAFE24_SECONDARY_MAX_PAGES = 5;
+
+const PAGE_LIMIT = 100;
+
+/** One windowed walk of GET /orders — the page loop shared by the primary and secondary polls. */
+async function fetchOrdersWindow(
+    session: Cafe24Session,
+    dateType: string,
+    startDate: string,
+    endDate: string,
+    maxPages: number,
+): Promise<{ raw: Array<Record<string, unknown>>; complete: boolean }> {
+    const raw: Array<Record<string, unknown>> = [];
+    let offset = 0;
+    let pages = 0;
+    let complete = true;
+
+    while (pages < maxPages) {
+        const query: Record<string, string> = {
+            start_date: startDate,
+            end_date: endDate,
+            date_type: dateType,
+            embed: 'items,buyer',
+            limit: String(PAGE_LIMIT),
+            offset: String(offset),
+        };
+        if (session.current().shop_no != null) query.shop_no = String(session.current().shop_no);
+
+        const data = (await session.run((s) => cafe24Get(s.mall_id, s.access_token, '/orders', query))) as {
+            orders?: Array<Record<string, unknown>>;
+        };
+        const batch = data.orders ?? [];
+        raw.push(...batch);
+        pages += 1;
+        if (batch.length < PAGE_LIMIT) break;
+        offset += PAGE_LIMIT;
+        if (pages >= maxPages) {
+            complete = false;
+            break;
+        }
+    }
+
+    return { raw, complete };
+}
+
 export const cafe24Adapter: ChannelAdapter = {
     platform: 'cafe24',
     capabilities: { webhooks: true, outboundDispatch: true },
@@ -331,41 +381,39 @@ export const cafe24Adapter: ChannelAdapter = {
         const start = cursor.since ? new Date(cursor.since) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         const startDate = start.toISOString().slice(0, 10);
         const endDate = end.toISOString().slice(0, 10);
-        const limit = 100;
-        const maxPages = 50;
-        const rawOrders: Array<Record<string, unknown>> = [];
-        let offset = 0;
-        let pages = 0;
-        let complete = true;
 
-        while (pages < maxPages) {
-            const query: Record<string, string> = {
-                start_date: startDate,
-                end_date: endDate,
-                date_type: 'order_date',
-                embed: 'items,buyer',
-                limit: String(limit),
-                offset: String(offset),
-            };
-            if (session.current().shop_no != null) query.shop_no = String(session.current().shop_no);
+        const primary = await fetchOrdersWindow(session, 'order_date', startDate, endDate, CAFE24_PRIMARY_MAX_PAGES);
 
-            const data = (await session.run((s) =>
-                cafe24Get(s.mall_id, s.access_token, '/orders', query),
-            )) as {
-                orders?: Array<Record<string, unknown>>;
-            };
-            const batch = data.orders ?? [];
-            rawOrders.push(...batch);
-            pages += 1;
-            if (batch.length < limit) break;
-            offset += limit;
-            if (pages >= maxPages) {
-                complete = false;
-                break;
+        // #141: dedupe by order_id. Every poll returns the order's *current* snapshot (date_type
+        // only filters which orders come back), so duplicates are same-state payloads and keeping
+        // the first is safe — upsert's mergeStatus decides the final status either way.
+        const rawById = new Map<string, Record<string, unknown>>();
+        for (const o of primary.raw) {
+            const id = String(o.order_id ?? '');
+            if (id && !rawById.has(id)) rawById.set(id, o);
+        }
+
+        // Secondary polls cover status flips on orders older than the cursor window. Their fixed
+        // lookback is re-scanned every run, so an incomplete secondary walk must NOT hold the
+        // primary watermark — only the primary poll decides `complete`.
+        const secondaryStart = new Date(end.getTime() - CAFE24_SECONDARY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .slice(0, 10);
+        for (const dateType of CAFE24_SECONDARY_DATE_TYPES) {
+            const { raw } = await fetchOrdersWindow(
+                session,
+                dateType,
+                secondaryStart,
+                endDate,
+                CAFE24_SECONDARY_MAX_PAGES,
+            );
+            for (const o of raw) {
+                const id = String(o.order_id ?? '');
+                if (id && !rawById.has(id)) rawById.set(id, o);
             }
         }
 
-        const orders = rawOrders.map(mapCafe24Order).filter((o): o is CanonicalOrder => o != null);
+        const orders = [...rawById.values()].map(mapCafe24Order).filter((o): o is CanonicalOrder => o != null);
 
         // Detail fill when list omitted items
         for (let i = 0; i < orders.length; i++) {
@@ -389,7 +437,7 @@ export const cafe24Adapter: ChannelAdapter = {
         return {
             orders,
             nextCursor: nextPollCursor({
-                complete,
+                complete: primary.complete,
                 windowEnd: end.toISOString(),
                 resumeFrom: cursor.since ?? start.toISOString(),
             }),
@@ -399,9 +447,7 @@ export const cafe24Adapter: ChannelAdapter = {
     async listProducts(secrets, onRotate): Promise<PlatformListing[]> {
         const session = await openSession(secrets, onRotate);
 
-        const data = (await session.run((s) =>
-            cafe24Get(s.mall_id, s.access_token, '/products', { limit: '50' }),
-        )) as {
+        const data = (await session.run((s) => cafe24Get(s.mall_id, s.access_token, '/products', { limit: '50' }))) as {
             products?: Array<{
                 product_no: number | string;
                 product_name?: string;
