@@ -1,3 +1,4 @@
+import { useActiveWorkspace } from '@entities/organization';
 import {
     type ChannelPlatform,
     useConnectChannel,
@@ -5,7 +6,6 @@ import {
     useStartCafe24OAuth,
 } from '@entities/sales-channel';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import { useAuthStore } from '@shared/store/auth';
 import { Badge } from '@shared/ui/Badge';
 import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
@@ -14,8 +14,9 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Info } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useCafe24OAuthWait } from '../model/useCafe24OAuthWait';
 
 const PLATFORM_EN: Record<string, string> = {
     naver: 'Naver',
@@ -31,11 +32,12 @@ type Props = {
 
 export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
     const { t } = useTranslation();
-    // Channel credentials are personal (Edge Function writes under auth.uid()).
-    const userId = useAuthStore((s) => s.user?.id ?? '');
+    // Connections are workspace-owned rows (RLS: has_workspace_access(user_id)) — key by
+    // the workspace owner so the list, the cache and the OAuth poll all read the same rows.
+    const { workspaceOwnerId: userId, isWorkspaceReady } = useActiveWorkspace();
     const connect = useConnectChannel(userId);
     const startCafe24 = useStartCafe24OAuth();
-    const channels = useSalesChannels(userId);
+    const { data: channelData, refetch } = useSalesChannels(userId);
     const [displayName, setDisplayName] = useState('');
     const [clientId, setClientId] = useState('');
     const [clientSecret, setClientSecret] = useState('');
@@ -43,8 +45,20 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
     const [accessToken, setAccessToken] = useState('');
     const [mallId, setMallId] = useState('');
     const [error, setError] = useState<string | null>(null);
-    const [cafe24Waiting, setCafe24Waiting] = useState(false);
-    const waitSinceRef = useRef<number>(0);
+
+    const channels = useMemo(() => channelData ?? [], [channelData]);
+    const refetchChannels = useCallback(() => {
+        void refetch();
+    }, [refetch]);
+    const oauthWait = useCafe24OAuthWait({
+        enabled: open && platform === 'cafe24',
+        mallId,
+        channels,
+        refetchChannels,
+        onConnected: onClose,
+    });
+    const cafe24Waiting = oauthWait.waiting;
+    const { stop: stopOauthWait } = oauthWait;
 
     useFormEscape(open, onClose);
 
@@ -58,46 +72,18 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
         setAccessToken('');
         setMallId('');
         setError(null);
-        setCafe24Waiting(false);
-        waitSinceRef.current = 0;
-    }, [open, platform]);
-
-    // After Cafe24 OAuth, poll until a matching active connection appears.
-    useEffect(() => {
-        if (!open || platform !== 'cafe24' || !cafe24Waiting) return;
-        const mall = mallId.trim().toLowerCase();
-        const found = (channels.data ?? []).some(
-            (c) =>
-                c.platform === 'cafe24' &&
-                c.status === 'active' &&
-                (c.shop_identifier === mall || !mall) &&
-                new Date(c.updated_at).getTime() >= waitSinceRef.current - 5_000,
-        );
-        if (found) {
-            setCafe24Waiting(false);
-            onClose();
-            return;
-        }
-        const id = window.setInterval(() => {
-            void channels.refetch();
-        }, 2000);
-        const timeout = window.setTimeout(
-            () => {
-                setCafe24Waiting(false);
-                setError(t('orders.channel.oauthWaitTimeout'));
-            },
-            3 * 60 * 1000,
-        );
-        return () => {
-            window.clearInterval(id);
-            window.clearTimeout(timeout);
-        };
-    }, [open, platform, cafe24Waiting, channels, mallId, onClose, t]);
+        stopOauthWait();
+    }, [open, platform, stopOauthWait]);
 
     if (!open || !platform) return null;
 
     const submit = async () => {
         setError(null);
+        stopOauthWait();
+        if (!isWorkspaceReady || !userId) {
+            setError(t('orders.channel.errWorkspaceLoading'));
+            return;
+        }
         try {
             if (platform === 'naver') {
                 if (!clientId.trim() || !clientSecret.trim()) {
@@ -130,15 +116,16 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                     mallId: mallId.trim(),
                     displayName: displayName.trim() || undefined,
                 });
-                waitSinceRef.current = Date.now();
-                setCafe24Waiting(true);
+                oauthWait.start();
                 await openUrl(authorizeUrl);
             }
         } catch (e) {
-            setCafe24Waiting(false);
+            oauthWait.stop();
             setError(e instanceof Error ? e.message : String(e));
         }
     };
+
+    const errorText = error ?? (oauthWait.timedOut ? t('orders.channel.oauthWaitTimeout') : null);
 
     const pending = platform === 'cafe24' ? startCafe24.isPending || cafe24Waiting : connect.isPending;
     const ctaLabel =
@@ -269,9 +256,9 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                     </div>
                 )}
 
-                {error ? (
+                {errorText ? (
                     <p className="rounded-lg bg-[rgba(192,57,43,0.07)] px-3 py-2 text-[12px] leading-relaxed text-[#c0392b] tracking-[0.14px]">
-                        {error}
+                        {errorText}
                     </p>
                 ) : null}
 

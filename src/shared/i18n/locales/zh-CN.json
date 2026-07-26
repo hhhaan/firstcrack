@@ -649,6 +649,14 @@
         "alerts": {
             "rorCrash": "RoR 骤降 — 火力正在衰减",
             "btOver": "BT 超过上限"
+        },
+        "preCharge": {
+            "title": "选择咖啡豆和曲线",
+            "description": "投豆前请选择咖啡豆——烘焙记录和库存扣减都需要它。目标曲线为可选项。",
+            "bean": "咖啡豆",
+            "beanPlaceholder": "选择咖啡豆",
+            "profile": "目标曲线",
+            "profilePlaceholder": "不指定（可选）"
         }
     },
     "schedule": {
@@ -1404,7 +1412,8 @@
                 "error": "错误",
                 "disabled": "已禁用"
             },
-            "autoFulfill": "平台标记发货时自动扣减成品库存"
+            "autoFulfill": "平台标记发货时自动扣减成品库存",
+            "errWorkspaceLoading": "正在加载工作区，请稍后重试。"
         },
         "dispatch": {
             "title": "发货处理",
@@ -1524,5 +1533,9 @@
         "avgCost": "加权平均单价",
         "stockValue": "库存资产",
         "error": "资产计算失败"
+    },
+    "errors": {
+        "mutationFailed": "操作失败，请稍后重试。",
+        "mutationFailedDetail": "操作失败：{{message}}"
     }
 }

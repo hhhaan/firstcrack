@@ -21,7 +21,7 @@ const PLATFORMS: ChannelPlatform[] = ['naver', 'cafe24', 'shopify'];
 
 export function ChannelsTab() {
     const { t } = useTranslation();
-    const { workspaceOwnerId: userId } = useActiveWorkspace();
+    const { workspaceOwnerId: userId, isWorkspaceReady } = useActiveWorkspace();
     const { data: channels = [], isLoading } = useSalesChannels(userId);
     const disconnect = useDisconnectChannel(userId);
     const sync = useSyncOrders(userId);
@@ -79,7 +79,9 @@ export function ChannelsTab() {
                 </p>
             ) : null}
 
-            {isLoading ? (
+            {/* While memberships resolve the owner id is empty and the query is disabled —
+                show the skeleton rather than a misleading "no channels" state. */}
+            {isLoading || !isWorkspaceReady ? (
                 <ChannelsListSkeleton />
             ) : channels.length === 0 ? (
                 <EmptyState icon={<Store size={20} strokeWidth={1.5} />} message={t('orders.channel.empty')} />

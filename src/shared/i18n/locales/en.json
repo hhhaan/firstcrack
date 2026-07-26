@@ -649,6 +649,14 @@
         "alerts": {
             "rorCrash": "RoR crash — heat is stalling",
             "btOver": "BT over the ceiling"
+        },
+        "preCharge": {
+            "title": "Select bean and profile",
+            "description": "Pick the bean before charging — the roast record and stock deduction both need it. A target profile is optional.",
+            "bean": "Bean",
+            "beanPlaceholder": "Select a bean",
+            "profile": "Target profile",
+            "profilePlaceholder": "No target (optional)"
         }
     },
     "schedule": {
@@ -1404,7 +1412,8 @@
                 "error": "Error",
                 "disabled": "Disabled"
             },
-            "autoFulfill": "Auto-deduct finished goods when platform marks shipped"
+            "autoFulfill": "Auto-deduct finished goods when platform marks shipped",
+            "errWorkspaceLoading": "Workspace is still loading. Try again in a moment."
         },
         "dispatch": {
             "title": "Mark as shipped",
@@ -1524,5 +1533,9 @@
         "avgCost": "Avg cost",
         "stockValue": "Stock value",
         "error": "Value unavailable"
+    },
+    "errors": {
+        "mutationFailed": "Something went wrong. Please try again.",
+        "mutationFailedDetail": "Something went wrong: {{message}}"
     }
 }

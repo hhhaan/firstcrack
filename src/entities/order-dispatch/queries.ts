@@ -19,6 +19,8 @@ export const useDispatchOrder = (userId: string) => {
     return useMutation({
         mutationFn: (input: { orderId: string; carrier: string; trackingNumber: string }) =>
             orderDispatchApi.dispatch(input),
+        // DispatchModal keeps itself open and renders the failure inline.
+        meta: { silentError: true },
         onSuccess: (res) => {
             void qc.invalidateQueries({ queryKey: orderDispatchKeys.all(userId) });
             void qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
