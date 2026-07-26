@@ -1,8 +1,8 @@
 import { useAuthStore } from '@shared/store/auth';
 import { resolveWorkspaceOwnerId, useWorkspaceStore } from '@shared/store/workspace';
 import { useState } from 'react';
-import { resolveEffectivePlan } from './effective-plan';
 import { isWritablePlan, trialEndsAt } from './plan-matrix';
+import { useEffectivePlan } from './useEffectivePlan';
 
 /**
  * UX mirror of the server write gate.
@@ -10,12 +10,14 @@ import { isWritablePlan, trialEndsAt } from './plan-matrix';
  * Personal workspace uses personal plan + trial expiry.
  */
 export function useWriteAccess(): boolean {
-    const personalPlan = useAuthStore((s) => s.plan);
     const user = useAuthStore((s) => s.user);
     const authUserId = user?.id ?? '';
     const activeOwnerId = useWorkspaceStore((s) => s.activeOwnerId);
     const ownerPlanById = useWorkspaceStore((s) => s.ownerPlanById);
     const [nowMs] = useState(() => Date.now());
+    // Same-shape resolution as useEffectivePlan; foreign workspace still needs the raw
+    // ownerPlanById lookup below since it bypasses personal-plan resolution entirely.
+    const plan = useEffectivePlan();
 
     const membershipOwnerIds = Object.keys(ownerPlanById);
     const workspaceOwnerId = resolveWorkspaceOwnerId(activeOwnerId, authUserId, membershipOwnerIds);
@@ -26,13 +28,6 @@ export function useWriteAccess(): boolean {
         const hostPlan = ownerPlanById[workspaceOwnerId] ?? '';
         return isWritablePlan(hostPlan) && hostPlan !== '';
     }
-
-    const plan = resolveEffectivePlan({
-        personalPlan,
-        authUserId,
-        activeOwnerId,
-        ownerPlanById,
-    });
 
     if (!isWritablePlan(plan)) return false;
 

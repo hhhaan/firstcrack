@@ -105,10 +105,25 @@ export class BatchLimitError extends Error {
     }
 }
 
+/** PostgrestError is a plain object, not an Error — and the RAISE DETAIL lands in `details`. */
+function gateErrorText(e: unknown): string {
+    if (e && typeof e === 'object') {
+        const o = e as { message?: unknown; details?: unknown };
+        if (o.message != null || o.details != null) return `${o.message ?? ''} ${o.details ?? ''}`;
+    }
+    return String(e);
+}
+
 /** Server gate RAISE → typed error (client pre-checks can be bypassed; this catches the authority path). */
 export function mapServerBatchGateError(e: unknown): BatchLimitError | null {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (msg.includes('monthly_batch_cap')) return new BatchLimitError(PRO_MONTHLY_BATCH_CAP, PRO_MONTHLY_BATCH_CAP);
+    const msg = gateErrorText(e);
+    if (msg.includes('monthly_batch_cap')) {
+        // DETAIL 'used=N cap=M' is the server's own number — the constant only covers a parse miss,
+        // so a cap change deployed ahead of the app release still reports truthfully.
+        const detail = /used=(\d+) cap=(\d+)/.exec(msg);
+        if (detail) return new BatchLimitError(Number(detail[1]), Number(detail[2]));
+        return new BatchLimitError(PRO_MONTHLY_BATCH_CAP, PRO_MONTHLY_BATCH_CAP);
+    }
     if (msg.includes('trial_batch_cap'))
         return new BatchLimitError(TRIAL_BATCH_CAP, TRIAL_BATCH_CAP, 'trial_batch_cap');
     if (msg.includes('trial_expired')) return new BatchLimitError(0, 0, 'trial_expired');

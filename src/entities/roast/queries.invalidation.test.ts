@@ -14,8 +14,10 @@ describe('roast session mutation invalidation', () => {
         expect(keys).toContainEqual(roastSessionKeys.all('user-1'));
         expect(keys).toContainEqual(roastSessionKeys.paginated('user-1'));
         expect(keys).toContainEqual(roastSessionKeys.completedCount('user-1'));
+        // Pre-roast quota gate reads this — a stale month count lets a capped user charge.
+        expect(keys).toContainEqual(roastSessionKeys.completedMonthCount('user-1'));
         expect(keys).toContainEqual(roastSessionKeys.filterMeta('user-1'));
         expect(keys).toContainEqual(dashboardKeys.all('user-1'));
-        expect(spy).toHaveBeenCalledTimes(5);
+        expect(spy).toHaveBeenCalledTimes(6);
     });
 });

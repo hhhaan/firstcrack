@@ -2,6 +2,7 @@ import { formatTemp } from '@features/active-roast/lib/temperature';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { useBatchQuota } from '@features/active-roast/model/useBatchQuota';
 import { FEATURE, useFeature, useWriteAccess } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
@@ -87,23 +88,52 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
 
     const bbpEnabled = useFeature(FEATURE.bbp);
     const canWrite = useWriteAccess();
+    const quota = useBatchQuota();
+
+    const warnReadOnly = useCallback(() => {
+        if (!isTauri()) return;
+        void message('현재 계정은 조회 전용입니다. 로스팅을 시작하려면 구독이 필요합니다.', {
+            title: '로스팅 시작 불가',
+            kind: 'warning',
+        });
+    }, []);
+
+    /** 한도 소진은 저장 시점이 아니라 투입 전에 알려야 원두를 버리지 않는다. */
+    const warnQuotaExceeded = useCallback(() => {
+        if (!quota.exceeded || !isTauri()) return;
+        void message(
+            quota.isTrial
+                ? `체험판 로스팅 한도(${quota.max}회)를 모두 사용했습니다. 계속하려면 구독이 필요합니다.`
+                : `이번 달 로스팅 한도(${quota.max}회)에 도달했습니다. 계속하려면 상위 플랜이 필요합니다.`,
+            { title: '로스팅 시작 불가', kind: 'warning' },
+        );
+    }, [quota.exceeded, quota.isTrial, quota.max]);
 
     const handleEnterStandby = useCallback(() => {
         if (phase !== 'preheating') return;
+        // read_only도 quota.exceeded(max=0)에 걸리므로 canWrite를 먼저 봐야 맞는 메시지가 뜬다.
+        if (!canWrite) {
+            warnReadOnly();
+            return;
+        }
+        // 자동 차지는 standby에서만 무장된다 — 여기서 막으면 수동/자동 양쪽이 함께 막힌다.
+        if (quota.exceeded) {
+            warnQuotaExceeded();
+            return;
+        }
         enterStandby();
         sidecar.enterStandby().catch(() => {});
-    }, [phase, enterStandby]);
+    }, [phase, canWrite, warnReadOnly, enterStandby, quota.exceeded, warnQuotaExceeded]);
 
     const handleManualCharge = useCallback(async () => {
         if (charged) return;
         // UX guard only — 저장 경로는 서버 트리거가 최종 차단한다.
         if (!canWrite) {
-            if (isTauri()) {
-                await message('현재 계정은 조회 전용입니다. 로스팅을 시작하려면 구독이 필요합니다.', {
-                    title: '로스팅 시작 불가',
-                    kind: 'warning',
-                });
-            }
+            warnReadOnly();
+            return;
+        }
+        if (quota.exceeded) {
+            warnQuotaExceeded();
             return;
         }
         const status = await sidecar.getStatus().catch(() => null);
@@ -124,6 +154,9 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
     }, [
         charged,
         canWrite,
+        warnReadOnly,
+        quota.exceeded,
+        warnQuotaExceeded,
         rawBT,
         selectedBeanId,
         planBatchHandoff,

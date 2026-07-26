@@ -3,6 +3,7 @@ export { roastSessionApi } from './api';
 export { useHistoryChart, useHistoryCharts } from './chart-queries';
 export {
     invalidateAfterCreateRoastSession,
+    useCompletedMonthSessionCount,
     useCompletedSessionCount,
     useCreateRoastSession,
     useDeleteRoastSession,

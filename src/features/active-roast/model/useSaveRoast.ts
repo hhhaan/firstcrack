@@ -15,6 +15,7 @@ import {
     mapServerBatchGateError,
     planMaxBatchesPerMonth,
     TRIAL_BATCH_CAP,
+    useEffectivePlan,
 } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { inventoryQueryRoots } from '@shared/lib/query-keys';
@@ -262,7 +263,9 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
 
 export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoastCurve: SyncRoastCurve) => {
     const user = useAuthStore((s) => s.user);
-    const plan = useAuthStore((s) => s.plan);
+    // Counts below are owner-scoped, and so is the server's plan lookup — pairing them
+    // with the personal plan would block an org member on the host's workspace.
+    const plan = useEffectivePlan();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const userId = workspaceOwnerId;
     const qc = useQueryClient();

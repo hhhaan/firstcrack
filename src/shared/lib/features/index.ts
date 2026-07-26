@@ -19,5 +19,6 @@ export {
     trialEndsAt,
 } from './plan-matrix';
 export { type FeatureContext, resolveFeature } from './resolve';
+export { useEffectivePlan } from './useEffectivePlan';
 export { useFeature } from './useFeature';
 export { useWriteAccess } from './useWriteAccess';

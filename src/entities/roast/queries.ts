@@ -11,6 +11,7 @@ export const roastSessionKeys = {
     detail: (id: string) => ['roast_sessions', 'detail', id] as const,
     paginated: (userId: string) => ['roast_sessions', 'paginated', userId] as const,
     completedCount: (userId: string) => ['roast_sessions', 'completed_count', userId] as const,
+    completedMonthCount: (userId: string) => ['roast_sessions', 'completed_month_count', userId] as const,
     /** Not a prefix of `all(userId)` — must be invalidated explicitly. */
     filterMeta: (userId: string) => ['roast_sessions', 'filter_meta', userId] as const,
 };
@@ -20,6 +21,7 @@ export const invalidateAfterCreateRoastSession = (qc: QueryClient, userId: strin
     void qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
     void qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
     void qc.invalidateQueries({ queryKey: roastSessionKeys.completedCount(userId) });
+    void qc.invalidateQueries({ queryKey: roastSessionKeys.completedMonthCount(userId) });
     void qc.invalidateQueries({ queryKey: roastSessionKeys.filterMeta(userId) });
     void qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
 };
@@ -29,6 +31,15 @@ export const useCompletedSessionCount = (userId: string) =>
     useQuery({
         queryKey: roastSessionKeys.completedCount(userId),
         queryFn: () => roastSessionApi.countCompletedTotal(userId),
+        staleTime: Infinity,
+        enabled: !!userId,
+    });
+
+/** Completed sessions this month — pro monthly quota. */
+export const useCompletedMonthSessionCount = (userId: string) =>
+    useQuery({
+        queryKey: roastSessionKeys.completedMonthCount(userId),
+        queryFn: () => roastSessionApi.countCompletedThisMonth(userId),
         staleTime: Infinity,
         enabled: !!userId,
     });
