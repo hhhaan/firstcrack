@@ -27,6 +27,12 @@ concurrency:
 
 jobs:
   warm:
+    # Skip the version-bump commit: it touches Cargo.toml/Cargo.lock/tauri.conf.json,
+    # so it would start a 3-runner compile alongside the release build it precedes
+    # (double macOS minutes, and the release queues behind it for runners).
+    if: >-
+      github.event_name != 'push' ||
+      !startsWith(github.event.head_commit.message, 'chore(release): bump version')
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:
