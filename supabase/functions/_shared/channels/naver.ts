@@ -23,7 +23,12 @@
  */
 
 import { hash as bcryptHash } from 'npm:bcryptjs@2.4.3';
-import { buildNaverDispatchPayload } from './dispatch.ts';
+import {
+    buildNaverDispatchPayload,
+    type NaverDispatchResponse,
+    readNaverDispatchResult,
+} from './dispatch.ts';
+import { nextPollCursor } from './poll-cursor.ts';
 import { naverToCanonical } from './status-map.ts';
 import type {
     CanonicalOrder,
@@ -35,10 +40,27 @@ import type {
     MarkShippedResult,
     PlatformListing,
     PollCursor,
+    SecretsRotationSink,
     TestConnectionResult,
 } from './types.ts';
 
 const BASE = 'https://api.commerce.naver.com/external';
+
+/**
+ * last-changed pages walked per 24h window before the scan is declared incomplete.
+ *
+ * No API basis — the official flow is "keep paging until `more` disappears". This is purely an
+ * app-side wall-clock bound so one connection cannot eat a whole cron invocation. It is only safe
+ * because hitting it pins the cursor (see `truncatedAt`); the next poll resumes the same window.
+ */
+const MAX_PAGES_PER_WINDOW = 20;
+
+/**
+ * Also no API basis: an app policy that stops a long-dead connection from scanning forever.
+ * Unlike the page cap this one DOES lose orders — a connection more than 7 days behind has its
+ * watermark pulled forward. Logged rather than silent; a real fix needs a backfill path.
+ */
+const MAX_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface NaverSecrets extends ChannelSecrets {
     client_id: string;
@@ -108,6 +130,13 @@ async function withToken(secrets: NaverSecrets): Promise<{ token: string; refres
         token_expires_at: Date.now() + expires_in * 1000,
     };
     return { token: access_token, refreshed: next };
+}
+
+/** Mint/reuse an access token for one call and persist the re-issue before it is used. */
+async function authorizedToken(secrets: ChannelSecrets, onRotate: SecretsRotationSink): Promise<string> {
+    const { token, refreshed } = await withToken(requireNaver(secrets));
+    if (refreshed) await onRotate(refreshed);
+    return token;
 }
 
 /** Official date-time example: 2023-01-16T17:14:51.794+09:00 — ISO-8601 with offset is accepted. */
@@ -287,21 +316,33 @@ export const naverAdapter: ChannelAdapter = {
         return refreshed;
     },
 
-    async fetchOrdersSince(secrets, cursor): Promise<FetchOrdersResult> {
-        let s = requireNaver(secrets);
-        const { token, refreshed } = await withToken(s);
-        if (refreshed) s = refreshed;
+    async fetchOrdersSince(secrets, cursor, onRotate): Promise<FetchOrdersResult> {
+        const token = await authorizedToken(secrets, onRotate);
 
         const end = Date.now();
-        // Official: omit lastChangedTo → 24h from lastChangedFrom. Walk day windows, cap 7d.
-        const maxLookback = 7 * 24 * 60 * 60 * 1000;
-        let windowStart = cursor.since
-            ? Math.max(new Date(cursor.since).getTime(), end - maxLookback)
+        // Official: omit lastChangedTo → 24h from lastChangedFrom. Walk day windows.
+        const requestedStart = cursor.since
+            ? new Date(cursor.since).getTime()
             : end - 24 * 60 * 60 * 1000;
+        let windowStart = Math.max(requestedStart, end - MAX_LOOKBACK_MS);
+        if (windowStart > requestedStart) {
+            console.error(
+                '[naver] lookback clamp skipped',
+                new Date(requestedStart).toISOString(),
+                '→',
+                new Date(windowStart).toISOString(),
+                '— orders in the skipped range are not recoverable from this endpoint',
+            );
+        }
 
         const productOrderIds: string[] = [];
         // Lightweight status from last-changed when detail fails
-        const statusHint = new Map<string, { status: string; claim?: string; orderId?: string }>();
+        const statusHint = new Map<
+            string,
+            { status: string; claim?: string; orderId?: string; orderedAt?: string }
+        >();
+        /** ms of the first window left half-read by the page cap; null = whole range scanned. */
+        let truncatedAt: number | null = null;
 
         while (windowStart < end) {
             const windowEnd = Math.min(windowStart + 24 * 60 * 60 * 1000, end);
@@ -320,14 +361,21 @@ export const naverAdapter: ChannelAdapter = {
                             status: String(row.productOrderStatus ?? ''),
                             claim: row.claimStatus != null ? String(row.claimStatus) : undefined,
                             orderId: row.orderId != null ? String(row.orderId) : undefined,
+                            orderedAt: row.paymentDate ?? row.lastChangedDate,
                         });
                     }
                 }
                 moreFrom = page.moreFrom;
                 moreSequence = page.moreSequence;
                 pages += 1;
-            } while (moreFrom && pages < 20);
+            } while (moreFrom && pages < MAX_PAGES_PER_WINDOW);
 
+            if (moreFrom) {
+                // Page cap hit with pages still unread: stop and leave the watermark inside this
+                // window so the next poll re-reads it instead of skipping the remainder.
+                truncatedAt = windowStart;
+                break;
+            }
             windowStart = windowEnd;
         }
 
@@ -353,7 +401,9 @@ export const naverAdapter: ChannelAdapter = {
                     mapped.push({
                         platformOrderId: hint.orderId ?? id,
                         status,
-                        orderedAt: new Date().toISOString(),
+                        // Real platform timestamps only; `now` would be written to a NOT NULL
+                        // column and outlive the outage (see earliestOrderedAt in normalize.ts).
+                        orderedAt: hint.orderedAt ?? new Date().toISOString(),
                         buyerName: null,
                         currency: 'KRW',
                         totalAmount: null,
@@ -381,20 +431,22 @@ export const naverAdapter: ChannelAdapter = {
 
         return {
             orders: mergeByOrderId(mapped),
-            nextCursor: { since: new Date(end).toISOString() },
+            nextCursor: nextPollCursor({
+                complete: truncatedAt === null,
+                windowEnd: new Date(end).toISOString(),
+                resumeFrom: new Date(truncatedAt ?? end).toISOString(),
+            }),
         };
     },
 
-    async listProducts(_secrets): Promise<PlatformListing[]> {
+    async listProducts(): Promise<PlatformListing[]> {
         // Product catalog APIs are under a separate product API group; map via sellerProductCode on orders first.
         // Keep empty until product-search endpoint is wired from product docs.
         return [];
     },
 
-    async markShipped(secrets, req: MarkShippedRequest): Promise<MarkShippedResult> {
-        let s = requireNaver(secrets);
-        const { token, refreshed } = await withToken(s);
-        if (refreshed) s = refreshed;
+    async markShipped(secrets, req: MarkShippedRequest, onRotate): Promise<MarkShippedResult> {
+        const token = await authorizedToken(secrets, onRotate);
 
         const body = buildNaverDispatchPayload(req);
         const res = await fetch(`${BASE}/v1/pay-order/seller/product-orders/dispatch`, {
@@ -407,11 +459,7 @@ export const naverAdapter: ChannelAdapter = {
             body: JSON.stringify(body),
         });
         const text = await res.text();
-        let json: {
-            data?: Array<{ productOrderId?: string; code?: string; message?: string }>;
-            code?: string;
-            message?: string;
-        } = {};
+        let json: NaverDispatchResponse = {};
         try {
             json = text ? JSON.parse(text) : {};
         } catch {
@@ -429,28 +477,6 @@ export const naverAdapter: ChannelAdapter = {
             return { ok: false, alreadyShipped: false, error: `naver dispatch ${res.status}: ${msg}` };
         }
 
-        const rows = Array.isArray(json.data) ? json.data : [];
-        const lineResults = req.lines.map((l) => {
-            const row = rows.find((r) => String(r.productOrderId) === l.platformLineId);
-            if (!row) return { platformLineId: l.platformLineId, ok: true };
-            const code = String(row.code ?? '');
-            const ok = !code || code === 'SUCCESS' || code === '0000';
-            const already = /ALREADY|DISPATCHED/i.test(code) || /already/i.test(String(row.message ?? ''));
-            return {
-                platformLineId: l.platformLineId,
-                ok: ok || already,
-                error: ok || already ? undefined : String(row.message ?? code),
-            };
-        });
-        const anyFail = lineResults.some((r) => !r.ok);
-        const allAlready =
-            rows.length > 0 &&
-            rows.every((r) => /ALREADY|DISPATCHED/i.test(String(r.code ?? r.message ?? '')));
-        return {
-            ok: !anyFail,
-            alreadyShipped: allAlready,
-            lineResults,
-            error: anyFail ? lineResults.find((r) => !r.ok)?.error : undefined,
-        };
+        return readNaverDispatchResult(json, req.lines);
     },
 };

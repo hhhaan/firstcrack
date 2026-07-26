@@ -26,7 +26,9 @@
  *   POST https://{mallid}.cafe24api.com/api/v2/oauth/token
  */
 
+import { tokenExpiresAtMs } from './cafe24-oauth.ts';
 import { buildCafe24ShipmentPayload } from './dispatch.ts';
+import { nextPollCursor } from './poll-cursor.ts';
 import { cafe24ToCanonical } from './status-map.ts';
 import type {
     CanonicalOrder,
@@ -38,6 +40,7 @@ import type {
     MarkShippedResult,
     PlatformListing,
     PollCursor,
+    SecretsRotationSink,
     TestConnectionResult,
 } from './types.ts';
 
@@ -73,6 +76,16 @@ function adminBase(mallId: string): string {
     return `https://${mallId}.cafe24api.com/api/v2/admin`;
 }
 
+/** Carries the HTTP status so a 401 can be distinguished and retried after a forced refresh. */
+class Cafe24HttpError extends Error {
+    readonly status: number;
+    constructor(status: number, message: string) {
+        super(message);
+        this.name = 'Cafe24HttpError';
+        this.status = status;
+    }
+}
+
 async function cafe24Get(
     mallId: string,
     token: string,
@@ -93,7 +106,10 @@ async function cafe24Get(
         },
     });
     if (!res.ok) {
-        throw new Error(`cafe24 ${path} ${res.status}: ${(await res.text()).slice(0, 300)}`);
+        throw new Cafe24HttpError(
+            res.status,
+            `cafe24 ${path} ${res.status}: ${(await res.text()).slice(0, 300)}`,
+        );
     }
     return res.json();
 }
@@ -140,15 +156,58 @@ export async function refreshCafe24Token(secrets: Cafe24Secrets): Promise<Cafe24
         expires_in?: number;
     };
     // Official: new refresh_token revokes the previous one — always persist rotation.
+    // token_expires_at is never left undefined; that would disable the skew guard above and
+    // rotate (and revoke) the refresh token on every single call.
     return {
         ...secrets,
         access_token: json.access_token,
         refresh_token: json.refresh_token ?? secrets.refresh_token,
-        token_expires_at: json.expires_in
-            ? Date.now() + json.expires_in * 1000
-            : json.expires_at
-              ? Date.parse(json.expires_at)
-              : undefined,
+        token_expires_at: tokenExpiresAtMs(json),
+    };
+}
+
+interface Cafe24Session {
+    /** Latest credentials for this call. */
+    current(): Cafe24Secrets;
+    /** Run one API call, retrying once with a forced refresh if the platform answers 401. */
+    run<T>(call: (s: Cafe24Secrets) => Promise<T>): Promise<T>;
+}
+
+/**
+ * Credentials holder for one adapter call.
+ *
+ * Refreshes proactively when the stored expiry says so, persisting the rotation *before* the token
+ * is used — Cafe24 revokes the previous refresh_token immediately, so the write cannot wait for the
+ * caller to finish.
+ *
+ * A 401 is treated as the authoritative expiry signal on top of that: the stored
+ * `token_expires_at` cannot be fully trusted, because rows written before the expiry clamp landed
+ * can sit hours in the future (Cafe24's `expires_at` has no timezone offset, so `Date.parse` read
+ * it as runtime-local). Those connections would otherwise skip refresh and 401 on every call.
+ */
+async function openSession(secrets: ChannelSecrets, onRotate: SecretsRotationSink): Promise<Cafe24Session> {
+    let s = requireCafe24(secrets);
+    const rotated = await refreshCafe24Token(s);
+    if (rotated) {
+        await onRotate(rotated);
+        s = rotated;
+    }
+
+    return {
+        current: () => s,
+        async run<T>(call: (secrets: Cafe24Secrets) => Promise<T>): Promise<T> {
+            try {
+                return await call(s);
+            } catch (e) {
+                if (!(e instanceof Cafe24HttpError) || e.status !== 401) throw e;
+                // Ignore the stored expiry — the platform just told us the truth.
+                const next = await refreshCafe24Token({ ...s, token_expires_at: undefined });
+                if (!next) throw e;
+                await onRotate(next);
+                s = next;
+                return await call(s);
+            }
+        },
     };
 }
 
@@ -253,10 +312,8 @@ export const cafe24Adapter: ChannelAdapter = {
         return refreshCafe24Token(requireCafe24(secrets));
     },
 
-    async fetchOrdersSince(secrets, cursor): Promise<FetchOrdersResult> {
-        let s = requireCafe24(secrets);
-        const refreshed = await refreshCafe24Token(s);
-        if (refreshed) s = refreshed;
+    async fetchOrdersSince(secrets, cursor, onRotate): Promise<FetchOrdersResult> {
+        const session = await openSession(secrets, onRotate);
 
         // Official: start_date + end_date required together; date_type default order_date
         const end = new Date();
@@ -279,9 +336,11 @@ export const cafe24Adapter: ChannelAdapter = {
                 limit: String(limit),
                 offset: String(offset),
             };
-            if (s.shop_no != null) query.shop_no = String(s.shop_no);
+            if (session.current().shop_no != null) query.shop_no = String(session.current().shop_no);
 
-            const data = (await cafe24Get(s.mall_id, s.access_token, '/orders', query)) as {
+            const data = (await session.run((s) =>
+                cafe24Get(s.mall_id, s.access_token, '/orders', query),
+            )) as {
                 orders?: Array<Record<string, unknown>>;
             };
             const batch = data.orders ?? [];
@@ -301,11 +360,10 @@ export const cafe24Adapter: ChannelAdapter = {
         for (let i = 0; i < orders.length; i++) {
             if (orders[i].lines.length === 1 && orders[i].lines[0].platformLineId.endsWith('-unknown')) {
                 try {
-                    const detail = (await cafe24Get(
-                        s.mall_id,
-                        s.access_token,
-                        `/orders/${orders[i].platformOrderId}`,
-                        { embed: 'items,buyer' },
+                    const detail = (await session.run((s) =>
+                        cafe24Get(s.mall_id, s.access_token, `/orders/${orders[i].platformOrderId}`, {
+                            embed: 'items,buyer',
+                        }),
                     )) as { order?: Record<string, unknown> };
                     if (detail.order) {
                         const mapped = mapCafe24Order(detail.order);
@@ -317,23 +375,22 @@ export const cafe24Adapter: ChannelAdapter = {
             }
         }
 
-        // Do not advance watermark past unread pages (avoids permanent order loss).
         return {
             orders,
-            nextCursor: {
-                since: complete ? end.toISOString() : (cursor.since ?? start.toISOString()),
-            },
+            nextCursor: nextPollCursor({
+                complete,
+                windowEnd: end.toISOString(),
+                resumeFrom: cursor.since ?? start.toISOString(),
+            }),
         };
     },
 
-    async listProducts(secrets): Promise<PlatformListing[]> {
-        let s = requireCafe24(secrets);
-        const refreshed = await refreshCafe24Token(s);
-        if (refreshed) s = refreshed;
+    async listProducts(secrets, onRotate): Promise<PlatformListing[]> {
+        const session = await openSession(secrets, onRotate);
 
-        const data = (await cafe24Get(s.mall_id, s.access_token, '/products', {
-            limit: '50',
-        })) as {
+        const data = (await session.run((s) =>
+            cafe24Get(s.mall_id, s.access_token, '/products', { limit: '50' }),
+        )) as {
             products?: Array<{
                 product_no: number | string;
                 product_name?: string;
@@ -366,23 +423,29 @@ export const cafe24Adapter: ChannelAdapter = {
         return out;
     },
 
-    async markShipped(secrets, req: MarkShippedRequest): Promise<MarkShippedResult> {
-        let s = requireCafe24(secrets);
-        const refreshed = await refreshCafe24Token(s);
-        if (refreshed) s = refreshed;
+    async markShipped(secrets, req: MarkShippedRequest, onRotate): Promise<MarkShippedResult> {
+        const session = await openSession(secrets, onRotate);
 
         const payload = buildCafe24ShipmentPayload(req);
-        const url = `${adminBase(s.mall_id)}/orders/${encodeURIComponent(req.platformOrderId)}/shipments`;
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${s.access_token}`,
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-            },
-            body: JSON.stringify(payload),
+        // Retried through session.run only on 401 — the shipment was never created in that case.
+        const { res, text } = await session.run(async (s) => {
+            const url = `${adminBase(s.mall_id)}/orders/${encodeURIComponent(req.platformOrderId)}/shipments`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${s.access_token}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+            const body = await response.text();
+            if (response.status === 401) {
+                throw new Cafe24HttpError(401, `cafe24 shipments 401: ${body.slice(0, 300)}`);
+            }
+            return { res: response, text: body };
         });
-        const text = await res.text();
+
         if (!res.ok) {
             // 오탐 시 fulfill_order까지 진행되어 재고가 차감된다 → 명시적 "이미 처리됨"만 성공 취급
             const already = /already|이미/i.test(text);

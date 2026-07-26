@@ -301,7 +301,8 @@ verify_jwt = false
 
 # ── Sales channels / orders ─────────────────────────────────────────────────
 # Deploy: `supabase functions deploy <name>` picks these up.
-# order-webhook additionally needs `--no-verify-jwt` when deployed by itself.
+# order-sync and order-webhook additionally need `--no-verify-jwt` when
+# deployed by themselves.
 
 [functions.channel-connect]
 verify_jwt = true
@@ -309,11 +310,12 @@ verify_jwt = true
 [functions.channel-disconnect]
 verify_jwt = true
 
-# Dual auth inside the function: user JWT (manual "Sync now") OR x-cron-secret.
-# The gateway check stays on, so a scheduler must also send
-# `Authorization: Bearer <ANON_KEY>` alongside `x-cron-secret`.
+# REQUIRED false: authenticates in-function — x-cron-secret (pg_cron) or user
+# JWT via getAuthenticatedUser. The gateway JWT gate would reject the cron
+# POST, which carries no Authorization header.
+# Deploy: supabase functions deploy order-sync --no-verify-jwt
 [functions.order-sync]
-verify_jwt = true
+verify_jwt = false
 
 [functions.order-dispatch]
 verify_jwt = true

@@ -25,7 +25,22 @@ type OrderRow = {
     id: string;
     status: string;
     fulfilled_at: string | null;
+    ordered_at: string | null;
 };
+
+/**
+ * `orders.ordered_at` is NOT NULL, so a degraded sync (Naver's last-changed-only fallback) has to
+ * write `now()` when the platform gave it nothing. Keeping the earliest value ever seen lets a
+ * later, complete sync repair that fabricated timestamp, and never the other way round.
+ */
+export function earliestOrderedAt(stored: string | null | undefined, incoming: string): string {
+    if (!stored) return incoming;
+    const storedMs = Date.parse(stored);
+    const incomingMs = Date.parse(incoming);
+    if (!Number.isFinite(incomingMs)) return stored;
+    if (!Number.isFinite(storedMs)) return incoming;
+    return incomingMs < storedMs ? incoming : stored;
+}
 
 type LineRow = {
     id: string;
@@ -108,7 +123,7 @@ export async function upsertCanonicalOrders(
     for (const order of orders) {
         const { data: existing } = await supabase
             .from('orders')
-            .select('id, status, fulfilled_at')
+            .select('id, status, fulfilled_at, ordered_at')
             .eq('user_id', ctx.userId)
             .eq('platform', ctx.platform)
             .eq('platform_order_id', order.platformOrderId)
@@ -127,6 +142,7 @@ export async function upsertCanonicalOrders(
                 .update({
                     status: nextStatus,
                     connection_id: ctx.connectionId,
+                    ordered_at: earliestOrderedAt(prev.ordered_at, order.orderedAt),
                     buyer_name: order.buyerName,
                     currency: order.currency,
                     total_amount: order.totalAmount,

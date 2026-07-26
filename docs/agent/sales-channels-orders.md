@@ -66,7 +66,7 @@ there silently deleted nothing for members.
 
 ## Inbound order sync
 
-1. Manual "Sync now" (user JWT) or ~15m cron (`x-cron-secret` on `order-sync`)
+1. Manual "Sync now" (user JWT) or 15m pg_cron (`x-cron-secret` on `order-sync`)
 2. Adapter pulls platform orders → normalize → upsert `orders` / `order_lines`
 3. Webhooks: `order-webhook` (Shopify HMAC / Cafe24 shared secret) — fail closed on bad signature
 4. App reads tables only via `orderApi.list(workspaceOwnerId)`
@@ -91,6 +91,22 @@ there silently deleted nothing for members.
   **Unverified:** what Cafe24 actually puts in `X-API-Key` is not confirmed against
   official docs — validate against live traffic before trusting Cafe24 push ingest.
   Cafe24 connects via OAuth, so nothing writes the per-connection slot yet.
+
+**Cron activation** (`20260801000002_order_sync_cron.sql`): the job is scheduled but no-ops until
+`vault.create_secret('<ORDER_SYNC_CRON_SECRET>', 'order_sync_cron_secret')` exists. It also needs
+`ORDER_SYNC_CRON_SECRET` in the function env and `verify_jwt = false` (config.toml) at deploy.
+
+**Run lock:** one `order_sync_runs` row per connection may sit on `status='running'` (partial unique
+index). `order-sync` reclaims rows older than 10 min, caps connections per invocation, and stops at a
+wall-clock budget — a hard kill must never strand a connection.
+
+**Watermark:** every adapter returns its cursor through `_shared/channels/poll-cursor.ts`. Hitting a
+page cap means `complete: false` and the watermark stays put; advancing it drops unread orders for good.
+
+**Token rotation:** adapters that mint credentials mid-call must hand them to the
+`SecretsRotationSink` they are given. `_shared/channels/secrets-session.ts` is the only writer of
+rotated `sales_channel_secrets` — Cafe24 revokes the previous refresh_token immediately, so a
+rotation that never reaches the DB permanently breaks the connection.
 
 SKU mapping: when platform product/variant ids match `products.sku`, lines get `product_id` for stock + roasting requirements.
 
