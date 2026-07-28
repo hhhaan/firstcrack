@@ -168,7 +168,6 @@ function OrderRow({
                             type="button"
                             onClick={onToggle}
                             aria-expanded={expanded}
-                            aria-label={t('orders.order.lines')}
                             className="inline-flex cursor-pointer items-center gap-1 rounded border-none bg-transparent p-0 font-mono text-[13px] text-secondary hover:text-primary"
                         >
                             {expanded ? (
