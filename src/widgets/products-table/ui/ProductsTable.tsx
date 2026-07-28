@@ -38,7 +38,7 @@ type Props = {
     onEditingChange: (product: Product | null) => void;
 };
 
-export const ProductsTab = ({ addOpen, onAddOpenChange, editing, onEditingChange }: Props) => {
+export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChange }: Props) => {
     const { t } = useTranslation();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: products = [], isLoading } = useProducts(userId);

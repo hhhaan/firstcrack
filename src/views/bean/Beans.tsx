@@ -23,13 +23,13 @@ import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
 import { BeanList } from '@widgets/bean-list/ui/BeanList';
 import { BlendList } from '@widgets/blend-list/ui/BlendList';
 import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
+import { ProductsTable } from '@widgets/products-table';
 import { Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGreenInventoryAssets } from './model/useGreenInventoryAssets';
 import { InventoryLocked } from './ui/InventoryLocked';
 import { type InventoryTab, InventoryTabBar } from './ui/InventoryTabBar';
-import { ProductsTab } from './ui/ProductsTab';
 import { RoastedInventoryTab } from './ui/RoastedInventoryTab';
 
 type BeansProps = {
@@ -302,7 +302,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
 
             {activeTab === 'products' &&
                 (canProducts ? (
-                    <ProductsTab
+                    <ProductsTable
                         addOpen={productAddOpen}
                         onAddOpenChange={setProductAddOpen}
                         editing={editingProduct}

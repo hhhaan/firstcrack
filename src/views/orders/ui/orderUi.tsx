@@ -1,14 +1,8 @@
 import type { BadgeTone } from '@shared/ui/Badge';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
-export const ghostBtn =
+const ghostBtn =
     'inline-flex items-center justify-center gap-1.5 rounded-full border border-border-subtle bg-transparent px-3 py-1.5 text-[12px] font-medium tracking-[0.14px] text-secondary transition-colors hover:bg-surface hover:text-primary disabled:pointer-events-none disabled:opacity-40 dark:border-[#585d61] dark:hover:bg-surface-elevated cursor-pointer';
-
-export const iconBtn =
-    'inline-flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface hover:text-primary disabled:pointer-events-none disabled:opacity-40 dark:hover:bg-surface-elevated cursor-pointer';
-
-export const dangerIconBtn =
-    'inline-flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:pointer-events-none disabled:opacity-40 cursor-pointer';
 
 export function GhostButton({
     className = '',

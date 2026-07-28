@@ -10,17 +10,7 @@ const orderCols = [
     { width: '12%', bar: 72, height: 28, borderRadius: '9999px' },
 ];
 
-const productCols = [
-    { width: '28%', bar: '70%' },
-    { width: '16%', bar: '55%' },
-    { width: '12%', bar: '50%' },
-    { width: '12%', bar: 36, height: 18, borderRadius: '9999px' },
-    { width: '22%', bar: '90%' },
-];
-
 export const OrdersTableSkeleton = () => <TableSkeleton cols={orderCols} rows={6} minWidth="560px" />;
-
-export const ProductsTableSkeleton = () => <TableSkeleton cols={productCols} rows={5} minWidth="560px" />;
 
 export const ChannelsListSkeleton = () => (
     <div className="space-y-2.5" role="status" aria-busy="true">

@@ -19,7 +19,9 @@ describe('Orders page-first tab split', () => {
 
     it('tab files own domain orchestration', () => {
         expect(ordersTab).toMatch(/useOrders|useFulfillOrder/);
-        expect(productsTab).toMatch(/useProducts|usePackageProduct/);
+        // Products is the one tab whose table is shared with Beans — the tab owns the toolbar and
+        // delegates orchestration to widgets/products-table.
+        expect(productsTab).toMatch(/ProductsTable/);
         expect(channelsTab).toMatch(/useSalesChannels|useSyncOrders/);
     });
 });
