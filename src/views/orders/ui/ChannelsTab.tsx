@@ -15,7 +15,7 @@ import { Link2, RefreshCw, Store } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChannelsListSkeleton } from './OrdersSkeleton';
-import { CHANNEL_STATUS_EN, channelStatusTone, EmptyState, GhostButton, PLATFORM_EN } from './orderUi';
+import { channelStatusTone, EmptyState, GhostButton } from './orderUi';
 
 const PLATFORMS: ChannelPlatform[] = ['naver', 'cafe24', 'shopify'];
 
@@ -135,10 +135,10 @@ function ChannelCard({
                         {channel.display_name || channel.shop_identifier}
                     </p>
                     <Badge tone={channelStatusTone(channel.status)} size="sm">
-                        {CHANNEL_STATUS_EN[channel.status] ?? channel.status}
+                        {t(`orders.channel.status.${channel.status}`, { defaultValue: channel.status })}
                     </Badge>
                     <Badge tone="soft" size="sm">
-                        {PLATFORM_EN[channel.platform] ?? channel.platform}
+                        {t(`orders.channel.platform.${channel.platform}`, { defaultValue: channel.platform })}
                     </Badge>
                 </div>
                 <p className="mt-1 text-[12px] text-muted tracking-[0.14px]">

@@ -13,15 +13,7 @@ import { AlertTriangle, Plus, ShoppingBag, Truck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { OrdersTableSkeleton } from './OrdersSkeleton';
-import {
-    DISPATCH_STATUS_EN,
-    dispatchTone,
-    EmptyState,
-    GhostButton,
-    ORDER_STATUS_EN,
-    orderStatusTone,
-    PLATFORM_EN,
-} from './orderUi';
+import { dispatchTone, EmptyState, GhostButton, orderStatusTone } from './orderUi';
 
 export function OrdersTab() {
     const { t } = useTranslation();
@@ -139,18 +131,19 @@ function OrderRow({
         dispatch?.status === 'sent' &&
         !!dispatch.sent_at &&
         nowMs - new Date(dispatch.sent_at).getTime() > 30 * 60 * 1000;
-    const statusLabel = cancelled
-        ? (ORDER_STATUS_EN[order.status] ?? order.status)
-        : fulfilled
-          ? 'Fulfilled'
-          : (ORDER_STATUS_EN[order.status] ?? order.status);
+    // defaultValue: no typed key augmentation, so an unknown status from the platform falls back to
+    // the raw value instead of rendering the key path.
+    const statusLabel =
+        !cancelled && fulfilled
+            ? t('orders.order.fulfilled')
+            : t(`orders.status.${order.status}`, { defaultValue: order.status });
 
     return (
         <tr className="border-b border-border-subtle last:border-0 transition-colors hover:bg-surface/50 dark:border-[#585d61] dark:hover:bg-surface-elevated/40">
             <td className="px-4 py-3.5 font-mono text-[13px] text-secondary">{formatDateShort(order.ordered_at)}</td>
             <td className="px-4 py-3.5">
                 <Badge tone="soft" size="sm">
-                    {PLATFORM_EN[order.platform] ?? order.platform}
+                    {t(`orders.channel.platform.${order.platform}`, { defaultValue: order.platform })}
                 </Badge>
             </td>
             <td className="px-4 py-3.5 text-[13px] text-primary tracking-[0.14px]">{order.buyer_name ?? '—'}</td>
@@ -177,8 +170,10 @@ function OrderRow({
                     {dispatch ? (
                         <Badge tone={dispatchTone(dispatch.status, sentDelayed)} size="sm">
                             {sentDelayed
-                                ? 'Platform confirm delayed'
-                                : (DISPATCH_STATUS_EN[dispatch.status] ?? dispatch.status)}
+                                ? t('orders.dispatch.delayed')
+                                : t(`orders.dispatch.status.${dispatch.status}`, {
+                                      defaultValue: dispatch.status,
+                                  })}
                         </Badge>
                     ) : null}
                 </div>

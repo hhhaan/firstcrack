@@ -18,12 +18,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCafe24OAuthWait } from '../model/useCafe24OAuthWait';
 
-const PLATFORM_EN: Record<string, string> = {
-    naver: 'Naver',
-    cafe24: 'Cafe24',
-    shopify: 'Shopify',
-};
-
 type Props = {
     open: boolean;
     platform: ChannelPlatform | null;
@@ -155,7 +149,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                     subtitle={
                         <div className="mt-2">
                             <Badge tone="soft" size="sm">
-                                {(platform && PLATFORM_EN[platform]) ?? platform}
+                                {platform ? t(`orders.channel.platform.${platform}`, { defaultValue: platform }) : null}
                             </Badge>
                         </div>
                     }

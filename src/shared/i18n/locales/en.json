@@ -1415,6 +1415,7 @@
                 "shopify": "Shopify admin → Develop apps → install custom app with read_orders, read_products → paste shop domain and Admin API access token."
             },
             "platform": {
+                "manual": "Manual",
                 "naver": "Naver",
                 "cafe24": "Cafe24",
                 "shopify": "Shopify"

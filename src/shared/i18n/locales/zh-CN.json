@@ -1415,6 +1415,7 @@
                 "shopify": "Shopify 后台 → 开发应用 → 安装具有 read_orders、read_products 权限的自定义应用 → 粘贴店铺域名和 Admin API 访问令牌。"
             },
             "platform": {
+                "manual": "手动",
                 "naver": "Naver",
                 "cafe24": "Cafe24",
                 "shopify": "Shopify"

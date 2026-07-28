@@ -1415,6 +1415,7 @@
                 "shopify": "Shopify 관리자 → 앱 개발 → custom app(read_orders, read_products) 설치 후 도메인과 Admin API access token 입력."
             },
             "platform": {
+                "manual": "수동",
                 "naver": "네이버",
                 "cafe24": "카페24",
                 "shopify": "Shopify"

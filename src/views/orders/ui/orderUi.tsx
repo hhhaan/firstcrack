@@ -10,37 +10,6 @@ export const iconBtn =
 export const dangerIconBtn =
     'inline-flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:pointer-events-none disabled:opacity-40 cursor-pointer';
 
-export const ORDER_STATUS_EN: Record<string, string> = {
-    pending: 'Pending',
-    paid: 'Paid',
-    preparing: 'Preparing',
-    shipped: 'Shipped',
-    delivered: 'Delivered',
-    cancelled: 'Cancelled',
-    refunded: 'Refunded',
-};
-
-export const DISPATCH_STATUS_EN: Record<string, string> = {
-    pending: 'Dispatch pending',
-    sent: 'Ship requested',
-    confirmed: 'Shipped (confirmed)',
-    failed: 'Ship failed',
-};
-
-export const PLATFORM_EN: Record<string, string> = {
-    manual: 'Manual',
-    naver: 'Naver',
-    cafe24: 'Cafe24',
-    shopify: 'Shopify',
-};
-
-export const CHANNEL_STATUS_EN: Record<string, string> = {
-    pending: 'Pending',
-    active: 'Active',
-    error: 'Error',
-    disabled: 'Disabled',
-};
-
 export function GhostButton({
     className = '',
     children,

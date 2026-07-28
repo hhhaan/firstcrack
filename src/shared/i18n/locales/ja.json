@@ -1415,6 +1415,7 @@
                 "shopify": "Shopify管理画面 → アプリ開発 → read_orders・read_products権限のカスタムアプリをインストール → ショップドメインとAdmin APIアクセストークンを貼り付け。"
             },
             "platform": {
+                "manual": "手動",
                 "naver": "Naver",
                 "cafe24": "Cafe24",
                 "shopify": "Shopify"
