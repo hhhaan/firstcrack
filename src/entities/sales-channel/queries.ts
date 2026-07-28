@@ -66,7 +66,8 @@ export const useSyncOrders = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (connectionId?: string) => salesChannelApi.syncNow(connectionId, userId),
-        // ChannelsTab renders the sync result (including failures) inline.
+        // ChannelsTab toasts the sync result itself (partial success carries a count the generic
+        // bridge cannot express); letting the global bridge fire too would stack two toasts.
         meta: { silentError: true },
         onSuccess: () => {
             void qc.invalidateQueries({ queryKey: orderKeys.all(userId) });

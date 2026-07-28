@@ -8,6 +8,8 @@ import {
     useSyncOrders,
 } from '@entities/sales-channel';
 import { formatDateShort } from '@shared/lib/format';
+import { resolveMutationErrorText } from '@shared/lib/mutationErrorMessage';
+import { useToastStore } from '@shared/store/toast';
 import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { ConnectChannelModal } from '@widgets/connect-channel-modal';
@@ -27,21 +29,23 @@ export function ChannelsTab() {
     const sync = useSyncOrders(userId);
     const setAutoFulfill = useSetAutoFulfill(userId);
     const [connectPlatform, setConnectPlatform] = useState<ChannelPlatform | null>(null);
-    const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
     const handleSync = async (connectionId?: string) => {
-        setSyncMsg(null);
+        const { show } = useToastStore.getState();
         try {
             const res = await sync.mutateAsync(connectionId);
             const total = res.results.reduce((n, r) => n + (r.upserted ?? 0), 0);
             const failed = res.results.filter((r) => !r.ok);
-            setSyncMsg(
-                failed.length
-                    ? t('orders.channel.syncPartial', { n: total, err: failed[0]?.error ?? '' })
-                    : t('orders.channel.syncOk', { n: total }),
-            );
+            if (failed.length) {
+                show(t('orders.channel.syncPartial', { n: total, err: failed[0]?.error ?? '' }));
+            } else {
+                show(t('orders.channel.syncOk', { n: total }), 'success');
+            }
         } catch (e) {
-            setSyncMsg(e instanceof Error ? e.message : String(e));
+            // Raw server messages can run long; a fixed-position toast cannot wrap like the old
+            // inline paragraph did, so reuse the truncating resolver the global error bridge uses.
+            const text = resolveMutationErrorText(e);
+            show(text.key === 'errors.mutationFailedDetail' ? t(text.key, { detail: text.detail }) : t(text.key));
         }
     };
 
@@ -72,12 +76,6 @@ export function ChannelsTab() {
                     </SurfaceButton>
                 ) : null}
             </div>
-
-            {syncMsg ? (
-                <p className="rounded-lg bg-surface px-3 py-2 text-[12px] text-secondary tracking-[0.14px] dark:bg-surface-elevated">
-                    {syncMsg}
-                </p>
-            ) : null}
 
             {/* While memberships resolve the owner id is empty and the query is disabled —
                 show the skeleton rather than a misleading "no channels" state. */}

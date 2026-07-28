@@ -1,5 +1,5 @@
 import { useToastStore } from '@shared/store/toast';
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 /** Global feedback surface. Sits above modals (ModalShell is z-1000). */
@@ -21,7 +21,11 @@ export const ToastViewport = () => {
                     key={toast.id}
                     className="pointer-events-auto flex items-start gap-2.5 rounded-2xl border border-black/6 bg-[rgba(255,255,255,0.97)] px-4 py-3 shadow-[0_16px_40px_rgba(22,18,12,0.18)] backdrop-blur-[20px] dark:border-[#585d61] dark:bg-[#1a1e23]"
                 >
-                    <AlertCircle size={15} strokeWidth={2} className="mt-0.5 shrink-0 text-[#c0392b]" />
+                    {toast.tone === 'success' ? (
+                        <CheckCircle size={15} strokeWidth={2} className="mt-0.5 shrink-0 text-palette-green" />
+                    ) : (
+                        <AlertCircle size={15} strokeWidth={2} className="mt-0.5 shrink-0 text-[#c0392b]" />
+                    )}
                     <p className="flex-1 text-[13px] leading-relaxed text-primary tracking-[0.14px] dark:text-[#e5e5e5]">
                         {toast.message}
                     </p>
