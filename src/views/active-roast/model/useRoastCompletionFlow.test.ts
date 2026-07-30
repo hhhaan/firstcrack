@@ -54,3 +54,34 @@ describe('flowReducer SAVE_SUCCESS', () => {
         expect(closed.continueCandidates).toEqual([]);
     });
 });
+
+/** UX contracts: accidental dismiss must not wipe recoverable save state without an explicit discard path. */
+describe('flowReducer summary dismiss paths (UX friction contracts)', () => {
+    it('CLOSE_SUMMARY hides modal and clears summaryData (no reopen payload left)', () => {
+        const next = flowReducer(base, { type: 'CLOSE_SUMMARY' });
+        expect(next.summaryModal).toBe(false);
+        expect(next.summaryData).toBeNull();
+        // End-roast phase is outside this reducer; empty summaryData is the only UI reopen key.
+        expect(next.endRoastModal).toBe(false);
+        expect(next.continueModal).toBe(false);
+    });
+
+    it('DISCARD_SUMMARY resets entire completion flow (same wipe as close for summary fields)', () => {
+        const next = flowReducer(
+            {
+                ...base,
+                endRoastModal: true,
+                continueModal: true,
+                continueCandidates: [handoff('a')],
+            },
+            { type: 'DISCARD_SUMMARY' },
+        );
+        expect(next).toEqual({
+            endRoastModal: false,
+            summaryModal: false,
+            summaryData: null,
+            continueModal: false,
+            continueCandidates: [],
+        });
+    });
+});
