@@ -1,33 +1,33 @@
 {
-  "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "skipLibCheck": true,
+    "compilerOptions": {
+        "target": "ES2020",
+        "useDefineForClassFields": true,
+        "lib": ["ES2020", "DOM", "DOM.Iterable"],
+        "module": "ESNext",
+        "skipLibCheck": true,
 
-    /* Bundler mode */
-    "moduleResolution": "bundler",
-    "baseUrl": ".",
-    "paths": {
-      "@shared/*": ["src/shared/*"],
-      "@entities/*": ["src/entities/*"],
-      "@features/*": ["src/features/*"],
-      "@views/*": ["src/views/*"],
-      "@widgets/*": ["src/widgets/*"]
+        /* Bundler mode */
+        "moduleResolution": "bundler",
+        "paths": {
+            "@shared/*": ["./src/shared/*"],
+            "@entities/*": ["./src/entities/*"],
+            "@features/*": ["./src/features/*"],
+            "@views/*": ["./src/views/*"],
+            "@widgets/*": ["./src/widgets/*"]
+        },
+        "allowImportingTsExtensions": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "noEmit": true,
+        "jsx": "react-jsx",
+
+        /* Linting */
+        "strict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noFallthroughCasesInSwitch": true
     },
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx",
-
-    /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
-  },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+    "include": ["src"],
+    "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.spec.ts", "src/**/*.spec.tsx"],
+    "references": [{ "path": "./tsconfig.node.json" }]
 }

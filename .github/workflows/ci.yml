@@ -55,7 +55,7 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: Type check
-        run: pnpm tsc --noEmit
+        run: pnpm typecheck
 
   lint:
     runs-on: ubuntu-latest

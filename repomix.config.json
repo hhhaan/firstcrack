@@ -37,7 +37,6 @@
             "code_review.txt",
             "specific_file.diff",
             "*.diff",
-            "TODOS.md",
             "DESIGN_REF_DATAROBOT.md",
             "react-doctor-report.json",
             "skills-lock.json",
