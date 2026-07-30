@@ -6,9 +6,17 @@ interface FilterDropdownProps {
     value: string;
     options: string[];
     onSelect: (v: string) => void;
+    /** Maps an option value to display text. Omit when the value is already user-facing. */
+    optionLabel?: (v: string) => string;
 }
 
-export const FilterDropdown = ({ label, value, options, onSelect }: FilterDropdownProps): ReactNode => {
+export const FilterDropdown = ({
+    label,
+    value,
+    options,
+    onSelect,
+    optionLabel = (v) => v,
+}: FilterDropdownProps): ReactNode => {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
     const isActive = value !== 'all';
@@ -34,7 +42,7 @@ export const FilterDropdown = ({ label, value, options, onSelect }: FilterDropdo
                 }`}
             >
                 <Filter size={12} strokeWidth={2} className={isActive ? 'text-primary' : 'text-muted'} />
-                {isActive ? value : label}
+                {isActive ? optionLabel(value) : label}
                 <ChevronDown size={11} strokeWidth={2} className={isActive ? 'text-primary' : 'text-muted'} />
             </button>
 
@@ -60,7 +68,7 @@ export const FilterDropdown = ({ label, value, options, onSelect }: FilterDropdo
                             }}
                             className={`w-full px-3 py-1.5 text-left text-[13px] tracking-[0.14px] transition hover:bg-surface ${value === opt ? 'font-medium text-primary' : 'text-secondary'}`}
                         >
-                            {opt}
+                            {optionLabel(opt)}
                         </button>
                     ))}
                 </div>

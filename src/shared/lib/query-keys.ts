@@ -43,5 +43,7 @@ export const coffeeFuturesKeys = {
 /** Orders — used by order, order-dispatch, sales-channel, fulfill, finished-goods */
 export const orderKeys = {
     all: (userId: string) => ['orders', userId] as const,
+    /** Nested under `all` so every existing invalidate(all) also drops the paged caches. */
+    paginated: (userId: string, params: Record<string, unknown>) => ['orders', userId, 'paginated', params] as const,
     requirements: (userId: string) => ['roasting-requirements', userId] as const,
 };

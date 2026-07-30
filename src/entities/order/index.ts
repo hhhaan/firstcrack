@@ -3,8 +3,11 @@ export type {
     OrderInsert,
     OrderLine,
     OrderLineInsert,
+    OrderPage,
+    OrderPageParams,
+    OrderStatusFilter,
     OrderWithLines,
     RoastingRequirements,
 } from './api';
 export { orderApi } from './api';
-export { orderKeys, useCreateOrder, useOrders, useRoastingRequirements } from './queries';
+export { orderKeys, useCreateOrder, useOrdersPaginated, useRoastingRequirements } from './queries';

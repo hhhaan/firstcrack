@@ -1344,7 +1344,18 @@
             "cancel": "キャンセル",
             "cancelConfirm": "この注文をキャンセルしますか？出荷済み在庫は復元されます。",
             "unmapped": "未マッピング {{n}}件",
-            "unmappedHelp": "一致する商品がない明細です。注文を処理しても在庫は差し引かれず、焙煎必要量にも計上されません。商品SKUをストアのSKUまたは商品／バリアントIDと一致させてから、再度同期してください。"
+            "unmappedHelp": "一致する商品がない明細です。注文を処理しても在庫は差し引かれず、焙煎必要量にも計上されません。商品SKUをストアのSKUまたは商品／バリアントIDと一致させてから、再度同期してください。",
+            "searchPlaceholder": "購入者または注文番号で検索",
+            "allStatuses": "すべてのステータス",
+            "allPlatforms": "すべてのチャネル",
+            "filter": {
+                "unfulfilled": "未出荷",
+                "fulfilled": "出荷済み",
+                "cancelled": "キャンセル"
+            },
+            "pagination": "{{start}}–{{end}} / {{total}}",
+            "noMatch": "条件に一致する注文がありません。",
+            "clearFilters": "フィルターをクリア"
         },
         "status": {
             "pending": "保留中",

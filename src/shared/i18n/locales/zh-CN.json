@@ -1344,7 +1344,18 @@
             "cancel": "取消",
             "cancelConfirm": "取消此订单？已履约库存将恢复。",
             "unmapped": "{{n}} 项未映射",
-            "unmappedHelp": "这些订单行没有匹配的商品，履约时不会扣减库存，也不会计入烘焙需求。请将商品 SKU 设置为店铺的 SKU 或商品/变体 ID，然后重新同步。"
+            "unmappedHelp": "这些订单行没有匹配的商品，履约时不会扣减库存，也不会计入烘焙需求。请将商品 SKU 设置为店铺的 SKU 或商品/变体 ID，然后重新同步。",
+            "searchPlaceholder": "搜索买家或订单号",
+            "allStatuses": "全部状态",
+            "allPlatforms": "全部渠道",
+            "filter": {
+                "unfulfilled": "未发货",
+                "fulfilled": "已发货",
+                "cancelled": "已取消"
+            },
+            "pagination": "{{start}}–{{end}} / {{total}}",
+            "noMatch": "没有符合条件的订单。",
+            "clearFilters": "清除筛选"
         },
         "status": {
             "pending": "待处理",

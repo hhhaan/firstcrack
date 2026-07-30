@@ -1,4 +1,4 @@
-import { type OrderWithLines, useOrders } from '@entities/order';
+import { type OrderStatusFilter, type OrderWithLines, useOrdersPaginated } from '@entities/order';
 import { type OrderDispatch, useOrderDispatches } from '@entities/order-dispatch';
 import { useActiveWorkspace } from '@entities/organization';
 import { useCancelOrder } from '@features/cancel-order';
@@ -6,19 +6,41 @@ import { DispatchModal } from '@features/dispatch-order';
 import { useFulfillOrder } from '@features/fulfill-order';
 import { formatDateShort } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
+import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
+import { TablePagination } from '@shared/ui/TablePagination';
 import { AddOrderModal } from '@widgets/add-order-modal';
+import { DateRangeFilter } from '@widgets/date-range-filter';
 import { RoastingRequirementsCard } from '@widgets/roasting-requirements-card';
-import { AlertTriangle, ChevronDown, ChevronRight, Plus, ShoppingBag, Truck } from 'lucide-react';
+import { format, subMonths } from 'date-fns';
+import { AlertTriangle, ChevronDown, ChevronRight, Plus, Search, ShoppingBag, Truck } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useOrderFilters } from '../hooks/useOrderFilters';
 import { OrdersTableSkeleton } from './OrdersSkeleton';
 import { dispatchTone, EmptyState, GhostButton, orderStatusTone } from './orderUi';
+
+const PAGE_SIZE = 20;
+const CUSTOM_RANGE_MONTHS = 24;
+const STATUS_OPTIONS: OrderStatusFilter[] = ['unfulfilled', 'fulfilled', 'cancelled'];
+const PLATFORM_OPTIONS = ['manual', 'naver', 'cafe24', 'shopify'];
 
 export function OrdersTab() {
     const { t } = useTranslation();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
-    const { data: orders = [], isLoading } = useOrders(userId);
+    const f = useOrderFilters();
+    const { data: page, isLoading } = useOrdersPaginated({
+        userId,
+        page: f.page,
+        pageSize: PAGE_SIZE,
+        status: f.status,
+        platform: f.platform === 'all' ? null : f.platform,
+        search: f.search,
+        fromYM: f.fromYM || null,
+        toYM: f.toYM || null,
+    });
+    const orders = page?.data ?? [];
+    const total = page?.total ?? 0;
     const { data: dispatches = [] } = useOrderDispatches(userId);
     const fulfill = useFulfillOrder();
     const cancel = useCancelOrder();
@@ -32,13 +54,74 @@ export function OrdersTab() {
         return m;
     }, [dispatches]);
 
+    // ponytail: fixed 24-month window instead of deriving from data — the page only holds 20 orders,
+    // so the real span isn't available without another query. Widen or query the oldest order if a
+    // roastery needs to filter further back.
+    const monthOptions = useMemo(() => {
+        const now = new Date();
+        return Array.from({ length: CUSTOM_RANGE_MONTHS }, (_, i) =>
+            format(subMonths(now, CUSTOM_RANGE_MONTHS - 1 - i), 'yyyy-MM'),
+        );
+    }, []);
+
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const safePage = Math.min(f.page, totalPages);
+    const start = (safePage - 1) * PAGE_SIZE + 1;
+    const end = Math.min(safePage * PAGE_SIZE, total);
+    // A filtered-to-zero result is not an empty workspace — the onboarding empty state would be a lie.
+    const isEmptyWorkspace = total === 0 && !f.isFiltered;
+
     return (
         <div className="space-y-5">
             <RoastingRequirementsCard />
 
+            <div className="flex flex-col gap-3 rounded-lg bg-main-bg p-4 lg:flex-row lg:items-center dark:border dark:border-[#585d61]">
+                <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface px-3 py-2 dark:bg-surface-elevated">
+                    <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
+                    <input
+                        className="w-full border-none bg-transparent font-body text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted"
+                        value={f.search}
+                        onChange={(e) => f.setSearch(e.target.value)}
+                        placeholder={t('orders.order.searchPlaceholder')}
+                    />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <FilterDropdown
+                        label={t('orders.order.allStatuses')}
+                        value={f.status}
+                        options={STATUS_OPTIONS}
+                        onSelect={(v) => f.setStatus(v as OrderStatusFilter)}
+                        optionLabel={(v) => t(`orders.order.filter.${v}`, { defaultValue: v })}
+                    />
+                    <FilterDropdown
+                        label={t('orders.order.allPlatforms')}
+                        value={f.platform}
+                        options={PLATFORM_OPTIONS}
+                        onSelect={f.setPlatform}
+                        optionLabel={(v) => t(`orders.channel.platform.${v}`, { defaultValue: v })}
+                    />
+                    <DateRangeFilter
+                        preset={f.datePreset}
+                        fromYM={f.fromYM}
+                        toYM={f.toYM}
+                        monthOptions={monthOptions}
+                        onPresetChange={f.setDatePreset}
+                        onFromYM={f.setFromYM}
+                        onToYM={f.setToYM}
+                    />
+                    <SurfaceButton
+                        onClick={() => setShowAdd(true)}
+                        icon={<Plus size={14} strokeWidth={2} />}
+                        className="px-4 py-2"
+                    >
+                        {t('orders.order.newTitle')}
+                    </SurfaceButton>
+                </div>
+            </div>
+
             {isLoading ? (
                 <OrdersTableSkeleton />
-            ) : orders.length === 0 ? (
+            ) : isEmptyWorkspace ? (
                 <EmptyState
                     icon={<ShoppingBag size={20} strokeWidth={1.5} />}
                     message={t('orders.order.empty')}
@@ -51,6 +134,12 @@ export function OrdersTab() {
                             {t('orders.order.newTitle')}
                         </SurfaceButton>
                     }
+                />
+            ) : total === 0 ? (
+                <EmptyState
+                    icon={<Search size={20} strokeWidth={1.5} />}
+                    message={t('orders.order.noMatch')}
+                    action={<GhostButton onClick={f.reset}>{t('orders.order.clearFilters')}</GhostButton>}
                 />
             ) : (
                 <div className="overflow-x-auto rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
@@ -87,6 +176,13 @@ export function OrdersTab() {
                             ))}
                         </tbody>
                     </table>
+
+                    <div className="flex flex-col gap-3 border-t border-border-subtle px-5 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-[#585d61]">
+                        <span className="text-xs tracking-[0.14px] text-muted">
+                            {t('orders.order.pagination', { start, end, total })}
+                        </span>
+                        <TablePagination page={safePage} totalPages={totalPages} onPageChange={f.setPage} />
+                    </div>
                 </div>
             )}
 

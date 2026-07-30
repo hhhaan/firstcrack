@@ -1,6 +1,6 @@
 import { orderKeys } from '@shared/lib/query-keys';
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { OrderInsert, OrderLineInsert } from './api';
+import type { OrderInsert, OrderLineInsert, OrderPageParams } from './api';
 import { orderApi } from './api';
 
 export { orderKeys };
@@ -11,11 +11,21 @@ export const invalidateAfterCreateOrder = (qc: QueryClient, userId: string) => {
     void qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) });
 };
 
-export const useOrders = (userId: string) =>
+export const useOrdersPaginated = (params: OrderPageParams) =>
     useQuery({
-        queryKey: orderKeys.all(userId),
-        queryFn: () => orderApi.list(userId),
-        enabled: !!userId,
+        queryKey: orderKeys.paginated(params.userId, {
+            page: params.page,
+            pageSize: params.pageSize,
+            status: params.status,
+            platform: params.platform,
+            search: params.search,
+            fromYM: params.fromYM,
+            toYM: params.toYM,
+        }),
+        queryFn: () => orderApi.listPaginated(params),
+        enabled: !!params.userId,
+        // Page N stays on screen while page N+1 loads, instead of flashing the skeleton.
+        placeholderData: (prev) => prev,
     });
 
 export const useRoastingRequirements = (userId: string) =>

@@ -1344,7 +1344,18 @@
             "cancel": "Cancel",
             "cancelConfirm": "Cancel this order? Fulfilled stock will be restored.",
             "unmapped": "{{n}} unmapped",
-            "unmappedHelp": "No product matches these lines, so fulfilling the order deducts no stock and they are excluded from roasting needs. Set the product SKU to the store's SKU or product/variant ID, then sync again."
+            "unmappedHelp": "No product matches these lines, so fulfilling the order deducts no stock and they are excluded from roasting needs. Set the product SKU to the store's SKU or product/variant ID, then sync again.",
+            "searchPlaceholder": "Search buyer or order no.",
+            "allStatuses": "All statuses",
+            "allPlatforms": "All channels",
+            "filter": {
+                "unfulfilled": "Unfulfilled",
+                "fulfilled": "Fulfilled",
+                "cancelled": "Cancelled"
+            },
+            "pagination": "{{start}}–{{end}} of {{total}}",
+            "noMatch": "No orders match these filters.",
+            "clearFilters": "Clear filters"
         },
         "status": {
             "pending": "Pending",

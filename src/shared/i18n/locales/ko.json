@@ -1344,7 +1344,18 @@
             "cancel": "취소",
             "cancelConfirm": "이 주문을 취소할까요? 이행된 재고는 복원됩니다.",
             "unmapped": "미매핑 {{n}}건",
-            "unmappedHelp": "일치하는 상품이 없는 주문 항목입니다. 주문을 이행해도 재고가 차감되지 않고 로스팅 소요량에도 잡히지 않습니다. 상품 SKU를 스토어의 SKU 또는 상품/옵션 ID와 같게 설정한 뒤 다시 동기화하세요."
+            "unmappedHelp": "일치하는 상품이 없는 주문 항목입니다. 주문을 이행해도 재고가 차감되지 않고 로스팅 소요량에도 잡히지 않습니다. 상품 SKU를 스토어의 SKU 또는 상품/옵션 ID와 같게 설정한 뒤 다시 동기화하세요.",
+            "searchPlaceholder": "주문자 또는 주문번호 검색",
+            "allStatuses": "전체 상태",
+            "allPlatforms": "전체 채널",
+            "filter": {
+                "unfulfilled": "미출고",
+                "fulfilled": "출고 완료",
+                "cancelled": "취소"
+            },
+            "pagination": "{{start}}–{{end}} / {{total}}",
+            "noMatch": "조건에 맞는 주문이 없습니다.",
+            "clearFilters": "필터 초기화"
         },
         "status": {
             "pending": "대기",
