@@ -17,6 +17,7 @@ export type DashboardRecentSession = {
     duration_seconds: number | null;
     drop_temp_celsius: number | null;
     roast_level: string | null;
+    bean_label: string | null;
     beans: { name: string; origin: string | null } | null;
     roast_profiles: { name: string; target_level: string | null } | null;
 };

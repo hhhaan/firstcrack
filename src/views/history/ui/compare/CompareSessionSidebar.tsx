@@ -1,4 +1,5 @@
 import { formatDuration, formatElapsed } from '@shared/lib/format';
+import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import type { StoredRoastEvent } from '@shared/types/roast';
 import { AlertCircle } from 'lucide-react';
@@ -39,7 +40,7 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
                 {items.map((item) => {
                     const { session: s, color, hasCurve, events, visible } = item;
-                    const name = s.beans?.name ?? s.roast_profiles?.name ?? '—';
+                    const name = sessionBeanName(s) ?? s.roast_profiles?.name ?? '—';
                     return (
                         <button
                             key={s.id}

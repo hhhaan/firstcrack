@@ -1,4 +1,4 @@
-import { useHistoryChart } from '@entities/roast';
+import { sessionBeanName, useHistoryChart } from '@entities/roast';
 import { useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
@@ -49,7 +49,13 @@ type Column = {
 
 const columns: Column[] = [
     { key: 'date', label: 'Date', width: '100px', sortable: true, render: (s) => formatDateShort(s.roasted_at) },
-    { key: 'bean', label: 'Bean', width: '200px', sortable: true, render: (s) => s.beans?.name ?? '—' },
+    {
+        key: 'bean',
+        label: 'Bean',
+        width: '200px',
+        sortable: true,
+        render: (s) => sessionBeanName(s) ?? '—',
+    },
     {
         key: 'profile',
         label: 'Profile',

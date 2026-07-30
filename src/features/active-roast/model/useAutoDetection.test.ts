@@ -12,6 +12,8 @@ type Props = {
     livePoints: { time: number; bt: number }[];
     markEvent: (event: string, note: string) => void;
     logEntries?: LogEntry[];
+    autoYellowEnabled?: boolean;
+    autoFcStartEnabled?: boolean;
 };
 
 const noop = () => {};
@@ -22,7 +24,21 @@ const renderAutoDetection = (initial: Props) => {
     let latest: ReturnType<typeof useAutoDetection>;
 
     const Probe = (p: Props) => {
-        latest = useAutoDetection(p.livePoints, noop, noop, noop, 5, 150, 200, 'C', p.markEvent, p.logEntries ?? []);
+        latest = useAutoDetection({
+            livePoints: p.livePoints,
+            onAutoCharge: noop,
+            onAutoDrop: noop,
+            onTurningPoint: noop,
+            autoChargeDropC: 5,
+            autoDropDropC: 8,
+            yellowTempC: 150,
+            fcStartTempC: 200,
+            unit: 'C',
+            markEvent: p.markEvent,
+            logEntries: p.logEntries ?? [],
+            autoYellowEnabled: p.autoYellowEnabled ?? true,
+            autoFcStartEnabled: p.autoFcStartEnabled ?? true,
+        });
         return null;
     };
 
@@ -108,5 +124,67 @@ describe('useAutoDetection — Yellow/FC gating', () => {
         expect(h.result.confirmedTP?.fallback).toBeFalsy();
         expect(h.result.confirmedTP?.timeSec).toBeGreaterThan(40);
         expect(h.result.confirmedTP?.timeSec).toBeLessThan(80);
+    });
+
+    it('skips Yellow auto-mark when autoYellowEnabled is false but still fires FC', () => {
+        const markEvent = vi.fn();
+        const props: Props = {
+            livePoints: shallowHotDrumPoints(),
+            markEvent,
+            autoYellowEnabled: false,
+            autoFcStartEnabled: true,
+        };
+        const h = renderAutoDetection(props);
+
+        tick(h, props, 148, 60);
+        tick(h, props, 152, 61); // Yellow threshold cross, gate closed
+        tick(h, props, 198, 120);
+        tick(h, props, 202, 121); // FC threshold cross, gate still closed
+        tick(h, props, 205, 130); // TP fallback opens gate
+        tick(h, props, 208, 131);
+
+        expect(markEvent).not.toHaveBeenCalledWith('Yellow', expect.anything());
+        expect(markEvent).toHaveBeenCalledWith('FC Start', 'Auto-marked by temperature');
+    });
+
+    it('skips FC auto-mark when autoFcStartEnabled is false but still fires Yellow', () => {
+        const markEvent = vi.fn();
+        const props: Props = {
+            livePoints: shallowHotDrumPoints(),
+            markEvent,
+            autoYellowEnabled: true,
+            autoFcStartEnabled: false,
+        };
+        const h = renderAutoDetection(props);
+
+        tick(h, props, 148, 60);
+        tick(h, props, 152, 61);
+        tick(h, props, 198, 120);
+        tick(h, props, 202, 121);
+        tick(h, props, 205, 130);
+        tick(h, props, 208, 131);
+
+        expect(markEvent).toHaveBeenCalledWith('Yellow', 'Auto-marked by temperature');
+        expect(markEvent).not.toHaveBeenCalledWith('FC Start', expect.anything());
+    });
+
+    it('skips both Yellow and FC auto-mark when both toggles are off', () => {
+        const markEvent = vi.fn();
+        const props: Props = {
+            livePoints: shallowHotDrumPoints(),
+            markEvent,
+            autoYellowEnabled: false,
+            autoFcStartEnabled: false,
+        };
+        const h = renderAutoDetection(props);
+
+        tick(h, props, 148, 60);
+        tick(h, props, 152, 61);
+        tick(h, props, 198, 120);
+        tick(h, props, 202, 121);
+        tick(h, props, 205, 130);
+        tick(h, props, 208, 131);
+
+        expect(markEvent).not.toHaveBeenCalled();
     });
 });

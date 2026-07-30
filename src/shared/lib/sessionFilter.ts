@@ -1,3 +1,4 @@
+import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 
 export type SessionSortKey = 'date' | 'bean' | 'duration' | 'drop' | 'level' | 'profile' | 'weight';
@@ -14,7 +15,7 @@ const qMatch = (s: RoastSessionWithRelations, q: string): boolean => {
     if (!q) return true;
     const needle = q.toLowerCase();
     return (
-        (s.beans?.name ?? '').toLowerCase().includes(needle) ||
+        (sessionBeanName(s) ?? '').toLowerCase().includes(needle) ||
         (s.roast_profiles?.name ?? '').toLowerCase().includes(needle) ||
         (s.beans?.origin ?? '').toLowerCase().includes(needle)
     );
@@ -71,7 +72,7 @@ export const sortSessions = (
             case 'date':
                 return compareNullable(a.roasted_at, b.roasted_at, dir);
             case 'bean':
-                return compareNullable(a.beans?.name, b.beans?.name, dir);
+                return compareNullable(sessionBeanName(a), sessionBeanName(b), dir);
             case 'profile':
                 return compareNullable(a.roast_profiles?.name, b.roast_profiles?.name, dir);
             case 'weight':

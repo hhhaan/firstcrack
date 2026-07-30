@@ -40,7 +40,13 @@ export type RoastSettings = {
     rorYMax: number;
     yellowTempC: number;
     fcStartTempC: number;
+    /** Independent: auto-mark Yellow when BT crosses yellowTempC after TP. */
+    autoYellowEnabled: boolean;
+    /** Independent: auto-mark FC Start when BT crosses fcStartTempC after TP. */
+    autoFcStartEnabled: boolean;
     autoChargeDropC: number;
+    /** BT drop within the detection window that auto-marks Drop (after 3 min). */
+    autoDropDropC: number;
     preChargeDisplaySec: number;
     /** Live threshold alarms (RoR crash / BT ceiling). */
     alertsEnabled: boolean;
@@ -74,7 +80,10 @@ const DEFAULT_SETTINGS: RoastSettings = {
     rorYMax: 20,
     yellowTempC: 150,
     fcStartTempC: 200,
+    autoYellowEnabled: true,
+    autoFcStartEnabled: true,
     autoChargeDropC: 5,
+    autoDropDropC: 8,
     preChargeDisplaySec: 60,
     alertsEnabled: true,
     alertSoundEnabled: true,
@@ -107,13 +116,23 @@ const migratePollIntervalMs = (ms: unknown): PollIntervalMs => {
 export const coercePollIntervalForPlan = (ms: PollIntervalMs, canFastPoll: boolean): PollIntervalMs =>
     ms === 500 && !canFastPoll ? 1000 : ms;
 
-const normalize = (raw: Partial<RoastSettings> | null | undefined): RoastSettings => {
+export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | undefined): RoastSettings => {
     const merged = { ...DEFAULT_SETTINGS, ...(raw ?? {}) };
     let controlYMin = clampNum(merged.controlYMin, -50, 500, DEFAULT_SETTINGS.controlYMin);
     let controlYMax = clampNum(merged.controlYMax, -50, 500, DEFAULT_SETTINGS.controlYMax);
     if (controlYMax <= controlYMin) {
         controlYMax = Math.min(500, controlYMin + 1);
         controlYMin = Math.max(-50, controlYMax - 1);
+    }
+
+    let yellowTempC = clampNum(merged.yellowTempC, 50, 300, DEFAULT_SETTINGS.yellowTempC);
+    let fcStartTempC = clampNum(merged.fcStartTempC, 50, 300, DEFAULT_SETTINGS.fcStartTempC);
+    const autoYellowEnabled = asBool(merged.autoYellowEnabled, DEFAULT_SETTINGS.autoYellowEnabled);
+    const autoFcStartEnabled = asBool(merged.autoFcStartEnabled, DEFAULT_SETTINGS.autoFcStartEnabled);
+    // Yellow ≥ FC 역전은 두 자동 마킹이 모두 켜져 발화 순서가 뒤집힐 때만 문제 — 그때만 기본값으로 되돌린다
+    if (autoYellowEnabled && autoFcStartEnabled && yellowTempC >= fcStartTempC) {
+        yellowTempC = DEFAULT_SETTINGS.yellowTempC;
+        fcStartTempC = DEFAULT_SETTINGS.fcStartTempC;
     }
 
     return {
@@ -130,6 +149,11 @@ const normalize = (raw: Partial<RoastSettings> | null | undefined): RoastSetting
         controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
         controlYMin,
         controlYMax,
+        yellowTempC,
+        fcStartTempC,
+        autoDropDropC: clampNum(merged.autoDropDropC, 2, 30, DEFAULT_SETTINGS.autoDropDropC),
+        autoYellowEnabled,
+        autoFcStartEnabled,
         alertsEnabled: asBool(merged.alertsEnabled, DEFAULT_SETTINGS.alertsEnabled),
         alertSoundEnabled: asBool(merged.alertSoundEnabled, DEFAULT_SETTINGS.alertSoundEnabled),
         alertRorCrashCPerMin: clampNum(merged.alertRorCrashCPerMin, -20, 20, DEFAULT_SETTINGS.alertRorCrashCPerMin),
@@ -177,7 +201,7 @@ const _hydrate = async () => {
         if (_userTouched) return;
 
         if (stored) {
-            _settings = normalize(stored);
+            _settings = normalizeRoastSettings(stored);
             if ((_settings.pollIntervalMs as number) === 250) {
                 _settings = { ..._settings, pollIntervalMs: 500 };
                 void _flush();
@@ -188,7 +212,7 @@ const _hydrate = async () => {
 
         const legacy = _consumeLegacyLocalStorage();
         if (legacy) {
-            _settings = normalize(legacy);
+            _settings = normalizeRoastSettings(legacy);
             _emit();
             await settingsSet(STORE_KEY, _settings);
         }
@@ -201,7 +225,7 @@ void _hydrate();
 
 export const updateRoastSettings = (patch: Partial<RoastSettings>) => {
     _userTouched = true;
-    _settings = normalize({ ..._settings, ...patch });
+    _settings = normalizeRoastSettings({ ..._settings, ...patch });
     _emit();
     void _flush();
 };

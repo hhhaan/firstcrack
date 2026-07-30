@@ -38,6 +38,11 @@ export type SaveRoastFormData = {
     outputWeightKg?: number;
     roastLevel: string | null;
     beanId: string | null;
+    /**
+     * Free-text bean name for sample / no-inventory roasts.
+     * Stored on session.bean_label; never creates beans rows or stock events.
+     */
+    beanLabel?: string | null;
     /** resolved handoff for ad-hoc schedule link (from day batches) */
     linkedBatch?: PlanBatchHandoff | null;
     /** When true, server deducts green in the same TX as session save (C1). */
@@ -144,12 +149,18 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     const outputKg = formData.outputWeightKg;
     const outputWeightGrams =
         outputKg != null && Number.isFinite(outputKg) && outputKg > 0 ? Math.round(outputKg * 1000) : null;
-    // Linked / handoff batch supplies bean/blend; else form or header selection
-    const resolvedBeanId = effectiveBatch?.beanId ?? formData.beanId ?? payloadParams.selectedBeanId;
+    // Linked / handoff batch supplies bean/blend; else form selection.
+    // Free-text label (form beanLabel) wins over header selectedBeanId — typing a
+    // custom name must not be overwritten by a pre-charge inventory pick.
     const blendId = effectiveBatch?.blendId ?? null;
+    const beanLabelRaw = formData.beanLabel?.trim() || null;
+    const inventoryBeanId =
+        effectiveBatch?.beanId ?? formData.beanId ?? (beanLabelRaw ? null : payloadParams.selectedBeanId);
+    const resolvedBeanId = inventoryBeanId ?? null;
+    const beanLabel = resolvedBeanId || blendId ? null : beanLabelRaw;
 
-    // Bean/blend required only when green charge weight is set (deduction amount).
-    if (weightGrams > 0 && !resolvedBeanId && !blendId) {
+    // Weight set → need inventory bean/blend or a free-text label (history display).
+    if (weightGrams > 0 && !resolvedBeanId && !blendId && !beanLabel) {
         throw new Error('Select a green bean before saving.');
     }
 
@@ -177,6 +188,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         ambient_temp_celsius: payloadParams.ambientTemperature ?? null,
         ambient_humidity_pct: payloadParams.ambientHumidity ?? null,
         bean_id: resolvedBeanId,
+        bean_label: beanLabel,
         profile_id: payloadParams.targetProfileId,
         tsv_path: null,
         bbp_tsv_path: null,
@@ -186,26 +198,33 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         events: serializeRoastEvents(payloadParams.logEntries),
     };
 
-    const inbound = buildRoastedInbound({
-        greenGrams: weightGrams,
-        outputWeightGrams,
-        roastLevel: formData.roastLevel,
-    });
+    // Free-text label sessions never touch inventory (green deduct or roasted inbound).
+    const canTouchStock = Boolean(resolvedBeanId || blendId);
+    const inbound = canTouchStock
+        ? buildRoastedInbound({
+              greenGrams: weightGrams,
+              outputWeightGrams,
+              roastLevel: formData.roastLevel,
+          })
+        : null;
 
     const cachedBeans = userId ? qc.getQueryData<Bean[]>(beanKeys.all(userId)) : undefined;
     const resolvedBeanName =
         effectiveBatch?.beanName ??
         handoffBeanName ??
+        beanLabel ??
         (resolvedBeanId ? (cachedBeans?.find((b) => b.id === resolvedBeanId)?.name ?? null) : null);
 
     // provisional plan for grams/canDeduct — reference filled after save
-    const provisionalPlan = determineStockDeduction({
-        planBatchHandoff: effectiveBatch,
-        saveWeight: weightGrams,
-        selectedBeanId: resolvedBeanId,
-        referenceId: 'pending',
-        handoffBeanName: resolvedBeanName,
-    });
+    const provisionalPlan = canTouchStock
+        ? determineStockDeduction({
+              planBatchHandoff: effectiveBatch,
+              saveWeight: weightGrams,
+              selectedBeanId: resolvedBeanId,
+              referenceId: 'pending',
+              handoffBeanName: resolvedBeanName,
+          })
+        : null;
 
     const wantDeduct = Boolean(formData.deductStock && provisionalPlan?.canDeduct);
     const deductionGrams = wantDeduct ? (provisionalPlan?.deductionGrams ?? 0) : 0;
@@ -220,16 +239,23 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         throw mapServerBatchGateError(e) ?? e;
     });
 
-    invalidateAfterCreateRoastSession(qc, userId);
+    // Await so inactive History/dashboard caches refetch before the user switches tabs.
+    await invalidateAfterCreateRoastSession(qc, userId);
     if (wantDeduct && provisionalPlan) {
-        void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
+        void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries, refetchType: 'all' });
         if (provisionalPlan.singleBeanId) {
-            void qc.invalidateQueries({ queryKey: stockEventKeys.summary(provisionalPlan.singleBeanId) });
-            void qc.invalidateQueries({ queryKey: stockEventKeys.byBean(provisionalPlan.singleBeanId) });
+            void qc.invalidateQueries({
+                queryKey: stockEventKeys.summary(provisionalPlan.singleBeanId),
+                refetchType: 'all',
+            });
+            void qc.invalidateQueries({
+                queryKey: stockEventKeys.byBean(provisionalPlan.singleBeanId),
+                refetchType: 'all',
+            });
         }
     }
     if (inbound) {
-        void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId) });
+        void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId), refetchType: 'all' });
     }
 
     // Meta returns immediately; curve sync background. Local TSV kept if sync fails.

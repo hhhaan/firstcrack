@@ -1,5 +1,6 @@
 import { useActiveWorkspace } from '@entities/organization';
 import {
+    sessionBeanName,
     useDeleteRoastSession,
     useRoastSessionFilterMeta,
     useRoastSessions,
@@ -347,7 +348,7 @@ export const History = () => {
                     open={deletingId !== null}
                     sessionName={
                         deletingSession
-                            ? `${deletingSession.beans?.name ?? ''} (${formatDateShort(deletingSession.roasted_at)})`.trim()
+                            ? `${sessionBeanName(deletingSession) ?? ''} (${formatDateShort(deletingSession.roasted_at)})`.trim()
                             : ''
                     }
                     isLoading={deleteSession.isPending}

@@ -11,7 +11,6 @@ import { useRoastingStore } from './status';
 const AUTO_WINDOW_S = 2.5; // ≈기존 500ms×5샘플 span(2.0s) 수준
 const AUTO_WINDOW_MIN_SPAN_S = 2; // 윈도우가 이만큼 차기 전엔 판정 안 함
 
-const AUTO_DROP_DROP_C = 8;
 const AUTO_DROP_MIN_ELAPSED_S = 180;
 
 // TP 미확정이 이 시간을 넘으면 현재 시점을 TP로 강제 확정해 Yellow/FC 게이트를 연다
@@ -30,18 +29,37 @@ const slideAndCheckDrop = (ref: { current: TimedSample[] }, bt: number, dropC: n
 
 export type AutoDropOnset = { timeSec: number; bt: number };
 
-export const useAutoDetection = (
-    livePoints: { time: number; bt: number }[],
-    onAutoCharge: (bt: number, chargeTimeMs?: number) => void,
-    onAutoDrop: (onset?: AutoDropOnset) => void,
-    onTurningPoint: (tp: TurningPoint) => void,
-    autoChargeDropC: number = 5,
-    yellowTempC: number = 150,
-    fcStartTempC: number = 200,
-    unit: TemperatureUnit = 'C',
-    markEvent?: (event: string, note: string) => void,
-    logEntries: LogEntry[] = [],
-) => {
+export type UseAutoDetectionOptions = {
+    livePoints: { time: number; bt: number }[];
+    onAutoCharge: (bt: number, chargeTimeMs?: number) => void;
+    onAutoDrop: (onset?: AutoDropOnset) => void;
+    onTurningPoint: (tp: TurningPoint) => void;
+    autoChargeDropC: number;
+    autoDropDropC: number;
+    yellowTempC: number;
+    fcStartTempC: number;
+    unit: TemperatureUnit;
+    markEvent?: (event: string, note: string) => void;
+    logEntries: LogEntry[];
+    autoYellowEnabled: boolean;
+    autoFcStartEnabled: boolean;
+};
+
+export const useAutoDetection = ({
+    livePoints,
+    onAutoCharge,
+    onAutoDrop,
+    onTurningPoint,
+    autoChargeDropC,
+    autoDropDropC,
+    yellowTempC,
+    fcStartTempC,
+    unit,
+    markEvent,
+    logEntries,
+    autoYellowEnabled,
+    autoFcStartEnabled,
+}: UseAutoDetectionOptions) => {
     const btWindowRef = useRef<TimedSample[]>([]);
     const dropWindowRef = useRef<TimedSample[]>([]);
     const autoChargedRef = useRef(false);
@@ -92,7 +110,7 @@ export const useAutoDetection = (
         if (phase !== 'roasting' || bt == null || autoDroppedRef.current) return;
         if (elapsed < AUTO_DROP_MIN_ELAPSED_S) return;
 
-        if (slideAndCheckDrop(dropWindowRef, bt, AUTO_DROP_DROP_C)) {
+        if (slideAndCheckDrop(dropWindowRef, bt, autoDropDropC)) {
             autoDroppedRef.current = true;
             const series = livePointsRef.current.filter((p) => p.time >= 0).map((p) => ({ timeSec: p.time, bt: p.bt }));
             if (series.length === 0 || series[series.length - 1].bt !== bt) {
@@ -100,13 +118,13 @@ export const useAutoDetection = (
                 series.push({ timeSec: t, bt });
             }
             const onset = detectChargeOnset(series, {
-                minDropC: Math.max(2, AUTO_DROP_DROP_C * 0.4),
+                minDropC: Math.max(2, autoDropDropC * 0.4),
             });
             onAutoDrop(
                 onset != null ? { timeSec: Math.max(0, onset.timeSec), bt: onset.bt } : { timeSec: elapsed, bt },
             );
         }
-    }, [phase, bt, elapsed, onAutoDrop]);
+    }, [phase, bt, elapsed, onAutoDrop, autoDropDropC]);
 
     // Auto Yellow / FC Start by temperature — only fire after turning point
     useEffect(() => {
@@ -127,29 +145,42 @@ export const useAutoDetection = (
             if (prev < th && displayBT >= th) pending.current = true;
             else if (displayBT < th) pending.current = false;
         };
+        // Crossing latches always track so re-enabling mid-roast can still fire.
+        // Fire gates are independent — Yellow off must not block FC and vice versa.
         track(yellowPendingRef, yellowTempC);
         track(fcPendingRef, fcStartTempC);
 
         if (!tpFiredRef.current) return;
-        if (!yellowFiredRef.current && yellowPendingRef.current && !logEntries.some((e) => e.event === 'Yellow')) {
+        if (
+            autoYellowEnabled &&
+            !yellowFiredRef.current &&
+            yellowPendingRef.current &&
+            !logEntries.some((e) => e.event === 'Yellow')
+        ) {
             yellowFiredRef.current = true;
             markEvent('Yellow', 'Auto-marked by temperature');
             return; // 한 tick당 자동 이벤트 1개 — Yellow·FC Start 동시 마킹 방지
         }
-        if (!fcStartFiredRef.current && fcPendingRef.current && !logEntries.some((e) => e.event === 'FC Start')) {
+        if (
+            autoFcStartEnabled &&
+            !fcStartFiredRef.current &&
+            fcPendingRef.current &&
+            !logEntries.some((e) => e.event === 'FC Start')
+        ) {
             fcStartFiredRef.current = true;
             markEvent('FC Start', 'Auto-marked by temperature');
         }
-    }, [phase, bt, unit, yellowTempC, fcStartTempC, markEvent, logEntries]);
+    }, [phase, bt, unit, yellowTempC, fcStartTempC, markEvent, logEntries, autoYellowEnabled, autoFcStartEnabled]);
 
     // Turning Point detection — 샘플 수 게이트 없음: 시간 기준 floor는 detectTurningPoints가 소유
     const detectedTPs = useMemo(() => {
-        if (phase !== 'roasting') return [];
+        // TP 확정 후에는 결과가 쓰이지 않는다 — 매 폴링 tick마다 전체 시리즈 재탐색하는 낭비 차단
+        if (phase !== 'roasting' || confirmedTP !== null) return [];
         return detectTurningPoints(
             livePoints.map((p) => p.time),
             livePoints.map((p) => p.bt),
         );
-    }, [phase, livePoints]);
+    }, [phase, livePoints, confirmedTP]);
 
     // Lock in confirmedTP on first detection (no setState in useMemo)
     useEffect(() => {

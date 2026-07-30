@@ -1,8 +1,10 @@
 import {
     type EventMarkerStyle,
+    fromDisplayTemp,
     type PollIntervalMs,
     type RorSpanSec,
     type TemperatureUnit,
+    toDisplayTemp,
     updateRoastSettings,
     useEffectivePollIntervalMs,
     useRoastSettings,
@@ -190,6 +192,13 @@ export const RoastSettingsTab = () => {
     const [showPollUpgradeHint, setShowPollUpgradeHint] = useState(false);
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
 
+    // 절대 온도 입력은 표시 단위를 따르고 저장은 항상 °C. 경계는 °C에서 합성한 뒤 한 번만 변환한다.
+    // (델타/변화율 값 — autoChargeDropC·autoDropDropC·alertRorCrashCPerMin — 은 변환식이 달라 °C 고정)
+    const unit = roastSettings.temperatureUnit;
+    const tempSuffix = `°${unit}`;
+    const dispT = (celsius: number) => Math.round(toDisplayTemp(celsius, unit));
+    const storeT = (display: number) => fromDisplayTemp(display, unit);
+
     return (
         <div className="grid gap-4">
             <SectionCard>
@@ -367,35 +376,52 @@ export const RoastSettingsTab = () => {
                             {
                                 labelKey: 'yellowPoint',
                                 descKey: 'yellowPointDescription',
-                                key: 'yellowTempC' as const,
+                                tempKey: 'yellowTempC' as const,
+                                enableKey: 'autoYellowEnabled' as const,
                             },
                             {
                                 labelKey: 'fcStart',
                                 descKey: 'fcStartDescription',
-                                key: 'fcStartTempC' as const,
+                                tempKey: 'fcStartTempC' as const,
+                                enableKey: 'autoFcStartEnabled' as const,
                             },
                         ] as const
-                    ).map(({ labelKey, descKey, key }) => (
-                        <SettingsOptionRow key={key} justify="between">
-                            <div>
-                                <div className={settingsOptionLabelCls}>{tk(labelKey)}</div>
-                                <div className={settingsOptionDescCls}>{tk(descKey)}</div>
-                            </div>
-                            <NumberInput
-                                value={roastSettings[key]}
-                                onChange={(v) => updateRoastSettings({ [key]: v })}
-                                min={50}
-                                max={300}
-                                suffix="°C"
-                            />
-                        </SettingsOptionRow>
-                    ))}
+                    ).map(({ labelKey, descKey, tempKey, enableKey }) => {
+                        // Yellow < FC 역전 방지: 두 자동 마킹이 모두 켜져 있을 때만 상호 경계 적용
+                        const isYellow = tempKey === 'yellowTempC';
+                        const bothAuto = roastSettings.autoYellowEnabled && roastSettings.autoFcStartEnabled;
+                        const minC = !isYellow && bothAuto ? Math.max(50, roastSettings.yellowTempC + 1) : 50;
+                        const maxC = isYellow && bothAuto ? Math.min(300, roastSettings.fcStartTempC - 1) : 300;
+                        return (
+                            <SettingsOptionRow key={tempKey} justify="between" align="start">
+                                <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={roastSettings[enableKey]}
+                                        onChange={() => updateRoastSettings({ [enableKey]: !roastSettings[enableKey] })}
+                                        className="mt-0.5 h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
+                                    />
+                                    <div className="min-w-0">
+                                        <div className={settingsOptionLabelCls}>{tk(labelKey)}</div>
+                                        <div className={settingsOptionDescCls}>{tk(descKey)}</div>
+                                    </div>
+                                </label>
+                                <NumberInput
+                                    value={dispT(roastSettings[tempKey])}
+                                    onChange={(v) => updateRoastSettings({ [tempKey]: storeT(v) })}
+                                    min={dispT(minC)}
+                                    max={dispT(maxC)}
+                                    suffix={tempSuffix}
+                                />
+                            </SettingsOptionRow>
+                        );
+                    })}
                 </SectionCard.Body>
             </SectionCard>
 
             <SectionCard>
                 <SectionCard.Header title={tk('autoCharge')} description={tk('autoChargeDescription')} />
-                <SectionCard.Body>
+                <SectionCard.Body className="grid gap-3">
                     <SettingsOptionRow justify="between">
                         <div>
                             <div className={settingsOptionLabelCls}>{tk('dropThreshold')}</div>
@@ -405,6 +431,19 @@ export const RoastSettingsTab = () => {
                             value={roastSettings.autoChargeDropC}
                             onChange={(v) => updateRoastSettings({ autoChargeDropC: v })}
                             min={1}
+                            max={30}
+                            suffix="°C"
+                        />
+                    </SettingsOptionRow>
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('autoDropSensitivity')}</div>
+                            <div className={settingsOptionDescCls}>{tk('autoDropSensitivityDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.autoDropDropC}
+                            onChange={(v) => updateRoastSettings({ autoDropDropC: v })}
+                            min={2}
                             max={30}
                             suffix="°C"
                         />
@@ -446,11 +485,11 @@ export const RoastSettingsTab = () => {
                             <div className={settingsOptionDescCls}>{tk('alertBtMaxDescription')}</div>
                         </div>
                         <NumberInput
-                            value={roastSettings.alertBtMaxC}
-                            onChange={(v) => updateRoastSettings({ alertBtMaxC: v })}
-                            min={100}
-                            max={400}
-                            suffix="°C"
+                            value={dispT(roastSettings.alertBtMaxC)}
+                            onChange={(v) => updateRoastSettings({ alertBtMaxC: storeT(v) })}
+                            min={dispT(100)}
+                            max={dispT(400)}
+                            suffix={tempSuffix}
                         />
                     </SettingsOptionRow>
                 </SectionCard.Body>

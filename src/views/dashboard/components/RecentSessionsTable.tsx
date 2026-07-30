@@ -1,4 +1,5 @@
 import { formatDuration } from '@shared/lib/format';
+import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import type { DashboardRecentSession } from '@widgets/dashboard-summary/api/useDashboard';
@@ -73,7 +74,7 @@ export const RecentSessionsTable = ({ data, loading, onNavigate }: RecentSession
                                         {session.roasted_at ? formatDate(session.roasted_at) : '—'}
                                     </td>
                                     <td className="px-6 py-3 text-[13px] text-primary font-medium tracking-[0.14px] whitespace-nowrap">
-                                        {session.beans?.name ?? '—'}
+                                        {sessionBeanName(session) ?? '—'}
                                     </td>
                                     <td className="px-6 py-3 text-[13px] text-secondary tracking-[0.14px] whitespace-nowrap">
                                         {session.roast_profiles?.name ?? '—'}

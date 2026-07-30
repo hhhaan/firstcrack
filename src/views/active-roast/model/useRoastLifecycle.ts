@@ -5,7 +5,6 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { useBatchQuota } from '@features/active-roast/model/useBatchQuota';
 import { FEATURE, useFeature, useWriteAccess } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
-import type { PlanBatchHandoff } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
 import { message } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
@@ -17,16 +16,6 @@ export interface UseRoastLifecycleParams {
     charged: boolean;
     sidecarConnected: boolean;
     rawBT: number | null;
-    /**
-     * Bean is required before charge — saving and stock deduction both key off it.
-     * A scheduled batch is exempt: a blend-only batch legitimately hands off with
-     * `beanId === null` and deducts through the blend path instead.
-     */
-    selectedBeanId: string | null;
-    planBatchHandoff: PlanBatchHandoff | null;
-    /** No registered beans → nothing to select, so the gate must not lock a first-run user out. */
-    hasSelectableBeans: boolean;
-    onBeanSelectionRequired: () => void;
     unit: TemperatureUnit;
     logEntries: LogEntry[];
     timeStr: string;
@@ -62,10 +51,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         charged,
         sidecarConnected,
         rawBT,
-        selectedBeanId,
-        planBatchHandoff,
-        hasSelectableBeans,
-        onBeanSelectionRequired,
         unit,
         logEntries,
         timeStr,
@@ -144,11 +129,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             }
             return;
         }
-        // Asked last so the selection modal only appears when charge would otherwise start.
-        if (!selectedBeanId && !planBatchHandoff && hasSelectableBeans) {
-            onBeanSelectionRequired();
-            return;
-        }
+        // Bean/profile은 여기서 묻지 않는다 — 종료 시 RoastSummaryModal이 필수 검증과 함께 묻는다.
         disableAutoChargeRef.current?.();
         triggerChargeRef.current?.(rawBT);
     }, [
@@ -158,10 +139,6 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         quota.exceeded,
         warnQuotaExceeded,
         rawBT,
-        selectedBeanId,
-        planBatchHandoff,
-        hasSelectableBeans,
-        onBeanSelectionRequired,
         triggerChargeRef,
         setConnected,
         disableAutoChargeRef,

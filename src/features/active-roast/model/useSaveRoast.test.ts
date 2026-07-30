@@ -172,12 +172,12 @@ describe('saveRoastCore', () => {
         expect(arg.deductionGrams).toBe(0);
     });
 
-    it('차감 중량 > 0 + 생두 없음 → 거부', async () => {
+    it('차감 중량 > 0 + 생두 없음 + 라벨 없음 → 거부', async () => {
         const deps = makeDeps();
         await expect(
             saveRoastCore(deps, {
                 ...baseParams,
-                formData: { ...baseParams.formData, beanId: null, weightGrams: 5 },
+                formData: { ...baseParams.formData, beanId: null, beanLabel: null, weightGrams: 5 },
                 selectedBeanId: null,
             }),
         ).rejects.toThrow(/green bean/i);
@@ -201,5 +201,64 @@ describe('saveRoastCore', () => {
         expect(arg.session.bean_id).toBeNull();
         expect(arg.session.weight_grams).toBe(0);
         expect(arg.deduct).toBe(false);
+    });
+
+    it('free-text bean_label → 저장, stock 미반영', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            formData: {
+                ...baseParams.formData,
+                beanId: null,
+                beanLabel: '  Sample Lot A  ',
+                weightGrams: 0.5,
+                outputWeightKg: 0.4,
+                deductStock: true,
+            },
+            selectedBeanId: null,
+        });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.bean_id).toBeNull();
+        expect(arg.session.bean_label).toBe('Sample Lot A');
+        expect(arg.session.weight_grams).toBe(500);
+        expect(arg.deduct).toBe(false);
+        expect(arg.deductionGrams).toBe(0);
+        expect(arg.inboundGrams).toBe(0);
+    });
+
+    it('free-text 입력 시 header selectedBeanId를 덮어쓰지 않음', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            formData: {
+                ...baseParams.formData,
+                beanId: null,
+                beanLabel: 'Sample Only',
+                weightGrams: 0.3,
+                deductStock: true,
+            },
+            selectedBeanId: 'header-bean-id',
+        });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.bean_id).toBeNull();
+        expect(arg.session.bean_label).toBe('Sample Only');
+        expect(arg.deduct).toBe(false);
+        expect(arg.inboundGrams).toBe(0);
+    });
+
+    it('inventory bean 있으면 bean_label 무시', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            formData: {
+                ...baseParams.formData,
+                beanId: 'bean-1',
+                beanLabel: 'should-not-save',
+                deductStock: false,
+            },
+        });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.bean_id).toBe('bean-1');
+        expect(arg.session.bean_label).toBeNull();
     });
 });

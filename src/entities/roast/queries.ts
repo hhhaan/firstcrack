@@ -16,14 +16,20 @@ export const roastSessionKeys = {
     filterMeta: (userId: string) => ['roast_sessions', 'filter_meta', userId] as const,
 };
 
-/** Keys invalidated after create (staleTime Infinity → must not omit). */
-export const invalidateAfterCreateRoastSession = (qc: QueryClient, userId: string) => {
-    void qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
-    void qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
-    void qc.invalidateQueries({ queryKey: roastSessionKeys.completedCount(userId) });
-    void qc.invalidateQueries({ queryKey: roastSessionKeys.completedMonthCount(userId) });
-    void qc.invalidateQueries({ queryKey: roastSessionKeys.filterMeta(userId) });
-    void qc.invalidateQueries({ queryKey: dashboardKeys.all(userId) });
+/**
+ * After create (staleTime Infinity → must not omit).
+ * `refetchType: 'all'` — History is usually unmounted during Active Roast save, so
+ * default `active`-only invalidation left stale inactive caches until full app reload.
+ */
+export const invalidateAfterCreateRoastSession = async (qc: QueryClient, userId: string) => {
+    await Promise.all([
+        qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId), refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId), refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: roastSessionKeys.completedCount(userId), refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: roastSessionKeys.completedMonthCount(userId), refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: roastSessionKeys.filterMeta(userId), refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: dashboardKeys.all(userId), refetchType: 'all' }),
+    ]);
 };
 
 /** Lifetime completed sessions — trial quota display. */
@@ -49,6 +55,7 @@ export const useRoastSessions = (userId: string, status?: RoastSession['status']
         queryKey: status ? roastSessionKeys.byStatus(userId, status) : roastSessionKeys.all(userId),
         queryFn: () => roastSessionApi.list(userId, status),
         staleTime: Infinity,
+        refetchOnMount: true,
         enabled: !!userId && (options?.enabled ?? true),
     });
 
@@ -57,6 +64,7 @@ export const useRoastSessionFilterMeta = (userId: string) =>
         queryKey: roastSessionKeys.filterMeta(userId),
         queryFn: () => roastSessionApi.listFilterMeta(userId),
         staleTime: Infinity,
+        refetchOnMount: true,
         enabled: !!userId,
     });
 
@@ -80,7 +88,7 @@ export const useCreateRoastSession = (userId: string) => {
         mutationFn: roastSessionApi.create,
         retry: (failureCount, error) => !is4xx(error) && failureCount < 3,
         onSuccess: () => {
-            invalidateAfterCreateRoastSession(qc, userId);
+            void invalidateAfterCreateRoastSession(qc, userId);
         },
     });
 };
@@ -113,10 +121,10 @@ export const useRoastSessionsPaginated = (params: {
 }) =>
     useQuery({
         queryKey: [
-            'roast_sessions',
-            'paginated',
-            params.userId,
+            ...roastSessionKeys.paginated(params.userId),
+            params.status ?? null,
             params.page,
+            params.pageSize,
             params.sortKey,
             params.sortAsc,
             params.level,
@@ -125,6 +133,8 @@ export const useRoastSessionsPaginated = (params: {
         ],
         queryFn: () => roastSessionApi.listPaginated(params),
         staleTime: Infinity,
+        // Remount after save must not reuse stale cached pages (staleTime Infinity).
+        refetchOnMount: true,
         enabled: !!params.userId && (params.enabled ?? true),
     });
 

@@ -3,6 +3,10 @@ import type { TemperatureUnit } from '../model/settings';
 export const toDisplayTemp = (celsius: number, unit: TemperatureUnit): number =>
     unit === 'F' ? (celsius * 9) / 5 + 32 : celsius;
 
+/** toDisplayTemp의 역변환 — 표시 단위 값을 저장 단위(°C)로 되돌린다 */
+export const fromDisplayTemp = (display: number, unit: TemperatureUnit): number =>
+    unit === 'F' ? ((display - 32) * 5) / 9 : display;
+
 export const formatTemp = (celsius: number | null, unit: TemperatureUnit): string =>
     celsius == null ? '—' : `${toDisplayTemp(celsius, unit).toFixed(1)}°${unit}`;
 

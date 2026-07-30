@@ -217,6 +217,7 @@ export const roastSessionApi = {
             duration_seconds: number | null;
             drop_temp_celsius: number | null;
             roast_level: string | null;
+            bean_label: string | null;
             beans: { name: string; origin: string | null } | null;
             roast_profiles: { name: string; target_level: string | null } | null;
         }>
@@ -224,7 +225,7 @@ export const roastSessionApi = {
         const { data, error } = await supabase
             .from('roast_sessions')
             .select(
-                'id, roasted_at, weight_grams, duration_seconds, drop_temp_celsius, roast_level, beans(name, origin), roast_profiles!profile_id(name, target_level)',
+                'id, roasted_at, weight_grams, duration_seconds, drop_temp_celsius, roast_level, bean_label, beans(name, origin), roast_profiles!profile_id(name, target_level)',
             )
             .eq('user_id', userId)
             .eq('status', 'completed')

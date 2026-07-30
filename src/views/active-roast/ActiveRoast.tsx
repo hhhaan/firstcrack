@@ -1,4 +1,3 @@
-import { useBeans } from '@entities/bean';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import { useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
@@ -26,7 +25,6 @@ import { useRoastSessionStore } from '@shared/store/roastSession';
 import { useThemeStore } from '@shared/store/theme';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
-import { PreChargeSelectionModal } from '@widgets/pre-charge-selection-modal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useShallow } from 'zustand/react/shallow';
@@ -95,8 +93,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const { workspaceOwnerId } = useActiveWorkspace();
     const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
     const { data: userProfile } = useProfile(user?.id ?? '');
-    // Same key as RoastHeader/PreChargeSelectionModal — React Query dedupes the fetch.
-    const { data: beans = [] } = useBeans(workspaceOwnerId);
 
     // ── 배치 핸드오프 ─────────────────────────────────────────────
     const planBatchHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
@@ -108,9 +104,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         useRoastProfileSelection({ isActive, charged, userProfile });
 
     // ── UI 상태 ───────────────────────────────────────────────────
-    const [preChargeSelectionOpen, setPreChargeSelectionOpen] = useState(false);
-    const openPreChargeSelection = useCallback(() => setPreChargeSelectionOpen(true), []);
-    const closePreChargeSelection = useCallback(() => setPreChargeSelectionOpen(false), []);
     const [isRunning, setIsRunning] = useState(false);
     const isRunningRef = useRef(isRunning);
     useEffect(() => {
@@ -181,10 +174,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         charged,
         sidecarConnected,
         rawBT,
-        selectedBeanId,
-        planBatchHandoff,
-        hasSelectableBeans: beans.length > 0,
-        onBeanSelectionRequired: openPreChargeSelection,
         unit,
         logEntries,
         timeStr,
@@ -233,18 +222,21 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         roastStartTimeRef,
     });
 
-    const { turningPoints, resetAutoDetection, disableAutoCharge } = useAutoDetection(
+    const { turningPoints, resetAutoDetection, disableAutoCharge } = useAutoDetection({
         livePoints,
-        triggerCharge,
-        handleAutoDrop,
-        handleTurningPoint,
-        roastSettings.autoChargeDropC,
-        roastSettings.yellowTempC,
-        roastSettings.fcStartTempC,
+        onAutoCharge: triggerCharge,
+        onAutoDrop: handleAutoDrop,
+        onTurningPoint: handleTurningPoint,
+        autoChargeDropC: roastSettings.autoChargeDropC,
+        autoDropDropC: roastSettings.autoDropDropC,
+        yellowTempC: roastSettings.yellowTempC,
+        fcStartTempC: roastSettings.fcStartTempC,
         unit,
         markEvent,
         logEntries,
-    );
+        autoYellowEnabled: roastSettings.autoYellowEnabled,
+        autoFcStartEnabled: roastSettings.autoFcStartEnabled,
+    });
 
     useEffect(() => {
         resetAutoDetectionRef.current = resetAutoDetection;
@@ -596,19 +588,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     lifecycle.resetActiveRoast();
                 }}
                 onSave={saveFlow.handleSave}
-            />
-
-            <PreChargeSelectionModal
-                open={preChargeSelectionOpen}
-                selectedBeanId={selectedBeanId}
-                targetProfileId={targetProfileId}
-                onBeanChange={setSelectedBeanId}
-                onProfileChange={setUserSelectedTarget}
-                onClose={closePreChargeSelection}
-                onConfirm={() => {
-                    closePreChargeSelection();
-                    void lifecycle.handleManualCharge();
-                }}
             />
 
             <PlanBatchContinueModal

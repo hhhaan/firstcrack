@@ -6,13 +6,14 @@ import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandof
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
+import { BeanCombobox } from '@shared/ui/BeanCombobox';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Spinner } from '@shared/ui/Spinner';
 import { format } from 'date-fns';
 import { Check, Coffee } from 'lucide-react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -27,6 +28,8 @@ const baseRoastSummarySchema = z.object({
     outputWeightKg: z.union([z.number().min(0, 'Weight must be 0 or greater'), z.nan()]).optional(),
     roastLevel: z.string().nullable(),
     beanId: z.string().nullable(),
+    /** Free-text when no inventory bean selected (sample / no-stock). */
+    beanLabel: z.string().max(120),
     /** ad-hoc only: link to today's schedule batch, or none */
     linkMode: z.enum(['schedule', 'none']),
     planBatchId: z.string().nullable(),
@@ -63,17 +66,6 @@ const ROAST_LEVEL_VALUES = [
 
 const beanMeta = (b: { origin: string | null; region: string | null; farm: string | null; variety: string | null }) =>
     [b.origin, b.region, b.farm, b.variety].filter(Boolean).join(' · ');
-
-const beanOptionLabel = (b: {
-    name: string;
-    origin: string | null;
-    region: string | null;
-    farm: string | null;
-    variety: string | null;
-}) => {
-    const meta = beanMeta(b);
-    return meta ? `${b.name} (${meta})` : b.name;
-};
 
 const batchOptionLabel = (b: PlanBatchWithProgress) =>
     `${b.bean_name} · ${b.batch_size_kg}kg · ${b.completed_sessions}/${b.batch_count}`;
@@ -122,11 +114,13 @@ export const RoastSummaryModal = ({
                     }
                     return;
                 }
-                // Bean only required when green charge weight is set (stock-deduct path).
-                if (data.weightGrams > 0 && !data.beanId) {
+                // Weight set → inventory bean or free-text label (history needs a name).
+                if (data.weightGrams <= 0) return;
+                if (data.beanId) return;
+                if (!data.beanLabel.trim()) {
                     ctx.addIssue({
                         code: 'custom',
-                        path: ['beanId'],
+                        path: ['beanLabel'],
                         message: t('activeRoast.summary.beanRequired'),
                     });
                 }
@@ -149,6 +143,7 @@ export const RoastSummaryModal = ({
             outputWeightKg: undefined,
             roastLevel: null,
             beanId: selectedBeanId,
+            beanLabel: '',
             linkMode: hasHandoff ? 'schedule' : 'none',
             planBatchId: planBatchHandoff?.planBatchId ?? null,
             deductStock: false,
@@ -157,11 +152,15 @@ export const RoastSummaryModal = ({
 
     const roastLevel = watch('roastLevel');
     const formBeanId = watch('beanId');
+    const beanLabel = watch('beanLabel');
     const linkMode = watch('linkMode');
     const formPlanBatchId = watch('planBatchId');
     const deductStock = watch('deductStock');
     const weightGrams = watch('weightGrams');
     const outputWeightKg = watch('outputWeightKg');
+
+    /** Remount combobox when the modal opens so query syncs with prefill. */
+    const [beanComboboxKey, setBeanComboboxKey] = useState(0);
 
     /** null until both green and measured output are present — then the real loss %. */
     const lossPreview = useMemo(() => {
@@ -194,16 +193,20 @@ export const RoastSummaryModal = ({
                 outputWeightKg: undefined,
                 roastLevel: prefill.roastLevel,
                 beanId: prefill.beanId,
+                beanLabel: '',
                 linkMode: handoff ? 'schedule' : 'none',
                 planBatchId: handoff?.planBatchId ?? null,
                 deductStock: false,
             });
+            setBeanComboboxKey((k) => k + 1);
         }
     }, [open, summaryData, reset]);
 
     useEffect(() => {
         if (open && summaryData && !planBatchHandoff && selectedBeanId) {
             setValue('beanId', selectedBeanId, { shouldDirty: false });
+            setValue('beanLabel', '', { shouldDirty: false });
+            setBeanComboboxKey((k) => k + 1);
         }
     }, [selectedBeanId, open, summaryData, setValue, planBatchHandoff]);
 
@@ -227,14 +230,15 @@ export const RoastSummaryModal = ({
         }
         if (linkedBeanId) {
             setValue('beanId', linkedBeanId, { shouldDirty: true, shouldValidate: true });
+            setValue('beanLabel', '', { shouldDirty: true });
+            setBeanComboboxKey((k) => k + 1);
         }
     }, [open, summaryData, hasHandoff, linkMode, linkedBatchId, linkedBatchSizeKg, linkedBeanId, setValue]);
 
     const showBeanPicker = !hasHandoff && linkMode === 'none';
-    const showBeanReadonly =
-        hasHandoff || (linkMode === 'schedule' && Boolean(effectiveHandoff)) || Boolean(selectedBeanId);
+    const showBeanReadonly = hasHandoff || (linkMode === 'schedule' && Boolean(effectiveHandoff));
 
-    const resolvedBeanId = effectiveHandoff?.beanId ?? formBeanId ?? selectedBeanId;
+    const resolvedBeanId = effectiveHandoff?.beanId ?? formBeanId ?? null;
     const displayBean = useMemo(
         () => (resolvedBeanId ? beans.find((b) => b.id === resolvedBeanId) : undefined),
         [beans, resolvedBeanId],
@@ -247,7 +251,11 @@ export const RoastSummaryModal = ({
         return effectiveHandoff?.batchSizeKg ?? 0;
     }, [effectiveHandoff, weightGrams]);
 
-    const canDeduct = deductionKg > 0 && Boolean(resolvedBeanId || effectiveHandoff?.blendId || hasBlendHandoff);
+    const isCustomBean = showBeanPicker && !formBeanId && Boolean(beanLabel.trim());
+    const canDeduct =
+        !isCustomBean && deductionKg > 0 && Boolean(resolvedBeanId || effectiveHandoff?.blendId || hasBlendHandoff);
+
+    const beanComboboxItems = useMemo(() => beans.map((b) => ({ id: b.id, name: b.name })), [beans]);
 
     if (!open || !summaryData) {
         return null;
@@ -425,35 +433,52 @@ export const RoastSummaryModal = ({
                         {showBeanPicker ? (
                             <>
                                 <p className="text-[11px] text-muted leading-snug mb-1.5">
-                                    {t('activeRoast.summary.beanHint')}
+                                    {t('activeRoast.summary.beanComboboxHint')}
                                 </p>
                                 <div
-                                    className={`rounded-lg bg-surface dark:bg-[#262B31] px-3 py-0.5 ${
-                                        errors.beanId ? 'ring-1 ring-red-400/80' : ''
-                                    }`}
+                                    className={
+                                        errors.beanLabel || errors.beanId ? 'rounded-lg ring-1 ring-red-400/80' : ''
+                                    }
                                 >
-                                    <select
+                                    <BeanCombobox
+                                        key={beanComboboxKey}
                                         data-testid="roast-summary-bean"
-                                        value={formBeanId ?? ''}
-                                        onChange={(e) =>
-                                            setValue('beanId', e.target.value || null, {
+                                        items={beanComboboxItems}
+                                        selectedId={formBeanId ?? ''}
+                                        placeholder={t('activeRoast.summary.beanComboboxPlaceholder')}
+                                        emptyLabel={t('activeRoast.summary.beanComboboxEmpty')}
+                                        listToggleLabel={t('activeRoast.summary.beanComboboxToggle')}
+                                        onSelect={(id) => {
+                                            setValue('beanId', id || null, {
                                                 shouldDirty: true,
                                                 shouldValidate: true,
-                                            })
-                                        }
-                                        className="w-full py-2 bg-transparent border-none outline-none text-primary text-[13px] cursor-pointer appearance-none"
-                                    >
-                                        <option value="">{t('activeRoast.summary.beanPlaceholder')}</option>
-                                        {beans.map((b) => (
-                                            <option key={b.id} value={b.id}>
-                                                {beanOptionLabel(b)}
-                                            </option>
-                                        ))}
-                                    </select>
+                                            });
+                                            if (id) {
+                                                setValue('beanLabel', '', {
+                                                    shouldDirty: true,
+                                                    shouldValidate: true,
+                                                });
+                                            }
+                                        }}
+                                        onFreeText={(name) => {
+                                            setValue('beanId', null, { shouldDirty: true, shouldValidate: true });
+                                            setValue('beanLabel', name, {
+                                                shouldDirty: true,
+                                                shouldValidate: true,
+                                            });
+                                            if (name.trim()) setValue('deductStock', false);
+                                        }}
+                                    />
                                 </div>
-                                {errors.beanId && (
-                                    <p className="text-[11px] text-red-500 mt-1">{errors.beanId.message}</p>
-                                )}
+                                {errors.beanLabel || errors.beanId ? (
+                                    <p className="text-[11px] text-red-500 mt-1">
+                                        {errors.beanLabel?.message ?? errors.beanId?.message}
+                                    </p>
+                                ) : isCustomBean ? (
+                                    <p className="text-[11px] text-muted mt-1">
+                                        {t('activeRoast.summary.beanLabelNoStock')}
+                                    </p>
+                                ) : null}
                             </>
                         ) : (
                             <div className="rounded-lg bg-surface dark:bg-[#262B31] px-3 py-2.5 flex items-start gap-2.5">
@@ -564,7 +589,9 @@ export const RoastSummaryModal = ({
                     <span className="text-[12px] text-primary leading-snug">
                         {canDeduct
                             ? t('activeRoast.summary.deductStock', { kg: deductionKg.toFixed(1) })
-                            : t('activeRoast.summary.deductStockDisabled')}
+                            : isCustomBean
+                              ? t('activeRoast.summary.deductStockCustomBean')
+                              : t('activeRoast.summary.deductStockDisabled')}
                     </span>
                 </label>
             </ModalScrollBody>

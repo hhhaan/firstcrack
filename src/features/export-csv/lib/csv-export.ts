@@ -1,5 +1,6 @@
 import { formatDuration } from '@shared/lib/format';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
+import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 
 /** Escape a CSV field — wrap in quotes if it contains comma, quote, or newline. */
@@ -67,7 +68,7 @@ const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
 
     return {
         date: s.roasted_at ? s.roasted_at.slice(0, 10) : '',
-        bean: s.beans?.name ?? '',
+        bean: sessionBeanName(s) ?? '',
         origin: s.beans?.origin ?? '',
         profile: s.roast_profiles?.name ?? '',
         weightGrams: s.weight_grams ?? 0,

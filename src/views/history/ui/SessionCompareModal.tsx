@@ -1,4 +1,4 @@
-import { useHistoryCharts } from '@entities/roast';
+import { sessionBeanName, useHistoryCharts } from '@entities/roast';
 import { computePhaseSegments } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
@@ -62,7 +62,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 const points = curveQueries[i]?.data ?? [];
                 return {
                     id: s.id,
-                    label: s.beans?.name ?? formatDateShort(s.roasted_at),
+                    label: sessionBeanName(s) ?? formatDateShort(s.roasted_at),
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
                     points,
                     markers: eventsBySession[i]
@@ -87,7 +87,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 return {
                     id: s.id,
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
-                    label: s.beans?.name ?? '—',
+                    label: sessionBeanName(s) ?? '—',
                     segments: computePhaseSegments(logs, totalSec, totalSec > 0),
                     totalSec,
                     visible: !hiddenIds.has(s.id),
@@ -200,7 +200,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                                     style={{ backgroundColor: item.color }}
                                                 />
                                                 <span className="truncate text-[11px] font-semibold text-primary">
-                                                    {item.session.beans?.name ?? '—'}
+                                                    {sessionBeanName(item.session) ?? '—'}
                                                 </span>
                                             </div>
                                         </th>

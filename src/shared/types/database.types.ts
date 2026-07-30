@@ -1537,6 +1537,8 @@ export type Database = {
                     bbp_seconds: number | null;
                     bbp_tsv_path: string | null;
                     bean_id: string | null;
+                    /** Free-text name when bean_id is null (sample / no-inventory). */
+                    bean_label: string | null;
                     charge_temp_celsius: number | null;
                     created_at: string;
                     created_by: string | null;
@@ -1563,6 +1565,7 @@ export type Database = {
                     bbp_seconds?: number | null;
                     bbp_tsv_path?: string | null;
                     bean_id?: string | null;
+                    bean_label?: string | null;
                     charge_temp_celsius?: number | null;
                     created_at?: string;
                     created_by?: string | null;
@@ -1589,6 +1592,7 @@ export type Database = {
                     bbp_seconds?: number | null;
                     bbp_tsv_path?: string | null;
                     bean_id?: string | null;
+                    bean_label?: string | null;
                     charge_temp_celsius?: number | null;
                     created_at?: string;
                     created_by?: string | null;
