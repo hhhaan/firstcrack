@@ -1,11 +1,18 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @font-face {
-    font-family: "Pretendard";
-    src: url("/fonts/PretendardVariable.woff2") format("woff2-variations");
+    font-family: "Inter";
+    src: url("/fonts/InterVariable.woff2") format("woff2-variations");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "SUIT";
+    src: url("/fonts/SUIT-Variable.woff2") format("woff2-variations");
     font-weight: 100 900;
     font-style: normal;
     font-display: swap;
@@ -13,8 +20,8 @@
 
 /* ── Light theme ─────────────────────────────────────────────── */
 @theme {
-    --font-display: "Inter", "Pretendard", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-body: "Inter", "Pretendard", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: "Inter", "SUIT", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body: "Inter", "SUIT", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: monospace;
 
     --color-main-bg: #ffffff;

@@ -99,11 +99,11 @@ CSS 변수는 `src/App.css`의 `@theme` 블록에 정의되어 있음.
 
 | 속성 | 값 |
 |---|---|
-| `--font-display` | `'Inter', 'Pretendard', system-ui, -apple-system, sans-serif` |
-| `--font-body` | `'Inter', 'Pretendard', system-ui, -apple-system, sans-serif` |
+| `--font-display` | `'Inter', 'SUIT', system-ui, -apple-system, sans-serif` |
+| `--font-body` | `'Inter', 'SUIT', system-ui, -apple-system, sans-serif` |
 | `--font-mono` | `monospace` |
 
-- **영문 전용 페이지**에서는 Pretendard 제외: `html[lang='en']` → `--font-display: 'Inter', system-ui...`
+- **영문 전용 페이지**에서는 SUIT(한글 폴백) 제외: `html[lang='en']` → `--font-display: 'Inter', system-ui...`
 - **`font-variant-numeric: tabular-nums lining-nums`** 가 `body`에 전역 적용. 재선언 금지.
 - **`font-kerning: normal`**, `font-feature-settings: 'kern' 1, 'tnum' 1, 'lnum' 1, 'zero' 1`
 
@@ -388,8 +388,8 @@ label:   px-2 py-1 / text-[11px] / font-medium / uppercase / tracking-[0.5px] / 
 
 | 리소스 | 위치 |
 |---|---|
-| Pretendard 폰트 | `public/fonts/PretendardVariable.woff2` |
-| Inter 폰트 | Google Fonts (`https://fonts.googleapis.com/css2?family=Inter:wght@100..900`) |
+| Inter 폰트 (Latin primary) | `public/fonts/InterVariable.woff2` |
+| SUIT 폰트 (한글 폴백) | `public/fonts/SUIT-Variable.woff2` |
 | 아이콘 | `lucide-react` 패키지 |
 
 ---
