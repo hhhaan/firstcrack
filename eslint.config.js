@@ -31,8 +31,10 @@ export default tseslint.config(
     },
     // type-aware 규칙 — Biome이 못 잡는 타입 기반 검사. tsconfig 프로젝트에 속한 src만 대상
     // (supabase/functions는 Deno라 projectService 파싱 불가)
+    // tests: tsconfig.json exclude + tsconfig.test.json — projectService can't resolve them
     {
         files: ['src/**/*.{ts,tsx}'],
+        ignores: ['src/**/*.{test,spec}.{ts,tsx}'],
         languageOptions: {
             parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
         },
