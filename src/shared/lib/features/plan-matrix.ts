@@ -1,10 +1,11 @@
 import { FEATURE, type FeatureKey } from './keys';
 
-/** `profiles.plan` states: trial | read_only | pro | pro_plus | enterprise (+ legacy free/team). */
-const PAID_PLANS = new Set(['pro', 'team', 'pro_plus', 'enterprise']);
+/** `profiles.plan` states: trial | read_only | pro | pro_plus | tester | enterprise (+ legacy free/team). */
+/** `tester` is internal-only, entitled exactly like pro_plus. */
+const PAID_PLANS = new Set(['pro', 'team', 'pro_plus', 'tester', 'enterprise']);
 
 /** Multi-machine (2+): Pro+ and above. Legacy `team` maps to enterprise-class. */
-const MULTI_MACHINE_PLANS = new Set(['pro_plus', 'enterprise', 'team']);
+const MULTI_MACHINE_PLANS = new Set(['pro_plus', 'tester', 'enterprise', 'team']);
 
 /** E-commerce order integration: enterprise-class only (legacy `team` included). */
 const ORDER_INTEGRATION_PLANS = new Set(['enterprise', 'team']);

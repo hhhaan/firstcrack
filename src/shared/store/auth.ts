@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase';
 export type AuthErrorCode = 'invalid_credentials' | 'network' | 'oauth_failed' | 'session_replaced' | 'generic';
 
 /** SSOT states + legacy values still present mid-rollout. 'free' doubles as the loading placeholder (no features, writable). */
-export type Plan = 'trial' | 'read_only' | 'pro' | 'pro_plus' | 'enterprise' | 'free' | 'team';
+export type Plan = 'trial' | 'read_only' | 'pro' | 'pro_plus' | 'tester' | 'enterprise' | 'free' | 'team';
 
 const OAUTH_TIMEOUT_MS = 90_000;
 let oauthTimeoutId: ReturnType<typeof setTimeout> | undefined;
