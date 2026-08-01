@@ -7,9 +7,6 @@ import {
 } from '@shared/lib/stock-calc';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 
-/** @deprecated Use STOCK_HORIZON_DAYS from stock-calc */
-export const STOCK_RESERVATION_HORIZON_DAYS = STOCK_HORIZON_DAYS;
-
 export const batchGreenNeededGramsFromBatch = (batch: PlanBatchWithProgress): number =>
     batchGreenNeededGrams(batch.batch_count, batch.completed_sessions, Number(batch.batch_size_kg));
 

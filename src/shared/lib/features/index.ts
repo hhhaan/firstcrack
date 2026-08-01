@@ -1,5 +1,4 @@
 export { type EffectivePlanInput, resolveEffectivePlan } from './effective-plan';
-export { FeatureGate } from './FeatureGate';
 export { FEATURE, type FeatureKey } from './keys';
 export {
     type BatchGateCode,

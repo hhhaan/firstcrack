@@ -1,4 +1,4 @@
-import type { RoastersResponse, SerialPort, SidecarStatus, TemperatureReading } from '@entities/machine';
+import type { SerialPort, SidecarStatus, TemperatureReading } from '@entities/machine';
 import { invoke } from '@tauri-apps/api/core';
 import { logger } from './logger';
 
@@ -53,8 +53,6 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_
 }
 
 export const sidecar = {
-    getRoasters: () => request<RoastersResponse>('/roasters'),
-
     getStatus: () => request<SidecarStatus>('/status'),
 
     connect: (roasterKey: string, params: Record<string, unknown>) =>

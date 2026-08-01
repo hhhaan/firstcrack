@@ -73,29 +73,6 @@ export const beanStockEventApi = {
         if (error) throw error;
     },
 
-    getCurrentStock: async (beanId: string): Promise<number> => {
-        const { data, error } = await supabase.rpc('get_bean_current_stock', { p_bean_id: beanId });
-        if (error) throw error;
-        return (data as number) ?? 0;
-    },
-
-    getAvailableStock: async (beanId: string): Promise<number> => {
-        const { data, error } = await supabase.rpc('get_bean_available_stock', { p_bean_id: beanId });
-        if (error) throw error;
-        return (data as number) ?? 0;
-    },
-
-    getReservedStock: async (beanId: string, horizonDays?: number): Promise<number> => {
-        const horizon = horizonDays ?? (await inventoryStore.getHorizonDays());
-
-        const { data, error } = await supabase.rpc('get_bean_reserved_stock', {
-            p_bean_id: beanId,
-            p_horizon_days: horizon,
-        });
-        if (error) throw error;
-        return (data as number) ?? 0;
-    },
-
     getStockSummary: async (beanId: string, horizonDays?: number): Promise<StockSummary> => {
         const horizon = horizonDays ?? (await inventoryStore.getHorizonDays());
 

@@ -44,6 +44,3 @@ export const parseStockSummaryJson = (raw: {
     reservedGrams: raw.reserved_grams ?? 0,
     effectiveGrams: raw.effective_grams ?? 0,
 });
-
-/** @deprecated Use STOCK_HORIZON_DAYS */
-export const STOCK_RESERVATION_HORIZON_DAYS = STOCK_HORIZON_DAYS;

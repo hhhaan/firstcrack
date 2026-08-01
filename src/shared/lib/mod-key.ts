@@ -10,6 +10,3 @@ export const isAppleOs = (): boolean => {
         return /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent);
     }
 };
-
-/** Display string fallback (non-UI). Prefer renderModShortcut for UI. */
-export const formatModShortcut = (key: string): string => (isAppleOs() ? `⌘${key}` : `Ctrl+${key}`);
