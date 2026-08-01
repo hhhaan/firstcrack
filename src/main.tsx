@@ -42,9 +42,12 @@ const queryClient = new QueryClient({
     },
 });
 
-if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
+// DSN은 클라이언트 공개값 (Rust/사이드카도 동일하게 하드코딩) — 빌드 시크릿 의존 제거
+const SENTRY_DSN = 'https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944';
+
+if (import.meta.env.PROD) {
     Sentry.init({
-        dsn: import.meta.env.VITE_SENTRY_DSN,
+        dsn: SENTRY_DSN,
         environment: 'production',
         release: __APP_VERSION__,
         integrations: [Sentry.browserTracingIntegration()],
