@@ -29,6 +29,7 @@ import { Pricing } from './views/pricing/Pricing';
 import { Profiles } from './views/profiles/Profiles';
 import { Schedule } from './views/schedule/Schedule';
 import { InventoryAlertBanner } from './widgets/inventory-alert-banner';
+import { PendingRoastRecovery } from './widgets/pending-roast-recovery';
 import { SettingsModal, type SettingsTabId } from './widgets/settings-modal/ui/SettingsModal';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
@@ -202,6 +203,7 @@ export const App = () => {
                 }}
             >
                 {theme === null && <ThemeSelectModal />}
+                <PendingRoastRecovery />
                 <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                     <Sidebar
                         activeView={view}
