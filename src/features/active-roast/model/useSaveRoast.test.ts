@@ -168,6 +168,46 @@ describe('saveRoastCore', () => {
         expect(arg.session.id).toBe('local-sess');
     });
 
+    it('drop_temp: Drop 로그 tempC 우선 (라이브 rawBT 무시) (#173)', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            rawBT: 160,
+            logEntries: [
+                { id: '1', time: '0:00', timeSec: 0, event: 'Charge', temp: '', tempC: 180, note: '' },
+                { id: '2', time: '10:00', timeSec: 600, event: 'Drop', temp: '', tempC: 205.4, note: '' },
+                { id: '3', time: '10:05', timeSec: 605, event: 'End', temp: '', tempC: 204, note: '' },
+            ],
+        });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.drop_temp_celsius).toBe(205);
+    });
+
+    it('drop_temp: Drop 없으면 End tempC (#173)', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            rawBT: 160,
+            logEntries: [
+                { id: '1', time: '0:00', timeSec: 0, event: 'Charge', temp: '', tempC: 180, note: '' },
+                { id: '2', time: '10:05', timeSec: 605, event: 'End', temp: '', tempC: 210.2, note: '' },
+            ],
+        });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.drop_temp_celsius).toBe(210);
+    });
+
+    it('drop_temp: 로그 온도 없으면 rawBT fallback (#173)', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            rawBT: 199.6,
+            logEntries: [{ id: '1', time: '0:00', timeSec: 0, event: 'Charge', temp: '', note: '' }],
+        });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.drop_temp_celsius).toBe(200);
+    });
+
     it('sessionId 없음 → session.id undefined (서버 발급 폴백)', async () => {
         const deps = makeDeps();
         await saveRoastCore(deps, { ...baseParams, sessionId: null });

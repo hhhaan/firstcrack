@@ -8,6 +8,7 @@ import { determineStockDeduction } from '@features/active-roast/lib/determine-st
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useBbpStore } from '@features/active-roast/model/bbp';
+import { i18n } from '@shared/i18n';
 import {
     BatchLimitError,
     canCompleteBatch,
@@ -28,6 +29,16 @@ import { useCallback, useMemo, useState } from 'react';
 
 /** Injected from upload feature (composed in views) — avoids feature→feature import. */
 export type SyncRoastCurve = (input: { sessionId: string; roastSessionId: string }) => Promise<unknown>;
+
+/** Prefer Drop event temp, then End, then live BT (#173). */
+export function resolveDropTempCelsius(logEntries: LogEntry[], rawBT: number | null | undefined): number | null {
+    const drop =
+        logEntries.find((e) => e.event === 'Drop' && e.tempC != null) ??
+        logEntries.find((e) => e.event === 'End' && e.tempC != null);
+    if (drop?.tempC != null) return Math.round(drop.tempC);
+    if (rawBT != null) return Math.round(rawBT);
+    return null;
+}
 
 /** Form fields required to persist a completed roast (matches summary modal). */
 export type SaveRoastFormData = {
@@ -184,7 +195,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         status: 'completed',
         roasted_at: roastedAt,
         duration_seconds: payloadParams.elapsed,
-        drop_temp_celsius: payloadParams.rawBT != null ? Math.round(payloadParams.rawBT) : null,
+        // Drop log = discharge temp; End = confirmEndRoast capture; live rawBT only as last resort (#173)
+        drop_temp_celsius: resolveDropTempCelsius(payloadParams.logEntries, payloadParams.rawBT),
         roast_level: formData.roastLevel,
         scheduled_at: null,
         notes: formData.notes || null,
@@ -314,7 +326,6 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
 }
 
 export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoastCurve: SyncRoastCurve) => {
-    const user = useAuthStore((s) => s.user);
     // Counts below are owner-scoped, and so is the server's plan lookup — pairing them
     // with the personal plan would block an org member on the host's workspace.
     const plan = useEffectivePlan();
@@ -329,11 +340,13 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
 
     const saveRoast = useCallback(
         async (params: SaveRoastParams): Promise<SaveRoastResult> => {
-            if (!user) {
-                throw new Error('Not authenticated');
+            // Call-time read: the store user may have been revived by ensureSession()
+            // after this callback's closure was created — a subscription would be stale.
+            if (!useAuthStore.getState().user) {
+                throw new Error(i18n.t('activeRoast.summary.sessionExpired'));
             }
             if (!isWorkspaceReady || !userId) {
-                throw new Error('Workspace is still loading');
+                throw new Error(i18n.t('activeRoast.summary.workspaceLoading'));
             }
 
             setIsSaving(true);
@@ -359,7 +372,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
                 setIsSaving(false);
             }
         },
-        [user, userId, isWorkspaceReady, plan, qc, syncRoastCurve, planBatchHandoff, startBatch, updatePlanBatch],
+        [userId, isWorkspaceReady, plan, qc, syncRoastCurve, planBatchHandoff, startBatch, updatePlanBatch],
     );
 
     return useMemo(

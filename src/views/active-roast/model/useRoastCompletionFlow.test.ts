@@ -57,16 +57,29 @@ describe('flowReducer SAVE_SUCCESS', () => {
 
 /** UX contracts: accidental dismiss must not wipe recoverable save state without an explicit discard path. */
 describe('flowReducer summary dismiss paths (UX friction contracts)', () => {
-    it('CLOSE_SUMMARY hides modal and clears summaryData (no reopen payload left)', () => {
+    it('CLOSE_SUMMARY hides modal but keeps summaryData for reopen (#172)', () => {
         const next = flowReducer(base, { type: 'CLOSE_SUMMARY' });
         expect(next.summaryModal).toBe(false);
-        expect(next.summaryData).toBeNull();
-        // End-roast phase is outside this reducer; empty summaryData is the only UI reopen key.
+        expect(next.summaryData).toEqual(base.summaryData);
         expect(next.endRoastModal).toBe(false);
         expect(next.continueModal).toBe(false);
     });
 
-    it('DISCARD_SUMMARY resets entire completion flow (same wipe as close for summary fields)', () => {
+    it('REOPEN_SUMMARY restores modal when summaryData exists', () => {
+        const closed = flowReducer(base, { type: 'CLOSE_SUMMARY' });
+        const reopened = flowReducer(closed, { type: 'REOPEN_SUMMARY' });
+        expect(reopened.summaryModal).toBe(true);
+        expect(reopened.summaryData).toEqual(base.summaryData);
+    });
+
+    it('REOPEN_SUMMARY is no-op without summaryData', () => {
+        const empty = { ...base, summaryModal: false, summaryData: null };
+        const next = flowReducer(empty, { type: 'REOPEN_SUMMARY' });
+        expect(next.summaryModal).toBe(false);
+        expect(next.summaryData).toBeNull();
+    });
+
+    it('DISCARD_SUMMARY resets entire completion flow', () => {
         const next = flowReducer(
             {
                 ...base,

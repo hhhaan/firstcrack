@@ -1,3 +1,4 @@
+import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import { useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
@@ -100,8 +101,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const completeBatch = useRoastSessionStore((s) => s.completeBatch);
 
     // ── 프로파일/원두 선택 ─────────────────────────────────────────
+    const { data: beans = [], isSuccess: beansReady } = useBeans(workspaceOwnerId);
     const { targetProfileId, selectedBeanId, setSelectedBeanId, handoffBeanName, setUserSelectedTarget } =
-        useRoastProfileSelection({ isActive, charged, userProfile });
+        useRoastProfileSelection({ isActive, charged, userProfile, beans, beansReady });
 
     // ── UI 상태 ───────────────────────────────────────────────────
     const [isRunning, setIsRunning] = useState(false);
@@ -109,6 +111,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     useEffect(() => {
         isRunningRef.current = isRunning;
     }, [isRunning]);
+
+    // 미저장 로스트(진행 중 or ended 요약) — 창 닫기 가드용 (#177)
+    const hasUnsavedRoastRef = useRef(false);
+    useEffect(() => {
+        hasUnsavedRoastRef.current = isRunning || phase === 'ended';
+    }, [isRunning, phase]);
 
     const [isFullscreen, setIsFullscreen] = useState(false);
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
@@ -277,7 +285,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         return () => clearInterval(interval);
     }, [isRunning, tick]);
 
-    // ── Effect: 로스팅 중 창 닫기 확인 ────────────────────────────
+    // ── Effect: 로스팅 중 / ended 미저장 창 닫기 확인 (#177) ──────
     useEffect(() => {
         if (!('__TAURI_INTERNALS__' in window)) return;
         const win = getCurrentWindow();
@@ -285,14 +293,20 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         let active = true;
         void win
             .onCloseRequested(async (e) => {
-                if (!isRunningRef.current) return;
+                if (!hasUnsavedRoastRef.current) return;
                 e.preventDefault();
-                const ok = await ask('로스팅이 진행 중입니다. 정말 종료하시겠습니까?', {
-                    title: '로스팅 진행 중',
-                    kind: 'warning',
-                    okLabel: '종료',
-                    cancelLabel: '취소',
-                });
+                const running = isRunningRef.current;
+                const ok = await ask(
+                    running
+                        ? '로스팅이 진행 중입니다. 정말 종료하시겠습니까?'
+                        : '저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?',
+                    {
+                        title: '로스팅 진행 중',
+                        kind: 'warning',
+                        okLabel: '종료',
+                        cancelLabel: '취소',
+                    },
+                );
                 if (ok) {
                     const sid = useRoastingStore.getState().sessionId;
                     if (sid) {
@@ -393,14 +407,19 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 이벤트 핸들러 ─────────────────────────────────────────────
     const handleEndRoastClick = useCallback(() => {
-        if (roastEnded || !charged) return;
+        // ended + summary payload → reopen (safety net if modal was dismissed) (#172)
+        if (roastEnded) {
+            if (saveFlow.flow.summaryData) saveFlow.flow.reopenSummary();
+            return;
+        }
+        if (!charged) return;
         saveFlow.flow.openEndRoast();
-    }, [roastEnded, charged, saveFlow.flow.openEndRoast]);
+    }, [roastEnded, charged, saveFlow.flow.summaryData, saveFlow.flow.reopenSummary, saveFlow.flow.openEndRoast]);
 
     const confirmEndRoast = useCallback(() => {
         const summaryData = lifecycle.confirmEndRoast();
-        saveFlow.flow.confirmEndRoast(summaryData);
-    }, [lifecycle, saveFlow.flow.confirmEndRoast]);
+        saveFlow.confirmEndRoast(summaryData);
+    }, [lifecycle, saveFlow.confirmEndRoast]);
 
     const handleEventMarkerDrag = useCallback(
         (event: string, newTimeSec: number) => {
@@ -586,7 +605,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 fallbackBeanName={handoffBeanName}
                 onClose={saveFlow.flow.closeSummary}
                 onDiscard={() => {
-                    saveFlow.flow.discardSummary();
+                    saveFlow.discardSummary();
                     lifecycle.resetActiveRoast();
                 }}
                 onSave={saveFlow.handleSave}

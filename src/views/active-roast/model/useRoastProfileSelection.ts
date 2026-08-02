@@ -1,6 +1,7 @@
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useRoastSessionStore } from '@shared/store/roastSession';
+import type { Bean } from '@shared/types/database.types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface UserProfile {
@@ -11,6 +12,10 @@ export interface UseRoastProfileSelectionParams {
     isActive: boolean;
     charged: boolean;
     userProfile: UserProfile | null | undefined;
+    /** Inventory beans for the active workspace — used to invalidate stale ids (#176). */
+    beans?: Pick<Bean, 'id'>[];
+    /** Must be true before clearing — prevents wipe during loading placeholder. */
+    beansReady?: boolean;
 }
 
 export interface UseRoastProfileSelectionReturn {
@@ -23,7 +28,7 @@ export interface UseRoastProfileSelectionReturn {
 }
 
 export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams): UseRoastProfileSelectionReturn => {
-    const { isActive, charged, userProfile } = params;
+    const { isActive, charged, userProfile, beans = [], beansReady = false } = params;
 
     const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
     const userSelectedTargetRef = useRef(false);
@@ -96,6 +101,20 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         }
         appliedDefaultBeanRef.current = true;
     }, [isActive, selectedBeanId]);
+
+    // Clear deleted / other-workspace bean ids after beans load successfully (#176).
+    // Never clear while loading (empty placeholder) or during schedule/inventory handoff name.
+    useEffect(() => {
+        if (!beansReady || !selectedBeanId) return;
+        if (handoffBeanName) return;
+        if (beans.some((b) => b.id === selectedBeanId)) return;
+        setSelectedBeanId(null);
+        try {
+            localStorage.removeItem(DEFAULT_BEAN_KEY);
+        } catch {
+            /* ignore */
+        }
+    }, [beansReady, beans, selectedBeanId, handoffBeanName]);
 
     const setUserSelectedTarget = useCallback((id: string | null) => {
         userSelectedTargetRef.current = true;

@@ -35,6 +35,7 @@ type FlowAction =
     | { type: 'CONFIRM_END_ROAST'; payload: RoastSummaryData }
     | { type: 'CLOSE_END_ROAST' }
     | { type: 'CLOSE_SUMMARY' }
+    | { type: 'REOPEN_SUMMARY' }
     | { type: 'DISCARD_SUMMARY' }
     | { type: 'SAVE_SUCCESS'; payload: SaveFlowResult }
     | { type: 'DISMISS_CONTINUE' }
@@ -56,8 +57,13 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
         case 'CLOSE_END_ROAST':
             return { ...state, endRoastModal: false };
 
+        // Keep summaryData so ended phase can reopen (#172). Wipe only on discard/save/reset.
         case 'CLOSE_SUMMARY':
-            return { ...state, summaryModal: false, summaryData: null };
+            return { ...state, summaryModal: false };
+
+        case 'REOPEN_SUMMARY':
+            if (state.summaryData == null) return state;
+            return { ...state, summaryModal: true };
 
         case 'DISCARD_SUMMARY':
             return { ...INITIAL_FLOW_STATE };
@@ -97,6 +103,7 @@ export interface UseRoastCompletionFlowReturn extends FlowState {
     confirmEndRoast: (summaryData: RoastSummaryData) => void;
     closeEndRoast: () => void;
     closeSummary: () => void;
+    reopenSummary: () => void;
     discardSummary: () => void;
     onSaveSuccess: (result: SaveFlowResult) => void;
     dismissContinue: () => void;
@@ -113,6 +120,7 @@ export const useRoastCompletionFlow = (): UseRoastCompletionFlowReturn => {
     );
     const closeEndRoast = useCallback(() => dispatch({ type: 'CLOSE_END_ROAST' }), []);
     const closeSummary = useCallback(() => dispatch({ type: 'CLOSE_SUMMARY' }), []);
+    const reopenSummary = useCallback(() => dispatch({ type: 'REOPEN_SUMMARY' }), []);
     const discardSummary = useCallback(() => dispatch({ type: 'DISCARD_SUMMARY' }), []);
     const onSaveSuccess = useCallback(
         (result: SaveFlowResult) => dispatch({ type: 'SAVE_SUCCESS', payload: result }),
@@ -127,6 +135,7 @@ export const useRoastCompletionFlow = (): UseRoastCompletionFlowReturn => {
         confirmEndRoast,
         closeEndRoast,
         closeSummary,
+        reopenSummary,
         discardSummary,
         onSaveSuccess,
         dismissContinue,
