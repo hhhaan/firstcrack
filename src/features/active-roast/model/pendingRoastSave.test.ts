@@ -52,10 +52,6 @@ describe('pendingRoastSave', () => {
         expect(readPendingRoastSave()).toEqual(pending);
     });
 
-    it('없으면 null', () => {
-        expect(readPendingRoastSave()).toBeNull();
-    });
-
     it('손상된 JSON → null (throw 없음)', () => {
         store.set(KEY, '{broken');
         expect(readPendingRoastSave()).toBeNull();

@@ -5,11 +5,12 @@ import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import {
     clearPendingRoastSave,
+    type PendingRoastParams,
     type PendingRoastSave,
     toSaveRoastParams,
     writePendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
-import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
+import { type SaveRoastFormData, useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
 import { ensureSession } from '@shared/lib/ensureSession';
@@ -18,6 +19,7 @@ import { BatchLimitError } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { useToastStore } from '@shared/store/toast';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
+import type { LogEntry } from '@shared/types/roast';
 import { useQueryClient } from '@tanstack/react-query';
 import { message } from '@tauri-apps/plugin-dialog';
 import { format } from 'date-fns';
@@ -73,6 +75,38 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     const { mutateAsync: syncRoastCurve } = useUploadRoastProfile();
     const { saveRoast, isSaving } = useSaveRoast(planBatchHandoff, syncRoastCurve);
 
+    // Everything but the form and log entries is identical between the two snapshots.
+    const snapshotParams = useCallback(
+        (formData: SaveRoastFormData, logEntries: LogEntry[]): PendingRoastParams => ({
+            formData,
+            userId: workspaceOwnerId,
+            elapsed,
+            roastStartTime: roastStartTimeRef.current,
+            rawBT,
+            ambientTemperature,
+            ambientHumidity,
+            selectedBeanId,
+            targetProfileId,
+            planBatchHandoff,
+            sessionId,
+            handoffBeanName,
+            logEntries,
+        }),
+        [
+            workspaceOwnerId,
+            elapsed,
+            roastStartTimeRef,
+            rawBT,
+            ambientTemperature,
+            ambientHumidity,
+            selectedBeanId,
+            targetProfileId,
+            planBatchHandoff,
+            sessionId,
+            handoffBeanName,
+        ],
+    );
+
     const handleSave = useCallback(
         async (formData: RoastSummaryForm) => {
             // isSaving turns true only inside saveRoast — the async F3 guard below
@@ -118,8 +152,8 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 const pending: PendingRoastSave = {
                     version: 1,
                     submitted: true,
-                    params: {
-                        formData: {
+                    params: snapshotParams(
+                        {
                             notes: formData.notes,
                             weightGrams: formData.weightGrams,
                             outputWeightKg: formData.outputWeightKg,
@@ -132,19 +166,8 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                             // and gating on beanId silently killed blend/handoff deduction.
                             deductStock,
                         },
-                        userId: workspaceOwnerId,
-                        elapsed,
-                        roastStartTime: roastStartTimeRef.current,
-                        rawBT,
-                        ambientTemperature,
-                        ambientHumidity,
-                        selectedBeanId,
-                        targetProfileId,
-                        planBatchHandoff,
-                        sessionId,
-                        handoffBeanName,
-                        logEntries: flow.summaryData?.logEntries ?? [],
-                    },
+                        flow.summaryData?.logEntries ?? [],
+                    ),
                 };
                 writePendingRoastSave(pending);
 
@@ -225,16 +248,9 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             today,
             qc,
             saveRoast,
-            elapsed,
-            roastStartTimeRef,
-            rawBT,
-            ambientTemperature,
-            ambientHumidity,
-            selectedBeanId,
-            targetProfileId,
+            snapshotParams,
             planBatchHandoff,
             sessionId,
-            handoffBeanName,
             dayBatches,
             flow.summaryData,
             flow.onSaveSuccess,
@@ -249,8 +265,8 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             writePendingRoastSave({
                 version: 1,
                 submitted: false,
-                params: {
-                    formData: {
+                params: snapshotParams(
+                    {
                         notes: '',
                         weightGrams: planBatchHandoff?.batchSizeKg ?? 0,
                         roastLevel: null,
@@ -259,36 +275,12 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                         linkedBatch: null,
                         deductStock: false,
                     },
-                    userId: workspaceOwnerId,
-                    elapsed,
-                    roastStartTime: roastStartTimeRef.current,
-                    rawBT,
-                    ambientTemperature,
-                    ambientHumidity,
-                    selectedBeanId,
-                    targetProfileId,
-                    planBatchHandoff,
-                    sessionId,
-                    handoffBeanName,
-                    logEntries: summaryData.logEntries,
-                },
+                    summaryData.logEntries,
+                ),
             });
             flow.confirmEndRoast(summaryData);
         },
-        [
-            workspaceOwnerId,
-            elapsed,
-            roastStartTimeRef,
-            rawBT,
-            ambientTemperature,
-            ambientHumidity,
-            selectedBeanId,
-            targetProfileId,
-            planBatchHandoff,
-            sessionId,
-            handoffBeanName,
-            flow.confirmEndRoast,
-        ],
+        [snapshotParams, planBatchHandoff, selectedBeanId, flow.confirmEndRoast],
     );
 
     const discardSummary = useCallback(() => {
