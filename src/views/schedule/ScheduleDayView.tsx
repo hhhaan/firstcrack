@@ -45,10 +45,10 @@ export const ScheduleDayView = ({
                 </SurfaceButton>
             </div>
 
-            {/* Overdue Section */}
-            {hooks.overdueBatches.length > 0 && (
-                <div className="border-b border-amber-500/10">
-                    <div className="bg-amber-50/40 dark:bg-amber-950/8 px-8 py-4">
+            <div className="flex-1 overflow-y-auto px-8 py-6">
+                {/* Overdue Section — inside the scroll area so it scrolls with the day's batches */}
+                {hooks.overdueBatches.length > 0 && (
+                    <div className="bg-amber-50/40 dark:bg-amber-950/8 rounded-xl px-4 py-4 mb-4">
                         <div className="flex items-center gap-2 mb-3">
                             <Clock size={14} strokeWidth={1.5} className="text-amber-600 dark:text-amber-400" />
                             <span className="text-[13px] font-semibold text-amber-700 dark:text-amber-400">
@@ -74,10 +74,7 @@ export const ScheduleDayView = ({
                             ))}
                         </div>
                     </div>
-                </div>
-            )}
-
-            <div className="flex-1 overflow-y-auto px-8 py-6">
+                )}
                 {hooks.isLoading ? (
                     <div className="space-y-3" role="status" aria-busy="true" aria-label={t('schedule.loading')}>
                         <BatchCardSkeleton />

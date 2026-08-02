@@ -3,7 +3,7 @@ import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { buildRRule } from '@shared/lib/rrule';
 import { calcPlanBatchCount } from '@shared/lib/stock-calc';
 import type { PlanBatchInsert, PlanBatchUpdate, PlanBatchWithProgress } from '@shared/types/database.types';
-import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, type QueryKey, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { endOfMonth, endOfWeek, format, startOfMonth, startOfWeek, subDays } from 'date-fns';
 import { dayPlanApi, dayPlanRangeApi, planBatchApi, type RecurrenceRuleMasterPatch, recurrenceRuleApi } from './api';
 
@@ -69,18 +69,27 @@ export const invalidateAfterCreatePlanBatch = (qc: QueryClient, planId: string) 
     invalidateScheduledBatchQueries(qc);
 };
 
-const patchDayBatchesCache = (
+/** Rollback snapshot of every cached dayBatches variant (with/without lookback). */
+type DayBatchesSnapshot = Array<[QueryKey, PlanBatchWithProgress[] | undefined]>;
+
+/** Exported for regression tests — optimistic patch must hit lookback key variants. */
+export const patchDayBatchesCache = (
     qc: QueryClient,
     userId: string,
     date: string,
     updater: (prev: PlanBatchWithProgress[]) => PlanBatchWithProgress[],
-) => {
-    const key = planKeys.dayBatches(userId, date);
-    const previous = qc.getQueryData<PlanBatchWithProgress[]>(key);
-    if (previous) {
-        qc.setQueryData(key, updater(previous));
-    }
+): DayBatchesSnapshot => {
+    // Prefix key — matches both dayBatches(userId, date) and lookback variants (…, 14).
+    const prefix = planKeys.dayBatches(userId, date);
+    const previous = qc.getQueriesData<PlanBatchWithProgress[]>({ queryKey: prefix });
+    qc.setQueriesData<PlanBatchWithProgress[]>({ queryKey: prefix }, (prev) => (prev ? updater(prev) : prev));
     return previous;
+};
+
+export const restoreDayBatchesCache = (qc: QueryClient, snapshot: DayBatchesSnapshot | undefined) => {
+    for (const [key, data] of snapshot ?? []) {
+        qc.setQueryData(key, data);
+    }
 };
 
 const patchPlanBatchesCache = (
@@ -96,14 +105,20 @@ const patchPlanBatchesCache = (
     return previous;
 };
 
-const reorderByIds = (batches: PlanBatchWithProgress[], orderedIds: string[]): PlanBatchWithProgress[] => {
-    const byId = new Map(batches.map((b) => [b.id, b]));
-    return orderedIds
-        .map((id, index) => {
-            const b = byId.get(id);
-            return b ? { ...b, order_index: index } : null;
+/**
+ * Apply a new one-off order to cached rows (exported for regression tests).
+ * Listed ids get 1-based order_index — 0 is pinned for recurring instances.
+ * Unlisted rows (other days in a range cache, recurring rows) are preserved,
+ * then everything is re-sorted with the listForDateRange comparator.
+ */
+export const reorderByIds = (batches: PlanBatchWithProgress[], orderedIds: string[]): PlanBatchWithProgress[] => {
+    const pos = new Map(orderedIds.map((id, index) => [id, index + 1]));
+    return batches
+        .map((b) => {
+            const next = pos.get(b.id);
+            return next === undefined ? b : { ...b, order_index: next };
         })
-        .filter((b): b is PlanBatchWithProgress => b !== null);
+        .sort((a, b) => a.order_index - b.order_index || a.bean_name.localeCompare(b.bean_name));
 };
 
 // ── Recurrence Rules ──────────────────────────────────────────────────────────
@@ -172,9 +187,8 @@ export const useCreatePlanBatch = (planId: string, userId: string, date: string)
             await qc.cancelQueries({ queryKey: planKeys.batches(planId) });
             await qc.cancelQueries({ queryKey: planKeys.dayBatches(userId, date) });
             const previousPlanBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.batches(planId));
-            const previousDayBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.dayBatches(userId, date));
             const now = new Date().toISOString();
-            const orderIndex = batch.order_index ?? previousDayBatches?.length ?? previousPlanBatches?.length ?? 0;
+            const orderIndex = batch.order_index ?? previousPlanBatches?.length ?? 0;
             const optimistic: PlanBatchWithProgress = {
                 id: `__optimistic__${Date.now()}`,
                 plan_id: batch.plan_id,
@@ -203,16 +217,14 @@ export const useCreatePlanBatch = (planId: string, userId: string, date: string)
                 completed_sessions: 0,
             };
             patchPlanBatchesCache(qc, planId, (prev) => [...prev, optimistic]);
-            patchDayBatchesCache(qc, userId, date, (prev) => [...prev, optimistic]);
+            const previousDayBatches = patchDayBatchesCache(qc, userId, date, (prev) => [...prev, optimistic]);
             return { previousPlanBatches, previousDayBatches };
         },
         onError: (_err, _batch, context) => {
             if (context?.previousPlanBatches) {
                 qc.setQueryData(planKeys.batches(planId), context.previousPlanBatches);
             }
-            if (context?.previousDayBatches) {
-                qc.setQueryData(planKeys.dayBatches(userId, date), context.previousDayBatches);
-            }
+            restoreDayBatchesCache(qc, context?.previousDayBatches);
         },
         onSettled: () => {
             void qc.invalidateQueries({ queryKey: planKeys.batches(planId) });
@@ -287,14 +299,11 @@ export const useCreateRecurringBatches = (userId: string, currentPlanId?: string
             }
 
             await qc.cancelQueries({ queryKey: planKeys.dayBatches(userId, dtstartDate) });
-            const previousDayBatches = qc.getQueryData<PlanBatchWithProgress[]>(
-                planKeys.dayBatches(userId, dtstartDate),
-            );
 
             const batchSize = Number(baseBatch.batch_size_kg) || 0;
             const targetKg = Number(baseBatch.target_roasted_kg) || 0;
             const batchCount = calcPlanBatchCount(targetKg, batchSize, baseBatch.yield_pct ?? 1);
-            const orderIndex = baseBatch.order_index ?? previousDayBatches?.length ?? previousCurrentPlan?.length ?? 0;
+            const orderIndex = baseBatch.order_index ?? previousCurrentPlan?.length ?? 0;
 
             const optimistic: PlanBatchWithProgress = {
                 id: `${optimisticId}:${dtstartDate}`,
@@ -327,17 +336,15 @@ export const useCreateRecurringBatches = (userId: string, currentPlanId?: string
             if (currentPlanId) {
                 patchPlanBatchesCache(qc, currentPlanId, (prev) => [...prev, optimistic]);
             }
-            patchDayBatchesCache(qc, userId, dtstartDate, (prev) => [...prev, optimistic]);
+            const previousDayBatches = patchDayBatchesCache(qc, userId, dtstartDate, (prev) => [...prev, optimistic]);
 
-            return { previousCurrentPlan, previousDayBatches, dtstartDate };
+            return { previousCurrentPlan, previousDayBatches };
         },
         onError: (_err, _vars, context) => {
             if (context?.previousCurrentPlan && currentPlanId) {
                 qc.setQueryData(planKeys.batches(currentPlanId), context.previousCurrentPlan);
             }
-            if (context?.previousDayBatches && context.dtstartDate) {
-                qc.setQueryData(planKeys.dayBatches(userId, context.dtstartDate), context.previousDayBatches);
-            }
+            restoreDayBatchesCache(qc, context?.previousDayBatches);
         },
         onSettled: () => {
             invalidatePlanScope(qc, userId);
@@ -367,12 +374,7 @@ export const useDeleteSingleBatch = (scheduleContext?: { userId: string; date: s
             return { previousDayBatches };
         },
         onError: (_err, _vars, context) => {
-            if (scheduleContext && context?.previousDayBatches) {
-                qc.setQueryData(
-                    planKeys.dayBatches(scheduleContext.userId, scheduleContext.date),
-                    context.previousDayBatches,
-                );
-            }
+            restoreDayBatchesCache(qc, context?.previousDayBatches);
         },
         onSettled: () => {
             invalidatePlanScope(qc);
@@ -477,14 +479,11 @@ export const useReorderPlanBatches = ({ userId, date, planId }: { userId: string
             await qc.cancelQueries({ queryKey: planKeys.dayBatches(userId, date) });
 
             const previousPlanBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.batches(planId));
-            const previousDayBatches = qc.getQueryData<PlanBatchWithProgress[]>(planKeys.dayBatches(userId, date));
 
             if (previousPlanBatches) {
                 qc.setQueryData(planKeys.batches(planId), reorderByIds(previousPlanBatches, orderedIds));
             }
-            if (previousDayBatches) {
-                qc.setQueryData(planKeys.dayBatches(userId, date), reorderByIds(previousDayBatches, orderedIds));
-            }
+            const previousDayBatches = patchDayBatchesCache(qc, userId, date, (prev) => reorderByIds(prev, orderedIds));
 
             return { previousPlanBatches, previousDayBatches };
         },
@@ -492,9 +491,7 @@ export const useReorderPlanBatches = ({ userId, date, planId }: { userId: string
             if (context?.previousPlanBatches) {
                 qc.setQueryData(planKeys.batches(planId), context.previousPlanBatches);
             }
-            if (context?.previousDayBatches) {
-                qc.setQueryData(planKeys.dayBatches(userId, date), context.previousDayBatches);
-            }
+            restoreDayBatchesCache(qc, context?.previousDayBatches);
         },
         onSettled: () => {
             void qc.invalidateQueries({ queryKey: planKeys.batches(planId) });

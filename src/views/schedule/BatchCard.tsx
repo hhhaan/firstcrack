@@ -102,7 +102,7 @@ export const BatchCard = ({
                         <button
                             type="button"
                             onClick={onComplete}
-                            className="flex items-center gap-1 text-[12px] font-medium text-secondary bg-surface dark:bg-surface-elevated px-2.5 py-1 rounded-full border border-border-subtle cursor-pointer hover:text-primary transition-colors"
+                            className="flex items-center gap-1 text-[12px] font-medium text-secondary bg-surface dark:bg-surface-elevated px-2.5 py-1 rounded-full border-0 dark:border dark:border-border-subtle cursor-pointer hover:text-primary transition-colors"
                         >
                             <Check size={11} strokeWidth={2.5} />
                             {t('schedule.complete')}

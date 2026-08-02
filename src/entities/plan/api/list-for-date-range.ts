@@ -25,6 +25,7 @@ export async function listForDateRange(
     if (plansError) throw plansError;
 
     const dateToPlanId = new Map((plans ?? []).map((p) => [p.date, p.id]));
+    const planIdToDate = new Map((plans ?? []).map((p) => [p.id, p.date]));
     const planIds = (plans ?? []).map((p) => p.id);
 
     // 3. Get exception rows for recurrence rules in the date range
@@ -64,9 +65,12 @@ export async function listForDateRange(
         }
     }
 
-    // Build result from one-off batches
+    // Build result from one-off batches.
+    // One-off rows never store scheduled_date (recurrence-exception column) —
+    // derive it from the owning plan's date so date-keyed consumers see them.
     const result: PlanBatchWithProgress[] = (oneOffBatches ?? []).map((row) => ({
         ...row,
+        scheduled_date: row.scheduled_date ?? planIdToDate.get(row.plan_id) ?? null,
         completed_sessions: sessionCountMap.get(row.id) ?? 0,
     }));
 

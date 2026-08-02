@@ -1,6 +1,11 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type CompleteBatchFlowDeps, runCompleteBatchFlow } from './useScheduleDayView';
+import {
+    buildReorderIds,
+    type CompleteBatchFlowDeps,
+    nextOneOffOrderIndex,
+    runCompleteBatchFlow,
+} from './useScheduleDayView';
 
 const baseBatch = (over: Partial<PlanBatchWithProgress> = {}): PlanBatchWithProgress =>
     ({
@@ -83,5 +88,42 @@ describe('runCompleteBatchFlow', () => {
         expect(deps.notify).toHaveBeenCalledWith('schedule.completeBatch.deductStockDisabled');
         expect(deps.deduct).not.toHaveBeenCalled();
         expect(deps.commitStatus).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('buildReorderIds', () => {
+    const recurring = baseBatch({ id: 'rule-1:2026-08-03', recurrence_rule_id: 'rule-1', order_index: 0 });
+    const oneOffA = baseBatch({ id: 'a', order_index: 1 });
+    const oneOffB = baseBatch({ id: 'b', order_index: 2 });
+
+    it('one-off끼리 스왑 → 가상 반복 id 제외, one-off id만 순서대로', () => {
+        expect(buildReorderIds([recurring, oneOffA, oneOffB], 2, 'up')).toEqual(['b', 'a']);
+    });
+
+    it('반복 배치 위로 이동(스왑 상대가 반복) → null', () => {
+        expect(buildReorderIds([recurring, oneOffA, oneOffB], 1, 'up')).toBeNull();
+    });
+
+    it('반복 배치 자체 이동 → null', () => {
+        expect(buildReorderIds([recurring, oneOffA], 0, 'down')).toBeNull();
+    });
+
+    it('경계(첫 up / 마지막 down) → null', () => {
+        expect(buildReorderIds([oneOffA, oneOffB], 0, 'up')).toBeNull();
+        expect(buildReorderIds([oneOffA, oneOffB], 1, 'down')).toBeNull();
+    });
+});
+
+describe('nextOneOffOrderIndex', () => {
+    it('가상 반복 행은 세지 않고 max(one-off)+1', () => {
+        const recurring = baseBatch({ id: 'rule-1:d', recurrence_rule_id: 'rule-1', order_index: 0 });
+        const oneOff = baseBatch({ id: 'a', order_index: 5 });
+        expect(nextOneOffOrderIndex([recurring, oneOff])).toBe(6);
+    });
+
+    it('one-off 없음 → 1 (0은 반복 고정 슬롯)', () => {
+        const recurring = baseBatch({ id: 'rule-1:d', recurrence_rule_id: 'rule-1', order_index: 0 });
+        expect(nextOneOffOrderIndex([recurring])).toBe(1);
+        expect(nextOneOffOrderIndex([])).toBe(1);
     });
 });

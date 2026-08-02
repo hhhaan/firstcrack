@@ -80,6 +80,26 @@ export async function runCompleteBatchFlow(
     await deps.commitStatus(batch, target, 'done');
 }
 
+/**
+ * Reorder payload for moving batches[index] one step (exported for tests).
+ * Recurring instances are pinned at order 0 and virtual ids aren't DB rows —
+ * moves on or across them return null; the payload holds one-off row ids only.
+ */
+export function buildReorderIds(batches: PlanBatchWithProgress[], index: number, dir: 'up' | 'down'): string[] | null {
+    const swapWith = dir === 'up' ? index - 1 : index + 1;
+    if (swapWith < 0 || swapWith >= batches.length) return null;
+    if (batches[index]?.recurrence_rule_id || batches[swapWith]?.recurrence_rule_id) return null;
+    const next = [...batches];
+    [next[index], next[swapWith]] = [next[swapWith], next[index]];
+    return next.filter((b) => !b.recurrence_rule_id).map((b) => b.id);
+}
+
+/** Next one-off order_index: 1-based (0 pinned for recurring), collision-free after deletes. */
+export function nextOneOffOrderIndex(batches: PlanBatchWithProgress[]): number {
+    const oneOffs = batches.filter((b) => !b.recurrence_rule_id);
+    return oneOffs.length === 0 ? 1 : Math.max(...oneOffs.map((b) => b.order_index)) + 1;
+}
+
 export const useScheduleDayView = ({
     userId,
     selectedDate,
@@ -405,7 +425,7 @@ export const useScheduleDayView = ({
     const handleNewBatch = useCallback(
         async (data: NewBatchData) => {
             const baseBatch: Omit<PlanBatchInsert, 'plan_id'> = {
-                order_index: batches.length,
+                order_index: nextOneOffOrderIndex(batches),
                 bean_name: data.beanName || data.batchType,
                 bean_id: data.beanId,
                 blend_id: data.blendId ?? null,
@@ -428,9 +448,12 @@ export const useScheduleDayView = ({
                 });
             } else if (planId) {
                 await createBatch.mutateAsync({ ...baseBatch, plan_id: planId });
+            } else {
+                // Day plan query not resolved — fail loud instead of silently dropping the batch.
+                throw new Error('day plan not loaded');
             }
         },
-        [planId, batches.length, createBatch, createRecurringBatches],
+        [planId, batches, createBatch, createRecurringBatches],
     );
 
     const handleSaveBatch = useCallback(
@@ -460,14 +483,8 @@ export const useScheduleDayView = ({
 
     const handleMove = useCallback(
         (index: number, dir: 'up' | 'down') => {
-            if ((dir === 'up' && index === 0) || (dir === 'down' && index === batches.length - 1)) return;
-            const batch = batches[index];
-            if (batch?.recurrence_rule_id) return;
-
-            const next = [...batches];
-            const swapWith = dir === 'up' ? index - 1 : index + 1;
-            [next[index], next[swapWith]] = [next[swapWith], next[index]];
-            reorderBatches.mutate(next.map((b) => b.id));
+            const orderedIds = buildReorderIds(batches, index, dir);
+            if (orderedIds) reorderBatches.mutate(orderedIds);
         },
         [batches, reorderBatches],
     );

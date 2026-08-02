@@ -60,7 +60,7 @@ const WeekDayColumn = ({
         <div
             onClick={onSelect}
             className={`
-                flex-1 flex flex-col rounded-xl cursor-pointer dark:border dark:border-[#585d61] transition-colors duration-100
+                flex-1 basis-0 min-w-0 flex flex-col rounded-xl cursor-pointer dark:border dark:border-[#585d61] transition-colors duration-100
                 ${isSelected ? 'bg-primary/5' : 'bg-main-bg'}
             `}
         >
