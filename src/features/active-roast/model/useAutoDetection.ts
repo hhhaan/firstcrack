@@ -64,7 +64,8 @@ export const useAutoDetection = ({
     const dropWindowRef = useRef<TimedSample[]>([]);
     const autoChargedRef = useRef(false);
     const autoDroppedRef = useRef(false);
-    const tpFiredRef = useRef(false);
+    // 발화 완료 TP를 그대로 보관 — 폴백→실감지 승격 시 재발화 판정에 identity 비교
+    const tpFiredRef = useRef<TurningPoint | null>(null);
     const yellowFiredRef = useRef(false);
     const fcStartFiredRef = useRef(false);
     const yellowPendingRef = useRef(false);
@@ -174,17 +175,20 @@ export const useAutoDetection = ({
 
     // Turning Point detection — 샘플 수 게이트 없음: 시간 기준 floor는 detectTurningPoints가 소유
     const detectedTPs = useMemo(() => {
-        // TP 확정 후에는 결과가 쓰이지 않는다 — 매 폴링 tick마다 전체 시리즈 재탐색하는 낭비 차단
-        if (phase !== 'roasting' || confirmedTP !== null) return [];
+        // 실TP 확정 후에는 결과가 쓰이지 않는다 — 매 폴링 tick마다 전체 시리즈 재탐색하는 낭비 차단.
+        // 폴백 확정은 잠정치이므로 탐색을 계속한다 (진짜 골짜기가 폴백 시각보다 뒤에 올 수 있음)
+        if (phase !== 'roasting' || (confirmedTP !== null && !confirmedTP.fallback)) return [];
         return detectTurningPoints(
             livePoints.map((p) => p.time),
             livePoints.map((p) => p.bt),
         );
     }, [phase, livePoints, confirmedTP]);
 
-    // Lock in confirmedTP on first detection (no setState in useMemo)
+    // Lock in confirmedTP on first detection (no setState in useMemo).
+    // 폴백으로 확정된 잠정 TP는 실감지가 오면 승격 교체 — 실TP는 한 번 확정되면 불변
     useEffect(() => {
-        if (confirmedTP !== null || detectedTPs.length === 0) return;
+        if (detectedTPs.length === 0) return;
+        if (confirmedTP !== null && !confirmedTP.fallback) return;
         setConfirmedTP(detectedTPs[0]);
     }, [detectedTPs, confirmedTP]);
 
@@ -196,10 +200,10 @@ export const useAutoDetection = ({
         setConfirmedTP({ timeSec: elapsed, temp: bt, fallback: true });
     }, [phase, elapsed, bt, confirmedTP, detectedTPs]);
 
-    // Fire callback exactly once
+    // Fire callback once per confirmed TP (폴백 → 실감지 승격 시 한 번 더)
     useEffect(() => {
-        if (confirmedTP === null || tpFiredRef.current) return;
-        tpFiredRef.current = true;
+        if (confirmedTP === null || tpFiredRef.current === confirmedTP) return;
+        tpFiredRef.current = confirmedTP;
         onTurningPoint(confirmedTP);
     }, [confirmedTP, onTurningPoint]);
 
@@ -215,7 +219,7 @@ export const useAutoDetection = ({
         dropWindowRef.current = [];
         autoChargedRef.current = false;
         autoDroppedRef.current = false;
-        tpFiredRef.current = false;
+        tpFiredRef.current = null;
         yellowFiredRef.current = false;
         fcStartFiredRef.current = false;
         yellowPendingRef.current = false;

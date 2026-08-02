@@ -14,6 +14,7 @@ type Props = {
     logEntries?: LogEntry[];
     autoYellowEnabled?: boolean;
     autoFcStartEnabled?: boolean;
+    onTurningPoint?: (tp: { timeSec: number; temp: number; fallback?: boolean }) => void;
 };
 
 const noop = () => {};
@@ -28,7 +29,7 @@ const renderAutoDetection = (initial: Props) => {
             livePoints: p.livePoints,
             onAutoCharge: noop,
             onAutoDrop: noop,
-            onTurningPoint: noop,
+            onTurningPoint: p.onTurningPoint ?? noop,
             autoChargeDropC: 5,
             autoDropDropC: 8,
             yellowTempC: 150,
@@ -77,6 +78,51 @@ const realTpPoints = () => {
     for (let t = 0; t <= 200; t += 0.5) pts.push({ time: t, bt: 90 + 95 * Math.exp(-t / 20) + 0.18 * t });
     return pts;
 };
+
+/** Slow profile whose valley lands at ≈126.5s — after the 120s fallback timeout. */
+const lateTpPoints = (until: number) => {
+    const pts: { time: number; bt: number }[] = [];
+    for (let t = 0; t <= until; t += 0.5) pts.push({ time: t, bt: 90 + 95 * Math.exp(-t / 40) + 0.1 * t });
+    return pts;
+};
+
+describe('useAutoDetection — fallback TP is provisional', () => {
+    beforeEach(() => {
+        void act(() => useRoastingStore.getState().reset());
+    });
+
+    it('promotes a real detection over a fallback TP confirmed earlier', () => {
+        const onTurningPoint = vi.fn();
+        // 120s 시점: 골짜기(≈126.5s) 이전이라 실감지 불가 → 폴백이 현재 시각/온도로 확정
+        let props: Props = { livePoints: lateTpPoints(120), markEvent: vi.fn(), onTurningPoint };
+        const h = renderAutoDetection(props);
+
+        tick(h, props, 106.7, 120);
+        expect(h.result.confirmedTP?.fallback).toBe(true);
+        expect(h.result.confirmedTP?.timeSec).toBe(120);
+        expect(onTurningPoint).toHaveBeenCalledTimes(1);
+
+        // 폴링이 골짜기를 지나 상승 구간까지 진행 → 실감지가 폴백을 교체하고 한 번 더 발화
+        props = { ...props, livePoints: lateTpPoints(140) };
+        tick(h, props, 108, 140);
+        expect(h.result.confirmedTP?.fallback).toBeFalsy();
+        expect(h.result.confirmedTP?.timeSec).toBeCloseTo(126.5, 1);
+        expect(onTurningPoint).toHaveBeenCalledTimes(2);
+    });
+
+    it('never re-fires once a real TP is confirmed', () => {
+        const onTurningPoint = vi.fn();
+        let props: Props = { livePoints: lateTpPoints(140), markEvent: vi.fn(), onTurningPoint };
+        const h = renderAutoDetection(props);
+
+        tick(h, props, 108, 140);
+        expect(h.result.confirmedTP?.fallback).toBeFalsy();
+
+        props = { ...props, livePoints: lateTpPoints(200) };
+        tick(h, props, 130, 200);
+        expect(onTurningPoint).toHaveBeenCalledTimes(1);
+    });
+});
 
 describe('useAutoDetection — Yellow/FC gating', () => {
     beforeEach(() => {

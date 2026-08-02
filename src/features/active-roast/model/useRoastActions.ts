@@ -87,9 +87,11 @@ export const useRoastActions = ({
     const handleTurningPoint = useCallback(
         (tp: TurningPoint) => {
             setLogEntries((prev) => {
-                if (prev.some((e) => e.event === 'TP')) return prev;
+                const idx = prev.findIndex((e) => e.event === 'TP');
+                // 폴백은 잠정치 — 기존 항목을 덮지 않고, 실감지만 승격 교체한다
+                if (idx !== -1 && tp.fallback) return prev;
                 const newEntry: LogEntry = {
-                    id: crypto.randomUUID(),
+                    id: idx === -1 ? crypto.randomUUID() : prev[idx].id,
                     time: formatElapsed(tp.timeSec),
                     timeSec: tp.timeSec,
                     event: 'TP',
@@ -97,7 +99,8 @@ export const useRoastActions = ({
                     tempC: tp.temp,
                     note: tp.fallback ? 'Turning Point (fallback timeout)' : 'Turning Point detected',
                 };
-                return [...prev, newEntry].sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
+                const next = idx === -1 ? [...prev, newEntry] : prev.map((e, i) => (i === idx ? newEntry : e));
+                return next.sort((a, b) => logEntryTimeSec(a) - logEntryTimeSec(b));
             });
         },
         [unit, setLogEntries],
