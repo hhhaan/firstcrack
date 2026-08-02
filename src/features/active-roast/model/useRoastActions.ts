@@ -37,6 +37,8 @@ export const useRoastActions = ({
 }: UseRoastActionsParams): UseRoastActionsReturn => {
     const triggerCharge = useCallback(
         (btAtCharge?: number | null, chargeTimeMs?: number) => {
+            // manual↔auto 이중 발화 차단 — 어느 쪽이든 선착이 이긴다 (#174)
+            if (useRoastingStore.getState().charged) return;
             sidecar.startRoast().catch(() => {});
             const now = Date.now();
             const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;

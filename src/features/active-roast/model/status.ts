@@ -80,6 +80,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     },
 
     startCharge: (originMs?: number) => {
+        if (get().charged) return; // sessionId 재생성 방지 — 심층 방어 (#174)
         const now = Date.now();
         const origin = originMs != null && originMs > 0 && originMs <= now ? originMs : now;
         set({
