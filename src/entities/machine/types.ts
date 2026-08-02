@@ -3,6 +3,11 @@ export interface SerialPort {
     description: string;
 }
 
+/** GET /scan-network item (Phase 1: host only). */
+export interface NetworkHost {
+    host: string;
+}
+
 export interface Machine {
     id: string;
     name: string;

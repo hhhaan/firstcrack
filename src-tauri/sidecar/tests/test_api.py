@@ -315,3 +315,30 @@ class TestDebugEndpoints:
         body = await resp.json()
         assert body["ok"] is False
         assert "error" in body
+
+
+# ---------------------------------------------------------------------------
+# GET /scan-network
+# ---------------------------------------------------------------------------
+
+class TestScanNetworkEndpoint:
+    async def test_missing_protocol_returns_400(self, client):
+        resp = await client.get("/scan-network")
+        assert resp.status == 400
+        data = await resp.json()
+        assert "error" in data
+
+    async def test_unknown_protocol_returns_400(self, client):
+        resp = await client.get("/scan-network?protocol=nope")
+        assert resp.status == 400
+        data = await resp.json()
+        assert data["error"] == "unknown protocol"
+
+    async def test_scan_returns_mocked_hosts(self, client):
+        with patch("scanner.scan_protocol", new_callable=AsyncMock) as mock_scan:
+            mock_scan.return_value = [{"host": "192.168.1.10"}]
+            resp = await client.get("/scan-network?protocol=s7")
+        assert resp.status == 200
+        data = await resp.json()
+        assert data == [{"host": "192.168.1.10"}]
+        mock_scan.assert_awaited_once_with("s7")

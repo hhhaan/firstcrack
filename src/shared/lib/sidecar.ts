@@ -1,4 +1,4 @@
-import type { SerialPort, SidecarStatus, TemperatureReading } from '@entities/machine';
+import type { NetworkHost, SerialPort, SidecarStatus, TemperatureReading } from '@entities/machine';
 import { invoke } from '@tauri-apps/api/core';
 import { logger } from './logger';
 
@@ -8,6 +8,8 @@ export const SIDECAR_BASE = 'http://127.0.0.1:9999';
 const DEFAULT_TIMEOUT_MS = 5000;
 /** connect는 사이드카 내부 핸드셰이크가 더 길다 (Kaleido 15s, Phidget attach 최대 10s) */
 const CONNECT_TIMEOUT_MS = 20_000;
+/** /scan-network: /24 TCP probe, ~2–3s typical, headroom for slow LANs */
+const SCAN_NETWORK_TIMEOUT_MS = 10_000;
 
 const TOKEN_HEADER = 'X-Sidecar-Token';
 
@@ -82,4 +84,12 @@ export const sidecar = {
     resetRoast: () => request<{ ok: boolean }>('/reset', { method: 'POST' }),
 
     getSerialPorts: () => request<SerialPort[]>('/serial-ports'),
+
+    /** TCP port probe on LAN /24. protocol: s7 | modbus_tcp | kaleido | probat_ws */
+    scanNetwork: (protocol: string) =>
+        request<NetworkHost[]>(
+            `/scan-network?protocol=${encodeURIComponent(protocol)}`,
+            undefined,
+            SCAN_NETWORK_TIMEOUT_MS,
+        ),
 };

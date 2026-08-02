@@ -5,6 +5,8 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
 
 엔드포인트:
   GET  /roasters      → 지원 로스터 목록 + 프로토콜별 폼 필드
+  GET  /serial-ports  → 로컬 시리얼 포트 목록
+  GET  /scan-network  → ?protocol=s7|modbus_tcp|kaleido|probat_ws → 열린 host 목록
   GET  /status        → 현재 연결 상태
   POST /connect       → {"roaster": "easyster", "host": "...", ...}
   POST /disconnect
@@ -254,6 +256,20 @@ async def handle_serial_ports(request: web.Request) -> web.Response:
         ports = []
     return web.json_response(ports)
 
+
+async def handle_scan_network(request: web.Request) -> web.Response:
+    """TCP connect scan on protocol default port (same /24). Soft-fails to []."""
+    from scanner import scan_protocol
+
+    protocol = (request.rel_url.query.get("protocol") or "").strip()
+    if not protocol:
+        return web.json_response({"error": "protocol query required"}, status=400)
+    try:
+        hosts = await scan_protocol(protocol)
+    except ValueError:
+        return web.json_response({"error": "unknown protocol"}, status=400)
+    return web.json_response(hosts)
+
 async def handle_debug_trace_get(request: web.Request) -> web.Response:
     entries = TRACE.dump()
     return web.json_response(
@@ -388,6 +404,7 @@ def create_app() -> web.Application:
     # GET /roasters는 현재 호출되지 않음 — 향후 단일화 시 활성화.
     app.router.add_get("/roasters", handle_roasters)
     app.router.add_get("/serial-ports", handle_serial_ports)
+    app.router.add_get("/scan-network", handle_scan_network)
     app.router.add_get("/status", handle_status)
     app.router.add_post("/connect", handle_connect)
     app.router.add_post("/disconnect", handle_disconnect)

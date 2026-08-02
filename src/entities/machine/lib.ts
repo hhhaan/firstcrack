@@ -25,6 +25,20 @@ export const CUSTOM_ROASTER_KEY = '__custom__';
 export const TCP_ONLY_FIELDS = new Set(['host', 'port']);
 export const RTU_ONLY_FIELDS = new Set(['comport', 'baudrate', 'bytesize', 'parity', 'stopbits']);
 
+/** Sidecar `GET /scan-network?protocol=` key for a machine protocol, or null if N/A. */
+export const networkScanProtocol = (protocol: string): string | null => {
+    switch (protocol) {
+        case 's7':
+        case 'kaleido':
+        case 'probat_ws':
+            return protocol;
+        case 'modbus':
+            return 'modbus_tcp';
+        default:
+            return null;
+    }
+};
+
 export const isRoasterFieldVisible = (fieldKey: string, mode: string | undefined): boolean => {
     const normalized = mode?.toLowerCase() ?? '';
     if (!normalized) return true;

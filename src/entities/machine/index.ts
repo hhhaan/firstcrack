@@ -12,6 +12,7 @@ export {
     isSameSidecarStatus,
     listProtocols,
     nestAddressMaps,
+    networkScanProtocol,
     PROTOCOLS_WITH_ADDRESS_MAP,
     resolveCustomConnectKey,
     validateAddressMaps,
@@ -21,6 +22,7 @@ export { useMachines, VIRTUAL_ID } from './model';
 export { PROTOCOL_FORM_FIELDS, ROASTER_REGISTRY } from './roasterRegistry';
 export type {
     Machine,
+    NetworkHost,
     RoasterDef,
     RoasterFormField,
     RoastersResponse,

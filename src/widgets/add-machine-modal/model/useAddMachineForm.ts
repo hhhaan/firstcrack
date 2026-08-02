@@ -1,8 +1,9 @@
-import type { RoasterDef, SerialPort } from '@entities/machine';
+import type { NetworkHost, RoasterDef, SerialPort } from '@entities/machine';
 import {
     addressFormFieldsForProtocol,
     buildProtocolRoasterDef,
     isCustomConnectKey,
+    networkScanProtocol,
     PROTOCOLS_WITH_ADDRESS_MAP,
     ROASTER_REGISTRY,
     resolveCustomConnectKey,
@@ -31,6 +32,9 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
     const [testMessage, setTestMessage] = useState('');
     const testConnectedRef = useRef(false);
     const [serialPorts, setSerialPorts] = useState<SerialPort[]>([]);
+    const [networkHosts, setNetworkHosts] = useState<NetworkHost[]>([]);
+    const [scanningNetwork, setScanningNetwork] = useState(false);
+    const [scannedNetworkOnce, setScannedNetworkOnce] = useState(false);
 
     /** Re-fetch serial ports on demand (USB plugged in while the modal is open). */
     const refreshSerialPorts = useCallback(() => {
@@ -38,6 +42,20 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
             .getSerialPorts()
             .catch(() => [])
             .then((ports) => setSerialPorts(ports as SerialPort[]));
+    }, []);
+
+    const scanNetworkHosts = useCallback((protocol: string) => {
+        const scanKey = networkScanProtocol(protocol);
+        if (!scanKey) return;
+        setScanningNetwork(true);
+        void sidecar
+            .scanNetwork(scanKey)
+            .catch(() => [] as NetworkHost[])
+            .then((hosts) => {
+                setNetworkHosts(hosts);
+                setScannedNetworkOnce(true);
+            })
+            .finally(() => setScanningNetwork(false));
     }, []);
 
     const editingIsCustom = isEdit && !!editing && isCustomConnectKey(editing.roasterKey);
@@ -172,6 +190,10 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
         testMessage,
         serialPorts,
         refreshSerialPorts,
+        networkHosts,
+        scanningNetwork,
+        scannedNetworkOnce,
+        scanNetworkHosts,
         isCustom,
         selectedDef,
         showAddressMap,

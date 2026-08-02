@@ -1,5 +1,5 @@
-import type { RoasterDef, RoasterFormField, SerialPort } from '@entities/machine';
-import { isRoasterFieldVisible } from '@entities/machine';
+import type { NetworkHost, RoasterDef, RoasterFormField, SerialPort } from '@entities/machine';
+import { isRoasterFieldVisible, networkScanProtocol } from '@entities/machine';
 import { Badge } from '@shared/ui/Badge';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { platform } from '@tauri-apps/plugin-os';
@@ -28,6 +28,10 @@ type Props = {
     setParam: (key: string, value: string) => void;
     serialPorts: SerialPort[];
     onRefreshPorts?: () => void;
+    networkHosts: NetworkHost[];
+    scanningNetwork: boolean;
+    scannedNetworkOnce: boolean;
+    onScanNetwork?: (protocol: string) => void;
     showAddressMap: boolean;
     addressFields: RoasterFormField[];
 };
@@ -39,10 +43,17 @@ export const DriverSettingsSection = ({
     setParam,
     serialPorts,
     onRefreshPorts,
+    networkHosts,
+    scanningNetwork,
+    scannedNetworkOnce,
+    onScanNetwork,
     showAddressMap,
     addressFields,
 }: Props) => {
     const { t } = useTranslation();
+    const protocol = selectedDef?.protocol;
+    const scanKey = protocol ? networkScanProtocol(protocol) : null;
+    const handleScanNetwork = scanKey && onScanNetwork && protocol ? () => onScanNetwork(protocol) : undefined;
 
     return (
         <>
@@ -125,6 +136,10 @@ export const DriverSettingsSection = ({
                                 serialPorts={serialPorts}
                                 registryDefault={(selectedDef?.default_params[field.key] as string) ?? ''}
                                 onRefreshPorts={onRefreshPorts}
+                                networkHosts={networkHosts}
+                                scanningNetwork={scanningNetwork}
+                                scannedNetworkOnce={scannedNetworkOnce}
+                                onScanNetwork={handleScanNetwork}
                             />
                         ))}
                 </div>

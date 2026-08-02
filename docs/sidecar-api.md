@@ -511,6 +511,29 @@ Notes:
 - `hwid`와 `description`이 모두 비어 있거나 `n/a`인 포트는 제외한다. 이 로직은 Bluetooth 가상 포트 필터링 목적이다.
 - `pyserial` import에 실패하면 빈 배열을 반환한다.
 
+### GET /scan-network
+
+로컬 IPv4 `/24` 서브넷에서 프로토콜 기본 포트가 열린 호스트를 TCP connect로 열거한다 (handshake 없음).
+
+Query:
+
+| Param | Values |
+| ----- | ------ |
+| `protocol` | `s7` (102), `modbus_tcp` (502), `kaleido` (80), `probat_ws` (80) |
+
+Response: `NetworkHost[]` — `[{ "host": "192.168.1.10" }, ...]`
+
+Status:
+
+- `400` — missing/unknown `protocol`
+- Soft OS/scan failure → `200 []` (serial-ports와 동일)
+
+Notes:
+
+- 구현: `scanner.py` (`asyncio.open_connection`, semaphore ~100, timeout 0.5s)
+- Windows 방화벽이 첫 스캔 시 프롬프트를 띄울 수 있음 → 거부 시 빈 목록
+- Phase 1: 오픈 포트만 표시 (로스터 식별 없음)
+
 ## Debug & Lifecycle
 
 ### GET /debug/trace
@@ -601,6 +624,7 @@ const BASE = 'http://127.0.0.1:9999';
 | `sidecar.startRoast()`                | `POST /start`       |
 | `sidecar.resetRoast()`                | `POST /reset`       |
 | `sidecar.getSerialPorts()`            | `GET /serial-ports` |
+| `sidecar.scanNetwork(protocol)`       | `GET /scan-network` |
 
 `POST /control`, `/shutdown`, `/debug/*`는 wrapper에 없다 — control은 현재 프론트에서 미사용, shutdown은 Tauri Rust 셸이 직접 호출, debug는 수동 진단용.
 
