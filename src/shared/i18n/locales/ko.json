@@ -1562,5 +1562,11 @@
     "errors": {
         "mutationFailed": "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
         "mutationFailedDetail": "요청을 처리하지 못했습니다: {{message}}"
+    },
+    "planGate": {
+        "monthly_batch_cap": "이번 달 로스팅 한도({{used}}/{{max}})에 도달했습니다. 계속하려면 상위 플랜이 필요합니다.",
+        "trial_batch_cap": "체험판 로스팅 한도({{used}}/{{max}})를 모두 사용했습니다. 계속하려면 구독이 필요합니다.",
+        "trial_expired": "체험 기간이 종료되었습니다. 계속하려면 구독이 필요합니다.",
+        "read_only_plan": "구독이 만료되어 현재 조회 전용 상태입니다. 구독하면 다시 로스팅을 저장할 수 있습니다."
     }
 }

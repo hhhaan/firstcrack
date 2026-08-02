@@ -1562,5 +1562,11 @@
     "errors": {
         "mutationFailed": "操作失败，请稍后重试。",
         "mutationFailedDetail": "操作失败：{{message}}"
+    },
+    "planGate": {
+        "monthly_batch_cap": "已达到本月烘焙上限（{{used}}/{{max}}）。升级到更高套餐可继续烘焙。",
+        "trial_batch_cap": "试用烘焙次数已用完（{{used}}/{{max}}）。订阅后可继续烘焙。",
+        "trial_expired": "试用期已结束。订阅后可继续烘焙。",
+        "read_only_plan": "订阅已失效，当前为只读状态。订阅后即可继续保存烘焙。"
     }
 }

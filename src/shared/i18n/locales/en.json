@@ -1562,5 +1562,11 @@
     "errors": {
         "mutationFailed": "Something went wrong. Please try again.",
         "mutationFailedDetail": "Something went wrong: {{message}}"
+    },
+    "planGate": {
+        "monthly_batch_cap": "Monthly batch limit reached ({{used}}/{{max}}). Upgrade to Pro+ for unlimited batches.",
+        "trial_batch_cap": "Trial batch limit reached ({{used}}/{{max}}). Upgrade to keep roasting.",
+        "trial_expired": "Trial period has ended. Upgrade to keep roasting.",
+        "read_only_plan": "Subscription inactive — account is read-only. Upgrade to keep roasting."
     }
 }

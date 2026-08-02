@@ -7,6 +7,7 @@ import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
 import { isGreenRoastAlreadyClaimed } from '@shared/lib/f3-green-deduct';
+import { BatchLimitError } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import { useToastStore } from '@shared/store/toast';
@@ -166,8 +167,14 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 onResetActiveRoast();
             } catch (err) {
                 logger.capture(err, { context: 'roastSummary save' });
-                await message(`저장에 실패했습니다.\n\n${err instanceof Error ? err.message : String(err)}`, {
-                    title: '저장 실패',
+                const detail =
+                    err instanceof BatchLimitError
+                        ? i18n.t(`planGate.${err.code}`, { used: err.used, max: err.max })
+                        : err instanceof Error
+                          ? err.message
+                          : String(err);
+                await message(i18n.t('activeRoast.dialogs.saveFailedMsg', { error: detail }), {
+                    title: i18n.t('activeRoast.dialogs.saveFailedTitle'),
                     kind: 'error',
                 });
             }
