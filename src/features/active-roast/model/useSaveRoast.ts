@@ -175,6 +175,9 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     const bbpSummary = pendingBbp?.sessionId === sessionId ? pendingBbp : null;
 
     const payload: RoastSessionInsert = {
+        // Client session uuid as PK — save_roast_op converges retries on one row.
+        // Null sessionId (never charged) falls back to server-generated id.
+        id: sessionId ?? undefined,
         user_id: userId,
         weight_grams: weightGrams,
         output_weight_grams: outputWeightGrams,

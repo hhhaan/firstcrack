@@ -161,6 +161,20 @@ describe('saveRoastCore', () => {
         expect(result.batchStatusUpdateFailed).toBe(false);
     });
 
+    it('멱등키: 로컬 sessionId를 session.id로 전달', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, baseParams);
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.id).toBe('local-sess');
+    });
+
+    it('sessionId 없음 → session.id undefined (서버 발급 폴백)', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, { ...baseParams, sessionId: null });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.id).toBeUndefined();
+    });
+
     it('deductStock false → deduct 플래그 false', async () => {
         const deps = makeDeps();
         await saveRoastCore(deps, {

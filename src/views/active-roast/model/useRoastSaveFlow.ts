@@ -71,6 +71,9 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     const handleSave = useCallback(
         async (formData: RoastSummaryForm) => {
             if (!user) return;
+            // isSaving turns true only inside saveRoast — the async F3 guard below
+            // leaves the button enabled, so block re-entry here too.
+            if (isSaving) return;
             try {
                 let linkedBatch: PlanBatchHandoff | null = null;
                 if (!planBatchHandoff && formData.linkMode === 'schedule' && formData.planBatchId) {
@@ -181,6 +184,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         },
         [
             user,
+            isSaving,
             workspaceOwnerId,
             isWorkspaceReady,
             today,

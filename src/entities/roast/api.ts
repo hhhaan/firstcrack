@@ -7,6 +7,8 @@ const SELECT_WITH_RELATIONS =
 
 /** Insert payload — created_by defaults to auth.uid() in DB. */
 export type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'created_by'> & {
+    /** Client session uuid — save_roast_op idempotency key. Omit → server generates. */
+    id?: string;
     created_by?: string | null;
 };
 type RoastSessionUpdate = { id: string } & Partial<Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;
