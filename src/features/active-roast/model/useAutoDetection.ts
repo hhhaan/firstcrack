@@ -214,6 +214,11 @@ export const useAutoDetection = ({
         autoChargedRef.current = true;
     }, []);
 
+    /** Connection check 실패 등으로 charge를 안 했을 때 auto-charge 재무장 (#174) */
+    const rearmAutoCharge = useCallback(() => {
+        autoChargedRef.current = false;
+    }, []);
+
     const resetAutoDetection = useCallback(() => {
         btWindowRef.current = [];
         dropWindowRef.current = [];
@@ -231,6 +236,7 @@ export const useAutoDetection = ({
     return {
         resetAutoDetection,
         disableAutoCharge,
+        rearmAutoCharge,
         turningPoints,
         confirmedTP,
     };

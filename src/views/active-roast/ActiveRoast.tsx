@@ -167,11 +167,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // 라이프사이클과 하위 훅 사이 순환 의존성을 refs로 분리
     const resetAutoDetectionRef = useRef<() => void>(() => {});
     const disableAutoChargeRef = useRef<() => void>(() => {});
+    const rearmAutoChargeRef = useRef<() => void>(() => {});
     const triggerChargeRef = useRef<(bt?: number | null, chargeTimeMs?: number) => void>(() => {});
 
     const lifecycle = useRoastLifecycle({
         phase,
-        charged,
         sidecarConnected,
         rawBT,
         unit,
@@ -186,6 +186,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         resetStore,
         resetAutoDetectionRef,
         disableAutoChargeRef,
+        rearmAutoChargeRef,
         setLogEntries,
         setLivePoints,
         setZoomRange: chart.setZoomRange,
@@ -222,7 +223,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         roastStartTimeRef,
     });
 
-    const { turningPoints, resetAutoDetection, disableAutoCharge } = useAutoDetection({
+    const { turningPoints, resetAutoDetection, disableAutoCharge, rearmAutoCharge } = useAutoDetection({
         livePoints,
         onAutoCharge: triggerCharge,
         onAutoDrop: handleAutoDrop,
@@ -241,8 +242,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     useEffect(() => {
         resetAutoDetectionRef.current = resetAutoDetection;
         disableAutoChargeRef.current = disableAutoCharge;
+        rearmAutoChargeRef.current = rearmAutoCharge;
         triggerChargeRef.current = triggerCharge;
-    }, [resetAutoDetection, disableAutoCharge, triggerCharge]);
+    }, [resetAutoDetection, disableAutoCharge, rearmAutoCharge, triggerCharge]);
 
     const activeAlerts = useRoastAlerts({
         enabled: roastSettings.alertsEnabled,

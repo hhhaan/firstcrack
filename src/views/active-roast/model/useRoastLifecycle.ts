@@ -13,7 +13,6 @@ import type { LiveRoastPoint } from './useSidecarPolling';
 
 export interface UseRoastLifecycleParams {
     phase: string;
-    charged: boolean;
     sidecarConnected: boolean;
     rawBT: number | null;
     unit: TemperatureUnit;
@@ -28,6 +27,7 @@ export interface UseRoastLifecycleParams {
     resetStore: () => void;
     resetAutoDetectionRef: React.RefObject<() => void>;
     disableAutoChargeRef: React.RefObject<() => void>;
+    rearmAutoChargeRef: React.RefObject<() => void>;
     setLogEntries: (entries: LogEntry[]) => void;
     setLivePoints: (points: LiveRoastPoint[]) => void;
     setZoomRange: (range: { start: number; end: number } | null) => void;
@@ -48,7 +48,6 @@ const isTauri = () => '__TAURI_INTERNALS__' in window;
 export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLifecycleReturn => {
     const {
         phase,
-        charged,
         sidecarConnected,
         rawBT,
         unit,
@@ -63,6 +62,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         resetStore,
         resetAutoDetectionRef,
         disableAutoChargeRef,
+        rearmAutoChargeRef,
         setLogEntries,
         setLivePoints,
         setZoomRange,
@@ -111,7 +111,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
     }, [phase, canWrite, warnReadOnly, enterStandby, quota.exceeded, warnQuotaExceeded]);
 
     const handleManualCharge = useCallback(async () => {
-        if (charged) return;
+        if (useRoastingStore.getState().charged) return;
         // UX guard only — 저장 경로는 서버 트리거가 최종 차단한다.
         if (!canWrite) {
             warnReadOnly();
@@ -121,19 +121,22 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             warnQuotaExceeded();
             return;
         }
+        // await 전에 무장 해제 — getStatus 갭 동안 auto-charge 발화 창을 닫음 (#174)
+        disableAutoChargeRef.current?.();
         const status = await sidecar.getStatus().catch(() => null);
         if (!status?.connected) {
+            rearmAutoChargeRef.current?.();
             setConnected(false);
             if (isTauri()) {
                 await message('머신이 연결되어 있지 않습니다.', { title: '머신 연결 필요', kind: 'warning' });
             }
             return;
         }
+        // await 중 auto가 선착했으면 그대로 둔다 (triggerCharge 가드도 이중 차단)
+        if (useRoastingStore.getState().charged) return;
         // Bean/profile은 여기서 묻지 않는다 — 종료 시 RoastSummaryModal이 필수 검증과 함께 묻는다.
-        disableAutoChargeRef.current?.();
         triggerChargeRef.current?.(rawBT);
     }, [
-        charged,
         canWrite,
         warnReadOnly,
         quota.exceeded,
@@ -142,6 +145,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         triggerChargeRef,
         setConnected,
         disableAutoChargeRef,
+        rearmAutoChargeRef,
     ]);
 
     const resetActiveRoast = useCallback(() => {
