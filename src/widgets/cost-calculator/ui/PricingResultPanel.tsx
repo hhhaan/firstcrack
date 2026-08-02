@@ -1,5 +1,6 @@
+import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { useTranslation } from 'react-i18next';
-import { formatAmount, formatKrw, inputCls, labelCls, parseNumericInput } from '../lib/format';
+import { formatAmount, formatKrw, parseNumericInput } from '../lib/format';
 import { CostFlowStrip } from './CostFlowStrip';
 import { MarginSlider } from './MarginSlider';
 import { PricingSection } from './PricingSection';

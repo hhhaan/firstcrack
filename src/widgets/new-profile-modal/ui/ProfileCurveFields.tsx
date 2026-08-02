@@ -1,6 +1,6 @@
 import { inputCls, labelCls } from '@shared/ui/form-styles';
+import { numericInputProps } from '@shared/ui/numeric-input';
 import { useTranslation } from 'react-i18next';
-import { numericInputProps } from '../lib/numeric-input';
 import type { ProfileFormState } from '../lib/types';
 
 type ProfileCurveFieldsProps = {

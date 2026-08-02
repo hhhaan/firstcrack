@@ -1,5 +1,5 @@
+import { labelCls, tabCls } from '@shared/ui/form-styles';
 import { useTranslation } from 'react-i18next';
-import { labelCls, tabCls } from '../lib/styles';
 import type { BatchType } from '../lib/types';
 
 type Props = {

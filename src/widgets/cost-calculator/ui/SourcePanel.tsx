@@ -1,19 +1,12 @@
 import type { Bean } from '@shared/types/database.types';
+import { BeanCombobox } from '@shared/ui/BeanCombobox';
+import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { BlendCompositionBar, coloredSegmentsFromSources } from '@widgets/blend-list/ui/BlendCompositionBar';
 import { AlertTriangle, ChevronDown, Plus, X } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-    formatAmount,
-    formatPctValue,
-    inputCls,
-    labelCls,
-    normalizePct,
-    parseNumericInput,
-    parsePctInput,
-} from '../lib/format';
+import { formatAmount, formatPctValue, normalizePct, parseNumericInput, parsePctInput } from '../lib/format';
 import type { BlendComponentCost, BlendSourceMode, SourceMode } from '../lib/types';
-import { BeanCombobox } from './BeanCombobox';
 import { PricingSection } from './PricingSection';
 
 type BlendOption = { id: string; name: string };

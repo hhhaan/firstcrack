@@ -1,6 +1,6 @@
 import type { RoasterFormField, SerialPort } from '@entities/machine';
 import { FormSelect } from '@shared/ui/FormSelect';
-import { inputCls, labelCls } from '../lib/styles';
+import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { ComportField } from './ComportField';
 
 export const FormField = ({

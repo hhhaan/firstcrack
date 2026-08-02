@@ -2,7 +2,13 @@ import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import type { Bean } from '@shared/types/database.types';
-import { modalCancelBtnCls, modalFooterChrome, modalHeaderChrome, modalPrimaryBtnCls } from '@shared/ui/form-styles';
+import {
+    modalCancelBtnCls,
+    modalFooterChrome,
+    modalHeaderChrome,
+    modalPrimaryBtnCls,
+    tabCls,
+} from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -11,7 +17,6 @@ import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { beanFormSchema, EMPTY_BEAN_FORM } from '../lib/schema';
-import { tabCls } from '../lib/styles';
 import { BEAN_LIST_LIMIT, type BeanModalTab } from '../lib/types';
 import { BeanAdjustTab } from './BeanAdjustTab';
 import { BeanFormFields } from './BeanFormFields';

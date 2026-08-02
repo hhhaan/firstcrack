@@ -1,7 +1,7 @@
 import type { SerialPort } from '@entities/machine';
+import { inputCls } from '@shared/ui/form-styles';
 import { RotateCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { inputCls } from '../lib/styles';
 
 export const ComportField = ({
     value,

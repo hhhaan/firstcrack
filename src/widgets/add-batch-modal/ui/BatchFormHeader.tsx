@@ -2,11 +2,11 @@ import type { Machine } from '@entities/machine';
 import { getDateFnsLocale } from '@shared/i18n';
 import { cn } from '@shared/lib/cn';
 import { Calendar } from '@shared/ui/calendar/Calendar';
+import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
 import { format } from 'date-fns';
 import { CalendarIcon, Cpu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { inputCls, labelCls } from '../lib/styles';
 import { SearchableSelect } from './SearchableSelect';
 
 type Props = {

@@ -1,6 +1,6 @@
+import { inputCls } from '@shared/ui/form-styles';
 import { Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { inputCls } from '../lib/styles';
 
 export const SearchableSelect = ({
     placeholder,

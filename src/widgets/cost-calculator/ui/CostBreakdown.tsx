@@ -1,16 +1,9 @@
+import { inputCls, labelCls } from '@shared/ui/form-styles';
 import type { LucideIcon } from 'lucide-react';
 import { Flame, Leaf, Package, Plus, Receipt, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-    formatAmount,
-    formatKrw,
-    formatPctValue,
-    inputCls,
-    labelCls,
-    parseNumericInput,
-    parsePctInput,
-} from '../lib/format';
+import { formatAmount, formatKrw, formatPctValue, parseNumericInput, parsePctInput } from '../lib/format';
 import type { FixedOverheadItem } from '../lib/types';
 import { PricingSection } from './PricingSection';
 

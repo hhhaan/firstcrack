@@ -5,13 +5,13 @@ import {
     REGIONS_BY_ORIGIN,
     VARIETIES_BY_ORIGIN,
 } from '@entities/bean/lib/coffee-origins';
+import { chipCls, inputCls, labelCls } from '@shared/ui/form-styles';
+import { numericInputProps } from '@shared/ui/numeric-input';
 import { Info, MapPin, Scale, Tag } from 'lucide-react';
 import type { FieldErrors, UseFormGetValues, UseFormRegister, UseFormSetValue } from 'react-hook-form';
 import { useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { numericInputProps } from '../lib/numeric-input';
 import type { BeanForm } from '../lib/schema';
-import { chipCls, inputCls, labelCls } from '../lib/styles';
 import { ChipGroup } from './ChipGroup';
 import { useBeanFormFieldUpdates } from './useBeanFormFieldUpdates';
 

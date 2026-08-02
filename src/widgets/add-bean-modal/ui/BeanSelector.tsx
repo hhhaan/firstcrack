@@ -1,7 +1,7 @@
 import type { Bean } from '@shared/types/database.types';
+import { labelCls } from '@shared/ui/form-styles';
 import { Check, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { labelCls } from '../lib/styles';
 import type { BeanPickerProps } from '../lib/types';
 
 type Props = BeanPickerProps & {

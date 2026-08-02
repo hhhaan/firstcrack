@@ -1,8 +1,8 @@
 import { groupRoastersByBrand, listProtocols, ROASTER_REGISTRY } from '@entities/machine';
 import { cn } from '@shared/lib/cn';
 import { FormSelect } from '@shared/ui/FormSelect';
+import { inputCls, labelCls, tabCls } from '@shared/ui/form-styles';
 import { useTranslation } from 'react-i18next';
-import { inputCls, labelCls, tabCls } from '../lib/styles';
 import type { MachineModalTab } from '../model/types';
 
 const ROASTERS_BY_BRAND = groupRoastersByBrand(ROASTER_REGISTRY);

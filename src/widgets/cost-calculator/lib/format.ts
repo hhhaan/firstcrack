@@ -1,5 +1,3 @@
-export { inputCls, labelCls } from '@shared/ui/form-styles';
-
 /** Percentage precision (margin, yield, blend ratio) — all locales. */
 export const PCT_DECIMALS = 2;
 

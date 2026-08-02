@@ -1,8 +1,8 @@
 import { cn } from '@shared/lib/cn';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
+import { labelCls } from '@shared/ui/form-styles';
 import { AlertTriangle, Repeat } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { labelCls } from '../lib/styles';
 import { RECURRENCE_OPTIONS } from '../lib/types';
 
 type Props = {

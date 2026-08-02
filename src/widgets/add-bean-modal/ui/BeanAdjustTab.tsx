@@ -1,7 +1,7 @@
+import { inputCls, labelCls, tabCls } from '@shared/ui/form-styles';
+import { NUMERIC_INPUT_PROPS } from '@shared/ui/numeric-input';
 import { Info, Scale } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { NUMERIC_INPUT_PROPS } from '../lib/numeric-input';
-import { inputCls, labelCls, tabCls } from '../lib/styles';
 import type { BeanPickerProps } from '../lib/types';
 import { BeanSelector } from './BeanSelector';
 import { WarmActionPanel } from './WarmActionPanel';

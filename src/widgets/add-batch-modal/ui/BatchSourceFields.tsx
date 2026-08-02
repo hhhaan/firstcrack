@@ -1,9 +1,9 @@
 import type { StockSummary } from '@entities/bean-stock-event';
 import type { BlendWithComponents } from '@entities/blend';
 import type { Bean, RoastProfile } from '@shared/types/database.types';
+import { labelCls } from '@shared/ui/form-styles';
 import { AlertTriangle, Package } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { labelCls } from '../lib/styles';
 import type { BatchType } from '../lib/types';
 import { SearchableSelect } from './SearchableSelect';
 import type { BatchStockChecks } from './useBatchStockChecks';

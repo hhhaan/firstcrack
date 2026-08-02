@@ -1,13 +1,12 @@
+import { inputCls, labelCls } from '@shared/ui/form-styles';
+import { NUMERIC_INPUT_PROPS } from '@shared/ui/numeric-input';
 import { Scale } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NUMERIC_INPUT_PROPS } from '../lib/numeric-input';
-import { inputCls, labelCls } from '../lib/styles';
 import type { BeanPickerProps } from '../lib/types';
 import { BeanSelector } from './BeanSelector';
 import { WarmActionPanel } from './WarmActionPanel';
 
-// ponytail: local helper; extract to numeric-input.ts if 3+ callers need it.
 const sanitizeDecimal = (value: string): string => {
     const cleaned = value.replace(/[^0-9.]/g, '');
     const dot = cleaned.indexOf('.');
