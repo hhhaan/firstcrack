@@ -10,7 +10,6 @@ import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
 import { Spinner } from '@shared/ui/Spinner';
 import { useTranslation } from 'react-i18next';
-// import { BottomToolbar } from './widgets/bottom-toolbar';
 import { useActiveWorkspace } from './entities/organization';
 import { useSidecarDeadListener } from './features/sidecar';
 import { useUpdateChecker } from './features/updater';
@@ -289,7 +288,6 @@ export const App = () => {
                         )}
                     </div>
                 </div>
-                {/* <BottomToolbar /> */}
                 <SettingsModal
                     open={settingsOpen}
                     initialTab={settingsInitialTab}

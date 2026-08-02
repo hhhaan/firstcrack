@@ -1,5 +1,5 @@
+import { useAppVersion } from '@shared/lib/useAppVersion';
 import { SectionCard } from '@shared/ui/SectionCard';
-import { useAppVersion } from '@widgets/bottom-toolbar/model/useAppVersion';
 import { useTranslation } from 'react-i18next';
 import { SettingsOptionRow, settingsOptionLabelCls } from './SettingsOptionRow';
 

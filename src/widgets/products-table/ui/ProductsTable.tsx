@@ -3,7 +3,7 @@ import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import { type Product, useDeleteProduct, useProducts } from '@entities/product';
 import { useProductStock, useProductStockEvents } from '@entities/product-stock-event';
-import { AdjustProductStockModal } from '@features/adjust-product-stock';
+import { AdjustStockModal } from '@features/adjust-stock';
 import { usePackageProduct } from '@features/package-product';
 import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
@@ -246,7 +246,8 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
             )}
 
             {adjustProduct && (
-                <AdjustProductStockModal
+                <AdjustStockModal
+                    kind="product"
                     open
                     onClose={() => setAdjustProduct(null)}
                     productId={adjustProduct.id}

@@ -1,9 +1,8 @@
 import { type OrderStatusFilter, type OrderWithLines, useOrdersPaginated } from '@entities/order';
 import { type OrderDispatch, useOrderDispatches } from '@entities/order-dispatch';
 import { useActiveWorkspace } from '@entities/organization';
-import { useCancelOrder } from '@features/cancel-order';
 import { DispatchModal } from '@features/dispatch-order';
-import { useFulfillOrder } from '@features/fulfill-order';
+import { useCancelOrder, useFulfillOrder } from '@features/order-status';
 import { formatDateShort } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';

@@ -2,7 +2,7 @@ import { useBeans } from '@entities/bean/queries';
 import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import { useRoastedStock, useRoastedStockEvents } from '@entities/roasted-stock-event';
-import { AdjustRoastedStockModal } from '@features/adjust-roasted-stock';
+import { AdjustStockModal } from '@features/adjust-stock';
 import { Badge } from '@shared/ui/Badge';
 import { TableSkeleton } from '@shared/ui/TableSkeleton';
 import { Coffee, Search, SlidersHorizontal } from 'lucide-react';
@@ -226,7 +226,8 @@ export const RoastedInventoryTab = () => {
             )}
 
             {adjustTarget && (
-                <AdjustRoastedStockModal
+                <AdjustStockModal
+                    kind="roasted"
                     open
                     onClose={() => setAdjustTarget(null)}
                     name={adjustTarget.name}
