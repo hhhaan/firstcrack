@@ -614,10 +614,7 @@
             "outputWeight": "Output Weight (roasted)",
             "outputWeightPlaceholder": "Leave blank if not weighed",
             "lossRateMeasured": "Weight loss {{pct}}%",
-            "lossRateEstimated": "Not weighed — loss rate is estimated from the roast level.",
-            "sessionExpired": "Your login session has expired. Sign in again and this roast will be saved automatically.",
-            "workspaceLoading": "Workspace is still loading. Please try again in a moment.",
-            "batchUnavailable": "The selected schedule batch is no longer available."
+            "lossRateEstimated": "Not weighed — loss rate is estimated from the roast level."
         },
         "planBatch": {
             "title": "Continue with the next roast?",
@@ -671,12 +668,6 @@
         "alerts": {
             "rorCrash": "RoR crash — heat is stalling",
             "btOver": "BT over the ceiling"
-        },
-        "recovery": {
-            "title": "Unsaved roast",
-            "askMsg": "An unsaved roast was found. Save it now? You can edit the details later in History.",
-            "saved": "Recovered and saved your previous unsaved roast.",
-            "failed": "Could not save the recovered roast. It will be retried on next launch."
         }
     },
     "schedule": {

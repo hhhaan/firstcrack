@@ -3,19 +3,13 @@ import { useActiveWorkspace } from '@entities/organization';
 import { planBatchApi, planKeys, useDayBatches } from '@entities/plan';
 import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
-import {
-    clearPendingRoastSave,
-    type PendingRoastSave,
-    toSaveRoastParams,
-    writePendingRoastSave,
-} from '@features/active-roast/model/pendingRoastSave';
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
-import { ensureSession } from '@shared/lib/ensureSession';
 import { isGreenRoastAlreadyClaimed } from '@shared/lib/f3-green-deduct';
 import { BatchLimitError } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
+import { useAuthStore } from '@shared/store/auth';
 import { useToastStore } from '@shared/store/toast';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQueryClient } from '@tanstack/react-query';
@@ -23,7 +17,7 @@ import { message } from '@tauri-apps/plugin-dialog';
 import { format } from 'date-fns';
 import { useCallback } from 'react';
 import type { RoastSummaryForm } from '../ui/RoastSummaryModal';
-import { type RoastSummaryData, useRoastCompletionFlow } from './useRoastCompletionFlow';
+import { useRoastCompletionFlow } from './useRoastCompletionFlow';
 
 export interface UseRoastSaveFlowParams {
     planBatchHandoff: PlanBatchHandoff | null;
@@ -64,6 +58,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         onResetActiveRoast,
     } = params;
 
+    const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const today = format(new Date(), 'yyyy-MM-dd');
     const { data: dayBatches = [] } = useDayBatches(isWorkspaceReady ? workspaceOwnerId : '', today);
@@ -75,6 +70,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
 
     const handleSave = useCallback(
         async (formData: RoastSummaryForm) => {
+            if (!user) return;
             // isSaving turns true only inside saveRoast — the async F3 guard below
             // leaves the button enabled, so block re-entry here too.
             if (isSaving) return;
@@ -83,7 +79,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 if (!planBatchHandoff && formData.linkMode === 'schedule' && formData.planBatchId) {
                     const row = dayBatches.find((b) => b.id === formData.planBatchId);
                     if (!row || row.completed_sessions >= row.batch_count) {
-                        throw new Error(i18n.t('activeRoast.summary.batchUnavailable'));
+                        throw new Error('Selected schedule batch is no longer available.');
                     }
                     linkedBatch = toPlanBatchHandoff(row);
                 }
@@ -112,50 +108,33 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     }
                 }
 
-                // Durable intent: written BEFORE any auth gate so the roast survives
-                // an auth kick to the login screen, a crash, or a force quit.
-                // Recovered (auto-saved) by PendingRoastRecovery on next launch.
-                const pending: PendingRoastSave = {
-                    version: 1,
-                    submitted: true,
-                    params: {
-                        formData: {
-                            notes: formData.notes,
-                            weightGrams: formData.weightGrams,
-                            outputWeightKg: formData.outputWeightKg,
-                            roastLevel: formData.roastLevel,
-                            beanId: formData.beanId,
-                            beanLabel: formData.beanId ? null : formData.beanLabel,
-                            linkedBatch,
-                            // ponytail: no beanId gate here — saveRoastCore's canTouchStock
-                            // (resolvedBeanId || blendId) already blocks label-only sessions,
-                            // and gating on beanId silently killed blend/handoff deduction.
-                            deductStock,
-                        },
-                        userId: workspaceOwnerId,
-                        elapsed,
-                        roastStartTime: roastStartTimeRef.current,
-                        rawBT,
-                        ambientTemperature,
-                        ambientHumidity,
-                        selectedBeanId,
-                        targetProfileId,
-                        planBatchHandoff,
-                        sessionId,
-                        handoffBeanName,
-                        logEntries: flow.summaryData?.logEntries ?? [],
+                const saveResult = await saveRoast({
+                    formData: {
+                        notes: formData.notes,
+                        weightGrams: formData.weightGrams,
+                        outputWeightKg: formData.outputWeightKg,
+                        roastLevel: formData.roastLevel,
+                        beanId: formData.beanId,
+                        beanLabel: formData.beanId ? null : formData.beanLabel,
+                        linkedBatch,
+                        // ponytail: no beanId gate here — saveRoastCore's canTouchStock
+                        // (resolvedBeanId || blendId) already blocks label-only sessions,
+                        // and gating on beanId silently killed blend/handoff deduction.
+                        deductStock,
                     },
-                };
-                writePendingRoastSave(pending);
-
-                // Second chance before failing: revive a session whose auto-refresh
-                // was missed (sleep / long background) without forcing a re-login.
-                if (!(await ensureSession())) {
-                    throw new Error(i18n.t('activeRoast.summary.sessionExpired'));
-                }
-
-                const saveResult = await saveRoast(toSaveRoastParams(pending.params));
-                clearPendingRoastSave();
+                    userId: workspaceOwnerId,
+                    elapsed,
+                    roastStartTimeRef,
+                    rawBT,
+                    ambientTemperature,
+                    ambientHumidity,
+                    selectedBeanId,
+                    targetProfileId,
+                    planBatchHandoff,
+                    sessionId,
+                    handoffBeanName,
+                    logEntries: flow.summaryData?.logEntries ?? [],
+                });
 
                 if (saveResult.batchStatusUpdateFailed) {
                     useToastStore.getState().show(i18n.t('activeRoast.summary.batchStatusUpdateFailed'));
@@ -219,6 +198,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             }
         },
         [
+            user,
             isSaving,
             workspaceOwnerId,
             isWorkspaceReady,
@@ -242,65 +222,9 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         ],
     );
 
-    // Crash/auth-kick backstop: the roast becomes durable the moment the summary
-    // opens, with modal-default form values. Overwritten with the real form on Save.
-    const confirmEndRoast = useCallback(
-        (summaryData: RoastSummaryData) => {
-            writePendingRoastSave({
-                version: 1,
-                submitted: false,
-                params: {
-                    formData: {
-                        notes: '',
-                        weightGrams: planBatchHandoff?.batchSizeKg ?? 0,
-                        roastLevel: null,
-                        beanId: selectedBeanId,
-                        beanLabel: null,
-                        linkedBatch: null,
-                        deductStock: false,
-                    },
-                    userId: workspaceOwnerId,
-                    elapsed,
-                    roastStartTime: roastStartTimeRef.current,
-                    rawBT,
-                    ambientTemperature,
-                    ambientHumidity,
-                    selectedBeanId,
-                    targetProfileId,
-                    planBatchHandoff,
-                    sessionId,
-                    handoffBeanName,
-                    logEntries: summaryData.logEntries,
-                },
-            });
-            flow.confirmEndRoast(summaryData);
-        },
-        [
-            workspaceOwnerId,
-            elapsed,
-            roastStartTimeRef,
-            rawBT,
-            ambientTemperature,
-            ambientHumidity,
-            selectedBeanId,
-            targetProfileId,
-            planBatchHandoff,
-            sessionId,
-            handoffBeanName,
-            flow.confirmEndRoast,
-        ],
-    );
-
-    const discardSummary = useCallback(() => {
-        clearPendingRoastSave();
-        flow.discardSummary();
-    }, [flow.discardSummary]);
-
     return {
         flow,
         isSaving,
         handleSave,
-        confirmEndRoast,
-        discardSummary,
     };
 };

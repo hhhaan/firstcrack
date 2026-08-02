@@ -614,10 +614,7 @@
             "outputWeight": "排出量（焙煎後）",
             "outputWeightPlaceholder": "未計量の場合は空欄",
             "lossRateMeasured": "減量率 {{pct}}%",
-            "lossRateEstimated": "未計量 — 減量率は焙煎レベルに基づく推定値になります。",
-            "sessionExpired": "ログインセッションの有効期限が切れました。再ログインすると、この記録は自動的に保存されます。",
-            "workspaceLoading": "ワークスペースを読み込み中です。しばらくしてからもう一度お試しください。",
-            "batchUnavailable": "選択したスケジュールバッチは使用できなくなりました。"
+            "lossRateEstimated": "未計量 — 減量率は焙煎レベルに基づく推定値になります。"
         },
         "planBatch": {
             "title": "次のローストを続けますか？",
@@ -671,12 +668,6 @@
         "alerts": {
             "rorCrash": "RoRクラッシュ — 火力が落ちています",
             "btOver": "BT上限超過"
-        },
-        "recovery": {
-            "title": "未保存の焙煎",
-            "askMsg": "未保存の焙煎記録が見つかりました。今すぐ保存しますか？詳細は履歴で編集できます。",
-            "saved": "保存できていなかった焙煎記録を保存しました。",
-            "failed": "復元した焙煎記録の保存に失敗しました。次回起動時に再試行します。"
         }
     },
     "schedule": {

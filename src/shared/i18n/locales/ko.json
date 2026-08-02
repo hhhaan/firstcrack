@@ -907,10 +907,7 @@
             "outputWeight": "배출량 (로스팅 후)",
             "outputWeightPlaceholder": "미계량 시 비워두세요",
             "lossRateMeasured": "감량률 {{pct}}%",
-            "lossRateEstimated": "미계량 — 감량률은 로스팅 레벨 기반 추정치로 대체됩니다.",
-            "sessionExpired": "로그인 세션이 만료되었습니다. 다시 로그인하면 이 기록이 자동으로 저장됩니다.",
-            "workspaceLoading": "작업 공간을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.",
-            "batchUnavailable": "선택한 일정 배치는 더 이상 사용할 수 없습니다."
+            "lossRateEstimated": "미계량 — 감량률은 로스팅 레벨 기반 추정치로 대체됩니다."
         },
         "planBatch": {
             "title": "다음 로스팅을 진행할까요?",
@@ -952,12 +949,6 @@
         "alerts": {
             "rorCrash": "RoR 크래시 — 화력이 죽고 있습니다",
             "btOver": "BT 상한 초과"
-        },
-        "recovery": {
-            "title": "저장되지 않은 로스팅",
-            "askMsg": "저장되지 않은 로스팅 기록이 있습니다. 지금 저장할까요? 세부 정보는 히스토리에서 수정할 수 있습니다.",
-            "saved": "이전에 저장하지 못한 로스팅 기록을 저장했습니다.",
-            "failed": "미저장 로스팅 기록 저장에 실패했습니다. 다음 실행 시 다시 시도합니다."
         }
     },
     "profiles": {
