@@ -12,6 +12,7 @@ import {
     useRoastSettings,
 } from '@features/active-roast';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
+import { applyEventMarkerDrag } from '@features/active-roast/lib/event-marker-drag';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
@@ -365,6 +366,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         isFullscreen,
         showEndRoastModal: saveFlow.flow.endRoastModal,
         showSummaryModal: saveFlow.flow.summaryModal,
+        showContinueModal: saveFlow.flow.continueModal,
         phase,
         onToggleFullscreen: toggleFullscreen,
         onExitFullscreen: exitFullscreen,
@@ -423,14 +425,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const handleEventMarkerDrag = useCallback(
         (event: string, newTimeSec: number) => {
-            const newTimeStr = formatElapsed(newTimeSec);
-            setLogEntries((prev) =>
-                prev.map((entry) =>
-                    entry.event === event ? { ...entry, time: newTimeStr, timeSec: newTimeSec } : entry,
-                ),
-            );
+            setLogEntries((prev) => applyEventMarkerDrag(prev, event, newTimeSec, livePoints, unit));
         },
-        [setLogEntries],
+        [setLogEntries, livePoints, unit],
     );
 
     const [noteInput, setNoteInput] = useState('');

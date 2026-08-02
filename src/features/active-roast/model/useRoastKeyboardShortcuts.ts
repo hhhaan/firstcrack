@@ -5,6 +5,8 @@ interface UseRoastKeyboardShortcutsParams {
     isFullscreen: boolean;
     showEndRoastModal: boolean;
     showSummaryModal: boolean;
+    /** When true, block roast hotkeys while continue-batch modal is open. */
+    showContinueModal?: boolean;
     phase: string;
     onToggleFullscreen: () => void;
     onExitFullscreen: () => void;
@@ -14,11 +16,36 @@ interface UseRoastKeyboardShortcutsParams {
     onMarkDrop: () => void;
 }
 
+/** Base gate shared by all roast hotkeys (modals close the keyboard surface). */
+export function isRoastShortcutBaseEnabled(p: {
+    isActive: boolean;
+    showEndRoastModal: boolean;
+    showSummaryModal: boolean;
+    showContinueModal?: boolean;
+}): boolean {
+    return p.isActive && !p.showEndRoastModal && !p.showSummaryModal && !p.showContinueModal;
+}
+
+/**
+ * Event-marking hotkeys (Yellow / FC / Drop) only while roasting.
+ * Standby/preheating must not create Drop etc. (disarms alerts).
+ */
+export function isRoastMarkShortcutEnabled(p: {
+    isActive: boolean;
+    showEndRoastModal: boolean;
+    showSummaryModal: boolean;
+    showContinueModal?: boolean;
+    phase: string;
+}): boolean {
+    return isRoastShortcutBaseEnabled(p) && p.phase === 'roasting';
+}
+
 export const useRoastKeyboardShortcuts = ({
     isActive,
     isFullscreen,
     showEndRoastModal,
     showSummaryModal,
+    showContinueModal = false,
     phase,
     onToggleFullscreen,
     onExitFullscreen,
@@ -27,7 +54,19 @@ export const useRoastKeyboardShortcuts = ({
     onMarkEvent,
     onMarkDrop,
 }: UseRoastKeyboardShortcutsParams) => {
-    const enabled = isActive && !showEndRoastModal && !showSummaryModal;
+    const enabled = isRoastShortcutBaseEnabled({
+        isActive,
+        showEndRoastModal,
+        showSummaryModal,
+        showContinueModal,
+    });
+    const canMark = isRoastMarkShortcutEnabled({
+        isActive,
+        showEndRoastModal,
+        showSummaryModal,
+        showContinueModal,
+        phase,
+    });
 
     // Escape → exit fullscreen (only when fullscreen and no modal open)
     useHotkeys(
@@ -70,8 +109,8 @@ export const useRoastKeyboardShortcuts = ({
             e.preventDefault();
             onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
         },
-        { enabled },
-        [enabled, onMarkEvent],
+        { enabled: canMark },
+        [canMark, onMarkEvent],
     );
 
     // Ctrl/Meta + 2 → Mark FC Start
@@ -81,8 +120,8 @@ export const useRoastKeyboardShortcuts = ({
             e.preventDefault();
             onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
         },
-        { enabled },
-        [enabled, onMarkEvent],
+        { enabled: canMark },
+        [canMark, onMarkEvent],
     );
 
     // Ctrl/Meta + 3 → Mark FC End
@@ -92,8 +131,8 @@ export const useRoastKeyboardShortcuts = ({
             e.preventDefault();
             onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
         },
-        { enabled },
-        [enabled, onMarkEvent],
+        { enabled: canMark },
+        [canMark, onMarkEvent],
     );
 
     // Ctrl/Meta + D → Mark Drop (case-insensitive)
@@ -103,7 +142,7 @@ export const useRoastKeyboardShortcuts = ({
             e.preventDefault();
             onMarkDrop();
         },
-        { enabled },
-        [enabled, onMarkDrop],
+        { enabled: canMark },
+        [canMark, onMarkDrop],
     );
 };

@@ -36,10 +36,7 @@ export function mergeStatus(current: CanonicalStatus, incoming: CanonicalStatus)
  *
  * claimStatus CANCEL_DONE / RETURN_DONE / ADMIN_CANCEL_DONE take precedence when present.
  */
-export function naverToCanonical(
-    productOrderStatus: string,
-    claimStatus?: string | null,
-): CanonicalStatus | null {
+export function naverToCanonical(productOrderStatus: string, claimStatus?: string | null): CanonicalStatus | null {
     const claim = (claimStatus ?? '').toUpperCase();
     if (
         claim === 'CANCEL_DONE' ||
@@ -121,10 +118,14 @@ export function cafe24ToCanonical(input: {
 /**
  * Shopify Order.displayFinancialStatus + displayFulfillmentStatus
  * (+ cancelledAt handled by caller).
- * Financial filter values: paid | pending | authorized | partially_paid |
+ *
+ * Financial (display + filter): paid | pending | authorized | partially_paid |
  * partially_refunded | refunded | voided | expired
- * Fulfillment filter values: unshipped | shipped | fulfilled | partial |
- * scheduled | on_hold | unfulfilled | request_declined
+ *
+ * Fulfillment — OrderDisplayFulfillmentStatus (GraphQL display enum):
+ * FULFILLED | IN_PROGRESS | ON_HOLD | OPEN | PARTIALLY_FULFILLED |
+ * PENDING_FULFILLMENT | REQUEST_DECLINED | RESTOCKED | SCHEDULED | UNFULFILLED
+ * Plus search-filter synonyms still seen on some payloads: shipped | unshipped | partial
  */
 export function shopifyToCanonical(
     financial: string | null | undefined,
@@ -139,12 +140,27 @@ export function shopifyToCanonical(
     if (fin === 'refunded' || fin === 'voided') return 'refunded';
     if (fin === 'partially_refunded' && (ful === 'restocked' || ful === 'fulfilled')) return 'refunded';
 
+    // Fully shipped / fulfilled (display + filter synonym)
     if (ful === 'fulfilled' || ful === 'shipped') return 'shipped';
-    if (ful === 'partial' || ful === 'scheduled' || ful === 'on_hold') return 'preparing';
 
+    // In-progress fulfillment (display enums + filter synonyms)
+    if (
+        ful === 'partial' ||
+        ful === 'partially_fulfilled' ||
+        ful === 'scheduled' ||
+        ful === 'on_hold' ||
+        ful === 'in_progress' ||
+        ful === 'pending_fulfillment' ||
+        ful === 'request_declined' ||
+        ful === 'open'
+    ) {
+        return 'preparing';
+    }
+
+    // RESTOCKED alone is not terminal without refund — fall through to financial
     if (fin === 'pending' || fin === 'authorized' || fin === 'expired') return 'pending';
     if (fin === 'paid' || fin === 'partially_paid') {
-        if (!ful || ful === 'unfulfilled' || ful === 'unshipped') return 'paid';
+        if (!ful || ful === 'unfulfilled' || ful === 'unshipped' || ful === 'restocked') return 'paid';
         return 'preparing';
     }
     return null;

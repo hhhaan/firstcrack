@@ -105,13 +105,16 @@ export const planBatchApi = {
      * Delete a single batch.
      * - If recurrence_rule_id is present: insert a cancelled exception row
      * - If recurrence_rule_id is null: delete the row directly (one-off batch)
+     *
+     * (rule, original_date) is unique (partial index uq_plan_batch_rule_original).
+     * PostgREST cannot upsert on that arbiter — on 23505 converge by updating the
+     * existing exception row to cancelled (same pattern as materializePlanBatch).
      */
     deleteSingle: async (
         id: string,
         meta?: { recurrenceRuleId?: string; originalDate?: string; planId?: string },
     ): Promise<void> => {
         if (meta?.recurrenceRuleId && meta?.originalDate) {
-            // Recurring batch → insert cancelled exception
             const { error } = await supabase.from('roast_plan_batches').insert({
                 plan_id: meta.planId ?? '',
                 recurrence_rule_id: meta.recurrenceRuleId,
@@ -122,7 +125,19 @@ export const planBatchApi = {
                 batch_size_kg: 0,
                 target_roasted_kg: 0,
             });
-            if (error) throw error;
+            if (!error) return;
+            if (error.code !== '23505') throw error;
+
+            const { error: updateError } = await supabase
+                .from('roast_plan_batches')
+                .update({
+                    exception_type: 'cancelled',
+                    bean_name: '__cancelled__',
+                    ...(meta.planId ? { plan_id: meta.planId } : {}),
+                })
+                .eq('recurrence_rule_id', meta.recurrenceRuleId)
+                .eq('original_date', meta.originalDate);
+            if (updateError) throw updateError;
             return;
         }
 
@@ -210,8 +225,12 @@ export const planBatchApi = {
 
     reorder: async (planId: string, orderedIds: string[]): Promise<void> => {
         const updates = await Promise.all(
+            // index + 1: order_index 0 is pinned for recurring instances (listForDateRange)
             orderedIds.map((id, index) =>
-                supabase.from('roast_plan_batches').update({ order_index: index }).eq('id', id),
+                supabase
+                    .from('roast_plan_batches')
+                    .update({ order_index: index + 1 })
+                    .eq('id', id),
             ),
         );
         for (const { error } of updates) {

@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-    cafe24ToCanonical,
-    mergeStatus,
-    naverToCanonical,
-    shopifyToCanonical,
-} from './status-map.ts';
+import { cafe24ToCanonical, mergeStatus, naverToCanonical, shopifyToCanonical } from './status-map.ts';
 
 describe('mergeStatus', () => {
     it('advances forward', () => {
@@ -55,6 +50,26 @@ describe('shopifyToCanonical (official financial/fulfillment filters)', () => {
     it('fulfilled / shipped', () => {
         expect(shopifyToCanonical('paid', 'fulfilled')).toBe('shipped');
         expect(shopifyToCanonical('paid', 'shipped')).toBe('shipped');
+    });
+    it('OrderDisplayFulfillmentStatus preparing enums', () => {
+        expect(shopifyToCanonical('paid', 'partially_fulfilled')).toBe('preparing');
+        expect(shopifyToCanonical('paid', 'PARTIALLY_FULFILLED')).toBe('preparing');
+        expect(shopifyToCanonical('paid', 'in_progress')).toBe('preparing');
+        expect(shopifyToCanonical('paid', 'IN_PROGRESS')).toBe('preparing');
+        expect(shopifyToCanonical('paid', 'pending_fulfillment')).toBe('preparing');
+        expect(shopifyToCanonical('paid', 'PENDING_FULFILLMENT')).toBe('preparing');
+        expect(shopifyToCanonical('paid', 'request_declined')).toBe('preparing');
+        expect(shopifyToCanonical('paid', 'REQUEST_DECLINED')).toBe('preparing');
+        expect(shopifyToCanonical('paid', 'open')).toBe('preparing');
+        expect(shopifyToCanonical('paid', 'OPEN')).toBe('preparing');
+        expect(shopifyToCanonical('paid', 'scheduled')).toBe('preparing');
+        expect(shopifyToCanonical('paid', 'on_hold')).toBe('preparing');
+        // filter synonym still works
+        expect(shopifyToCanonical('paid', 'partial')).toBe('preparing');
+    });
+    it('restocked alone stays paid (not terminal without refund financial)', () => {
+        expect(shopifyToCanonical('paid', 'restocked')).toBe('paid');
+        expect(shopifyToCanonical('paid', 'RESTOCKED')).toBe('paid');
     });
     it('refunded / voided / cancelledAt', () => {
         expect(shopifyToCanonical('refunded', null)).toBe('refunded');

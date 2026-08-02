@@ -37,6 +37,39 @@ interface Params {
     preChargeDisplaySec: number;
 }
 
+/** idle 중 /status 재확인 주기 — 온도 폴링보다 느슨 (부하 거의 없음). */
+export const IDLE_STATUS_POLL_MS = 5000;
+
+type SidecarStatusLike = {
+    connected: boolean;
+    capabilities?: string[];
+};
+
+/**
+ * 연결 상태 확인 후 idle이면 preheating 재진입.
+ * preheating/standby 끊김 → idle 이후 뷰 유지 시 자동 복구 (#178).
+ */
+export async function checkSidecarAndRecoverIdle(deps: {
+    getStatus: () => Promise<SidecarStatusLike>;
+    getPhase: () => string;
+    setConnected: (connected: boolean, capabilities?: string[]) => void;
+    enterPreheating: (capabilities?: string[]) => void;
+}): Promise<void> {
+    try {
+        const s = await deps.getStatus();
+        if (!s.connected) {
+            deps.setConnected(false);
+            return;
+        }
+        deps.setConnected(true, s.capabilities);
+        if (deps.getPhase() === 'idle') {
+            deps.enterPreheating(s.capabilities);
+        }
+    } catch {
+        deps.setConnected(false);
+    }
+}
+
 /**
  * 사이드카(파이썬 프로세스)와의 연결 상태를 관리하고,
  * 로스팅 중 온도를 주기적으로 폴링해 livePoints 배열을 누적한다.
@@ -122,24 +155,25 @@ export const useSidecarPolling = ({
         prevPhaseRef.current = phase;
     }, [phase, roastStartTimeRef, preChargeDisplaySec]);
 
-    // 뷰가 활성화될 때 연결 상태를 확인하고 idle 상태면 예열 단계로 진입한다.
+    // 뷰 활성화 시 연결 확인 + idle 동안 저주기 재확인 → 복구 시 예열 재진입 (#178).
+    // non-idle에서는 온도 폴링 루프가 connected를 관리하므로 interval은 idle만.
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     useEffect(() => {
         if (!isActive) return;
-        sidecar
-            .getStatus()
-            .then((s) => {
-                if (s.connected) {
-                    setConnected(true, s.capabilities);
-                    if (useRoastingStore.getState().phase === 'idle') {
-                        enterPreheating(s.capabilities);
-                    }
-                } else {
-                    setConnected(false);
-                }
-            })
-            .catch(() => setConnected(false));
-    }, [isActive]);
+
+        const check = () =>
+            void checkSidecarAndRecoverIdle({
+                getStatus: () => sidecar.getStatus(),
+                getPhase: () => useRoastingStore.getState().phase,
+                setConnected,
+                enterPreheating,
+            });
+
+        check(); // 즉시 1회 (기존 isActive 전환 동작 보존)
+        if (phase !== 'idle') return;
+        const id = setInterval(check, IDLE_STATUS_POLL_MS);
+        return () => clearInterval(id);
+    }, [isActive, phase]);
 
     // 예열·대기·로스팅·종료 단계에서 주기적으로 온도를 폴링한다.
     // idle 단계에서만 폴링을 중단 — ended(요약 모달)에는 BBP 쿨다운 기록을 위해 폴링 유지.
