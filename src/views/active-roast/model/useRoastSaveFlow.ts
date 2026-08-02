@@ -113,7 +113,10 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                         beanId: formData.beanId,
                         beanLabel: formData.beanId ? null : formData.beanLabel,
                         linkedBatch,
-                        deductStock: formData.beanId ? deductStock : false,
+                        // ponytail: no beanId gate here — saveRoastCore's canTouchStock
+                        // (resolvedBeanId || blendId) already blocks label-only sessions,
+                        // and gating on beanId silently killed blend/handoff deduction.
+                        deductStock,
                     },
                     userId: workspaceOwnerId,
                     elapsed,
