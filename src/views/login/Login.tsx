@@ -5,6 +5,7 @@ import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const BUSINESS_URL = 'https://firstcrackiscoming.com';
+const FORGOT_PASSWORD_URL = `${BUSINESS_URL}/forgot-password`;
 
 interface LoginProps {
     onLogin?: () => void;
@@ -423,7 +424,9 @@ export const Login = ({ onLogin }: LoginProps) => {
                                 </label>
                                 <button
                                     type="button"
-                                    onClick={() => alert('Password reset coming soon.')}
+                                    onClick={() => {
+                                        void openUrl(FORGOT_PASSWORD_URL);
+                                    }}
                                     style={{
                                         fontSize: 12,
                                         color: 'var(--color-muted)',
