@@ -68,10 +68,9 @@ export const InventoryAlertBanner = ({ userId, onNavigate }: InventoryAlertBanne
                 return (
                     <div
                         key={item.id}
-                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 border shadow-lg"
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 shadow-lg"
                         style={{
                             background: `color-mix(in srgb, ${color} 15%, var(--color-surface))`,
-                            borderColor: color,
                         }}
                     >
                         <button
