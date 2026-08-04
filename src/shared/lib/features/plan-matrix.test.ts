@@ -159,14 +159,16 @@ describe('planMaxBatchesPerMonth', () => {
 });
 
 describe('tester plan', () => {
-    it('matches pro_plus on every gate', () => {
+    it('matches enterprise on every gate', () => {
         for (const key of Object.values(FEATURE)) {
-            expect(planHasFeature('tester', key)).toBe(planHasFeature('pro_plus', key));
+            expect(planHasFeature('tester', key)).toBe(planHasFeature('enterprise', key));
         }
-        expect(isPaidPlan('tester')).toBe(isPaidPlan('pro_plus'));
+        expect(isPaidPlan('tester')).toBe(isPaidPlan('enterprise'));
         expect(isCoreEntitled('tester')).toBe(true);
         expect(isWritablePlan('tester')).toBe(true);
         expect(planMaxMachines('tester')).toBeNull();
         expect(planMaxBatchesPerMonth('tester')).toBeNull();
+        expect(planHasFeature('tester', FEATURE.team)).toBe(true);
+        expect(planHasFeature('tester', FEATURE.orderIntegration)).toBe(true);
     });
 });
