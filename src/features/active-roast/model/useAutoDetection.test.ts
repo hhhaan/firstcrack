@@ -13,7 +13,6 @@ type Props = {
     markEvent: (event: string, note: string) => void;
     logEntries?: LogEntry[];
     autoYellowEnabled?: boolean;
-    autoFcStartEnabled?: boolean;
     onTurningPoint?: (tp: { timeSec: number; temp: number; fallback?: boolean }) => void;
 };
 
@@ -33,12 +32,10 @@ const renderAutoDetection = (initial: Props) => {
             autoChargeDropC: 5,
             autoDropDropC: 8,
             yellowTempC: 150,
-            fcStartTempC: 200,
             unit: 'C',
             markEvent: p.markEvent,
             logEntries: p.logEntries ?? [],
             autoYellowEnabled: p.autoYellowEnabled ?? true,
-            autoFcStartEnabled: p.autoFcStartEnabled ?? true,
         });
         return null;
     };
@@ -124,7 +121,7 @@ describe('useAutoDetection — fallback TP is provisional', () => {
     });
 });
 
-describe('useAutoDetection — Yellow/FC gating', () => {
+describe('useAutoDetection — Yellow gating (no FC auto)', () => {
     beforeEach(() => {
         void act(() => useRoastingStore.getState().reset());
     });
@@ -148,13 +145,13 @@ describe('useAutoDetection — Yellow/FC gating', () => {
         expect(markEvent).toHaveBeenCalledWith('Yellow', 'Auto-marked by temperature');
     });
 
-    it('does not fire Yellow/FC while BT is descending above the thresholds (hot-drum charge)', () => {
+    it('does not fire Yellow while BT is descending above the threshold (hot-drum charge)', () => {
         const markEvent = vi.fn();
         const props: Props = { livePoints: shallowHotDrumPoints(), markEvent };
         const h = renderAutoDetection(props);
 
         for (const [i, bt] of [210, 205, 200, 195, 190].entries()) tick(h, props, bt, 100 + i);
-        tick(h, props, 185, 130); // fallback opens the gate with BT still above both thresholds
+        tick(h, props, 185, 130); // fallback opens the gate with BT still above threshold
         expect(h.result.confirmedTP?.fallback).toBe(true);
 
         for (const [i, bt] of [180, 175, 170, 165, 160].entries()) tick(h, props, bt, 131 + i);
@@ -172,35 +169,9 @@ describe('useAutoDetection — Yellow/FC gating', () => {
         expect(h.result.confirmedTP?.timeSec).toBeLessThan(80);
     });
 
-    it('skips Yellow auto-mark when autoYellowEnabled is false but still fires FC', () => {
+    it('never auto-marks FC Start by temperature', () => {
         const markEvent = vi.fn();
-        const props: Props = {
-            livePoints: shallowHotDrumPoints(),
-            markEvent,
-            autoYellowEnabled: false,
-            autoFcStartEnabled: true,
-        };
-        const h = renderAutoDetection(props);
-
-        tick(h, props, 148, 60);
-        tick(h, props, 152, 61); // Yellow threshold cross, gate closed
-        tick(h, props, 198, 120);
-        tick(h, props, 202, 121); // FC threshold cross, gate still closed
-        tick(h, props, 205, 130); // TP fallback opens gate
-        tick(h, props, 208, 131);
-
-        expect(markEvent).not.toHaveBeenCalledWith('Yellow', expect.anything());
-        expect(markEvent).toHaveBeenCalledWith('FC Start', 'Auto-marked by temperature');
-    });
-
-    it('skips FC auto-mark when autoFcStartEnabled is false but still fires Yellow', () => {
-        const markEvent = vi.fn();
-        const props: Props = {
-            livePoints: shallowHotDrumPoints(),
-            markEvent,
-            autoYellowEnabled: true,
-            autoFcStartEnabled: false,
-        };
+        const props: Props = { livePoints: shallowHotDrumPoints(), markEvent };
         const h = renderAutoDetection(props);
 
         tick(h, props, 148, 60);
@@ -214,13 +185,12 @@ describe('useAutoDetection — Yellow/FC gating', () => {
         expect(markEvent).not.toHaveBeenCalledWith('FC Start', expect.anything());
     });
 
-    it('skips both Yellow and FC auto-mark when both toggles are off', () => {
+    it('skips Yellow auto-mark when autoYellowEnabled is false', () => {
         const markEvent = vi.fn();
         const props: Props = {
             livePoints: shallowHotDrumPoints(),
             markEvent,
             autoYellowEnabled: false,
-            autoFcStartEnabled: false,
         };
         const h = renderAutoDetection(props);
 

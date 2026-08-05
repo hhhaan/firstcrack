@@ -8,20 +8,23 @@ import type { LogEntry } from '@shared/types/roast';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
 
 export interface DevTimeResult {
+    /** "m:ss (n%)" — 요약 모달용 (DTR을 따로 안 보여주는 곳) */
     devTimeStr: string;
+    /** "m:ss" — DTR을 옆에 이미 표시하는 사이드패널용 */
+    devTimeOnly: string;
     dtrPct: number | null;
 }
 
+const EMPTY_DEV: DevTimeResult = { devTimeStr: '—', devTimeOnly: '—', dtrPct: null };
+
 /** Development 시간 및 DTR 비율 계산 */
 export const calcDevTime = (fcStartEntry: LogEntry | undefined, elapsed: number): DevTimeResult => {
-    if (!fcStartEntry || elapsed === 0) return { devTimeStr: '—', dtrPct: null };
+    if (!fcStartEntry || elapsed === 0) return EMPTY_DEV;
     const devSec = elapsed - logEntryTimeSec(fcStartEntry);
-    if (devSec <= 0) return { devTimeStr: '—', dtrPct: null };
+    if (devSec <= 0) return EMPTY_DEV;
     const pct = Math.round((devSec / elapsed) * 100);
-    return {
-        devTimeStr: `${Math.floor(devSec / 60)}:${String(devSec % 60).padStart(2, '0')} (${pct}%)`,
-        dtrPct: pct,
-    };
+    const mmss = `${Math.floor(devSec / 60)}:${String(devSec % 60).padStart(2, '0')}`;
+    return { devTimeStr: `${mmss} (${pct}%)`, devTimeOnly: mmss, dtrPct: pct };
 };
 
 export interface DeltaResult {

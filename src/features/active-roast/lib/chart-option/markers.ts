@@ -24,8 +24,11 @@ export const nearestBtAt = (xs: number[], btActual: (number | null)[], timeSec: 
 export const eventLabelText = (event: string, timeStr: string, temp: string) =>
     event === 'Charge' ? `${event} ${temp}` : `${event} ${timeStr} ${temp}`;
 
-/** 하단 라벨 — 상단 이벤트와 겹침 완화 */
-const LABEL_BELOW_EVENTS = new Set(['FC End', 'Drop', 'TP']);
+/**
+ * 하단 라벨 — 상단 이벤트와 겹침 완화.
+ * FC Start(상단) vs FC Rolling/FC End(하단): dual-mark 구간에서 시간이 가까워도 안 겹침.
+ */
+export const LABEL_BELOW_EVENTS = new Set(['FC Rolling', 'FC End', 'Drop', 'TP']);
 
 const buildPointLabel = (text: string, below = false) => ({
     show: true,

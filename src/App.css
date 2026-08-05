@@ -107,6 +107,7 @@
     --color-event-charge: oklch(0.65 0.19 45);
     --color-event-yellow: oklch(0.78 0.18 88);
     --color-event-fc-start: oklch(0.6 0.17 225);
+    --color-event-fc-rolling: oklch(0.58 0.16 250);
     --color-event-fc-end: oklch(0.58 0.18 280);
     --color-event-end: oklch(0.58 0.15 275);
     --color-event-note: oklch(0.62 0.16 165);
@@ -195,6 +196,7 @@ html.dark {
     --color-event-charge: #fb923c;
     --color-event-yellow: #ffff54;
     --color-event-fc-start: #44bffc;
+    --color-event-fc-rolling: #5a9ef5;
     --color-event-fc-end: #756afc;
     --color-event-end: #8080f0;
     --color-event-note: #72ebbc;

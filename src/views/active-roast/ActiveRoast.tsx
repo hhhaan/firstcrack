@@ -164,14 +164,24 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const rawET = liveData?.et ?? null;
     const timeStr = formatElapsed(elapsed);
 
-    const { logEntries, pressedButtons, markEvent, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(
+    const { logEntries, pressedButtons, markEvent, cycleFc, handleDrop, setLogEntries, removeLogEntry } = useRoastLog(
         unit,
         rawBT,
         elapsed,
     );
 
+    const fcDualMarkEnabled = roastSettings.fcDualMarkEnabled;
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
-    const { devTimeStr, dtrPct } = useMemo(() => calcDevTime(fcStartEntry, elapsed), [fcStartEntry, elapsed]);
+    // 고아 Rolling(FC Start 삭제됨)은 기준점이 없어 지표를 내지 않는다
+    const fcRollingEntry = fcStartEntry ? logEntries.find((e) => e.event === 'FC Rolling') : undefined;
+    const { devTimeStr, devTimeOnly, dtrPct } = useMemo(
+        () => calcDevTime(fcStartEntry, elapsed),
+        [fcStartEntry, elapsed],
+    );
+    const { devTimeOnly: rollingDevTimeStr, dtrPct: rollingDtrPct } = useMemo(
+        () => calcDevTime(fcRollingEntry, elapsed),
+        [fcRollingEntry, elapsed],
+    );
 
     // 라이프사이클과 하위 훅 사이 순환 의존성을 refs로 분리
     const resetAutoDetectionRef = useRef<() => void>(() => {});
@@ -240,12 +250,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         autoChargeDropC: roastSettings.autoChargeDropC,
         autoDropDropC: roastSettings.autoDropDropC,
         yellowTempC: roastSettings.yellowTempC,
-        fcStartTempC: roastSettings.fcStartTempC,
         unit,
         markEvent,
         logEntries,
         autoYellowEnabled: roastSettings.autoYellowEnabled,
-        autoFcStartEnabled: roastSettings.autoFcStartEnabled,
     });
 
     useEffect(() => {
@@ -375,6 +383,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             void lifecycle.handleManualCharge();
         },
         onMarkEvent: markEvent,
+        onCycleFc: fcDualMarkEnabled ? cycleFc : undefined,
         onMarkDrop: handleDrop,
     });
 
@@ -567,7 +576,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         targetDelta={targetDelta}
                         activeAlerts={activeAlerts}
                         dtrPct={dtrPct}
-                        devTimeStr={devTimeStr}
+                        devTimeStr={devTimeOnly}
+                        rollingDtrPct={rollingDtrPct}
+                        rollingDevTimeStr={rollingDevTimeStr}
+                        fcDualMarkEnabled={fcDualMarkEnabled}
                         logEntries={logEntries}
                         pressedButtons={pressedButtons}
                         roastLogDisplayEntries={roastLogDisplayEntries}
@@ -575,6 +587,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onNoteChange={setNoteInput}
                         onNoteSubmit={handleNoteSubmit}
                         onMarkEvent={markEvent}
+                        onCycleFc={cycleFc}
                         onHandleDrop={handleDrop}
                         onRemoveLogEntry={removeLogEntry}
                         onEnterStandby={lifecycle.handleEnterStandby}

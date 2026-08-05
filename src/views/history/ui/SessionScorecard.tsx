@@ -72,6 +72,29 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
             format: (v) => `${v.toFixed(1)}%`,
             formatDelta: (d) => signed(d, `${Math.abs(d).toFixed(1)}%`),
         },
+        // Rolling DTR when FC Rolling exists — no profile target
+        ...(dev.rollingDevPct != null
+            ? ([
+                  {
+                      key: 'devTimeRolling',
+                      labelKey: 'history.scorecard.devTimeRolling',
+                      actual: dev.rollingDevTimeSec,
+                      target: null,
+                      band: BANDS.devTime,
+                      format: fmtSec,
+                      formatDelta: fmtSecDelta,
+                  },
+                  {
+                      key: 'devPctRolling',
+                      labelKey: 'history.scorecard.devPctRolling',
+                      actual: dev.rollingDevPct,
+                      target: null,
+                      band: BANDS.devPct,
+                      format: (v: number) => `${v.toFixed(1)}%`,
+                      formatDelta: (d: number) => signed(d, `${Math.abs(d).toFixed(1)}%`),
+                  },
+              ] satisfies Row[])
+            : []),
     ];
 
     return (

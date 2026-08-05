@@ -2,6 +2,7 @@ import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useState } from 'react';
 import { TOGGLEABLE_LOG_EVENTS } from '../lib/constants';
+import { cycleFcDualEntries } from '../lib/fc-dual-mark';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { formatTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
@@ -52,6 +53,12 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
         [logEntries, elapsed, rawBT, unit, flashButton],
     );
 
+    /** Dual-mark cycle: empty → FC Start → FC Rolling → clear both. */
+    // ponytail: 플래시 없음 — 버튼이 stage로 즉시 스타일이 바뀌어 피드백이 이미 보인다
+    const cycleFc = useCallback(() => {
+        setLogEntries((prev) => cycleFcDualEntries(prev, { elapsed, rawBT, unit }));
+    }, [elapsed, rawBT, unit]);
+
     const handleDrop = useCallback(() => {
         markEvent('Drop', 'Coffee dropped', 'Drop');
     }, [markEvent]);
@@ -64,6 +71,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
         logEntries,
         pressedButtons,
         markEvent,
+        cycleFc,
         flashButton,
         handleDrop,
         setLogEntries, // reset할 때 필요

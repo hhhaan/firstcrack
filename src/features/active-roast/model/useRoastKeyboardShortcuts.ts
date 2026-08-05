@@ -13,6 +13,8 @@ interface UseRoastKeyboardShortcutsParams {
     onEnterStandby: () => void;
     onManualCharge: () => void;
     onMarkEvent: (event: string, note: string, pressKey: string) => void;
+    /** When set, mod+2 uses dual-mark cycle instead of toggle FC Start. */
+    onCycleFc?: () => void;
     onMarkDrop: () => void;
 }
 
@@ -52,6 +54,7 @@ export const useRoastKeyboardShortcuts = ({
     onEnterStandby,
     onManualCharge,
     onMarkEvent,
+    onCycleFc,
     onMarkDrop,
 }: UseRoastKeyboardShortcutsParams) => {
     const enabled = isRoastShortcutBaseEnabled({
@@ -113,15 +116,16 @@ export const useRoastKeyboardShortcuts = ({
         [canMark, onMarkEvent],
     );
 
-    // Ctrl/Meta + 2 → Mark FC Start
+    // Ctrl/Meta + 2 → Mark FC Start (or dual-mark cycle when onCycleFc provided)
     useHotkeys(
         'mod+2',
         (e) => {
             e.preventDefault();
-            onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
+            if (onCycleFc) onCycleFc();
+            else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
         },
         { enabled: canMark },
-        [canMark, onMarkEvent],
+        [canMark, onMarkEvent, onCycleFc],
     );
 
     // Ctrl/Meta + 3 → Mark FC End

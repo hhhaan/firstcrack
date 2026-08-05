@@ -18,35 +18,32 @@ describe('coercePollIntervalForPlan', () => {
 });
 
 describe('normalize — phase temperatures', () => {
-    it('clamps out-of-range values, then resets both when Yellow ≥ FC', () => {
-        // 400/500은 clamp 후 300/300 → 역전(>=) → 둘 다 기본값. clamp가 없으면 400이 그대로 남는다.
-        expect(normalizeRoastSettings({ yellowTempC: 400, fcStartTempC: 500 })).toMatchObject({
-            yellowTempC: 150,
-            fcStartTempC: 200,
-        });
+    it('clamps out-of-range yellow temp', () => {
+        expect(normalizeRoastSettings({ yellowTempC: 400 })).toMatchObject({ yellowTempC: 300 });
+        expect(normalizeRoastSettings({ yellowTempC: 10 })).toMatchObject({ yellowTempC: 50 });
     });
 
-    it('resets both on plain inversion', () => {
-        expect(normalizeRoastSettings({ yellowTempC: 210, fcStartTempC: 200 })).toMatchObject({
-            yellowTempC: 150,
-            fcStartTempC: 200,
-        });
+    it('keeps a valid yellow temp', () => {
+        expect(normalizeRoastSettings({ yellowTempC: 160 })).toMatchObject({ yellowTempC: 160 });
     });
 
-    it('keeps an inverted pair when either auto-mark toggle is off', () => {
-        expect(normalizeRoastSettings({ yellowTempC: 210, fcStartTempC: 200, autoYellowEnabled: false })).toMatchObject(
-            { yellowTempC: 210, fcStartTempC: 200 },
-        );
-        expect(
-            normalizeRoastSettings({ yellowTempC: 210, fcStartTempC: 200, autoFcStartEnabled: false }),
-        ).toMatchObject({ yellowTempC: 210, fcStartTempC: 200 });
+    it('defaults fcDualMarkEnabled to false', () => {
+        expect(normalizeRoastSettings({})).toMatchObject({ fcDualMarkEnabled: false });
     });
 
-    it('keeps a valid in-range pair', () => {
-        expect(normalizeRoastSettings({ yellowTempC: 160, fcStartTempC: 195 })).toMatchObject({
-            yellowTempC: 160,
+    it('normalizes fcDualMarkEnabled boolean', () => {
+        expect(normalizeRoastSettings({ fcDualMarkEnabled: true })).toMatchObject({ fcDualMarkEnabled: true });
+        expect(normalizeRoastSettings({ fcDualMarkEnabled: false })).toMatchObject({ fcDualMarkEnabled: false });
+    });
+
+    it('defaults dual mark when only legacy FC auto keys are present', () => {
+        const s = normalizeRoastSettings({
+            // legacy store may still hold these; typed settings no longer include them
+            autoFcStartEnabled: true,
             fcStartTempC: 195,
-        });
+        } as Partial<import('./settings').RoastSettings>);
+        expect(s.fcDualMarkEnabled).toBe(false);
+        expect(s.autoYellowEnabled).toBe(true);
     });
 });
 

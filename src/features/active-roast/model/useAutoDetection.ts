@@ -37,12 +37,10 @@ export type UseAutoDetectionOptions = {
     autoChargeDropC: number;
     autoDropDropC: number;
     yellowTempC: number;
-    fcStartTempC: number;
     unit: TemperatureUnit;
     markEvent?: (event: string, note: string) => void;
     logEntries: LogEntry[];
     autoYellowEnabled: boolean;
-    autoFcStartEnabled: boolean;
 };
 
 export const useAutoDetection = ({
@@ -53,12 +51,10 @@ export const useAutoDetection = ({
     autoChargeDropC,
     autoDropDropC,
     yellowTempC,
-    fcStartTempC,
     unit,
     markEvent,
     logEntries,
     autoYellowEnabled,
-    autoFcStartEnabled,
 }: UseAutoDetectionOptions) => {
     const btWindowRef = useRef<TimedSample[]>([]);
     const dropWindowRef = useRef<TimedSample[]>([]);
@@ -67,9 +63,7 @@ export const useAutoDetection = ({
     // 발화 완료 TP를 그대로 보관 — 폴백→실감지 승격 시 재발화 판정에 identity 비교
     const tpFiredRef = useRef<TurningPoint | null>(null);
     const yellowFiredRef = useRef(false);
-    const fcStartFiredRef = useRef(false);
     const yellowPendingRef = useRef(false);
-    const fcPendingRef = useRef(false);
     const prevDisplayBTRef = useRef<number | null>(null);
     // livePoints는 effect 클로저 최신값 필요 — ref로 동기화
     const livePointsRef = useRef(livePoints);
@@ -127,29 +121,23 @@ export const useAutoDetection = ({
         }
     }, [phase, bt, elapsed, onAutoDrop, autoDropDropC]);
 
-    // Auto Yellow / FC Start by temperature — only fire after turning point
+    // Auto Yellow by temperature — only fire after turning point (FC is manual / dual-mark only)
     useEffect(() => {
         if (phase !== 'roasting' || bt == null || !markEvent) return;
         if (logEntries.some((e) => e.event === 'Drop' || e.event === 'End')) return;
 
         // 상승 크로싱만 발화: 레벨 비교(≥)는 뜨거운 드럼 투입 직후 하강 중에도
-        // 임계 이상이라 TP 게이트가 열리는 순간 Yellow·FC가 즉시 오발된다.
+        // 임계 이상이라 TP 게이트가 열리는 순간 Yellow가 즉시 오발된다.
         // 크로싱은 게이트와 무관하게 상시 추적(pending 래치) — TP 확정 직전에 일어난
-        // 크로싱이 유실되면 Yellow/FC가 그 로스팅 내내 침묵한다. 하강으로 임계 아래로
+        // 크로싱이 유실되면 Yellow가 그 로스팅 내내 침묵한다. 하강으로 임계 아래로
         // 되돌아가면 래치 해제(노이즈 업크로스가 골짜기 이전에 잔류하는 것 방지)
         const displayBT = toDisplayTemp(bt, unit);
         const prev = prevDisplayBTRef.current;
         prevDisplayBTRef.current = displayBT;
         if (prev == null) return;
-        const track = (pending: { current: boolean }, thresholdC: number) => {
-            const th = toDisplayTemp(thresholdC, unit);
-            if (prev < th && displayBT >= th) pending.current = true;
-            else if (displayBT < th) pending.current = false;
-        };
-        // Crossing latches always track so re-enabling mid-roast can still fire.
-        // Fire gates are independent — Yellow off must not block FC and vice versa.
-        track(yellowPendingRef, yellowTempC);
-        track(fcPendingRef, fcStartTempC);
+        const th = toDisplayTemp(yellowTempC, unit);
+        if (prev < th && displayBT >= th) yellowPendingRef.current = true;
+        else if (displayBT < th) yellowPendingRef.current = false;
 
         if (!tpFiredRef.current) return;
         if (
@@ -160,18 +148,8 @@ export const useAutoDetection = ({
         ) {
             yellowFiredRef.current = true;
             markEvent('Yellow', 'Auto-marked by temperature');
-            return; // 한 tick당 자동 이벤트 1개 — Yellow·FC Start 동시 마킹 방지
         }
-        if (
-            autoFcStartEnabled &&
-            !fcStartFiredRef.current &&
-            fcPendingRef.current &&
-            !logEntries.some((e) => e.event === 'FC Start')
-        ) {
-            fcStartFiredRef.current = true;
-            markEvent('FC Start', 'Auto-marked by temperature');
-        }
-    }, [phase, bt, unit, yellowTempC, fcStartTempC, markEvent, logEntries, autoYellowEnabled, autoFcStartEnabled]);
+    }, [phase, bt, unit, yellowTempC, markEvent, logEntries, autoYellowEnabled]);
 
     // Turning Point detection — 샘플 수 게이트 없음: 시간 기준 floor는 detectTurningPoints가 소유
     const detectedTPs = useMemo(() => {
@@ -192,7 +170,7 @@ export const useAutoDetection = ({
         setConfirmedTP(detectedTPs[0]);
     }, [detectedTPs, confirmedTP]);
 
-    // TP 타임아웃 폴백 — 미탐 시 Yellow/FC 자동마킹이 조용히 죽는 것 방지.
+    // TP 타임아웃 폴백 — 미탐 시 Yellow 자동마킹이 조용히 죽는 것 방지.
     // detectedTPs 가드: 같은 tick에 실감지가 있으면 lock-in effect에 양보 (폴백이 덮어쓰기 방지)
     useEffect(() => {
         if (phase !== 'roasting' || confirmedTP !== null || bt == null) return;
@@ -226,9 +204,7 @@ export const useAutoDetection = ({
         autoDroppedRef.current = false;
         tpFiredRef.current = null;
         yellowFiredRef.current = false;
-        fcStartFiredRef.current = false;
         yellowPendingRef.current = false;
-        fcPendingRef.current = false;
         prevDisplayBTRef.current = null;
         setConfirmedTP(null);
     }, []);

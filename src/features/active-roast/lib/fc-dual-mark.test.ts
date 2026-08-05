@@ -1,0 +1,79 @@
+import type { LogEntry } from '@shared/types/roast';
+import { describe, expect, it, vi } from 'vitest';
+import { cycleFcDualEntries, getFcDualStage } from './fc-dual-mark';
+
+const entry = (event: string, timeSec = 100): LogEntry => ({
+    id: `${event}-${timeSec}`,
+    time: '1:40',
+    timeSec,
+    event,
+    temp: '200.0°C',
+    tempC: 200,
+    note: '',
+});
+
+const ctx = { elapsed: 500, rawBT: 196, unit: 'C' as const };
+
+describe('getFcDualStage', () => {
+    it('returns 0 when empty', () => {
+        expect(getFcDualStage([])).toBe(0);
+    });
+
+    it('returns 1 with FC Start only', () => {
+        expect(getFcDualStage([entry('FC Start')])).toBe(1);
+    });
+
+    it('returns 2 with both', () => {
+        expect(getFcDualStage([entry('FC Start'), entry('FC Rolling', 520)])).toBe(2);
+    });
+
+    it('returns 0 for orphan Rolling', () => {
+        expect(getFcDualStage([entry('FC Rolling')])).toBe(0);
+    });
+});
+
+describe('cycleFcDualEntries', () => {
+    it('cycles 0 → Start → Rolling → clear', () => {
+        vi.spyOn(crypto, 'randomUUID')
+            .mockReturnValueOnce('00000000-0000-0000-0000-00000000000a')
+            .mockReturnValueOnce('00000000-0000-0000-0000-00000000000b');
+
+        const s1 = cycleFcDualEntries([], ctx);
+        expect(s1).toHaveLength(1);
+        expect(s1[0]).toMatchObject({
+            event: 'FC Start',
+            note: 'First crack started',
+            timeSec: 500,
+            tempC: 196,
+        });
+
+        const s2 = cycleFcDualEntries(s1, { ...ctx, elapsed: 540, rawBT: 201 });
+        expect(s2.map((e) => e.event)).toEqual(['FC Start', 'FC Rolling']);
+        expect(s2[1]).toMatchObject({
+            event: 'FC Rolling',
+            note: 'First crack rolling',
+            timeSec: 540,
+        });
+
+        const s3 = cycleFcDualEntries(s2, ctx);
+        expect(s3).toEqual([]);
+    });
+
+    it('clears orphan Rolling on cycle', () => {
+        const next = cycleFcDualEntries([entry('FC Rolling', 480), entry('Yellow', 300)], ctx);
+        expect(next.map((e) => e.event)).toEqual(['Yellow']);
+    });
+
+    it('keeps non-FC events when clearing dual marks', () => {
+        const prev = [entry('Yellow', 240), entry('FC Start', 480), entry('FC Rolling', 520)];
+        const next = cycleFcDualEntries(prev, ctx);
+        expect(next.map((e) => e.event)).toEqual(['Yellow']);
+    });
+
+    it('sorts by time after insert', () => {
+        vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-0000-0000-00000000000x');
+        const prev = [entry('Yellow', 600)];
+        const next = cycleFcDualEntries(prev, { ...ctx, elapsed: 100 });
+        expect(next.map((e) => e.event)).toEqual(['FC Start', 'Yellow']);
+    });
+});

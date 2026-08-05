@@ -243,12 +243,36 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                                 return d.devPct != null ? `${d.devPct.toFixed(1)}%` : '—';
                                             },
                                         },
+                                        ...(items.some((it) => {
+                                            const d = deriveSessionDevMetrics(it.events, it.session.duration_seconds);
+                                            return d.rollingDevPct != null;
+                                        })
+                                            ? [
+                                                  {
+                                                      key: 'dtrRolling',
+                                                      label: t('history.compare.dtrRolling'),
+                                                      get: (it: CompareSidebarItem) => {
+                                                          const d = deriveSessionDevMetrics(
+                                                              it.events,
+                                                              it.session.duration_seconds,
+                                                          );
+                                                          return d.rollingDevPct != null
+                                                              ? `${d.rollingDevPct.toFixed(1)}%`
+                                                              : '—';
+                                                      },
+                                                  },
+                                              ]
+                                            : []),
                                         {
                                             key: 'level',
                                             label: t('history.compare.level'),
                                             get: (it: CompareSidebarItem) => it.session.roast_level ?? '—',
                                         },
-                                    ] as const
+                                    ] as {
+                                        key: string;
+                                        label: string;
+                                        get: (it: CompareSidebarItem) => string;
+                                    }[]
                                 ).map((row) => (
                                     <tr
                                         key={row.key}

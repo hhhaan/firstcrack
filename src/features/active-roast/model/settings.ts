@@ -39,11 +39,13 @@ export type RoastSettings = {
     rorYMin: number;
     rorYMax: number;
     yellowTempC: number;
-    fcStartTempC: number;
     /** Independent: auto-mark Yellow when BT crosses yellowTempC after TP. */
     autoYellowEnabled: boolean;
-    /** Independent: auto-mark FC Start when BT crosses fcStartTempC after TP. */
-    autoFcStartEnabled: boolean;
+    /**
+     * When true, FC button/⌘2 cycles: empty → FC Start → FC Rolling → clear.
+     * When false, classic toggle mark/unmark FC Start only.
+     */
+    fcDualMarkEnabled: boolean;
     autoChargeDropC: number;
     /** BT drop within the detection window that auto-marks Drop (after 3 min). */
     autoDropDropC: number;
@@ -79,9 +81,8 @@ const DEFAULT_SETTINGS: RoastSettings = {
     rorYMin: -5,
     rorYMax: 20,
     yellowTempC: 150,
-    fcStartTempC: 200,
     autoYellowEnabled: true,
-    autoFcStartEnabled: true,
+    fcDualMarkEnabled: false,
     autoChargeDropC: 5,
     autoDropDropC: 8,
     preChargeDisplaySec: 60,
@@ -125,15 +126,9 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         controlYMin = Math.max(-50, controlYMax - 1);
     }
 
-    let yellowTempC = clampNum(merged.yellowTempC, 50, 300, DEFAULT_SETTINGS.yellowTempC);
-    let fcStartTempC = clampNum(merged.fcStartTempC, 50, 300, DEFAULT_SETTINGS.fcStartTempC);
+    const yellowTempC = clampNum(merged.yellowTempC, 50, 300, DEFAULT_SETTINGS.yellowTempC);
     const autoYellowEnabled = asBool(merged.autoYellowEnabled, DEFAULT_SETTINGS.autoYellowEnabled);
-    const autoFcStartEnabled = asBool(merged.autoFcStartEnabled, DEFAULT_SETTINGS.autoFcStartEnabled);
-    // Yellow ≥ FC 역전은 두 자동 마킹이 모두 켜져 발화 순서가 뒤집힐 때만 문제 — 그때만 기본값으로 되돌린다
-    if (autoYellowEnabled && autoFcStartEnabled && yellowTempC >= fcStartTempC) {
-        yellowTempC = DEFAULT_SETTINGS.yellowTempC;
-        fcStartTempC = DEFAULT_SETTINGS.fcStartTempC;
-    }
+    const fcDualMarkEnabled = asBool(merged.fcDualMarkEnabled, DEFAULT_SETTINGS.fcDualMarkEnabled);
 
     return {
         ...merged,
@@ -150,10 +145,9 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         controlYMin,
         controlYMax,
         yellowTempC,
-        fcStartTempC,
         autoDropDropC: clampNum(merged.autoDropDropC, 2, 30, DEFAULT_SETTINGS.autoDropDropC),
         autoYellowEnabled,
-        autoFcStartEnabled,
+        fcDualMarkEnabled,
         alertsEnabled: asBool(merged.alertsEnabled, DEFAULT_SETTINGS.alertsEnabled),
         alertSoundEnabled: asBool(merged.alertSoundEnabled, DEFAULT_SETTINGS.alertSoundEnabled),
         alertRorCrashCPerMin: clampNum(merged.alertRorCrashCPerMin, -20, 20, DEFAULT_SETTINGS.alertRorCrashCPerMin),

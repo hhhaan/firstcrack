@@ -371,51 +371,41 @@ export const RoastSettingsTab = () => {
             <SectionCard>
                 <SectionCard.Header title={tk('phaseTemperatures')} description={tk('phaseTemperaturesDescription')} />
                 <SectionCard.Body className="grid gap-1.5">
-                    {(
-                        [
-                            {
-                                labelKey: 'yellowPoint',
-                                descKey: 'yellowPointDescription',
-                                tempKey: 'yellowTempC' as const,
-                                enableKey: 'autoYellowEnabled' as const,
-                            },
-                            {
-                                labelKey: 'fcStart',
-                                descKey: 'fcStartDescription',
-                                tempKey: 'fcStartTempC' as const,
-                                enableKey: 'autoFcStartEnabled' as const,
-                            },
-                        ] as const
-                    ).map(({ labelKey, descKey, tempKey, enableKey }) => {
-                        // Yellow < FC 역전 방지: 두 자동 마킹이 모두 켜져 있을 때만 상호 경계 적용
-                        const isYellow = tempKey === 'yellowTempC';
-                        const bothAuto = roastSettings.autoYellowEnabled && roastSettings.autoFcStartEnabled;
-                        const minC = !isYellow && bothAuto ? Math.max(50, roastSettings.yellowTempC + 1) : 50;
-                        const maxC = isYellow && bothAuto ? Math.min(300, roastSettings.fcStartTempC - 1) : 300;
-                        return (
-                            <SettingsOptionRow key={tempKey} justify="between" align="start">
-                                <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={roastSettings[enableKey]}
-                                        onChange={() => updateRoastSettings({ [enableKey]: !roastSettings[enableKey] })}
-                                        className="mt-0.5 h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
-                                    />
-                                    <div className="min-w-0">
-                                        <div className={settingsOptionLabelCls}>{tk(labelKey)}</div>
-                                        <div className={settingsOptionDescCls}>{tk(descKey)}</div>
-                                    </div>
-                                </label>
-                                <NumberInput
-                                    value={dispT(roastSettings[tempKey])}
-                                    onChange={(v) => updateRoastSettings({ [tempKey]: storeT(v) })}
-                                    min={dispT(minC)}
-                                    max={dispT(maxC)}
-                                    suffix={tempSuffix}
-                                />
-                            </SettingsOptionRow>
-                        );
-                    })}
+                    <SettingsOptionRow justify="between" align="start">
+                        <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                            <input
+                                type="checkbox"
+                                checked={roastSettings.autoYellowEnabled}
+                                onChange={() =>
+                                    updateRoastSettings({ autoYellowEnabled: !roastSettings.autoYellowEnabled })
+                                }
+                                className="mt-0.5 h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
+                            />
+                            <div className="min-w-0">
+                                <div className={settingsOptionLabelCls}>{tk('yellowPoint')}</div>
+                                <div className={settingsOptionDescCls}>{tk('yellowPointDescription')}</div>
+                            </div>
+                        </label>
+                        <NumberInput
+                            value={dispT(roastSettings.yellowTempC)}
+                            onChange={(v) => updateRoastSettings({ yellowTempC: storeT(v) })}
+                            min={dispT(50)}
+                            max={dispT(300)}
+                            suffix={tempSuffix}
+                        />
+                    </SettingsOptionRow>
+                </SectionCard.Body>
+            </SectionCard>
+
+            <SectionCard>
+                <SectionCard.Header title={tk('fcMarking')} description={tk('fcMarkingDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
+                    <SettingsCheckRow
+                        checked={roastSettings.fcDualMarkEnabled}
+                        label={tk('fcDualMark')}
+                        description={tk('fcDualMarkDescription')}
+                        onChange={() => updateRoastSettings({ fcDualMarkEnabled: !roastSettings.fcDualMarkEnabled })}
+                    />
                 </SectionCard.Body>
             </SectionCard>
 

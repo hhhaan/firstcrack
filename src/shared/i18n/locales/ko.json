@@ -185,11 +185,13 @@
                 "controlBandHeightDescription": "전체 차트 대비 컨트롤 밴드 높이 %(12–40)",
                 "controlY": "컨트롤 Y",
                 "phaseTemperatures": "페이즈 온도",
-                "phaseTemperaturesDescription": "이벤트별 자동 마킹 on/off와 BT 임계값입니다. Yellow와 FC Start는 서로 독립입니다.",
+                "phaseTemperaturesDescription": "터닝 포인트 이후 BT 임계값으로 Yellow를 자동 마킹합니다. First Crack은 항상 수동입니다.",
                 "yellowPoint": "Auto Yellow",
                 "yellowPointDescription": "터닝 포인트 이후 BT가 이 온도를 넘으면 Yellow 자동 마킹",
-                "fcStart": "Auto FC Start",
-                "fcStartDescription": "터닝 포인트 이후 BT가 이 온도를 넘으면 First Crack 자동 마킹",
+                "fcMarking": "First Crack 마킹",
+                "fcMarkingDescription": "FC 버튼(⌘2)이 퍼스트 크랙을 기록하는 방식입니다.",
+                "fcDualMark": "이중 마킹 (첫 팝 + 롤링)",
+                "fcDualMarkDescription": "1클릭: 첫 팝(FC Start). 2클릭: 롤링(FC Rolling). 3클릭: 둘 다 삭제. Start·Rolling 각각 DTR을 기록합니다. 끄면 기존처럼 FC Start만 토글합니다.",
                 "autoCharge": "자동 Charge 감지",
                 "autoChargeDescription": "감지 창 안에서 BT가 이 값만큼 떨어지면 Charge가 트리거됩니다.",
                 "dropThreshold": "하락 임계값",
@@ -644,7 +646,9 @@
         "scorecard": {
             "title": "vs {{name}}",
             "devTime": "발현 시간",
-            "devPct": "발현 비율"
+            "devPct": "발현 비율",
+            "devTimeRolling": "발현 시간 (Rolling)",
+            "devPctRolling": "발현 비율 (Rolling)"
         },
         "compare": {
             "button": "비교",
@@ -668,6 +672,7 @@
             "duration": "Duration",
             "dropTemp": "Drop Temp",
             "dtr": "DTR",
+            "dtrRolling": "DTR Rolling",
             "level": "Level",
             "weight": "Weight"
         },
