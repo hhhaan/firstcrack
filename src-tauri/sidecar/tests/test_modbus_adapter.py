@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from pymodbus.framer import FramerType
+
 from adapters.modbus import ModbusAdapter, _bcd_decode
 
 
@@ -112,6 +114,23 @@ class TestConnect:
         kwargs = MockClient.call_args.kwargs
         assert kwargs["port"] == "/dev/ttyUSB0"
         assert kwargs["baudrate"] == 9600
+        assert kwargs["framer"] == FramerType.RTU
+
+    @patch("pymodbus.client.AsyncModbusSerialClient")
+    async def test_ascii_connect_uses_ascii_framer(self, MockClient):
+        regs = {"BT": {"register": 0, "func": 3, "unit_id": 1}}
+        a = ModbusAdapter(mode="ascii", comport="/dev/ttyUSB0", baudrate=9600, modbus_registers=regs)
+        instance = AsyncMock()
+        instance.connect = AsyncMock()
+        instance.connected = True
+        MockClient.return_value = instance
+
+        await a.connect()
+
+        kwargs = MockClient.call_args.kwargs
+        assert kwargs["framer"] == FramerType.ASCII
+        # ascii는 시리얼 계열 — RTU와 동일하게 retry 1회
+        assert a._read_retries == 1
 
     @patch("pymodbus.client.AsyncModbusTcpClient")
     async def test_connect_empty_registers_raises(self, MockClient, adapter):

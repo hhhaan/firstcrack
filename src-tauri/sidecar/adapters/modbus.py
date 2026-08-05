@@ -30,6 +30,7 @@ class ModbusAdapter:
 
     mode="tcp" → TCP (host, port)
     mode="rtu" → Serial RTU (comport, baudrate)
+    mode="ascii" → Serial ASCII (comport, baudrate) — Artisan type=1 장치
 
     modbus_registers: roaster_registry의 "modbus_registers" 필드.
       {
@@ -106,9 +107,10 @@ class ModbusAdapter:
                 config.MODBUS_TCP_TIMEOUT,
             )
         else:
+            framer = FramerType.ASCII if self._mode == "ascii" else FramerType.RTU
             self._client = AsyncModbusSerialClient(
                 port=self._comport,
-                framer=FramerType.RTU,
+                framer=framer,
                 baudrate=self._baudrate,
                 bytesize=self._bytesize,
                 parity=self._parity,
@@ -116,7 +118,8 @@ class ModbusAdapter:
                 timeout=config.MODBUS_RTU_TIMEOUT,
             )
             _log.info(
-                "ModbusAdapter connecting: RTU port=%s baudrate=%d bytesize=%d parity=%s stopbits=%g timeout=%.1fs",
+                "ModbusAdapter connecting: Serial %s port=%s baudrate=%d bytesize=%d parity=%s stopbits=%g timeout=%.1fs",
+                framer.name,
                 self._comport,
                 self._baudrate,
                 self._bytesize,

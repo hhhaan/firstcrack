@@ -55,6 +55,7 @@ def _format_connection_error(
     # ── 시리얼 포트 (MODBUS RTU, Kaleido Serial) ────────────────────────
     if protocol in ("modbus", "kaleido") and params.get("mode", "").lower() in (
         "rtu",
+        "ascii",
         "serial",
     ):
         comport = params.get("comport", "")

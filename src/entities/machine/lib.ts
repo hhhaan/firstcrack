@@ -43,7 +43,7 @@ export const isRoasterFieldVisible = (fieldKey: string, mode: string | undefined
     const normalized = mode?.toLowerCase() ?? '';
     if (!normalized) return true;
     const isTCP = normalized === 'tcp' || normalized === 'udp';
-    const isRTU = normalized === 'rtu' || normalized === 'serial';
+    const isRTU = normalized === 'rtu' || normalized === 'ascii' || normalized === 'serial';
     if (TCP_ONLY_FIELDS.has(fieldKey) && isRTU) return false;
     if (RTU_ONLY_FIELDS.has(fieldKey) && isTCP) return false;
     return true;

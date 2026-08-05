@@ -75,6 +75,7 @@ export const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
             options: [
                 { value: 'tcp', label: 'TCP/IP' },
                 { value: 'rtu', label: 'Serial RTU' },
+                { value: 'ascii', label: 'Serial ASCII' },
             ],
         },
         { key: 'host', label: 'IP Address', type: 'text', required: false, placeholder: '127.0.0.1' },
