@@ -29,6 +29,7 @@ class ModbusAdapter:
     pymodbus 3.x AsyncModbusTcpClient / AsyncModbusSerialClient 사용.
 
     mode="tcp" → TCP (host, port)
+    mode="udp" → UDP (host, port) — Artisan type=4
     mode="rtu" → Serial RTU (comport, baudrate)
     mode="ascii" → Serial ASCII (comport, baudrate) — Artisan type=1 장치
 
@@ -86,10 +87,14 @@ class ModbusAdapter:
         #   채널 3개 retry 한 번 들어가면 worst-case 1.8s → 폴링 cycle 누락 가능.
         #   UI에서 RTU 머신 선택 시 pollIntervalMs를 자동으로 1000ms로 올리는 옵션 필요.
         #   (artisan 권장도 RTU=1s 폴링)
-        self._read_retries: int = 0 if self._mode == "tcp" else 1
+        self._read_retries: int = 0 if self._mode in ("tcp", "udp") else 1
 
     async def connect(self) -> None:
-        from pymodbus.client import AsyncModbusTcpClient, AsyncModbusSerialClient  # type: ignore[import]
+        from pymodbus.client import (  # type: ignore[import]
+            AsyncModbusSerialClient,
+            AsyncModbusTcpClient,
+            AsyncModbusUdpClient,
+        )
 
         if not self._regs:
             raise ValueError(
@@ -102,6 +107,20 @@ class ModbusAdapter:
             )
             _log.info(
                 "ModbusAdapter connecting: TCP %s:%d timeout=%.1fs",
+                self._host,
+                self._port,
+                config.MODBUS_TCP_TIMEOUT,
+            )
+        elif self._mode == "udp":
+            self._client = AsyncModbusUdpClient(
+                host=self._host,
+                port=self._port,
+                # Artisan: UDP는 retries>0이면 요청이 n번 중복 전송됨 → 반드시 0
+                retries=0,
+                timeout=config.MODBUS_TCP_TIMEOUT,
+            )
+            _log.info(
+                "ModbusAdapter connecting: UDP %s:%d timeout=%.1fs",
                 self._host,
                 self._port,
                 config.MODBUS_TCP_TIMEOUT,
@@ -128,16 +147,17 @@ class ModbusAdapter:
                 config.MODBUS_RTU_TIMEOUT,
             )
 
+        is_net = self._mode in ("tcp", "udp")
         await self._client.connect()
         if not self._client.connected:
             raise ConnectionError(
                 f"MODBUS 연결 실패: "
-                f"{'%s:%d' % (self._host, self._port) if self._mode == 'tcp' else self._comport}"
+                f"{'%s:%d' % (self._host, self._port) if is_net else self._comport}"
             )
-        if self._mode != "tcp":
-            await asyncio.sleep(config.MODBUS_RTU_CONNECT_DELAY)
-        else:
+        if is_net:
             await asyncio.sleep(0.3)  # Artisan: "avoid possible hickups on startup"
+        else:
+            await asyncio.sleep(config.MODBUS_RTU_CONNECT_DELAY)
         _log.info("ModbusAdapter connected OK (mode=%s)", self._mode)
 
     async def disconnect(self) -> None:

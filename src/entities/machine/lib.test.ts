@@ -9,10 +9,10 @@ describe('isRoasterFieldVisible', () => {
         expect(isRoasterFieldVisible('baudrate', mode)).toBe(true);
     });
 
-    it('tcp mode hides serial fields, shows TCP fields', () => {
-        expect(isRoasterFieldVisible('host', 'tcp')).toBe(true);
-        expect(isRoasterFieldVisible('comport', 'tcp')).toBe(false);
-        expect(isRoasterFieldVisible('baudrate', 'tcp')).toBe(false);
+    it.each(['tcp', 'udp'])('network mode %s hides serial fields, shows TCP fields', (mode) => {
+        expect(isRoasterFieldVisible('host', mode)).toBe(true);
+        expect(isRoasterFieldVisible('comport', mode)).toBe(false);
+        expect(isRoasterFieldVisible('baudrate', mode)).toBe(false);
     });
 
     it('unknown/empty mode shows everything', () => {

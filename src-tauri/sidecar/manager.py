@@ -103,8 +103,8 @@ def _format_connection_error(
 
     # ── MODBUS 연결 확인 실패 ────────────────────────────────────────────
     if "MODBUS 연결 실패" in msg:
-        if params.get("mode", "tcp").lower() == "tcp":
-            return f"MODBUS TCP 연결 실패 ({params.get('host')}:{params.get('port')}). IP와 포트를 확인하세요."
+        if params.get("mode", "tcp").lower() in ("tcp", "udp"):
+            return f"MODBUS {params.get('mode', 'tcp').upper()} 연결 실패 ({params.get('host')}:{params.get('port')}). IP와 포트를 확인하세요."
         return (
             f"MODBUS RTU 연결 실패 ({params.get('comport')}). 시리얼 포트를 확인하세요."
         )

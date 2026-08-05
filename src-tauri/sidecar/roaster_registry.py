@@ -137,6 +137,7 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
             "required": True,
             "options": [
                 {"value": "tcp", "label": "TCP/IP"},
+                {"value": "udp", "label": "UDP"},
                 {"value": "rtu", "label": "Serial RTU"},
                 {"value": "ascii", "label": "Serial ASCII"},
             ],

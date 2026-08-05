@@ -132,6 +132,25 @@ class TestConnect:
         # ascii는 시리얼 계열 — RTU와 동일하게 retry 1회
         assert a._read_retries == 1
 
+    @patch("pymodbus.client.AsyncModbusUdpClient")
+    async def test_udp_connect_creates_client(self, MockClient):
+        regs = {"BT": {"register": 0, "func": 3, "unit_id": 1}}
+        a = ModbusAdapter(mode="udp", host="192.168.1.50", port=502, modbus_registers=regs)
+        instance = AsyncMock()
+        instance.connect = AsyncMock()
+        instance.connected = True
+        MockClient.return_value = instance
+
+        await a.connect()
+
+        kwargs = MockClient.call_args.kwargs
+        assert kwargs["host"] == "192.168.1.50"
+        assert kwargs["port"] == 502
+        # UDP는 pymodbus 내부 retry가 요청을 중복 전송하므로 0 고정 (Artisan 동일)
+        assert kwargs["retries"] == 0
+        # udp는 네트워크 계열 — TCP와 동일하게 retry 0회
+        assert a._read_retries == 0
+
     @patch("pymodbus.client.AsyncModbusTcpClient")
     async def test_connect_empty_registers_raises(self, MockClient, adapter):
         a = ModbusAdapter(mode="tcp", host="127.0.0.1", modbus_registers={})
