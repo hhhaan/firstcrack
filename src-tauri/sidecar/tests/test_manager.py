@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
+import config
 from adapters.base import Reading
 from manager import RoasterManager
 from tests.conftest import FakeAdapter, make_reading
@@ -401,6 +402,43 @@ class TestManagerStaleData:
         data = await manager.read_temperatures()
         assert data["bt"] is None
         assert manager._connected is False
+        if manager._reconnect_task is not None:
+            manager._reconnect_task.cancel()
+
+    async def test_first_read_failure_gets_serial_hint_message(self, manager):
+        """첫 read 실패(연결은 됐지만 응답 없음) + serial(rtu/ascii) → 설정 불일치 안내 메시지."""
+        adapter = FakeAdapter(readings=[])
+        await self._connect_with(manager, adapter)
+        manager._protocol = "modbus"
+        manager._merged_params = {"mode": "rtu"}
+        await manager.read_temperatures()
+        assert "연결 방식(RTU/ASCII)" in manager._error
+        if manager._reconnect_task is not None:
+            manager._reconnect_task.cancel()
+
+    async def test_first_read_failure_gets_network_hint_message(self, manager):
+        """첫 read 실패 + tcp/udp → Unit ID/레지스터 안내 메시지."""
+        adapter = FakeAdapter(readings=[])
+        await self._connect_with(manager, adapter)
+        manager._protocol = "modbus"
+        manager._merged_params = {"mode": "tcp"}
+        await manager.read_temperatures()
+        assert "Unit ID" in manager._error
+        if manager._reconnect_task is not None:
+            manager._reconnect_task.cancel()
+
+    async def test_subsequent_read_failure_keeps_generic_message(self, manager):
+        """이전 정상 값이 있던 상태(로스팅 중 끊김)에서는 기존 메시지 경로 유지."""
+        adapter = FakeAdapter(readings=[make_reading(bt=180.0)])
+        await self._connect_with(manager, adapter)
+        manager._protocol = "modbus"
+        manager._merged_params = {"mode": "rtu"}
+        await manager.read_temperatures()  # 성공 → _last_good 세팅
+        for _ in range(config.STALE_TOLERANCE_READS):
+            await manager.read_temperatures()  # stale 소진
+        data = await manager.read_temperatures()  # 최종 실패 → disconnect
+        assert data["bt"] is None
+        assert "연결 방식(RTU/ASCII)" not in manager._error
         if manager._reconnect_task is not None:
             manager._reconnect_task.cancel()
 

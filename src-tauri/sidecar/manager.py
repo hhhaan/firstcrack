@@ -36,9 +36,17 @@ def _validate_bt(bt: float) -> None:
 
 
 def _format_connection_error(
-    exc: Exception, protocol: str, params: dict[str, Any]
+    exc: Exception,
+    protocol: str,
+    params: dict[str, Any],
+    first_read_failure: bool = False,
 ) -> str:
-    """Python 예외를 사용자 친화적인 연결 오류 메시지로 변환."""
+    """Python 예외를 사용자 친화적인 연결 오류 메시지로 변환.
+
+    first_read_failure=True: connect()는 성공했지만 첫 read부터 실패한 경우.
+    포트/소켓은 열렸으므로 원본 예외(대개 timeout/IO 오류)가 사용자에게 도움이
+    안 됨 — 설정 불일치(RTU/ASCII 프레이머, Unit ID 등)를 안내한다.
+    """
     msg = str(exc)
     exc_type = type(exc).__name__
 
@@ -109,6 +117,15 @@ def _format_connection_error(
             f"MODBUS RTU 연결 실패 ({params.get('comport')}). 시리얼 포트를 확인하세요."
         )
 
+    # ── 연결은 됐지만 첫 read부터 실패 (설정 불일치 의심) ──────────────────
+    if first_read_failure and protocol == "modbus":
+        if params.get("mode", "tcp").lower() in ("tcp", "udp"):
+            return "연결됐지만 장치가 응답하지 않습니다. Unit ID와 레지스터 설정을 확인하세요."
+        return (
+            "포트는 열렸지만 장치가 응답하지 않습니다. "
+            "연결 방식(RTU/ASCII)·Baud Rate·Unit ID를 확인하세요."
+        )
+
     # ── fallback: 원본 메시지 ────────────────────────────────────────────
     return msg
 
@@ -153,6 +170,7 @@ class RoasterManager:
                 },
             )
             if self._merged_params:
+                sentry_sdk.set_tag("mode", self._merged_params.get("mode"))
                 sentry_sdk.set_context("connection", {
                     "mode": self._merged_params.get("mode"),
                     "host": self._merged_params.get("host"),
@@ -379,17 +397,21 @@ class RoasterManager:
                     "reconnecting": reconnecting,
                     "timestamp": time.monotonic(),
                 }
+            # 첫 read부터 실패(유지할 이전 값이 없음) = 연결은 됐지만 설정 불일치 의심.
+            # 정상 동작 중 끊김(하드웨어/케이블 가능성)과 Sentry에서 구분 집계한다.
+            first_read_failure = self._last_good is None
+            event = "first_read_failed" if first_read_failure else "read_failed_disconnected"
             self._error = _format_connection_error(
-                exc, self._protocol, self._merged_params
+                exc, self._protocol, self._merged_params, first_read_failure
             )
             self._connected = False
             _log.error("읽기 실패: %s", exc, exc_info=True)
             sentry_sdk.add_breadcrumb(
                 category="hardware",
-                message=f"read failed, disconnected: {self._roaster_key} ({self._protocol}) — {exc}",
+                message=f"{event}: {self._roaster_key} ({self._protocol}) — {exc}",
                 level="error",
             )
-            self._capture_hardware_error(exc, "read_failed_disconnected")
+            self._capture_hardware_error(exc, event)
             if self._reconnect_task is None or self._reconnect_task.done():
                 self._reconnect_task = asyncio.create_task(self._reconnect_loop())
             return self._null_payload(reconnecting=True)
