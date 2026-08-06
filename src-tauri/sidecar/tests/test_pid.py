@@ -151,7 +151,7 @@ class TestSetpointChange:
 class TestDerivative:
     def test_no_derivative_kick_on_sv_step(self):
         """미분이 측정값 기준이면 SV만 바뀐 사이클에 D항이 튀지 않는다."""
-        pid = SoftwarePid(PidGains(0.0, 0.0, 10.0), sp_weight_d=0.0)
+        pid = SoftwarePid(PidGains(0.0, 0.0, 10.0))
         pid.set_target(200.0)
         pid.engage(now=0.0)
         pid.update(190.0, 0.0)
@@ -161,7 +161,7 @@ class TestDerivative:
         assert out == pytest.approx(0.0)
 
     def test_derivative_responds_to_pv_change(self):
-        pid = SoftwarePid(PidGains(0.0, 0.0, 2.0), sp_weight_d=0.0)
+        pid = SoftwarePid(PidGains(0.0, 0.0, 2.0))
         pid.set_target(200.0)
         pid.engage(now=0.0)
         pid.update(190.0, 0.0)
@@ -171,7 +171,7 @@ class TestDerivative:
         assert out == 0.0  # 음의 출력은 out_min(0)으로 클램프된다
 
     def test_derivative_clamped(self):
-        pid = SoftwarePid(PidGains(0.0, 0.0, 1.0), sp_weight_d=0.0, d_clamp=5.0)
+        pid = SoftwarePid(PidGains(0.0, 0.0, 1.0), d_clamp=5.0)
         pid.set_target(200.0)
         pid.engage(now=0.0)
         pid.update(190.0, 0.0)
@@ -181,7 +181,7 @@ class TestDerivative:
 
     def test_measurement_spike_is_attenuated(self):
         """센서 스파이크는 미분 기여를 줄여 화력이 크게 흔들리지 않게 한다."""
-        steady = SoftwarePid(PidGains(0.0, 0.0, 1.0), sp_weight_d=0.0, d_clamp=1e9)
+        steady = SoftwarePid(PidGains(0.0, 0.0, 1.0), d_clamp=1e9)
         steady.set_target(200.0)
         steady.engage(now=0.0)
         # 완만한 변화 이력을 쌓는다 (0.1°C/s)

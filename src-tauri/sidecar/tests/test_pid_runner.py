@@ -107,6 +107,24 @@ class TestLifecycle:
         await r.stop("drop", mode="zero")
         assert m.writes == []
 
+    async def test_sv_change_does_not_kick_duty(self):
+        """프로덕션 경로(PidRunner가 만드는 기본 설정)에서 SV 조작이 D항을 튀게 하면 안 된다.
+
+        SoftwarePid를 직접 만들며 sp_weight_d=0.0을 넘기는 테스트만 있으면
+        기본값이 오차 미분으로 남아 있어도 통과해버린다 — 실제로 그랬다.
+        """
+        m = FakeMachine(bt=200.0, feedback=70.0)
+        r = make_runner(m, duty_deadband=0.0, resend_every_n_ticks=1)
+        await r.start(sv=200.0)
+        await run_ticks(m, r, 4)
+        d_before = r.state()["d"]
+
+        await r.set_sv(210.0)  # PV는 그대로, 슬라이더만 조작
+        await run_ticks(m, r, 1)
+
+        assert d_before == 0.0
+        assert r.state()["d"] == 0.0, "SV 변경만으로 D항이 움직였다 (derivative kick)"
+
     async def test_set_sv_requires_running(self):
         m = FakeMachine()
         r = make_runner(m)

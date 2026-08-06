@@ -45,7 +45,10 @@ class SoftwarePid:
         out_min: float = 0.0,
         out_max: float = 100.0,
         sp_weight_p: float = 1.0,
-        sp_weight_d: float = 1.0,
+        # 0.0 = 순수 derivative-on-measurement(기본). 1.0으로 올리면 SV도 미분에
+        # 들어가 오차 미분이 되고, SV를 바꾸는 순간 D항이 튄다 — 이 모듈이 피하려는
+        # 동작이라 기본값은 0이다. 실기 튜닝용으로만 열어 둔다.
+        sp_weight_d: float = 0.0,
         integral_band_factor: float = 1.0,
         d_clamp: float = 100.0,
         sv_jump_threshold: float = 25.0,
