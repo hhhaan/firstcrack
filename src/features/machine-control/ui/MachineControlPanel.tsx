@@ -35,6 +35,10 @@ export const MachineControlPanel = ({
     const roles = ROLE_ORDER.filter((role) => limits[role] != null);
     if (!writable || roles.length === 0) return null;
 
+    // PID가 화력을 잡고 있는 동안 heater 슬라이더를 열어 두면, 조작해도 다음 tick(1초)에
+    // PID가 덮어써서 "슬라이더가 말을 안 듣는" 상태가 된다. 소유권을 명확히 한다.
+    const pidHoldsHeater = pidRuntime?.state === 'running' || pidRuntime?.state === 'holding';
+
     return (
         <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
@@ -49,7 +53,8 @@ export const MachineControlPanel = ({
                     value={desired[role]}
                     feedback={liveData ? liveData[role] : null}
                     unacknowledged={unacknowledged.has(role)}
-                    disabled={!writable}
+                    disabled={!writable || (role === 'heater' && pidHoldsHeater)}
+                    lockedNote={role === 'heater' && pidHoldsHeater ? 'PID 제어 중' : undefined}
                     onChange={setValue}
                     onCommit={commitNow}
                 />

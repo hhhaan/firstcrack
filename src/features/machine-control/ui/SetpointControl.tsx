@@ -17,6 +17,8 @@ interface Props {
     /** 지시 후 오래 지나도 머신이 안 따라옴 — 명령이 먹지 않았을 가능성 */
     unacknowledged: boolean;
     disabled: boolean;
+    /** 왜 잠겼는지 (예: PID가 이 채널을 잡고 있음). 없으면 표시하지 않는다. */
+    lockedNote?: string;
     onChange: (role: ControlRole, value: number) => void;
     onCommit: () => void;
 }
@@ -33,6 +35,7 @@ export const SetpointControl = ({
     feedback,
     unacknowledged,
     disabled,
+    lockedNote,
     onChange,
     onCommit,
 }: Props) => {
@@ -47,7 +50,10 @@ export const SetpointControl = ({
     return (
         <div className="flex flex-col gap-1">
             <div className="flex items-baseline justify-between">
-                <span className="text-[12px] font-medium text-secondary">{ROLE_LABEL[role]}</span>
+                <span className="text-[12px] font-medium text-secondary">
+                    {ROLE_LABEL[role]}
+                    {lockedNote && <span className="ml-1.5 text-[11px] text-muted">· {lockedNote}</span>}
+                </span>
                 <span className="font-mono text-[12px] text-primary">
                     {Math.round(current)}
                     {unit}
