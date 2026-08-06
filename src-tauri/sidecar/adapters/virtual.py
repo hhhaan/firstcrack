@@ -13,9 +13,11 @@ import random
 import time
 import logging
 from bisect import bisect_right
+from collections.abc import Callable
 from typing import Any
 
 from adapters.base import Reading
+from adapters.thermal_model import FirstOrderThermalModel
 
 _log = logging.getLogger(__name__)
 
@@ -125,6 +127,8 @@ class VirtualMachineAdapter:
         self,
         mode: str = "C",
         write_map: dict[str, dict[str, Any]] | None = None,
+        sim: str = "scripted",
+        clock: Callable[[], float] | None = None,
         **_: Any,
     ) -> None:
         self._connected: bool = False
@@ -136,6 +140,12 @@ class VirtualMachineAdapter:
         self._write_map = write_map or {}
         # control()로 받은 명령값. None이면 스크립트 기본값을 그대로 재생한다.
         self._cmd: dict[str, float] = {}
+        # sim="thermal": duty에 반응하는 1차 지연 모델로 BT를 만든다 (PID 검증용).
+        # 기본 "scripted"는 기존 데모 커브 재생 그대로.
+        self._sim = sim
+        self._clock = clock or time.monotonic
+        self._model = FirstOrderThermalModel() if sim == "thermal" else None
+        self._model_ts: float | None = None
 
     async def connect(self) -> None:
         self._connect_time = time.monotonic()
@@ -143,6 +153,10 @@ class VirtualMachineAdapter:
         self._standby_time = 0.0
         self._charge_bt = _PREHEAT_TARGET_BT
         self._connected = True
+        # 모델 시각 기준을 여기서 잡는다. 첫 read에서야 잡으면 그 사이 흐른 시간이
+        # 통째로 버려져 "duty를 올렸는데 온도가 그대로"인 것처럼 보인다.
+        if self._model is not None:
+            self._model_ts = self._clock()
         _log.info("VirtualMachine connected — preheating")
 
     async def disconnect(self) -> None:
@@ -153,8 +167,27 @@ class VirtualMachineAdapter:
         if not self._connected:
             return Reading(bt=-1.0, et=-1.0, heater=0, fan=0, drum=0, timestamp=time.monotonic())
 
+        if self._model is not None:
+            return self._read_thermal()
         reading = self._read_preheat() if not self._roasting else self._read_roasting()
         return self._apply_cmd(reading)
+
+    def _read_thermal(self) -> Reading:
+        """duty에 반응하는 모델 기반 판독 — PID 루프 검증용."""
+        assert self._model is not None
+        now = self._clock()
+        dt = 0.0 if self._model_ts is None else max(0.0, now - self._model_ts)
+        self._model_ts = now
+        duty = self._cmd.get("heater", 0.0)
+        bt = self._model.step(duty, dt)
+        return Reading(
+            bt=round(bt, 1),
+            et=round(bt + 15.0, 1),
+            heater=round(duty, 1),
+            fan=round(self._cmd.get("fan", 0.0), 1),
+            drum=round(self._cmd.get("drum", 0.0), 1),
+            timestamp=now,
+        )
 
     def _read_preheat(self) -> Reading:
         """예열 + 대기 단계: standby 진입 10초 후 BT를 5°C/s로 최대 25°C 강하 → auto-charge 유발."""

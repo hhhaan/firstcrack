@@ -1,6 +1,7 @@
 import {
     type EventMarkerStyle,
     fromDisplayTemp,
+    type PidDropBehavior,
     type PollIntervalMs,
     type RorSpanSec,
     type TemperatureUnit,
@@ -37,6 +38,19 @@ const eventMarkerStyleOptions: { value: EventMarkerStyle; labelKey: string; desc
         value: 'line',
         labelKey: 'settings.tabs.roast.eventMarkerLine',
         descKey: 'settings.tabs.roast.eventMarkerLineDescription',
+    },
+];
+
+const pidDropBehaviorOptions: { value: PidDropBehavior; labelKey: string; descKey: string }[] = [
+    {
+        value: 'hold',
+        labelKey: 'settings.tabs.roast.pidDropHold',
+        descKey: 'settings.tabs.roast.pidDropHoldDescription',
+    },
+    {
+        value: 'zero',
+        labelKey: 'settings.tabs.roast.pidDropZero',
+        descKey: 'settings.tabs.roast.pidDropZeroDescription',
     },
 ];
 
@@ -298,6 +312,23 @@ export const RoastSettingsTab = () => {
                             label={t(labelKey)}
                             description={t(descKey)}
                             onChange={() => updateRoastSettings({ eventMarkerStyle: value })}
+                        />
+                    ))}
+                </SectionCard.Body>
+            </SectionCard>
+
+            <SectionCard>
+                <SectionCard.Header title={tk('pidDropBehavior')} description={tk('pidDropBehaviorDescription')} />
+                <SectionCard.Body className="grid gap-1.5">
+                    {pidDropBehaviorOptions.map(({ value, labelKey, descKey }) => (
+                        <SettingsCheckRow
+                            key={value}
+                            type="radio"
+                            name="pidDropBehavior"
+                            checked={roastSettings.pidDropBehavior === value}
+                            label={t(labelKey)}
+                            description={t(descKey)}
+                            onChange={() => updateRoastSettings({ pidDropBehavior: value })}
                         />
                     ))}
                 </SectionCard.Body>

@@ -13,6 +13,7 @@ export type { BbpSample, BbpSummary } from './model/bbp';
 export { BBP_MAX_SECONDS, useBbpStore } from './model/bbp';
 export type {
     EventMarkerStyle,
+    PidDropBehavior,
     PollIntervalMs,
     RoastSettings,
     RorSpanSec,

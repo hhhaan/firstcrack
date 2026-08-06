@@ -20,6 +20,7 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
 """
 
 import logging
+import math
 import os
 import sys
 import time
@@ -30,6 +31,7 @@ from sentry_sdk.integrations.aiohttp import AioHttpIntegration
 from aiohttp import web
 
 import control_guard
+import pid_runner
 from manager import RoasterManager
 
 from protocol_trace import TRACE
@@ -175,6 +177,11 @@ async def handle_disconnect(request: web.Request) -> web.Response:
 async def handle_temperatures(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
     data = await manager.read_temperatures()
+    # PID 런타임 상태는 여기 실어 보낸다 — 프론트는 이미 이 엔드포인트를 폴링 중이라
+    # 별도 타이머가 필요 없다. (정적 지원 여부는 /status.control.pid)
+    pid_state = manager.pid_state()
+    if pid_state is not None:
+        data = {**data, "pid": pid_state}
     return web.json_response(data)
 
 
@@ -238,6 +245,71 @@ async def handle_control(request: web.Request) -> web.Response:
         _log.error("control 실패: %s", exc, exc_info=True)
         return web.json_response({"error": "제어 명령 전송에 실패했습니다."}, status=502)
     return web.json_response({"ok": True, "applied": applied})
+
+
+def _pid_error_response(exc: Exception) -> web.Response:
+    if isinstance(exc, control_guard.ControlRangeError):
+        return web.json_response({"error": str(exc)}, status=400)
+    if isinstance(exc, control_guard.ControlUnavailable):
+        return web.json_response({"error": str(exc)}, status=409)
+    _log.error("PID 요청 실패: %s", exc, exc_info=True)
+    return web.json_response({"error": "PID 명령을 처리하지 못했습니다."}, status=502)
+
+
+def _parse_sv(body: dict[str, Any]) -> float:
+    raw = body.get("sv")
+    if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
+        raise control_guard.ControlRangeError("목표 온도(sv)가 숫자가 아닙니다.")
+    try:
+        sv = float(raw)
+    except (TypeError, ValueError):
+        raise control_guard.ControlRangeError("목표 온도(sv)가 숫자가 아닙니다.") from None
+    if not math.isfinite(sv):
+        raise control_guard.ControlRangeError("목표 온도(sv)가 유효하지 않습니다.")
+    return sv
+
+
+async def handle_pid_on(request: web.Request) -> web.Response:
+    try:
+        body = await request.json()
+    except Exception:
+        return web.Response(status=400, text="invalid json")
+    manager: RoasterManager = request.app["manager"]
+    try:
+        state = await manager.pid_start(_parse_sv(body))
+    except Exception as exc:
+        return _pid_error_response(exc)
+    return web.json_response({"ok": True, "pid": state})
+
+
+async def handle_pid_off(request: web.Request) -> web.Response:
+    # 바디는 선택 — 없으면 hold(현재 화력 유지)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    mode = body.get("mode") if isinstance(body, dict) else None
+    if mode not in (pid_runner.STOP_HOLD, pid_runner.STOP_ZERO, None):
+        return web.json_response({"error": f"알 수 없는 mode: {mode}"}, status=400)
+    manager: RoasterManager = request.app["manager"]
+    try:
+        state = await manager.pid_stop(mode or pid_runner.STOP_HOLD)
+    except Exception as exc:
+        return _pid_error_response(exc)
+    return web.json_response({"ok": True, "pid": state})
+
+
+async def handle_pid_sv(request: web.Request) -> web.Response:
+    try:
+        body = await request.json()
+    except Exception:
+        return web.Response(status=400, text="invalid json")
+    manager: RoasterManager = request.app["manager"]
+    try:
+        state = await manager.pid_set_sv(_parse_sv(body))
+    except Exception as exc:
+        return _pid_error_response(exc)
+    return web.json_response({"ok": True, "pid": state})
 
 
 def _is_na(s: str) -> bool:
@@ -423,6 +495,9 @@ def create_app() -> web.Application:
     app.router.add_post("/reset", handle_reset)
     app.router.add_post("/settings", handle_settings)
     app.router.add_post("/control", handle_control)
+    app.router.add_post("/pid/on", handle_pid_on)
+    app.router.add_post("/pid/off", handle_pid_off)
+    app.router.add_post("/pid/sv", handle_pid_sv)
     app.router.add_get("/debug/trace", handle_debug_trace_get)
     app.router.add_post("/debug/trace", handle_debug_trace_post)
     app.router.add_get("/debug/probe", handle_debug_probe)

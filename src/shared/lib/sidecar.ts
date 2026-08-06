@@ -1,4 +1,4 @@
-import type { NetworkHost, SerialPort, SidecarStatus, TemperatureReading } from '@entities/machine';
+import type { NetworkHost, PidRuntime, SerialPort, SidecarStatus, TemperatureReading } from '@entities/machine';
 import { invoke } from '@tauri-apps/api/core';
 import { logger } from './logger';
 
@@ -91,6 +91,26 @@ export const sidecar = {
         request<{ ok: boolean; applied: Partial<Record<'heater' | 'fan' | 'drum', number>> }>('/control', {
             method: 'POST',
             body: JSON.stringify(cmd),
+        }),
+
+    /** PID 제어 시작. sv = 목표 BT(°C). 409 = 미연결/미지원, 400 = 범위 밖 */
+    pidOn: (sv: number) =>
+        request<{ ok: boolean; pid: PidRuntime }>('/pid/on', {
+            method: 'POST',
+            body: JSON.stringify({ sv }),
+        }),
+
+    /** PID 해제. mode='hold'는 현재 화력 유지, 'zero'는 히터 0. */
+    pidOff: (mode: 'hold' | 'zero' = 'hold') =>
+        request<{ ok: boolean; pid: PidRuntime }>('/pid/off', {
+            method: 'POST',
+            body: JSON.stringify({ mode }),
+        }),
+
+    pidSetSv: (sv: number) =>
+        request<{ ok: boolean; pid: PidRuntime }>('/pid/sv', {
+            method: 'POST',
+            body: JSON.stringify({ sv }),
         }),
 
     getSerialPorts: () => request<SerialPort[]>('/serial-ports'),

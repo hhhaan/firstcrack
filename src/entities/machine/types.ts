@@ -60,6 +60,31 @@ export interface ControlLimit {
 export interface ControlCapability {
     writable: boolean;
     limits: Partial<Record<'heater' | 'fan' | 'drum', ControlLimit>>;
+    pid?: PidCapability;
+}
+
+/** PID 지원 여부(정적). 게인과 heater 쓰기 맵이 둘 다 있어야 true. */
+export interface PidCapability {
+    supported: boolean;
+    sv_min: number;
+    sv_max: number;
+}
+
+/**
+ * PID 런타임 상태. holding = 온도를 못 믿어 쓰기를 멈춘 상태(머신은 마지막 duty 유지),
+ * fault = 안전 정지(사용자가 다시 켜야 해제).
+ */
+export type PidState = 'off' | 'running' | 'holding' | 'fault';
+
+export interface PidRuntime {
+    state: PidState;
+    sv: number | null;
+    duty: number | null;
+    pv: number | null;
+    p: number;
+    i: number;
+    d: number;
+    error: string | null;
 }
 
 export interface SidecarStatus {
@@ -89,4 +114,6 @@ export interface TemperatureReading {
     stale?: boolean;
     /** 백그라운드 자동 재연결 진행 중인지 */
     reconnecting?: boolean;
+    /** PID를 한 번이라도 켠 뒤에만 실린다 */
+    pid?: PidRuntime;
 }

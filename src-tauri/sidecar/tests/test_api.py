@@ -19,14 +19,15 @@ async def client(monkeypatch):
     app = create_app()
     async with TestClient(TestServer(app)) as c:
         yield c
-    # Cancel any reconnect task left by tests
+    # Cancel any background task left by tests
     manager = app["manager"]
-    if manager._reconnect_task is not None and not manager._reconnect_task.done():
-        manager._reconnect_task.cancel()
-        try:
-            await manager._reconnect_task
-        except (asyncio.CancelledError, Exception):
-            pass
+    for task in (manager._reconnect_task, manager._pid_task):
+        if task is not None and not task.done():
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
 
 
 # ---------------------------------------------------------------------------
@@ -211,8 +212,102 @@ class TestControlEndpoint:
         assert control["limits"]["heater"]["max"] == 100
 
     async def test_status_reports_not_writable_before_connect(self, client):
-        resp = await client.get("/status")
-        assert (await resp.json())["control"] == {"writable": False, "limits": {}}
+        control = (await (await client.get("/status")).json())["control"]
+        assert control["writable"] is False
+        assert control["limits"] == {}
+        assert control["pid"]["supported"] is False
+
+
+# ---------------------------------------------------------------------------
+# POST /pid/*
+# ---------------------------------------------------------------------------
+
+class TestPidEndpoints:
+    async def _connect_virtual(self, client, fake):
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "virtual"})
+
+    async def test_pid_on_while_disconnected_returns_409(self, client):
+        resp = await client.post("/pid/on", json={"sv": 200})
+        assert resp.status == 409
+
+    async def test_pid_on_starts_and_reports_state(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        resp = await client.post("/pid/on", json={"sv": 200})
+        assert resp.status == 200
+        pid = (await resp.json())["pid"]
+        assert pid["state"] == "running"
+        assert pid["sv"] == 200.0
+
+    async def test_pid_on_rejects_sv_out_of_range(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        resp = await client.post("/pid/on", json={"sv": 900})
+        assert resp.status == 400
+
+    async def test_pid_on_rejects_non_numeric_sv(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        assert (await client.post("/pid/on", json={"sv": "hot"})).status == 400
+
+    async def test_pid_on_unsupported_machine_returns_409(self, client):
+        """probat_ws는 pid 게인도 write_map도 없다."""
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "probat_ws"})
+        assert (await client.post("/pid/on", json={"sv": 200})).status == 409
+
+    async def test_pid_off_is_idempotent(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        assert (await client.post("/pid/off", json={})).status == 200
+        await client.post("/pid/on", json={"sv": 200})
+        assert (await client.post("/pid/off", json={"mode": "zero"})).status == 200
+        assert (await client.post("/pid/off", json={"mode": "zero"})).status == 200
+
+    async def test_pid_off_rejects_unknown_mode(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        assert (await client.post("/pid/off", json={"mode": "explode"})).status == 400
+
+    async def test_pid_sv_before_start_returns_409(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        assert (await client.post("/pid/sv", json={"sv": 210})).status == 409
+
+    async def test_pid_sv_updates_target(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        await client.post("/pid/on", json={"sv": 200})
+        resp = await client.post("/pid/sv", json={"sv": 215})
+        assert resp.status == 200
+        assert (await resp.json())["pid"]["sv"] == 215.0
+
+    async def test_temperatures_includes_pid_block_once_started(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(10)])
+        await self._connect_virtual(client, fake)
+        assert "pid" not in await (await client.get("/temperatures")).json()
+        await client.post("/pid/on", json={"sv": 200})
+        data = await (await client.get("/temperatures")).json()
+        assert data["pid"]["state"] == "running"
+
+    async def test_status_reports_pid_capability_for_virtual(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        pid = (await (await client.get("/status")).json())["control"]["pid"]
+        assert pid["supported"] is True
+        assert pid["sv_min"] < pid["sv_max"]
+
+    async def test_disconnect_cancels_pid_task(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(10)])
+        await self._connect_virtual(client, fake)
+        await client.post("/pid/on", json={"sv": 200})
+        manager = client.app["manager"]
+        assert manager._pid_task is not None
+        await client.post("/disconnect")
+        assert manager._pid_task is None
+        assert manager.pid_state() is None
 
 
 # ---------------------------------------------------------------------------

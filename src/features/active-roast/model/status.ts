@@ -1,3 +1,4 @@
+import type { PidRuntime } from '@entities/machine';
 import { create } from 'zustand';
 
 export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended';
@@ -22,6 +23,8 @@ export interface RoastingState {
     sidecarError: string | null;
     machineCapabilities: string[];
     liveData: LiveData | null;
+    /** 사이드카 PID 런타임 상태 (/temperatures에 실려 온다). PID 미사용이면 null. */
+    pid: PidRuntime | null;
     /** Inventory/other entry → active roast bean handoff (consumed once when roast view activates). */
     pendingBeanId: string | null;
     pendingBeanName: string | null;
@@ -42,6 +45,7 @@ export interface RoastingState {
     setError: (error: string | null) => void;
     setReconnecting: (reconnecting: boolean) => void;
     updateLiveData: (data: LiveData) => void;
+    setPid: (pid: PidRuntime | null) => void;
     setPendingBean: (beanId: string | null, beanName?: string | null) => void;
     reset: () => void;
 }
@@ -54,6 +58,7 @@ const initialState = {
     sidecarError: null as string | null,
     machineCapabilities: [] as string[],
     liveData: null as LiveData | null,
+    pid: null as PidRuntime | null,
     pendingBeanId: null as string | null,
     pendingBeanName: null as string | null,
     sessionId: null as string | null,
@@ -134,6 +139,20 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         )
             return;
         set({ liveData: data });
+    },
+
+    setPid: (pid) => {
+        const current = get().pid;
+        // 폴링마다 새 객체가 오므로 값이 같으면 리렌더를 막는다
+        if (
+            current?.state === pid?.state &&
+            current?.sv === pid?.sv &&
+            current?.duty === pid?.duty &&
+            current?.pv === pid?.pv &&
+            current?.error === pid?.error
+        )
+            return;
+        set({ pid });
     },
 
     reset: () => {

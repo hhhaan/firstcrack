@@ -10,6 +10,8 @@ import sentry_sdk
 import config
 from adapters import make_adapter
 from control_guard import ControlRangeError, ControlUnavailable, clamp_command
+from pid import PidGains
+from pid_runner import STOP_HOLD, PidRunner, PvSample
 from roaster_registry import ROASTER_REGISTRY
 
 _log = logging.getLogger(__name__)
@@ -147,12 +149,18 @@ class RoasterManager:
         self._bt_display_ema: float | None = None
         self._et_display_ema: float | None = None
         self._lock: asyncio.Lock = asyncio.Lock()
+        # 센서 갱신 직렬화 — 프론트 폴링과 PID tick이 같은 순간에 읽어도
+        # EMA/RoR이 두 번 밀리지 않게 한다 (표시 RoR 오염 방지).
+        self._read_lock: asyncio.Lock = asyncio.Lock()
         self._reconnect_task: asyncio.Task[None] | None = None
         self._reconnect_attempt: int = 0
         self._ror_warmup: int = 0
         self._consecutive_errors: int = 0
         self._last_good: dict[str, Any] | None = None
+        self._last_good_ts: float = 0.0
         self._ror_window_secs: float = config.ROR_WINDOW_SECS
+        self._pid: PidRunner | None = None
+        self._pid_task: asyncio.Task[None] | None = None
 
     def _capture_hardware_error(self, exc: Exception, event: str = "hardware_error") -> None:
         """하드웨어 에러를 Sentry에 캡처 — 프로토콜/로스터 정보 포함."""
@@ -255,6 +263,11 @@ class RoasterManager:
             await self._disconnect_internal()
 
     async def _disconnect_internal(self) -> None:
+        # PID를 먼저 세운다 — 연결이 사라진 뒤 duty를 쓰려 드는 tick을 막는다
+        if self._pid_task is not None and not self._pid_task.done():
+            self._pid_task.cancel()
+        self._pid_task = None
+        self._pid = None
         if self._reconnect_task is not None and not self._reconnect_task.done():
             self._reconnect_task.cancel()
             self._reconnect_task = None
@@ -359,7 +372,23 @@ class RoasterManager:
             "reconnecting": reconnecting,
         }
 
-    async def read_temperatures(self) -> dict[str, Any]:
+    async def read_temperatures(self, max_age: float = 0.0) -> dict[str, Any]:
+        """센서 갱신의 단일 창구.
+
+        EMA/RoR/에러 카운터/재연결을 건드리는 유일한 경로다. 프론트 폴링과 PID
+        tick이 각자 어댑터를 읽으면 같은 EMA에 표본이 두 배로 들어가 화면 RoR이
+        실제와 달라진다.
+
+        max_age > 0이면 그만큼 최근 값은 재사용한다 — PID tick이 프론트가 방금
+        읽은 표본을 그대로 쓰게 해 하드웨어 왕복을 줄인다.
+        """
+        async with self._read_lock:
+            if max_age > 0 and self._last_good is not None:
+                if (time.monotonic() - self._last_good_ts) <= max_age:
+                    return self._last_good
+            return await self._refresh_reading()
+
+    async def _refresh_reading(self) -> dict[str, Any]:
         reconnecting = self._reconnecting()
         # await 도중 disconnect/재연결로 self._adapter가 교체될 수 있어 스냅샷을 잡는다 (H4)
         adapter = self._adapter
@@ -455,6 +484,7 @@ class RoasterManager:
             "reconnecting": reconnecting,
         }
         self._last_good = payload
+        self._last_good_ts = time.monotonic()
         return payload
 
     def write_limits(self) -> dict[str, dict[str, Any]]:
@@ -503,6 +533,106 @@ class RoasterManager:
                 return {}
             raise
         return applied
+
+    # ── 소프트웨어 PID ─────────────────────────────────────────────────────
+
+    def pid_capability(self) -> dict[str, Any]:
+        """PID 지원 여부(정적). 게인과 heater 쓰기 맵이 둘 다 있어야 돌릴 수 있다."""
+        reg = ROASTER_REGISTRY.get(self._roaster_key, {})
+        gains = reg.get("pid")
+        supported = bool(gains) and "heater" in self.write_limits()
+        return {
+            "supported": supported,
+            "sv_min": config.PID_SV_MIN_C,
+            "sv_max": config.PID_SV_MAX_C,
+        }
+
+    def pid_state(self) -> dict[str, Any] | None:
+        return self._pid.state() if self._pid is not None else None
+
+    async def _pv_snapshot(self) -> PvSample:
+        """PID가 쓰는 표본. 화면과 같은 평활 BT를 쓴다 — 조작자와 제어기가 같은 값을 본다."""
+        payload = await self.read_temperatures(max_age=config.READING_MAX_AGE_S)
+        return PvSample(
+            bt=payload.get("bt"),
+            ts=time.monotonic(),
+            stale=bool(payload.get("stale")),
+            connected=self._connected,
+        )
+
+    async def _pid_write_duty(self, duty: float) -> None:
+        applied = await self.control(heater=duty)
+        if not applied:
+            raise RuntimeError("duty 쓰기가 적용되지 않았습니다.")
+
+    async def _pid_read_feedback(self) -> float | None:
+        """머신이 보고하는 현재 heater 값. bumpless engage와 graceful stop에 쓴다."""
+        payload = await self.read_temperatures(max_age=config.READING_MAX_AGE_S)
+        value = payload.get("heater")
+        return float(value) if value is not None else None
+
+    async def pid_start(self, sv: float) -> dict[str, Any]:
+        cap = self.pid_capability()
+        if not self._connected:
+            raise ControlUnavailable("머신이 연결되지 않았습니다.")
+        if not cap["supported"]:
+            raise ControlUnavailable("이 머신은 PID 제어를 지원하지 않습니다.")
+        if not (cap["sv_min"] <= sv <= cap["sv_max"]):
+            raise ControlRangeError(
+                f"목표 온도는 {cap['sv_min']:.0f}~{cap['sv_max']:.0f}°C 범위여야 합니다."
+            )
+
+        gains_cfg = ROASTER_REGISTRY[self._roaster_key]["pid"]
+        if self._pid is None:
+            self._pid = PidRunner(
+                read_pv=self._pv_snapshot,
+                write_duty=self._pid_write_duty,
+                read_feedback=self._pid_read_feedback,
+                gains=PidGains(
+                    kp=float(gains_cfg["Kp"]),
+                    ki=float(gains_cfg["Ki"]),
+                    kd=float(gains_cfg["Kd"]),
+                ),
+            )
+        await self._pid.start(sv)
+        if self._pid_task is None or self._pid_task.done():
+            # 태스크 참조를 self에 보관해야 GC가 가져가지 않는다 (재연결 태스크와 동일 패턴)
+            self._pid_task = asyncio.create_task(self._pid_loop())
+        return self._pid.state()
+
+    async def pid_stop(self, mode: str = STOP_HOLD) -> dict[str, Any]:
+        if self._pid is None:
+            return {"state": "off", "error": None}
+        await self._pid.stop("user", mode=mode)
+        return self._pid.state()
+
+    async def pid_set_sv(self, sv: float) -> dict[str, Any]:
+        cap = self.pid_capability()
+        if self._pid is None:
+            raise ControlUnavailable("PID가 실행 중이 아닙니다.")
+        if not (cap["sv_min"] <= sv <= cap["sv_max"]):
+            raise ControlRangeError(
+                f"목표 온도는 {cap['sv_min']:.0f}~{cap['sv_max']:.0f}°C 범위여야 합니다."
+            )
+        try:
+            await self._pid.set_sv(sv)
+        except RuntimeError as exc:
+            raise ControlUnavailable(str(exc)) from exc
+        return self._pid.state()
+
+    async def _pid_loop(self) -> None:
+        """고정 주기 제어 루프. 프론트 폴링 주기와 독립이다 — 폴링은 idle에서 멈춘다."""
+        try:
+            while True:
+                await asyncio.sleep(config.PID_TICK_S)
+                if self._pid is None:
+                    return
+                try:
+                    await self._pid.tick()
+                except Exception as exc:  # 루프는 어떤 경우에도 죽지 않는다
+                    _log.error("PID tick 실패: %s", exc, exc_info=True)
+        except asyncio.CancelledError:
+            raise
 
     async def enter_standby(self) -> None:
         """UI의 READY 버튼과 연동. 어댑터가 지원하면 standby 진입을 알린다."""
@@ -567,6 +697,7 @@ class RoasterManager:
             "control": {
                 "writable": bool(self.write_limits()),
                 "limits": self.write_limits(),
+                "pid": self.pid_capability(),
             },
             "uptime": uptime,
             "error": self._error,

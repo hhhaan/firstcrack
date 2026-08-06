@@ -55,7 +55,18 @@ export type RoastSettings = {
     alertSoundEnabled: boolean;
     alertRorCrashCPerMin: number;
     alertBtMaxC: number;
+    /**
+     * DROP 시 PID가 풀릴 때 화력 처리.
+     * 'hold' — 머신이 보고하는 현재 duty를 유지 (연속 배치 재승온 시간 절약)
+     * 'zero' — 히터 0
+     * 과열·쓰기 실패 등 이상 정지는 이 설정과 무관하게 항상 0을 시도한다.
+     */
+    pidDropBehavior: PidDropBehavior;
 };
+
+export type PidDropBehavior = 'hold' | 'zero';
+
+const isPidDropBehavior = (v: unknown): v is PidDropBehavior => v === 'hold' || v === 'zero';
 
 const DEFAULT_SETTINGS: RoastSettings = {
     pollIntervalMs: 500,
@@ -90,6 +101,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     alertSoundEnabled: true,
     alertRorCrashCPerMin: 0,
     alertBtMaxC: 250,
+    pidDropBehavior: 'hold',
 };
 
 const clampNum = (value: unknown, min: number, max: number, fallback: number) => {
@@ -152,6 +164,9 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         alertSoundEnabled: asBool(merged.alertSoundEnabled, DEFAULT_SETTINGS.alertSoundEnabled),
         alertRorCrashCPerMin: clampNum(merged.alertRorCrashCPerMin, -20, 20, DEFAULT_SETTINGS.alertRorCrashCPerMin),
         alertBtMaxC: clampNum(merged.alertBtMaxC, 100, 400, DEFAULT_SETTINGS.alertBtMaxC),
+        pidDropBehavior: isPidDropBehavior(merged.pidDropBehavior)
+            ? merged.pidDropBehavior
+            : DEFAULT_SETTINGS.pidDropBehavior,
     };
 };
 

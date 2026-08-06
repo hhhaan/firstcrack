@@ -66,11 +66,21 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const unit = roastSettings.temperatureUnit;
 
     // ── 스토어 구독 ───────────────────────────────────────────────
-    const { phase, elapsed, liveData, tick, sessionId, sidecarConnected, machineCapabilities } = useRoastingStore(
+    const {
+        phase,
+        elapsed,
+        liveData,
+        pid: pidRuntime,
+        tick,
+        sessionId,
+        sidecarConnected,
+        machineCapabilities,
+    } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
             elapsed: s.elapsed,
             liveData: s.liveData,
+            pid: s.pid,
             tick: s.tick,
             sessionId: s.sessionId,
             sidecarConnected: s.sidecarConnected,
@@ -582,6 +592,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         fcDualMarkEnabled={fcDualMarkEnabled}
                         sidecarConnected={sidecarConnected}
                         liveData={liveData}
+                        pidRuntime={pidRuntime}
+                        pidDropBehavior={roastSettings.pidDropBehavior}
                         logEntries={logEntries}
                         pressedButtons={pressedButtons}
                         roastLogDisplayEntries={roastLogDisplayEntries}
