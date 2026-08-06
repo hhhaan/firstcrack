@@ -26,12 +26,14 @@ class ControlUnavailable(RuntimeError):
     """지금 쓸 수 없음 (미연결, 쓰기 맵 없음) — HTTP 409."""
 
 
-def parse_command(body: dict[str, Any]) -> dict[str, float]:
+def parse_command(body: Any) -> dict[str, float]:
     """요청 바디에서 쓸 role만 뽑아 float으로 정규화한다 (형식 검증만).
 
     role 지원 여부는 머신 상태를 알아야 하므로 manager가 판단한다.
     빈 요청은 빈 dict를 반환한다 (no-op 허용).
     """
+    if not isinstance(body, dict):
+        raise ControlRangeError("요청 형식이 올바르지 않습니다.")
     cmd: dict[str, float] = {}
     for role in WRITABLE_ROLES:
         raw = body.get(role)

@@ -247,6 +247,31 @@ class TestFault:
         await run_ticks(m, r, 1)
         assert r.state_name == FAULT
 
+    async def test_failed_safe_off_is_surfaced_in_error(self):
+        """화력을 못 껐는데 원래 사유만 보이면 조작자가 꺼진 줄 안다."""
+        m = FakeMachine()
+        r = make_runner(m)
+        await r.start(sv=200.0)
+        await run_ticks(m, r, 2)
+
+        m.write_error = OSError("PLC unreachable")
+        m.bt = config.SAFETY_MAX_BT_C + 1.0
+        await run_ticks(m, r, 1)
+
+        assert r.state_name == FAULT
+        error = r.state()["error"] or ""
+        assert "안전 상한" in error, "원래 fault 사유가 남아 있어야 한다"
+        assert "끄지 못했습니다" in error, "정지 실패도 함께 알려야 한다"
+
+    async def test_successful_safe_off_keeps_original_error(self):
+        m = FakeMachine()
+        r = make_runner(m)
+        await r.start(sv=200.0)
+        await run_ticks(m, r, 2)
+        m.bt = config.SAFETY_MAX_BT_C + 1.0
+        await run_ticks(m, r, 1)
+        assert "끄지 못했습니다" not in (r.state()["error"] or "")
+
     async def test_fault_ticks_are_noop(self):
         m = FakeMachine()
         r = make_runner(m)

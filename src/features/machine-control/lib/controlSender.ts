@@ -30,23 +30,29 @@ export const createControlSender = ({
     let pending: ControlCommand = {};
     let inFlight = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // dispose 세대 — 폐기 이후에 도착한 응답의 콜백을 무시한다. 그러지 않으면
+    // 연결이 끊겨 상태를 비운 뒤에 늦게 온 응답이 옛 setpoint를 되살린다.
+    let generation = 0;
 
     const flush = async (): Promise<void> => {
         if (inFlight) return;
         const cmd = pending;
         if (Object.keys(cmd).length === 0) return;
+        const gen = generation;
         pending = {};
         inFlight = true;
         onSendingChange?.(true);
         try {
             const applied = await send(cmd);
-            onApplied?.(applied);
+            if (gen === generation) onApplied?.(applied);
         } catch (err) {
-            onError?.(err);
+            if (gen === generation) onError?.(err);
         } finally {
             inFlight = false;
-            onSendingChange?.(false);
-            if (Object.keys(pending).length > 0) await flush();
+            if (gen === generation) {
+                onSendingChange?.(false);
+                if (Object.keys(pending).length > 0) await flush();
+            }
         }
     };
 
@@ -67,6 +73,7 @@ export const createControlSender = ({
             if (timer) clearTimeout(timer);
             timer = null;
             pending = {};
+            generation += 1; // 진행 중인 요청의 콜백을 무효화한다
         },
     };
 };

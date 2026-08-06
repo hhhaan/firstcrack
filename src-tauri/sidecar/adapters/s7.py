@@ -94,13 +94,16 @@ class S7Adapter:
 
     async def disconnect(self) -> None:
         def _disconnect() -> None:
-            if self._plc is not None:
-                try:
-                    self._plc.disconnect()
-                    self._plc.destroy()
-                except Exception:
-                    pass
-                self._plc = None
+            # 락 없이 destroy()하면 다른 executor 스레드가 db_read 중인 클라이언트를
+            # 해제해버린다 — 락을 도입한 이유가 정확히 이 경우다.
+            with self._io_lock:
+                if self._plc is not None:
+                    try:
+                        self._plc.disconnect()
+                        self._plc.destroy()
+                    except Exception:
+                        pass
+                    self._plc = None
 
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _disconnect)
@@ -182,6 +185,9 @@ class S7Adapter:
 
         def _read_one() -> float:
             with self._io_lock:
+                # 락 밖의 사전 검사와 여기 사이에 disconnect가 끼어들 수 있다
+                if self._plc is None:
+                    raise ConnectionError("S7 PLC가 연결되지 않음")
                 return self._read_channel_sync(ch)
 
         loop = asyncio.get_running_loop()
@@ -255,6 +261,8 @@ class S7Adapter:
 
         def _write_all() -> None:
             with self._io_lock:
+                if self._plc is None:  # 사전 검사 이후 disconnect된 경우
+                    return
                 for role, spec, value in targets:
                     self._write_channel_sync(role, spec, value)
 

@@ -117,6 +117,34 @@ describe('createControlSender', () => {
         expect(send).toHaveBeenCalledTimes(2);
     });
 
+    it('dispose 후 도착한 응답의 콜백은 무시된다', async () => {
+        const d = deferredSend();
+        const onApplied = vi.fn();
+        const onError = vi.fn();
+        const onSendingChange = vi.fn();
+        const sender = createControlSender({
+            send: d.send,
+            onApplied,
+            onError,
+            onSendingChange,
+            debounceMs: 0,
+        });
+
+        sender.queue('heater', 50);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(d.calls).toHaveLength(1);
+
+        // 연결이 끊겨 상태를 비운 뒤 늦게 응답이 도착하는 상황
+        sender.dispose();
+        onSendingChange.mockClear();
+        d.resolve({ heater: 50 });
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(onApplied).not.toHaveBeenCalled();
+        expect(onError).not.toHaveBeenCalled();
+        expect(onSendingChange).not.toHaveBeenCalled();
+    });
+
     it('dispose 후에는 예약된 전송이 나가지 않는다', async () => {
         const send = vi.fn(async (cmd: ControlCommand) => cmd);
         const sender = createControlSender({ send, debounceMs: 250 });

@@ -167,8 +167,8 @@ class TestDerivative:
         pid.update(190.0, 0.0)
         pid.update(190.0, 1.0)
         out = pid.update(195.0, 2.0)  # PV 상승 → 음의 D (제동)
-        assert out is not None and out < 0.0 or out == 0.0  # 클램프로 0일 수 있음
         assert pid.snapshot()["d"] < 0
+        assert out == 0.0  # 음의 출력은 out_min(0)으로 클램프된다
 
     def test_derivative_clamped(self):
         pid = SoftwarePid(PidGains(0.0, 0.0, 1.0), sp_weight_d=0.0, d_clamp=5.0)
@@ -190,10 +190,9 @@ class TestDerivative:
         for t in range(1, 5):
             pv += 0.1
             steady.update(pv, float(t))
-        spike_d = steady.update(pv + 10.0, 5.0) and steady.snapshot()["d"]
+        steady.update(pv + 10.0, 5.0)
         # 감쇠(×0.3)가 걸렸으므로 kd×10 = -10 이 아니라 -3 수준
         assert steady.snapshot()["d"] == pytest.approx(-3.0, rel=0.05)
-        assert spike_d is not None or True
 
 
 class TestEngageRelease:
@@ -205,6 +204,16 @@ class TestEngageRelease:
         pid.update(195.0, 0.0)
         out = pid.update(195.0, 1.0)
         assert out == pytest.approx(60.0)
+
+    def test_seed_is_clamped_to_integral_band(self):
+        """P가 크면 역산 적분항이 밴드의 몇 배가 된다 — 포화가 몇 사이클 안 풀린다."""
+        pid = make_pid(kp=20.0)
+        pid.set_target(200.0)
+        pid.engage(now=0.0, seed_output=100.0)
+        pid.update(230.0, 0.0)   # 오차 -30 → P = -600
+        pid.update(230.0, 1.0)
+        # 밴드 = 1.0 × (100 - 0) = 100
+        assert abs(pid.snapshot()["i"]) <= 100.0
 
     def test_engage_without_seed_starts_from_terms_only(self):
         pid = make_pid(kp=2.0)

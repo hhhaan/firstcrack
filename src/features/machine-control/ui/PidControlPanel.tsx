@@ -68,7 +68,10 @@ export const PidControlPanel = ({ sidecarConnected, capability, runtime, roastFi
                     step={1}
                     value={pid.sv}
                     aria-label="PID target temperature"
-                    onChange={(e) => void pid.commitSv(Number(e.target.value))}
+                    // 드래그 중에는 화면만 갱신하고, 손을 뗄 때 한 번만 머신에 보낸다
+                    onChange={(e) => pid.previewSv(Number(e.target.value))}
+                    onPointerUp={(e) => void pid.commitSv(Number(e.currentTarget.value))}
+                    onKeyUp={(e) => void pid.commitSv(Number(e.currentTarget.value))}
                     className="w-full accent-[#111827] dark:accent-[#F2F2F2]"
                 />
             </div>

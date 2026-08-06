@@ -256,7 +256,11 @@ def _pid_error_response(exc: Exception) -> web.Response:
     return web.json_response({"error": "PID 명령을 처리하지 못했습니다."}, status=502)
 
 
-def _parse_sv(body: dict[str, Any]) -> float:
+def _parse_sv(body: Any) -> float:
+    # JSON 배열/문자열/숫자가 오면 body.get이 AttributeError → 502가 된다.
+    # 잘못 보낸 쪽은 클라이언트이므로 400이 맞다.
+    if not isinstance(body, dict):
+        raise control_guard.ControlRangeError("요청 형식이 올바르지 않습니다.")
     raw = body.get("sv")
     if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
         raise control_guard.ControlRangeError("목표 온도(sv)가 숫자가 아닙니다.")

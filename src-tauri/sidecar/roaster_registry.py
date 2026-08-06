@@ -658,9 +658,11 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "channels": [
                 {"role": "BT", "db": 4, "offset": 10, "area": 6, "type": 1, "div": 0},
                 {"role": "ET", "db": 4, "offset": 6, "area": 6, "type": 1, "div": 0},
+                # WxA+는 피드백이 db4에 있다 (다른 Giesen은 db2/48).
+                # aset 채널 idx2 = db4/18 = extraname1[0]={3} = heater %
                 {
                     "role": "heater",
-                    "db": 2,
+                    "db": 4,
                     "offset": 18,
                     "area": 6,
                     "type": 0,

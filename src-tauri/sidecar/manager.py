@@ -263,6 +263,9 @@ class RoasterManager:
             await self._disconnect_internal()
 
     async def _disconnect_internal(self) -> None:
+        # 쓰기 게이트를 첫 await보다 먼저 닫는다. cancel()은 기다리지 않으므로
+        # 이미 control() 안에 진입한 tick이 아래 await 도중 재개해 한 번 더 쓸 수 있다.
+        self._connected = False
         # PID를 먼저 세운다 — 연결이 사라진 뒤 duty를 쓰려 드는 tick을 막는다
         if self._pid_task is not None and not self._pid_task.done():
             self._pid_task.cancel()

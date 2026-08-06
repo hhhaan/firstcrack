@@ -149,6 +149,9 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             current?.sv === pid?.sv &&
             current?.duty === pid?.duty &&
             current?.pv === pid?.pv &&
+            current?.p === pid?.p &&
+            current?.i === pid?.i &&
+            current?.d === pid?.d &&
             current?.error === pid?.error
         )
             return;

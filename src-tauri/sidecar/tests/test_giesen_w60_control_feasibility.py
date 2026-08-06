@@ -84,8 +84,34 @@ def test_db2_giesen_write_map_targets_heater_setpoint(key: str) -> None:
         assert (roles[role]["db"], roles[role]["offset"]) != (heater["db"], heater["offset"])
 
 
+@pytest.mark.parametrize("key", GIESEN_DB2_KEYS + ["giesen_w6a_pro"])
+def test_control_roles_never_share_a_read_cell(key: str) -> None:
+    """heater/fan/drum/BT/ET가 같은 셀을 읽으면 UI에 남의 값이 표시된다.
+
+    WxA+가 실제로 그랬다 — heater와 drum이 둘 다 DB2.18을 읽고 있었다.
+    (AT/extra는 aset 자체가 같은 셀을 중복 참조하는 기종이 있어 제외한다.)
+    """
+    channels = ROASTER_REGISTRY[key]["default_params"]["channels"]
+    cells: dict[tuple[int, int], str] = {}
+    for ch in channels:
+        if ch["role"] not in ("BT", "ET", "heater", "fan", "drum"):
+            continue
+        cell = (ch["db"], ch["offset"])
+        assert cell not in cells, (
+            f"{key}: {ch['role']}와 {cells[cell]}가 같은 셀 {cell}을 읽는다"
+        )
+        cells[cell] = ch["role"]
+
+
+def test_wxa_plus_heater_reads_db4() -> None:
+    """WxA+는 피드백이 db4에 있다 — db2/18은 drum Hz다."""
+    roles = _role_map(ROASTER_REGISTRY["giesen_wxa_plus"]["default_params"]["channels"])
+    assert (roles["heater"]["db"], roles["heater"]["offset"]) == (4, 18)
+    assert (roles["drum"]["db"], roles["drum"]["offset"]) == (2, 18)
+
+
 def test_w6a_pro_reads_drum_at_62() -> None:
-    """W6A PRO도 같은 오라벨이 있었다: DB1006.106은 heater % 세트포인트."""
+    """W6A PRO도 같은 오라벨 오류가 있었다: drum은 DB1006.62, heater 피드백은 DB1006.98."""
     roles = _role_map(ROASTER_REGISTRY["giesen_w6a_pro"]["default_params"]["channels"])
     assert (roles["drum"]["db"], roles["drum"]["offset"]) == (1006, 62)
     assert (roles["heater"]["db"], roles["heater"]["offset"]) == (1006, 98)

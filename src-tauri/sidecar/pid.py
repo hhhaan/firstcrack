@@ -185,8 +185,11 @@ class SoftwarePid:
         self._d_term = self._derivative(pv, dt)
 
         if self._seed_output is not None:
-            # 첫 사이클: 현재 duty가 그대로 나오도록 적분항을 역산한다
+            # 첫 사이클: 현재 duty가 그대로 나오도록 적분항을 역산한다.
+            # 역산값도 밴드로 자른다 — P가 크면(예: kp=20, 오차 -30 → P=-600)
+            # 시드 적분항이 밴드의 몇 배가 되어 여러 사이클 동안 포화가 풀리지 않는다.
             self._i_term = self._seed_output - self._p_term - self._d_term
+            self._clamp_integral()
             self._seed_output = None
         else:
             self._integrate(err, dt)
@@ -232,6 +235,11 @@ class SoftwarePid:
             d_raw *= 0.3
         return self.gains.kd * d_raw
 
+    def _clamp_integral(self) -> None:
+        """적분항을 출력 범위 기반 밴드로 자른다. 적분항이 커지는 모든 경로가 거쳐야 한다."""
+        band = self.integral_band_factor * (self.out_max - self.out_min)
+        self._i_term = min(band, max(-band, self._i_term))
+
     def _integrate(self, err: float, dt: float) -> None:
         if self._skip_integration_once:
             self._skip_integration_once = False
@@ -242,8 +250,7 @@ class SoftwarePid:
         if saturated_high or saturated_low:
             return
         self._i_term += self.gains.ki * err * dt
-        band = self.integral_band_factor * (self.out_max - self.out_min)
-        self._i_term = min(band, max(-band, self._i_term))
+        self._clamp_integral()
 
     def _back_calculate(self, raw: float, out: float) -> None:
         """클램프로 잘린 만큼 적분항을 되돌린다 (계수 0.5 = 절반만 보정)."""
@@ -251,5 +258,4 @@ class SoftwarePid:
         if abs(excess) <= 1e-9:
             return
         self._i_term -= excess * 0.5
-        band = self.integral_band_factor * (self.out_max - self.out_min)
-        self._i_term = min(band, max(-band, self._i_term))
+        self._clamp_integral()

@@ -2,7 +2,7 @@ import type { PidCapability, PidRuntime } from '@entities/machine';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { useToastStore } from '@shared/store/toast';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** 서버가 SV 범위를 알려주기 전 슬라이더 초기값 */
 const FALLBACK_SV_C = 200;
@@ -38,6 +38,7 @@ export const usePidControl = ({
 }) => {
     const [sv, setSv] = useState<number>(FALLBACK_SV_C);
     const [busy, setBusy] = useState(false);
+    const svAdoptedRef = useRef(false);
 
     const state = runtime?.state ?? 'off';
     // 사이드카가 보고하는 상태가 유일한 진실 — 로컬 토글 상태를 따로 들면
@@ -66,6 +67,13 @@ export const usePidControl = ({
         }
     }, []);
 
+    /** 슬라이더를 끄는 동안의 화면 갱신만 — 머신에는 보내지 않는다 */
+    const previewSv = useCallback((next: number) => setSv(next), []);
+
+    /**
+     * 실제 목표 온도 변경. 슬라이더에서 손을 뗀 시점에만 부른다.
+     * 드래그 중 매 스텝을 보내면 켜져 있는 버너의 목표가 픽셀마다 흔들린다.
+     */
     const commitSv = useCallback(
         async (next: number) => {
             setSv(next);
@@ -78,6 +86,18 @@ export const usePidControl = ({
         },
         [engaged],
     );
+
+    // 이미 돌고 있는 PID에 뒤늦게 붙은 경우(리마운트, 앱 재시작) 사이드카 SV가 진실이다.
+    // 맞추지 않으면 슬라이더는 200을 보여주고, 다음 조작이 엉뚱한 값으로 점프시킨다.
+    useEffect(() => {
+        if (svAdoptedRef.current || !engaged || runtime?.sv == null) return;
+        svAdoptedRef.current = true;
+        setSv(runtime.sv);
+    }, [engaged, runtime?.sv]);
+
+    useEffect(() => {
+        if (!engaged) svAdoptedRef.current = false;
+    }, [engaged]);
 
     // 로스트 종료(배출 포함) → 설정된 방식으로 해제.
     // 연결이 없으면 보낼 경로도 없다 — 사이드카가 스스로 FAULT 처리한다.
@@ -99,6 +119,7 @@ export const usePidControl = ({
         error: runtime?.error ?? null,
         turnOn,
         turnOff,
+        previewSv,
         commitSv,
     };
 };

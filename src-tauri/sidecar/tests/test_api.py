@@ -185,6 +185,11 @@ class TestControlEndpoint:
         assert resp.status == 409
         assert "error" in await resp.json()
 
+    async def test_control_non_object_body_returns_400(self, client):
+        """JSON 배열/문자열은 클라이언트 잘못이므로 502가 아니라 400이다."""
+        resp = await client.post("/control", data=b"[1,2]", headers={"Content-Type": "application/json"})
+        assert resp.status == 400
+
     async def test_control_non_numeric_returns_400(self, client):
         fake = FakeAdapter(readings=[make_reading(bt=150.0)])
         with patch("manager.make_adapter", return_value=fake):
@@ -244,6 +249,10 @@ class TestPidEndpoints:
         fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
         await self._connect_virtual(client, fake)
         resp = await client.post("/pid/on", json={"sv": 900})
+        assert resp.status == 400
+
+    async def test_pid_on_non_object_body_returns_400(self, client):
+        resp = await client.post("/pid/on", data=b'"hot"', headers={"Content-Type": "application/json"})
         assert resp.status == 400
 
     async def test_pid_on_rejects_non_numeric_sv(self, client):
