@@ -157,7 +157,7 @@ export const Machines = ({
                                     <div
                                         key={machine.id}
                                         onClick={() => setSelectedId(machine.id)}
-                                        className={`bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150 border border-[#E5E5E5] dark:border-[#585d61]`}
+                                        className={`bg-main-bg rounded-lg px-4 py-3.5 cursor-pointer transition-all duration-150 dark:border dark:border-[#585d61]`}
                                     >
                                         <div className="flex items-start justify-between mb-2">
                                             <div>
