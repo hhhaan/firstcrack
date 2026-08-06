@@ -212,8 +212,8 @@ class TestEngageRelease:
         pid.engage(now=0.0, seed_output=100.0)
         pid.update(230.0, 0.0)   # 오차 -30 → P = -600
         pid.update(230.0, 1.0)
-        # 밴드 = 1.0 × (100 - 0) = 100
-        assert abs(pid.snapshot()["i"]) <= 100.0
+        # 밴드 = 1.0 * (100 - 0) = 100. 양의 상한으로 잘려야 한다 (0이나 -100이 아니라)
+        assert pid.snapshot()["i"] == pytest.approx(100.0)
 
     def test_engage_without_seed_starts_from_terms_only(self):
         pid = make_pid(kp=2.0)
