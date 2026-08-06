@@ -481,10 +481,18 @@ Status: `400`
 
 Notes:
 
-- manager가 연결 상태일 때만 adapter의 `control()`을 호출한다.
-- 연결이 없어도 현재 API는 `{ "ok": true }`를 반환한다.
-- 현재 대부분 adapter의 `control()`은 no-op이다.
-- Kaleido adapter는 `heater`가 들어오면 `setSV()`를 호출한다.
+- 연결이 없어도 현재 API는 `{ "ok": true }`를 반환한다. (범위 검증·연결 게이트는 후속 작업)
+- **쓰기는 `write_map`이 있는 로스터에서만 일어난다.** `write_map`은 레지스트리
+  `default_params` 안에 있고, 읽기용 `channels`와 **셀이 다르다**. Giesen을 예로 들면
+  heater 피드백은 DB2.48(읽기 전용)이고 duty 세트포인트는 DB2.14(쓰기 대상)다.
+  읽기 role에 그대로 쓰면 피드백 레지스터를 덮어쓰게 되므로 절대 공유하지 않는다.
+- `write_map`에 없는 role, 또는 `write_map` 자체가 없는 로스터는 조용히 무시된다(no-op).
+  현재 쓰기 맵이 있는 것은 Giesen S7 계열의 `heater`뿐이다.
+- 어댑터 쓰기 순서: `min`/`max` 클램프 → `div` 역스케일(읽기의 ÷10/÷100 반대) →
+  INT16 반올림·범위 검사 → `db_write`. 유한하지 않은 값(NaN/Inf)과 INT16 초과는
+  `ValueError`로 거부한다.
+- S7은 읽기와 쓰기가 같은 snap7 클라이언트를 쓰므로 어댑터 내부 스레드 락으로 직렬화한다.
+- Kaleido/Modbus/Phidget/Probat/Virtual adapter의 `control()`은 아직 no-op이다.
 
 ### GET /serial-ports
 

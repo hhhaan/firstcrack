@@ -198,6 +198,34 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
 
 
 # ---------------------------------------------------------------------------
+# 쓰기 맵 (write_map)
+#
+# channels(읽기)와 반드시 분리한다. Giesen은 heater 피드백(DB2.48)과
+# heater duty 세트포인트(DB2.14)가 서로 다른 셀이라, 읽기 role에 그대로
+# 쓰면 피드백 레지스터를 덮어쓰게 된다.
+#
+# write_map이 없는 로스터 = 쓰기 미지원(어댑터 control()이 no-op).
+# min/max는 클램프 상한 — 출처 .aset의 slidermin/slidermax.
+# ---------------------------------------------------------------------------
+
+# Giesen db2 계열 공통 (W1A~W140A, WxA/WxA+): slidercommands "setDBint(2,14,{})"
+# heater duty만 노출한다. fan(DB2.10)/drum(DB2.18)/pressure(DB2.16)은 모델마다
+# slidermin/max가 달라(fan 250~280, drum 34~60Hz) 레지스트리 키 분리가 선행돼야 한다.
+_GIESEN_DB2_WRITE_MAP: dict[str, dict[str, Any]] = {
+    "heater": {
+        "db": 2,
+        "offset": 14,
+        "area": 6,
+        "type": 0,
+        "div": 0,
+        "min": 0,
+        "max": 100,
+        "unit": "%",
+    },
+}
+
+
+# ---------------------------------------------------------------------------
 # 로스터 레지스트리
 # ---------------------------------------------------------------------------
 
@@ -334,9 +362,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
                 {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
@@ -365,9 +394,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
                 {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
@@ -395,7 +425,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
                 {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
                 {
                     "role": "extra",
@@ -406,6 +436,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
@@ -433,7 +464,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
                 {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
                 {
                     "role": "extra",
@@ -444,6 +475,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
@@ -471,9 +503,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
                 {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
@@ -525,7 +558,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                 {
                     "role": "drum",
                     "db": 1006,
-                    "offset": 106,
+                    "offset": 62,
                     "area": 6,
                     "type": 0,
                     "div": 0,
@@ -569,8 +602,9 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
@@ -599,8 +633,9 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],

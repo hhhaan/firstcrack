@@ -33,7 +33,9 @@ export const MachineControls = ({
                 <span className="text-[13px] text-muted">
                     Drum{' '}
                     <span className="font-mono font-normal" style={{ color: PHASE_COLORS.ready }}>
-                        {liveData ? `${liveData.drum} RPM` : '—'}
+                        {/* ponytail: 단위 미표기 — drum 단위는 머신마다 다르다(Giesen=Hz).
+                            레지스트리에 채널 단위 메타데이터가 생기면 그때 표기 */}
+                        {liveData ? `${liveData.drum}` : '—'}
                     </span>
                 </span>
             )}
