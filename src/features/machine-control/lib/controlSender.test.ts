@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type ControlCommand, createControlSender } from './controlSender';
+import { type ControlCommand, createControlSender, settledRoles } from './controlSender';
 
 /** 수동으로 resolve하는 send — in-flight 구간을 정확히 제어하기 위해 */
 const deferredSend = () => {
@@ -20,6 +20,35 @@ const deferredSend = () => {
         reject: (err: unknown) => rejectCurrent?.(err),
     };
 };
+
+describe('settledRoles', () => {
+    const fb = { heater: 60, fan: 100, drum: 50 };
+
+    it('기기가 지시값에 도달하면 그 role을 반환한다', () => {
+        expect(settledRoles({ heater: 60 }, fb, 1)).toEqual(['heater']);
+    });
+
+    it('허용 오차 안이면 도달로 본다', () => {
+        expect(settledRoles({ heater: 59 }, fb, 1)).toEqual(['heater']);
+        expect(settledRoles({ heater: 58 }, fb, 1)).toEqual([]);
+    });
+
+    it('아직 안 따라온 role은 남긴다', () => {
+        expect(settledRoles({ heater: 47 }, fb, 1)).toEqual([]);
+    });
+
+    it('지시가 없는 role은 대상이 아니다', () => {
+        expect(settledRoles({}, fb, 1)).toEqual([]);
+    });
+
+    it('여러 role을 동시에 판정한다', () => {
+        expect(settledRoles({ heater: 60, fan: 100, drum: 20 }, fb, 1)).toEqual(['heater', 'fan']);
+    });
+
+    it('0 지시도 대상이다 (falsy 값 취급 주의)', () => {
+        expect(settledRoles({ heater: 0 }, { ...fb, heater: 0 }, 1)).toEqual(['heater']);
+    });
+});
 
 describe('createControlSender', () => {
     beforeEach(() => {

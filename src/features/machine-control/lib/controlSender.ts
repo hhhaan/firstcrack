@@ -4,6 +4,23 @@ export type ControlCommand = Partial<Record<ControlRole, number>>;
 /** 슬라이더를 끄는 동안 매 픽셀마다 PLC에 쓰지 않도록 커밋을 모으는 간격 */
 export const COMMIT_DEBOUNCE_MS = 250;
 
+/**
+ * 기기가 지시값을 따라잡은 role 목록.
+ *
+ * 여기서 걸러진 role은 지시를 버려 슬라이더가 기기 실측을 따라가게 된다. 이 판정이
+ * 영영 참이 되지 않으면 슬라이더가 사용자 값에 고정돼, 본체 조작반에서 화력을
+ * 바꿔도 화면이 그대로다.
+ */
+export const settledRoles = (
+    desired: ControlCommand,
+    feedback: Record<ControlRole, number>,
+    tolerance: number,
+): ControlRole[] =>
+    (['heater', 'fan', 'drum'] as ControlRole[]).filter((role) => {
+        const target = desired[role];
+        return target != null && Math.abs(target - feedback[role]) <= tolerance;
+    });
+
 interface Options {
     send: (cmd: ControlCommand) => Promise<ControlCommand>;
     /** 전송 성공 시 사이드카가 범위로 자른 실제 값 */

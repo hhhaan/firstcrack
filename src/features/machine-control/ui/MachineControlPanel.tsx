@@ -29,8 +29,8 @@ export const MachineControlPanel = ({
     roastFinished,
     pidDropBehavior,
 }: Props) => {
-    const { writable, limits, pidCapability, desired, sending, setValue, commitNow } =
-        useMachineControl(sidecarConnected);
+    const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
+        useMachineControl(sidecarConnected, liveData);
 
     const roles = ROLE_ORDER.filter((role) => limits[role] != null);
     if (!writable || roles.length === 0) return null;
@@ -48,6 +48,7 @@ export const MachineControlPanel = ({
                     limit={limits[role] ?? {}}
                     value={desired[role]}
                     feedback={liveData ? liveData[role] : null}
+                    unacknowledged={unacknowledged.has(role)}
                     disabled={!writable}
                     onChange={setValue}
                     onCommit={commitNow}
