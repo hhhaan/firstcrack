@@ -224,6 +224,21 @@ _GIESEN_DB2_WRITE_MAP: dict[str, dict[str, Any]] = {
     },
 }
 
+# W6A PRO는 읽기 db1006 / 쓰기 db1001로 계열이 다르다.
+# aset: setDBint(1001,42,{}) = heater %, slidermin/max 0~100
+_GIESEN_W6A_PRO_WRITE_MAP: dict[str, dict[str, Any]] = {
+    "heater": {
+        "db": 1001,
+        "offset": 42,
+        "area": 6,
+        "type": 0,
+        "div": 0,
+        "min": 0,
+        "max": 100,
+        "unit": "%",
+    },
+}
+
 
 # ---------------------------------------------------------------------------
 # 로스터 레지스트리
@@ -584,6 +599,13 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
             ],
+            "write_map": _GIESEN_W6A_PRO_WRITE_MAP,
+            # ⚠️ 아래 두 값은 **쓰지 않는다**. 하드웨어 PID 경로처럼 보이지만 아니다:
+            #   1. Giesen 전 기종 .aset이 PID_area=0 — Artisan조차 Giesen을 PLC 내장
+            #      PID로 구동한 적이 없다. software PID + duty 쓰기가 유일한 경로다.
+            #   2. DB1001.24는 W6A PRO의 **fan 세트포인트(REAL)** 셀이다
+            #      (aset: setDBfloat(1001,24,{})). 여기에 INT SV를 쓰면 팬이 오작동한다.
+            # 레지스트리 이력 보존용으로만 남긴다. INTERNAL_KEYS에 있어 /roasters로도 안 나간다.
             "pid_db": 1001,
             "pid_sv_register": 24,
         },

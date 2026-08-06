@@ -91,6 +91,35 @@ def test_w6a_pro_reads_drum_at_62() -> None:
     assert (roles["heater"]["db"], roles["heater"]["offset"]) == (1006, 98)
 
 
+def test_w6a_pro_write_map_targets_db1001_42() -> None:
+    """W6A PRO는 읽기 db1006 / 쓰기 db1001로 계열이 다르다."""
+    heater = ROASTER_REGISTRY["giesen_w6a_pro"]["default_params"]["write_map"]["heater"]
+    assert (heater["db"], heater["offset"]) == (1001, 42)
+    assert (heater["min"], heater["max"]) == (0, 100)
+
+
+def test_w6a_pro_pid_sv_register_is_never_written() -> None:
+    """DB1001.24는 fan 세트포인트(REAL)다 — SV로 쓰면 팬이 오작동한다.
+
+    레지스트리에 값이 남아 있어도 쓰기 경로(write_map)에는 절대 들어가면 안 된다.
+    """
+    params = ROASTER_REGISTRY["giesen_w6a_pro"]["default_params"]
+    write_cells = {(spec["db"], spec["offset"]) for spec in params["write_map"].values()}
+    assert (params["pid_db"], params["pid_sv_register"]) not in write_cells
+    assert (1001, 24) not in write_cells
+
+
+def test_w6a_pro_aset_confirms_fan_owns_register_24() -> None:
+    aset = ARTISAN_W60A.parent / "W6A_PRO.aset"
+    if not aset.is_file():
+        pytest.skip("W6A_PRO.aset not in tree")
+    text = aset.read_text(encoding="utf-8", errors="replace")
+    # 슬라이더 순서: pressure(30), drum(22), fan(24, REAL), heater(42)
+    assert 'setDBfloat(1001,24,{})' in text, "레지스터 24는 fan REAL 셀이어야 한다"
+    assert 'setDBint(1001,42,{})' in text
+    assert "PID_area=0" in text
+
+
 def test_non_giesen_s7_has_no_write_map() -> None:
     """write_map 부재 = 쓰기 미지원. Probat은 쓰기 맵을 검증한 적이 없다."""
     for key in ("probat_gug_s7", "probat_gug_control_s7"):
