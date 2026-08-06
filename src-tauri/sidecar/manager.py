@@ -9,6 +9,7 @@ import sentry_sdk
 
 import config
 from adapters import make_adapter
+from control_guard import ControlRangeError, ControlUnavailable, clamp_command
 from roaster_registry import ROASTER_REGISTRY
 
 _log = logging.getLogger(__name__)
@@ -456,17 +457,52 @@ class RoasterManager:
         self._last_good = payload
         return payload
 
-    async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
+    def write_limits(self) -> dict[str, dict[str, Any]]:
+        """쓰기 가능한 role → spec(min/max/unit). 빈 dict면 이 머신은 제어 불가.
+
+        어댑터가 아니라 병합된 연결 파라미터에서 읽는다 — 쓰기 가능 여부는
+        레지스트리가 정하는 사실이고, 어댑터마다 속성을 노출할 필요가 없다.
+        """
+        return dict(self._merged_params.get("write_map") or {})
+
+    async def control(
+        self,
+        heater: float | None = None,
+        fan: float | None = None,
+        drum: float | None = None,
+    ) -> dict[str, float]:
+        """제어 명령을 어댑터로 전달하고 **실제 적용된 값**을 돌려준다.
+
+        미연결/쓰기 미지원이면 ControlUnavailable을 던진다. 조용히 성공을
+        반환하면 UI가 명령이 먹은 것으로 오해한다 — 화력 제어에서는 치명적이다.
+        """
+        requested = {k: v for k, v in
+                     (("heater", heater), ("fan", fan), ("drum", drum)) if v is not None}
+        if not requested:
+            return {}
+
         # read와 동일하게 어댑터를 스냅샷 — await 도중 disconnect되면 조용히 무시한다 (H4)
         adapter = self._adapter
-        if adapter is None or not hasattr(adapter, "control"):
-            return
+        if not self._connected or adapter is None or not hasattr(adapter, "control"):
+            raise ControlUnavailable("머신이 연결되지 않았습니다.")
+
+        write_map = self.write_limits()
+        if not write_map:
+            raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")
+        unsupported = [r for r in requested if r not in write_map]
+        if unsupported:
+            raise ControlRangeError(
+                f"이 머신은 {', '.join(unsupported)} 제어를 지원하지 않습니다."
+            )
+
+        applied = clamp_command({k: float(v) for k, v in requested.items()}, write_map)
         try:
-            await adapter.control(heater=heater, fan=fan, drum=drum)
+            await adapter.control(**applied)
         except Exception:
             if self._adapter is not adapter:
-                return
+                return {}
             raise
+        return applied
 
     async def enter_standby(self) -> None:
         """UI의 READY 버튼과 연동. 어댑터가 지원하면 standby 진입을 알린다."""
@@ -526,6 +562,12 @@ class RoasterManager:
             "display_name": reg.get("display_name", ""),
             "brand": reg.get("brand", ""),
             "capabilities": reg.get("capabilities", []),
+            # 제어 능력은 레지스트리 capabilities(표시용)와 다르다 — 실제로 쓸 수 있는
+            # role만 담는다. writable=false면 프론트는 제어 UI를 렌더하지 않는다.
+            "control": {
+                "writable": bool(self.write_limits()),
+                "limits": self.write_limits(),
+            },
             "uptime": uptime,
             "error": self._error,
         }

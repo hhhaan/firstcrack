@@ -29,6 +29,7 @@ import sentry_sdk
 from sentry_sdk.integrations.aiohttp import AioHttpIntegration
 from aiohttp import web
 
+import control_guard
 from manager import RoasterManager
 
 from protocol_trace import TRACE
@@ -223,12 +224,20 @@ async def handle_control(request: web.Request) -> web.Response:
     except Exception:
         return web.Response(status=400, text="invalid json")
     manager: RoasterManager = request.app["manager"]
-    await manager.control(
-        heater=body.get("heater"),
-        fan=body.get("fan"),
-        drum=body.get("drum"),
-    )
-    return web.json_response({"ok": True})
+    try:
+        # 빈 요청은 연결 여부와 무관하게 no-op — 검증은 쓸 값이 있을 때만 의미가 있다.
+        cmd = control_guard.parse_command(body)
+        if not cmd:
+            return web.json_response({"ok": True, "applied": {}})
+        applied = await manager.control(**cmd)
+    except control_guard.ControlRangeError as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+    except control_guard.ControlUnavailable as exc:
+        return web.json_response({"error": str(exc)}, status=409)
+    except Exception as exc:
+        _log.error("control 실패: %s", exc, exc_info=True)
+        return web.json_response({"error": "제어 명령 전송에 실패했습니다."}, status=502)
+    return web.json_response({"ok": True, "applied": applied})
 
 
 def _is_na(s: str) -> bool:

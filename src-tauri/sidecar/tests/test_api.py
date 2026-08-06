@@ -162,10 +162,57 @@ class TestControlEndpoint:
         assert resp.status == 200
         data = await resp.json()
         assert data["ok"] is True
+        assert data["applied"] == {"heater": 80.0, "fan": 60.0}
+        assert fake.control_calls == [{"heater": 80.0, "fan": 60.0, "drum": None}]
+
+    async def test_control_clamps_to_write_map_range(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "virtual"})
+            resp = await client.post("/control", json={"heater": 150, "fan": -20})
+        assert resp.status == 200
+        assert (await resp.json())["applied"] == {"heater": 100.0, "fan": 0.0}
 
     async def test_control_empty_body_ok(self, client):
+        """빈 요청은 미연결이어도 200 no-op — 검증할 값이 없다."""
         resp = await client.post("/control", json={})
         assert resp.status == 200
+        assert (await resp.json())["applied"] == {}
+
+    async def test_control_while_disconnected_returns_409(self, client):
+        resp = await client.post("/control", json={"heater": 50})
+        assert resp.status == 409
+        assert "error" in await resp.json()
+
+    async def test_control_non_numeric_returns_400(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "virtual"})
+            resp = await client.post("/control", json={"heater": "hot"})
+        assert resp.status == 400
+        assert fake.control_calls == []
+
+    async def test_control_unsupported_role_returns_400(self, client):
+        """probat_ws는 write_map이 없다 — 쓰기 미지원 머신."""
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "probat_ws"})
+            resp = await client.post("/control", json={"heater": 50})
+        assert resp.status == 409
+        assert fake.control_calls == []
+
+    async def test_status_reports_control_capability(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "virtual"})
+            resp = await client.get("/status")
+        control = (await resp.json())["control"]
+        assert control["writable"] is True
+        assert control["limits"]["heater"]["max"] == 100
+
+    async def test_status_reports_not_writable_before_connect(self, client):
+        resp = await client.get("/status")
+        assert (await resp.json())["control"] == {"writable": False, "limits": {}}
 
 
 # ---------------------------------------------------------------------------

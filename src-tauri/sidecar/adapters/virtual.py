@@ -7,6 +7,7 @@
   3. 로스팅 (start_roast 이후): Charge 시점 BT에서 즉각 25°C 강하 → 로스팅 커브 재생
 """
 
+import dataclasses
 import math
 import random
 import time
@@ -120,13 +121,21 @@ class VirtualMachineAdapter:
     start_roast() → Charge 시점 BT 기록 후 로스팅 커브 재생
     """
 
-    def __init__(self, mode: str = "C", **_: Any) -> None:
+    def __init__(
+        self,
+        mode: str = "C",
+        write_map: dict[str, dict[str, Any]] | None = None,
+        **_: Any,
+    ) -> None:
         self._connected: bool = False
         self._roasting: bool = False
         self._connect_time: float = 0.0
         self._roast_start_time: float = 0.0
         self._charge_bt: float = _PREHEAT_TARGET_BT  # Charge 시점 BT
         self._standby_time: float = 0.0  # enter_standby() 호출 시각
+        self._write_map = write_map or {}
+        # control()로 받은 명령값. None이면 스크립트 기본값을 그대로 재생한다.
+        self._cmd: dict[str, float] = {}
 
     async def connect(self) -> None:
         self._connect_time = time.monotonic()
@@ -144,10 +153,8 @@ class VirtualMachineAdapter:
         if not self._connected:
             return Reading(bt=-1.0, et=-1.0, heater=0, fan=0, drum=0, timestamp=time.monotonic())
 
-        if not self._roasting:
-            return self._read_preheat()
-        else:
-            return self._read_roasting()
+        reading = self._read_preheat() if not self._roasting else self._read_roasting()
+        return self._apply_cmd(reading)
 
     def _read_preheat(self) -> Reading:
         """예열 + 대기 단계: standby 진입 10초 후 BT를 5°C/s로 최대 25°C 강하 → auto-charge 유발."""
@@ -218,7 +225,29 @@ class VirtualMachineAdapter:
         fan: float | None = None,
         drum: float | None = None,
     ) -> None:
-        pass  # 제어 기능 미사용 — 제거 예정
+        """명령값을 저장해 이후 read()가 그 값을 되돌려준다.
+
+        실기 없이 제어 UI를 검증하기 위한 최소 동작이다. 열 반응(duty → BT)은
+        모델링하지 않는다 — PID 루프 검증용 열 모델은 별도로 붙인다.
+        """
+        for role, value in (("heater", heater), ("fan", fan), ("drum", drum)):
+            if value is not None:
+                self._cmd[role] = float(value)
+
+    def _apply_cmd(self, reading: Reading) -> Reading:
+        """control()로 받은 값이 있으면 스크립트 값 대신 그것을 표시한다."""
+        if not self._cmd:
+            return reading
+        return dataclasses.replace(
+            reading,
+            heater=self._cmd.get("heater", reading.heater),
+            fan=self._cmd.get("fan", reading.fan),
+            drum=self._cmd.get("drum", reading.drum),
+        )
+
+    @property
+    def write_map(self) -> dict[str, dict[str, Any]]:
+        return self._write_map
 
     @property
     def connected(self) -> bool:

@@ -238,7 +238,16 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "brand": "Internal",
         "models": ["가상 머신"],
         "protocol": "virtual",
-        "default_params": {"mode": "C"},
+        "default_params": {
+            "mode": "C",
+            # 가상 머신은 PLC 주소가 없으므로 클램프 범위만 있으면 된다.
+            # 실기 없이 제어 UI와 PID 루프를 검증하는 경로.
+            "write_map": {
+                "heater": {"min": 0, "max": 100, "unit": "%"},
+                "fan": {"min": 0, "max": 100, "unit": "%"},
+                "drum": {"min": 0, "max": 100, "unit": "%"},
+            },
+        },
         "pid": None,
         "capabilities": ["heater", "fan", "drum"],
     },

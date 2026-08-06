@@ -46,6 +46,22 @@ export interface RoasterDef {
 export type RoastersResponse = Record<string, RoasterDef>;
 
 // GET /status 응답
+/** 실제로 쓸 수 있는 채널의 클램프 범위. 사이드카 write_map에서 온다. */
+export interface ControlLimit {
+    min?: number;
+    max?: number;
+    unit?: string;
+}
+
+/**
+ * 제어 가능 여부. 표시용 `capabilities`와 다르다 — capabilities는 "이 값을 읽어
+ * 보여준다"는 뜻이고, 여기 writable은 "이 채널에 실제로 쓸 수 있다"는 뜻이다.
+ */
+export interface ControlCapability {
+    writable: boolean;
+    limits: Partial<Record<'heater' | 'fan' | 'drum', ControlLimit>>;
+}
+
 export interface SidecarStatus {
     connected: boolean;
     reconnecting?: boolean;
@@ -54,6 +70,7 @@ export interface SidecarStatus {
     display_name: string;
     brand: string;
     capabilities: string[];
+    control?: ControlCapability;
     uptime: number;
     error: string | null;
 }

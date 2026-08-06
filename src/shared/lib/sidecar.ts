@@ -83,6 +83,16 @@ export const sidecar = {
     // 로스트 종료/리셋 — 어댑터 상태를 초기화해 다음 로스트를 예열 상태에서 시작
     resetRoast: () => request<{ ok: boolean }>('/reset', { method: 'POST' }),
 
+    /**
+     * 머신 제어값 쓰기. 사이드카가 write_map 범위로 자른 뒤 `applied`로 실제 값을 돌려준다.
+     * 409 = 미연결/쓰기 미지원, 400 = 형식 오류.
+     */
+    setControl: (cmd: Partial<Record<'heater' | 'fan' | 'drum', number>>) =>
+        request<{ ok: boolean; applied: Partial<Record<'heater' | 'fan' | 'drum', number>> }>('/control', {
+            method: 'POST',
+            body: JSON.stringify(cmd),
+        }),
+
     getSerialPorts: () => request<SerialPort[]>('/serial-ports'),
 
     /** TCP port probe on LAN /24. protocol: s7 | modbus_tcp | kaleido | probat_ws */
