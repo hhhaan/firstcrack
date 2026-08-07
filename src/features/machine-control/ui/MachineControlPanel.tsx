@@ -1,4 +1,5 @@
 import type { PidRuntime } from '@entities/machine';
+import { FEATURE, useFeature } from '@shared/lib/features';
 import type { ControlRole } from '../lib/controlSender';
 import { useMachineControl } from '../model/useMachineControl';
 import { PidControlPanel } from './PidControlPanel';
@@ -29,15 +30,22 @@ export const MachineControlPanel = ({
     roastFinished,
     pidDropBehavior,
 }: Props) => {
+    const entitled = useFeature(FEATURE.machineControl);
     const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
         useMachineControl(sidecarConnected, liveData);
 
     const roles = ROLE_ORDER.filter((role) => limits[role] != null);
-    if (!writable || roles.length === 0) return null;
-
     // PID가 화력을 잡고 있는 동안 heater 슬라이더를 열어 두면, 조작해도 다음 tick(1초)에
     // PID가 덮어써서 "슬라이더가 말을 안 듣는" 상태가 된다. 소유권을 명확히 한다.
     const pidHoldsHeater = pidRuntime?.state === 'running' || pidRuntime?.state === 'holding';
+
+    // Pro+ 전용. 게이트를 여기 한 곳에만 두는 이유: 슬라이더와 PID가 같은 쓰기 권한을
+    // 공유하므로, 화력을 쓸 수 없으면 PID도 의미가 없다.
+    //
+    // 단 PID가 돌고 있으면 권한과 무관하게 계속 렌더한다. 이 패널이 사라지면 DROP 시
+    // 자동 해제 훅도 같이 사라져, 아무도 안 보는 로스터에 불이 계속 들어간다.
+    // (플랜 스토어가 로딩 중 잠깐 비entitled로 보일 수 있다)
+    if ((!entitled && !pidHoldsHeater) || !writable || roles.length === 0) return null;
 
     return (
         <div className="flex flex-col gap-3">
