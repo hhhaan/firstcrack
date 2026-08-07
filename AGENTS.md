@@ -15,9 +15,11 @@ Roastery management desktop app (like Cropster): roast profile logging, roast hi
 ## Versioning
 SSoT: `version` field in `tauri.conf.json`. Bump all 3 atomically (`package.json`, `tauri.conf.json`, `Cargo.toml`):
 ```bash
-pnpm release <major.minor.patch>
+pnpm release patch|minor|major   # auto: max(package.json, max tag) +1
+pnpm release <major.minor.patch> # explicit (must be > baseline)
 ```
-This runs: bump → `git add` → commit(`chore(release): bump version to <version>`) → tag(`v<version>`) → push.
+This runs: version resolve + downgrade/tag guards → preflight → bump → commit → tag → push.
+Guards (always): target ≤ baseline 거부, 기존 로컬/remote 태그 거부. Preflight only: `--force`.
 
 CI "Sync version across manifests" overwrites from tag — tag is final authority.
 

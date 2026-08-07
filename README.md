@@ -26,7 +26,7 @@ Package manager is **pnpm only**. Do not use npm/yarn.
 | Lint / types | `pnpm check` (biome) / `pnpm lint` (eslint) / `pnpm typecheck` |
 | Full verify | `pnpm verify:all` — required before push |
 | Release build | `pnpm build:sidecar && pnpm tauri build` |
-| Version release | `pnpm release <major.minor.patch>` — sync-bump 3 manifests + tag + push |
+| Version release | `pnpm release patch\|minor\|major` or `pnpm release <x.y.z>` — sync-bump 3 manifests + tag + push |
 | Regenerate DB types | `pnpm types:gen` — required after schema migrations |
 
 ## Structure

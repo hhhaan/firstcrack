@@ -1,19 +1,87 @@
 #!/usr/bin/env node
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
-const version = process.argv[2];
+const arg = process.argv[2];
 const force = process.argv.includes('--force');
-if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
-    console.error('Usage: node scripts/release.mjs <major.minor.patch> [--force]');
+const BUMP_KINDS = new Set(['patch', 'minor', 'major']);
+const SEMVER_RE = /^\d+\.\d+\.\d+$/;
+const TAG_RE = /^v\d+\.\d+\.\d+$/;
+
+if (!arg || (!SEMVER_RE.test(arg) && !BUMP_KINDS.has(arg))) {
+    console.error('Usage: node scripts/release.mjs <major.minor.patch|patch|minor|major> [--force]');
     process.exit(1);
 }
 
 const sh = (cmd) => execSync(cmd, { encoding: 'utf8' }).trim();
 const fail = (msg) => {
     console.error(`\n❌ ${msg}`);
-    console.error('   (검토 후 강행하려면 --force)');
+    if (!force) console.error('   (사전확인 스킵: --force — 다운그레이드/기존 태그는 강행 불가)');
     process.exit(1);
 };
+
+const parse = (v) => v.split('.').map(Number);
+const cmp = (a, b) => {
+    const [am, an, ap] = parse(a);
+    const [bm, bn, bp] = parse(b);
+    return am - bm || an - bn || ap - bp;
+};
+const fmt = ([m, n, p]) => `${m}.${n}.${p}`;
+const bump = (v, kind) => {
+    const [m, n, p] = parse(v);
+    if (kind === 'major') return fmt([m + 1, 0, 0]);
+    if (kind === 'minor') return fmt([m, n + 1, 0]);
+    return fmt([m, n, p + 1]);
+};
+const toVersions = (tags) =>
+    tags
+        .map((t) => t.trim())
+        .filter((t) => TAG_RE.test(t))
+        .map((t) => t.slice(1));
+
+const pkgVersion = JSON.parse(readFileSync('package.json', 'utf8')).version;
+if (!SEMVER_RE.test(pkgVersion)) {
+    fail(`package.json version 비정상: ${pkgVersion}`);
+}
+
+const localTagVersions = toVersions(sh("git tag -l 'v*'").split('\n'));
+
+let remoteTagVersions = [];
+try {
+    // refs/tags/v1.0.0 또는 refs/tags/v1.0.0^{} (annotated)
+    remoteTagVersions = toVersions(
+        sh('git ls-remote --tags origin')
+            .split('\n')
+            .map((line) => line.split(/[\t ]+/).at(-1) ?? '')
+            .map((ref) => ref.replace(/^refs\/tags\//, '').replace(/\^\{\}$/, ''))
+            .filter(Boolean),
+    );
+} catch {
+    console.warn('⚠️ remote 태그 조회 실패 — 로컬 태그 + package.json 기준 사용');
+}
+
+const allKnown = [...new Set([pkgVersion, ...localTagVersions, ...remoteTagVersions])];
+const baseline = allKnown.sort(cmp).at(-1);
+const maxTag = [...new Set([...localTagVersions, ...remoteTagVersions])].sort(cmp).at(-1);
+const version = BUMP_KINDS.has(arg) ? bump(baseline, arg) : arg;
+
+// 다운그레이드/동일 버전 — --force 로도 불가
+if (cmp(version, baseline) <= 0) {
+    console.error(
+        `\n❌ 다운그레이드/동일 버전 금지: target=${version} ≤ baseline=${baseline} (package.json=${pkgVersion}, max-tag=${maxTag ? `v${maxTag}` : '—'})`,
+    );
+    process.exit(1);
+}
+
+const tagName = `v${version}`;
+if (localTagVersions.includes(version) || remoteTagVersions.includes(version)) {
+    console.error(`\n❌ 태그 이미 존재: ${tagName}`);
+    process.exit(1);
+}
+
+if (BUMP_KINDS.has(arg)) {
+    process.stdout.write(`📦 auto-bump ${arg}: ${baseline} → ${version}\n`);
+}
 
 // 태그 전 사전확인 — v1.1.16(red CI 태그) / v1.1.18(push head 아닌 커밋 태그) 재발 방지
 if (!force) {
@@ -47,7 +115,7 @@ if (!force) {
     if (notGreen.length > 0) {
         fail(`CI가 green이 아님: ${notGreen.map((r) => `${r.name}=${r.conclusion ?? 'pending'}`).join(', ')}`);
     }
-    process.stdout.write(`✅ 사전확인 통과 — HEAD=origin/main, CI ${runs.length}종 green\n`);
+    process.stdout.write(`✅ 사전확인 통과 — HEAD=origin/main, CI ${runs.length}종 green, release ${version}\n`);
 }
 
 execSync(`node scripts/version-bump.mjs ${version}`, { stdio: 'inherit', cwd: process.cwd() });
@@ -55,5 +123,5 @@ execSync(`git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml sr
     stdio: 'inherit',
 });
 execSync(`git commit -m "chore(release): bump version to ${version}"`, { stdio: 'inherit' });
-execSync(`git tag v${version}`, { stdio: 'inherit' });
-execSync(`git push origin main && git push origin v${version}`, { stdio: 'inherit' });
+execSync(`git tag ${tagName}`, { stdio: 'inherit' });
+execSync(`git push origin main && git push origin ${tagName}`, { stdio: 'inherit' });
