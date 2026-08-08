@@ -9,7 +9,7 @@ roaster_registry.py
   → 프론트엔드 코드 수정 불필요 (GET /roasters로 자동 반영)
 
 프로토콜별 사용 브랜드 레퍼런스 (확장 시 참고)
-  s7          → Giesen (W1A~W140A, WxA/WxA+), Probat G/UG (S7 모델)
+  s7          → Giesen (W1A~W140A, WxA/WxA+), Probat G/UG (S7 모델), Bühler Roastmaster (read-only)
   kaleido     → Kaleido Network/Serial (kaleido.py 전용 드라이버)
   probat_ws   → Probat WebSocket 모델 (G_UG_WS, P_Series_III, Sample_Roaster)
   modbus      → Probat Probatone, Diedrich CR/DR, Easyster, Proaster, Trinitas
@@ -675,6 +675,98 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
+    },
+    # -----------------------------------------------------------------------
+    # Bühler Roastmaster — S7 read-only (no control write in Artisan presets)
+    # 출처: artisan/src/includes/Machines/Bühler/*.aset + canvas.py etypesdefault
+    # Artisan type: 0=INT 1=FLOAT 2=FLOAT2INT → FC type: 0=int 1=float
+    # ET ← IT (inlet/burner °C; Artisan has no ET — ch1 is BT SP)
+    # fan ← Air = extraname {0} (etype0); drum ← Drum = extraname {1} (etype1)
+    #   quantifiersource event0←ch{0}, event1←ch{1}; etypesdefault=[Air,Drum,Damper,Burner]
+    # -----------------------------------------------------------------------
+    # RM20 Simatic — DB1604 floats; state DB1061 not registered (legacy FW issues)
+    "buhler_rm20_simatic": {
+        "display_name": "Bühler Roastmaster RM20 Simatic",
+        "brand": "Bühler",
+        "models": ["RM20 Simatic"],
+        "protocol": "s7",
+        "default_params": {
+            "host": "192.168.1.10",
+            "port": 102,
+            "rack": 0,
+            "slot": 1,
+            "channels": [
+                {"role": "BT", "db": 1604, "offset": 78, "area": 6, "type": 1, "div": 0},
+                {"role": "ET", "db": 1604, "offset": 12, "area": 6, "type": 1, "div": 0},
+                {"role": "fan", "db": 1604, "offset": 24, "area": 6, "type": 1, "div": 0},
+                {"role": "drum", "db": 1604, "offset": 8, "area": 6, "type": 1, "div": 0},
+            ],
+        },
+        "pid": None,
+        "capabilities": [],
+    },
+    # RM20 Simatic Legacy — same read map as Simatic (state channel disabled in Artisan)
+    "buhler_rm20_simatic_legacy": {
+        "display_name": "Bühler Roastmaster RM20 Simatic Legacy",
+        "brand": "Bühler",
+        "models": ["RM20 Simatic Legacy"],
+        "protocol": "s7",
+        "default_params": {
+            "host": "192.168.1.10",
+            "port": 102,
+            "rack": 0,
+            "slot": 1,
+            "channels": [
+                {"role": "BT", "db": 1604, "offset": 78, "area": 6, "type": 1, "div": 0},
+                {"role": "ET", "db": 1604, "offset": 12, "area": 6, "type": 1, "div": 0},
+                {"role": "fan", "db": 1604, "offset": 24, "area": 6, "type": 1, "div": 0},
+                {"role": "drum", "db": 1604, "offset": 8, "area": 6, "type": 1, "div": 0},
+            ],
+        },
+        "pid": None,
+        "capabilities": [],
+    },
+    # RM20 Playone — DB1606
+    "buhler_rm20_playone": {
+        "display_name": "Bühler Roastmaster RM20 Playone",
+        "brand": "Bühler",
+        "models": ["RM20 Playone"],
+        "protocol": "s7",
+        "default_params": {
+            "host": "192.168.1.10",
+            "port": 102,
+            "rack": 0,
+            "slot": 1,
+            "channels": [
+                {"role": "BT", "db": 1606, "offset": 214, "area": 6, "type": 1, "div": 0},
+                {"role": "ET", "db": 1606, "offset": 240, "area": 6, "type": 1, "div": 0},
+                {"role": "fan", "db": 1606, "offset": 232, "area": 6, "type": 1, "div": 0},
+                {"role": "drum", "db": 1606, "offset": 228, "area": 6, "type": 1, "div": 0},
+            ],
+        },
+        "pid": None,
+        "capabilities": [],
+    },
+    # RM60 / RM120 / RM240
+    "buhler_rm60_240": {
+        "display_name": "Bühler Roastmaster RM60 / RM120 / RM240",
+        "brand": "Bühler",
+        "models": ["RM60", "RM120", "RM240"],
+        "protocol": "s7",
+        "default_params": {
+            "host": "192.168.1.10",
+            "port": 102,
+            "rack": 0,
+            "slot": 1,
+            "channels": [
+                {"role": "BT", "db": 1630, "offset": 346, "area": 6, "type": 1, "div": 0},
+                {"role": "ET", "db": 84, "offset": 100, "area": 6, "type": 1, "div": 0},
+                {"role": "fan", "db": 84, "offset": 20, "area": 6, "type": 1, "div": 0},
+                {"role": "drum", "db": 84, "offset": 0, "area": 6, "type": 1, "div": 0},
+            ],
+        },
+        "pid": None,
+        "capabilities": [],
     },
     # -----------------------------------------------------------------------
     # Probat — S7 (2개), WebSocket (2개), MODBUS (2개)

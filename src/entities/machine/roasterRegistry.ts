@@ -258,6 +258,43 @@ const REGISTRY: Record<string, RegistryEntry> = {
         pid: { Kp: 20, Ki: 0.01, Kd: 3 },
         default_params: { host: '192.168.2.180', port: 102, rack: 0, slot: 0 },
     },
+    // ── Bühler (S7 read-only) ─────────────────────────────────────────────────
+    buhler_rm20_simatic: {
+        display_name: 'Bühler Roastmaster RM20 Simatic',
+        brand: 'Bühler',
+        models: ['RM20 Simatic'],
+        protocol: 's7',
+        capabilities: [],
+        pid: null,
+        default_params: { host: '192.168.1.10', port: 102, rack: 0, slot: 1 },
+    },
+    buhler_rm20_simatic_legacy: {
+        display_name: 'Bühler Roastmaster RM20 Simatic Legacy',
+        brand: 'Bühler',
+        models: ['RM20 Simatic Legacy'],
+        protocol: 's7',
+        capabilities: [],
+        pid: null,
+        default_params: { host: '192.168.1.10', port: 102, rack: 0, slot: 1 },
+    },
+    buhler_rm20_playone: {
+        display_name: 'Bühler Roastmaster RM20 Playone',
+        brand: 'Bühler',
+        models: ['RM20 Playone'],
+        protocol: 's7',
+        capabilities: [],
+        pid: null,
+        default_params: { host: '192.168.1.10', port: 102, rack: 0, slot: 1 },
+    },
+    buhler_rm60_240: {
+        display_name: 'Bühler Roastmaster RM60 / RM120 / RM240',
+        brand: 'Bühler',
+        models: ['RM60', 'RM120', 'RM240'],
+        protocol: 's7',
+        capabilities: [],
+        pid: null,
+        default_params: { host: '192.168.1.10', port: 102, rack: 0, slot: 1 },
+    },
     // ── Probat ────────────────────────────────────────────────────────────────
     probat_gug_s7: {
         display_name: 'Probat G / UG (S7)',
