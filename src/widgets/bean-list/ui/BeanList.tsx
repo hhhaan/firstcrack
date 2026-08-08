@@ -1,4 +1,4 @@
-import { getStatus, statusConfig } from '@entities/bean/lib';
+import { getStatus, statusConfig, stockBarClass, stockLevelPct } from '@entities/bean/lib';
 import type { BeanAssetLine, StockSummary } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
@@ -73,7 +73,7 @@ export const BeanList = ({
                         const currentGrams = summary?.currentGrams ?? 0;
                         const status = getStatus(currentGrams, bean.low_stock_threshold_grams);
                         const cfg = statusConfig[status];
-                        const pct = Math.min(100, (currentGrams / bean.capacity_grams) * 100);
+                        const pct = stockLevelPct(currentGrams, bean.capacity_grams);
                         const asset = assetsReady ? assetByBeanId[bean.id] : undefined;
                         const showAssetMeta = asset && asset.valuedGrams > 0;
 
@@ -101,7 +101,7 @@ export const BeanList = ({
 
                                 <div className="mb-1 h-1 overflow-hidden rounded-full bg-surface">
                                     <div
-                                        className="h-full rounded-full bg-palette-green"
+                                        className={`h-full rounded-full ${stockBarClass[status]}`}
                                         style={{
                                             width: `${pct}%`,
                                             transition: 'width 0.5s',

@@ -1,4 +1,4 @@
-import { processColor } from '@entities/bean/lib';
+import { getStatus, processColor, stockBarClass, stockLevelPct } from '@entities/bean/lib';
 import { type BeanAssetLine, useBeanStockEvents, useBeanStockSummary } from '@entities/bean-stock-event';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
@@ -80,6 +80,8 @@ export const BeanDetail = ({
     const currentGrams = summary?.currentGrams ?? 0;
     const effectiveGrams = summary?.effectiveGrams ?? 0;
     const currentStockKg = (currentGrams / 1000).toFixed(2);
+    const stockStatus = getStatus(currentGrams, bean.low_stock_threshold_grams);
+    const stockPct = stockLevelPct(currentGrams, bean.capacity_grams);
 
     const cur = currencySymbol(i18n.language);
     const unitCostLabel =
@@ -229,9 +231,9 @@ export const BeanDetail = ({
                     </div>
                     <div className="h-1.5 bg-surface rounded-full overflow-hidden">
                         <div
-                            className="h-full rounded-full bg-palette-green transition-all duration-500"
+                            className={`h-full rounded-full transition-all duration-500 ${stockBarClass[stockStatus]}`}
                             style={{
-                                width: `${Math.min(100, (currentGrams / bean.capacity_grams) * 100)}%`,
+                                width: `${stockPct}%`,
                             }}
                         />
                     </div>

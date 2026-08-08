@@ -6,6 +6,18 @@ export const getStatus = (effectiveGrams: number, lowStockThresholdGrams: number
     return 'Good';
 };
 
+/** Stock bar fill 0–100. Negative stock must not produce a negative % width (invalid CSS → full bar). */
+export const stockLevelPct = (currentGrams: number, capacityGrams: number): number => {
+    if (capacityGrams <= 0) return 0;
+    return Math.max(0, Math.min(100, (currentGrams / capacityGrams) * 100));
+};
+
+export const stockBarClass: Record<BeanStatus, string> = {
+    Good: 'bg-palette-green',
+    Low: 'bg-palette-yellow',
+    Out: 'bg-palette-violet',
+};
+
 export const statusConfig: Record<BeanStatus, { color: string; bg: string; label: string }> = {
     Good: {
         color: 'var(--color-palette-green)',
