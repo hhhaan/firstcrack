@@ -87,7 +87,9 @@ class ModbusAdapter:
         #   채널 3개 retry 한 번 들어가면 worst-case 1.8s → 폴링 cycle 누락 가능.
         #   UI에서 RTU 머신 선택 시 pollIntervalMs를 자동으로 1000ms로 올리는 옵션 필요.
         #   (artisan 권장도 RTU=1s 폴링)
-        self._read_retries: int = 0 if self._mode in ("tcp", "udp") else 1
+        # tcp/udp도 1회 재시도: Wi-Fi 브리지 등에서 250ms 스파이크 한 번에 read가
+        # 실패하지 않도록. worst-case 5레지스터 × 2회 × 0.25s = 2.5s < READ_TIMEOUT 3s.
+        self._read_retries: int = 1
 
     async def connect(self) -> None:
         from pymodbus.client import (  # type: ignore[import]

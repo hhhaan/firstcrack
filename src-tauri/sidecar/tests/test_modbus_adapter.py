@@ -67,7 +67,7 @@ def adapter(modbus_regs):
 class TestInit:
     def test_default_read_retries_tcp(self):
         a = ModbusAdapter(mode="tcp", modbus_registers={"BT": {"register": 0, "func": 3, "unit_id": 1}})
-        assert a._read_retries == 0
+        assert a._read_retries == 1
 
     def test_default_read_retries_rtu(self):
         a = ModbusAdapter(mode="rtu", modbus_registers={"BT": {"register": 0, "func": 3, "unit_id": 1}})
@@ -148,8 +148,8 @@ class TestConnect:
         assert kwargs["port"] == 502
         # UDP는 pymodbus 내부 retry가 요청을 중복 전송하므로 0 고정 (Artisan 동일)
         assert kwargs["retries"] == 0
-        # udp는 네트워크 계열 — TCP와 동일하게 retry 0회
-        assert a._read_retries == 0
+        # 앱 레벨 retry는 새 transaction으로 나가므로 UDP도 1회 허용
+        assert a._read_retries == 1
 
     @patch("pymodbus.client.AsyncModbusTcpClient")
     async def test_connect_empty_registers_raises(self, MockClient, adapter):
