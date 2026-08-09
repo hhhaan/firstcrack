@@ -1,15 +1,8 @@
+import { escapeCsvField } from '@shared/lib/csv';
 import { formatDuration } from '@shared/lib/format';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
-
-/** Escape a CSV field — wrap in quotes if it contains comma, quote, or newline. */
-const escapeField = (val: string): string => {
-    if (val.includes(',') || val.includes('"') || val.includes('\n') || val.includes('\r')) {
-        return `"${val.replace(/"/g, '""')}"`;
-    }
-    return val;
-};
 
 export interface CsvRow {
     date: string;
@@ -90,7 +83,7 @@ export const sessionsToCsv = (sessions: RoastSessionWithRelations[]): string => 
     const rows = sessions
         .map((s) => {
             const row = toCsvRow(s);
-            return HEADERS.map((h) => escapeField(String(row[h]))).join(',');
+            return HEADERS.map((h) => escapeCsvField(String(row[h]))).join(',');
         })
         .join('\n');
 

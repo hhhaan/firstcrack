@@ -23,7 +23,7 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
 
-export type { RoastSummaryData, RoastSummaryForm };
+export type { RoastSummaryData };
 
 interface RoastSummaryModalProps {
     open: boolean;

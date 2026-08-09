@@ -1,14 +1,8 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
+import { escapeCsvField } from '@shared/lib/csv';
 
 export type ProfileCurvePoint = { t: number; bt: number };
 export type ProfileCurveSource = 'session' | 'synthetic';
-
-const escapeField = (val: string): string => {
-    if (val.includes(',') || val.includes('"') || val.includes('\n') || val.includes('\r')) {
-        return `"${val.replace(/"/g, '""')}"`;
-    }
-    return val;
-};
 
 const numOrEmpty = (v: number | null | undefined): string => (v == null ? '' : String(v));
 
@@ -57,17 +51,17 @@ export const profileToCsv = (
         'default_blend',
     ];
     const metaValues = [
-        escapeField(profile.name),
-        escapeField(profile.description ?? ''),
-        escapeField(profile.target_level ?? ''),
+        escapeCsvField(profile.name),
+        escapeCsvField(profile.description ?? ''),
+        escapeCsvField(profile.target_level ?? ''),
         numOrEmpty(profile.charge_temp_celsius),
         numOrEmpty(profile.drop_temp_celsius),
         numOrEmpty(profile.duration_sec),
         numOrEmpty(profile.dev_time_sec),
         numOrEmpty(profile.dev_pct),
         curveSource,
-        escapeField(profile.default_bean?.name ?? ''),
-        escapeField(profile.default_blend?.name ?? ''),
+        escapeCsvField(profile.default_bean?.name ?? ''),
+        escapeCsvField(profile.default_blend?.name ?? ''),
     ];
 
     const curveRows = curve.map((p) => `${p.t},${p.bt}`);

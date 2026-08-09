@@ -1,7 +1,8 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
+import { normalizeYMRange } from '@shared/lib/sessionFilter';
 import { ChevronDown, X } from 'lucide-react';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { YearMonthRangeFields } from './YearMonthRangeFields';
 
 export type DatePreset = 'all' | 'this-month' | 'last-month' | '3-months' | '6-months' | 'this-year' | 'custom';
 
@@ -79,11 +80,6 @@ export const DateRangeFilter = ({
         return () => document.removeEventListener('mousedown', handler);
     }, [open]);
 
-    const years = useMemo(
-        () => [...new Set(monthOptions.map((ym) => ym.split('-')[0]))].sort((a, b) => Number(b) - Number(a)),
-        [monthOptions],
-    );
-
     const fmtLabel = (ym: string) => {
         if (!ym) return '—';
         const [y, m] = ym.split('-');
@@ -107,13 +103,9 @@ export const DateRangeFilter = ({
     };
 
     const handleApply = () => {
-        let f = draftFrom;
-        let t = draftTo;
-        if (f && t && f > t) {
-            [f, t] = [t, f];
-        }
+        const { fromYM: f, toYM: to } = normalizeYMRange(draftFrom, draftTo);
         onFromYM(f);
-        onToYM(t);
+        onToYM(to);
         setOpen(false);
     };
 
@@ -166,46 +158,13 @@ export const DateRangeFilter = ({
                     {/* 커스텀 범위 — draft 상태로 관리, Apply 버튼으로만 반영 */}
                     {preset === 'custom' && (
                         <div className="flex flex-col justify-center gap-3 border-l border-border-subtle dark:border-[#585d61] px-5 py-4 self-stretch">
-                            {(
-                                [
-                                    { label: t('history.customRange.start'), val: draftFrom, set: setDraftFrom },
-                                    { label: t('history.customRange.end'), val: draftTo, set: setDraftTo },
-                                ] as const
-                            ).map(({ label, val, set }) => {
-                                const yr = val ? val.split('-')[0] : '';
-                                const mo = val ? val.split('-')[1] : '';
-                                return (
-                                    <div key={label} className="flex items-center gap-2">
-                                        <span className="w-7 shrink-0 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
-                                            {label}
-                                        </span>
-                                        <Select value={yr} onValueChange={(v) => set(mo ? `${v}-${mo}` : v)}>
-                                            <SelectTrigger className="w-24 border border-border-subtle dark:border-[#585d61]">
-                                                <SelectValue placeholder={t('history.customRange.year')} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {years.map((y) => (
-                                                    <SelectItem key={y} value={y}>
-                                                        {y}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <Select value={mo} onValueChange={(v) => set(yr ? `${yr}-${v}` : v)}>
-                                            <SelectTrigger className="w-20 border border-border-subtle dark:border-[#585d61]">
-                                                <SelectValue placeholder={t('history.customRange.month')} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {months.map((name, i) => (
-                                                    <SelectItem key={i} value={String(i + 1).padStart(2, '0')}>
-                                                        {name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                );
-                            })}
+                            <YearMonthRangeFields
+                                fromYM={draftFrom}
+                                toYM={draftTo}
+                                monthOptions={monthOptions}
+                                onFromYM={setDraftFrom}
+                                onToYM={setDraftTo}
+                            />
                             <div className="flex justify-end">
                                 <button
                                     type="button"

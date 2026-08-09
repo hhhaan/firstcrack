@@ -3,14 +3,13 @@ import { useProfileBeanHistory, useSourceSessionEvents } from '@entities/roast-p
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
+import { useCsvFileExport } from '@features/export-csv';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
-import { downloadCsv } from '@shared/lib/download';
 import { logger } from '@shared/lib/logger';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
 import { ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
-// import { Copy } from 'lucide-react'; // duplicate — re-enable with onDuplicate
 import { AlertCircle, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -122,6 +121,7 @@ export const ProfileDetail = ({
     const { data: beanHistory = [] } = useProfileBeanHistory(selected.id ?? '');
     const { data: sourceEvents = null } = useSourceSessionEvents(selected.source_session_id);
     const TABLE_ROWS = useTableRows();
+    const exportFile = useCsvFileExport();
     const roastLogEntries = useMemo(
         () => storedEventsToLogEntries(parseStoredRoastEvents(sourceEvents)),
         [sourceEvents],
@@ -137,24 +137,17 @@ export const ProfileDetail = ({
                       bt: p.bt,
                   }));
             const csv = profileToCsv(selected, curve, selectedHasReal ? 'session' : 'synthetic');
-            const filename = `${profileExportBasename(selected.name)}.csv`;
 
-            const { downloadDir, join } = await import('@tauri-apps/api/path');
-            const { confirm } = await import('@tauri-apps/plugin-dialog');
-            const path = await join(await downloadDir(), filename);
-            const confirmed = await confirm(t('profiles.detail.exportConfirm', { path }), {
+            await exportFile(csv, `${profileExportBasename(selected.name)}.csv`, {
                 title: t('profiles.detail.exportTitle'),
-                kind: 'info',
                 okLabel: t('profiles.detail.exportOkLabel'),
                 cancelLabel: t('profiles.detail.exportCancelLabel'),
+                confirmMessage: (path) => t('profiles.detail.exportConfirm', { path }),
             });
-            if (!confirmed) return;
-
-            downloadCsv(csv, filename);
         } catch (err) {
             logger.capture(err, { context: 'export profile csv' });
         }
-    }, [selected, selectedHasReal, selectedRealCurve, t]);
+    }, [selected, selectedHasReal, selectedRealCurve, t, exportFile]);
 
     const iconBtnClass =
         'flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-surface dark:bg-surface-elevated';
@@ -176,11 +169,6 @@ export const ProfileDetail = ({
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                     <DefaultBadge id={selected.id} defaultId={defaultId} onSetDefault={onSetDefault} />
-                    {/* Duplicate — re-enable when onDuplicate is wired
-                    <button type="button" title={t('profiles.detail.duplicate')} className={iconBtnClass}>
-                        <Copy size={14} strokeWidth={1.5} color="var(--color-secondary)" />
-                    </button>
-                    */}
                     <button type="button" title={t('profiles.detail.edit')} onClick={onEdit} className={iconBtnClass}>
                         <Pencil size={14} strokeWidth={1.5} color="var(--color-secondary)" />
                     </button>

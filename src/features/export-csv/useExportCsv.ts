@@ -1,14 +1,14 @@
-import { downloadCsv } from '@shared/lib/download';
 import { logger } from '@shared/lib/logger';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
-import { downloadDir, join } from '@tauri-apps/api/path';
-import { confirm, message } from '@tauri-apps/plugin-dialog';
+import { message } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { sessionsToCsv } from './lib/csv-export';
+import { useCsvFileExport } from './useCsvFileExport';
 
 export const useExportCsv = () => {
     const { t } = useTranslation();
+    const exportFile = useCsvFileExport();
 
     return useCallback(
         async (sessions: RoastSessionWithRelations[]) => {
@@ -19,22 +19,16 @@ export const useExportCsv = () => {
                 }
 
                 const today = new Date().toISOString().slice(0, 10);
-                const filename = `roast-history-${today}.csv`;
-                const path = await join(await downloadDir(), filename);
-
-                const confirmed = await confirm(t('history.exportConfirm', { path, count: sessions.length }), {
+                await exportFile(sessionsToCsv(sessions), `roast-history-${today}.csv`, {
                     title: t('history.exportTitle'),
-                    kind: 'info',
                     okLabel: t('history.exportOkLabel'),
                     cancelLabel: t('history.exportCancelLabel'),
+                    confirmMessage: (path) => t('history.exportConfirm', { path, count: sessions.length }),
                 });
-                if (!confirmed) return;
-
-                downloadCsv(sessionsToCsv(sessions), filename);
             } catch (err) {
                 logger.capture(err, { context: 'export csv' });
             }
         },
-        [t],
+        [t, exportFile],
     );
 };

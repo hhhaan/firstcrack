@@ -2,6 +2,7 @@ import { beanStockEventApi } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
 import { planBatchApi, planKeys, useDayBatches } from '@entities/plan';
 import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
+import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { pgErrorCode } from '@features/active-roast/lib/saveErrorClassification';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import {
@@ -25,7 +26,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { message } from '@tauri-apps/plugin-dialog';
 import { format } from 'date-fns';
 import { useCallback } from 'react';
-import type { RoastSummaryForm } from '../ui/RoastSummaryModal';
 import { type RoastSummaryData, useRoastCompletionFlow } from './useRoastCompletionFlow';
 
 export interface UseRoastSaveFlowParams {

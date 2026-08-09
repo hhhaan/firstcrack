@@ -1,11 +1,10 @@
 import type { RoastSessionFilterMeta } from '@entities/roast';
-import { ymInRange } from '@shared/lib/sessionFilter';
+import { normalizeYMRange, ymInRange } from '@shared/lib/sessionFilter';
 import { modalFooterChrome } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
-import { DATE_PRESETS, type DatePreset, getPresetYMRange } from '@widgets/date-range-filter';
+import { DATE_PRESETS, type DatePreset, getPresetYMRange, YearMonthRangeFields } from '@widgets/date-range-filter';
 import { Download } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -22,19 +21,13 @@ interface ExportCsvModalProps {
 
 const resolveRange = (preset: DatePreset, fromYM: string, toYM: string): ExportDateRange => {
     if (preset === 'all') return { fromYM: '', toYM: '' };
-    if (preset === 'custom') {
-        let f = fromYM;
-        let t = toYM;
-        if (f && t && f > t) [f, t] = [t, f];
-        return { fromYM: f, toYM: t };
-    }
+    if (preset === 'custom') return normalizeYMRange(fromYM, toYM);
     const range = getPresetYMRange(preset);
     return { fromYM: range?.fromYM ?? '', toYM: range?.toYM ?? '' };
 };
 
 export const ExportCsvModal = ({ open, onClose, monthOptions, sessionsMeta, onConfirm }: ExportCsvModalProps) => {
     const { t } = useTranslation();
-    const months = t('months', { returnObjects: true }) as string[];
 
     const [preset, setPreset] = useState<DatePreset>('all');
     const [fromYM, setFromYM] = useState('');
@@ -49,11 +42,6 @@ export const ExportCsvModal = ({ open, onClose, monthOptions, sessionsMeta, onCo
         setFromYM(initFrom);
         setToYM(initTo);
     }, [open, initFrom, initTo]);
-
-    const years = useMemo(
-        () => [...new Set(monthOptions.map((ym) => ym.split('-')[0]))].sort((a, b) => Number(b) - Number(a)),
-        [monthOptions],
-    );
 
     const range = useMemo(() => resolveRange(preset, fromYM, toYM), [preset, fromYM, toYM]);
 
@@ -127,46 +115,13 @@ export const ExportCsvModal = ({ open, onClose, monthOptions, sessionsMeta, onCo
 
                     {preset === 'custom' && (
                         <div className="mb-4 flex flex-col gap-3 border-t border-border-subtle pt-4 dark:border-[#585d61]">
-                            {(
-                                [
-                                    { label: t('history.customRange.start'), val: fromYM, set: setFromYM },
-                                    { label: t('history.customRange.end'), val: toYM, set: setToYM },
-                                ] as const
-                            ).map(({ label, val, set }) => {
-                                const yr = val ? val.split('-')[0] : '';
-                                const mo = val ? val.split('-')[1] : '';
-                                return (
-                                    <div key={label} className="flex items-center gap-2">
-                                        <span className="w-7 shrink-0 text-[11px] font-medium tracking-[0.5px] text-muted uppercase">
-                                            {label}
-                                        </span>
-                                        <Select value={yr} onValueChange={(v) => set(mo ? `${v}-${mo}` : v)}>
-                                            <SelectTrigger className="w-24 border border-border-subtle dark:border-[#585d61]">
-                                                <SelectValue placeholder={t('history.customRange.year')} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {years.map((y) => (
-                                                    <SelectItem key={y} value={y}>
-                                                        {y}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <Select value={mo} onValueChange={(v) => set(yr ? `${yr}-${v}` : v)}>
-                                            <SelectTrigger className="w-20 border border-border-subtle dark:border-[#585d61]">
-                                                <SelectValue placeholder={t('history.customRange.month')} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {months.map((name, i) => (
-                                                    <SelectItem key={name} value={String(i + 1).padStart(2, '0')}>
-                                                        {name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                );
-                            })}
+                            <YearMonthRangeFields
+                                fromYM={fromYM}
+                                toYM={toYM}
+                                monthOptions={monthOptions}
+                                onFromYM={setFromYM}
+                                onToYM={setToYM}
+                            />
                         </div>
                     )}
 

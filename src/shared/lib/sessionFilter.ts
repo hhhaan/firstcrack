@@ -33,6 +33,13 @@ export const ymInRange = (iso: string | null, fromYM: string, toYM: string): boo
 };
 
 /**
+ * 사용자가 시작/끝 월을 거꾸로 고른 경우를 바로잡는다. 그대로 두면 ymInRange가
+ * 항상 빈 결과를 내서, 필터가 고장난 것처럼 보인다.
+ */
+export const normalizeYMRange = (fromYM: string, toYM: string): { fromYM: string; toYM: string } =>
+    fromYM && toYM && fromYM > toYM ? { fromYM: toYM, toYM: fromYM } : { fromYM, toYM };
+
+/**
  * Full filter: search + level + date range + origin — single pass.
  * Used by displayTotal and list filtering (rawSessions).
  */

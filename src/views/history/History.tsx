@@ -66,10 +66,10 @@ export const History = () => {
 
     const useClientPagination = search.length > 0 || originFilter !== 'all';
     const [exportOpen, setExportOpen] = useState(false);
-    const [exportArmed, setExportArmed] = useState(false);
+    // 전체 목록이 아직 없을 때의 export 요청 — 목록이 도착하면 effect가 집어간다
     const [pendingExportRange, setPendingExportRange] = useState<ExportDateRange | null>(null);
     // Full list only when client-side search/filter, compare mode, or export needs it.
-    const needFullList = useClientPagination || compareMode || exportArmed;
+    const needFullList = useClientPagination || compareMode || pendingExportRange !== null;
 
     const {
         data: paginatedResult,
@@ -213,7 +213,6 @@ export const History = () => {
             setExportOpen(false);
             if (rawSessions.length === 0) {
                 setPendingExportRange(range);
-                setExportArmed(true);
                 return;
             }
             runExport(range);
@@ -222,11 +221,10 @@ export const History = () => {
     );
 
     useEffect(() => {
-        if (!exportArmed || isRawLoading || !pendingExportRange) return;
+        if (isRawLoading || !pendingExportRange) return;
         runExport(pendingExportRange);
-        setExportArmed(false);
         setPendingExportRange(null);
-    }, [exportArmed, isRawLoading, pendingExportRange, runExport]);
+    }, [isRawLoading, pendingExportRange, runExport]);
 
     const handleDeleteClick = useCallback((id: string) => setDeletingId(id), []);
     const handleCloseDelete = useCallback(() => setDeletingId(null), []);
