@@ -178,18 +178,15 @@ export const History = () => {
     };
 
     const handleToggleCompareMode = useCallback(() => {
-        setCompareMode((prev) => {
-            if (prev) {
-                setCompareIds([]);
-                return false;
-            }
-            setExpandedId((open) => {
-                setCompareIds(open ? [open] : []);
-                return null;
-            });
-            return true;
-        });
-    }, []);
+        if (compareMode) {
+            setCompareMode(false);
+            setCompareIds([]);
+            return;
+        }
+        setCompareMode(true);
+        setCompareIds(expandedId ? [expandedId] : []);
+        setExpandedId(null);
+    }, [compareMode, expandedId]);
 
     const compareSessions = useMemo(
         () =>
