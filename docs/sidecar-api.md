@@ -527,6 +527,18 @@ PID를 켜려면 레지스트리에 **게인(`pid`)과 heater `write_map`이 둘
   fault는 자동 복귀하지 않는다 — 사용자가 다시 켜야 한다.
 - `mode="hold"`는 배출 후 화력을 그대로 둔다(연속 배치용). 이상 정지는 mode와 무관하게 0.
 
+**남는 위험 — 앱 강제 종료 시 머신에 duty가 남는다**
+
+Tauri 앱이 SIGKILL 등으로 죽으면 `parent_watchdog`(`main.py:101`)이 감지해
+`manager.disconnect()` 후 sidecar를 종료한다. 이 경로는 PID 태스크를 취소하고 어댑터
+연결을 끊을 뿐 **heater 0을 쓰지 않는다** — 즉 정리되는 것은 sidecar 프로세스이고,
+머신에는 마지막으로 써진 duty가 그대로 남아 계속 가열한다. 정상 종료(`POST /shutdown`)나
+`POST /pid/off`를 거치지 않는 한 소프트웨어가 화력을 회수할 방법은 없다.
+
+이 상태는 사용자가 머신 패널에서 직접 화력을 내려야 해제된다. 사이드카가 배출을
+인지해 스스로 정지하는 안전망도 아직 없다(이슈 #196) — 배출 시 자동 해제는
+프론트(`usePidControl.ts`)가 실패 시 재시도하는 방식으로만 보장된다.
+
 **런타임 상태**는 `GET /temperatures`의 `pid` 블록으로 나간다 (PID를 한 번 켠 뒤부터):
 
 ```json

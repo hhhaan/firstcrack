@@ -7,6 +7,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 /** 서버가 SV 범위를 알려주기 전 슬라이더 초기값 */
 const FALLBACK_SV_C = 200;
 
+/**
+ * 자동 해제 실패 후 재시도 간격.
+ * 매 시도가 busy를 세우고, 수동 OFF 버튼은 busy에 걸려 있다 — 더 짧게 잡으면
+ * 정작 사람이 개입해야 하는 순간에 버튼을 못 누른다.
+ */
+const PID_OFF_RETRY_MS = 5000;
+
 const reportError = (err: unknown, fallback: string) => {
     logger.error('[pid]', err);
     useToastStore.getState().show(err instanceof Error ? err.message : fallback, 'error');
@@ -38,6 +45,8 @@ export const usePidControl = ({
 }) => {
     const [sv, setSv] = useState<number>(FALLBACK_SV_C);
     const [busy, setBusy] = useState(false);
+    /** 자동 해제 실패 횟수 — deps에 들어가 재시도 effect를 다시 발사시킨다 */
+    const [offAttempt, setOffAttempt] = useState(0);
     const svAdoptedRef = useRef(false);
 
     const state = runtime?.state ?? 'off';
@@ -56,12 +65,15 @@ export const usePidControl = ({
         }
     }, [sv]);
 
+    /** 성공 여부를 돌려준다 — 자동 해제가 실패를 알아야 재시도할 수 있다 */
     const turnOff = useCallback(async (mode: 'hold' | 'zero') => {
         setBusy(true);
         try {
             await sidecar.pidOff(mode);
+            return true;
         } catch (err) {
             reportError(err, 'PID를 끄지 못했습니다.');
+            return false;
         } finally {
             setBusy(false);
         }
@@ -101,10 +113,32 @@ export const usePidControl = ({
 
     // 로스트 종료(배출 포함) → 설정된 방식으로 해제.
     // 연결이 없으면 보낼 경로도 없다 — 사이드카가 스스로 FAULT 처리한다.
+    //
+    // 실패하면 재시도한다. HTTP 한 번 실패하고 포기하면 아무도 보고 있지 않은
+    // 로스터에 불이 계속 들어가 있다 — 사이드카에는 배출을 인지하는 안전망이 없다.
+    // 시도 횟수 상한을 두지 않는 이유도 같다. 사이드카가 off를 반영하면
+    // engaged가 false가 되어 루프가 끝난다.
     useEffect(() => {
         if (!roastFinished || !engaged || !sidecarConnected) return;
-        void turnOff(dropBehavior);
-    }, [roastFinished, engaged, sidecarConnected, dropBehavior, turnOff]);
+        let cancelled = false;
+        const timer = setTimeout(
+            () => {
+                void turnOff(dropBehavior).then((ok) => {
+                    if (!ok && !cancelled) setOffAttempt((n) => n + 1);
+                });
+            },
+            offAttempt === 0 ? 0 : PID_OFF_RETRY_MS,
+        );
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [roastFinished, engaged, sidecarConnected, dropBehavior, turnOff, offAttempt]);
+
+    // 다음 로스트의 첫 해제가 지난 배치의 재시도 지연을 물려받지 않게 되돌린다
+    useEffect(() => {
+        if (!roastFinished) setOffAttempt(0);
+    }, [roastFinished]);
 
     return {
         supported: Boolean(capability?.supported) && sidecarConnected,

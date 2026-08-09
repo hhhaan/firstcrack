@@ -65,14 +65,23 @@ class TestLifecycle:
         await run_ticks(m, r, 5)
         assert m.writes == []
 
-    async def test_start_seeds_from_heater_feedback(self):
-        """이미 60%로 돌던 머신에서 켜면 첫 출력이 60% 근처 — 화력 공백이 없어야 한다."""
+    async def test_start_never_drops_below_current_duty(self):
+        """이미 60%로 돌던 머신에서 켜도 화력 공백이 없어야 한다.
+
+        bumpless는 "공백이 없다"는 뜻이지 "현재 duty에 묶인다"는 뜻이 아니다.
+        여기서는 kp=20, 오차 5°C라 루프가 요구하는 화력이 100%다 — 머신이 주고 있는
+        60%보다 크므로 즉시 올려 주는 쪽이 맞다. 예전에는 시드 역산이 i=-40을 만들고
+        Ki=0.01로는 13분이 지나야 상환돼, SV 5°C 아래에서 60%로 계속 태웠다(이슈 #196).
+        게인이 온건하면(kp=2) 시드 적분항이 양수라 정확한 bumpless가 유지된다 —
+        `test_pid.py::TestEngageRelease::test_engage_with_seed_is_bumpless`.
+        """
         m = FakeMachine(bt=195.0, feedback=60.0)
         r = make_runner(m)
         await r.start(sv=200.0)
         await run_ticks(m, r, 2)
         assert m.writes, "첫 tick에 duty를 써야 한다"
-        assert m.writes[0] == pytest.approx(60.0, abs=2.0)
+        assert m.writes[0] >= 60.0, "engage가 화력을 떨어뜨렸다"
+        assert m.writes[0] == pytest.approx(100.0)  # P항이 요구하는 값 그대로
 
     async def test_start_without_feedback_still_runs(self):
         m = FakeMachine(feedback=None)

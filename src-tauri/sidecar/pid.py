@@ -239,9 +239,18 @@ class SoftwarePid:
         return self.gains.kd * d_raw
 
     def _clamp_integral(self) -> None:
-        """적분항을 출력 범위 기반 밴드로 자른다. 적분항이 커지는 모든 경로가 거쳐야 한다."""
+        """적분항을 출력 범위 기반 밴드로 자른다. 적분항이 커지는 모든 경로가 거쳐야 한다.
+
+        ponytail: 가열 전용 루프(out_min=0)에서는 하한을 0으로 막는 스톱갭이다.
+        출력이 음수가 될 수 없으므로 음의 적분항은 "가열 지연"으로만 작용하는데,
+        실제 Giesen 게인(Kp20/Ki0.01)에서는 상승 과도 첫 tick에 i가 -100까지 밀린 뒤
+        Ki가 미세해 수십 분간 상환되지 않는다(= 정상상태 SV 언더슛 약 5°C).
+        근본 수정(back-calculation의 Kt·dt 스케일, 조건부 적분 정리)은 이슈 #196에서 추적한다.
+        냉각까지 하는 루프(out_min < 0)를 만들면 기존대로 대칭 밴드를 쓴다.
+        """
         band = self.integral_band_factor * (self.out_max - self.out_min)
-        self._i_term = min(band, max(-band, self._i_term))
+        lower = 0.0 if self.out_min >= 0.0 else -band
+        self._i_term = min(band, max(lower, self._i_term))
 
     def _integrate(self, err: float, dt: float) -> None:
         if self._skip_integration_once:

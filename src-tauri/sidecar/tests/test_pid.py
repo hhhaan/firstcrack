@@ -104,6 +104,39 @@ class TestIntegral:
         assert before <= 100.0
 
 
+class TestIntegralDebt:
+    """실기 게인(Giesen)에서 적분항이 음의 밴드에 고착하지 않는지 — 이슈 #196.
+
+    가상 머신 게인(Kp4/Ki0.3/Kd2)으로는 재현되지 않는다. Kp가 크고 Ki가 미세한
+    조합에서만 시드 역산·back-calculation이 i를 -100까지 밀어넣고, Ki=0.01로는
+    분당 ~5씩밖에 상환하지 못해 수십 분간 화력이 부족해진다.
+    """
+
+    # roaster_registry.py의 Giesen 엔트리 8개가 공유하는 값
+    GIESEN = dict(kp=20.0, ki=0.01, kd=3.0)
+
+    def test_giesen_engage_never_parks_integral_below_zero(self):
+        """BT150 → SV200 engage(seed 50%). 하한이 -100이면 tick 1에서 바로 고착했다."""
+        pid = make_pid(**self.GIESEN)
+        pid.set_target(200.0)
+        pid.engage(now=0.0, seed_output=50.0)
+        pid.update(150.0, 0.0)
+
+        pv = 150.0
+        for t in range(1, 61):
+            pv = min(199.0, pv + 0.8)  # 완만한 상승 — 오차가 계속 양수로 남는다
+            pid.update(pv, float(t))
+            assert pid.snapshot()["i"] >= 0.0, f"t={t}에서 적분 부채 발생"
+
+    def test_giesen_engage_keeps_full_duty_while_far_below_sv(self):
+        """오차 50°C면 P만으로 1000 — 적분 부채와 무관하게 duty는 100이어야 한다."""
+        pid = make_pid(**self.GIESEN)
+        pid.set_target(200.0)
+        pid.engage(now=0.0, seed_output=50.0)
+        pid.update(150.0, 0.0)
+        assert pid.update(150.0, 1.0) == 100.0
+
+
 class TestSetpointChange:
     def test_large_sv_step_resets_integral(self):
         pid = make_pid(kp=0.0, ki=1.0)
@@ -212,7 +245,7 @@ class TestEngageRelease:
         pid.engage(now=0.0, seed_output=100.0)
         pid.update(230.0, 0.0)   # 오차 -30 → P = -600
         pid.update(230.0, 1.0)
-        # 밴드 = 1.0 * (100 - 0) = 100. 양의 상한으로 잘려야 한다 (0이나 -100이 아니라)
+        # 밴드 = 1.0 * (100 - 0) = 100. 양의 상한으로 잘려야 한다 (0으로 죽지 않고)
         assert pid.snapshot()["i"] == pytest.approx(100.0)
 
     def test_engage_without_seed_starts_from_terms_only(self):
