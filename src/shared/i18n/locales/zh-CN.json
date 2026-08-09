@@ -950,6 +950,12 @@
         "exportTitle": "First Crack",
         "exportOkLabel": "导出",
         "exportCancelLabel": "取消",
+        "exportModal": {
+            "title": "导出 CSV",
+            "description": "选择导出时间范围。与上方列表筛选互不影响。",
+            "all": "全部",
+            "count": "将导出 {{count}} 条记录"
+        },
         "cupping": {
             "title": "杯测",
             "avgScore": "平均 {{score}} · {{count}} 个评分",

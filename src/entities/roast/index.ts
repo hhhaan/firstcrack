@@ -1,5 +1,5 @@
 export { sessionBeanName } from '@shared/lib/sessionBeanName';
-export type { RoastSessionInsert } from './api';
+export type { RoastSessionFilterMeta, RoastSessionInsert } from './api';
 export { roastSessionApi } from './api';
 export { useHistoryChart, useHistoryCharts } from './chart-queries';
 export {

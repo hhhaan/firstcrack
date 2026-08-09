@@ -950,6 +950,12 @@
         "exportTitle": "First Crack",
         "exportOkLabel": "エクスポート",
         "exportCancelLabel": "キャンセル",
+        "exportModal": {
+            "title": "CSV書き出し",
+            "description": "書き出す期間を選択してください。一覧のフィルターとは別に適用されます。",
+            "all": "すべて",
+            "count": "{{count}}件のセッションが書き出されます"
+        },
         "cupping": {
             "title": "カッピング",
             "avgScore": "平均 {{score}} · {{count}}件",

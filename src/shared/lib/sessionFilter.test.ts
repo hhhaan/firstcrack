@@ -1,6 +1,6 @@
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { describe, expect, it } from 'vitest';
-import { filterSessions, paginateSessions, sortSessions } from './sessionFilter';
+import { filterSessions, filterSessionsByDateRange, paginateSessions, sortSessions, ymInRange } from './sessionFilter';
 
 const bean = (name: string, origin: string): NonNullable<RoastSessionWithRelations['beans']> => ({
     name,
@@ -82,6 +82,28 @@ describe('filterSessions', () => {
                 originFilter: 'all',
             }),
         ).toEqual([sessions[0], sessions[1]]);
+    });
+});
+
+describe('ymInRange', () => {
+    it('treats empty bounds as unbounded', () => {
+        expect(ymInRange('2025-06-15T00:00:00Z', '', '')).toBe(true);
+        expect(ymInRange(null, '', '')).toBe(true);
+    });
+
+    it('rejects null roasted_at when bounds set', () => {
+        expect(ymInRange(null, '2025-01', '2025-12')).toBe(false);
+    });
+});
+
+describe('filterSessionsByDateRange', () => {
+    it('ignores level/origin and keeps date-only slice', () => {
+        const sessions = [
+            session({ id: '1', roasted_at: '2025-06-15T10:00:00Z', roast_level: 'Light' }),
+            session({ id: '2', roasted_at: '2025-06-20T10:00:00Z', roast_level: 'Dark' }),
+            session({ id: '3', roasted_at: '2024-01-10T10:00:00Z', roast_level: 'Light' }),
+        ];
+        expect(filterSessionsByDateRange(sessions, '2025-06', '2025-06').map((s) => s.id)).toEqual(['1', '2']);
     });
 });
 

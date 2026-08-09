@@ -9,7 +9,7 @@ import {
 import { useCreateRoastProfile } from '@entities/roast-profile';
 import { useExportCsv } from '@features/export-csv';
 import { formatDateShort } from '@shared/lib/format';
-import { filterSessions, paginateSessions, sortSessions } from '@shared/lib/sessionFilter';
+import { filterSessions, filterSessionsByDateRange, paginateSessions, sortSessions } from '@shared/lib/sessionFilter';
 import type { RoastProfile } from '@shared/types/database.types';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { PageHeader } from '@shared/ui/PageHeader';
@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHistoryFilters } from './hooks/useHistoryFilters';
 import { DeleteSessionModal } from './ui/DeleteSessionModal';
+import { ExportCsvModal, type ExportDateRange } from './ui/ExportCsvModal';
 import { HistorySkeleton } from './ui/HistorySkeleton';
 import { HistoryTable } from './ui/HistoryTable';
 import { SessionCompareModal } from './ui/SessionCompareModal';
@@ -64,7 +65,9 @@ export const History = () => {
     const { workspaceOwnerId } = useActiveWorkspace();
 
     const useClientPagination = search.length > 0 || originFilter !== 'all';
+    const [exportOpen, setExportOpen] = useState(false);
     const [exportArmed, setExportArmed] = useState(false);
+    const [pendingExportRange, setPendingExportRange] = useState<ExportDateRange | null>(null);
     // Full list only when client-side search/filter, compare mode, or export needs it.
     const needFullList = useClientPagination || compareMode || exportArmed;
 
@@ -196,21 +199,34 @@ export const History = () => {
         [compareIds, rawSessions, displaySessions],
     );
 
-    const handleExportCsv = useCallback(() => {
-        if (rawSessions.length === 0 && !useClientPagination) {
-            setExportArmed(true);
-            return;
-        }
-        const filtered = filterSessions(rawSessions, filterCriteria);
-        void exportCsv(filtered);
-    }, [rawSessions, filterCriteria, exportCsv, useClientPagination]);
+    const runExport = useCallback(
+        (range: ExportDateRange) => {
+            // Option B: export range is independent of list search/level/origin/date filters.
+            const filtered = filterSessionsByDateRange(rawSessions, range.fromYM, range.toYM);
+            void exportCsv(filtered);
+        },
+        [rawSessions, exportCsv],
+    );
+
+    const handleExportConfirm = useCallback(
+        (range: ExportDateRange) => {
+            setExportOpen(false);
+            if (rawSessions.length === 0) {
+                setPendingExportRange(range);
+                setExportArmed(true);
+                return;
+            }
+            runExport(range);
+        },
+        [rawSessions.length, runExport],
+    );
 
     useEffect(() => {
-        if (!exportArmed || isRawLoading) return;
-        const filtered = filterSessions(rawSessions, filterCriteria);
-        void exportCsv(filtered);
+        if (!exportArmed || isRawLoading || !pendingExportRange) return;
+        runExport(pendingExportRange);
         setExportArmed(false);
-    }, [exportArmed, isRawLoading, rawSessions, filterCriteria, exportCsv]);
+        setPendingExportRange(null);
+    }, [exportArmed, isRawLoading, pendingExportRange, runExport]);
 
     const handleDeleteClick = useCallback((id: string) => setDeletingId(id), []);
     const handleCloseDelete = useCallback(() => setDeletingId(null), []);
@@ -286,7 +302,7 @@ export const History = () => {
                             )}
                             <button
                                 type="button"
-                                onClick={handleExportCsv}
+                                onClick={() => setExportOpen(true)}
                                 className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px"
                             >
                                 <Download size={14} strokeWidth={2} />
@@ -351,6 +367,13 @@ export const History = () => {
                     isLoading={deleteSession.isPending}
                     onClose={handleCloseDelete}
                     onConfirm={handleConfirmDelete}
+                />
+                <ExportCsvModal
+                    open={exportOpen}
+                    onClose={() => setExportOpen(false)}
+                    monthOptions={monthOptions}
+                    sessionsMeta={filterMeta}
+                    onConfirm={handleExportConfirm}
                 />
             </div>
         </PageLayout>

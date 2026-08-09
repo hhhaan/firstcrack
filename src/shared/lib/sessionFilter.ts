@@ -21,7 +21,8 @@ const qMatch = (s: RoastSessionWithRelations, q: string): boolean => {
     );
 };
 
-const ymMatch = (iso: string | null, fromYM: string, toYM: string): boolean => {
+/** YYYY-MM range check on ISO roasted_at. Empty bounds = unbounded. */
+export const ymInRange = (iso: string | null, fromYM: string, toYM: string): boolean => {
     if (!fromYM && !toYM) return true;
     if (!iso) return false;
     const d = new Date(iso);
@@ -33,7 +34,7 @@ const ymMatch = (iso: string | null, fromYM: string, toYM: string): boolean => {
 
 /**
  * Full filter: search + level + date range + origin — single pass.
- * Used by displayTotal and handleExportCsv (both operate on rawSessions).
+ * Used by displayTotal and list filtering (rawSessions).
  */
 export const filterSessions = (
     sessions: RoastSessionWithRelations[],
@@ -42,12 +43,19 @@ export const filterSessions = (
     const q = search.toLowerCase();
     return sessions.filter((s) => {
         if (levelFilter !== 'all' && s.roast_level !== levelFilter) return false;
-        if (!ymMatch(s.roasted_at, fromYM, toYM)) return false;
+        if (!ymInRange(s.roasted_at, fromYM, toYM)) return false;
         if (q && !qMatch(s, q)) return false;
         if (originFilter !== 'all' && s.beans?.origin !== originFilter) return false;
         return true;
     });
 };
+
+/** Date-only slice for CSV export (list filters intentionally ignored). */
+export const filterSessionsByDateRange = (
+    sessions: RoastSessionWithRelations[],
+    fromYM: string,
+    toYM: string,
+): RoastSessionWithRelations[] => sessions.filter((s) => ymInRange(s.roasted_at, fromYM, toYM));
 
 const compareNullable = (
     a: string | number | null | undefined,

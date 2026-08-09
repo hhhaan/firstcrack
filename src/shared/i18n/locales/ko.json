@@ -733,7 +733,13 @@
         "exportNoSessions": "내보낼 세션이 없습니다.",
         "exportTitle": "First Crack",
         "exportOkLabel": "내보내기",
-        "exportCancelLabel": "취소"
+        "exportCancelLabel": "취소",
+        "exportModal": {
+            "title": "Export CSV",
+            "description": "내보낼 기간을 선택하세요. 위 목록 필터와는 별개로 적용됩니다.",
+            "all": "전체",
+            "count": "{{count}}개 세션이 내보내집니다"
+        }
     },
     "beans": {
         "title": "Bean Inventory",

@@ -977,7 +977,13 @@
         "exportNoSessions": "No sessions to export.",
         "exportTitle": "First Crack",
         "exportOkLabel": "Export",
-        "exportCancelLabel": "Cancel"
+        "exportCancelLabel": "Cancel",
+        "exportModal": {
+            "title": "Export CSV",
+            "description": "Choose a date range for this export. This is separate from the list filters above.",
+            "all": "All time",
+            "count": "{{count}} sessions will be exported"
+        }
     },
     "profiles": {
         "title": "Roast Profiles",
