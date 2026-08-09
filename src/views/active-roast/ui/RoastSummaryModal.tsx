@@ -176,12 +176,18 @@ export const RoastSummaryModal = ({
     }, [weightGrams, outputWeightKg]);
 
     const selectedBeanIdRef = useRef(selectedBeanId);
-    selectedBeanIdRef.current = selectedBeanId;
     const handoffRef = useRef(planBatchHandoff);
-    handoffRef.current = planBatchHandoff;
     const lastAdhoc = useRoastSessionStore((s) => s.lastAdhocSave);
     const lastAdhocRef = useRef(lastAdhoc);
-    lastAdhocRef.current = lastAdhoc;
+    useEffect(() => {
+        selectedBeanIdRef.current = selectedBeanId;
+    }, [selectedBeanId]);
+    useEffect(() => {
+        handoffRef.current = planBatchHandoff;
+    }, [planBatchHandoff]);
+    useEffect(() => {
+        lastAdhocRef.current = lastAdhoc;
+    }, [lastAdhoc]);
 
     useEffect(() => {
         if (open && summaryData) {
