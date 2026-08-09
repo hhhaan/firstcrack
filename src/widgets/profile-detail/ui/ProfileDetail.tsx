@@ -4,12 +4,17 @@ import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
+import { downloadCsv } from '@shared/lib/download';
+import { logger } from '@shared/lib/logger';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
 import { ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
-import { AlertCircle, Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import { useMemo } from 'react';
+// import { Copy } from 'lucide-react'; // duplicate — re-enable with onDuplicate
+import { AlertCircle, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { profileExportBasename, profileToCsv } from '../lib/export-profile-csv';
 import { ConsistencyCard } from './ConsistencyCard';
 
 const fmtDuration = (sec: number | null): string => {
@@ -31,7 +36,7 @@ const DefaultBadge = ({
     const { t } = useTranslation();
     if (defaultId === id) {
         return (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#EFEFF0] dark:bg-surface-elevated ">
+            <div className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[#EFEFF0] px-2.5 py-1 dark:bg-surface-elevated">
                 <svg
                     width="11"
                     height="11"
@@ -51,7 +56,7 @@ const DefaultBadge = ({
             type="button"
             onClick={() => onSetDefault(id)}
             title={t('profiles.detail.setDefault')}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full border-none bg-surface dark:bg-surface-elevated cursor-pointer  hover:bg-palette-teal/12 transition-colors"
+            className="flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-full border-none bg-surface px-2.5 py-1 transition-colors hover:bg-palette-teal/12 dark:bg-surface-elevated"
         >
             <svg
                 width="11"
@@ -64,7 +69,7 @@ const DefaultBadge = ({
             >
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
-            <span className="text-[11px] font-medium text-muted tracking-[0.3px]">
+            <span className="text-[11px] font-medium tracking-[0.3px] text-muted">
                 {t('profiles.detail.setDefault')}
             </span>
         </button>
@@ -113,6 +118,7 @@ export const ProfileDetail = ({
     onNavigate,
 }: ProfileDetailProps) => {
     const { t } = useTranslation();
+    const [moreOpen, setMoreOpen] = useState(false);
     const { data: beanHistory = [] } = useProfileBeanHistory(selected.id ?? '');
     const { data: sourceEvents = null } = useSourceSessionEvents(selected.source_session_id);
     const TABLE_ROWS = useTableRows();
@@ -121,36 +127,96 @@ export const ProfileDetail = ({
         [sourceEvents],
     );
 
+    const handleExport = useCallback(async () => {
+        setMoreOpen(false);
+        try {
+            const curve = selectedHasReal
+                ? selectedRealCurve
+                : generateProfileCurve(selected.drop_temp_celsius ?? 200, selected.duration_sec ?? 720).map((p) => ({
+                      t: p.t,
+                      bt: p.bt,
+                  }));
+            const csv = profileToCsv(selected, curve, selectedHasReal ? 'session' : 'synthetic');
+            const filename = `${profileExportBasename(selected.name)}.csv`;
+
+            const { downloadDir, join } = await import('@tauri-apps/api/path');
+            const { confirm } = await import('@tauri-apps/plugin-dialog');
+            const path = await join(await downloadDir(), filename);
+            const confirmed = await confirm(t('profiles.detail.exportConfirm', { path }), {
+                title: t('profiles.detail.exportTitle'),
+                kind: 'info',
+                okLabel: t('profiles.detail.exportOkLabel'),
+                cancelLabel: t('profiles.detail.exportCancelLabel'),
+            });
+            if (!confirmed) return;
+
+            downloadCsv(csv, filename);
+        } catch (err) {
+            logger.capture(err, { context: 'export profile csv' });
+        }
+    }, [selected, selectedHasReal, selectedRealCurve, t]);
+
+    const iconBtnClass =
+        'flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-surface dark:bg-surface-elevated';
+    const menuItemClass =
+        'flex w-full cursor-pointer items-center gap-2 rounded-lg border-none bg-transparent px-2.5 py-2 text-left text-[13px] tracking-[0.14px]';
+
     return (
         <div className="min-w-0 bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
-            <div className="flex items-start justify-between mb-5">
-                <div>
-                    <h2 className="font-display font-light text-[26px] leading-[1.2] text-primary tracking-[-0.3px] mb-1">
+            <div className="mb-5 flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                    <h2 className="mb-1 break-words font-display text-[26px] font-light leading-[1.2] tracking-[-0.3px] text-primary">
                         {selected.name}
                     </h2>
                     {selected.description && (
-                        <p className="text-sm text-secondary tracking-[0.14px] leading-normal">
+                        <p className="break-words text-sm leading-normal tracking-[0.14px] text-secondary">
                             {selected.description}
                         </p>
                     )}
                 </div>
-                <div className="flex gap-1.5 items-center">
+                <div className="flex shrink-0 items-center gap-1.5">
                     <DefaultBadge id={selected.id} defaultId={defaultId} onSetDefault={onSetDefault} />
-                    {[
-                        { icon: Copy, labelKey: 'profiles.detail.duplicate' },
-                        { icon: Pencil, labelKey: 'profiles.detail.edit', onClick: onEdit },
-                        { icon: MoreHorizontal, labelKey: 'profiles.detail.more' },
-                    ].map(({ icon: Icon, labelKey, onClick }) => (
-                        <button
-                            type="button"
-                            key={labelKey}
-                            title={t(labelKey)}
-                            onClick={onClick}
-                            className="w-8 h-8 rounded-lg border-none bg-surface dark:bg-surface-elevated flex items-center justify-center cursor-pointer "
-                        >
-                            <Icon size={14} strokeWidth={1.5} color="var(--color-secondary)" />
-                        </button>
-                    ))}
+                    {/* Duplicate — re-enable when onDuplicate is wired
+                    <button type="button" title={t('profiles.detail.duplicate')} className={iconBtnClass}>
+                        <Copy size={14} strokeWidth={1.5} color="var(--color-secondary)" />
+                    </button>
+                    */}
+                    <button type="button" title={t('profiles.detail.edit')} onClick={onEdit} className={iconBtnClass}>
+                        <Pencil size={14} strokeWidth={1.5} color="var(--color-secondary)" />
+                    </button>
+                    <Popover open={moreOpen} onOpenChange={setMoreOpen}>
+                        <PopoverTrigger asChild>
+                            <button
+                                type="button"
+                                title={t('profiles.detail.more')}
+                                aria-label={t('profiles.detail.more')}
+                                className={iconBtnClass}
+                            >
+                                <MoreHorizontal size={14} strokeWidth={1.5} color="var(--color-secondary)" />
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-44 p-1.5" align="end" side="bottom">
+                            <button
+                                type="button"
+                                onClick={() => void handleExport()}
+                                className={`${menuItemClass} text-primary hover:bg-surface`}
+                            >
+                                <Download size={14} strokeWidth={2} />
+                                {t('profiles.detail.export')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMoreOpen(false);
+                                    onDelete(selected.id);
+                                }}
+                                className={`${menuItemClass} text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/15`}
+                            >
+                                <Trash2 size={14} strokeWidth={2} />
+                                {t('profiles.detail.delete')}
+                            </button>
+                        </PopoverContent>
+                    </Popover>
                 </div>
             </div>
 
