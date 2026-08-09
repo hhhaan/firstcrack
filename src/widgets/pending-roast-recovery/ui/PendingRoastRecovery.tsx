@@ -1,4 +1,5 @@
 import { useActiveWorkspace } from '@entities/organization';
+import { isPermanentSaveError } from '@features/active-roast/lib/saveErrorClassification';
 import {
     clearPendingRoastSave,
     readPendingRoastSave,
@@ -46,9 +47,18 @@ export const PendingRoastRecovery = () => {
                 clearPendingRoastSave();
                 useToastStore.getState().show(i18n.t('activeRoast.recovery.saved'));
             } catch (err) {
+                logger.capture(err, { context: 'pending roast recovery' });
+                // Idempotency converges retries only for transient failures. An integrity
+                // violation (bad weights, deleted bean) reproduces identically forever and
+                // there is no screen here to fix the values, so keeping the snapshot would
+                // fail on every launch — discard it instead (#181).
+                if (isPermanentSaveError(err)) {
+                    clearPendingRoastSave();
+                    useToastStore.getState().show(i18n.t('activeRoast.recovery.discarded'));
+                    return;
+                }
                 // Snapshot kept — retried on next launch. save_roast_op is idempotent
                 // on the client sessionId, so repeated attempts converge on one row.
-                logger.capture(err, { context: 'pending roast recovery' });
                 useToastStore.getState().show(i18n.t('activeRoast.recovery.failed'));
             }
         })();

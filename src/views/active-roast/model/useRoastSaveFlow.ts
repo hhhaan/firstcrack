@@ -2,6 +2,7 @@ import { beanStockEventApi } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
 import { planBatchApi, planKeys, useDayBatches } from '@entities/plan';
 import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
+import { pgErrorCode } from '@features/active-roast/lib/saveErrorClassification';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import {
     clearPendingRoastSave,
@@ -215,16 +216,27 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             } catch (err) {
                 logger.capture(err, { context: 'roastSummary save' });
                 // FK on deleted bean — surface a clear action instead of raw PostgREST text (#176)
-                const pgCode =
-                    err &&
-                    typeof err === 'object' &&
-                    'code' in err &&
-                    typeof (err as { code: unknown }).code === 'string'
-                        ? (err as { code: string }).code
-                        : null;
+                const pgCode = pgErrorCode(err);
                 if (pgCode === '23503') {
+                    // Same reasoning as 23514 below — the snapshot would only be replayed
+                    // (and then discarded) by PendingRoastRecovery, so the open modal is
+                    // the single recovery route.
+                    clearPendingRoastSave();
                     await message(i18n.t('activeRoast.dialogs.beanDeletedMsg'), {
                         title: i18n.t('activeRoast.dialogs.beanDeletedTitle'),
+                        kind: 'error',
+                    });
+                    return;
+                }
+                // Check violation — in practice output_weight_grams <= weight_grams (#181).
+                // The same payload fails forever, so drop the pending snapshot instead of
+                // letting PendingRoastRecovery replay it on every launch. Safe: the summary
+                // modal stays open (nothing here resets the flow), and a corrected re-save
+                // rewrites the snapshot before hitting the server.
+                if (pgCode === '23514') {
+                    clearPendingRoastSave();
+                    await message(i18n.t('activeRoast.dialogs.invalidWeightMsg'), {
+                        title: i18n.t('activeRoast.dialogs.invalidWeightTitle'),
                         kind: 'error',
                     });
                     return;

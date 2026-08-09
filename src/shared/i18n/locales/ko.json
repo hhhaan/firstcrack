@@ -865,6 +865,8 @@
             "saveFailedMsg": "로스팅 세션 저장에 실패했습니다.\n\n{{error}}",
             "beanDeletedTitle": "원두를 찾을 수 없음",
             "beanDeletedMsg": "선택한 원두가 삭제되었습니다. 다시 선택해 주세요.",
+            "invalidWeightTitle": "무게 값 오류",
+            "invalidWeightMsg": "무게 값이 올바르지 않아 저장하지 못했습니다. 볶은 후 무게는 투입량보다 클 수 없습니다. 값을 수정한 뒤 다시 저장해 주세요.",
             "cancel": "취소",
             "end": "종료"
         },
@@ -920,6 +922,8 @@
             "weightUnit": "g",
             "outputWeight": "배출량 (로스팅 후)",
             "outputWeightPlaceholder": "미계량 시 비워두세요",
+            "weightTooLarge": "무게는 500kg 이하여야 합니다. 단위(kg)를 확인해 주세요.",
+            "outputExceedsInput": "볶은 후 무게가 투입량보다 클 수 없습니다.",
             "lossRateMeasured": "감량률 {{pct}}%",
             "lossRateEstimated": "미계량 — 감량률은 로스팅 레벨 기반 추정치로 대체됩니다.",
             "sessionExpired": "로그인 세션이 만료되었습니다. 다시 로그인하면 이 기록이 자동으로 저장됩니다.",
@@ -971,7 +975,8 @@
             "title": "저장되지 않은 로스팅",
             "askMsg": "저장되지 않은 로스팅 기록이 있습니다. 지금 저장할까요? 세부 정보는 히스토리에서 수정할 수 있습니다.",
             "saved": "이전에 저장하지 못한 로스팅 기록을 저장했습니다.",
-            "failed": "미저장 로스팅 기록 저장에 실패했습니다. 다음 실행 시 다시 시도합니다."
+            "failed": "미저장 로스팅 기록 저장에 실패했습니다. 다음 실행 시 다시 시도합니다.",
+            "discarded": "복구한 로스팅 기록의 값이 올바르지 않아 저장하지 못했습니다. 해당 기록은 폐기했습니다."
         }
     },
     "profiles": {

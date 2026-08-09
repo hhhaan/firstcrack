@@ -1,6 +1,11 @@
 import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
 import { useDayBatches } from '@entities/plan';
+import {
+    buildRoastSummarySchema,
+    MAX_BATCH_WEIGHT_KG,
+    type RoastSummaryForm,
+} from '@features/active-roast/lib/roastSummarySchema';
 import { summaryPrefill } from '@features/active-roast/lib/summaryPrefill';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,27 +21,9 @@ import { Check, Coffee } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
 
-export type { RoastSummaryData };
-
-const baseRoastSummarySchema = z.object({
-    notes: z.string().max(2000, 'Notes are too long'),
-    weightGrams: z.number().min(0, 'Weight must be 0 or greater'),
-    /** Measured roasted output. Blank input yields NaN — treated as "not weighed", not invalid. */
-    outputWeightKg: z.union([z.number().min(0, 'Weight must be 0 or greater'), z.nan()]).optional(),
-    roastLevel: z.string().nullable(),
-    beanId: z.string().nullable(),
-    /** Free-text when no inventory bean selected (sample / no-stock). */
-    beanLabel: z.string().max(120),
-    /** ad-hoc only: link to today's schedule batch, or none */
-    linkMode: z.enum(['schedule', 'none']),
-    planBatchId: z.string().nullable(),
-    deductStock: z.boolean(),
-});
-
-export type RoastSummaryForm = z.infer<typeof baseRoastSummarySchema>;
+export type { RoastSummaryData, RoastSummaryForm };
 
 interface RoastSummaryModalProps {
     open: boolean;
@@ -100,33 +87,7 @@ export const RoastSummaryModal = ({
         [dayBatches],
     );
 
-    const roastSummarySchema = useMemo(
-        () =>
-            baseRoastSummarySchema.superRefine((data, ctx) => {
-                if (hasHandoff) return;
-                if (data.linkMode === 'schedule') {
-                    if (!data.planBatchId) {
-                        ctx.addIssue({
-                            code: 'custom',
-                            path: ['planBatchId'],
-                            message: t('activeRoast.summary.planBatchRequired'),
-                        });
-                    }
-                    return;
-                }
-                // Weight set → inventory bean or free-text label (history needs a name).
-                if (data.weightGrams <= 0) return;
-                if (data.beanId) return;
-                if (!data.beanLabel.trim()) {
-                    ctx.addIssue({
-                        code: 'custom',
-                        path: ['beanLabel'],
-                        message: t('activeRoast.summary.beanRequired'),
-                    });
-                }
-            }),
-        [hasHandoff, t],
-    );
+    const roastSummarySchema = useMemo(() => buildRoastSummarySchema({ t, hasHandoff }), [hasHandoff, t]);
 
     const {
         register,
@@ -515,6 +476,7 @@ export const RoastSummaryModal = ({
                         <input
                             type="number"
                             min={0}
+                            max={MAX_BATCH_WEIGHT_KG}
                             step={0.1}
                             data-testid="roast-summary-weight"
                             {...register('weightGrams', { valueAsNumber: true })}
@@ -534,6 +496,7 @@ export const RoastSummaryModal = ({
                         <input
                             type="number"
                             min={0}
+                            max={MAX_BATCH_WEIGHT_KG}
                             step={0.01}
                             {...register('outputWeightKg', { valueAsNumber: true })}
                             placeholder={t('activeRoast.summary.outputWeightPlaceholder')}

@@ -624,6 +624,8 @@
             },
             "outputWeight": "Output Weight (roasted)",
             "outputWeightPlaceholder": "Leave blank if not weighed",
+            "weightTooLarge": "Weight must be 500 kg or less. Please check the unit (kg).",
+            "outputExceedsInput": "Output weight cannot exceed the green charge weight.",
             "lossRateMeasured": "Weight loss {{pct}}%",
             "lossRateEstimated": "Not weighed — loss rate is estimated from the roast level.",
             "sessionExpired": "Your login session has expired. Sign in again and this roast will be saved automatically.",
@@ -677,7 +679,9 @@
             "saveFailedTitle": "Save Failed",
             "saveFailedMsg": "Failed to save the roast session.\n\n{{error}}",
             "beanDeletedTitle": "Bean not found",
-            "beanDeletedMsg": "The selected bean was deleted. Please choose a bean again."
+            "beanDeletedMsg": "The selected bean was deleted. Please choose a bean again.",
+            "invalidWeightTitle": "Invalid weight",
+            "invalidWeightMsg": "The roast could not be saved because the weights are invalid. The output weight cannot exceed the green charge weight — please correct the values and save again."
         },
         "alerts": {
             "rorCrash": "RoR crash — heat is stalling",
@@ -687,7 +691,8 @@
             "title": "Unsaved roast",
             "askMsg": "An unsaved roast was found. Save it now? You can edit the details later in History.",
             "saved": "Recovered and saved your previous unsaved roast.",
-            "failed": "Could not save the recovered roast. It will be retried on next launch."
+            "failed": "Could not save the recovered roast. It will be retried on next launch.",
+            "discarded": "The recovered roast had invalid data and could not be saved, so it was discarded."
         }
     },
     "schedule": {
