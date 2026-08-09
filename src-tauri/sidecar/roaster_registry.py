@@ -198,6 +198,49 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
 
 
 # ---------------------------------------------------------------------------
+# 쓰기 맵 (write_map)
+#
+# channels(읽기)와 반드시 분리한다. Giesen은 heater 피드백(DB2.48)과
+# heater duty 세트포인트(DB2.14)가 서로 다른 셀이라, 읽기 role에 그대로
+# 쓰면 피드백 레지스터를 덮어쓰게 된다.
+#
+# write_map이 없는 로스터 = 쓰기 미지원(어댑터 control()이 no-op).
+# min/max는 클램프 상한 — 출처 .aset의 slidermin/slidermax.
+# ---------------------------------------------------------------------------
+
+# Giesen db2 계열 공통 (W1A~W140A, WxA/WxA+): slidercommands "setDBint(2,14,{})"
+# heater duty만 노출한다. fan(DB2.10)/drum(DB2.18)/pressure(DB2.16)은 모델마다
+# slidermin/max가 달라(fan 250~280, drum 34~60Hz) 레지스트리 키 분리가 선행돼야 한다.
+_GIESEN_DB2_WRITE_MAP: dict[str, dict[str, Any]] = {
+    "heater": {
+        "db": 2,
+        "offset": 14,
+        "area": 6,
+        "type": 0,
+        "div": 0,
+        "min": 0,
+        "max": 100,
+        "unit": "%",
+    },
+}
+
+# W6A PRO는 읽기 db1006 / 쓰기 db1001로 계열이 다르다.
+# aset: setDBint(1001,42,{}) = heater %, slidermin/max 0~100
+_GIESEN_W6A_PRO_WRITE_MAP: dict[str, dict[str, Any]] = {
+    "heater": {
+        "db": 1001,
+        "offset": 42,
+        "area": 6,
+        "type": 0,
+        "div": 0,
+        "min": 0,
+        "max": 100,
+        "unit": "%",
+    },
+}
+
+
+# ---------------------------------------------------------------------------
 # 로스터 레지스트리
 # ---------------------------------------------------------------------------
 
@@ -210,8 +253,20 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "brand": "Internal",
         "models": ["가상 머신"],
         "protocol": "virtual",
-        "default_params": {"mode": "C"},
-        "pid": None,
+        "default_params": {
+            "mode": "C",
+            # 가상 머신은 PLC 주소가 없으므로 클램프 범위만 있으면 된다.
+            # 실기 없이 제어 UI와 PID 루프를 검증하는 경로.
+            "write_map": {
+                "heater": {"min": 0, "max": 100, "unit": "%"},
+                "fan": {"min": 0, "max": 100, "unit": "%"},
+                "drum": {"min": 0, "max": 100, "unit": "%"},
+            },
+        },
+        # 가상 머신 열 모델(tau=40s, 2.4°C/%)에 맞춘 게인 — 실기 값이 아니다.
+        # Giesen 게인(Kp20/Ki0.01/Kd3)은 실제 로스터의 열질량 기준이라 이 모델에서는
+        # 적분이 사실상 쌓이지 않는다.
+        "pid": {"Kp": 4, "Ki": 0.3, "Kd": 2},
         "capabilities": ["heater", "fan", "drum"],
     },
     # -----------------------------------------------------------------------
@@ -334,9 +389,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
                 {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
@@ -365,9 +421,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
                 {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
@@ -395,7 +452,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
                 {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
                 {
                     "role": "extra",
@@ -406,6 +463,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
@@ -433,7 +491,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
                 {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
                 {
                     "role": "extra",
@@ -444,6 +502,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
@@ -471,9 +530,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
                 {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
@@ -525,7 +585,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                 {
                     "role": "drum",
                     "db": 1006,
-                    "offset": 106,
+                    "offset": 62,
                     "area": 6,
                     "type": 0,
                     "div": 0,
@@ -539,6 +599,13 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
             ],
+            "write_map": _GIESEN_W6A_PRO_WRITE_MAP,
+            # ⚠️ 아래 두 값은 **쓰지 않는다**. 하드웨어 PID 경로처럼 보이지만 아니다:
+            #   1. Giesen 전 기종 .aset이 PID_area=0 — Artisan조차 Giesen을 PLC 내장
+            #      PID로 구동한 적이 없다. software PID + duty 쓰기가 유일한 경로다.
+            #   2. DB1001.24는 W6A PRO의 **fan 세트포인트(REAL)** 셀이다
+            #      (aset: setDBfloat(1001,24,{})). 여기에 INT SV를 쓰면 팬이 오작동한다.
+            # 레지스트리 이력 보존용으로만 남긴다. INTERNAL_KEYS에 있어 /roasters로도 안 나간다.
             "pid_db": 1001,
             "pid_sv_register": 24,
         },
@@ -569,8 +636,9 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
@@ -590,17 +658,20 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "channels": [
                 {"role": "BT", "db": 4, "offset": 10, "area": 6, "type": 1, "div": 0},
                 {"role": "ET", "db": 4, "offset": 6, "area": 6, "type": 1, "div": 0},
+                # WxA+는 피드백이 db4에 있다 (다른 Giesen은 db2/48).
+                # aset 채널 idx2 = db4/18 = extraname1[0]={3} = heater %
                 {
                     "role": "heater",
-                    "db": 2,
+                    "db": 4,
                     "offset": 18,
                     "area": 6,
                     "type": 0,
                     "div": 0,
                 },
                 {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
-                {"role": "drum", "db": 2, "offset": 14, "area": 6, "type": 0, "div": 0},
+                {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
             ],
+            "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],

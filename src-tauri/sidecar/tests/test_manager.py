@@ -607,4 +607,6 @@ class TestDisconnectRace:
                 raise ConnectionError("cable pulled")
 
         manager._adapter = ControlFailsAfterDisconnect()
-        await manager.control(heater=50)  # 예외가 새어나오지 않아야 한다
+        manager._connected = True
+        manager._merged_params = {"write_map": {"heater": {"min": 0, "max": 100}}}
+        assert await manager.control(heater=50) == {}  # 예외가 새어나오지 않아야 한다

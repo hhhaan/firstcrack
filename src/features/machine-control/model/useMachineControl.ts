@@ -1,0 +1,134 @@
+import type { ControlCapability } from '@entities/machine';
+import { logger } from '@shared/lib/logger';
+import { sidecar } from '@shared/lib/sidecar';
+import { useToastStore } from '@shared/store/toast';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type ControlCommand, type ControlRole, createControlSender, settledRoles } from '../lib/controlSender';
+
+export type { ControlRole } from '../lib/controlSender';
+
+const EMPTY_LIMITS: ControlCapability['limits'] = {};
+
+const ROLES: ControlRole[] = ['heater', 'fan', 'drum'];
+
+/** 기기 실측이 지시값에 이만큼 근접하면 "따라왔다"고 본다 (채널 단위) */
+const CONVERGE_TOLERANCE = 1;
+/**
+ * 이만큼의 폴링 동안 기기가 안 따라오면 명령이 먹지 않은 것으로 보고 경고한다.
+ * 경과 시간 대신 폴링 횟수로 세는 이유: 시계를 읽지 않아도 되고(렌더 순수성),
+ * 판정 기준이 "기기를 N번 확인했는데 그대로였다"로 더 직접적이다.
+ * 폴링 주기 0.5~1s 기준 약 5~10초.
+ */
+const STALE_COMMAND_POLLS = 10;
+
+export type MachineFeedback = Record<ControlRole, number> | null;
+
+/**
+ * 머신 수동 제어(setpoint 쓰기) 상태.
+ *
+ * 쓰기 가능 여부와 범위는 사이드카 `/status.control`에서 받는다. 레지스트리 TS
+ * 미러에는 주소 맵이 없고(파이썬 전용), 범위도 머신마다 다르므로 런타임 값이 유일한 출처다.
+ *
+ * **지시값은 기기가 따라오면 버린다.** 그래야 슬라이더가 기기를 따라간다 —
+ * 로스터 본체 조작반에서 화력을 돌렸을 때도 화면이 같이 움직여야 하고,
+ * PID가 화력을 잡고 있을 때도 실제 duty가 보여야 한다.
+ */
+export const useMachineControl = (sidecarConnected: boolean, feedback: MachineFeedback) => {
+    const [capability, setCapability] = useState<ControlCapability | null>(null);
+    /** 사용자가 지시했지만 기기가 아직 따라오지 않은 값 */
+    const [desired, setDesired] = useState<ControlCommand>({});
+    /** role별로 "지시했는데 기기가 그대로였던" 폴링 횟수 */
+    const [unackPolls, setUnackPolls] = useState<Partial<Record<ControlRole, number>>>({});
+    const [sending, setSending] = useState(false);
+
+    const sender = useMemo(
+        () =>
+            createControlSender({
+                send: async (cmd) => (await sidecar.setControl(cmd)).applied,
+                onApplied: (applied) => setDesired((prev) => ({ ...prev, ...applied })),
+                onError: (err) => {
+                    logger.error('[machine-control] 제어 전송 실패:', err);
+                    useToastStore
+                        .getState()
+                        .show(err instanceof Error ? err.message : '제어 명령을 보내지 못했습니다.', 'error');
+                },
+                onSendingChange: setSending,
+            }),
+        [],
+    );
+
+    useEffect(() => () => sender.dispose(), [sender]);
+
+    // 연결될 때 제어 능력을 확인한다. 끊기면 즉시 비활성화하고 대기 중인 명령을 버린다.
+    useEffect(() => {
+        if (!sidecarConnected) {
+            sender.dispose();
+            setCapability(null);
+            setDesired({});
+            setUnackPolls({});
+            return;
+        }
+        let cancelled = false;
+        sidecar
+            .getStatus()
+            .then((s) => {
+                if (!cancelled) setCapability(s.control ?? { writable: false, limits: EMPTY_LIMITS });
+            })
+            .catch(() => {
+                if (!cancelled) setCapability(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [sidecarConnected, sender]);
+
+    // 기기가 지시값을 따라오면 그 지시를 버린다 → 이후 슬라이더는 기기 실측을 따라간다.
+    // 이걸 안 하면 한 번 만진 슬라이더가 영원히 내 값에 고정돼, 본체 조작반에서
+    // 화력을 바꿔도 화면이 그대로다.
+    useEffect(() => {
+        if (!feedback) return;
+        setDesired((prev) => {
+            const settled = settledRoles(prev, feedback, CONVERGE_TOLERANCE);
+            const settledSet = new Set(settled);
+            setUnackPolls((prevPolls) => {
+                const next: Partial<Record<ControlRole, number>> = {};
+                for (const role of ROLES) {
+                    if (prev[role] == null || settledSet.has(role)) continue;
+                    next[role] = (prevPolls[role] ?? 0) + 1;
+                }
+                return next;
+            });
+            if (settled.length === 0) return prev;
+            const next = { ...prev };
+            for (const role of settled) delete next[role];
+            return next;
+        });
+    }, [feedback]);
+
+    const setValue = useCallback(
+        (role: ControlRole, value: number) => {
+            setDesired((prev) => ({ ...prev, [role]: value }));
+            // 새 지시이므로 미반영 카운트를 되돌린다
+            setUnackPolls((prev) => ({ ...prev, [role]: 0 }));
+            sender.queue(role, value);
+        },
+        [sender],
+    );
+
+    const commitNow = useCallback(() => void sender.commitNow(), [sender]);
+
+    /** 지시했는데 기기가 계속 그대로인 role — 명령이 먹지 않았을 가능성 */
+    const unacknowledged = new Set(ROLES.filter((role) => (unackPolls[role] ?? 0) >= STALE_COMMAND_POLLS));
+
+    return {
+        writable: Boolean(capability?.writable) && sidecarConnected,
+        limits: capability?.limits ?? EMPTY_LIMITS,
+        /** PID 지원 여부 — 같은 /status 응답에서 오므로 따로 조회하지 않는다 */
+        pidCapability: capability?.pid,
+        desired,
+        unacknowledged,
+        sending,
+        setValue,
+        commitNow,
+    };
+};

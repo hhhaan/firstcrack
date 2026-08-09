@@ -18,6 +18,7 @@ import { useAutoDetection } from '@features/active-roast/model/useAutoDetection'
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
+import { MachineControlPanel } from '@features/machine-control';
 import { useWeather } from '@shared/api/weather';
 import { formatElapsed } from '@shared/lib/format';
 import { sidecar } from '@shared/lib/sidecar';
@@ -66,11 +67,21 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const unit = roastSettings.temperatureUnit;
 
     // ── 스토어 구독 ───────────────────────────────────────────────
-    const { phase, elapsed, liveData, tick, sessionId, sidecarConnected, machineCapabilities } = useRoastingStore(
+    const {
+        phase,
+        elapsed,
+        liveData,
+        pid: pidRuntime,
+        tick,
+        sessionId,
+        sidecarConnected,
+        machineCapabilities,
+    } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
             elapsed: s.elapsed,
             liveData: s.liveData,
+            pid: s.pid,
             tick: s.tick,
             sessionId: s.sessionId,
             sidecarConnected: s.sidecarConnected,
@@ -558,6 +569,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         targetProfileName={targetProfile?.name}
                         onCursorIdx={handleChartCursorIdx}
                         onEventMarkerDrag={handleEventMarkerDrag}
+                    />
+
+                    {/* 그래프 | Machine Control | 온도 패널 — MC는 쓰기 가능 머신에서만 렌더 */}
+                    <MachineControlPanel
+                        sidecarConnected={sidecarConnected}
+                        liveData={liveData}
+                        pidRuntime={pidRuntime}
+                        // 배출·로스팅 종료 시 PID 자동 해제 (무인 화력 방지)
+                        roastFinished={roastEnded || logEntries.some((e) => e.event === 'Drop')}
+                        pidDropBehavior={roastSettings.pidDropBehavior}
                     />
 
                     <RoastSidePanel

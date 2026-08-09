@@ -21,8 +21,13 @@ export {
 export { useMachines, VIRTUAL_ID } from './model';
 export { PROTOCOL_FORM_FIELDS, ROASTER_REGISTRY } from './roasterRegistry';
 export type {
+    ControlCapability,
+    ControlLimit,
     Machine,
     NetworkHost,
+    PidCapability,
+    PidRuntime,
+    PidState,
     RoasterDef,
     RoasterFormField,
     RoastersResponse,

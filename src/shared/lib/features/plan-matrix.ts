@@ -4,8 +4,8 @@ import { FEATURE, type FeatureKey } from './keys';
 /** `tester` is internal-only, entitled exactly like enterprise. Never sold — set by hand. */
 const PAID_PLANS = new Set(['pro', 'team', 'pro_plus', 'tester', 'enterprise']);
 
-/** Multi-machine (2+): Pro+ and above. Legacy `team` maps to enterprise-class. */
-const MULTI_MACHINE_PLANS = new Set(['pro_plus', 'tester', 'enterprise', 'team']);
+/** Pro+ 이상. Legacy `team` maps to enterprise-class. */
+const PRO_PLUS_PLANS = new Set(['pro_plus', 'tester', 'enterprise', 'team']);
 
 /** E-commerce order integration + team host: enterprise-class (tester internal mirror). */
 const ORDER_INTEGRATION_PLANS = new Set(['enterprise', 'team', 'tester']);
@@ -38,7 +38,8 @@ export function planHasFeature(plan: string, key: FeatureKey): boolean {
             return ORDER_INTEGRATION_PLANS.has(plan);
         case FEATURE.roastedInventory:
         case FEATURE.productStock:
-            return MULTI_MACHINE_PLANS.has(plan);
+        case FEATURE.machineControl:
+            return PRO_PLUS_PLANS.has(plan);
         default:
             return false;
     }
@@ -50,7 +51,7 @@ export function planHasFeature(plan: string, key: FeatureKey): boolean {
  * Below Pro+: 1 machine. Pro+ / enterprise / legacy team: unlimited.
  */
 export function planMaxMachines(plan: string): number | null {
-    if (MULTI_MACHINE_PLANS.has(plan)) return null;
+    if (PRO_PLUS_PLANS.has(plan)) return null;
     return 1;
 }
 
@@ -74,7 +75,7 @@ export function trialEndsAt(signupAt: string | Date): Date {
 }
 
 export function planMaxBatchesPerMonth(plan: string): number | null {
-    if (MULTI_MACHINE_PLANS.has(plan)) return null;
+    if (PRO_PLUS_PLANS.has(plan)) return null;
     if (plan === 'read_only') return 0;
     return PRO_MONTHLY_BATCH_CAP;
 }

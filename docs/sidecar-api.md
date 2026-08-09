@@ -481,10 +481,65 @@ Status: `400`
 
 Notes:
 
-- manager가 연결 상태일 때만 adapter의 `control()`을 호출한다.
-- 연결이 없어도 현재 API는 `{ "ok": true }`를 반환한다.
-- 현재 대부분 adapter의 `control()`은 no-op이다.
-- Kaleido adapter는 `heater`가 들어오면 `setSV()`를 호출한다.
+- 상태 코드: `400` 형식 오류(JSON이 객체가 아님, 비수치, NaN/Inf), `409` 미연결·쓰기 미지원.
+  값이 없는 빈 요청 `{}`만 연결 여부와 무관하게 `200` no-op이다.
+- 응답의 `applied`는 클램프 **이후** 실제로 쓴 값이다 — 요청값과 다를 수 있다.
+- **쓰기는 `write_map`이 있는 로스터에서만 일어난다.** `write_map`은 레지스트리
+  `default_params` 안에 있고, 읽기용 `channels`와 **셀이 다르다**. Giesen을 예로 들면
+  heater 피드백은 DB2.48(읽기 전용)이고 duty 세트포인트는 DB2.14(쓰기 대상)다.
+  읽기 role에 그대로 쓰면 피드백 레지스터를 덮어쓰게 되므로 절대 공유하지 않는다.
+- `write_map`에 없는 role, 또는 `write_map` 자체가 없는 로스터는 조용히 무시된다(no-op).
+  현재 쓰기 맵이 있는 것은 Giesen S7 계열(db2 계열 `DB2.14`, W6A PRO `DB1001.42`)의
+  `heater`와 가상 머신뿐이다. fan/drum은 모델마다 slidermin/max가 달라(fan 250~280,
+  drum 34~60Hz) 레지스트리 키 분리가 선행돼야 한다.
+- 어댑터 쓰기 순서: `min`/`max` 클램프 → `div` 역스케일(읽기의 ÷10/÷100 반대) →
+  INT16 반올림·범위 검사 → `db_write`. 유한하지 않은 값(NaN/Inf)과 INT16 초과는
+  `ValueError`로 거부한다.
+- S7은 읽기와 쓰기가 같은 snap7 클라이언트를 쓰므로 어댑터 내부 스레드 락으로 직렬화한다.
+- Kaleido/Modbus/Phidget/Probat adapter의 `control()`은 아직 no-op이다. Virtual은
+  명령값을 저장해 이후 판독에 반영한다(실기 없이 제어 UI를 확인하는 용도).
+
+### POST /pid/on · /pid/off · /pid/sv
+
+소프트웨어 PID. BT를 목표 온도(SV)로 추종하도록 heater duty를 계산해 쓴다.
+Giesen을 포함한 대부분의 로스터에는 PLC 내장 PID가 없어(`PID_area=0`) 이 경로가
+유일한 자동 화력 제어 수단이다.
+
+| 엔드포인트 | 바디 | 응답 |
+|---|---|---|
+| `POST /pid/on` | `{ "sv": 200 }` | `{ "ok": true, "pid": {...} }` |
+| `POST /pid/off` | `{ "mode": "hold" \| "zero" }` (생략 시 `hold`) | 같음 |
+| `POST /pid/sv` | `{ "sv": 215 }` | 같음 |
+
+상태 코드: `400` 형식/범위 오류, `409` 미연결·PID 미지원·미실행.
+
+PID를 켜려면 레지스트리에 **게인(`pid`)과 heater `write_map`이 둘 다** 있어야 한다
+(`GET /status.control.pid.supported`로 확인).
+
+**안전 동작**
+
+- 기본 OFF. 켜는 것은 항상 명시적 요청이다.
+- engage 시 머신이 보고하는 현재 heater 값을 적분기에 시드해 화력 공백을 만들지 않는다.
+- PV가 stale하거나 오래되면 `holding` — 쓰기를 멈추고 머신이 마지막 duty를 유지한다.
+  `PID_HOLD_TIMEOUT_S`를 넘기면 `fault`.
+- `fault` 진입 조건: hold 타임아웃, 연속 쓰기 실패(`PID_WRITE_FAIL_LIMIT`),
+  BT > `SAFETY_MAX_BT_C`, 연결 끊김. 연결이 살아 있으면 heater 0을 재시도한다.
+  fault는 자동 복귀하지 않는다 — 사용자가 다시 켜야 한다.
+- `mode="hold"`는 배출 후 화력을 그대로 둔다(연속 배치용). 이상 정지는 mode와 무관하게 0.
+
+**런타임 상태**는 `GET /temperatures`의 `pid` 블록으로 나간다 (PID를 한 번 켠 뒤부터):
+
+```json
+{
+    "state": "running",
+    "sv": 200.0, "duty": 63.0, "pv": 198.4,
+    "p": 32.0, "i": 25.4, "d": 5.6,
+    "error": null
+}
+```
+
+별도 폴링 엔드포인트를 두지 않은 이유: 프론트가 이미 `/temperatures`를 폴링 중이라
+타이머를 하나 더 만들 이유가 없다. 정적 지원 여부만 `/status.control.pid`에 있다.
 
 ### GET /serial-ports
 

@@ -15,6 +15,28 @@ import {
 } from './plan-matrix';
 import { resolveFeature } from './resolve';
 
+describe('planHasFeature machineControl', () => {
+    it('Pro+ 이상만 머신 쓰기 제어를 쓸 수 있다', () => {
+        expect(planHasFeature('pro_plus', FEATURE.machineControl)).toBe(true);
+        expect(planHasFeature('enterprise', FEATURE.machineControl)).toBe(true);
+        expect(planHasFeature('team', FEATURE.machineControl)).toBe(true);
+        expect(planHasFeature('tester', FEATURE.machineControl)).toBe(true);
+    });
+
+    it('Pro 이하는 막힌다 — trial도 포함', () => {
+        expect(planHasFeature('pro', FEATURE.machineControl)).toBe(false);
+        expect(planHasFeature('trial', FEATURE.machineControl)).toBe(false);
+        expect(planHasFeature('free', FEATURE.machineControl)).toBe(false);
+        expect(planHasFeature('read_only', FEATURE.machineControl)).toBe(false);
+        expect(planHasFeature('', FEATURE.machineControl)).toBe(false);
+    });
+
+    it('cupping/fastPolling(Pro 코어)보다 상위 등급이다', () => {
+        expect(planHasFeature('pro', FEATURE.cupping)).toBe(true);
+        expect(planHasFeature('pro', FEATURE.machineControl)).toBe(false);
+    });
+});
+
 describe('planHasFeature cupping', () => {
     it('allows core-entitled plans (trial included)', () => {
         expect(planHasFeature('trial', FEATURE.cupping)).toBe(true);

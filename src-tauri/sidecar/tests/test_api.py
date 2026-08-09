@@ -19,14 +19,15 @@ async def client(monkeypatch):
     app = create_app()
     async with TestClient(TestServer(app)) as c:
         yield c
-    # Cancel any reconnect task left by tests
+    # Cancel any background task left by tests
     manager = app["manager"]
-    if manager._reconnect_task is not None and not manager._reconnect_task.done():
-        manager._reconnect_task.cancel()
-        try:
-            await manager._reconnect_task
-        except (asyncio.CancelledError, Exception):
-            pass
+    for task in (manager._reconnect_task, manager._pid_task):
+        if task is not None and not task.done():
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
 
 
 # ---------------------------------------------------------------------------
@@ -162,10 +163,160 @@ class TestControlEndpoint:
         assert resp.status == 200
         data = await resp.json()
         assert data["ok"] is True
+        assert data["applied"] == {"heater": 80.0, "fan": 60.0}
+        assert fake.control_calls == [{"heater": 80.0, "fan": 60.0, "drum": None}]
+
+    async def test_control_clamps_to_write_map_range(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "virtual"})
+            resp = await client.post("/control", json={"heater": 150, "fan": -20})
+        assert resp.status == 200
+        assert (await resp.json())["applied"] == {"heater": 100.0, "fan": 0.0}
 
     async def test_control_empty_body_ok(self, client):
+        """빈 요청은 미연결이어도 200 no-op — 검증할 값이 없다."""
         resp = await client.post("/control", json={})
         assert resp.status == 200
+        assert (await resp.json())["applied"] == {}
+
+    async def test_control_while_disconnected_returns_409(self, client):
+        resp = await client.post("/control", json={"heater": 50})
+        assert resp.status == 409
+        assert "error" in await resp.json()
+
+    async def test_control_non_object_body_returns_400(self, client):
+        """JSON 배열/문자열은 클라이언트 잘못이므로 502가 아니라 400이다."""
+        resp = await client.post("/control", data=b"[1,2]", headers={"Content-Type": "application/json"})
+        assert resp.status == 400
+
+    async def test_control_non_numeric_returns_400(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "virtual"})
+            resp = await client.post("/control", json={"heater": "hot"})
+        assert resp.status == 400
+        assert fake.control_calls == []
+
+    async def test_control_unsupported_role_returns_400(self, client):
+        """probat_ws는 write_map이 없다 — 쓰기 미지원 머신."""
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "probat_ws"})
+            resp = await client.post("/control", json={"heater": 50})
+        assert resp.status == 409
+        assert fake.control_calls == []
+
+    async def test_status_reports_control_capability(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "virtual"})
+            resp = await client.get("/status")
+        control = (await resp.json())["control"]
+        assert control["writable"] is True
+        assert control["limits"]["heater"]["max"] == 100
+
+    async def test_status_reports_not_writable_before_connect(self, client):
+        control = (await (await client.get("/status")).json())["control"]
+        assert control["writable"] is False
+        assert control["limits"] == {}
+        assert control["pid"]["supported"] is False
+
+
+# ---------------------------------------------------------------------------
+# POST /pid/*
+# ---------------------------------------------------------------------------
+
+class TestPidEndpoints:
+    async def _connect_virtual(self, client, fake):
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "virtual"})
+
+    async def test_pid_on_while_disconnected_returns_409(self, client):
+        resp = await client.post("/pid/on", json={"sv": 200})
+        assert resp.status == 409
+
+    async def test_pid_on_starts_and_reports_state(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        resp = await client.post("/pid/on", json={"sv": 200})
+        assert resp.status == 200
+        pid = (await resp.json())["pid"]
+        assert pid["state"] == "running"
+        assert pid["sv"] == 200.0
+
+    async def test_pid_on_rejects_sv_out_of_range(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        resp = await client.post("/pid/on", json={"sv": 900})
+        assert resp.status == 400
+
+    async def test_pid_on_non_object_body_returns_400(self, client):
+        resp = await client.post("/pid/on", data=b'"hot"', headers={"Content-Type": "application/json"})
+        assert resp.status == 400
+
+    async def test_pid_on_rejects_non_numeric_sv(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        assert (await client.post("/pid/on", json={"sv": "hot"})).status == 400
+
+    async def test_pid_on_unsupported_machine_returns_409(self, client):
+        """probat_ws는 pid 게인도 write_map도 없다."""
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        with patch("manager.make_adapter", return_value=fake):
+            await client.post("/connect", json={"roaster": "probat_ws"})
+        assert (await client.post("/pid/on", json={"sv": 200})).status == 409
+
+    async def test_pid_off_is_idempotent(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        assert (await client.post("/pid/off", json={})).status == 200
+        await client.post("/pid/on", json={"sv": 200})
+        assert (await client.post("/pid/off", json={"mode": "zero"})).status == 200
+        assert (await client.post("/pid/off", json={"mode": "zero"})).status == 200
+
+    async def test_pid_off_rejects_unknown_mode(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        assert (await client.post("/pid/off", json={"mode": "explode"})).status == 400
+
+    async def test_pid_sv_before_start_returns_409(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        assert (await client.post("/pid/sv", json={"sv": 210})).status == 409
+
+    async def test_pid_sv_updates_target(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        await client.post("/pid/on", json={"sv": 200})
+        resp = await client.post("/pid/sv", json={"sv": 215})
+        assert resp.status == 200
+        assert (await resp.json())["pid"]["sv"] == 215.0
+
+    async def test_temperatures_includes_pid_block_once_started(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(10)])
+        await self._connect_virtual(client, fake)
+        assert "pid" not in await (await client.get("/temperatures")).json()
+        await client.post("/pid/on", json={"sv": 200})
+        data = await (await client.get("/temperatures")).json()
+        assert data["pid"]["state"] == "running"
+
+    async def test_status_reports_pid_capability_for_virtual(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(5)])
+        await self._connect_virtual(client, fake)
+        pid = (await (await client.get("/status")).json())["control"]["pid"]
+        assert pid["supported"] is True
+        assert pid["sv_min"] < pid["sv_max"]
+
+    async def test_disconnect_cancels_pid_task(self, client):
+        fake = FakeAdapter(readings=[make_reading(bt=180.0) for _ in range(10)])
+        await self._connect_virtual(client, fake)
+        await client.post("/pid/on", json={"sv": 200})
+        manager = client.app["manager"]
+        assert manager._pid_task is not None
+        await client.post("/disconnect")
+        assert manager._pid_task is None
+        assert manager.pid_state() is None
 
 
 # ---------------------------------------------------------------------------

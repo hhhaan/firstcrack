@@ -203,6 +203,7 @@ export const useSidecarPolling = ({
                     return;
                 }
                 useRoastingStore.getState().updateLiveData({ ...data, bt });
+                useRoastingStore.getState().setPid(data.pid ?? null);
                 useRoastingStore.getState().setReconnecting(data.reconnecting ?? false);
                 setConnected(true);
                 if (bt === null) return;

@@ -1,4 +1,4 @@
-import type { NetworkHost, SerialPort, SidecarStatus, TemperatureReading } from '@entities/machine';
+import type { NetworkHost, PidRuntime, SerialPort, SidecarStatus, TemperatureReading } from '@entities/machine';
 import { invoke } from '@tauri-apps/api/core';
 import { logger } from './logger';
 
@@ -82,6 +82,36 @@ export const sidecar = {
 
     // 로스트 종료/리셋 — 어댑터 상태를 초기화해 다음 로스트를 예열 상태에서 시작
     resetRoast: () => request<{ ok: boolean }>('/reset', { method: 'POST' }),
+
+    /**
+     * 머신 제어값 쓰기. 사이드카가 write_map 범위로 자른 뒤 `applied`로 실제 값을 돌려준다.
+     * 409 = 미연결/쓰기 미지원, 400 = 형식 오류.
+     */
+    setControl: (cmd: Partial<Record<'heater' | 'fan' | 'drum', number>>) =>
+        request<{ ok: boolean; applied: Partial<Record<'heater' | 'fan' | 'drum', number>> }>('/control', {
+            method: 'POST',
+            body: JSON.stringify(cmd),
+        }),
+
+    /** PID 제어 시작. sv = 목표 BT(°C). 409 = 미연결/미지원, 400 = 범위 밖 */
+    pidOn: (sv: number) =>
+        request<{ ok: boolean; pid: PidRuntime }>('/pid/on', {
+            method: 'POST',
+            body: JSON.stringify({ sv }),
+        }),
+
+    /** PID 해제. mode='hold'는 현재 화력 유지, 'zero'는 히터 0. */
+    pidOff: (mode: 'hold' | 'zero' = 'hold') =>
+        request<{ ok: boolean; pid: PidRuntime }>('/pid/off', {
+            method: 'POST',
+            body: JSON.stringify({ mode }),
+        }),
+
+    pidSetSv: (sv: number) =>
+        request<{ ok: boolean; pid: PidRuntime }>('/pid/sv', {
+            method: 'POST',
+            body: JSON.stringify({ sv }),
+        }),
 
     getSerialPorts: () => request<SerialPort[]>('/serial-ports'),
 
