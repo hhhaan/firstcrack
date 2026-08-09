@@ -72,7 +72,7 @@ jobs:
           # NOTE: check names must match ci.yml job names — renaming there breaks this gate.
           for i in $(seq 1 20); do
             RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
-              --jq '[.check_runs[] | select(.name == "typecheck" or .name == "lint" or .name == "eslint" or .name == "test" or .name == "sidecar")]')
+              --jq '[.check_runs[] | select(.name == "typecheck" or .name == "lint" or .name == "eslint" or .name == "test" or .name == "secrets" or .name == "sidecar")]')
             TOTAL=$(echo "$RESPONSE" | jq 'length')
 
             if [ "$TOTAL" -eq 0 ]; then

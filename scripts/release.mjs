@@ -98,8 +98,8 @@ if (!force) {
         );
     }
 
-    // origin/main HEAD의 CI 게이트 5종이 전부 success인지 확인
-    const gateChecks = ['typecheck', 'lint', 'eslint', 'test', 'sidecar'];
+    // origin/main HEAD의 CI 게이트 6종이 전부 success인지 확인 (이름 = ci.yml job key)
+    const gateChecks = ['typecheck', 'lint', 'eslint', 'test', 'secrets', 'sidecar'];
     let runs;
     try {
         runs = JSON.parse(
@@ -124,4 +124,6 @@ execSync(`git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml sr
 });
 execSync(`git commit -m "chore(release): bump version to ${version}"`, { stdio: 'inherit' });
 execSync(`git tag ${tagName}`, { stdio: 'inherit' });
-execSync(`git push origin main && git push origin ${tagName}`, { stdio: 'inherit' });
+// --atomic: 한 번의 push = pre-push verify:all 1회. 비원자적 2회 push는 main 거부 시
+// 태그만 올라가 "push 안 된 커밋에 태그"(v1.1.18) 재발.
+execSync(`git push --atomic origin main ${tagName}`, { stdio: 'inherit' });
