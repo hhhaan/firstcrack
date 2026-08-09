@@ -35,17 +35,23 @@ export type MachineFeedback = Record<ControlRole, number> | null;
  */
 export const useMachineControl = (sidecarConnected: boolean, feedback: MachineFeedback) => {
     const [capability, setCapability] = useState<ControlCapability | null>(null);
-    /** 사용자가 지시했지만 기기가 아직 따라오지 않은 값 */
-    const [desired, setDesired] = useState<ControlCommand>({});
-    /** role별로 "지시했는데 기기가 그대로였던" 폴링 횟수 */
-    const [unackPolls, setUnackPolls] = useState<Partial<Record<ControlRole, number>>>({});
+    /**
+     * desired: 사용자가 지시했지만 기기가 아직 따라오지 않은 값
+     * unackPolls: role별로 "지시했는데 기기가 그대로였던" 폴링 횟수
+     * 한 state로 묶은 이유: feedback 반영 시 둘을 원자적으로 갱신해야 하는데,
+     * updater 안에서 다른 setState를 부르면 순수성이 깨진다(StrictMode 재실행 시 이중 카운트).
+     */
+    const [tracking, setTracking] = useState<{
+        desired: ControlCommand;
+        unackPolls: Partial<Record<ControlRole, number>>;
+    }>({ desired: {}, unackPolls: {} });
     const [sending, setSending] = useState(false);
 
     const sender = useMemo(
         () =>
             createControlSender({
                 send: async (cmd) => (await sidecar.setControl(cmd)).applied,
-                onApplied: (applied) => setDesired((prev) => ({ ...prev, ...applied })),
+                onApplied: (applied) => setTracking((t) => ({ ...t, desired: { ...t.desired, ...applied } })),
                 onError: (err) => {
                     logger.error('[machine-control] 제어 전송 실패:', err);
                     useToastStore
@@ -64,8 +70,7 @@ export const useMachineControl = (sidecarConnected: boolean, feedback: MachineFe
         if (!sidecarConnected) {
             sender.dispose();
             setCapability(null);
-            setDesired({});
-            setUnackPolls({});
+            setTracking({ desired: {}, unackPolls: {} });
             return;
         }
         let cancelled = false;
@@ -87,29 +92,28 @@ export const useMachineControl = (sidecarConnected: boolean, feedback: MachineFe
     // 화력을 바꿔도 화면이 그대로다.
     useEffect(() => {
         if (!feedback) return;
-        setDesired((prev) => {
+        setTracking(({ desired: prev, unackPolls: prevPolls }) => {
             const settled = settledRoles(prev, feedback, CONVERGE_TOLERANCE);
             const settledSet = new Set(settled);
-            setUnackPolls((prevPolls) => {
-                const next: Partial<Record<ControlRole, number>> = {};
-                for (const role of ROLES) {
-                    if (prev[role] == null || settledSet.has(role)) continue;
-                    next[role] = (prevPolls[role] ?? 0) + 1;
-                }
-                return next;
-            });
-            if (settled.length === 0) return prev;
-            const next = { ...prev };
-            for (const role of settled) delete next[role];
-            return next;
+            const nextPolls: Partial<Record<ControlRole, number>> = {};
+            for (const role of ROLES) {
+                if (prev[role] == null || settledSet.has(role)) continue;
+                nextPolls[role] = (prevPolls[role] ?? 0) + 1;
+            }
+            if (settled.length === 0) return { desired: prev, unackPolls: nextPolls };
+            const nextDesired = { ...prev };
+            for (const role of settled) delete nextDesired[role];
+            return { desired: nextDesired, unackPolls: nextPolls };
         });
     }, [feedback]);
 
     const setValue = useCallback(
         (role: ControlRole, value: number) => {
-            setDesired((prev) => ({ ...prev, [role]: value }));
             // 새 지시이므로 미반영 카운트를 되돌린다
-            setUnackPolls((prev) => ({ ...prev, [role]: 0 }));
+            setTracking((t) => ({
+                desired: { ...t.desired, [role]: value },
+                unackPolls: { ...t.unackPolls, [role]: 0 },
+            }));
             sender.queue(role, value);
         },
         [sender],
@@ -118,14 +122,14 @@ export const useMachineControl = (sidecarConnected: boolean, feedback: MachineFe
     const commitNow = useCallback(() => void sender.commitNow(), [sender]);
 
     /** 지시했는데 기기가 계속 그대로인 role — 명령이 먹지 않았을 가능성 */
-    const unacknowledged = new Set(ROLES.filter((role) => (unackPolls[role] ?? 0) >= STALE_COMMAND_POLLS));
+    const unacknowledged = new Set(ROLES.filter((role) => (tracking.unackPolls[role] ?? 0) >= STALE_COMMAND_POLLS));
 
     return {
         writable: Boolean(capability?.writable) && sidecarConnected,
         limits: capability?.limits ?? EMPTY_LIMITS,
         /** PID 지원 여부 — 같은 /status 응답에서 오므로 따로 조회하지 않는다 */
         pidCapability: capability?.pid,
-        desired,
+        desired: tracking.desired,
         unacknowledged,
         sending,
         setValue,
