@@ -1602,7 +1602,9 @@
     },
     "errors": {
         "mutationFailed": "処理に失敗しました。しばらくしてからもう一度お試しください。",
-        "mutationFailedDetail": "処理に失敗しました: {{message}}"
+        "mutationFailedDetail": "処理に失敗しました: {{message}}",
+        "insufficientProductStock": "完成品の在庫が不足しています。在庫管理の「完成品」タブで在庫を調整してから、もう一度お試しください。",
+        "insufficientRoastedStock": "焙煎豆の在庫が不足しています。在庫管理の「焙煎豆（バルク）」タブで在庫を調整してから、もう一度お試しください。"
     },
     "planGate": {
         "monthly_batch_cap": "今月のロースト上限（{{used}}/{{max}}）に達しました。続けるには上位プランが必要です。",

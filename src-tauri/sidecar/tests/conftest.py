@@ -24,10 +24,20 @@ def make_reading(bt: float = 150.0, et: float = 200.0, ts: float | None = None) 
 class FakeAdapter:
     """Controllable fake adapter for unit tests."""
 
-    def __init__(self, readings: list[Reading] | None = None, connect_exc: Exception | None = None):
+    def __init__(
+        self,
+        readings: list[Reading] | None = None,
+        connect_exc: Exception | None = None,
+        connect_gate: asyncio.Event | None = None,
+    ):
         self._readings = list(readings or [])
         self._read_index = 0
         self._connect_exc = connect_exc
+        # connect_gate가 주어지면 set() 될 때까지 핸드셰이크에 머문다 —
+        # "연결 시도 중"을 결정적으로 재현하기 위한 시임 (기본 None = 기존 동작).
+        self._connect_gate = connect_gate
+        self.connect_started = asyncio.Event()
+        self.connect_cancelled = False
         self.connected = False
         self.disconnected = False
         self.connect_call_count = 0
@@ -35,6 +45,13 @@ class FakeAdapter:
 
     async def connect(self) -> None:
         self.connect_call_count += 1
+        self.connect_started.set()
+        if self._connect_gate is not None:
+            try:
+                await self._connect_gate.wait()
+            except asyncio.CancelledError:
+                self.connect_cancelled = True
+                raise
         if self._connect_exc is not None:
             raise self._connect_exc
         self.connected = True
@@ -69,10 +86,11 @@ def reset_trace():
 async def manager():
     m = RoasterManager()
     yield m
-    # Cancel any pending reconnect task to avoid asyncio teardown warnings
-    if m._reconnect_task is not None and not m._reconnect_task.done():
-        m._reconnect_task.cancel()
-        try:
-            await m._reconnect_task
-        except (asyncio.CancelledError, Exception):
-            pass
+    # Cancel any pending reconnect/connect task to avoid asyncio teardown warnings
+    for task in (m._reconnect_task, m._connect_task):
+        if task is not None and not task.done():
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass

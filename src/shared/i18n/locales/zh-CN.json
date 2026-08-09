@@ -1602,7 +1602,9 @@
     },
     "errors": {
         "mutationFailed": "操作失败，请稍后重试。",
-        "mutationFailedDetail": "操作失败：{{message}}"
+        "mutationFailedDetail": "操作失败：{{message}}",
+        "insufficientProductStock": "成品库存不足。请在库存管理的“成品”标签页调整库存后重试。",
+        "insufficientRoastedStock": "熟豆库存不足。请在库存管理的“熟豆（散装）”标签页调整库存后重试。"
     },
     "planGate": {
         "monthly_batch_cap": "已达到本月烘焙上限（{{used}}/{{max}}）。升级到更高套餐可继续烘焙。",

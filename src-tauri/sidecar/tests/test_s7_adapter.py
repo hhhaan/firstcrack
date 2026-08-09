@@ -5,9 +5,13 @@ INT/REAL 인코딩, 락 직렬화)은 실제로 돌린다. 하드웨어 불필�
 """
 
 import asyncio
-from unittest.mock import MagicMock
+import threading
+import time
+from unittest.mock import MagicMock, patch
 
 import pytest
+
+import config
 from snap7.util.getters import get_int, get_real
 from snap7.util.setters import set_int
 
@@ -43,6 +47,8 @@ def adapter():
     plc.db_read.return_value = _int_bytes(0)
     a._plc = plc
     a._min_interval = 0.0  # 스로틀은 이 테스트의 대상이 아님
+    # connect()가 채우는 채널 캐시 — 없으면 read()가 db_read를 한 번도 부르지 않는다
+    a._bt_ch, a._et_ch, a._hp_ch, a._fc_ch, a._drum_ch = GIESEN_CHANNELS
     return a
 
 

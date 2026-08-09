@@ -1602,7 +1602,9 @@
     },
     "errors": {
         "mutationFailed": "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-        "mutationFailedDetail": "요청을 처리하지 못했습니다: {{message}}"
+        "mutationFailedDetail": "요청을 처리하지 못했습니다: {{message}}",
+        "insufficientProductStock": "완제품 재고가 부족합니다. 재고관리 완제품 탭에서 재고를 보정한 뒤 다시 시도해 주세요.",
+        "insufficientRoastedStock": "원두 재고가 부족합니다. 재고관리 원두(벌크) 탭에서 재고를 보정한 뒤 다시 시도해 주세요."
     },
     "planGate": {
         "monthly_batch_cap": "이번 달 로스팅 한도({{used}}/{{max}})에 도달했습니다. 계속하려면 상위 플랜이 필요합니다.",

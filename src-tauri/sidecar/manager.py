@@ -17,6 +17,14 @@ from roaster_registry import ROASTER_REGISTRY
 _log = logging.getLogger(__name__)
 
 
+class ConnectCancelled(Exception):
+    """사용자가 /disconnect로 연결 시도를 취소했다 — 실패가 아니다.
+
+    _error를 세우지 않는 것이 핵심이다. 취소를 연결 실패로 기록하면 UI에
+    "연결 실패" 배너가 떠 사용자가 하지 않은 일에 대한 오답을 보게 된다.
+    """
+
+
 class SensorReadError(RuntimeError):
     """어댑터가 예외 없이 반환했지만 값이 센서 고장/분리를 뜻할 때 발생한다.
 
@@ -153,6 +161,10 @@ class RoasterManager:
         # EMA/RoR이 두 번 밀리지 않게 한다 (표시 RoR 오염 방지).
         self._read_lock: asyncio.Lock = asyncio.Lock()
         self._reconnect_task: asyncio.Task[None] | None = None
+        # 진행 중인 adapter.connect() 핸들. connect()와 _reconnect_loop() 두 호출
+        # 지점이 모두 여기 있어 취소 대상을 한 곳으로 모은다.
+        self._connect_task: asyncio.Task[None] | None = None
+        self._connect_cancel_requested: bool = False
         self._reconnect_attempt: int = 0
         self._ror_warmup: int = 0
         self._consecutive_errors: int = 0
@@ -204,6 +216,41 @@ class RoasterManager:
         except Exception:
             pass
 
+    async def _run_adapter_connect(self, adapter: Any) -> None:
+        """adapter.connect() **한 줄만** 취소 가능한 태스크로 감싼다.
+
+        connect() 전체를 감싸면 취소 시 매니저 상태가 반쪽으로 남는다. 취소 지점을
+        핸드셰이크 한 줄로 좁히고 정리는 호출자(except ConnectCancelled)에 맡긴다.
+        """
+        task = asyncio.create_task(adapter.connect())
+        self._connect_task = task
+        try:
+            await task
+        except asyncio.CancelledError:
+            # 요청 핸들러 자체가 취소된 경우(클라이언트 소켓 끊김)와 구분한다.
+            # 그때는 _connect_cancel_requested가 False이므로 그대로 전파해야
+            # aiohttp가 정상적으로 정리한다 — ConnectCancelled로 오판하면 안 된다.
+            if task.cancelled() and self._connect_cancel_requested:
+                raise ConnectCancelled from None
+            raise
+        finally:
+            self._connect_task = None
+            self._connect_cancel_requested = False
+
+    def _cancel_pending_connect(self) -> None:
+        """진행 중인 연결 시도를 락 **밖에서** 취소한다.
+
+        _disconnect_internal의 재연결 취소는 락을 얻은 뒤에야 실행되므로,
+        재연결 루프가 락을 쥔 채 connect 중이면 서로를 기다리는 데드락이 된다.
+        """
+        task = self._connect_task
+        if task is not None and not task.done():
+            self._connect_cancel_requested = True
+            task.cancel()
+        rt = self._reconnect_task
+        if rt is not None and not rt.done():
+            rt.cancel()
+
     async def connect(self, roaster_key: str, params: dict[str, Any]) -> None:
         async with self._lock:
             if self._adapter is not None:
@@ -233,7 +280,7 @@ class RoasterManager:
             self._last_good = None
 
             try:
-                await self._adapter.connect()
+                await self._run_adapter_connect(self._adapter)
                 self._connected = True
                 self._start_time = time.monotonic()
                 _log.info("연결 성공 [%s]: %s", roaster_key, protocol)
@@ -244,6 +291,20 @@ class RoasterManager:
                     message=f"connected: {roaster_key} ({protocol})",
                     level="info",
                 )
+            # ConnectCancelled는 Exception의 하위라 반드시 아래 절보다 **위**에 온다.
+            except ConnectCancelled:
+                # 사용자가 취소했다 — 부분 연결만 정리하고 오류로 남기지 않는다.
+                try:
+                    await self._adapter.disconnect()
+                except Exception:
+                    pass
+                self._adapter = None
+                self._connected = False
+                self._error = None
+                self._roaster_key = ""
+                self._protocol = ""
+                self._merged_params = {}
+                _log.info("연결 시도 취소됨 [%s]: %s", roaster_key, protocol)
             except Exception as exc:
                 # 부분 연결(소켓/스레드) 정리 — status용 메타는 유지
                 try:
@@ -259,6 +320,11 @@ class RoasterManager:
                 self._capture_hardware_error(exc, "connect_failed")
 
     async def disconnect(self) -> None:
+        # 락을 잡기 **전에** 취소한다. connect/재연결이 핸드셰이크 내내 같은 락을
+        # 쥐고 있어(Kaleido 15s, Phidget 10s), 락을 먼저 기다리면 프론트 요청이
+        # 타임아웃돼 "해제 버튼이 안 먹는다"가 된다. async with는 CancelledError
+        # 에서도 락을 반납하므로 취소 → 보유자 정리·반납 → disconnect 획득이 된다.
+        self._cancel_pending_connect()
         async with self._lock:
             await self._disconnect_internal()
 
@@ -332,7 +398,7 @@ class RoasterManager:
                             await self._adapter.disconnect()
                         except Exception:
                             pass
-                        await self._adapter.connect()
+                        await self._run_adapter_connect(self._adapter)
                         self._connected = True
                         self._consecutive_errors = 0
                         self._error = None
@@ -350,6 +416,12 @@ class RoasterManager:
                             level="info",
                         )
                         await self._safety_after_reconnect()
+                        return
+                    except ConnectCancelled:
+                        # 사용자가 /disconnect 했다. 여기서는 어댑터를 건드리지 않는다 —
+                        # 이 절은 await 없이 끝나야 한다(이 태스크도 cancel 대상이라
+                        # 다음 await에서 CancelledError가 정리 도중 꽂힌다).
+                        # 어댑터 정리는 곧이어 실행될 _disconnect_internal이 맡는다.
                         return
                     except Exception as exc:
                         self._error = _format_connection_error(

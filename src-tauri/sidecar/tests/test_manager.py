@@ -681,3 +681,94 @@ class TestDisconnectRace:
         manager._connected = True
         manager._merged_params = {"write_map": {"heater": {"min": 0, "max": 100}}}
         assert await manager.control(heater=50) == {}  # 예외가 새어나오지 않아야 한다
+
+
+# ---------------------------------------------------------------------------
+# TestConnectCancellation (#208) — disconnect가 진행 중인 연결 시도를 취소한다
+# ---------------------------------------------------------------------------
+
+class TestConnectCancellation:
+    async def _start_gated_connect(self, manager, fake):
+        """어댑터 핸드셰이크 한가운데서 멈춘 connect 태스크를 만든다."""
+        with patch("manager.make_adapter", return_value=fake):
+            task = asyncio.create_task(manager.connect("virtual", {}))
+            await asyncio.wait_for(fake.connect_started.wait(), timeout=1.0)
+            return task
+
+    async def test_disconnect_cancels_inflight_connect(self, manager):
+        """핸드셰이크 중 disconnect가 락을 기다리지 않고 즉시 완료돼야 한다."""
+        fake = FakeAdapter(connect_gate=asyncio.Event())
+        task = await self._start_gated_connect(manager, fake)
+
+        await asyncio.wait_for(manager.disconnect(), timeout=0.5)
+        await asyncio.wait_for(task, timeout=1.0)  # connect()는 예외를 밖으로 내지 않는다
+
+        assert fake.connect_cancelled is True
+        assert fake.disconnected is True
+
+    async def test_cancelled_connect_leaves_clean_state(self, manager):
+        """취소는 실패가 아니다 — _error가 세워지면 UI에 오답 배너가 뜬다."""
+        fake = FakeAdapter(connect_gate=asyncio.Event())
+        task = await self._start_gated_connect(manager, fake)
+
+        await asyncio.wait_for(manager.disconnect(), timeout=0.5)
+        await asyncio.wait_for(task, timeout=1.0)
+
+        status = manager.status()
+        assert status["connected"] is False
+        assert status["error"] is None
+        assert status["roaster"] == ""
+        assert manager._adapter is None
+        assert manager._connect_task is None
+        assert manager._connect_cancel_requested is False
+
+    async def test_reconnect_loop_connect_is_cancellable(self, manager, monkeypatch):
+        """재연결 루프가 락을 쥔 채 connect 중이어도 disconnect가 풀려야 한다.
+
+        기존 코드에서는 재연결 취소 코드가 _disconnect_internal(= 락 획득 후)에
+        있어 서로를 기다리는 구조적 데드락이었다.
+        """
+        monkeypatch.setattr(config, "RECONNECT_BACKOFFS", [0.01])
+
+        fake = FakeAdapter(connect_gate=asyncio.Event())
+        manager._adapter = fake
+        manager._connected = False
+        manager._roaster_key = "test"
+        manager._protocol = "virtual"
+        manager._merged_params = {}
+
+        manager._reconnect_task = asyncio.create_task(manager._reconnect_loop())
+        await asyncio.wait_for(fake.connect_started.wait(), timeout=1.0)
+
+        await asyncio.wait_for(manager.disconnect(), timeout=0.5)
+
+        assert fake.connect_cancelled is True
+        assert manager._adapter is None
+        assert manager._connected is False
+        assert manager._reconnect_attempt == 0
+
+    async def test_successful_connect_clears_task_handle(self, manager):
+        fake = FakeAdapter(readings=[make_reading()])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("virtual", {})
+        assert manager._connected is True
+        assert manager._connect_task is None
+        assert manager._connect_cancel_requested is False
+
+    async def test_handler_cancel_propagates(self, manager):
+        """클라이언트 소켓이 끊겨 요청 핸들러가 취소된 경우는 ConnectCancelled가 아니다."""
+        fake = FakeAdapter(connect_gate=asyncio.Event())
+        task = await self._start_gated_connect(manager, fake)
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=1.0)
+
+    async def test_disconnect_is_idempotent(self, manager):
+        fake = FakeAdapter(connect_gate=asyncio.Event())
+        task = await self._start_gated_connect(manager, fake)
+
+        await asyncio.wait_for(manager.disconnect(), timeout=0.5)
+        await asyncio.wait_for(manager.disconnect(), timeout=0.5)  # 2연타 no-op
+        await asyncio.wait_for(task, timeout=1.0)
+        assert manager._adapter is None

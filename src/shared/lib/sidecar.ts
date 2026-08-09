@@ -67,7 +67,9 @@ export const sidecar = {
             CONNECT_TIMEOUT_MS,
         ),
 
-    disconnect: () => request<SidecarStatus>('/disconnect', { method: 'POST' }),
+    // connect와 같은 예산을 준다 — 진행 중인 핸드셰이크를 취소하고 정리가 끝나기를
+    // 기다려야 하므로, 5s 기본값이면 요청이 먼저 abort돼 상태가 갱신되지 않는다.
+    disconnect: () => request<SidecarStatus>('/disconnect', { method: 'POST' }, CONNECT_TIMEOUT_MS),
 
     getTemperatures: () => request<TemperatureReading>('/temperatures'),
 

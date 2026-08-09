@@ -6,6 +6,12 @@
             "sourceType": "github",
             "skillPath": "skills/oklch-skill/SKILL.md",
             "computedHash": "3825dcd7ea094655e9f07280185ba9da1d10d08f44cf06a8c316eb42334d7cd3"
+        },
+        "open-code-review": {
+            "source": "alibaba/open-code-review",
+            "sourceType": "github",
+            "skillPath": "skills/open-code-review/SKILL.md",
+            "computedHash": "5ebd7726ff89b3f5906b6dc4f3a16dfa9684e30181f619d95a3fb7bc00ad3f3a"
         }
     }
 }
