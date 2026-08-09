@@ -1,12 +1,10 @@
-import type { PidRuntime } from '@entities/machine';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import { getFcDualStage } from '@features/active-roast/lib/fc-dual-mark';
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
 import { formatTemp } from '@features/active-roast/lib/temperature';
-import type { PidDropBehavior, TemperatureUnit } from '@features/active-roast/model/settings';
+import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
-import { MachineControlPanel } from '@features/machine-control';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
 import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
@@ -41,11 +39,6 @@ interface RoastSidePanelProps {
     rollingDtrPct: number | null;
     rollingDevTimeStr: string;
     fcDualMarkEnabled: boolean;
-    sidecarConnected: boolean;
-    /** 머신이 보고하는 현재 heater/fan/drum — 제어 슬라이더의 피드백 표시용 */
-    liveData: { heater: number; fan: number; drum: number } | null;
-    pidRuntime: PidRuntime | null;
-    pidDropBehavior: PidDropBehavior;
     logEntries: LogEntry[];
     pressedButtons: Set<string>;
     roastLogDisplayEntries: RoastLogDisplayEntry[];
@@ -81,10 +74,6 @@ export const RoastSidePanel = ({
     rollingDtrPct,
     rollingDevTimeStr,
     fcDualMarkEnabled,
-    sidecarConnected,
-    liveData,
-    pidRuntime,
-    pidDropBehavior,
     logEntries,
     pressedButtons,
     roastLogDisplayEntries,
@@ -246,17 +235,6 @@ export const RoastSidePanel = ({
             )}
 
             <div className="border-t border-border-subtle" />
-
-            {/* Machine Control — 쓰기 가능한 머신에서만 렌더된다 */}
-            <MachineControlPanel
-                sidecarConnected={sidecarConnected}
-                liveData={liveData}
-                pidRuntime={pidRuntime}
-                // 배출했거나 로스팅이 끝나면 PID가 스스로 풀려야 한다 —
-                // 아무도 보고 있지 않은 로스터에 계속 불을 넣지 않도록.
-                roastFinished={roastEnded || logEntries.some((e) => e.event === 'Drop')}
-                pidDropBehavior={pidDropBehavior}
-            />
 
             {/* Control Panel */}
             <div className="flex flex-col gap-1.5">
