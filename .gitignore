@@ -1,5 +1,6 @@
-# Artisan roast profile files
+# Artisan roast profile files (test fixtures are tracked)
 *.aset
+!src-tauri/sidecar/tests/fixtures/**/*.aset
 
 # Python cache
 __pycache__/
