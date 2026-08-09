@@ -52,7 +52,8 @@ describe('Korean font stack (Inter + SUIT)', () => {
     });
 
     it('documents local Inter + SUIT (not CDN / Pretendard) in DESIGN.md', () => {
-        expect(designMd).toMatch(/'Inter',\s*'SUIT'/);
+        // Match App.css stacks: double-quoted Inter + SUIT (or single-quoted legacy form)
+        expect(designMd).toMatch(/["']Inter["'],\s*["']SUIT["']/);
         expect(designMd).toMatch(/public\/fonts\/InterVariable\.woff2/);
         expect(designMd).toMatch(/public\/fonts\/SUIT-Variable\.woff2/);
         expect(designMd).not.toMatch(/fonts\.googleapis\.com|Pretendard/);
