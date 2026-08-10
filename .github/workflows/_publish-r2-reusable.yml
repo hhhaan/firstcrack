@@ -65,14 +65,31 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_PUBLISH_BUCKET_NAME }}
           VERSION: ${{ inputs.version }}
         run: |
+          set -euo pipefail
           TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
           BACKUP_KEY="releases/latest.json.${VERSION}.${TIMESTAMP}.bak"
-          aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
-            "s3://${R2_BUCKET}/${BACKUP_KEY}" \
-            --endpoint-url "$R2_ENDPOINT" --region auto \
-            --content-type "application/json" && \
-            echo "BACKUP_KEY=${BACKUP_KEY}" >> $GITHUB_ENV || \
-            echo "No existing latest.json to backup (first release?)"
+          # Distinguish first-release 404 from auth/network failures (#215).
+          set +e
+          HEAD_ERR=$(aws s3api head-object \
+            --bucket "$R2_BUCKET" \
+            --key "releases/latest.json" \
+            --endpoint-url "$R2_ENDPOINT" \
+            --region auto 2>&1)
+          HEAD_RC=$?
+          set -e
+          if [ "$HEAD_RC" -eq 0 ]; then
+            aws s3 cp "s3://${R2_BUCKET}/releases/latest.json" \
+              "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+              --endpoint-url "$R2_ENDPOINT" --region auto \
+              --content-type "application/json"
+            echo "BACKUP_KEY=${BACKUP_KEY}" >> "$GITHUB_ENV"
+            echo "Backed up existing latest.json → ${BACKUP_KEY}"
+          elif echo "$HEAD_ERR" | grep -qiE '404|Not Found|NoSuchKey|NotFound'; then
+            echo "No existing latest.json to backup (first release)"
+          else
+            echo "::error::Failed to check existing latest.json (not a first-release 404): $HEAD_ERR"
+            exit 1
+          fi
 
       - name: Upload binaries & latest.json to R2
         id: upload-r2
@@ -190,25 +207,46 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -e
+          # 이 스텝의 실패는 이제 롤백을 부른다(#215). 그래서 한 번의 일시적 5xx가
+          # 정상 릴리스를 되돌리지 않도록 재시도가 필수다 — purge 직후 전파 지연은 흔하다.
+          retry() { # retry <attempts> <sleep_s> <cmd...>
+            local n=$1 s=$2; shift 2
+            for i in $(seq 1 "$n"); do
+              "$@" && return 0
+              [ "$i" -lt "$n" ] && { echo "  attempt $i/$n failed, retrying in ${s}s"; sleep "$s"; }
+            done
+            return 1
+          }
+          check_manifest() {
+            curl -fsSL "${R2_PUBLIC_URL}/releases/latest.json" -o verified.json || return 1
+            [ "$(jq -r .version verified.json)" = "$VERSION" ]
+          }
           # brief settle for eventual consistency
           sleep 2
-          curl -fsSL "${R2_PUBLIC_URL}/releases/latest.json" -o verified.json
-          echo "Public latest.json:"
-          cat verified.json
-          GOT=$(jq -r .version verified.json)
-          if [ "$GOT" != "$VERSION" ]; then
-            echo "::error::Public latest.json version is '$GOT', expected '$VERSION'"
+          if ! retry 5 5 check_manifest; then
+            echo "::error::Public latest.json never reported version '$VERSION'"
+            cat verified.json 2>/dev/null || true
             exit 1
           fi
+          echo "Public latest.json:"
+          cat verified.json
           # Every platform binary URL must be reachable
           for url in $(jq -r '.platforms[].url' verified.json); do
-            curl -fsSIL -o /dev/null "$url" || { echo "::error::Unreachable: $url"; exit 1; }
+            retry 3 5 curl -fsSIL -o /dev/null "$url" \
+              || { echo "::error::Unreachable: $url"; exit 1; }
             echo "  OK: $url"
           done
           echo "✅ Public release v${VERSION} verified"
 
       - name: Rollback latest.json on failure
-        if: failure() && steps.upload-r2.outcome == 'failure' && env.BACKUP_KEY != ''
+        # After upload succeeds, verify (or later steps) can still fail with a
+        # already-published latest.json — roll back any post-upload failure (#215).
+        # 실행되지 않은 step의 outcome은 'skipped'가 아니라 null이라 `!= 'skipped'`는
+        # 정작 잡아야 할 경우에 통과한다 — 실행된 두 결과를 명시적으로 나열한다.
+        if: >-
+          failure()
+          && (steps.upload-r2.outcome == 'success' || steps.upload-r2.outcome == 'failure')
+          && env.BACKUP_KEY != ''
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_PUBLISH_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_PUBLISH_SECRET_ACCESS_KEY }}
@@ -218,7 +256,7 @@ jobs:
           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           R2_PUBLIC_URL: https://dl.firstcrackiscoming.com
         run: |
-          echo "::warning::Upload failed — rolling back latest.json from ${BACKUP_KEY}"
+          echo "::warning::Publish failed after upload attempt — rolling back latest.json from ${BACKUP_KEY}"
           if aws s3 cp "s3://${R2_BUCKET}/${BACKUP_KEY}" \
               "s3://${R2_BUCKET}/releases/latest.json" \
               --endpoint-url "$R2_ENDPOINT" --region auto \
