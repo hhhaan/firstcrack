@@ -81,6 +81,15 @@
         {
             "includes": ["**/*.config.{js,ts,mjs}"],
             "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+        },
+        {
+            "includes": ["scripts/**"],
+            "linter": {
+                "rules": {
+                    "suspicious": { "noConsole": "off" },
+                    "style": { "useNodejsImportProtocol": "off" }
+                }
+            }
         }
     ],
     "files": {
