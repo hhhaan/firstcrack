@@ -772,3 +772,63 @@ class TestConnectCancellation:
         await asyncio.wait_for(manager.disconnect(), timeout=0.5)  # 2연타 no-op
         await asyncio.wait_for(task, timeout=1.0)
         assert manager._adapter is None
+
+
+# ---------------------------------------------------------------------------
+# enter_standby lock + connected guard (#213-3)
+# ---------------------------------------------------------------------------
+
+class TestEnterStandby:
+    async def test_enter_standby_no_adapter_does_not_raise(self, manager):
+        await manager.enter_standby()
+
+    async def test_enter_standby_skips_when_not_connected(self, manager):
+        called = False
+
+        class Adapter:
+            async def enter_standby(self):
+                nonlocal called
+                called = True
+
+        manager._adapter = Adapter()
+        manager._connected = False
+        await manager.enter_standby()
+        assert called is False
+
+    async def test_enter_standby_calls_adapter_when_connected(self, manager):
+        called = False
+
+        class Adapter:
+            async def enter_standby(self):
+                nonlocal called
+                called = True
+
+        manager._adapter = Adapter()
+        manager._connected = True
+        await manager.enter_standby()
+        assert called is True
+
+    async def test_enter_standby_waits_for_connect_lock(self, manager):
+        """락이 실제로 배타를 거는지 — 나머지 케이스는 가드만 보고 이건 락을 본다."""
+        gate = asyncio.Event()
+        fake = FakeAdapter(connect_gate=gate)
+        called = asyncio.Event()
+
+        async def _enter_standby():
+            called.set()
+
+        fake.enter_standby = _enter_standby
+
+        with patch("manager.make_adapter", return_value=fake):
+            conn = asyncio.create_task(manager.connect("virtual", {}))
+            await asyncio.wait_for(fake.connect_started.wait(), timeout=1.0)
+
+            standby = asyncio.create_task(manager.enter_standby())
+            await asyncio.sleep(0)
+            assert not called.is_set(), "connect가 _lock을 쥔 동안 진입했다"
+
+            gate.set()
+            await asyncio.wait_for(conn, timeout=1.0)
+            await asyncio.wait_for(standby, timeout=1.0)
+
+        assert called.is_set()

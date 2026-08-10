@@ -732,8 +732,13 @@ class RoasterManager:
 
     async def enter_standby(self) -> None:
         """UI의 READY 버튼과 연동. 어댑터가 지원하면 standby 진입을 알린다."""
-        if self._adapter is not None and hasattr(self._adapter, "enter_standby"):
-            await self._adapter.enter_standby()
+        async with self._lock:
+            if (
+                self._adapter is not None
+                and self._connected
+                and hasattr(self._adapter, "enter_standby")
+            ):
+                await self._adapter.enter_standby()
 
     async def start_roast(self) -> None:
         """UI의 Charge 버튼과 연동. 어댑터가 지원하면 타이머를 리셋하고, RoR 윈도우를 초기화."""
