@@ -45,6 +45,8 @@ export const usePidControl = ({
 }) => {
     const [sv, setSv] = useState<number>(FALLBACK_SV_C);
     const [busy, setBusy] = useState(false);
+    /** 자동 해제 실패 횟수 — deps에 들어가 재시도 effect를 다시 발사시킨다 */
+    const [offAttempt, setOffAttempt] = useState(0);
     const svAdoptedRef = useRef(false);
 
     const state = runtime?.state ?? 'off';
@@ -119,19 +121,24 @@ export const usePidControl = ({
     useEffect(() => {
         if (!roastFinished || !engaged || !sidecarConnected) return;
         let cancelled = false;
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        const attempt = () => {
-            void turnOff(dropBehavior).then((ok) => {
-                if (ok || cancelled) return;
-                timer = setTimeout(attempt, PID_OFF_RETRY_MS);
-            });
-        };
-        attempt();
+        const timer = setTimeout(
+            () => {
+                void turnOff(dropBehavior).then((ok) => {
+                    if (!ok && !cancelled) setOffAttempt((n) => n + 1);
+                });
+            },
+            offAttempt === 0 ? 0 : PID_OFF_RETRY_MS,
+        );
         return () => {
             cancelled = true;
             clearTimeout(timer);
         };
-    }, [roastFinished, engaged, sidecarConnected, dropBehavior, turnOff]);
+    }, [roastFinished, engaged, sidecarConnected, dropBehavior, turnOff, offAttempt]);
+
+    // 다음 로스트의 첫 해제가 지난 배치의 재시도 지연을 물려받지 않게 되돌린다
+    useEffect(() => {
+        if (!roastFinished) setOffAttempt(0);
+    }, [roastFinished]);
 
     return {
         supported: Boolean(capability?.supported) && sidecarConnected,
