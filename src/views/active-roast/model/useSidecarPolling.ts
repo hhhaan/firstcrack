@@ -41,6 +41,15 @@ interface Params {
 /** idle 중 /status 재확인 주기 — 온도 폴링보다 느슨 (부하 거의 없음). */
 export const IDLE_STATUS_POLL_MS = 5000;
 
+/** Charge lookback 샘플 라벨. relSec < 0일 때만 마이너스 접두. */
+export function formatLookbackLabel(relSec: number): string {
+    const absT = Math.abs(relSec);
+    const m = Math.floor(absT / 60);
+    const s = Math.floor(absT % 60);
+    const body = `${m}:${String(s).padStart(2, '0')}`;
+    return relSec < 0 ? `-${body}` : body;
+}
+
 type SidecarStatusLike = {
     connected: boolean;
     reconnecting?: boolean;
@@ -153,14 +162,11 @@ export const useSidecarPolling = ({
                 prePoints = preChargeBufferRef.current
                     .filter((p) => p.absTime >= cutoff)
                     .map((p) => {
-                        const relSec = (p.absTime - chargeTime) / 1000; // 음수
-                        const absT = Math.abs(relSec);
-                        const m = Math.floor(absT / 60);
-                        const s = Math.floor(absT % 60);
+                        const relSec = (p.absTime - chargeTime) / 1000;
                         return {
                             ...p,
                             time: relSec,
-                            label: `-${m}:${String(s).padStart(2, '0')}`,
+                            label: formatLookbackLabel(relSec),
                         };
                     });
             }

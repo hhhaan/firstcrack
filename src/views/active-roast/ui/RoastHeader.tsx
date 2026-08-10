@@ -104,6 +104,8 @@ export const RoastHeader = ({
         // 같은 값이면 DB 쓰기 스킵 (no-op guard)
         if (id === targetProfileId) return;
         onTargetProfileChange(id);
+        // 로스팅 중 Target 변경은 세션만 — 기본 프로파일을 영구 덮어쓰지 않음 (#183)
+        if (charged) return;
         // UI는 즉시 반응, DB 저장은 300ms 디바운스 → 빠른 변경 시 마지막 값만 기록
         if (profileSaveTimer.current) clearTimeout(profileSaveTimer.current);
         profileSaveTimer.current = setTimeout(() => {
