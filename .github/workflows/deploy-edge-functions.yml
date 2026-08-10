@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       function:
-        description: 'Specific function to deploy (empty = deploy all changed)'
+        description: 'Specific function to deploy (empty on manual dispatch = deploy all functions)'
         required: false
 
 concurrency:
@@ -37,13 +37,29 @@ jobs:
         env:
           FUNCTION_INPUT: ${{ inputs.function }}
           BEFORE_SHA: ${{ github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           PROJECT_REF="vjdgdolfxvnxushxrmff"
+
+          deploy_all() {
+            ALL=$(find supabase/functions -mindepth 1 -maxdepth 1 -type d ! -name '_shared' -exec basename {} \; | sort)
+            FUNCTIONS=$(echo "$ALL" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "Deploying all functions: $FUNCTIONS"
+            echo "functions=$FUNCTIONS" >> "$GITHUB_OUTPUT"
+            echo "project_ref=$PROJECT_REF" >> "$GITHUB_OUTPUT"
+          }
 
           if [ -n "$FUNCTION_INPUT" ]; then
             echo "Deploying manually specified function: $FUNCTION_INPUT"
             echo "functions=[\"$FUNCTION_INPUT\"]" >> "$GITHUB_OUTPUT"
             echo "project_ref=$PROJECT_REF" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Manual dispatch with empty input: deploy every function so multi-commit
+          # retry ranges are not silently truncated to HEAD~1 (#216).
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            deploy_all
             exit 0
           fi
 
@@ -70,8 +86,8 @@ jobs:
 
           if [ -z "$DIRS" ]; then
             echo "Only _shared changes — deploying all functions"
-            ALL=$(find supabase/functions -mindepth 1 -maxdepth 1 -type d ! -name '_shared' -exec basename {} \; | sort)
-            DIRS="$ALL"
+            deploy_all
+            exit 0
           fi
 
           FUNCTIONS=$(echo "$DIRS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
