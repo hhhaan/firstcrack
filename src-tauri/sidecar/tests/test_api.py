@@ -21,7 +21,7 @@ async def client(monkeypatch):
         yield c
     # Cancel any background task left by tests
     manager = app["manager"]
-    for task in (manager._reconnect_task, manager._pid_task):
+    for task in (manager._reconnect_task, manager._pid_task, manager._connect_task):
         if task is not None and not task.done():
             task.cancel()
             try:
@@ -493,3 +493,31 @@ class TestScanNetworkEndpoint:
         data = await resp.json()
         assert data == [{"host": "192.168.1.10"}]
         mock_scan.assert_awaited_once_with("s7")
+
+
+# ---------------------------------------------------------------------------
+# POST /disconnect during an in-flight /connect (#208)
+# ---------------------------------------------------------------------------
+
+class TestDisconnectDuringConnect:
+    async def test_disconnect_completes_while_connect_pending(self, client):
+        """HTTP 경로 전체에서도 성립해야 한다 — 핸들러가 얇아야 cancel-first가 산다."""
+        fake = FakeAdapter(connect_gate=asyncio.Event())
+
+        with patch("manager.make_adapter", return_value=fake):
+            connect_req = asyncio.create_task(
+                client.post("/connect", json={"roaster": "virtual"})
+            )
+            await asyncio.wait_for(fake.connect_started.wait(), timeout=2.0)
+
+            resp = await asyncio.wait_for(client.post("/disconnect"), timeout=1.0)
+            assert resp.status == 200
+            assert (await resp.json())["connected"] is False
+
+            connect_resp = await asyncio.wait_for(connect_req, timeout=2.0)
+
+        assert connect_resp.status == 200
+        data = await connect_resp.json()
+        assert data["connected"] is False
+        assert data["error"] is None, "취소는 실패가 아니다"
+        assert fake.connect_cancelled is True

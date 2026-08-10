@@ -192,3 +192,224 @@ class TestIoSerialization:
             assert before.count("read_start") == before.count("read_end"), (
                 f"write가 읽기 도중에 끼어들었다: {events}"
             )
+
+
+# ---------------------------------------------------------------------------
+# TestReadBudget (#209) — 읽기 전체를 벽시계 예산으로 묶는다
+# ---------------------------------------------------------------------------
+
+RECV_S = config.S7_RECV_TIMEOUT_MS / 1000.0
+
+
+def _unresponsive_read(delay: float = RECV_S):
+    """무응답 PLC: RecvTimeout만큼 버틴 뒤 실패한다."""
+
+    def _read(db, offset, size):
+        time.sleep(delay)
+        raise RuntimeError("RecvTimeout")
+
+    return _read
+
+
+def _slow_ok_read(delay: float = RECV_S):
+    """느리지만 성공하는 PLC — 채널 수가 예산을 잡아먹는 경우."""
+
+    def _read(db, offset, size):
+        time.sleep(delay)
+        return _int_bytes(0) if size == 2 else bytearray(4)
+
+    return _read
+
+
+class TestReadBudget:
+    async def test_unresponsive_plc_returns_within_budget(self, adapter):
+        """manager의 READ_TIMEOUT(3.0) 만료 전에 스레드가 스스로 락을 놓아야 한다."""
+        adapter._plc.db_read.side_effect = _unresponsive_read()
+
+        t0 = time.monotonic()
+        with pytest.raises(Exception):
+            await adapter.read()
+        elapsed = time.monotonic() - t0
+
+        assert elapsed < config.READ_TIMEOUT, f"예산 초과: {elapsed:.2f}s"
+        assert elapsed < config.S7_READ_BUDGET_S + config.S7_MIN_REQUEST_INTERVAL + RECV_S
+        # 락이 반납됐어야 다음 요청이 대기 없이 들어온다 (좀비 없음)
+        assert adapter._io_lock.acquire(timeout=0.0) is True
+        adapter._io_lock.release()
+
+    async def test_budget_cuts_channel_attempts(self, adapter):
+        """5채널 × RecvTimeout이 예산을 넘으면 남은 채널 시도를 자른다."""
+        adapter._plc.db_read.side_effect = _slow_ok_read()
+
+        t0 = time.monotonic()
+        with pytest.raises(Exception):
+            await adapter.read()
+        elapsed = time.monotonic() - t0
+
+        assert elapsed < config.READ_TIMEOUT
+        # 5채널 × retry 포함 2회 = 10회가 무제한일 때의 값
+        assert adapter._plc.db_read.call_count < 10
+
+    async def test_bt_is_always_attempted(self, adapter):
+        """예산이 빠듯해도 첫 채널(BT)은 최소 1회 시도된다."""
+        adapter._plc.db_read.side_effect = _slow_ok_read()
+        with pytest.raises(Exception):
+            await adapter.read()
+        first = adapter._plc.db_read.call_args_list[0].args
+        assert first[:2] == (3, 116)  # BT 채널
+
+    async def test_retry_preserved_when_budget_allows(self, adapter):
+        """예산에 여유가 있으면 Artisan 기준 retry 1회는 그대로 유지한다."""
+        adapter._plc.db_read.side_effect = RuntimeError("boom")  # 즉시 실패
+        with pytest.raises(RuntimeError):
+            await adapter.read()
+        assert adapter._plc.db_read.call_count == 2  # 최초 + retry 1회
+
+    async def test_normal_read_unaffected(self, adapter):
+        adapter._plc.db_read.side_effect = _slow_ok_read(0.0)
+        t0 = time.monotonic()
+        reading = await adapter.read()
+        elapsed = time.monotonic() - t0
+        assert elapsed < 0.3
+        assert adapter._plc.db_read.call_count == 5
+        assert reading.bt == 0.0
+
+    async def test_read_path_never_calls_get_cpu_state(self, adapter):
+        """get_cpu_state()는 네트워크 왕복 — 읽기 예산의 20%를 낭비하던 주범."""
+        adapter._plc.db_read.side_effect = _slow_ok_read(0.0)
+        await adapter.read()
+        await adapter.read_raw_channel("heater")
+        adapter._plc.get_cpu_state.assert_not_called()
+
+    def test_budget_relation_holds(self):
+        """어느 상수를 손대든 이 부등식이 깨지면 좀비 스레드가 돌아온다."""
+        worst = (
+            config.S7_READ_BUDGET_S
+            + config.S7_MIN_REQUEST_INTERVAL
+            + config.S7_RECV_TIMEOUT_MS / 1000.0
+        )
+        assert worst < config.READ_TIMEOUT
+        assert config.S7_TEARDOWN_LOCK_TIMEOUT_S > worst - config.S7_IO_LOCK_TIMEOUT_S
+
+
+# ---------------------------------------------------------------------------
+# TestIoLockTimeout (#209) — 락 대기가 무한하지 않다
+# ---------------------------------------------------------------------------
+
+class TestIoLockTimeout:
+    async def test_read_gives_up_on_held_lock(self, adapter):
+        """다른 스레드가 락을 오래 쥐면 읽기는 기다리지 않고 실패로 승격한다."""
+        release = threading.Event()
+
+        def hold():
+            with adapter._io_lock:
+                release.wait(1.5)
+
+        holder = threading.Thread(target=hold)
+        holder.start()
+        try:
+            time.sleep(0.05)  # 락이 확실히 잡히도록
+            t0 = time.monotonic()
+            with pytest.raises(TimeoutError):
+                await adapter.read()
+            assert time.monotonic() - t0 < config.S7_IO_LOCK_TIMEOUT_S + 0.2
+        finally:
+            release.set()
+            holder.join()
+
+    async def test_disconnect_not_blocked_behind_slow_read(self, adapter):
+        """느린 read가 락을 쥐고 있어도 disconnect가 백오프 안에 끝나야 한다."""
+        adapter._plc.db_read.side_effect = _slow_ok_read(2.0)
+        plc = adapter._plc
+
+        read_task = asyncio.create_task(adapter.read())
+        await asyncio.sleep(0.05)
+
+        t0 = time.monotonic()
+        await asyncio.wait_for(adapter.disconnect(), timeout=4.0)
+        assert time.monotonic() - t0 < config.S7_TEARDOWN_LOCK_TIMEOUT_S + 0.5
+        assert adapter._plc is None
+
+        with pytest.raises(Exception):
+            await read_task
+        plc.destroy.assert_called_once()
+
+    async def test_read_after_disconnect_fails_immediately(self, adapter):
+        await adapter.disconnect()
+        t0 = time.monotonic()
+        with pytest.raises(ConnectionError):
+            await adapter.read()
+        assert time.monotonic() - t0 < 0.2
+
+
+# ---------------------------------------------------------------------------
+# TestPlcRebind (#209 + #208) — 바인딩은 락 안에서, 취소된 세션은 버린다
+# ---------------------------------------------------------------------------
+
+class TestPlcRebind:
+    async def test_read_never_crosses_clients(self, adapter):
+        """read 도중 _plc가 교체돼도 그 read는 시작한 클라이언트만 본다."""
+        old_plc = adapter._plc
+        new_plc = MagicMock()
+        new_plc.get_connected.return_value = True
+        new_plc.db_read.return_value = _int_bytes(0)
+
+        calls: list[int] = []
+
+        def swap_on_first_read(db, offset, size):
+            calls.append(db)
+            if len(calls) == 1:
+                adapter._plc = new_plc  # 재연결이 끼어든 상황
+            return _int_bytes(0) if size == 2 else bytearray(4)
+
+        old_plc.db_read.side_effect = swap_on_first_read
+
+        await adapter.read()
+
+        assert old_plc.db_read.call_count == 5
+        new_plc.db_read.assert_not_called()
+
+    async def test_connect_binds_under_lock(self, adapter, monkeypatch):
+        """이전 세션이 락을 놓지 않으면 연결하지 않는다 — 무락 재바인딩 금지."""
+        monkeypatch.setattr(config, "S7_TEARDOWN_LOCK_TIMEOUT_S", 0.1)
+        client = MagicMock()
+        release = threading.Event()
+
+        def hold():
+            with adapter._io_lock:
+                release.wait(1.0)
+
+        holder = threading.Thread(target=hold)
+        holder.start()
+        try:
+            time.sleep(0.05)
+            with patch("snap7.client.Client", return_value=client):
+                with pytest.raises(ConnectionError, match="이전 S7 세션"):
+                    await adapter.connect()
+            client.destroy.assert_called_once()
+        finally:
+            release.set()
+            holder.join()
+
+    async def test_late_connect_after_session_bump_is_discarded(self, adapter):
+        """취소된 연결 시도가 뒤늦게 완료돼도 바인딩하지 않고 정리한다 (#208)."""
+        adapter._plc = None
+        client = MagicMock()
+
+        def bump_session(*args, **kwargs):
+            adapter._session += 1  # 핸드셰이크 도중 disconnect 상당
+
+        client.connect.side_effect = bump_session
+
+        with patch("snap7.client.Client", return_value=client):
+            with pytest.raises(ConnectionError, match="취소"):
+                await adapter.connect()
+
+        assert adapter._plc is None
+        client.disconnect.assert_called_once()
+        client.destroy.assert_called_once()
+
+    async def test_disconnect_bumps_session(self, adapter):
+        before = adapter._session
+        await adapter.disconnect()
+        assert adapter._session == before + 1

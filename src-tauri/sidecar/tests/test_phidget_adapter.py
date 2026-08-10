@@ -52,3 +52,40 @@ class TestPhidgetRead:
         adapter = PhidgetAdapter()
         with pytest.raises(ConnectionError):
             await adapter.read()
+
+
+class TestConnectCancellation:
+    """openWaitForAttachment(5s)는 중단 불가 — 뒤늦은 완료를 사후 차단해야 한다 (#208)."""
+
+    async def test_late_attach_after_session_bump_is_discarded(self):
+        adapter = PhidgetAdapter(channel_et=None)
+        sensor = mock.MagicMock()
+
+        def bump_session(_timeout):
+            adapter._session += 1  # attach 대기 중 disconnect 상당
+
+        sensor.openWaitForAttachment.side_effect = bump_session
+
+        with mock.patch.object(PhidgetAdapter, "_make_sensor", return_value=sensor):
+            with pytest.raises(ConnectionError, match="취소"):
+                await adapter.connect()
+
+        assert adapter._sensor_bt is None, "취소된 시도가 센서를 바인딩하면 안 된다"
+        assert adapter.connected is False
+        assert sensor.close.call_count == 1, "열린 핸들은 닫아야 한다 (누수 방지)"
+
+    async def test_normal_connect_binds_sensors(self):
+        adapter = PhidgetAdapter(channel_et=None)
+        sensor = mock.MagicMock()
+
+        with mock.patch.object(PhidgetAdapter, "_make_sensor", return_value=sensor):
+            await adapter.connect()
+
+        assert adapter._sensor_bt is sensor
+        assert adapter.connected is True
+
+    async def test_disconnect_bumps_session(self):
+        adapter = PhidgetAdapter()
+        before = adapter._session
+        await adapter.disconnect()
+        assert adapter._session == before + 1
