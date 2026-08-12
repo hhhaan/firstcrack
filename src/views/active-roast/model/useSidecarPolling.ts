@@ -6,6 +6,7 @@ import { sidecar } from '@shared/lib/sidecar';
 import { enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
 import type { MutableRefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { classifySidecarConnection } from '../lib/classify-sidecar-connection';
 
 /** 폴링 중 누적하는 실시간 측정 포인트 */
 export interface LiveRoastPoint {
@@ -42,30 +43,46 @@ export const IDLE_STATUS_POLL_MS = 5000;
 
 type SidecarStatusLike = {
     connected: boolean;
+    reconnecting?: boolean;
+    error?: string | null;
     capabilities?: string[];
 };
 
 /**
  * 연결 상태 확인 후 idle이면 preheating 재진입.
  * preheating/standby 끊김 → idle 이후 뷰 유지 시 자동 복구 (#178).
+ * 자동 재연결 중에는 hard disconnect로 내리지 않는다 (세션 리셋 방지).
  */
 export async function checkSidecarAndRecoverIdle(deps: {
     getStatus: () => Promise<SidecarStatusLike>;
     getPhase: () => string;
     setConnected: (connected: boolean, capabilities?: string[]) => void;
     enterPreheating: (capabilities?: string[]) => void;
+    setReconnecting?: (reconnecting: boolean) => void;
+    setError?: (error: string | null) => void;
 }): Promise<void> {
     try {
         const s = await deps.getStatus();
-        if (!s.connected) {
-            deps.setConnected(false);
+        if (s.connected) {
+            deps.setReconnecting?.(false);
+            deps.setError?.(null);
+            deps.setConnected(true, s.capabilities);
+            if (deps.getPhase() === 'idle') {
+                deps.enterPreheating(s.capabilities);
+            }
             return;
         }
-        deps.setConnected(true, s.capabilities);
-        if (deps.getPhase() === 'idle') {
-            deps.enterPreheating(s.capabilities);
-        }
+        const decision = classifySidecarConnection({
+            kind: 'null_bt',
+            status: s,
+            dataReconnecting: s.reconnecting,
+        });
+        deps.setReconnecting?.(decision.reconnecting);
+        deps.setError?.(decision.error);
+        deps.setConnected(decision.connected);
+        // reconnecting hold: do not enter preheating from idle until link is solid
     } catch {
+        deps.setReconnecting?.(false);
         deps.setConnected(false);
     }
 }
@@ -167,6 +184,8 @@ export const useSidecarPolling = ({
                 getPhase: () => useRoastingStore.getState().phase,
                 setConnected,
                 enterPreheating,
+                setReconnecting: (r) => useRoastingStore.getState().setReconnecting(r),
+                setError: (err) => useRoastingStore.getState().setError(err),
             });
 
         check(); // 즉시 1회 (기존 isActive 전환 동작 보존)
@@ -181,31 +200,38 @@ export const useSidecarPolling = ({
     useEffect(() => {
         if (phase === 'idle') return;
 
+        const applyConnection = (decision: ReturnType<typeof classifySidecarConnection>) => {
+            const store = useRoastingStore.getState();
+            store.setError(decision.error);
+            store.setReconnecting(decision.reconnecting);
+            setConnected(decision.connected);
+        };
+
         const poll = async () => {
             try {
                 const data = await sidecar.getTemperatures();
                 // bt가 null이면 연결 끊김 가능성 → /status로 이중 확인
                 if (data.bt === null || data.bt === undefined) {
                     const status = await sidecar.getStatus().catch(() => null);
-                    if (!status?.connected) {
-                        useRoastingStore.getState().setError(status?.error ?? null);
-                        useRoastingStore.getState().setReconnecting(status?.reconnecting ?? data.reconnecting ?? false);
-                        setConnected(false);
-                        return;
-                    }
+                    const decision = classifySidecarConnection({
+                        kind: 'null_bt',
+                        dataReconnecting: data.reconnecting,
+                        status,
+                    });
+                    applyConnection(decision);
+                    // hard disconnect or reconnecting hold — no live point this tick
+                    if (!status?.connected) return;
                 }
                 // 글리치(스파이크·0값·단선) 샘플은 이 폴링 tick 전체를 스킵 — 자동감지 오발화 방지
                 const bt = data.bt == null ? null : btFilterRef.current(data.bt, Date.now());
                 if (data.bt != null && bt === null) {
                     // 거부된 글리치: 표시값 깜빡임 방지 위해 store 갱신도 스킵
-                    useRoastingStore.getState().setReconnecting(data.reconnecting ?? false);
-                    setConnected(true);
+                    applyConnection(classifySidecarConnection({ kind: 'live', dataReconnecting: data.reconnecting }));
                     return;
                 }
                 useRoastingStore.getState().updateLiveData({ ...data, bt });
                 useRoastingStore.getState().setPid(data.pid ?? null);
-                useRoastingStore.getState().setReconnecting(data.reconnecting ?? false);
-                setConnected(true);
+                applyConnection(classifySidecarConnection({ kind: 'live', dataReconnecting: data.reconnecting }));
                 if (bt === null) return;
 
                 const currentPhase = useRoastingStore.getState().phase;
@@ -299,10 +325,15 @@ export const useSidecarPolling = ({
                 }
             } catch (e) {
                 logger.debug(e, 'sidecar polling error');
+                // Transient HTTP/timeout must not wipe reconnecting or force hard disconnect
+                // while the sidecar is still up or hardware auto-reconnect is running.
                 const status = await sidecar.getStatus().catch(() => null);
-                useRoastingStore.getState().setError(status?.error ?? null);
-                useRoastingStore.getState().setReconnecting(false);
-                setConnected(false);
+                applyConnection(
+                    classifySidecarConnection({
+                        kind: 'poll_error',
+                        status,
+                    }),
+                );
             }
         };
 

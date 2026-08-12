@@ -32,18 +32,46 @@ describe('checkSidecarAndRecoverIdle (#178)', () => {
         expect(enterPreheating).not.toHaveBeenCalled();
     });
 
-    it('sets disconnected when status reports not connected', async () => {
+    it('sets disconnected when status reports idle disconnect (not reconnecting)', async () => {
         const setConnected = vi.fn();
         const enterPreheating = vi.fn();
+        const setReconnecting = vi.fn();
 
         await checkSidecarAndRecoverIdle({
-            getStatus: async () => ({ connected: false }),
+            getStatus: async () => ({ connected: false, reconnecting: false }),
             getPhase: () => 'idle',
             setConnected,
             enterPreheating,
+            setReconnecting,
         });
 
         expect(setConnected).toHaveBeenCalledWith(false);
+        expect(setReconnecting).toHaveBeenCalledWith(false);
+        expect(enterPreheating).not.toHaveBeenCalled();
+    });
+
+    it('holds connected while hardware auto-reconnect is in progress', async () => {
+        const setConnected = vi.fn();
+        const enterPreheating = vi.fn();
+        const setReconnecting = vi.fn();
+        const setError = vi.fn();
+
+        await checkSidecarAndRecoverIdle({
+            getStatus: async () => ({
+                connected: false,
+                reconnecting: true,
+                error: 'read failed',
+            }),
+            getPhase: () => 'idle',
+            setConnected,
+            enterPreheating,
+            setReconnecting,
+            setError,
+        });
+
+        expect(setConnected).toHaveBeenCalledWith(true);
+        expect(setReconnecting).toHaveBeenCalledWith(true);
+        expect(setError).toHaveBeenCalledWith('read failed');
         expect(enterPreheating).not.toHaveBeenCalled();
     });
 
