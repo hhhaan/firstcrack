@@ -1,4 +1,4 @@
-import type { NetworkHost, PidRuntime, SerialPort, SidecarStatus, TemperatureReading } from '@entities/machine';
+import type { NetworkHost, PidRuntime, SerialPort, SidecarStatus, TemperatureReading } from '@shared/types/sidecar';
 import { invoke } from '@tauri-apps/api/core';
 import { logger } from './logger';
 

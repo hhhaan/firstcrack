@@ -1,5 +1,3 @@
-import { stockEventKeys } from '@entities/bean-stock-event';
-import { roastedStockKeys } from '@entities/roasted-stock-event';
 import { dashboardKeys, inventoryQueryRoots } from '@shared/lib/query-keys';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -179,8 +177,8 @@ export const useDeleteRoastSession = (userId: string) => {
             void qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
             void qc.invalidateQueries({ queryKey: roastSessionKeys.filterMeta(userId) });
             void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockEvents });
-            void qc.invalidateQueries({ queryKey: stockEventKeys.summariesRoot });
-            void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId) });
+            void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
+            void qc.invalidateQueries({ queryKey: [...inventoryQueryRoots.roastedStock, userId] });
             qc.removeQueries({ queryKey: roastSessionKeys.detail(id) });
         },
     });
@@ -195,7 +193,7 @@ export const useSetOutputWeight = (userId: string) => {
             void qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId) });
             void qc.invalidateQueries({ queryKey: roastSessionKeys.paginated(userId) });
             void qc.invalidateQueries({ queryKey: roastSessionKeys.detail(vars.sessionId) });
-            void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId) });
+            void qc.invalidateQueries({ queryKey: [...inventoryQueryRoots.roastedStock, userId] });
         },
     });
 };
