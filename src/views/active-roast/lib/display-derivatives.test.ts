@@ -39,6 +39,17 @@ describe('calcDelta', () => {
         expect(calcDelta(points, 'F')).toEqual({ deltaBT: '18.0', deltaET: '18.0' });
     });
 
+    it('finds the closest 30s-ago sample even with an out-of-order append', () => {
+        // 15s arrived late (index order ≠ time order); it is still the closest to targetTime=15
+        const points = [live(0, 150), live(20, 165), live(15, 160), live(45, 180)];
+        expect(calcDelta(points, 'C')).toEqual({ deltaBT: '20.0', deltaET: '20.0' });
+    });
+
+    it('skips a pre-charge point sitting mid-array without stopping the scan', () => {
+        const points = [live(0, 150), live(-5, 220), live(15, 160), live(45, 180)];
+        expect(calcDelta(points, 'C')).toEqual({ deltaBT: '20.0', deltaET: '20.0' });
+    });
+
     it('null ET delta when either sample lacks ET', () => {
         const points = [live(0, 100, null), live(30, 110, 120)];
         expect(calcDelta(points, 'C')).toEqual({ deltaBT: '10.0', deltaET: null });

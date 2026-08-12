@@ -34,7 +34,8 @@ export interface DeltaResult {
 
 /** ΔBT, ΔET — 30초 전 대비 현재 온도 변화량 (pre-charge 포인트 제외) */
 export const calcDelta = (livePoints: LiveRoastPoint[], unit: TemperatureUnit): DeltaResult => {
-    // livePoints are time-ordered; walk from the end so long roasts stay O(window) not O(n)
+    // allocation-free backward walk; no early exit — livePoints can have rare
+    // out-of-order appends (see chart-pipeline-data.ts) and a full scan is cheap
     let currentIdx = -1;
     for (let i = livePoints.length - 1; i >= 0; i--) {
         if (livePoints[i].time >= 0) {
@@ -50,14 +51,12 @@ export const calcDelta = (livePoints: LiveRoastPoint[], unit: TemperatureUnit): 
     let bestDist = Number.POSITIVE_INFINITY;
     for (let i = currentIdx; i >= 0; i--) {
         const p = livePoints[i];
-        if (p.time < 0) break;
+        if (p.time < 0) continue;
         const dist = Math.abs(p.time - targetTime);
         if (dist < bestDist) {
             bestDist = dist;
             past = p;
         }
-        // further left only moves away from the 30s-ago target
-        if (p.time <= targetTime) break;
     }
     if (past === current) return { deltaBT: null, deltaET: null };
     const dbt = toDisplayTemp(current.bt, unit) - toDisplayTemp(past.bt, unit);
