@@ -1,11 +1,60 @@
 import { describe, expect, it } from 'vitest';
-import { calcTargetDelta } from './display-derivatives';
+import type { LiveRoastPoint } from '../model/useSidecarPolling';
+import { calcDelta, calcTargetDelta } from './display-derivatives';
 
 // 0s:200° → 60s:180° 직선 타겟
 const target = [
     { t: 0, bt: 200 },
     { t: 60, bt: 180 },
 ];
+
+const live = (time: number, bt: number, et: number | null = bt + 10): LiveRoastPoint => ({
+    time,
+    label: '0:00',
+    bt,
+    et,
+    ror: 0,
+    ror_et: 0,
+    heater: 0,
+    fan: 0,
+    drum: 0,
+});
+
+describe('calcDelta', () => {
+    it('returns null with fewer than two post-charge points', () => {
+        expect(calcDelta([], 'C')).toEqual({ deltaBT: null, deltaET: null });
+        expect(calcDelta([live(0, 150)], 'C')).toEqual({ deltaBT: null, deltaET: null });
+        expect(calcDelta([live(-5, 200), live(0, 150)], 'C')).toEqual({ deltaBT: null, deltaET: null });
+    });
+
+    it('compares current BT/ET against ~30s earlier (ignores pre-charge)', () => {
+        const points = [live(-10, 220), live(0, 150), live(15, 160), live(30, 170), live(45, 180)];
+        // current 45s vs closest to 15s → 180-160
+        expect(calcDelta(points, 'C')).toEqual({ deltaBT: '20.0', deltaET: '20.0' });
+    });
+
+    it('converts delta into display unit', () => {
+        const points = [live(0, 100), live(30, 110)];
+        // 10°C → 18°F
+        expect(calcDelta(points, 'F')).toEqual({ deltaBT: '18.0', deltaET: '18.0' });
+    });
+
+    it('finds the closest 30s-ago sample even with an out-of-order append', () => {
+        // 15s arrived late (index order ≠ time order); it is still the closest to targetTime=15
+        const points = [live(0, 150), live(20, 165), live(15, 160), live(45, 180)];
+        expect(calcDelta(points, 'C')).toEqual({ deltaBT: '20.0', deltaET: '20.0' });
+    });
+
+    it('skips a pre-charge point sitting mid-array without stopping the scan', () => {
+        const points = [live(0, 150), live(-5, 220), live(15, 160), live(45, 180)];
+        expect(calcDelta(points, 'C')).toEqual({ deltaBT: '20.0', deltaET: '20.0' });
+    });
+
+    it('null ET delta when either sample lacks ET', () => {
+        const points = [live(0, 100, null), live(30, 110, 120)];
+        expect(calcDelta(points, 'C')).toEqual({ deltaBT: '10.0', deltaET: null });
+    });
+});
 
 describe('calcTargetDelta', () => {
     it('classifies within band (±2°C)', () => {

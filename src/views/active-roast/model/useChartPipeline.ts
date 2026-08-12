@@ -2,12 +2,10 @@ import { CHART_GRID_RIGHT, CHART_GRID_RIGHT_WITH_ROR } from '@features/active-ro
 import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useChartZoom } from '@features/active-roast/model/useChartZoom';
-import { interpolateProfileBT } from '@shared/data/roast-profiles';
 import type { TsvPoint } from '@shared/lib/tsv';
 import { useMemo } from 'react';
+import { buildLiveChartData, CHART_TOTAL_SECS, type LiveChartRow } from '../lib/chart-pipeline-data';
 import type { LiveRoastPoint } from './useSidecarPolling';
-
-const CHART_TOTAL_SECS = 780;
 
 export interface UseChartPipelineParams {
     livePoints: LiveRoastPoint[];
@@ -19,23 +17,9 @@ export interface UseChartPipelineParams {
 }
 
 export interface UseChartPipelineReturn {
-    chartData: {
-        time: number;
-        btActual: number | null;
-        etActual: number | null;
-        rorActual: number | null;
-        etRorActual: number | null;
-        btTarget: number | null;
-    }[];
+    chartData: LiveChartRow[];
     targetSeries: { time: number; bt: number }[];
-    visibleChartData: {
-        time: number;
-        btActual: number | null;
-        etActual: number | null;
-        rorActual: number | null;
-        etRorActual: number | null;
-        btTarget: number | null;
-    }[];
+    visibleChartData: LiveChartRow[];
     chartAreaRef: React.RefObject<HTMLDivElement | null>;
     mainChartHeight: number;
     effectiveZoomRange: { start: number; end: number } | null;
@@ -65,54 +49,11 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
     const { livePoints, targetCurvePoints, preChargeDisplaySec, showRoR, showControlChart, unit } = params;
 
     const { chartData, targetSeries } = useMemo(() => {
-        const hasTarget = targetCurvePoints.length > 0;
-        const sentinel = (t: number) => ({
-            time: t,
-            btActual: null as number | null,
-            etActual: null as number | null,
-            rorActual: null as number | null,
-            etRorActual: null as number | null,
-            btTarget: hasTarget ? interpolateProfileBT(targetCurvePoints, t) : null,
-        });
-
-        const live = livePoints.map((p) => ({
-            time: p.time,
-            btActual: p.bt,
-            etActual: p.et,
-            rorActual: p.ror,
-            etRorActual: p.ror_et,
-            btTarget: hasTarget ? interpolateProfileBT(targetCurvePoints, p.time) : null,
-        }));
-
-        const seen = new Set<number>();
-        const deduped: ReturnType<typeof sentinel>[] = [];
-        for (const p of live) {
-            const key = Math.round(p.time * 100);
-            if (!seen.has(key)) {
-                seen.add(key);
-                deduped.push(p);
-            }
-        }
-        deduped.sort((a, b) => a.time - b.time);
-
-        const xMin = -preChargeDisplaySec;
         const profileDuration = targetCurvePoints.length > 0 ? targetCurvePoints[targetCurvePoints.length - 1].t : 0;
-        const liveMax = livePoints.length > 0 ? livePoints[livePoints.length - 1].time : 0;
-        const chartTotalSecs = Math.max(CHART_TOTAL_SECS, profileDuration, liveMax);
-        const needsStart = deduped.length === 0 || deduped[0].time > xMin + 0.5;
-        const needsEnd = deduped.length === 0 || deduped[deduped.length - 1].time < chartTotalSecs - 1;
-        const chart = [
-            ...(needsStart ? [sentinel(xMin)] : []),
-            ...deduped,
-            ...(needsEnd ? [sentinel(chartTotalSecs)] : []),
-        ];
-
-        const targetSeries = targetCurvePoints.map((p) => ({
-            time: p.t,
-            bt: p.bt,
-        }));
-
-        return { chartData: chart, targetSeries };
+        return {
+            chartData: buildLiveChartData(livePoints, preChargeDisplaySec, profileDuration),
+            targetSeries: targetCurvePoints.map((p) => ({ time: p.t, bt: p.bt })),
+        };
     }, [livePoints, targetCurvePoints, preChargeDisplaySec]);
 
     const maxTime = chartData.length > 0 ? chartData[chartData.length - 1].time : CHART_TOTAL_SECS;
