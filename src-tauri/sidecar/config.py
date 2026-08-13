@@ -39,6 +39,14 @@ MODBUS_RTU_TIMEOUT = 0.3        # 시리얼 응답 지연 여유
 MODBUS_RTU_CONNECT_DELAY = 0.5  # modbus_serial_connect_delay
 MODBUS_CLOSE_TIMEOUT = 1.0      # 불량 포트에서 close() 행 방지
 S7_MIN_REQUEST_INTERVAL = 0.04  # PLC 과부하 방지 40ms
+# snap7 동기 호출은 asyncio.wait_for로 끊기지 않는다. 아래 상한이
+# READ_TIMEOUT(3.0) 안에 executor가 _io_lock을 놓게 한다.
+# 최악: S7_READ_BUDGET_S + S7_MIN_REQUEST_INTERVAL + S7_RECV_TIMEOUT_MS/1000
+#     = 2.0 + 0.04 + 0.5 = 2.54s < READ_TIMEOUT
+S7_RECV_TIMEOUT_MS = 500
+S7_READ_BUDGET_S = 2.0            # _read_all 진입~반환 (락 대기 포함)
+S7_IO_LOCK_TIMEOUT_S = 0.5        # 읽기/쓰기 락 획득 상한
+S7_TEARDOWN_LOCK_TIMEOUT_S = 3.0  # connect 바인딩/disconnect 락 상한
 
 # ── 소프트웨어 PID / 제어 안전 ──────────────────────────────────────────
 # tick 주기(초). Artisan이 Giesen 프로파일에서 쓰는 샘플 주기와 같다(Delay=1000).

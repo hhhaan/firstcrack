@@ -12,6 +12,19 @@ from protocol_trace import TRACE
 _log = logging.getLogger(__name__)
 
 
+def _destroy_client(client: Any) -> None:
+    if client is None:
+        return
+    try:
+        client.disconnect()
+    except Exception:
+        pass
+    try:
+        client.destroy()
+    except Exception:
+        pass
+
+
 class S7Adapter:
     """
     Siemens S7 PLC 어댑터 (Giesen, Probat S7 모델).
@@ -56,6 +69,9 @@ class S7Adapter:
         # executor 스레드를 중단시키지 못하므로(manager H7), 타임아웃 직후 들어온 쓰기가
         # 아직 살아있는 읽기와 같은 클라이언트를 동시에 건드릴 수 있다 → 스레드 락으로 직렬화.
         self._io_lock = threading.Lock()
+        # disconnect마다 +1. 락을 잡은 뒤늦은 read/connect는 세대 불일치로 즉시 중단하고
+        # 락을 놓는다 — 좀비 스레드가 재연결을 수십 초 막는 것을 막는다.
+        self._session: int = 0
         self._read_retries: int = 1
         self._min_interval: float = config.S7_MIN_REQUEST_INTERVAL
         self._last_request_ts: float = 0.0
@@ -66,20 +82,56 @@ class S7Adapter:
         self._fc_ch: dict[str, Any] | None = None
         self._drum_ch: dict[str, Any] | None = None
 
+    def _cache_channels(self) -> None:
+        self._bt_ch = next((c for c in self._channels if c.get("role") == "BT"), None)
+        self._et_ch = next((c for c in self._channels if c.get("role") == "ET"), None)
+        self._hp_ch = next((c for c in self._channels if c.get("role") == "heater"), None)
+        self._fc_ch = next((c for c in self._channels if c.get("role") == "fan"), None)
+        self._drum_ch = next((c for c in self._channels if c.get("role") == "drum"), None)
+
+    def _clear_channels(self) -> None:
+        self._bt_ch = self._et_ch = self._hp_ch = self._fc_ch = self._drum_ch = None
+
+    def _ensure_session(self, session: int) -> None:
+        if session != self._session:
+            raise ConnectionError("S7 세션이 교체됨")
+
+    def _acquire_io(self, timeout: float) -> None:
+        if not self._io_lock.acquire(timeout=timeout):
+            raise TimeoutError("S7 I/O lock timeout")
+
     async def connect(self) -> None:
         import snap7  # type: ignore[import]
 
         if not self._channels:
             raise ValueError("channels가 비어 있음. roaster_registry 확인 필요.")
 
+        session = self._session
+
         def _connect() -> None:
-            self._plc = snap7.client.Client()
-            # RecvTimeout 기본 3s → 1s. PLC가 응답 없이 hang하면 manager의
-            # wait_for(3s)는 만료돼도 snap7 동기 호출이 잡은 executor 스레드는
-            # 남는다 — 폴링마다 쌓이지 않게 블로킹 상한을 짧게 제한.
-            self._plc.set_param(snap7.type.Parameter.RecvTimeout, 1000)
-            self._plc.connect(self._host, self._rack, self._slot, self._port)
-            time.sleep(0.2)  # Artisan: wait after connect for slow PLCs
+            client = snap7.client.Client()
+            try:
+                # RecvTimeout 기본 3s. PLC 무응답 시 채널×retry 합이 READ_TIMEOUT을
+                # 넘지 않도록 하향 — deadline이 상한을 고정하고 이 값은 1회 상한.
+                client.set_param(
+                    snap7.type.Parameter.RecvTimeout, config.S7_RECV_TIMEOUT_MS
+                )
+                client.connect(self._host, self._rack, self._slot, self._port)
+                time.sleep(0.2)  # Artisan: wait after connect for slow PLCs
+            except Exception:
+                _destroy_client(client)
+                raise
+
+            if not self._io_lock.acquire(timeout=config.S7_TEARDOWN_LOCK_TIMEOUT_S):
+                _destroy_client(client)
+                raise ConnectionError("이전 S7 세션이 정리되지 않아 연결할 수 없습니다.")
+            try:
+                if session != self._session:
+                    _destroy_client(client)
+                    raise ConnectionError("연결 시도가 취소되었습니다.")
+                self._plc = client
+            finally:
+                self._io_lock.release()
 
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _connect)
@@ -89,29 +141,31 @@ class S7Adapter:
             raise ConnectionError(
                 f"S7 연결 실패: {self._host}:{self._port} (rack={self._rack}, slot={self._slot})"
             )
-        self._bt_ch = next((c for c in self._channels if c.get("role") == "BT"), None)
-        self._et_ch = next((c for c in self._channels if c.get("role") == "ET"), None)
-        self._hp_ch = next((c for c in self._channels if c.get("role") == "heater"), None)
-        self._fc_ch = next((c for c in self._channels if c.get("role") == "fan"), None)
-        self._drum_ch = next((c for c in self._channels if c.get("role") == "drum"), None)
+        self._cache_channels()
         _log.info("S7Adapter connected: %s:%d", self._host, self._port)
 
     async def disconnect(self) -> None:
+        # 락 밖에서 세대를 올리고 핸들을 끊는다. 이후 신규 I/O는 즉시 실패하고,
+        # 락을 쥔 좀비 read는 다음 채널/재시도에서 세션 불일치를 보고 락을 놓는다.
+        self._session += 1
+        plc = self._plc
+        self._plc = None
+        self._clear_channels()
+
         def _disconnect() -> None:
-            # 락 없이 destroy()하면 다른 executor 스레드가 db_read 중인 클라이언트를
-            # 해제해버린다 — 락을 도입한 이유가 정확히 이 경우다.
-            with self._io_lock:
-                if self._plc is not None:
-                    try:
-                        self._plc.disconnect()
-                        self._plc.destroy()
-                    except Exception:
-                        pass
-                    self._plc = None
+            if plc is None:
+                return
+            if not self._io_lock.acquire(timeout=config.S7_TEARDOWN_LOCK_TIMEOUT_S):
+                # 사용 중 destroy()는 snap7 크래시 위험. 참조만 포기하고 GC에 맡긴다.
+                _log.warning("S7 disconnect: I/O lock timeout — 이전 클라이언트 참조 포기")
+                return
+            try:
+                _destroy_client(plc)
+            finally:
+                self._io_lock.release()
 
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _disconnect)
-        self._bt_ch = self._et_ch = self._hp_ch = self._fc_ch = self._drum_ch = None
 
     def _throttle(self) -> None:
         """요청 간 최소 간격(40ms) 보장. 스레드에서 호출."""
@@ -120,8 +174,20 @@ class S7Adapter:
             time.sleep(self._min_interval - elapsed)
         self._last_request_ts = time.monotonic()
 
-    def _read_channel_sync(self, ch: dict[str, Any]) -> float:
-        """스레드에서 실행. snap7 db_read → float 변환. retry 포함."""
+    def _read_channel_sync(
+        self,
+        ch: dict[str, Any],
+        plc: Any,
+        deadline: float,
+        session: int,
+        *,
+        force_first: bool = False,
+    ) -> float:
+        """스레드에서 실행. snap7 db_read → float 변환. retry 포함.
+
+        plc는 락 획득 직후 스냅샷 — 시도 사이 disconnect가 self._plc를 비워도
+        AttributeError가 나지 않고, 구 클라이언트에서만 읽는다.
+        """
         from snap7.util.getters import get_real, get_int  # type: ignore[import]
 
         db: int = ch["db"]
@@ -129,14 +195,21 @@ class S7Adapter:
         ch_type: int = ch.get("type", 0)  # 0=int(2B), 1=float(4B)
         div: int = ch.get("div", 0)
         size = 4 if ch_type == 1 else 2
+        per_attempt = self._min_interval + config.S7_RECV_TIMEOUT_MS / 1000.0
 
         last_exc: Exception = RuntimeError("S7 읽기 실패")
         for attempt in range(self._read_retries + 1):
+            self._ensure_session(session)
+            over_budget = time.monotonic() + per_attempt > deadline
+            if over_budget and not (force_first and attempt == 0):
+                if attempt == 0:
+                    raise TimeoutError("S7 읽기 예산 초과")
+                raise last_exc
             self._throttle()
             try:
                 role = ch.get("role", "?")
                 TRACE.record("tx", "s7", f"db_read db={db} offset={offset} size={size} role={role}")
-                ba: bytearray = self._plc.db_read(db, offset, size)
+                ba: bytearray = plc.db_read(db, offset, size)
                 TRACE.record("rx", "s7", f"db_read db={db} offset={offset} role={role}", bytes(ba))
                 if len(ba) != size:
                     raise IOError(f"db_read 응답 크기 불일치: {len(ba)} != {size}")
@@ -151,7 +224,12 @@ class S7Adapter:
                     f"decoded role={role} type={'REAL' if ch_type == 1 else 'INT'} div={div}",
                     value,
                 )
+                self._ensure_session(session)
                 return value
+            except ConnectionError:
+                raise
+            except TimeoutError:
+                raise
             except Exception as exc:
                 last_exc = exc
                 TRACE.record("err", "s7", f"db={db} offset={offset} attempt={attempt + 1}: {exc}")
@@ -165,16 +243,32 @@ class S7Adapter:
         if self._plc is None:
             raise ConnectionError("S7 PLC가 연결되지 않음")
 
+        session = self._session
+        deadline = time.monotonic() + config.S7_READ_BUDGET_S
+
         def _read_all() -> tuple[float, float, float, float, float]:
-            with self._io_lock:
-                if not self.connected:
+            self._acquire_io(config.S7_IO_LOCK_TIMEOUT_S)
+            try:
+                self._ensure_session(session)
+                plc = self._plc
+                # get_connected()는 로컬 필드(무비용). 거짓 양성 가능 — 진짜 판정은
+                # db_read 실패. get_cpu_state()는 왕복이라 읽기 경로에서 쓰지 않는다.
+                if plc is None or not plc.get_connected():
                     raise ConnectionError("S7 PLC가 연결되지 않음")
-                bt = self._read_channel_sync(self._bt_ch) if self._bt_ch else -1.0
-                et = self._read_channel_sync(self._et_ch) if self._et_ch else -1.0
-                hp = self._read_channel_sync(self._hp_ch) if self._hp_ch else 0.0
-                fc = self._read_channel_sync(self._fc_ch) if self._fc_ch else 0.0
-                drum = self._read_channel_sync(self._drum_ch) if self._drum_ch else 0.0
+                bt_ch, et_ch = self._bt_ch, self._et_ch
+                hp_ch, fc_ch, drum_ch = self._hp_ch, self._fc_ch, self._drum_ch
+                bt = self._read_channel_sync(
+                    bt_ch, plc, deadline, session, force_first=True
+                ) if bt_ch else -1.0
+                et = self._read_channel_sync(et_ch, plc, deadline, session) if et_ch else -1.0
+                hp = self._read_channel_sync(hp_ch, plc, deadline, session) if hp_ch else 0.0
+                fc = self._read_channel_sync(fc_ch, plc, deadline, session) if fc_ch else 0.0
+                drum = self._read_channel_sync(
+                    drum_ch, plc, deadline, session
+                ) if drum_ch else 0.0
                 return bt, et, hp, fc, drum
+            finally:
+                self._io_lock.release()
 
         loop = asyncio.get_running_loop()
         bt, et, hp, fc, drum = await loop.run_in_executor(None, _read_all)
@@ -187,17 +281,26 @@ class S7Adapter:
         if ch is None or self._plc is None:
             return None
 
+        session = self._session
+        deadline = time.monotonic() + config.S7_READ_BUDGET_S
+
         def _read_one() -> float:
-            with self._io_lock:
-                # 락 밖의 사전 검사와 여기 사이에 disconnect가 끼어들 수 있다
-                if self._plc is None:
+            self._acquire_io(config.S7_IO_LOCK_TIMEOUT_S)
+            try:
+                self._ensure_session(session)
+                plc = self._plc
+                if plc is None:
                     raise ConnectionError("S7 PLC가 연결되지 않음")
-                return self._read_channel_sync(ch)
+                return self._read_channel_sync(ch, plc, deadline, session, force_first=True)
+            finally:
+                self._io_lock.release()
 
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, _read_one)
 
-    def _write_channel_sync(self, role: str, spec: dict[str, Any], value: float) -> int | float:
+    def _write_channel_sync(
+        self, role: str, spec: dict[str, Any], value: float, plc: Any
+    ) -> int | float:
         """스레드에서 실행. clamp → div 역스케일 → INT/REAL 인코딩 → db_write.
 
         읽기의 역순이다(읽기는 ÷10/÷100, 쓰기는 ×10/×100).
@@ -240,7 +343,7 @@ class S7Adapter:
             f"db_write db={db} offset={offset} role={role} value={value} raw={raw}",
             bytes(ba),
         )
-        self._plc.db_write(db, offset, ba)
+        plc.db_write(db, offset, ba)
         return raw
 
     async def control(
@@ -263,12 +366,22 @@ class S7Adapter:
         if not targets or self._plc is None:
             return
 
+        session = self._session
+
         def _write_all() -> None:
-            with self._io_lock:
-                if self._plc is None:  # 사전 검사 이후 disconnect된 경우
+            self._acquire_io(config.S7_IO_LOCK_TIMEOUT_S)
+            try:
+                if session != self._session:
+                    return
+                plc = self._plc
+                if plc is None:
                     return
                 for role, spec, value in targets:
-                    self._write_channel_sync(role, spec, value)
+                    if session != self._session:
+                        return
+                    self._write_channel_sync(role, spec, value, plc)
+            finally:
+                self._io_lock.release()
 
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, _write_all)
@@ -282,9 +395,11 @@ class S7Adapter:
     def connected(self) -> bool:
         # get_connected() can return True after peer-terminated connections (snap7 bug);
         # CPU state check is the reliable signal — from Artisan s7port.py
+        # connect 검증·/status 전용. 읽기 핫패스는 db_read 실패로 판정한다.
+        plc = self._plc
         try:
-            return (self._plc is not None and
-                    self._plc.get_connected() and
-                    str(self._plc.get_cpu_state()) == "S7CpuStatusRun")
+            return (plc is not None and
+                    plc.get_connected() and
+                    str(plc.get_cpu_state()) == "S7CpuStatusRun")
         except Exception:
             return False

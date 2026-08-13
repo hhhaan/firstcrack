@@ -5,12 +5,16 @@ INT/REAL 인코딩, 락 직렬화)은 실제로 돌린다. 하드웨어 불필�
 """
 
 import asyncio
+import sys
+import threading
+import time
 from unittest.mock import MagicMock
 
 import pytest
 from snap7.util.getters import get_int, get_real
 from snap7.util.setters import set_int
 
+import config
 from adapters.s7 import S7Adapter
 
 
@@ -34,15 +38,29 @@ def _int_bytes(value: int) -> bytearray:
     return ba
 
 
+def _install_snap7(monkeypatch):
+    """connect() 내부 `import snap7`만 가로챈다. util getters/setters는 실제 모듈."""
+    snap7 = MagicMock()
+    client = MagicMock()
+    client.get_connected.return_value = True
+    client.get_cpu_state.return_value = "S7CpuStatusRun"
+    client.db_read.side_effect = lambda db, offset, size: bytearray(size)
+    snap7.client.Client.return_value = client
+    snap7.type.Parameter.RecvTimeout = "RecvTimeout"
+    monkeypatch.setitem(sys.modules, "snap7", snap7)
+    return snap7, client
+
+
 @pytest.fixture
 def adapter():
     a = S7Adapter(host="127.0.0.1", channels=GIESEN_CHANNELS, write_map=GIESEN_WRITE_MAP)
     plc = MagicMock()
     plc.get_connected.return_value = True
     plc.get_cpu_state.return_value = "S7CpuStatusRun"
-    plc.db_read.return_value = _int_bytes(0)
+    plc.db_read.side_effect = lambda db, offset, size: bytearray(size)
     a._plc = plc
     a._min_interval = 0.0  # 스로틀은 이 테스트의 대상이 아님
+    a._cache_channels()
     return a
 
 
@@ -144,7 +162,7 @@ class TestScalingAndEncoding:
 
 class TestReadRawChannel:
     async def test_returns_decoded_feedback(self, adapter):
-        adapter._plc.db_read.return_value = _int_bytes(72)
+        adapter._plc.db_read.side_effect = lambda db, offset, size: _int_bytes(72)
         value = await adapter.read_raw_channel("heater")
         assert value == 72.0
         assert adapter._plc.db_read.call_args.args[:2] == (2, 48)
@@ -186,3 +204,193 @@ class TestIoSerialization:
             assert before.count("read_start") == before.count("read_end"), (
                 f"write가 읽기 도중에 끼어들었다: {events}"
             )
+
+
+def test_read_budget_fits_inside_manager_timeout():
+    worst = (
+        config.S7_READ_BUDGET_S
+        + config.S7_RECV_TIMEOUT_MS / 1000.0
+        + config.S7_MIN_REQUEST_INTERVAL
+    )
+    assert worst < config.READ_TIMEOUT
+
+
+class TestReadBudget:
+    async def test_unresponsive_plc_stays_under_budget(self, adapter):
+        recv_s = config.S7_RECV_TIMEOUT_MS / 1000.0
+
+        def hang_then_fail(db, offset, size):
+            time.sleep(recv_s)
+            raise IOError("timeout")
+
+        adapter._plc.db_read.side_effect = hang_then_fail
+        t0 = time.monotonic()
+        with pytest.raises((TimeoutError, IOError)):
+            await adapter.read()
+        elapsed = time.monotonic() - t0
+        assert elapsed < config.READ_TIMEOUT
+        assert elapsed < 2.6
+        assert adapter._plc.db_read.call_count < 10
+        adapter._plc.get_cpu_state.assert_not_called()
+
+    async def test_budget_cuts_channel_attempts(self, adapter, monkeypatch):
+        monkeypatch.setattr(config, "S7_READ_BUDGET_S", 0.25)
+        monkeypatch.setattr(config, "S7_RECV_TIMEOUT_MS", 200)
+
+        def hang_then_fail(db, offset, size):
+            time.sleep(0.2)
+            raise IOError("timeout")
+
+        adapter._plc.db_read.side_effect = hang_then_fail
+        with pytest.raises((TimeoutError, IOError)):
+            await adapter.read()
+        # 5채널 × 2시도 = 10을 채우지 못한다
+        assert adapter._plc.db_read.call_count < 10
+        assert adapter._plc.db_read.call_count >= 1
+
+    async def test_healthy_read_unaffected(self, adapter):
+        t0 = time.monotonic()
+        reading = await adapter.read()
+        assert time.monotonic() - t0 < 0.3
+        assert adapter._plc.db_read.call_count == 5
+        assert reading.bt == 0.0
+        adapter._plc.get_cpu_state.assert_not_called()
+
+    async def test_retry_preserved_when_budget_allows(self, adapter):
+        calls = {"n": 0}
+
+        def fail_once(db, offset, size):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise IOError("transient")
+            return bytearray(size)
+
+        adapter._plc.db_read.side_effect = fail_once
+        reading = await adapter.read()
+        assert reading.bt == 0.0
+        # 첫 채널 실패+재시도, 나머지 4채널 1회
+        assert adapter._plc.db_read.call_count == 6
+
+
+class TestIoLockTimeout:
+    async def test_read_times_out_when_lock_held(self, adapter):
+        started = threading.Event()
+
+        def hold() -> None:
+            adapter._io_lock.acquire()
+            started.set()
+            time.sleep(1.5)
+            adapter._io_lock.release()
+
+        t = threading.Thread(target=hold, daemon=True)
+        t.start()
+        started.wait(timeout=1.0)
+        t0 = time.monotonic()
+        with pytest.raises(TimeoutError, match="I/O lock"):
+            await adapter.read()
+        assert time.monotonic() - t0 < 0.7
+        t.join()
+
+    async def test_disconnect_unblocks_while_db_read_stuck(self, adapter):
+        started = threading.Event()
+
+        def slow_read(db, offset, size):
+            started.set()
+            time.sleep(2.0)
+            return bytearray(size)
+
+        adapter._plc.db_read.side_effect = slow_read
+        read_task = asyncio.create_task(adapter.read())
+        while not started.is_set():
+            await asyncio.sleep(0.01)
+
+        t0 = time.monotonic()
+        await adapter.disconnect()
+        assert time.monotonic() - t0 < 3.2
+        assert adapter._plc is None
+
+        t1 = time.monotonic()
+        with pytest.raises(ConnectionError):
+            await adapter.read()
+        assert time.monotonic() - t1 < 0.2
+        with pytest.raises(ConnectionError):
+            await read_task
+
+    async def test_stuck_read_does_not_block_reconnect(self, adapter, monkeypatch):
+        """세대 토큰: 좀비 read가 남은 채널을 붙잡지 않아 connect/read가 바로 진행된다."""
+        _, client = _install_snap7(monkeypatch)
+
+        started = threading.Event()
+
+        def stuck(db, offset, size):
+            started.set()
+            time.sleep(0.8)
+            return bytearray(size)
+
+        adapter._plc.db_read.side_effect = stuck
+        zombie = asyncio.create_task(adapter.read())
+        while not started.is_set():
+            await asyncio.sleep(0.01)
+
+        t0 = time.monotonic()
+        await adapter.disconnect()
+        await adapter.connect()
+        client.db_read.side_effect = lambda db, offset, size: bytearray(size)
+        reading = await adapter.read()
+        elapsed = time.monotonic() - t0
+        assert elapsed < 1.8
+        assert reading.bt == 0.0
+        with pytest.raises(ConnectionError, match="세션"):
+            await zombie
+
+
+class TestPlcRebind:
+    async def test_in_flight_read_stays_on_snapshotted_plc(self, adapter):
+        old = adapter._plc
+        new = MagicMock()
+        new.get_connected.return_value = True
+        swapped = {"done": False}
+
+        def tracking_read(db, offset, size):
+            if not swapped["done"]:
+                adapter._plc = new
+                swapped["done"] = True
+            return bytearray(size)
+
+        old.db_read.side_effect = tracking_read
+        await adapter.read()
+        new.db_read.assert_not_called()
+        assert old.db_read.call_count == 5
+
+    async def test_connect_fails_if_previous_session_holds_lock(self, adapter, monkeypatch):
+        _install_snap7(monkeypatch)
+        monkeypatch.setattr(config, "S7_TEARDOWN_LOCK_TIMEOUT_S", 0.1)
+        adapter._io_lock.acquire()
+        try:
+            with pytest.raises(ConnectionError, match="이전 S7 세션"):
+                await adapter.connect()
+        finally:
+            adapter._io_lock.release()
+
+    async def test_connect_aborts_when_session_bumped(self, adapter, monkeypatch):
+        _, client = _install_snap7(monkeypatch)
+        entered = threading.Event()
+        release = threading.Event()
+
+        def fake_connect(*_a, **_k):
+            entered.set()
+            release.wait(timeout=1.0)
+
+        client.connect.side_effect = fake_connect
+
+        async def bump() -> None:
+            while not entered.is_set():
+                await asyncio.sleep(0.01)
+            adapter._session += 1
+            release.set()
+
+        bumper = asyncio.create_task(bump())
+        with pytest.raises(ConnectionError, match="취소"):
+            await adapter.connect()
+        await bumper
+        client.destroy.assert_called()
