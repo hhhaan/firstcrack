@@ -3,6 +3,7 @@ import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import type { ControlRole } from '../lib/controlSender';
+import { shouldMountMachineControl } from '../lib/shouldMountMachineControl';
 import { useMachineControl } from '../model/useMachineControl';
 import { PidControlPanel } from './PidControlPanel';
 import { SetpointControl } from './SetpointControl';
@@ -57,8 +58,17 @@ export const MachineControlPanel = ({
     //
     // 단 PID가 돌고 있으면 권한과 무관하게 계속 렌더한다. 이 패널이 사라지면 DROP 시
     // 자동 해제 훅도 같이 사라져, 아무도 안 보는 로스터에 불이 계속 들어간다.
-    // (플랜 스토어가 로딩 중 잠깐 비entitled로 보일 수 있다)
-    if ((!entitled && !pidHoldsHeater) || !writable || roles.length === 0) return null;
+    // FAULT도 동일 — 끊김 시 언마운트하면 사유가 화면에서 사라진다 (#206).
+    if (
+        !shouldMountMachineControl({
+            entitled,
+            pidState,
+            writable,
+            hasRoles: roles.length > 0,
+        })
+    ) {
+        return null;
+    }
 
     return (
         <div
