@@ -8,6 +8,7 @@ import { dashboardKeys } from '@shared/lib/query-keys';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
+import { dashboardQueryErrorMessage } from '../lib/queryView';
 
 /** Columns actually rendered / aggregated by dashboard (no events jsonb). */
 export type DashboardRecentSession = {
@@ -62,6 +63,7 @@ export interface DashboardData {
     monthlyBatches: MonthlyBatch[];
     loading: boolean;
     error: string | null;
+    refetch: () => void;
 }
 
 const mapDbAlert = (row: InventoryAlert, beanMeta?: { capacity_grams: number; low_stock_threshold_grams: number }) => ({
@@ -187,7 +189,7 @@ const EMPTY: Omit<DashboardData, 'loading' | 'error'> = {
 };
 
 export const useDashboard = (userId: string): DashboardData => {
-    const { data, isLoading, error } = useQuery({
+    const { data, isLoading, isError, error, refetch } = useQuery({
         queryKey: dashboardKeys.all(userId),
         queryFn: () => fetchDashboard(userId),
         enabled: !!userId,
@@ -197,6 +199,9 @@ export const useDashboard = (userId: string): DashboardData => {
     return {
         ...(data ?? EMPTY),
         loading: isLoading,
-        error: error instanceof Error ? error.message : null,
+        error: isError ? (dashboardQueryErrorMessage(error) ?? 'Failed to load') : null,
+        refetch: () => {
+            void refetch();
+        },
     };
 };

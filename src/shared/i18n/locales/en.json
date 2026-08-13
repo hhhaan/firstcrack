@@ -449,7 +449,9 @@
         "upcomingStockShort": "Possible stock shortage",
         "scheduleStockAlert": "Schedule reservation short",
         "today": "Today",
-        "batchCount": "{{count}}x"
+        "batchCount": "{{count}}x",
+        "loadError": "Couldn't load dashboard data.",
+        "retry": "Retry"
     },
     "beans": {
         "title": "Bean Inventory",

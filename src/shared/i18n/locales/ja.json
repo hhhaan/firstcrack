@@ -449,7 +449,9 @@
         "upcomingStockShort": "在庫不足の可能性",
         "scheduleStockAlert": "予定予約不足",
         "today": "今日",
-        "batchCount": "{{count}}回"
+        "batchCount": "{{count}}回",
+        "loadError": "ダッシュボードデータを読み込めませんでした。",
+        "retry": "再試行"
     },
     "beans": {
         "title": "生豆在庫",

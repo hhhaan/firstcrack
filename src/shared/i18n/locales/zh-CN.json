@@ -449,7 +449,9 @@
         "upcomingStockShort": "可能库存不足",
         "scheduleStockAlert": "日程预留不足",
         "today": "今天",
-        "batchCount": "{{count}}次"
+        "batchCount": "{{count}}次",
+        "loadError": "无法加载仪表盘数据。",
+        "retry": "重试"
     },
     "beans": {
         "title": "生豆库存",

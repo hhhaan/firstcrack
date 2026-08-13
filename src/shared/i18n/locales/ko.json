@@ -449,7 +449,9 @@
         "upcomingStockShort": "재고 부족 예상",
         "scheduleStockAlert": "일정 예약 부족",
         "today": "오늘",
-        "batchCount": "{{count}}회"
+        "batchCount": "{{count}}회",
+        "loadError": "대시보드 데이터를 불러오지 못했습니다.",
+        "retry": "다시 시도"
     },
     "schedule": {
         "dateFormat": "yyyy년 M월 d일 (eee)",
