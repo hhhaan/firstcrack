@@ -22,6 +22,7 @@
     "process:allow-restart",
     "fs:allow-applocaldata-read-recursive",
     "fs:allow-applocaldata-write-recursive",
+    "fs:allow-read-dir",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
     "fs:allow-remove",

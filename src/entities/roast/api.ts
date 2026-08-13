@@ -64,6 +64,16 @@ export const roastSessionApi = {
         return (data as RoastSessionFilterMeta[]) || [];
     },
 
+    /** Lightweight id/path lookup for orphan TSV rescan. RLS scopes to accessible rows. */
+    listTsvStateByIds: async (
+        ids: string[],
+    ): Promise<Array<{ id: string; tsv_path: string | null; user_id: string }>> => {
+        if (ids.length === 0) return [];
+        const { data, error } = await supabase.from('roast_sessions').select('id, tsv_path, user_id').in('id', ids);
+        if (error) throw error;
+        return data ?? [];
+    },
+
     get: async (id: string): Promise<RoastSessionWithRelations> => {
         const { data, error } = await supabase
             .from('roast_sessions')

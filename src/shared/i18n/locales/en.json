@@ -687,7 +687,13 @@
             "title": "Unsaved roast",
             "askMsg": "An unsaved roast was found. Save it now? You can edit the details later in History.",
             "saved": "Recovered and saved your previous unsaved roast.",
-            "failed": "Could not save the recovered roast. It will be retried on next launch."
+            "failed": "Could not save the recovered roast. It will be retried on next launch.",
+            "orphanTitle": "Unsaved roast curves",
+            "orphanMsg": "These roast curves have no matching session record. They remain on this computer as a local backup.",
+            "orphanUploaded": "Re-uploaded {{count}} roast curve(s).",
+            "orphanUploadFailed": "Could not re-upload {{count}} roast curve(s). Will retry next launch.",
+            "orphanOk": "OK",
+            "orphanBbp": "BBP"
         }
     },
     "schedule": {

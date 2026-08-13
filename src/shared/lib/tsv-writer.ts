@@ -1,5 +1,9 @@
 import { logger } from '@shared/lib/logger';
-import { BaseDirectory, remove, writeTextFile } from '@tauri-apps/plugin-fs';
+import { BaseDirectory, readDir, remove, writeTextFile } from '@tauri-apps/plugin-fs';
+import { type ParsedLocalTsv, parseLocalTsvFilename } from './tsv-scan';
+
+export type { LocalTsvKind, OrphanTsvPlan, PairedLocalTsv, ParsedLocalTsv, SessionTsvRef } from './tsv-scan';
+export { pairLocalTsvsToSessions, parseLocalTsvFilename } from './tsv-scan';
 
 export const TSV_HEADER = 'time\tbt\tet\tror\theater\tfan\tdrum\n';
 
@@ -124,6 +128,23 @@ export const deleteBbpTsv = async (sessionId: string): Promise<void> => {
         await removeImpl(bbpTsvPath(sessionId));
     } catch (err) {
         captureIo(err, 'bbp-tsv delete', sessionId);
+    }
+};
+
+/** AppLocalData `session_*.tsv` / `bbp_*.tsv` with a UUID in the filename. */
+export const listLocalTsvFiles = async (): Promise<ParsedLocalTsv[]> => {
+    try {
+        const entries = await readDir('.', { baseDir: BaseDirectory.AppLocalData });
+        const files: ParsedLocalTsv[] = [];
+        for (const entry of entries) {
+            if (entry.isDirectory) continue;
+            const parsed = parseLocalTsvFilename(entry.name);
+            if (parsed) files.push(parsed);
+        }
+        return files;
+    } catch (err) {
+        logger.debug('[tsv-writer] listLocalTsvFiles', err);
+        return [];
     }
 };
 
