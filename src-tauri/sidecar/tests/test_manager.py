@@ -135,6 +135,95 @@ class TestConnect:
 
 
 # ---------------------------------------------------------------------------
+# connect() cancellation — disconnect during handshake must not wait on the lock
+# ---------------------------------------------------------------------------
+
+async def _wait_until_connect_inflight(manager, fake, timeout: float = 1.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if fake.connect_started and manager._connect_task is not None:
+            return
+        await asyncio.sleep(0)
+    raise TimeoutError("adapter.connect() never became in-flight")
+
+
+class TestConnectCancellation:
+    async def test_disconnect_during_handshake_completes_quickly(self, manager):
+        """disconnect() must cancel adapter.connect() from outside the lock."""
+        gate = asyncio.Event()
+        fake = FakeAdapter(connect_gate=gate)
+        with patch("manager.make_adapter", return_value=fake):
+            connect_task = asyncio.create_task(manager.connect("virtual", {}))
+            await _wait_until_connect_inflight(manager, fake)
+
+            await asyncio.wait_for(manager.disconnect(), timeout=0.5)
+
+        assert fake.connect_cancelled is True
+        assert fake.disconnected is True
+        await asyncio.wait_for(connect_task, timeout=0.5)
+
+    async def test_cancel_leaves_clean_status(self, manager):
+        gate = asyncio.Event()
+        fake = FakeAdapter(connect_gate=gate)
+        with patch("manager.make_adapter", return_value=fake):
+            connect_task = asyncio.create_task(manager.connect("virtual", {}))
+            await _wait_until_connect_inflight(manager, fake)
+            await asyncio.wait_for(manager.disconnect(), timeout=0.5)
+            await asyncio.wait_for(connect_task, timeout=0.5)
+
+        s = manager.status()
+        assert s["connected"] is False
+        assert s["error"] is None
+        assert s["roaster"] == ""
+        assert manager._adapter is None
+
+    async def test_disconnect_during_reconnect_handshake(self, manager, monkeypatch):
+        monkeypatch.setattr(config, "RECONNECT_BACKOFFS", [0.01])
+        gate = asyncio.Event()
+        fake = FakeAdapter(connect_gate=gate)
+        manager._adapter = fake
+        manager._connected = False
+        manager._roaster_key = "virtual"
+        manager._protocol = "virtual"
+        manager._merged_params = {}
+
+        reconnect_task = asyncio.create_task(manager._reconnect_loop())
+        manager._reconnect_task = reconnect_task
+        await _wait_until_connect_inflight(manager, fake)
+
+        await asyncio.wait_for(manager.disconnect(), timeout=0.5)
+
+        assert fake.connect_cancelled is True
+        assert reconnect_task.done()
+        assert manager.status()["connected"] is False
+        assert manager._adapter is None
+
+    async def test_successful_connect_clears_connect_task(self, manager):
+        fake = FakeAdapter()
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("virtual", {})
+        assert manager._connect_task is None
+        assert manager._connect_cancel_requested is False
+        assert manager._connected is True
+
+    async def test_handler_cancel_propagates_cancelled_error(self, manager):
+        """요청 핸들러 자체 취소는 ConnectCancelled로 바꾸지 않는다."""
+        gate = asyncio.Event()
+        fake = FakeAdapter(connect_gate=gate)
+        with patch("manager.make_adapter", return_value=fake):
+            connect_task = asyncio.create_task(manager.connect("virtual", {}))
+            await _wait_until_connect_inflight(manager, fake)
+            inner = manager._connect_task
+            connect_task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await connect_task
+            if inner is not None and not inner.done():
+                inner.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await inner
+
+
+# ---------------------------------------------------------------------------
 # read_temperatures()
 # ---------------------------------------------------------------------------
 

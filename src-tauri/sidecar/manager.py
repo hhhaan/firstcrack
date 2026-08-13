@@ -17,6 +17,10 @@ from roaster_registry import ROASTER_REGISTRY
 _log = logging.getLogger(__name__)
 
 
+class ConnectCancelled(Exception):
+    """사용자가 /disconnect로 연결 시도를 취소 — 실패가 아니다."""
+
+
 class SensorReadError(RuntimeError):
     """어댑터가 예외 없이 반환했지만 값이 센서 고장/분리를 뜻할 때 발생한다.
 
@@ -153,6 +157,8 @@ class RoasterManager:
         # EMA/RoR이 두 번 밀리지 않게 한다 (표시 RoR 오염 방지).
         self._read_lock: asyncio.Lock = asyncio.Lock()
         self._reconnect_task: asyncio.Task[None] | None = None
+        self._connect_task: asyncio.Task[None] | None = None
+        self._connect_cancel_requested: bool = False
         self._reconnect_attempt: int = 0
         self._ror_warmup: int = 0
         self._consecutive_errors: int = 0
@@ -233,7 +239,7 @@ class RoasterManager:
             self._last_good = None
 
             try:
-                await self._adapter.connect()
+                await self._run_adapter_connect(self._adapter)
                 self._connected = True
                 self._start_time = time.monotonic()
                 _log.info("연결 성공 [%s]: %s", roaster_key, protocol)
@@ -244,6 +250,10 @@ class RoasterManager:
                     message=f"connected: {roaster_key} ({protocol})",
                     level="info",
                 )
+            except ConnectCancelled:
+                # 취소는 연결 실패가 아니다 — UI 오류 배너를 올리지 않는다
+                await self._disconnect_internal()
+                self._error = None
             except Exception as exc:
                 # 부분 연결(소켓/스레드) 정리 — status용 메타는 유지
                 try:
@@ -258,7 +268,33 @@ class RoasterManager:
                 _log.error("연결 실패 [%s]: %s", roaster_key, exc, exc_info=True)
                 self._capture_hardware_error(exc, "connect_failed")
 
+    async def _run_adapter_connect(self, adapter: Any) -> None:
+        """adapter.connect()만 태스크로 감싸 락 밖에서 취소할 수 있게 한다."""
+        task = asyncio.create_task(adapter.connect())
+        self._connect_task = task
+        try:
+            await task
+        except asyncio.CancelledError:
+            if task.cancelled() and self._connect_cancel_requested:
+                raise ConnectCancelled
+            raise
+        finally:
+            if self._connect_task is task:
+                self._connect_task = None
+            self._connect_cancel_requested = False
+
+    def _cancel_pending_connect(self) -> None:
+        """락을 잡지 않고 in-flight connect/reconnect를 취소한다."""
+        task = self._connect_task
+        if task is not None and not task.done():
+            self._connect_cancel_requested = True
+            task.cancel()
+        rt = self._reconnect_task
+        if rt is not None and not rt.done():
+            rt.cancel()
+
     async def disconnect(self) -> None:
+        self._cancel_pending_connect()
         async with self._lock:
             await self._disconnect_internal()
 
@@ -325,7 +361,7 @@ class RoasterManager:
                             await self._adapter.disconnect()
                         except Exception:
                             pass
-                        await self._adapter.connect()
+                        await self._run_adapter_connect(self._adapter)
                         self._connected = True
                         self._consecutive_errors = 0
                         self._error = None
@@ -342,6 +378,8 @@ class RoasterManager:
                             message=f"reconnected: {self._roaster_key} ({self._protocol}) after {attempt} attempts",
                             level="info",
                         )
+                        return
+                    except ConnectCancelled:
                         return
                     except Exception as exc:
                         self._error = _format_connection_error(
