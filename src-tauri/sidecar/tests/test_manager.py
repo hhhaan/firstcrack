@@ -111,6 +111,20 @@ class TestConnect:
         assert manager._error is not None
         assert manager._connected is False
 
+    async def test_udp_probe_failure_gets_ip_port_hint(self, manager):
+        fake = FakeAdapter(
+            connect_exc=ConnectionError(
+                "MODBUS 연결 실패: 192.168.1.50:502 (UDP 프로브 무응답)"
+            )
+        )
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect(
+                "custom_modbus",
+                {"mode": "udp", "host": "192.168.1.50", "port": 502},
+            )
+        assert manager._connected is False
+        assert "IP와 포트를 확인하세요" in manager._error
+
     async def test_second_connect_disconnects_first(self, manager):
         fake1 = FakeAdapter(readings=[make_reading(bt=150.0)])
         fake2 = FakeAdapter(readings=[make_reading(bt=160.0)])

@@ -158,9 +158,26 @@ class ModbusAdapter:
             )
         if is_net:
             await asyncio.sleep(0.3)  # Artisan: "avoid possible hickups on startup"
+            if self._mode == "udp":
+                await self._probe_udp()
         else:
             await asyncio.sleep(config.MODBUS_RTU_CONNECT_DELAY)
         _log.info("ModbusAdapter connected OK (mode=%s)", self._mode)
+
+    async def _probe_udp(self) -> None:
+        """UDP는 핸드셰이크가 없어 소켓 생성만으로 connected=True다 (#212).
+        존재하지 않는 IP도 '연결 성공'으로 보고되므로 실제 응답을 1회 확인한다.
+        실패 메시지는 manager._format_connection_error의 'MODBUS 연결 실패'
+        분기를 타 IP/포트 확인을 우선 안내한다. 소켓 정리는 호출자가 담당."""
+        cfg = self._regs.get("BT") or self._regs.get("ET")
+        if not cfg:
+            return
+        try:
+            await self._read_channel(cfg)
+        except Exception as exc:
+            raise ConnectionError(
+                f"MODBUS 연결 실패: {self._host}:{self._port} (UDP 프로브 무응답)"
+            ) from exc
 
     async def disconnect(self) -> None:
         if self._client is not None:

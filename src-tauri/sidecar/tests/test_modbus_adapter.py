@@ -98,6 +98,7 @@ class TestConnect:
 
         MockClient.assert_called_once_with(host="192.168.1.100", port=502, timeout=pytest.approx(0.25))
         instance.connect.assert_awaited_once()
+        instance.read_holding_registers.assert_not_awaited()
 
     @patch("pymodbus.client.AsyncModbusSerialClient")
     async def test_rtu_connect_creates_client(self, MockClient):
@@ -115,6 +116,7 @@ class TestConnect:
         assert kwargs["port"] == "/dev/ttyUSB0"
         assert kwargs["baudrate"] == 9600
         assert kwargs["framer"] == FramerType.RTU
+        instance.read_holding_registers.assert_not_awaited()
 
     @patch("pymodbus.client.AsyncModbusSerialClient")
     async def test_ascii_connect_uses_ascii_framer(self, MockClient):
@@ -139,6 +141,9 @@ class TestConnect:
         instance = AsyncMock()
         instance.connect = AsyncMock()
         instance.connected = True
+        instance.read_holding_registers = AsyncMock(
+            return_value=MockModbusResponse(registers=[1850])
+        )
         MockClient.return_value = instance
 
         await a.connect()
@@ -150,6 +155,50 @@ class TestConnect:
         assert kwargs["retries"] == 0
         # 앱 레벨 retry는 새 transaction으로 나가므로 UDP도 1회 허용
         assert a._read_retries == 1
+
+    @patch("pymodbus.client.AsyncModbusUdpClient")
+    async def test_udp_connect_probes_bt_once(self, MockClient):
+        regs = {"BT": {"register": 100, "func": 3, "unit_id": 1}}
+        a = ModbusAdapter(mode="udp", host="192.168.1.50", port=502, modbus_registers=regs)
+        instance = AsyncMock()
+        instance.connect = AsyncMock()
+        instance.connected = True
+        instance.read_holding_registers = AsyncMock(
+            return_value=MockModbusResponse(registers=[1850])
+        )
+        MockClient.return_value = instance
+
+        await a.connect()
+
+        instance.read_holding_registers.assert_awaited_once()
+
+    @patch("pymodbus.client.AsyncModbusUdpClient")
+    async def test_udp_probe_timeout_raises_connection_error(self, MockClient):
+        regs = {"BT": {"register": 100, "func": 3, "unit_id": 1}}
+        a = ModbusAdapter(mode="udp", host="192.168.1.50", port=502, modbus_registers=regs)
+        instance = AsyncMock()
+        instance.connect = AsyncMock()
+        instance.connected = True
+        instance.read_holding_registers = AsyncMock(side_effect=TimeoutError("timed out"))
+        MockClient.return_value = instance
+
+        with pytest.raises(ConnectionError, match="MODBUS 연결 실패"):
+            await a.connect()
+
+    @patch("pymodbus.client.AsyncModbusUdpClient")
+    async def test_udp_probe_is_error_raises_connection_error(self, MockClient):
+        regs = {"BT": {"register": 100, "func": 3, "unit_id": 1}}
+        a = ModbusAdapter(mode="udp", host="192.168.1.50", port=502, modbus_registers=regs)
+        instance = AsyncMock()
+        instance.connect = AsyncMock()
+        instance.connected = True
+        err = MagicMock()
+        err.isError.return_value = True
+        instance.read_holding_registers = AsyncMock(return_value=err)
+        MockClient.return_value = instance
+
+        with pytest.raises(ConnectionError, match="MODBUS 연결 실패"):
+            await a.connect()
 
     @patch("pymodbus.client.AsyncModbusTcpClient")
     async def test_connect_empty_registers_raises(self, MockClient, adapter):
