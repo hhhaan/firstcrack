@@ -615,6 +615,10 @@
             "notesPlaceholder": "风味笔记、观察、下次调整...",
             "save": "保存",
             "discard": "不保存",
+            "discardConfirmTitle": "丢弃这次烘焙？",
+            "discardConfirmDescription": "不保存则不会留下云端记录。确认前本地数据会保留。",
+            "discardConfirm": "丢弃",
+            "discardKeep": "保留",
             "levels": {
                 "light": "浅烘焙",
                 "mediumLight": "中浅烘焙",

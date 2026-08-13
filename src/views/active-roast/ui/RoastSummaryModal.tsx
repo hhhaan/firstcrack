@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { reduceDiscardConfirm } from '../model/discardConfirm';
 import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
 
 export type { RoastSummaryData };
@@ -87,6 +88,7 @@ export const RoastSummaryModal = ({
     fallbackBeanName = null,
 }: RoastSummaryModalProps) => {
     const { t } = useTranslation();
+    const [confirmingDiscard, setConfirmingDiscard] = useState(false);
     const { workspaceOwnerId: userId, isWorkspaceReady } = useActiveWorkspace();
     const { data: beans = [] } = useBeans(userId);
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -205,7 +207,9 @@ export const RoastSummaryModal = ({
                 deductStock: false,
             });
             setBeanComboboxKey((k) => k + 1);
+            setConfirmingDiscard(false);
         }
+        if (!open) setConfirmingDiscard(false);
     }, [open, summaryData, reset]);
 
     useEffect(() => {
@@ -262,6 +266,20 @@ export const RoastSummaryModal = ({
         !isCustomBean && deductionKg > 0 && Boolean(resolvedBeanId || effectiveHandoff?.blendId || hasBlendHandoff);
 
     const beanComboboxItems = useMemo(() => beans.map((b) => ({ id: b.id, name: b.name })), [beans]);
+
+    const handleDiscardRequest = () => {
+        const next = reduceDiscardConfirm(confirmingDiscard, 'request');
+        setConfirmingDiscard(next.confirming);
+    };
+    const handleDiscardCancel = () => {
+        const next = reduceDiscardConfirm(confirmingDiscard, 'cancel');
+        setConfirmingDiscard(next.confirming);
+    };
+    const handleDiscardConfirm = () => {
+        const next = reduceDiscardConfirm(confirmingDiscard, 'confirm');
+        setConfirmingDiscard(next.confirming);
+        if (next.executeDiscard) onDiscard();
+    };
 
     if (!open || !summaryData) {
         return null;
@@ -604,23 +622,53 @@ export const RoastSummaryModal = ({
             </ModalScrollBody>
 
             <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-[#585d61] flex flex-col gap-2 bg-main-bg dark:bg-[#181d21]">
-                <button
-                    type="button"
-                    data-testid="roast-summary-save"
-                    onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
-                    disabled={isSaving}
-                    className="w-full py-2.5 rounded-lg border-none bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                    {isSaving && <Spinner />}
-                    {t('activeRoast.summary.save')}
-                </button>
-                <button
-                    type="button"
-                    onClick={onDiscard}
-                    className="w-full py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border"
-                >
-                    {t('activeRoast.summary.discard')}
-                </button>
+                {confirmingDiscard ? (
+                    <>
+                        <p className="text-[13px] text-primary leading-snug">
+                            {t('activeRoast.summary.discardConfirmTitle')}
+                        </p>
+                        <p className="text-[12px] text-secondary leading-snug -mt-1">
+                            {t('activeRoast.summary.discardConfirmDescription')}
+                        </p>
+                        <button
+                            type="button"
+                            data-testid="roast-summary-discard-confirm"
+                            onClick={handleDiscardConfirm}
+                            className="w-full py-2.5 rounded-lg border-none bg-[rgba(254,226,226,0.8)] dark:bg-[rgba(220,38,38,0.15)] text-[#dc2626] dark:text-[#f87171] text-sm font-medium tracking-[0.14px] cursor-pointer"
+                        >
+                            {t('activeRoast.summary.discardConfirm')}
+                        </button>
+                        <button
+                            type="button"
+                            data-testid="roast-summary-discard-cancel"
+                            onClick={handleDiscardCancel}
+                            className="w-full py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border"
+                        >
+                            {t('activeRoast.summary.discardKeep')}
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <button
+                            type="button"
+                            data-testid="roast-summary-save"
+                            onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
+                            disabled={isSaving}
+                            className="w-full py-2.5 rounded-lg border-none bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {isSaving && <Spinner />}
+                            {t('activeRoast.summary.save')}
+                        </button>
+                        <button
+                            type="button"
+                            data-testid="roast-summary-discard"
+                            onClick={handleDiscardRequest}
+                            className="w-full py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border"
+                        >
+                            {t('activeRoast.summary.discard')}
+                        </button>
+                    </>
+                )}
             </div>
         </ModalShell>
     );

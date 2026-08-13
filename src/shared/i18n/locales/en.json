@@ -615,6 +615,10 @@
             "notesPlaceholder": "Flavor notes, observations, adjustments for next time...",
             "save": "Save",
             "discard": "Don't Save",
+            "discardConfirmTitle": "Discard this roast?",
+            "discardConfirmDescription": "This roast will not be saved. Local roast data is kept until you confirm.",
+            "discardConfirm": "Discard",
+            "discardKeep": "Keep",
             "levels": {
                 "light": "Light",
                 "mediumLight": "Medium-Light",

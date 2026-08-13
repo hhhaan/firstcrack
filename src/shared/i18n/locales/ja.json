@@ -615,6 +615,10 @@
             "notesPlaceholder": "フレーバーノート、観察、次回の調整...",
             "save": "保存",
             "discard": "保存しない",
+            "discardConfirmTitle": "このローストを破棄しますか？",
+            "discardConfirmDescription": "保存しないとクラウド記録は残りません。確認するまでローカルデータは保持されます。",
+            "discardConfirm": "破棄",
+            "discardKeep": "残す",
             "levels": {
                 "light": "ライト",
                 "mediumLight": "ミディアムライト",
