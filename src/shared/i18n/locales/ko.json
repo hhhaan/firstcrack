@@ -805,7 +805,9 @@
             "beanTemp": "생두 온도",
             "envTemp": "환경 온도",
             "rateOfRise": "상승률",
-            "phase": "단계"
+            "phase": "단계",
+            "stale": "마지막 온도가 멈췄습니다. 센서 연결을 확인하세요.",
+            "reconnecting": "머신에 다시 연결하는 중…"
         },
         "controls": {
             "heater": "히터",

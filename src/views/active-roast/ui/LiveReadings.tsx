@@ -1,5 +1,6 @@
 import { formatTemp, type TemperatureUnit, useBbpTimer } from '@features/active-roast';
 import { SENSOR_COLORS } from '@features/active-roast/lib/colors';
+import { readingFreshness } from '@features/active-roast/lib/readingFreshness';
 import { useTranslation } from 'react-i18next';
 
 export const LiveReadings = ({
@@ -10,6 +11,8 @@ export const LiveReadings = ({
     phase,
     phaseColor,
     connected,
+    stale = false,
+    reconnecting = false,
 }: {
     rawBT: number | null;
     rawET: number | null;
@@ -18,36 +21,47 @@ export const LiveReadings = ({
     phase: string;
     phaseColor: string;
     connected: boolean;
+    stale?: boolean;
+    reconnecting?: boolean;
 }) => {
     const { t } = useTranslation();
     const bbpTimer = useBbpTimer();
+    const freshness = readingFreshness({ connected, stale, reconnecting });
+    const live = freshness === 'live';
     return (
         <div className="mb-2.5">
+            {freshness === 'stale' || freshness === 'reconnecting' ? (
+                <p className="mb-2 text-[12px] font-medium text-amber-700 dark:text-amber-300">
+                    {freshness === 'reconnecting'
+                        ? t('activeRoast.readings.reconnecting')
+                        : t('activeRoast.readings.stale')}
+                </p>
+            ) : null}
             <div className="grid grid-cols-4 gap-3">
                 {[
                     {
                         label: t('activeRoast.readings.beanTemp'),
-                        value: connected ? formatTemp(rawBT, unit) : '—',
-                        color: connected ? SENSOR_COLORS.bt : 'var(--color-muted)',
+                        value: freshness === 'disconnected' ? '—' : formatTemp(rawBT, unit),
+                        color: live ? SENSOR_COLORS.bt : 'var(--color-muted)',
                         sub: null as string | null,
                     },
                     {
                         label: t('activeRoast.readings.envTemp'),
-                        value: connected ? formatTemp(rawET, unit) : '—',
-                        color: connected ? SENSOR_COLORS.et : 'var(--color-muted)',
+                        value: freshness === 'disconnected' ? '—' : formatTemp(rawET, unit),
+                        color: live ? SENSOR_COLORS.et : 'var(--color-muted)',
                         sub: null as string | null,
                     },
                     {
                         label: t('activeRoast.readings.rateOfRise'),
-                        value: connected ? `${displayRoR}°${unit}/min` : '—',
-                        color: connected ? SENSOR_COLORS.ror : 'var(--color-muted)',
+                        value: freshness === 'disconnected' ? '—' : `${displayRoR}°${unit}/min`,
+                        color: live ? SENSOR_COLORS.ror : 'var(--color-muted)',
                         sub: null as string | null,
                     },
                     {
                         label: t('activeRoast.readings.phase'),
-                        value: connected ? phase : '—',
-                        color: connected ? phaseColor : 'var(--color-muted)',
-                        sub: connected && bbpTimer ? `BBP ${bbpTimer}` : null,
+                        value: freshness === 'disconnected' ? '—' : phase,
+                        color: live ? phaseColor : 'var(--color-muted)',
+                        sub: live && bbpTimer ? `BBP ${bbpTimer}` : null,
                     },
                 ].map(({ label, value, color, sub }) => (
                     <div

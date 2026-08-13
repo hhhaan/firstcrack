@@ -521,7 +521,9 @@
             "beanTemp": "ベーン温度",
             "envTemp": "環境温度",
             "rateOfRise": "上昇率",
-            "phase": "フェーズ"
+            "phase": "フェーズ",
+            "stale": "最後の温度が止まっています。センサー接続を確認してください。",
+            "reconnecting": "マシンに再接続しています…"
         },
         "controls": {
             "heater": "ヒーター",

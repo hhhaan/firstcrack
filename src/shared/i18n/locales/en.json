@@ -521,7 +521,9 @@
             "beanTemp": "Bean Temp",
             "envTemp": "Env Temp",
             "rateOfRise": "Rate of Rise",
-            "phase": "Phase"
+            "phase": "Phase",
+            "stale": "Last reading is frozen — sensor may be disconnected.",
+            "reconnecting": "Reconnecting to the machine…"
         },
         "controls": {
             "heater": "Heater",

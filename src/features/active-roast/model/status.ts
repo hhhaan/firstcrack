@@ -11,6 +11,7 @@ type LiveData = {
     heater: number;
     fan: number;
     drum: number;
+    stale?: boolean;
 };
 
 export interface RoastingState {

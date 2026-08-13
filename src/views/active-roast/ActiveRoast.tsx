@@ -76,6 +76,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         sessionId,
         sidecarConnected,
         machineCapabilities,
+        reconnecting,
     } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
@@ -86,6 +87,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             sessionId: s.sessionId,
             sidecarConnected: s.sidecarConnected,
             machineCapabilities: s.machineCapabilities,
+            reconnecting: s.reconnecting,
         })),
     );
     const storeActions = useRoastingStore.getState();
@@ -493,6 +495,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     phase={roastPhaseName}
                     phaseColor={roastPhaseColor}
                     connected={sidecarConnected}
+                    stale={!!liveData?.stale}
+                    reconnecting={reconnecting}
                 />
             )}
             {isFullscreen && (

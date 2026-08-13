@@ -521,7 +521,9 @@
             "beanTemp": "豆温",
             "envTemp": "环境温度",
             "rateOfRise": "升温率",
-            "phase": "阶段"
+            "phase": "阶段",
+            "stale": "读数已冻结，请检查传感器连接。",
+            "reconnecting": "正在重新连接机器…"
         },
         "controls": {
             "heater": "加热器",
