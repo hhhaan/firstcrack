@@ -1,6 +1,7 @@
 import { useCreateOrder } from '@entities/order';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProducts } from '@entities/product';
+import { createActionOpIdSession } from '@shared/lib/action-op-id';
 import { cn } from '@shared/lib/cn';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { FormSelect } from '@shared/ui/FormSelect';
@@ -17,8 +18,9 @@ import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { canSubmitManualOrder, createManualOrderPlatformId } from '../lib/submit';
 
 type Props = { open: boolean; onClose: () => void };
 
@@ -32,11 +34,15 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
 
     const [buyer, setBuyer] = useState('');
     const [lines, setLines] = useState<LineDraft[]>([{ productId: '', quantity: '1' }]);
+    const orderIdSession = useRef(createActionOpIdSession(createManualOrderPlatformId));
 
     useFormEscape(open, onClose);
 
     useEffect(() => {
-        if (!open) return;
+        if (!open) {
+            orderIdSession.current.reset();
+            return;
+        }
         setBuyer('');
         setLines([{ productId: '', quantity: '1' }]);
     }, [open]);
@@ -45,15 +51,16 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
 
     const validLines = lines.filter((l) => l.productId && Number(l.quantity) > 0);
     const valid = validLines.length > 0;
+    const canSubmit = canSubmitManualOrder({ valid, isPending: createOrder.isPending });
 
     const onSubmit = async () => {
-        if (!valid) return;
+        if (!canSubmit) return;
         const now = new Date().toISOString();
         await createOrder.mutateAsync({
             order: {
                 user_id: userId,
                 platform: 'manual',
-                platform_order_id: `manual-${Date.now()}`,
+                platform_order_id: orderIdSession.current.getOrCreate(),
                 status: 'paid',
                 ordered_at: now,
                 buyer_name: buyer.trim() || null,
@@ -68,6 +75,7 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                 };
             }),
         });
+        orderIdSession.current.markSucceeded();
         onClose();
     };
 
@@ -152,7 +160,7 @@ export const AddOrderModal = ({ open, onClose }: Props) => {
                     <button type="button" onClick={onClose} className={modalCancelBtnCls}>
                         {t('common.cancel')}
                     </button>
-                    <button type="button" onClick={onSubmit} disabled={!valid} className={modalPrimaryBtnCls}>
+                    <button type="button" onClick={onSubmit} disabled={!canSubmit} className={modalPrimaryBtnCls}>
                         {t('common.add')}
                     </button>
                 </div>
