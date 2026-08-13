@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { shopifyTrackingUrl, toShopifyTrackingCompany } from './carriers.ts';
 import {
     buildCafe24ShipmentPayload,
     buildNaverDispatchPayload,
@@ -68,13 +69,29 @@ describe('payload builders', () => {
         expect(p.request.order_id).toBe('ORD-1');
     });
 
-    it('shopify: fulfillmentOrderIds + trackingInfo', () => {
-        const p = buildShopifyFulfillmentInput(req, ['gid://shopify/FulfillmentOrder/1']);
+    it('shopify: fulfillmentOrderIds + official company + tracking url', () => {
+        const shopifyReq = { ...req, carrierCode: 'cj' };
+        const p = buildShopifyFulfillmentInput(shopifyReq, ['gid://shopify/FulfillmentOrder/1']);
+        const company = toShopifyTrackingCompany('cj');
         expect(p.lineItemsByFulfillmentOrder).toEqual([
             { fulfillmentOrderId: 'gid://shopify/FulfillmentOrder/1' },
         ]);
-        expect(p.trackingInfo).toEqual({ company: 'CJGLS', number: '123456789' });
+        expect(p.trackingInfo).toEqual({
+            company,
+            number: '123456789',
+            url: shopifyTrackingUrl(company, '123456789'),
+        });
         expect(p.notifyCustomer).toBe(true);
+    });
+
+    it('shopify: 한글 label maps to the same official company + url', () => {
+        const p = buildShopifyFulfillmentInput(
+            { ...req, carrierCode: '한진택배' },
+            ['gid://shopify/FulfillmentOrder/1'],
+        );
+        const company = toShopifyTrackingCompany('hanjin');
+        expect(p.trackingInfo.company).toBe(company);
+        expect(p.trackingInfo.url).toBe(shopifyTrackingUrl('hanjin', '123456789'));
     });
 });
 

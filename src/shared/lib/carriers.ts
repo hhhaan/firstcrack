@@ -1,4 +1,4 @@
-/** UI carrier dropdown — ids must match EF `CARRIERS` keys (carriers.test.ts enforces). */
+/** UI carrier dropdown — ids must match EF `CARRIERS` keys. Shopify company strings come from EF `toShopifyTrackingCompany`, not these labels. */
 
 export const CARRIER_OPTIONS = [
     { id: 'cj', labelKo: 'CJ대한통운', labelEn: 'CJ Logistics' },

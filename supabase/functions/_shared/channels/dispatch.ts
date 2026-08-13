@@ -3,6 +3,7 @@
  * Pure TS — no Deno / npm.
  */
 
+import { shopifyTrackingUrl, toShopifyTrackingCompany } from './carriers.ts';
 import type { MarkShippedRequest, MarkShippedResult } from './types.ts';
 
 export type DispatchStatus = 'pending' | 'sent' | 'confirmed' | 'failed';
@@ -145,16 +146,18 @@ export function buildShopifyFulfillmentInput(
     fulfillmentOrderIds: string[],
 ): {
     lineItemsByFulfillmentOrder: Array<{ fulfillmentOrderId: string }>;
-    trackingInfo: { company: string; number: string };
+    trackingInfo: { company: string; number: string; url: string };
     notifyCustomer: boolean;
 } {
+    const company = toShopifyTrackingCompany(req.carrierCode);
     return {
         lineItemsByFulfillmentOrder: fulfillmentOrderIds.map((id) => ({
             fulfillmentOrderId: id,
         })),
         trackingInfo: {
-            company: req.carrierCode,
+            company,
             number: req.trackingNumber,
+            url: shopifyTrackingUrl(company, req.trackingNumber),
         },
         notifyCustomer: true,
     };
