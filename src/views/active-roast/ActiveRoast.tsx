@@ -614,6 +614,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onEnterStandby={lifecycle.handleEnterStandby}
                         onManualCharge={lifecycle.handleManualCharge}
                         onEndRoast={handleEndRoastClick}
+                        canReopenSummary={saveFlow.flow.summaryData != null}
                     />
                 </div>
             </div>

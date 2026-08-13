@@ -277,6 +277,7 @@ export const RoastSummaryModal = ({
     return (
         <ModalShell
             onClose={onClose}
+            // Overlay must not exit the save flow — only Save / Discard do (#167 P0.1).
             dismissable={false}
             labelledBy="roast-summary-modal-title"
             overlayClassName="z-[10000]"

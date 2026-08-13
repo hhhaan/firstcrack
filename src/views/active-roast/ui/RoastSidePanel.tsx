@@ -8,6 +8,7 @@ import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
 import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
+import { isEndRoastDisabled } from '../model/useRoastCompletionFlow';
 import { EventButtons } from './EventButtons';
 import { RoastAlertBanner } from './RoastAlertBanner';
 
@@ -52,6 +53,8 @@ interface RoastSidePanelProps {
     onEnterStandby: () => void;
     onManualCharge: () => void;
     onEndRoast: () => void;
+    /** Overlay close keeps this true so End Roast can reopen Save (#167 P0.1). */
+    canReopenSummary?: boolean;
 }
 
 export const RoastSidePanel = ({
@@ -87,7 +90,9 @@ export const RoastSidePanel = ({
     onEnterStandby,
     onManualCharge,
     onEndRoast,
+    canReopenSummary = false,
 }: RoastSidePanelProps) => {
+    const endRoastDisabled = isEndRoastDisabled({ charged, roastEnded, hasSummaryData: canReopenSummary });
     const showRollingDtr = rollingDtrPct != null;
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
@@ -266,16 +271,16 @@ export const RoastSidePanel = ({
                     <button
                         data-testid="roast-end"
                         onClick={onEndRoast}
-                        disabled={roastEnded || !charged}
+                        disabled={endRoastDisabled}
                         aria-label="End roast"
                         type="button"
                         className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
-                            roastEnded || !charged
+                            endRoastDisabled
                                 ? 'bg-surface dark:bg-surface-elevated text-muted cursor-default'
                                 : 'cursor-pointer'
                         }`}
                         style={
-                            roastEnded || !charged
+                            endRoastDisabled
                                 ? undefined
                                 : { background: PHASE_COLORS.dangerBg, color: PHASE_COLORS.danger }
                         }

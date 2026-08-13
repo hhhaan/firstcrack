@@ -1,6 +1,6 @@
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { describe, expect, it } from 'vitest';
-import { flowReducer } from './useRoastCompletionFlow';
+import { closeSummaryAction, discardSummaryAction, flowReducer, isEndRoastDisabled } from './useRoastCompletionFlow';
 
 const handoff = (id: string): PlanBatchHandoff => ({
     planBatchId: id,
@@ -57,12 +57,26 @@ describe('flowReducer SAVE_SUCCESS', () => {
 
 /** UX contracts: accidental dismiss must not wipe recoverable save state without an explicit discard path. */
 describe('flowReducer summary dismiss paths (UX friction contracts)', () => {
-    it('CLOSE_SUMMARY hides modal but keeps summaryData for reopen (#172)', () => {
-        const next = flowReducer(base, { type: 'CLOSE_SUMMARY' });
+    it('overlay closer (CLOSE_SUMMARY) hides modal but keeps summaryData (#167 P0.1)', () => {
+        const next = flowReducer(base, closeSummaryAction());
         expect(next.summaryModal).toBe(false);
         expect(next.summaryData).toEqual(base.summaryData);
         expect(next.endRoastModal).toBe(false);
         expect(next.continueModal).toBe(false);
+    });
+
+    it('overlay closer does not end the save flow — only discard/save wipe payload', () => {
+        const overlay = flowReducer(base, closeSummaryAction());
+        const discarded = flowReducer(base, discardSummaryAction());
+        expect(overlay.summaryData).toEqual(base.summaryData);
+        expect(discarded.summaryData).toBeNull();
+        expect(discarded).toEqual({
+            endRoastModal: false,
+            summaryModal: false,
+            summaryData: null,
+            continueModal: false,
+            continueCandidates: [],
+        });
     });
 
     it('REOPEN_SUMMARY restores modal when summaryData exists', () => {
@@ -87,7 +101,7 @@ describe('flowReducer summary dismiss paths (UX friction contracts)', () => {
                 continueModal: true,
                 continueCandidates: [handoff('a')],
             },
-            { type: 'DISCARD_SUMMARY' },
+            discardSummaryAction(),
         );
         expect(next).toEqual({
             endRoastModal: false,
@@ -96,5 +110,19 @@ describe('flowReducer summary dismiss paths (UX friction contracts)', () => {
             continueModal: false,
             continueCandidates: [],
         });
+    });
+});
+
+describe('isEndRoastDisabled (#167 P0.1 save re-entry)', () => {
+    it('stays enabled after overlay close when summaryData remains', () => {
+        expect(isEndRoastDisabled({ charged: true, roastEnded: true, hasSummaryData: true })).toBe(false);
+    });
+
+    it('disables after discard/save when no summaryData remains', () => {
+        expect(isEndRoastDisabled({ charged: true, roastEnded: true, hasSummaryData: false })).toBe(true);
+    });
+
+    it('disables before charge', () => {
+        expect(isEndRoastDisabled({ charged: false, roastEnded: false, hasSummaryData: false })).toBe(true);
     });
 });

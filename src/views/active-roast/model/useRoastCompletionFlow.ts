@@ -98,6 +98,27 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
     }
 }
 
+/** Overlay / outside-click closer. Must not wipe summaryData (#167 P0.1). */
+export const closeSummaryAction = (): FlowAction => ({ type: 'CLOSE_SUMMARY' });
+
+/** Explicit discard. Wipes summaryData and ends the save flow. */
+export const discardSummaryAction = (): FlowAction => ({ type: 'DISCARD_SUMMARY' });
+
+/** End Roast stays available after overlay close so the user can re-enter Save. */
+export const isEndRoastDisabled = ({
+    charged,
+    roastEnded,
+    hasSummaryData,
+}: {
+    charged: boolean;
+    roastEnded: boolean;
+    hasSummaryData: boolean;
+}): boolean => {
+    if (!charged) return true;
+    if (roastEnded) return !hasSummaryData;
+    return false;
+};
+
 export interface UseRoastCompletionFlowReturn extends FlowState {
     openEndRoast: () => void;
     confirmEndRoast: (summaryData: RoastSummaryData) => void;
@@ -119,9 +140,9 @@ export const useRoastCompletionFlow = (): UseRoastCompletionFlowReturn => {
         [],
     );
     const closeEndRoast = useCallback(() => dispatch({ type: 'CLOSE_END_ROAST' }), []);
-    const closeSummary = useCallback(() => dispatch({ type: 'CLOSE_SUMMARY' }), []);
+    const closeSummary = useCallback(() => dispatch(closeSummaryAction()), []);
     const reopenSummary = useCallback(() => dispatch({ type: 'REOPEN_SUMMARY' }), []);
-    const discardSummary = useCallback(() => dispatch({ type: 'DISCARD_SUMMARY' }), []);
+    const discardSummary = useCallback(() => dispatch(discardSummaryAction()), []);
     const onSaveSuccess = useCallback(
         (result: SaveFlowResult) => dispatch({ type: 'SAVE_SUCCESS', payload: result }),
         [],
