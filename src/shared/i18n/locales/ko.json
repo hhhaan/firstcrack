@@ -34,7 +34,8 @@
         "relaunchError": "재시작에 실패했습니다.",
         "loopGuardError": "업데이트가 적용되지 않았습니다. 설치 파일로 다시 설치하거나 최신 버전을 받아 주세요.",
         "sidecarDead": "하드웨어 연결 서비스가 응답하지 않습니다.",
-        "sidecarDeadRestart": "앱을 재시작해 주세요."
+        "sidecarDeadRestart": "앱을 재시작해 주세요.",
+        "sidecarDeadRelaunch": "재시작"
     },
     "sidebar": {
         "roasteryDashboard": "로스터리 대시보드",

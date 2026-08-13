@@ -34,7 +34,8 @@
         "relaunchError": "Failed to restart.",
         "loopGuardError": "The update didn't apply. Reinstall from the installer or download the latest version.",
         "sidecarDead": "Hardware connection service isn't responding.",
-        "sidecarDeadRestart": "Please restart the app."
+        "sidecarDeadRestart": "Please restart the app.",
+        "sidecarDeadRelaunch": "Relaunch"
     },
     "sidebar": {
         "roasteryDashboard": "Roastery Dashboard",

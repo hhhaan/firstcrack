@@ -34,7 +34,8 @@
         "relaunchError": "重启失败。",
         "loopGuardError": "更新未生效。请用安装包重新安装或下载最新版本。",
         "sidecarDead": "硬件连接服务无响应。",
-        "sidecarDeadRestart": "请重新启动应用。"
+        "sidecarDeadRestart": "请重新启动应用。",
+        "sidecarDeadRelaunch": "重新启动"
     },
     "sidebar": {
         "roasteryDashboard": "烘焙工作台",

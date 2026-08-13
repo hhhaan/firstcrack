@@ -34,7 +34,8 @@
         "relaunchError": "再起動に失敗しました。",
         "loopGuardError": "更新が適用されませんでした。インストーラから再インストールするか、最新版をダウンロードしてください。",
         "sidecarDead": "ハードウェア接続サービスが応答しません。",
-        "sidecarDeadRestart": "アプリを再起動してください。"
+        "sidecarDeadRestart": "アプリを再起動してください。",
+        "sidecarDeadRelaunch": "再起動"
     },
     "sidebar": {
         "roasteryDashboard": "ロースタリーダッシュボード",

@@ -53,7 +53,7 @@ export const App = () => {
     // Auto-updater: silent background download → system notification
     const { t } = useTranslation();
     const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
-    const { isDead: isSidecarDead } = useSidecarDeadListener();
+    const { isDead: isSidecarDead, relaunch: relaunchSidecar } = useSidecarDeadListener();
 
     // 로스팅 진행 중에는 재시작 버튼을 숨긴다 — 즉시 relaunch 시 라이브 세션이 소실되므로.
     // 다운로드는 백그라운드에서 이미 완료되어, 로스팅 종료 후 앱을 다시 열면 자동 반영된다.
@@ -300,6 +300,13 @@ export const App = () => {
                     <div className="fixed bottom-6 left-6 z-[9999] flex items-center gap-3 px-4 py-3 rounded-lg bg-red-900/90 border border-red-700 text-red-100 text-sm shadow-lg">
                         <span>{t('updater.sidecarDead')}</span>
                         <span className="text-red-300">{t('updater.sidecarDeadRestart')}</span>
+                        <button
+                            type="button"
+                            onClick={relaunchSidecar}
+                            className="cursor-pointer rounded-md border border-red-500 bg-red-800 px-2.5 py-1 text-xs font-medium text-red-50 hover:bg-red-700"
+                        >
+                            {t('updater.sidecarDeadRelaunch')}
+                        </button>
                     </div>
                 )}
 
