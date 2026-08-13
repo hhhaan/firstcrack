@@ -23,11 +23,18 @@ export type DeductRoastStockDeps = {
     qc: QueryClient;
     insertMany?: typeof beanStockEventApi.insertMany;
     getBlend?: typeof blendApi.get;
+    computeInventoryAlerts?: typeof beanStockEventApi.computeInventoryAlerts;
 };
 
 /** Core deduct path — testable without React. Green − and optional roasted + in one TX. */
 export async function deductRoastStock(
-    { userId, qc, insertMany = beanStockEventApi.insertMany, getBlend = blendApi.get }: DeductRoastStockDeps,
+    {
+        userId,
+        qc,
+        insertMany = beanStockEventApi.insertMany,
+        getBlend = blendApi.get,
+        computeInventoryAlerts = beanStockEventApi.computeInventoryAlerts,
+    }: DeductRoastStockDeps,
     { deductionGrams, singleBeanId, blendId, referenceId, roastLevel }: DeductRoastStockParams,
 ): Promise<void> {
     if (deductionGrams <= 0) return;
@@ -56,6 +63,8 @@ export async function deductRoastStock(
     });
 
     await insertMany(events, roastedInbound ? [roastedInbound] : []);
+    await computeInventoryAlerts(userId);
+    void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
 
     void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
     void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId) });

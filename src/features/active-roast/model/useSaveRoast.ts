@@ -1,5 +1,5 @@
 import { beanKeys } from '@entities/bean/queries';
-import { stockEventKeys } from '@entities/bean-stock-event';
+import { beanStockEventApi, stockEventKeys } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
 import { useUpdateSingleBatch } from '@entities/plan';
 import { invalidateAfterCreateRoastSession, type RoastSessionInsert, roastSessionApi } from '@entities/roast';
@@ -97,6 +97,7 @@ export type SaveRoastDeps = {
     startBatch: (b: PlanBatchHandoff) => void;
     recordAdhocSave: (p: { beanId: string | null; weightKg: number; roastLevel: string | null }) => void;
     getFinalizedBbp: () => ReturnType<typeof useBbpStore.getState>['finalized'];
+    computeInventoryAlerts?: (userId: string) => Promise<void>;
 };
 
 /** Handoff wins; otherwise ad-hoc linked batch from the save form. */
@@ -271,6 +272,11 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     }
     if (inbound) {
         void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId), refetchType: 'all' });
+    }
+    if (wantDeduct) {
+        const computeAlerts = deps.computeInventoryAlerts ?? beanStockEventApi.computeInventoryAlerts;
+        await computeAlerts(userId);
+        void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts, refetchType: 'all' });
     }
 
     // Meta returns immediately; curve sync background. Local TSV kept if sync fails.

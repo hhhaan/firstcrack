@@ -55,6 +55,7 @@ function makeDeps(overrides: Partial<SaveRoastDeps> = {}): SaveRoastDeps {
         startBatch: vi.fn(),
         recordAdhocSave: vi.fn(),
         getFinalizedBbp: () => null,
+        computeInventoryAlerts: vi.fn().mockResolvedValue(undefined),
         ...overrides,
     } as SaveRoastDeps;
 }
@@ -119,6 +120,23 @@ describe('saveRoastCore', () => {
             saveOp: vi.fn().mockRejectedValue(new Error('trial_expired')),
         });
         await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'trial_expired' });
+    });
+
+    it('deduct 성공 후 inventory alerts를 재계산한다', async () => {
+        const computeInventoryAlerts = vi.fn().mockResolvedValue(undefined);
+        const deps = makeDeps({ computeInventoryAlerts });
+        await saveRoastCore(deps, baseParams);
+        expect(computeInventoryAlerts).toHaveBeenCalledWith('user-1');
+    });
+
+    it('deduct 없으면 alerts를 재계산하지 않는다', async () => {
+        const computeInventoryAlerts = vi.fn().mockResolvedValue(undefined);
+        const deps = makeDeps({ computeInventoryAlerts });
+        await saveRoastCore(deps, {
+            ...baseParams,
+            formData: { ...baseParams.formData, deductStock: false },
+        });
+        expect(computeInventoryAlerts).not.toHaveBeenCalled();
     });
 
     it('해피패스: save_roast_op 단일 호출 + plan_batch_id + 마지막 배치 → done', async () => {

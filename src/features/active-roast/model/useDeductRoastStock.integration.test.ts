@@ -6,11 +6,14 @@ describe('deductRoastStock integration', () => {
     let qc: QueryClient;
     const insertMany = vi.fn();
     const getBlend = vi.fn();
+    const computeInventoryAlerts = vi.fn();
 
     beforeEach(() => {
         insertMany.mockReset();
         getBlend.mockReset();
+        computeInventoryAlerts.mockReset();
         insertMany.mockResolvedValue(undefined);
+        computeInventoryAlerts.mockResolvedValue(undefined);
         qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     });
 
@@ -18,7 +21,7 @@ describe('deductRoastStock integration', () => {
         const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
 
         await deductRoastStock(
-            { userId: 'user-1', qc, insertMany, getBlend },
+            { userId: 'user-1', qc, insertMany, getBlend, computeInventoryAlerts },
             {
                 deductionGrams: 5000,
                 singleBeanId: 'bean-1',
@@ -26,6 +29,7 @@ describe('deductRoastStock integration', () => {
                 referenceId: 'sess-1',
             },
         );
+        expect(computeInventoryAlerts).toHaveBeenCalledWith('user-1');
 
         expect(getBlend).not.toHaveBeenCalled();
         expect(insertMany).toHaveBeenCalledWith(
@@ -63,7 +67,7 @@ describe('deductRoastStock integration', () => {
         });
 
         await deductRoastStock(
-            { userId: 'user-1', qc, insertMany, getBlend },
+            { userId: 'user-1', qc, insertMany, getBlend, computeInventoryAlerts },
             {
                 deductionGrams: 1000,
                 singleBeanId: null,
@@ -91,7 +95,7 @@ describe('deductRoastStock integration', () => {
 
     it('uses roastLevel shrink factor for roasted inbound', async () => {
         await deductRoastStock(
-            { userId: 'user-1', qc, insertMany, getBlend },
+            { userId: 'user-1', qc, insertMany, getBlend, computeInventoryAlerts },
             {
                 deductionGrams: 5000,
                 singleBeanId: 'bean-1',
@@ -110,7 +114,7 @@ describe('deductRoastStock integration', () => {
 
         await expect(
             deductRoastStock(
-                { userId: 'user-1', qc, insertMany, getBlend },
+                { userId: 'user-1', qc, insertMany, getBlend, computeInventoryAlerts },
                 {
                     deductionGrams: 100,
                     singleBeanId: 'bean-1',
