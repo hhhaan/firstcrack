@@ -11,7 +11,7 @@ import config
 from adapters import make_adapter
 from control_guard import ControlRangeError, ControlUnavailable, clamp_command
 from pid import PidGains
-from pid_runner import STOP_HOLD, PidRunner, PvSample
+from pid_runner import STOP_HOLD, STOP_ZERO, PidRunner, PvSample
 from roaster_registry import ROASTER_REGISTRY
 
 _log = logging.getLogger(__name__)
@@ -342,6 +342,7 @@ class RoasterManager:
                             message=f"reconnected: {self._roaster_key} ({self._protocol}) after {attempt} attempts",
                             level="info",
                         )
+                        await self._safety_after_reconnect()
                         return
                     except Exception as exc:
                         self._error = _format_connection_error(
@@ -356,6 +357,19 @@ class RoasterManager:
                         self._capture_hardware_error(exc, "reconnect_failed")
         finally:
             self._reconnect_attempt = 0
+
+    async def _safety_after_reconnect(self) -> None:
+        """Reconnect must not leave FAULT PID or last heater duty stuck (#205)."""
+        try:
+            if self._pid is not None and self._pid.state_name != "off":
+                await self._pid.stop("reconnect", mode=STOP_ZERO)
+        except Exception:
+            pass
+        try:
+            if self._adapter is not None:
+                await self._adapter.control(heater=0.0)
+        except Exception:
+            pass
 
     def _reconnecting(self) -> bool:
         return self._reconnect_task is not None and not self._reconnect_task.done()

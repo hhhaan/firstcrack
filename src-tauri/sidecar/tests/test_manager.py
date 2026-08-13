@@ -268,6 +268,10 @@ class FlakyConnectAdapter:
     async def read(self):
         raise RuntimeError("not used")
 
+    async def control(self, heater=None, fan=None, drum=None) -> None:
+        self.control_calls = getattr(self, "control_calls", [])
+        self.control_calls.append({"heater": heater, "fan": fan, "drum": drum})
+
 
 class TestInfiniteReconnect:
     async def test_reconnect_survives_more_than_three_failures(self, manager, monkeypatch):
@@ -304,6 +308,36 @@ class TestInfiniteReconnect:
         manager._adapter = None  # disconnect 상당
         await asyncio.wait_for(task, timeout=2.0)
         assert manager._reconnect_attempt == 0
+
+    async def test_reconnect_zeros_heater_and_stops_fault_pid(self, manager, monkeypatch):
+        """#205: reconnect must write heater 0 and leave FAULT via STOP_ZERO."""
+        import config
+        from pid_runner import STOP_ZERO
+
+        monkeypatch.setattr(config, "RECONNECT_BACKOFFS", [0.01])
+        adapter = FlakyConnectAdapter(fail_times=0)
+        manager._adapter = adapter
+        manager._connected = False
+        manager._roaster_key = "test"
+        manager._protocol = "virtual"
+        manager._merged_params = {}
+
+        class _FaultPid:
+            state_name = "fault"
+            stopped: tuple[str, str] | None = None
+
+            async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
+                self.stopped = (reason, mode)
+                self.state_name = "off"
+
+        pid = _FaultPid()
+        manager._pid = pid
+        manager._reconnect_task = asyncio.create_task(manager._reconnect_loop())
+        await asyncio.wait_for(manager._reconnect_task, timeout=2.0)
+
+        assert manager._connected is True
+        assert pid.stopped == ("reconnect", STOP_ZERO)
+        assert adapter.control_calls[-1]["heater"] == 0.0
 
 
 # ---------------------------------------------------------------------------
