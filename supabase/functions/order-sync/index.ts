@@ -8,15 +8,10 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, getAuthenticatedUser, jsonResponse, resolveWorkspaceOwner } from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import { upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
+import { reclaimStaleRuns } from '../_shared/channels/run-lock.ts';
 import { loadSecretsSession } from '../_shared/channels/secrets-session.ts';
 import type { Platform, PollCursor } from '../_shared/channels/types.ts';
 
-/**
- * A 'running' row holds the per-connection lock; past this age it is treated as a dead run.
- * Must stay ABOVE the Edge Function wall-clock limit — lower it below that and reclaim starts
- * stealing the lock from a live invocation, i.e. two concurrent Cafe24 refresh_token rotations.
- */
-const STALE_RUN_MS = 10 * 60 * 1000;
 /** Cron sweeps every active connection, so one invocation must stay well inside the wall clock. */
 const INVOCATION_BUDGET_MS = 90 * 1000;
 /** Connections handled per invocation. Ordered least-recently-polled first → round robin. */
@@ -30,28 +25,6 @@ function isCron(req: Request): boolean {
     const secret = Deno.env.get('ORDER_SYNC_CRON_SECRET');
     if (!secret) return false;
     return req.headers.get('x-cron-secret') === secret;
-}
-
-/**
- * An invocation killed mid-run (wall-clock timeout, deploy) leaves its row on 'running' forever,
- * and the partial unique index would keep that connection locked out for good.
- *
- * Webhook runs are deliberately excluded: order-webhook owns their lifecycle (it clears its own
- * idempotency key on failure so the platform retry is let through), and reclaiming one here would
- * leave the key in place and turn a legitimate retry into a discarded "duplicate".
- */
-async function reclaimStaleRuns(admin: ReturnType<typeof serviceClient>): Promise<void> {
-    const { error } = await admin
-        .from('order_sync_runs')
-        .update({
-            status: 'error',
-            finished_at: new Date().toISOString(),
-            error_message: 'run timed out — reclaimed',
-        })
-        .eq('status', 'running')
-        .neq('trigger', 'webhook')
-        .lt('started_at', new Date(Date.now() - STALE_RUN_MS).toISOString());
-    if (error) console.error('[order-sync] reclaim stale runs', error);
 }
 
 type ConnRow = {
@@ -77,7 +50,7 @@ async function syncOne(
     stockEventSkips?: Array<{ referenceId: string; orderId: string; orderStatus: string; reason: string }>;
 }> {
     // The insert is the lock: a partial unique index allows one 'running' row per connection for
-    // cron/manual triggers. Webhook runs are outside it — see the migration for why.
+    // cron/manual/dispatch triggers. Webhook runs are outside it — see the migration for why.
     const { data: run, error: runErr } = await admin
         .from('order_sync_runs')
         .insert({

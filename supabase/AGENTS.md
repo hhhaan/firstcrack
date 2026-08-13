@@ -24,7 +24,7 @@ Schema lives in `supabase/migrations/`. Privileged network and secret handling l
 | `cafe24-oauth-callback` | public redirect | Code exchange → connection + secrets | `functions/cafe24-oauth-callback/` |
 | `order-sync` | user JWT **or** `x-cron-secret` | Pull/upsert orders; token refresh | `functions/order-sync/`, `_shared/channels/*` |
 | `order-webhook` | platform signature (**`verify_jwt = false` — deploy `--no-verify-jwt`**) | Push ingest; topic-routed, idempotent per `X-Shopify-Webhook-Id` | `functions/order-webhook/`, `_shared/webhook-auth.ts`, `_shared/channels/shopify-webhook.ts` |
-| `order-dispatch` | user JWT (+ workspace/org rules) | Mark shipped on platform; `order_dispatches` | `functions/order-dispatch/` |
+| `order-dispatch` | user JWT (+ workspace/org rules) | Mark shipped on platform; `order_dispatches`; takes the `order_sync_runs` run lock (`trigger='dispatch'`) | `functions/order-dispatch/`, `_shared/channels/run-lock.ts` |
 | `create-polar-checkout` | user JWT | Polar checkout URL | `functions/create-polar-checkout/` |
 | `polar-webhook` | Polar HMAC | **Only** path that mutates `subscriptions` / plan fields | `functions/polar-webhook/` |
 | `notify-signup` | DB webhook secret | Slack new-user | `functions/notify-signup/`, `_shared/slack.ts` |
