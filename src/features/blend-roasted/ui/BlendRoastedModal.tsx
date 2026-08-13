@@ -17,6 +17,7 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { canSubmitBlendRoasted } from '../lib/canSubmitBlendRoasted';
 import { useBlendRoasted } from '../model/useBlendRoasted';
 
 type Props = {
@@ -67,7 +68,17 @@ export const BlendRoastedModal = ({ open, onClose }: Props) => {
     }, [open]);
 
     const inputSum = useMemo(() => Object.values(inputs).reduce((a, b) => a + (b || 0), 0), [inputs]);
-    const canSubmit = !!blendId && !!selected && inputSum > 0 && outputGrams > 0 && !isPending;
+    const anyOver = !!selected?.blend_components.some(
+        (c) => (inputs[c.bean_id] ?? 0) > (stock[`bean:${c.bean_id}`]?.grams ?? 0),
+    );
+    const canSubmit = canSubmitBlendRoasted({
+        blendId,
+        hasSelection: !!selected,
+        inputSum,
+        outputGrams,
+        isPending,
+        anyOver,
+    });
 
     if (!open) return null;
 
