@@ -61,6 +61,15 @@ class AsyncLoopThread:
 # WARNING: we don't join and expect the clients running on this thread to stop them
 # (using self._running) to finally get rid of this thread to prevent hangs
 
+    # ── 로컬 추가 (fc-desktop) ─────────────────────────────
+    def stop(self, timeout: float = 2.0) -> bool:
+        """루프를 멈추고 스레드 종료를 기다린다. 시한 내 종료 시 True."""
+        if not self.__loop.is_closed():
+            with suppress(RuntimeError):
+                self.__loop.call_soon_threadsafe(self.__loop.stop)
+        self.__thread.join(timeout)
+        return not self.__thread.is_alive()
+
     @property
     def loop(self) -> asyncio.AbstractEventLoop:
         return self.__loop
