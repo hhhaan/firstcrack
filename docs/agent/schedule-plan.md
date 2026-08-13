@@ -1,13 +1,13 @@
 # Schedule / plan writes (agent)
 
 **Audience:** coding agents  
-**Date:** 2026-07-21
+**Date:** 2026-08-13
 
 ---
 
 ## Purpose
 
-Day-based roast planning: `day_plans` + `roast_plan_batches` (+ recurrence rules). Completing a batch may deduct green stock. Starting a batch hands off into Active Roast.
+Day-based roast planning: `day_plans` + `roast_plan_batches` (+ recurrence rules). Completing a batch may deduct green **and** estimate-inbound bulk roasted (`buildBatchRoastedInbound`). Starting a batch hands off into Active Roast.
 
 ---
 
@@ -56,25 +56,32 @@ Use recurrence-rule merge APIs (`recurrenceRuleApi` / `mergeRecurrenceRuleMaster
 
 ### Complete batch (schedule UI)
 
-`useScheduleDayView` → complete modal:
+`useScheduleDayView` → complete modal → `runCompleteBatchFlow` → `useDeductRoastStock` (this hook is schedule-complete only; session save does **not** use it):
 
-1. Optional green deduct: `batchGreenNeededGramsFromBatch(batch)` = remaining sessions × size (`src/shared/lib/batch-stock.ts`)
-2. `useDeductRoastStock` with **`reference_id = plan_batch.id`**
-3. Status transition to done
-4. If server returns `roast_already_deducted`, still allow complete (session path already took stock)
+1. Materialize first so deduct has a real PK (`reference_id = plan_batch.id`)
+2. Optional stock write: `batchGreenNeededGramsFromBatch(batch)` = remaining sessions × size (`src/shared/lib/batch-stock.ts`)
+3. `useDeductRoastStock` with **`reference_id = plan_batch.id`** — **not green-only**:
+   - Green −: client `buildRoastStockEvents` (blends expand on client)
+   - Bulk +: `buildBatchRoastedInbound` (always `is_estimate`; shrink from roast level; same `reference_id`)
+   - Both via `beanStockEventApi.insertMany` / RPC `insert_stock_events_batch`
+4. Status transition to done
+5. If server returns `roast_already_deducted`, still allow complete (session path already took stock)
+
+Do not skip the inbound builder, and do not add a second inbound keyed by session id for remaining sessions.
 
 ### Handoff to Active Roast
 
-Set `planBatchHandoff` on `useRoastSessionStore`. Save path in Active Roast may deduct with **session** ref — coordinate with F3 (see inventory + active-roast-save docs).
+Set `planBatchHandoff` on `useRoastSessionStore`. Session save deducts via `useSaveRoast` → `roastSessionApi.saveOp` / `save_roast_op` with **session** ref — coordinate with F3 (see inventory + active-roast-save docs).
 
 ---
 
 ## Stock coupling invariants
 
-1. Complete-batch green ref = **`plan_batch.id`**. Session save ref = **session id**. Never invent a third ref scheme.
+1. Complete-batch green **and** roasted-inbound ref = **`plan_batch.id`**. Session save ref = **session id**. Never invent a third ref scheme.
 2. Deduction grams for complete-batch use **remaining** sessions only (`batch_count - completed_sessions`), not full `batch_count` if some sessions already roasted.
-3. Reserved green stock for UI uses the same remaining-session math (see inventory architecture).
-4. Plan/trial gates: writes may be blocked by plan readonly / monthly batch caps (`src/shared/lib/features/` — `plan-matrix.ts`, `useWriteAccess.ts`) — honor server errors from batch gates.
+3. Complete-batch roasted inbound is estimated remaining-session shrink only; a linked session save already inbound'd its own output (session ref). Different refs — DB unique on inbound `reference_id` does **not** block dual inbound.
+4. Reserved green stock for UI uses the same remaining-session math (see inventory architecture).
+5. Plan/trial gates: writes may be blocked by plan readonly / monthly batch caps (`src/shared/lib/features/` — `plan-matrix.ts`, `useWriteAccess.ts`) — honor server errors from batch gates.
 
 ---
 
@@ -90,5 +97,6 @@ Set `planBatchHandoff` on `useRoastSessionStore`. Save path in Active Roast may 
 
 - UPDATE a recurring virtual occurrence in place
 - Double-deduct green by completing a batch and then saving linked roasts without F3/C2 guards
+- Treat complete as green-only — it also estimate-inbounds roasted stock (`buildBatchRoastedInbound`)
 - Put schedule business logic into widgets without entity APIs
 - Bypass RLS with service-role from the desktop app

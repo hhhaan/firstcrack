@@ -1,7 +1,7 @@
 # Active roast save & stock side-effects (agent)
 
 **Audience:** coding agents  
-**Date:** 2026-07-21  
+**Date:** 2026-08-13  
 **Related:** `docs/inventory-architecture.md`, `docs/superpowers/specs/roast-data-integrity-tracks.md`, `docs/agent/schedule-plan.md`
 
 ---
@@ -16,7 +16,8 @@ Live roast logging (sidecar temps → log entries → local TSV) and durable sav
 
 | Layer | Paths |
 |-------|--------|
-| Feature lib/model | `src/features/active-roast/` (`model/useSaveRoast.ts`, `useDeductRoastStock.ts`, `useRoastLog.ts`, `lib/buildRoastStockEvents.ts`, `roastedInbound.ts`, `determine-stock-deduction.ts`, `serialize-roast-events.ts`, `tsv-writer.ts`) |
+| Feature lib/model (session save) | `src/features/active-roast/` (`model/useSaveRoast.ts`, `useRoastLog.ts`, `lib/roastedInbound.ts`, `determine-stock-deduction.ts`, `serialize-roast-events.ts`, `tsv-writer.ts`) |
+| Feature lib/model (schedule complete only) | `model/useDeductRoastStock.ts`, `lib/buildRoastStockEvents.ts`, `lib/buildBatchRoastedInbound.ts` — **not** called from session save |
 | View orchestration | `src/views/active-roast/` (`model/useRoastSaveFlow.ts`, `useRoastCompletionFlow.ts`, `useSidecarPolling.ts`, `ActiveRoast.tsx`) |
 | Session store | `src/shared/store/roastSession.ts` (handoff; not persisted) |
 | Upload | `src/features/upload-roast-profile/` → `src/shared/lib/r2.ts` → EF `get-upload-url` |
@@ -44,7 +45,7 @@ Typical sequence:
 3. **F3 client guard:** if deduct requested and batch id known, `beanStockEventApi.hasRoastDeductionForReference(planBatchId)` → skip deduct + warn
 4. Plan gates: monthly/trial batch caps (`src/shared/lib/features/` — `plan-matrix.ts`, `useWriteAccess.ts`)
 5. Build session payload + serialized events
-6. **Server atomic path:** `roastSessionApi.saveOp` / RPC `save_roast_op` — session + green events + roasted inbound when deduct/inbound flags set (see latest `supabase/migrations/*inventory_flow_hardening*`)
+6. **Server atomic path (only stock write on this flow):** `useSaveRoast` → `roastSessionApi.saveOp` / RPC `save_roast_op` — session + green events + roasted inbound when deduct/inbound flags set (see latest `supabase/migrations/*inventory_flow_hardening*`). Do **not** call `useDeductRoastStock` or client `buildRoastStockEvents` here — those are schedule-complete only (`useScheduleDayView`).
 7. Upload curve: local TSV → presigned PUT (`uploadRoastProfile` / BBP) with **owner** user id
 8. Invalidate roast + inventory query roots
 9. **Post-save next roast:** `fetchQuery` today's day batches → `getRemainingDayBatches` (`completed_sessions < batch_count`) → if any, open `PlanBatchContinueModal` with candidates; **Start next** calls `startBatch(handoff)` so bean/profile prefill via existing handoff path
@@ -59,13 +60,19 @@ Form field semantics (`SaveRoastFormData` in `useSaveRoast.ts`):
 
 ## Stock side-effects
 
+Session save and schedule complete are **separate writers**. Do not mix them.
+
+### Session save (`useSaveRoast` → `saveOp`)
+
 | Effect | Mechanism | reference_id |
 |--------|-----------|--------------|
-| Green − | `roast` events / `insert_stock_events_batch` / inside `save_roast_op` | session id (or batch complete path uses plan_batch id) |
-| Bulk + | `upsert_roasted_inbound` | session id (one inbound; upsert for measured correction) |
+| Green − | inside `save_roast_op` (server expands blends) | session id |
+| Bulk + | inside `save_roast_op` (client `buildRoastedInbound` supplies grams / `is_estimate` only) | session id (one inbound; upsert for measured correction) |
 | History remeasure | History `OutputWeightEditor` | same upsert |
 
-Blends: `buildRoastStockEvents` expands components before batch insert.
+### Schedule complete (not this path)
+
+`useScheduleDayView` → `useDeductRoastStock`: green − via client `buildRoastStockEvents`, bulk + via `buildBatchRoastedInbound`. Both use `reference_id = plan_batch.id` (`insert_stock_events_batch`). See `docs/agent/schedule-plan.md`.
 
 ---
 
@@ -82,8 +89,9 @@ Blends: `buildRoastStockEvents` expands components before batch insert.
 ## Agent invariants
 
 1. Do not save roast by inserting `roast_sessions` alone without the documented save op / event serialization.
-2. Do not dual-deduct schedule complete + session save for the same green.
-3. Always pass workspace owner id into save/upload, not only auth id.
-4. Keep local TSV write path; network is secondary durability.
-5. Feature→feature import is forbidden: view composes `useSaveRoast` + `useUploadRoastProfile` (injection via `SyncRoastCurve`).
-6. After save, invalidate inventory + roast keys; do not invent `refetch()`.
+2. Session green/inbound writes go only through `save_roast_op`. Do not reintroduce `useDeductRoastStock` / `insert_stock_events_batch` on session save.
+3. Do not dual-deduct schedule complete + session save for the same green.
+4. Always pass workspace owner id into save/upload, not only auth id.
+5. Keep local TSV write path; network is secondary durability.
+6. Feature→feature import is forbidden: view composes `useSaveRoast` + `useUploadRoastProfile` (injection via `SyncRoastCurve`).
+7. After save, invalidate inventory + roast keys; do not invent `refetch()`.

@@ -1,6 +1,6 @@
 # Inventory Architecture — 3-ledger event sourcing
 
-> Last verified: 2026-07-21  
+> Last verified: 2026-08-13  
 > Status: green / bulk roasted / finished-goods ledgers in production. Workspace RLS + idempotency hardening applied (`20260721000000_inventory_ledger_fixes.sql`, `20260728010000_inventory_flow_hardening.sql`).
 
 **Audience:** coding agents. Do not invent stock columns or ad-hoc multi-ledger writes.
@@ -32,16 +32,17 @@ All stock is the **SUM of append-only events**. There are no denormalized quanti
 | Action | Code | Event |
 |---|---|---|
 | Bean create / restock | `src/widgets/add-bean-modal/ui/useAddBeanSubmit.ts` | `purchase` (`reference_id` null) |
-| Roast save deduct | `src/views/active-roast/model/useRoastSaveFlow.ts` → `src/features/active-roast/model/useDeductRoastStock.ts` / server `save_roast_op` | `roast`, ref = session or batch id. Blends: `src/features/active-roast/lib/buildRoastStockEvents.ts` → `insert_stock_events_batch` RPC |
-| Schedule batch complete | `src/views/schedule/hooks/useScheduleDayView.ts` + `batchGreenNeededGramsFromBatch` (`src/shared/lib/batch-stock.ts`) | `roast`, ref = `plan_batch.id` (remaining sessions only) |
+| Roast save deduct | `src/views/active-roast/model/useRoastSaveFlow.ts` → `src/features/active-roast/model/useSaveRoast.ts` → `roastSessionApi.saveOp` / RPC `save_roast_op` | `roast`, ref = session.id. Server expands blends. **Not** `useDeductRoastStock` / client `buildRoastStockEvents` |
+| Schedule batch complete | `src/views/schedule/hooks/useScheduleDayView.ts` → `useDeductRoastStock` → `buildRoastStockEvents` + `insert_stock_events_batch` | `roast`, ref = `plan_batch.id` (remaining sessions only) |
 | Manual adjust | `src/features/adjust-*` (product/roasted); bean adjust UI where present | `adjustment` / `write_off` |
 
 ### roasted_stock_events (bulk)
 
 | Action | Code | Event |
 |---|---|---|
-| Roast save auto inbound | `src/features/active-roast/model/useSaveRoast.ts` + `lib/roastedInbound.ts` → `upsert_roasted_inbound` | `roast_inbound`, ref = session.id; estimate if unweighed |
-| History output edit | `src/views/history/ui/OutputWeightEditor.tsx` → same RPC | estimate → measured upsert; server resolves bean/blend from session + plan batch |
+| Roast save auto inbound | `src/features/active-roast/model/useSaveRoast.ts` + `lib/roastedInbound.ts` (grams / estimate only) → `save_roast_op` | `roast_inbound`, ref = session.id; estimate if unweighed |
+| Schedule batch complete inbound | `useDeductRoastStock` → `buildBatchRoastedInbound` → `insert_stock_events_batch` | `roast_inbound`, ref = `plan_batch.id`; always `is_estimate` (remaining-session shrink) |
+| History output edit | `src/views/history/ui/OutputWeightEditor.tsx` → `upsert_roasted_inbound` | estimate → measured upsert; server resolves bean/blend from session + plan batch |
 | Packaging | `src/features/package-product/model/usePackageProduct.ts` → `insert_packaging_op` | bulk `packaging` − + product `roast_inbound` + **one TX** |
 | Blending | `src/features/blend-roasted/model/useBlendRoasted.ts` → `insert_roasted_stock_events_batch` | `blend_consume` − (per component bean) + `blend_produce` +, shared op id |
 
@@ -87,12 +88,14 @@ Writes must use **workspace owner id** (`useActiveWorkspace().workspaceOwnerId`)
 
 ## 5. F3 double-deduct guard
 
-Schedule "complete batch" deducts green with `reference_id = plan_batch.id`. A later linked roast save would deduct again with `reference_id = session.id`.
+Schedule "complete batch" deducts green with `reference_id = plan_batch.id` (via `useDeductRoastStock`). A later linked roast save would deduct again with `reference_id = session.id` (via `save_roast_op`).
 
 - Client: `useRoastSaveFlow` checks `beanStockEventApi.hasRoastDeductionForReference(planBatchId)` and skips UX deduct when present (fail-open if the check itself fails).
 - Server: `save_roast_op` / batch paths also skip or raise `roast_already_deducted` (C2) so status can still complete.
 
 **Invariant:** one green roast deduction per logical batch/session claim — never both refs for the same physical green.
+
+Schedule complete also writes estimated bulk inbound with the **same** `plan_batch.id` ref (`buildBatchRoastedInbound`). Session inbound uses session id. Those refs differ, so the roasted `roast_inbound` unique index does **not** prevent dual inbound. Do not add a second inbound writer on either path.
 
 ---
 
@@ -126,11 +129,12 @@ Helpers: `ensureRoastedStock` / `ensureProductStock` (cache-first). Invalidation
 | entities | `src/entities/bean-stock-event/api.ts` | bean ledger + `hasRoastDeductionForReference` |
 | entities | `src/entities/roasted-stock-event/api.ts` | upsert inbound / batch insert / stock RPC wrap |
 | entities | `src/entities/product-stock-event/api.ts` | packaging op / stock RPC wrap |
-| features | `src/features/active-roast/model/useDeductRoastStock.ts`, `useSaveRoast.ts`, `lib/roastedInbound.ts` | green deduct / bulk inbound |
+| features | `src/features/active-roast/model/useSaveRoast.ts`, `lib/roastedInbound.ts` | session save: green + bulk via `save_roast_op` |
+| features | `src/features/active-roast/model/useDeductRoastStock.ts`, `lib/buildRoastStockEvents.ts`, `lib/buildBatchRoastedInbound.ts` | schedule complete only: green − + estimated bulk + |
 | features | `src/features/package-product/`, `src/features/blend-roasted/` | packaging / blend builders |
 | features | `src/features/fulfill-order/`, `src/features/cancel-order/` | product stock via order RPCs |
 | views | `src/views/active-roast/model/useRoastSaveFlow.ts` | save orchestration + F3 guard |
-| views | `src/views/schedule/hooks/useScheduleDayView.ts` | batch complete deduct |
+| views | `src/views/schedule/hooks/useScheduleDayView.ts` | batch complete: green − + estimated bulk + |
 | views | `src/views/history/ui/OutputWeightEditor.tsx` | output weight → inbound upsert |
 | DB | migrations under `supabase/migrations/*stock*`, `*inventory*` | schema + RPCs |
 
