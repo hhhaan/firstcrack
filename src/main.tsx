@@ -59,7 +59,7 @@ const bootstrap = async () => {
     await initI18n();
 
     if (import.meta.env.VITE_E2E === '1' || import.meta.env.VITE_E2E === 'true') {
-        const { installE2eBridge } = await import('./shared/lib/e2e-bridge');
+        const { installE2eBridge } = await import('./features/active-roast/lib/e2e-bridge');
         installE2eBridge();
     }
 

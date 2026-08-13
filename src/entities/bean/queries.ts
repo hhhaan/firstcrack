@@ -1,6 +1,6 @@
+import { inventoryQueryRoots } from '@shared/lib/query-keys';
+import type { Bean } from '@shared/types/database.types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Bean } from '../../shared/types/database.types';
-import { stockEventKeys } from '../bean-stock-event/queries';
 import { beanApi } from './api';
 
 export const beanKeys = {
@@ -93,8 +93,8 @@ export const useDeleteBean = (userId: string) => {
         },
         onSuccess: (_data, id) => {
             qc.removeQueries({ queryKey: beanKeys.detail(id) });
-            qc.removeQueries({ queryKey: stockEventKeys.byBean(id) });
-            qc.removeQueries({ queryKey: stockEventKeys.summary(id) });
+            qc.removeQueries({ queryKey: [...inventoryQueryRoots.beanStockEvents, id] });
+            qc.removeQueries({ queryKey: [...inventoryQueryRoots.beanStockSummary, id] });
         },
     });
 };

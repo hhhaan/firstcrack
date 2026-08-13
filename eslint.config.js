@@ -51,4 +51,76 @@ export default tseslint.config(
             '@typescript-eslint/return-await': ['error', 'in-try-catch'],
         },
     },
+    // FSD layer direction (alias imports only; relative same-slice imports are fine)
+    {
+        files: ['src/shared/**/*.{ts,tsx}'],
+        ignores: ['src/**/*.{test,spec}.{ts,tsx}'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: ['@entities/*', '@features/*', '@widgets/*', '@views/*'],
+                            message: 'FSD: shared cannot import upper layers (entities/features/widgets/views).',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    {
+        files: ['src/entities/**/*.{ts,tsx}'],
+        ignores: ['src/**/*.{test,spec}.{ts,tsx}'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: ['@entities/*', '@features/*', '@widgets/*', '@views/*'],
+                            message:
+                                'FSD: entities cannot import other entities or upper layers; route shared state via @shared.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    {
+        // Same-slice `@features/<self>/…` imports are allowed; cross-feature is enforced by scan/CI later.
+        files: ['src/features/**/*.{ts,tsx}'],
+        ignores: ['src/**/*.{test,spec}.{ts,tsx}'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: ['@widgets/*', '@views/*'],
+                            message: 'FSD: features cannot import widgets/views; compose in widgets/views.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    {
+        // Widgets may compose other widgets today; only reverse view imports are hard-blocked.
+        files: ['src/widgets/**/*.{ts,tsx}'],
+        ignores: ['src/**/*.{test,spec}.{ts,tsx}'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: ['@views/*'],
+                            message: 'FSD: widgets cannot import views (reverse layer).',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
 );
