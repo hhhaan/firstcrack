@@ -687,7 +687,8 @@
             "title": "Unsaved roast",
             "askMsg": "An unsaved roast was found. Save it now? You can edit the details later in History.",
             "saved": "Recovered and saved your previous unsaved roast.",
-            "failed": "Could not save the recovered roast. It will be retried on next launch."
+            "failed": "Could not save the recovered roast. It will be retried on next launch.",
+            "discarded": "The recovered roast could not be saved and was discarded."
         }
     },
     "schedule": {

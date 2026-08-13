@@ -62,6 +62,23 @@ function makeDeps(overrides: Partial<SaveRoastDeps> = {}): SaveRoastDeps {
 describe('saveRoastCore', () => {
     beforeEach(() => vi.clearAllMocks());
 
+    it('output > input 또는 배치 상한을 23514로 거절한다', async () => {
+        const deps = makeDeps();
+        await expect(
+            saveRoastCore(deps, {
+                ...baseParams,
+                formData: { ...baseParams.formData, weightGrams: 5, outputWeightKg: 6 },
+            }),
+        ).rejects.toMatchObject({ code: '23514' });
+        await expect(
+            saveRoastCore(deps, {
+                ...baseParams,
+                formData: { ...baseParams.formData, weightGrams: 501 },
+            }),
+        ).rejects.toMatchObject({ code: '23514' });
+        expect(deps.saveOp).not.toHaveBeenCalled();
+    });
+
     it('월 배치 캡 도달 → BatchLimitError, saveOp 없음', async () => {
         const deps = makeDeps({
             countCompletedThisMonth: vi.fn().mockResolvedValue(9999),

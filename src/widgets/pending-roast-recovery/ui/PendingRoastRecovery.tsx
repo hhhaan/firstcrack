@@ -1,4 +1,5 @@
 import { useActiveWorkspace } from '@entities/organization';
+import { isPermanentSaveError } from '@features/active-roast/lib/saveErrorClassification';
 import {
     clearPendingRoastSave,
     readPendingRoastSave,
@@ -46,9 +47,12 @@ export const PendingRoastRecovery = () => {
                 clearPendingRoastSave();
                 useToastStore.getState().show(i18n.t('activeRoast.recovery.saved'));
             } catch (err) {
-                // Snapshot kept — retried on next launch. save_roast_op is idempotent
-                // on the client sessionId, so repeated attempts converge on one row.
                 logger.capture(err, { context: 'pending roast recovery' });
+                if (isPermanentSaveError(err)) {
+                    clearPendingRoastSave();
+                    useToastStore.getState().show(i18n.t('activeRoast.recovery.discarded'));
+                    return;
+                }
                 useToastStore.getState().show(i18n.t('activeRoast.recovery.failed'));
             }
         })();

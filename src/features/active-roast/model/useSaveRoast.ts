@@ -160,6 +160,11 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     const outputKg = formData.outputWeightKg;
     const outputWeightGrams =
         outputKg != null && Number.isFinite(outputKg) && outputKg > 0 ? Math.round(outputKg * 1000) : null;
+    // Shared write-path invariant (#220). Form schema is not on the recovery path.
+    const MAX_BATCH_WEIGHT_GRAMS = 500_000;
+    if (weightGrams > MAX_BATCH_WEIGHT_GRAMS || (outputWeightGrams != null && outputWeightGrams > weightGrams)) {
+        throw Object.assign(new Error('invalid_weight'), { code: '23514' });
+    }
     // Linked / handoff batch supplies bean/blend; else form selection.
     // Free-text label (form beanLabel) wins over header selectedBeanId — typing a
     // custom name must not be overwritten by a pre-charge inventory pick.

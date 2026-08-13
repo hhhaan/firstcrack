@@ -2,6 +2,7 @@ import { beanStockEventApi } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
 import { planBatchApi, planKeys, useDayBatches } from '@entities/plan';
 import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
+import { isPermanentSaveError, pgErrorCode } from '@features/active-roast/lib/saveErrorClassification';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import {
     clearPendingRoastSave,
@@ -214,14 +215,12 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 onResetActiveRoast();
             } catch (err) {
                 logger.capture(err, { context: 'roastSummary save' });
-                // FK on deleted bean — surface a clear action instead of raw PostgREST text (#176)
-                const pgCode =
-                    err &&
-                    typeof err === 'object' &&
-                    'code' in err &&
-                    typeof (err as { code: unknown }).code === 'string'
-                        ? (err as { code: string }).code
-                        : null;
+                const pgCode = pgErrorCode(err);
+                // Integrity class is permanent — drop the poison snapshot so recovery
+                // does not discard a roast the user could have fixed (#220).
+                if (isPermanentSaveError(err)) {
+                    clearPendingRoastSave();
+                }
                 if (pgCode === '23503') {
                     await message(i18n.t('activeRoast.dialogs.beanDeletedMsg'), {
                         title: i18n.t('activeRoast.dialogs.beanDeletedTitle'),
