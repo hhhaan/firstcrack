@@ -8,9 +8,14 @@
  * Shopify headers: X-Shopify-Shop-Domain, X-Shopify-Hmac-Sha256, X-Shopify-Topic,
  *                  X-Shopify-Webhook-Id (idempotency key)
  * Cafe24: mall_id in payload; x-cafe24-webhook-secret / x-webhook-secret vs CAFE24_WEBHOOK_SECRET
+ *         idempotency via cafe24WebhookEventId (no event-id header)
  */
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
-import { isCafe24Uninstall } from '../_shared/channels/cafe24-webhook.ts';
+import {
+    cafe24WebhookEventId,
+    classifyWebhookRunInsert,
+    isCafe24Uninstall,
+} from '../_shared/channels/cafe24-webhook.ts';
 import { upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { classifyShopifyTopic } from '../_shared/channels/shopify-webhook.ts';
 import { cafe24ToCanonical, shopifyToCanonical } from '../_shared/channels/status-map.ts';
@@ -245,12 +250,11 @@ Deno.serve(async (req) => {
                 })
                 .select('id')
                 .single();
-            if (runErr || !run) {
-                if (runErr?.code === '23505') {
-                    return jsonResponse({ ok: true, skipped: 'duplicate delivery' });
-                }
-                throw new Error(runErr?.message ?? 'run insert failed');
+            const shopifyRun = classifyWebhookRunInsert(run, runErr);
+            if (shopifyRun.kind === 'duplicate') {
+                return jsonResponse({ ok: true, skipped: 'duplicate delivery' });
             }
+            if (shopifyRun.kind === 'error') throw new Error(shopifyRun.message);
 
             try {
                 await upsertCanonicalOrders(
@@ -274,7 +278,7 @@ Deno.serve(async (req) => {
                         external_event_id: null,
                         error_message: msg.slice(0, 1000),
                     })
-                    .eq('id', run.id);
+                    .eq('id', shopifyRun.runId);
                 throw e;
             }
 
@@ -285,7 +289,7 @@ Deno.serve(async (req) => {
                     finished_at: new Date().toISOString(),
                     orders_upserted: 1,
                 })
-                .eq('id', run.id);
+                .eq('id', shopifyRun.runId);
 
             return jsonResponse({ ok: true, upserted: 1 });
         }
@@ -369,25 +373,60 @@ Deno.serve(async (req) => {
         const order = parseCafe24Order(payload);
         if (!order) return jsonResponse({ ok: true, skipped: 'unparseable' });
 
-        await upsertCanonicalOrders(
-            admin,
-            {
-                userId: conn.user_id,
-                connectionId: conn.id,
-                platform: 'cafe24',
-                autoFulfillOnShipped: conn.auto_fulfill_on_shipped === true,
-            },
-            [order],
-        );
+        // Idempotency: Cafe24 has no event-id header. Key is derived from the
+        // payload (event_no + identity fields, else a hash) — same pre-insert
+        // + 23505 + release-on-failure pattern as Shopify (issue #142 item 3).
+        const { data: run, error: runErr } = await admin
+            .from('order_sync_runs')
+            .insert({
+                connection_id: conn.id,
+                user_id: conn.user_id,
+                trigger: 'webhook',
+                status: 'running',
+                external_event_id: await cafe24WebhookEventId(payload),
+            })
+            .select('id')
+            .single();
+        const cafe24Run = classifyWebhookRunInsert(run, runErr);
+        if (cafe24Run.kind === 'duplicate') {
+            return jsonResponse({ ok: true, skipped: 'duplicate delivery' });
+        }
+        if (cafe24Run.kind === 'error') throw new Error(cafe24Run.message);
 
-        await admin.from('order_sync_runs').insert({
-            connection_id: conn.id,
-            user_id: conn.user_id,
-            trigger: 'webhook',
-            status: 'success',
-            finished_at: new Date().toISOString(),
-            orders_upserted: 1,
-        });
+        try {
+            await upsertCanonicalOrders(
+                admin,
+                {
+                    userId: conn.user_id,
+                    connectionId: conn.id,
+                    platform: 'cafe24',
+                    autoFulfillOnShipped: conn.auto_fulfill_on_shipped === true,
+                },
+                [order],
+            );
+        } catch (e) {
+            // Release the idempotency key so the platform retry is processed.
+            const msg = e instanceof Error ? e.message : String(e);
+            await admin
+                .from('order_sync_runs')
+                .update({
+                    status: 'error',
+                    finished_at: new Date().toISOString(),
+                    external_event_id: null,
+                    error_message: msg.slice(0, 1000),
+                })
+                .eq('id', cafe24Run.runId);
+            throw e;
+        }
+
+        await admin
+            .from('order_sync_runs')
+            .update({
+                status: 'success',
+                finished_at: new Date().toISOString(),
+                orders_upserted: 1,
+            })
+            .eq('id', cafe24Run.runId);
 
         return jsonResponse({ ok: true, upserted: 1 });
     } catch (e) {
