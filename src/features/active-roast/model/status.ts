@@ -136,7 +136,8 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             current.ror_et === data.ror_et &&
             current.heater === data.heater &&
             current.fan === data.fan &&
-            current.drum === data.drum
+            current.drum === data.drum &&
+            current.stale === data.stale
         )
             return;
         set({ liveData: data });
