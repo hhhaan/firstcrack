@@ -41,6 +41,30 @@ interface Params {
 /** idle 중 /status 재확인 주기 — 온도 폴링보다 느슨 (부하 거의 없음). */
 export const IDLE_STATUS_POLL_MS = 5000;
 
+/**
+ * 이전 폴링이 끝난 뒤에야 다음 tick을 예약하는 루프 (#210).
+ * setInterval은 느린 read(RTU worst-case 1.8s)에서 요청을 쌓아
+ * 프론트 5s 타임아웃 → 허위 "연결 끊김"을 만든다.
+ */
+export const startPollLoop = (poll: () => Promise<unknown>, intervalMs: number): (() => void) => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+        try {
+            await poll();
+        } catch {
+            // poll 내부에서 이미 처리 — 루프는 어떤 경우에도 죽지 않는다
+        }
+        if (stopped) return;
+        timer = setTimeout(() => void tick(), intervalMs);
+    };
+    void tick();
+    return () => {
+        stopped = true;
+        if (timer !== undefined) clearTimeout(timer);
+    };
+};
+
 type SidecarStatusLike = {
     connected: boolean;
     reconnecting?: boolean;
@@ -337,9 +361,7 @@ export const useSidecarPolling = ({
             }
         };
 
-        void poll();
-        const id = setInterval(() => void poll(), pollIntervalMs);
-        return () => clearInterval(id);
+        return startPollLoop(poll, pollIntervalMs);
     }, [phase, pollIntervalMs]);
 
     return { livePoints, setLivePoints };
