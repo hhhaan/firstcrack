@@ -306,6 +306,7 @@ describe('saveRoastCore', () => {
                 beanId: null,
                 beanLabel: 'Sample Only',
                 weightGrams: 0.3,
+                outputWeightKg: 0.25,
                 deductStock: true,
             },
             selectedBeanId: 'header-bean-id',
