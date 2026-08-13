@@ -5,12 +5,15 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import socket
+import threading
+import time
 
 import pytest
 
 from scanner import (
     PROTOCOL_PORTS,
     candidate_hosts,
+    local_ipv4_networks,
     scan_port,
     scan_protocol,
 )
@@ -61,3 +64,54 @@ async def test_scan_closed_port_empty():
         free_port = s.getsockname()[1]
     found = await scan_port(free_port, hosts=["127.0.0.1"])
     assert found == []
+
+
+def test_local_ipv4_networks_is_sync():
+    nets = local_ipv4_networks()
+    assert not asyncio.iscoroutine(nets)
+    assert isinstance(nets, list)
+    assert all(isinstance(n, ipaddress.IPv4Network) for n in nets)
+
+
+async def test_scan_dns_does_not_block_event_loop(monkeypatch):
+    """gethostname must run off the event-loop thread; other tasks keep progressing."""
+    loop_ident = threading.get_ident()
+    dns_idents: list[int] = []
+    ticks = 0
+
+    def slow_gethostname() -> str:
+        dns_idents.append(threading.get_ident())
+        time.sleep(0.25)
+        return "localhost"
+
+    real_socket = socket.socket
+
+    def socket_no_udp(*args, **kwargs):
+        sock_type = args[1] if len(args) > 1 else kwargs.get("type", socket.SOCK_STREAM)
+        if sock_type == socket.SOCK_DGRAM:
+            raise OSError("skip outbound iface")
+        return real_socket(*args, **kwargs)
+
+    monkeypatch.setattr(socket, "gethostname", slow_gethostname)
+    monkeypatch.setattr(socket, "socket", socket_no_udp)
+
+    async def ticker() -> None:
+        nonlocal ticks
+        while True:
+            await asyncio.sleep(0.05)
+            ticks += 1
+
+    task = asyncio.create_task(ticker())
+    try:
+        found = await asyncio.wait_for(scan_protocol("s7"), timeout=2.0)
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    assert found == []
+    assert dns_idents
+    assert all(ident != loop_ident for ident in dns_idents)
+    assert ticks >= 3

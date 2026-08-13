@@ -104,7 +104,9 @@ async def scan_port(port: int, hosts: list[str] | None = None) -> list[dict[str,
     """Probe hosts for an open TCP port. Returns sorted ``[{host}]``."""
     try:
         if hosts is None:
-            hosts = candidate_hosts(local_ipv4_networks())
+            # gethostname/getaddrinfo block the loop on macOS mDNS (#211)
+            networks = await asyncio.to_thread(local_ipv4_networks)
+            hosts = candidate_hosts(networks)
         if not hosts:
             return []
         sem = asyncio.Semaphore(SEMAPHORE_LIMIT)
