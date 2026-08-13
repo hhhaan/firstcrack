@@ -20,14 +20,13 @@ import { Download, GitCompare, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHistoryFilters } from './hooks/useHistoryFilters';
+import { buildRoastLevelFilterOptions, HISTORY_ROAST_LEVELS } from './lib/roastLevelOptions';
 import { DeleteSessionModal } from './ui/DeleteSessionModal';
 import { HistorySkeleton } from './ui/HistorySkeleton';
 import { HistoryTable } from './ui/HistoryTable';
 import { SessionCompareModal } from './ui/SessionCompareModal';
 
 const MAX_COMPARE = 4;
-
-const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 
 const PAGE_SIZE = 10;
 
@@ -102,6 +101,8 @@ export const History = () => {
             ),
         [filterMeta],
     );
+
+    const levelOptions = useMemo(() => buildRoastLevelFilterOptions(HISTORY_ROAST_LEVELS, filterMeta), [filterMeta]);
 
     const monthOptions = useMemo(() => {
         const set = new Set<string>();
@@ -310,7 +311,7 @@ export const History = () => {
                         <FilterDropdown
                             label={t('history.allLevels')}
                             value={levelFilter}
-                            options={ROAST_LEVELS.filter((l) => rawSessions.some((s) => s.roast_level === l))}
+                            options={levelOptions}
                             onSelect={setLevelFilter}
                         />
                         <FilterDropdown

@@ -32,8 +32,12 @@ interface PaginatedResult {
 
 export type RoastSessionFilterMeta = {
     roasted_at: string | null;
+    roast_level: string | null;
     beans: { origin: string | null } | null;
 };
+
+/** Lightweight History facet columns — include roast_level so filters are not page-bound. */
+export const FILTER_META_SELECT = 'roasted_at, roast_level, beans(origin)';
 
 export const roastSessionApi = {
     list: async (userId: string, status?: RoastSession['status']): Promise<RoastSessionWithRelations[]> => {
@@ -57,7 +61,7 @@ export const roastSessionApi = {
     listFilterMeta: async (userId: string): Promise<RoastSessionFilterMeta[]> => {
         const { data, error } = await supabase
             .from('roast_sessions')
-            .select('roasted_at, beans(origin)')
+            .select(FILTER_META_SELECT)
             .eq('user_id', userId)
             .eq('status', 'completed');
         if (error) throw error;
