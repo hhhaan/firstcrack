@@ -609,6 +609,8 @@
             "deductSkippedAlreadyDeducted": "このバッチはスケジュールで既に在庫が差し引かれているため、重複差し引きをスキップしました。",
             "batchStatusUpdateFailed": "ローストは保存されましたが、バッチの完了ステータスの保存に失敗しました。スケジュールで完了処理してください。",
             "batchWeight": "生豆投入量",
+            "weightTooLarge": "重量は{{max}}kgを超えられません。",
+            "outputExceedsInput": "焙煎後の重量が投入量を超えています。",
             "weightUnit": "g",
             "roastLevel": "ロースト度",
             "notes": "ノート",

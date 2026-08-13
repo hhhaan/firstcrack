@@ -609,6 +609,8 @@
             "deductSkippedAlreadyDeducted": "Stock for this batch was already deducted from the schedule, so the duplicate deduction was skipped.",
             "batchStatusUpdateFailed": "Roast saved, but the batch could not be marked as done. Please mark it complete in the Schedule.",
             "batchWeight": "Green Weight (charged)",
+            "weightTooLarge": "Weight cannot exceed {{max}}kg.",
+            "outputExceedsInput": "Output weight cannot exceed green input.",
             "weightUnit": "g",
             "roastLevel": "Roast Level",
             "notes": "Notes",

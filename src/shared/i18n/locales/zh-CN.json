@@ -609,6 +609,8 @@
             "deductSkippedAlreadyDeducted": "该批次已在计划中扣减过库存，已跳过重复扣减。",
             "batchStatusUpdateFailed": "烘焙已保存，但批次完成状态保存失败。请在排程中将其标记为完成。",
             "batchWeight": "生豆投入量",
+            "weightTooLarge": "重量不能超过 {{max}}kg。",
+            "outputExceedsInput": "烘焙后重量不能大于投入量。",
             "weightUnit": "g",
             "roastLevel": "烘焙度",
             "notes": "备注",

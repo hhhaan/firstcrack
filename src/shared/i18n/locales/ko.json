@@ -877,6 +877,8 @@
         "summary": {
             "title": "로스팅 완료",
             "batchWeight": "생두 투입량",
+            "weightTooLarge": "무게는 {{max}}kg를 넘을 수 없습니다.",
+            "outputExceedsInput": "볶은 후 무게가 투입량보다 큽니다.",
             "finalBt": "최종 BT",
             "totalTime": "총 시간",
             "development": "발달",
