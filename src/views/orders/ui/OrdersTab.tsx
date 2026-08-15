@@ -2,7 +2,7 @@ import { type OrderStatusFilter, type OrderWithLines, useOrdersPaginated } from 
 import { type OrderDispatch, useOrderDispatches } from '@entities/order-dispatch';
 import { useActiveWorkspace } from '@entities/organization';
 import { DispatchModal } from '@features/dispatch-order';
-import { useCancelOrder, useFulfillOrder } from '@features/order-status';
+import { orderActionFlags, useCancelOrder, useFulfillOrder } from '@features/order-status';
 import { formatDateShort } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
@@ -220,18 +220,11 @@ function OrderRow({
     const itemCount = activeLines.reduce((n, l) => n + l.quantity, 0);
     // No product_id ⇒ fulfill_order deducts nothing for that line and it never reaches roasting needs.
     const unmappedCount = activeLines.filter((l) => !l.product_id).length;
-    const cancelled = order.status === 'cancelled' || order.status === 'refunded';
-    const fulfilled = !!order.fulfilled_at && !cancelled;
-    const canFulfill = !fulfilled && !cancelled && (order.status === 'paid' || order.status === 'preparing');
+    const { cancelled, fulfilled, canFulfill, canDispatch } = orderActionFlags(order, dispatch);
     // Local cancel restores product stock; channel-platform cancellations are synced FROM the platform
     // (webhook and/or poll — Naver has no webhook, cancels arrive via poll claim statuses), so manual-only
     // local cancel avoids double-restoring.
     const canCancel = order.platform === 'manual' && !cancelled;
-    const canDispatch =
-        order.platform !== 'manual' &&
-        fulfilled &&
-        !!order.connection_id &&
-        (!dispatch || dispatch.status === 'failed');
     const sentDelayed =
         dispatch?.status === 'sent' &&
         !!dispatch.sent_at &&
