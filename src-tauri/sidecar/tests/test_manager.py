@@ -85,6 +85,43 @@ class TestStatus:
         await manager.disconnect()
         assert manager.status()["connected"] is False
 
+    async def test_disconnect_stops_pid_at_zero_before_teardown(self, manager):
+        """#219: disconnect must write heater 0 while control() still accepts writes."""
+        from pid_runner import STOP_ZERO
+
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("virtual", {})
+
+        order: list[str] = []
+
+        class _Pid:
+            async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
+                order.append(f"stop:{reason}:{mode}:connected={manager._connected}")
+                await fake.control(heater=0.0)
+
+        manager._pid = _Pid()
+        await manager.disconnect()
+
+        assert order == [f"stop:disconnect:{STOP_ZERO}:connected=True"]
+        assert fake.control_calls[-1]["heater"] == 0.0
+        assert manager._pid is None
+        assert manager.status()["connected"] is False
+
+    async def test_disconnect_continues_if_pid_stop_raises(self, manager):
+        fake = FakeAdapter(readings=[make_reading(bt=150.0)])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("virtual", {})
+
+        class _Pid:
+            async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
+                raise RuntimeError("adapter gone")
+
+        manager._pid = _Pid()
+        await manager.disconnect()
+        assert manager.status()["connected"] is False
+        assert fake.disconnected is True
+
     async def test_error_propagated_in_status(self, manager):
         fake = FakeAdapter(connect_exc=ConnectionRefusedError("Connection refused"))
         with patch("manager.make_adapter", return_value=fake):

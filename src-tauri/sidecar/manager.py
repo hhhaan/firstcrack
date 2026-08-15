@@ -11,7 +11,7 @@ import config
 from adapters import make_adapter
 from control_guard import ControlRangeError, ControlUnavailable, clamp_command
 from pid import PidGains
-from pid_runner import STOP_HOLD, PidRunner, PvSample
+from pid_runner import STOP_HOLD, STOP_ZERO, PidRunner, PvSample
 from roaster_registry import ROASTER_REGISTRY
 
 _log = logging.getLogger(__name__)
@@ -263,6 +263,13 @@ class RoasterManager:
             await self._disconnect_internal()
 
     async def _disconnect_internal(self) -> None:
+        # Heater 0 before closing the write gate. control() refuses writes once
+        # _connected is False, so STOP_ZERO must run first (#219).
+        if self._pid is not None:
+            try:
+                await self._pid.stop("disconnect", mode=STOP_ZERO)
+            except Exception:
+                pass
         # 쓰기 게이트를 첫 await보다 먼저 닫는다. cancel()은 기다리지 않으므로
         # 이미 control() 안에 진입한 tick이 아래 await 도중 재개해 한 번 더 쓸 수 있다.
         self._connected = False
