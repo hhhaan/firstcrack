@@ -1,4 +1,9 @@
-import { formatBeanCuppingMeta, useAddCuppingSamples } from '@entities/cupping';
+import {
+    type CuppingSampleWithMeta,
+    formatBeanCuppingMeta,
+    useAddCuppingSamples,
+    useUpdateCuppingSample,
+} from '@entities/cupping';
 import { useRoastSessions } from '@entities/roast';
 import { formatDateShort } from '@shared/lib/format';
 import {
@@ -21,16 +26,21 @@ type CuppingAddSamplesFormProps = {
     userId: string;
     eventId: string;
     onClose: () => void;
+    sample?: CuppingSampleWithMeta;
 };
 
-export const CuppingAddSamplesForm = ({ userId, eventId, onClose }: CuppingAddSamplesFormProps) => {
+export const CuppingAddSamplesForm = ({ userId, eventId, onClose, sample }: CuppingAddSamplesFormProps) => {
     const { t } = useTranslation();
     const { data: roastSessions = [] } = useRoastSessions(userId, 'completed');
     const addSamples = useAddCuppingSamples(userId, eventId);
+    const updateSample = useUpdateCuppingSample(eventId);
+    const isEdit = !!sample;
 
-    const [tab, setTab] = useState<AddTab>('roast');
-    const [selectedRoastIds, setSelectedRoastIds] = useState<string[]>([]);
-    const [freeLabel, setFreeLabel] = useState('');
+    const [tab, setTab] = useState<AddTab>(sample && !sample.roast_session_id ? 'custom' : 'roast');
+    const [selectedRoastIds, setSelectedRoastIds] = useState<string[]>(
+        sample?.roast_session_id ? [sample.roast_session_id] : [],
+    );
+    const [freeLabel, setFreeLabel] = useState(sample?.label ?? '');
     const [addError, setAddError] = useState<string | null>(null);
 
     const roastOptions = useMemo(
@@ -53,44 +63,81 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose }: CuppingAddSa
     );
 
     const toggleRoast = (id: string) => {
+        if (isEdit) {
+            setSelectedRoastIds([id]);
+            return;
+        }
         setSelectedRoastIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
     };
 
-    const handleAdd = async () => {
+    const handleSubmit = async () => {
         setAddError(null);
-        const items: { label: string; roastSessionId?: string | null }[] = [];
-
-        if (tab === 'roast') {
-            for (const id of selectedRoastIds) {
-                const opt = roastOptions.find((o) => o.id === id);
-                items.push({ label: opt?.label ?? t('cupping.unknownBean'), roastSessionId: id });
-            }
-            if (!items.length) {
-                setAddError(t('cupping.addSamplesEmptyRoast'));
-                return;
-            }
-        } else {
-            if (!freeLabel.trim()) {
-                setAddError(t('cupping.addSamplesEmptyCustom'));
-                return;
-            }
-            items.push({ label: freeLabel.trim(), roastSessionId: null });
-        }
-
         try {
-            await addSamples.mutateAsync(items);
+            if (sample) {
+                if (tab === 'roast') {
+                    const id = selectedRoastIds[0];
+                    if (!id) {
+                        setAddError(t('cupping.addSamplesEmptyRoast'));
+                        return;
+                    }
+                    const opt = roastOptions.find((o) => o.id === id);
+                    await updateSample.mutateAsync({
+                        sampleId: sample.id,
+                        label: opt?.label ?? t('cupping.unknownBean'),
+                        roastSessionId: id,
+                    });
+                } else {
+                    if (!freeLabel.trim()) {
+                        setAddError(t('cupping.addSamplesEmptyCustom'));
+                        return;
+                    }
+                    await updateSample.mutateAsync({
+                        sampleId: sample.id,
+                        label: freeLabel.trim(),
+                        roastSessionId: null,
+                    });
+                }
+            } else {
+                const items: { label: string; roastSessionId?: string | null }[] = [];
+                if (tab === 'roast') {
+                    for (const id of selectedRoastIds) {
+                        const opt = roastOptions.find((o) => o.id === id);
+                        items.push({ label: opt?.label ?? t('cupping.unknownBean'), roastSessionId: id });
+                    }
+                    if (!items.length) {
+                        setAddError(t('cupping.addSamplesEmptyRoast'));
+                        return;
+                    }
+                } else {
+                    if (!freeLabel.trim()) {
+                        setAddError(t('cupping.addSamplesEmptyCustom'));
+                        return;
+                    }
+                    items.push({ label: freeLabel.trim(), roastSessionId: null });
+                }
+                await addSamples.mutateAsync(items);
+            }
             onClose();
         } catch (e) {
             setAddError(e instanceof Error ? e.message : 'Failed');
         }
     };
 
+    const pending = isEdit ? updateSample.isPending : addSamples.isPending;
+    const submitLabel = pending
+        ? t(isEdit ? 'cupping.saving' : 'cupping.adding')
+        : t(isEdit ? 'common.save' : 'cupping.add');
+
     return (
-        <ModalShell onClose={onClose} labelledBy="cupping-add-title" contentClassName={modalPanel.formLg}>
+        <ModalShell
+            onClose={onClose}
+            labelledBy={isEdit ? 'cupping-edit-title' : 'cupping-add-title'}
+            contentClassName={modalPanel.formLg}
+        >
             <div className={modalHeaderChrome}>
                 <ModalHeader
-                    titleId="cupping-add-title"
-                    title={t('cupping.addSamples')}
+                    titleId={isEdit ? 'cupping-edit-title' : 'cupping-add-title'}
+                    title={t(isEdit ? 'cupping.editSample' : 'cupping.addSamples')}
                     onClose={onClose}
                     closeLabel={t('common.close')}
                     className="px-8 pt-6 pb-4"
@@ -124,7 +171,9 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose }: CuppingAddSa
             <ModalScrollBody contentClassName="p-8">
                 {tab === 'roast' ? (
                     <>
-                        <p className="mb-3 text-[12px] text-muted">{t('cupping.addSamplesHintRoast')}</p>
+                        <p className="mb-3 text-[12px] text-muted">
+                            {t(isEdit ? 'cupping.editSamplesHintRoast' : 'cupping.addSamplesHintRoast')}
+                        </p>
                         <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-border-subtle p-2 dark:border-[#585d61]">
                             {roastOptions.length === 0 ? (
                                 <div className="p-2 text-xs text-muted">{t('cupping.noRoasts')}</div>
@@ -135,7 +184,8 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose }: CuppingAddSa
                                         className="flex cursor-pointer items-start gap-2.5 rounded-lg px-2 py-2 text-[13px] hover:bg-surface"
                                     >
                                         <input
-                                            type="checkbox"
+                                            type={isEdit ? 'radio' : 'checkbox'}
+                                            name={isEdit ? 'cupping-edit-roast' : undefined}
                                             className="mt-1"
                                             checked={selectedRoastIds.includes(o.id)}
                                             onChange={() => toggleRoast(o.id)}
@@ -182,11 +232,11 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose }: CuppingAddSa
                     </button>
                     <button
                         type="button"
-                        disabled={addSamples.isPending}
-                        onClick={() => void handleAdd()}
+                        disabled={pending}
+                        onClick={() => void handleSubmit()}
                         className={`${modalPrimaryBtnCls} flex-[2]`}
                     >
-                        {addSamples.isPending ? t('cupping.adding') : t('cupping.add')}
+                        {submitLabel}
                     </button>
                 </div>
             </div>

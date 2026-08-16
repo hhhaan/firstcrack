@@ -1,5 +1,6 @@
 import {
     type CuppingEventSummary,
+    type CuppingSampleWithMeta,
     useCuppingEvent,
     useCuppingSamples,
     useDeleteCuppingEvent,
@@ -33,7 +34,7 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
     const { data: eventDetail } = useCuppingEvent(eventId);
     const deleteEvent = useDeleteCuppingEvent(userId);
     const endEvent = useEndCuppingEvent(userId);
-    const [showAdd, setShowAdd] = useState(false);
+    const [sampleForm, setSampleForm] = useState<'add' | CuppingSampleWithMeta | null>(null);
 
     const title = event?.title ?? t('cupping.title');
     const participants = event?.participants ?? [];
@@ -77,7 +78,7 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                         {!isEnded ? (
                             <>
                                 <SurfaceButton
-                                    onClick={() => setShowAdd(true)}
+                                    onClick={() => setSampleForm('add')}
                                     icon={<Plus size={13} strokeWidth={2} />}
                                 >
                                     {t('cupping.addSamples')}
@@ -162,11 +163,17 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                 samples={samples}
                 isLoading={isLoading}
                 readOnly={isEnded}
-                onAddClick={() => setShowAdd(true)}
+                onAddClick={() => setSampleForm('add')}
+                onEditClick={(s) => setSampleForm(s)}
             />
 
-            {showAdd && !isEnded ? (
-                <CuppingAddSamplesForm userId={userId} eventId={eventId} onClose={() => setShowAdd(false)} />
+            {sampleForm && !isEnded ? (
+                <CuppingAddSamplesForm
+                    userId={userId}
+                    eventId={eventId}
+                    sample={sampleForm === 'add' ? undefined : sampleForm}
+                    onClose={() => setSampleForm(null)}
+                />
             ) : null}
         </PageLayout>
     );

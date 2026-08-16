@@ -6,7 +6,7 @@ import {
 } from '@entities/cupping';
 import { formatDateShort } from '@shared/lib/format';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
-import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Fragment, type KeyboardEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CuppingScoreList } from './CuppingScoreList';
@@ -20,6 +20,7 @@ type CuppingSampleSummaryProps = {
     /** Ended session: view scores only (no add/reorder/delete). */
     readOnly?: boolean;
     onAddClick: () => void;
+    onEditClick: (sample: CuppingSampleWithMeta) => void;
 };
 
 function moveIndex(ids: string[], index: number, dir: 'up' | 'down'): string[] | null {
@@ -39,6 +40,7 @@ export const CuppingSampleSummary = ({
     isLoading,
     readOnly = false,
     onAddClick,
+    onEditClick,
 }: CuppingSampleSummaryProps) => {
     const { t } = useTranslation();
     const deleteSample = useDeleteCuppingSample(userId, eventId);
@@ -186,6 +188,14 @@ export const CuppingSampleSummary = ({
                                                         <Icon size={13} strokeWidth={2} />
                                                     </button>
                                                 ))}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onEditClick(s)}
+                                                    className="ml-1 inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-surface hover:text-primary"
+                                                    aria-label={t('common.edit')}
+                                                >
+                                                    <Pencil size={13} strokeWidth={1.75} />
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => {

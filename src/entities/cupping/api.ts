@@ -54,6 +54,13 @@ export type AddSampleInput = {
     sortOrder?: number;
 };
 
+export type UpdateSampleInput = {
+    eventId: string;
+    sampleId: string;
+    label: string;
+    roastSessionId?: string | null;
+};
+
 export type CreateInviteForEventInput = {
     userId: string;
     eventId: string;
@@ -374,6 +381,27 @@ export const cuppingApi = {
         );
         const failed = results.find((r) => r.error);
         if (failed?.error) throw failed.error;
+    },
+
+    updateSample: async ({
+        eventId,
+        sampleId,
+        label,
+        roastSessionId = null,
+    }: UpdateSampleInput): Promise<CuppingSample> => {
+        await cuppingApi.assertEventOpen(eventId);
+        const { data, error } = await supabase
+            .from('cupping_samples')
+            .update({
+                label: label.trim() || 'Sample',
+                roast_session_id: roastSessionId,
+            })
+            .eq('id', sampleId)
+            .eq('event_id', eventId)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
     },
 
     deleteSample: async (sampleId: string): Promise<void> => {

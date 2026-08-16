@@ -6,6 +6,7 @@ export type {
     CreateInviteResult,
     CuppingEventSummary,
     CuppingSampleWithMeta,
+    UpdateSampleInput,
 } from './api';
 export { cuppingApi, formatBeanCuppingMeta } from './api';
 export type { ScaV1Key, ScaV1Scores } from './lib/score';
@@ -49,5 +50,6 @@ export {
     useEventInvite,
     useReorderCuppingSamples,
     useRevokeCuppingInvite,
+    useUpdateCuppingSample,
     writeThroughInvitesFromEvents,
 } from './queries';

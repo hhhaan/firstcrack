@@ -8,6 +8,7 @@ import {
     type CuppingEventSummary,
     type CuppingSampleWithMeta,
     cuppingApi,
+    type UpdateSampleInput,
 } from './api';
 import { cuppingInviteUrl, generateCuppingToken, resolveCuppingPublicBaseUrl } from './lib/token';
 
@@ -412,6 +413,52 @@ export const useAddCuppingSample = (userId: string, eventId: string) => {
             );
             void qc.invalidateQueries({ queryKey: cuppingKeys.samples(eventId) });
             void qc.invalidateQueries({ queryKey: cuppingKeys.events(userId) });
+        },
+    });
+};
+
+export const useUpdateCuppingSample = (eventId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (input: Omit<UpdateSampleInput, 'eventId'>) => cuppingApi.updateSample({ ...input, eventId }),
+        onMutate: async (input) => {
+            await qc.cancelQueries({ queryKey: cuppingKeys.samples(eventId) });
+            const prevSamples = qc.getQueryData<CuppingSampleWithMeta[]>(cuppingKeys.samples(eventId));
+            const roastSessionId = input.roastSessionId ?? null;
+            qc.setQueryData<CuppingSampleWithMeta[]>(cuppingKeys.samples(eventId), (old = []) =>
+                old.map((s) => {
+                    if (s.id !== input.sampleId) return s;
+                    const sameRoast = s.roast_session_id === roastSessionId;
+                    return {
+                        ...s,
+                        label: input.label.trim() || 'Sample',
+                        roast_session_id: roastSessionId,
+                        roast_sessions: sameRoast
+                            ? s.roast_sessions
+                            : roastSessionId
+                              ? {
+                                    id: roastSessionId,
+                                    roasted_at: s.roast_sessions?.roasted_at ?? null,
+                                    beans: {
+                                        name: input.label.trim() || 'Sample',
+                                        origin: null,
+                                        region: null,
+                                        variety: null,
+                                        process: null,
+                                        farm: null,
+                                    },
+                                }
+                              : null,
+                    };
+                }),
+            );
+            return { prevSamples };
+        },
+        onError: (_err, _vars, ctx) => {
+            if (ctx?.prevSamples) qc.setQueryData(cuppingKeys.samples(eventId), ctx.prevSamples);
+        },
+        onSuccess: () => {
+            void qc.invalidateQueries({ queryKey: cuppingKeys.samples(eventId) });
         },
     });
 };
