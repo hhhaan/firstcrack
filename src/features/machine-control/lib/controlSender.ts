@@ -38,7 +38,11 @@ interface Options {
  * 사용자가 마지막으로 지시한 값이 아닌 옛 값에 머무를 수 있다.
  */
 export const createControlSender = ({ send, onApplied, onError, onSendingChange }: Options) => {
-    let pending: ControlCommand = {};
+    // draft(드래그 중인 값)와 committed(손을 떼 전송이 확정된 값)를 분리한다.
+    // 한 큐로 겸하면, A 전송 중 드래그로 쌓인 중간값을 A 응답의 finally가
+    // 커밋 없이 자동 전송해 "손 뗄 때만 전송" 계약이 깨진다(#269).
+    let draft: ControlCommand = {};
+    let committed: ControlCommand = {};
     let inFlight = false;
     // dispose 세대 — 폐기 이후에 도착한 응답의 콜백을 무시한다. 그러지 않으면
     // 연결이 끊겨 상태를 비운 뒤에 늦게 온 응답이 옛 setpoint를 되살린다.
@@ -46,10 +50,10 @@ export const createControlSender = ({ send, onApplied, onError, onSendingChange 
 
     const flush = async (): Promise<void> => {
         if (inFlight) return;
-        const cmd = pending;
+        const cmd = committed;
         if (Object.keys(cmd).length === 0) return;
         const gen = generation;
-        pending = {};
+        committed = {};
         inFlight = true;
         onSendingChange?.(true);
         try {
@@ -61,7 +65,7 @@ export const createControlSender = ({ send, onApplied, onError, onSendingChange 
             inFlight = false;
             if (gen === generation) {
                 onSendingChange?.(false);
-                if (Object.keys(pending).length > 0) await flush();
+                if (Object.keys(committed).length > 0) await flush();
             }
         }
     };
@@ -69,14 +73,17 @@ export const createControlSender = ({ send, onApplied, onError, onSendingChange 
     return {
         /** 값 변경 — 화면만 따라가고 전송은 하지 않는다. 보내려면 commitNow. */
         queue(role: ControlRole, value: number): void {
-            pending = { ...pending, [role]: value };
+            draft = { ...draft, [role]: value };
         },
-        /** 슬라이더에서 손을 뗀 순간 — 마지막 값 하나만 전송 */
+        /** 슬라이더에서 손을 뗀 순간 — 그때까지의 draft를 확정해 전송 */
         commitNow(): Promise<void> {
+            committed = { ...committed, ...draft };
+            draft = {};
             return flush();
         },
         dispose(): void {
-            pending = {};
+            draft = {};
+            committed = {};
             generation += 1; // 진행 중인 요청의 콜백을 무효화한다
         },
     };

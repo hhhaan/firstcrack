@@ -115,6 +115,27 @@ describe('createControlSender', () => {
         expect(d.calls).toEqual([{ heater: 10 }, { heater: 80 }]);
     });
 
+    it('in-flight 응답이 와도 커밋 안 된 드래그 중간값은 전송하지 않는다 (#269)', async () => {
+        const d = deferredSend();
+        const sender = createControlSender({ send: d.send });
+
+        sender.queue('heater', 10);
+        void sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(d.calls).toEqual([{ heater: 10 }]);
+
+        // 응답 대기 중 사용자가 드래그만 하고 아직 손을 떼지 않았다
+        sender.queue('heater', 40);
+        d.resolve();
+        await vi.advanceTimersByTimeAsync(5000);
+        expect(d.calls).toHaveLength(1); // 커밋 전에는 나가지 않는다
+
+        // 손을 떼면 그때 나간다
+        void sender.commitNow();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(d.calls).toEqual([{ heater: 10 }, { heater: 40 }]);
+    });
+
     it('사이드카가 자른 값을 onApplied로 돌려준다', async () => {
         const onApplied = vi.fn();
         const sender = createControlSender({ send: async () => ({ heater: 100 }), onApplied });
