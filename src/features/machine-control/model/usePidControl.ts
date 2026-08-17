@@ -15,7 +15,8 @@ const FALLBACK_SV_C = 200;
 const PID_OFF_RETRY_MS = 5000;
 
 const reportError = (err: unknown, fallback: string) => {
-    logger.error('[pid]', err);
+    // PID 요청 실패는 화력 안전과 직결 — production에서도 관측한다 (#269)
+    logger.capture(err, { feature: 'machine-control', action: 'pid', fallback });
     useToastStore.getState().show(err instanceof Error ? err.message : fallback, 'error');
 };
 

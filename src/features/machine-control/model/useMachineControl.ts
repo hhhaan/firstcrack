@@ -56,7 +56,7 @@ export const useMachineControl = (sidecarConnected: boolean, feedback: MachineFe
                 send: async (cmd) => (await sidecar.setControl(cmd)).applied,
                 onApplied: (applied) => setTracking((t) => ({ ...t, desired: { ...t.desired, ...applied } })),
                 onError: (err) => {
-                    logger.error('[machine-control] 제어 전송 실패:', err);
+                    logger.capture(err, { feature: 'machine-control', action: 'setControl' });
                     useToastStore
                         .getState()
                         .show(err instanceof Error ? err.message : '제어 명령을 보내지 못했습니다.', 'error');
@@ -134,6 +134,16 @@ export const useMachineControl = (sidecarConnected: boolean, feedback: MachineFe
 
     /** 지시했는데 기기가 계속 그대로인 role — 명령이 먹지 않았을 가능성 */
     const unacknowledged = new Set(ROLES.filter((role) => (tracking.unackPolls[role] ?? 0) >= STALE_COMMAND_POLLS));
+
+    // HTTP는 성공했는데 기기가 안 따라온 경우 — 사이드카 에러 어디에도 안 잡힌다 (#269)
+    const unackKey = [...unacknowledged].join(',');
+    useEffect(() => {
+        if (!unackKey) return;
+        logger.capture(new Error('machine-control: command unacknowledged'), {
+            feature: 'machine-control',
+            roles: unackKey,
+        });
+    }, [unackKey]);
 
     return {
         writable: Boolean(capability?.writable) && sidecarConnected,

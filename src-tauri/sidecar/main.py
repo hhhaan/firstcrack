@@ -246,16 +246,20 @@ async def handle_control(request: web.Request) -> web.Response:
         return web.json_response({"error": str(exc)}, status=409)
     except Exception as exc:
         _log.error("control 실패: %s", exc, exc_info=True)
+        # 400/409는 클라이언트 문제 — PLC 쓰기 실패(502)만 관측한다 (#269)
+        manager._capture_hardware_error(exc, "control_write_failed")
         return web.json_response({"error": "제어 명령 전송에 실패했습니다."}, status=502)
     return web.json_response({"ok": True, "applied": applied})
 
 
-def _pid_error_response(exc: Exception) -> web.Response:
+def _pid_error_response(exc: Exception, manager: RoasterManager) -> web.Response:
     if isinstance(exc, control_guard.ControlRangeError):
         return web.json_response({"error": str(exc)}, status=400)
     if isinstance(exc, control_guard.ControlUnavailable):
         return web.json_response({"error": str(exc)}, status=409)
     _log.error("PID 요청 실패: %s", exc, exc_info=True)
+    # safe-off 쓰기 실패 포함 — 배출 후 버너가 안 꺼진 경로가 여기로 온다 (#269)
+    manager._capture_hardware_error(exc, "pid_request_failed")
     return web.json_response({"error": "PID 명령을 처리하지 못했습니다."}, status=502)
 
 
@@ -285,7 +289,7 @@ async def handle_pid_on(request: web.Request) -> web.Response:
     try:
         state = await manager.pid_start(_parse_sv(body))
     except Exception as exc:
-        return _pid_error_response(exc)
+        return _pid_error_response(exc, manager)
     return web.json_response({"ok": True, "pid": state})
 
 
@@ -302,7 +306,7 @@ async def handle_pid_off(request: web.Request) -> web.Response:
     try:
         state = await manager.pid_stop(mode or pid_runner.STOP_HOLD)
     except Exception as exc:
-        return _pid_error_response(exc)
+        return _pid_error_response(exc, manager)
     return web.json_response({"ok": True, "pid": state})
 
 
@@ -315,7 +319,7 @@ async def handle_pid_sv(request: web.Request) -> web.Response:
     try:
         state = await manager.pid_set_sv(_parse_sv(body))
     except Exception as exc:
-        return _pid_error_response(exc)
+        return _pid_error_response(exc, manager)
     return web.json_response({"ok": True, "pid": state})
 
 

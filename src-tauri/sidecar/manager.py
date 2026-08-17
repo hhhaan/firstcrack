@@ -627,8 +627,23 @@ class RoasterManager:
         except Exception:
             if self._adapter is not adapter:
                 return {}
+            self._control_breadcrumb(applied, ok=False)
             raise
+        self._control_breadcrumb(applied, ok=True)
         return applied
+
+    def _control_breadcrumb(self, applied: dict[str, float], *, ok: bool) -> None:
+        """제어 쓰기 궤적 — 에러 이벤트에 첨부될 문맥. 값 시계열은 남기지 않는다."""
+        sentry_sdk.add_breadcrumb(
+            category="control",
+            message="control write ok" if ok else "control write failed",
+            level="info" if ok else "error",
+            data={
+                "roaster": self._roaster_key,
+                "protocol": self._protocol,
+                "roles": sorted(applied),
+            },
+        )
 
     # ── 소프트웨어 PID ─────────────────────────────────────────────────────
 

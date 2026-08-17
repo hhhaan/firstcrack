@@ -23,6 +23,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
+import sentry_sdk  # init 전/비활성이면 전부 no-op — 주입 없이 그대로 쓴다
+
 import config
 from pid import PidGains, SoftwarePid
 
@@ -246,6 +248,8 @@ class PidRunner:
         self._error = message
         self._hold_since = None
         _log.error("PID FAULT: %s", message)
+        # 화력 제어가 스스로 멈춘 사건 — 연결 오류와 달리 지금까지 어디에도 안 잡혔다 (#269)
+        sentry_sdk.capture_message(f"PID FAULT: {message}", level="error")
         if not attempt_safe_off:
             return
         for attempt in range(config.PID_SAFE_OFF_RETRIES):
@@ -262,3 +266,6 @@ class PidRunner:
         # 보여주면 조작자는 화력이 꺼진 줄 안다 — 반드시 실패를 함께 알린다.
         self._error = f"{message} 화력을 끄지 못했습니다 — 머신에서 직접 확인하세요."
         _log.critical("PID 안전 정지 실패 — heater가 마지막 duty를 유지 중")
+        sentry_sdk.capture_message(
+            "PID safe-off failed — heater가 마지막 duty를 유지 중", level="fatal"
+        )
