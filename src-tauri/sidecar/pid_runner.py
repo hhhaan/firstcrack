@@ -132,6 +132,7 @@ class PidRunner:
         if self._state == OFF:
             return
         self._pid.release()
+        # 마무리 쓰기 전에 먼저 OFF — 아래 await 도중 tick이 duty를 덧쓰지 못하게 한다
         self._state = OFF
         self._error = None
         self._hold_since = None
@@ -145,8 +146,13 @@ class PidRunner:
                     await self._write_duty(feedback)
                     self._last_duty = feedback
         except Exception as exc:
-            # 끄는 데 실패해도 상태는 OFF로 둔다 — 루프가 계속 쓰는 것보다 안전하다
+            # 쓰기 실패를 OFF(성공)로 축소하면 프런트 자동 재시도가 죽고, 머신은
+            # 마지막 duty로 계속 가열한다(#269). FAULT로 남기고 예외를 전파해
+            # /pid/off가 비-200을 반환하게 한다 — 재시도가 다시 이 경로로 들어온다.
+            self._state = FAULT
+            self._error = "PID 해제 중 화력을 쓰지 못했습니다 — 머신에서 직접 확인하세요."
             _log.error("PID stop(%s) 마무리 쓰기 실패: %s", mode, exc)
+            raise
         _log.info("PID 중단: reason=%s mode=%s", reason, mode)
 
     async def set_sv(self, sv: float) -> None:

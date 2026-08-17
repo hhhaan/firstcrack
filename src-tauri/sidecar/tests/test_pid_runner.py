@@ -110,6 +110,46 @@ class TestLifecycle:
         await r.stop("drop", mode="zero")
         assert m.writes == [0.0]
 
+    async def test_stop_write_failure_propagates_and_faults(self):
+        """safe-off 쓰기 실패를 OFF(성공)로 삼키면 프런트 재시도가 죽는다(#269).
+
+        예외가 전파돼 /pid/off가 비-200을 반환하고, 상태는 FAULT로 남아
+        재시도 stop()이 다시 쓰기 경로로 들어올 수 있어야 한다.
+        """
+        m = FakeMachine(feedback=55.0)
+        r = make_runner(m)
+        await r.start(sv=200.0)
+        await run_ticks(m, r, 2)
+        m.writes.clear()
+
+        m.write_error = OSError("PLC unreachable")
+        with pytest.raises(OSError):
+            await r.stop("drop", mode="zero")
+        assert r.state_name == FAULT
+        assert "쓰지 못했습니다" in (r.state()["error"] or "")
+        assert m.writes == []
+
+        # 재시도 성공 경로 — FAULT에서 stop()이 다시 쓰기를 시도해 OFF로 마감한다
+        m.write_error = None
+        await r.stop("drop", mode="zero")
+        assert r.state_name == OFF
+        assert m.writes == [0.0]
+        assert r.state()["error"] is None
+
+    async def test_stop_hold_feedback_failure_propagates(self):
+        m = FakeMachine(feedback=55.0)
+        r = make_runner(m)
+        await r.start(sv=200.0)
+        await run_ticks(m, r, 2)
+
+        async def broken_feedback():
+            raise OSError("read failed")
+
+        r._read_feedback = broken_feedback
+        with pytest.raises(OSError):
+            await r.stop("drop", mode="hold")
+        assert r.state_name == FAULT
+
     async def test_stop_when_already_off_is_noop(self):
         m = FakeMachine()
         r = make_runner(m)

@@ -117,9 +117,14 @@ export const usePidControl = ({
     // 실패하면 재시도한다. HTTP 한 번 실패하고 포기하면 아무도 보고 있지 않은
     // 로스터에 불이 계속 들어가 있다 — 사이드카에는 배출을 인지하는 안전망이 없다.
     // 시도 횟수 상한을 두지 않는 이유도 같다. 사이드카가 off를 반영하면
-    // engaged가 false가 되어 루프가 끝난다.
+    // 루프가 끝난다.
+    //
+    // 판정을 engaged가 아니라 state !== 'off'로 두는 이유: safe-off 쓰기 실패 시
+    // 사이드카는 FAULT로 남는다(#269). engaged(running/holding) 기준이면 그 순간
+    // 재시도가 죽어, 화력이 남았는데 아무도 다시 끄려 하지 않는다.
+    const needsOff = state !== 'off';
     useEffect(() => {
-        if (!roastFinished || !engaged || !sidecarConnected) return;
+        if (!roastFinished || !needsOff || !sidecarConnected) return;
         let cancelled = false;
         const timer = setTimeout(
             () => {
@@ -133,7 +138,7 @@ export const usePidControl = ({
             cancelled = true;
             clearTimeout(timer);
         };
-    }, [roastFinished, engaged, sidecarConnected, dropBehavior, turnOff, offAttempt]);
+    }, [roastFinished, needsOff, sidecarConnected, dropBehavior, turnOff, offAttempt]);
 
     // 다음 로스트의 첫 해제가 지난 배치의 재시도 지연을 물려받지 않게 되돌린다
     useEffect(() => {
