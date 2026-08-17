@@ -21,6 +21,9 @@ const CONVERGE_TOLERANCE = 1;
  */
 const STALE_COMMAND_POLLS = 10;
 
+/** /status 실패 시 capability 재조회 간격 */
+const CAPABILITY_RETRY_MS = 3000;
+
 export type MachineFeedback = Record<ControlRole, number> | null;
 
 /**
@@ -74,16 +77,24 @@ export const useMachineControl = (sidecarConnected: boolean, feedback: MachineFe
             return;
         }
         let cancelled = false;
-        sidecar
-            .getStatus()
-            .then((s) => {
-                if (!cancelled) setCapability(s.control ?? { writable: false, limits: EMPTY_LIMITS });
-            })
-            .catch(() => {
-                if (!cancelled) setCapability(null);
-            });
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const fetchCapability = () => {
+            sidecar
+                .getStatus()
+                .then((s) => {
+                    if (!cancelled) setCapability(s.control ?? { writable: false, limits: EMPTY_LIMITS });
+                })
+                .catch(() => {
+                    // 일시 실패로 capability를 null로 덮으면 패널이 통째로 사라지고
+                    // PID 안전 훅까지 언마운트됐었다(#269). 기존 값을 유지한 채
+                    // 재시도한다 — 연결 자체가 끊기면 위 분기가 정리한다.
+                    if (!cancelled) timer = setTimeout(fetchCapability, CAPABILITY_RETRY_MS);
+                });
+        };
+        fetchCapability();
         return () => {
             cancelled = true;
+            if (timer) clearTimeout(timer);
         };
     }, [sidecarConnected, sender]);
 

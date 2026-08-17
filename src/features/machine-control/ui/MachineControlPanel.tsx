@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import type { ControlRole } from '../lib/controlSender';
 import { useMachineControl } from '../model/useMachineControl';
+import { usePidControl } from '../model/usePidControl';
 import { PidControlPanel } from './PidControlPanel';
 import { SetpointControl } from './SetpointControl';
 
@@ -44,6 +45,16 @@ export const MachineControlPanel = ({
     const entitled = useFeature(FEATURE.machineControl);
     const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
         useMachineControl(sidecarConnected, liveData);
+    // PID 수명 훅(DROP 자동 해제 포함)은 표시 조건과 무관하게 이 컴포넌트에 산다.
+    // PidControlPanel 안에 두면 아래 가드가 null을 반환하는 순간 — capability 일시
+    // 실패 등 — 훅이 언마운트돼 배출 후에도 버너가 켜진 채 남는다(#269).
+    const pid = usePidControl({
+        sidecarConnected,
+        capability: pidCapability,
+        runtime: pidRuntime,
+        roastFinished,
+        dropBehavior: pidDropBehavior,
+    });
     const [collapsed, setCollapsed] = useState(false);
 
     const anyWritableChannel = ROLE_ORDER.some((role) => limits[role] != null);
@@ -52,14 +63,15 @@ export const MachineControlPanel = ({
     const pidHoldsHeater = pidRuntime?.state === 'running' || pidRuntime?.state === 'holding';
     const pidState = pidRuntime?.state ?? 'off';
     const statusDot = PID_DOT[pidState];
+    // fault 포함 — 화력이 남았을 수 있는 동안은 상태·에러가 계속 보여야 한다
+    const pidActive = pidState !== 'off';
 
     // Pro+ 전용. 게이트를 여기 한 곳에만 두는 이유: 슬라이더와 PID가 같은 쓰기 권한을
     // 공유하므로, 화력을 쓸 수 없으면 PID도 의미가 없다.
     //
-    // 단 PID가 돌고 있으면 권한과 무관하게 계속 렌더한다. 이 패널이 사라지면 DROP 시
-    // 자동 해제 훅도 같이 사라져, 아무도 안 보는 로스터에 불이 계속 들어간다.
-    // (플랜 스토어가 로딩 중 잠깐 비entitled로 보일 수 있다)
-    if ((!entitled && !pidHoldsHeater) || !writable || !anyWritableChannel) return null;
+    // 단 PID가 off가 아니면 권한·capability와 무관하게 계속 렌더한다 — 상태와 fault
+    // 에러가 보여야 하고, 플랜 스토어가 로딩 중 잠깐 비entitled로 보일 수 있다.
+    if (!pidActive && (!entitled || !writable || !anyWritableChannel)) return null;
 
     return (
         <div
@@ -126,13 +138,7 @@ export const MachineControlPanel = ({
                         기기가 명령을 반영하지 않았습니다. 조작반이 원격 제어를 허용하는지 확인하세요.
                     </p>
                 )}
-                <PidControlPanel
-                    sidecarConnected={sidecarConnected}
-                    capability={pidCapability}
-                    runtime={pidRuntime}
-                    roastFinished={roastFinished}
-                    dropBehavior={pidDropBehavior}
-                />
+                <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} />
             </div>
         </div>
     );

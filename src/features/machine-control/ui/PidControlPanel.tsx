@@ -1,5 +1,4 @@
-import type { PidCapability, PidRuntime } from '@entities/machine';
-import { usePidControl } from '../model/usePidControl';
+import type { usePidControl } from '../model/usePidControl';
 
 const STATE_LABEL: Record<string, string> = {
     off: 'Off',
@@ -16,10 +15,9 @@ const STATE_COLOR: Record<string, string> = {
 };
 
 interface Props {
-    sidecarConnected: boolean;
-    capability: PidCapability | undefined;
-    runtime: PidRuntime | null;
-    roastFinished: boolean;
+    /** 부모(MachineControlPanel)가 소유한 PID 상태 — 훅을 여기서 부르면 패널이
+     * 숨겨질 때 DROP 자동 해제 effect까지 언마운트된다(#269). */
+    pid: ReturnType<typeof usePidControl>;
     dropBehavior: 'hold' | 'zero';
 }
 
@@ -28,9 +26,7 @@ interface Props {
  *
  * PID를 지원하지 않는 머신(게인이나 heater 쓰기 맵이 없는 경우)에서는 렌더하지 않는다.
  */
-export const PidControlPanel = ({ sidecarConnected, capability, runtime, roastFinished, dropBehavior }: Props) => {
-    const pid = usePidControl({ sidecarConnected, capability, runtime, roastFinished, dropBehavior });
-
+export const PidControlPanel = ({ pid, dropBehavior }: Props) => {
     if (!pid.supported) return null;
 
     return (
