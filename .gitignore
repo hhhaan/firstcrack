@@ -55,6 +55,7 @@ src-tauri/sidecar/extern/
 # Documentation and planning
 plans/
 docs/
+NOTES.md
 
 extern/
 screenshots/
