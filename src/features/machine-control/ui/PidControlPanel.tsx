@@ -67,6 +67,9 @@ export const PidControlPanel = ({ pid, dropBehavior }: Props) => {
                     // 드래그 중에는 화면만 갱신하고, 손을 뗄 때 한 번만 머신에 보낸다
                     onChange={(e) => pid.previewSv(Number(e.target.value))}
                     onPointerUp={(e) => void pid.commitSv(Number(e.currentTarget.value))}
+                    // 드래그 취소·포커스 이탈·AT 입력에서도 마지막 값이 나가야 한다 (#269)
+                    onPointerCancel={(e) => void pid.commitSv(Number(e.currentTarget.value))}
+                    onBlur={(e) => void pid.commitSv(Number(e.currentTarget.value))}
                     onKeyUp={(e) => void pid.commitSv(Number(e.currentTarget.value))}
                     className="w-full accent-[#111827] dark:accent-[#F2F2F2]"
                 />

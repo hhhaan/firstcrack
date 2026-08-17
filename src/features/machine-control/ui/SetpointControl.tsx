@@ -84,8 +84,12 @@ export const SetpointControl = ({
                     aria-label={unsupported ? `${ROLE_LABEL[role]} not supported` : `${ROLE_LABEL[role]} setpoint`}
                     onChange={(e) => onChange(role, Number(e.target.value))}
                     onPointerUp={onCommit}
-                    // 포인터를 요소 밖에서 떼거나 드래그가 취소돼도 마지막 값은 나가야 한다
+                    // 포인터를 요소 밖에서 떼거나 드래그가 취소돼도 마지막 값은 나가야 한다.
+                    // WKWebView는 implicit pointer capture 보장이 약해 cancel/blur도 받는다.
+                    // AT(VoiceOver 등)는 pointer/key 이벤트 없이 값만 바꾸므로 blur가 마지막 그물이다.
                     onLostPointerCapture={onCommit}
+                    onPointerCancel={onCommit}
+                    onBlur={onCommit}
                     onKeyUp={onCommit}
                     className="min-h-0 w-6 flex-1 cursor-pointer accent-[#111827] disabled:cursor-not-allowed disabled:opacity-40 dark:accent-[#F2F2F2] [-webkit-appearance:slider-vertical] [direction:rtl] [writing-mode:vertical-lr]"
                 />
