@@ -34,7 +34,7 @@ export const PidControlPanel = ({ sidecarConnected, capability, runtime, roastFi
     if (!pid.supported) return null;
 
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex shrink-0 flex-col gap-2">
             <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">Auto Heat (PID)</span>
                 <span className={`text-[11px] font-medium ${STATE_COLOR[pid.state] ?? 'text-muted'}`}>

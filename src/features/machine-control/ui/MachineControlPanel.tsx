@@ -31,7 +31,8 @@ interface Props {
  * 접으면 얇은 레일만 남기고 차트 폭을 확보한다. 접힌 동안에도 본 트리는 유지해
  * PID/DROP 훅이 언마운트되지 않는다.
  *
- * 사이드카가 쓰기 가능하다고 보고한 채널만 렌더한다 (`/status.control`).
+ * heater/fan/drum 슬롯은 항상 3칸. 사이드카 `/status.control.limits`에 없는 채널은
+ * 숨기지 않고 disabled로 둔다 — 모델마다 칸 수가 바뀌면 레이아웃이 흔들린다.
  */
 export const MachineControlPanel = ({
     sidecarConnected,
@@ -45,7 +46,7 @@ export const MachineControlPanel = ({
         useMachineControl(sidecarConnected, liveData);
     const [collapsed, setCollapsed] = useState(false);
 
-    const roles = ROLE_ORDER.filter((role) => limits[role] != null);
+    const anyWritableChannel = ROLE_ORDER.some((role) => limits[role] != null);
     // PID가 화력을 잡고 있는 동안 heater 슬라이더를 열어 두면, 조작해도 다음 tick(1초)에
     // PID가 덮어써서 "슬라이더가 말을 안 듣는" 상태가 된다. 소유권을 명확히 한다.
     const pidHoldsHeater = pidRuntime?.state === 'running' || pidRuntime?.state === 'holding';
@@ -58,7 +59,7 @@ export const MachineControlPanel = ({
     // 단 PID가 돌고 있으면 권한과 무관하게 계속 렌더한다. 이 패널이 사라지면 DROP 시
     // 자동 해제 훅도 같이 사라져, 아무도 안 보는 로스터에 불이 계속 들어간다.
     // (플랜 스토어가 로딩 중 잠깐 비entitled로 보일 수 있다)
-    if ((!entitled && !pidHoldsHeater) || !writable || roles.length === 0) return null;
+    if ((!entitled && !pidHoldsHeater) || !writable || !anyWritableChannel) return null;
 
     return (
         <div
@@ -95,22 +96,36 @@ export const MachineControlPanel = ({
             </div>
 
             {/* 접혀도 트리 유지 — PID/DROP 훅 언마운트 방지 */}
-            <div className={collapsed ? 'hidden' : 'flex flex-col gap-3'} aria-hidden={collapsed}>
+            <div className={collapsed ? 'hidden' : 'flex min-h-0 flex-1 flex-col gap-3'} aria-hidden={collapsed}>
                 {sending && <span className="text-[11px] text-muted">sending…</span>}
-                {roles.map((role) => (
-                    <SetpointControl
-                        key={role}
-                        role={role}
-                        limit={limits[role] ?? {}}
-                        value={desired[role]}
-                        feedback={liveData ? liveData[role] : null}
-                        unacknowledged={unacknowledged.has(role)}
-                        disabled={!writable || (role === 'heater' && pidHoldsHeater)}
-                        lockedNote={role === 'heater' && pidHoldsHeater ? 'PID 제어 중' : undefined}
-                        onChange={setValue}
-                        onCommit={commitNow}
-                    />
-                ))}
+                {/* fader가 남는 높이를 먹는다. 창이 짧아지면 min-h까지 줄고 그 아래로는 패널이 스크롤된다 */}
+                <div className="flex min-h-24 flex-1 justify-around gap-1">
+                    {ROLE_ORDER.map((role) => {
+                        const supported = limits[role] != null;
+                        const lockedByPid = role === 'heater' && pidHoldsHeater;
+                        return (
+                            <SetpointControl
+                                key={role}
+                                role={role}
+                                limit={limits[role] ?? {}}
+                                value={supported ? desired[role] : undefined}
+                                feedback={supported && liveData ? liveData[role] : null}
+                                unacknowledged={supported && unacknowledged.has(role)}
+                                disabled={!writable || !supported || lockedByPid}
+                                unsupported={!supported}
+                                lockedNote={!supported ? 'N/A' : lockedByPid ? 'PID' : undefined}
+                                onChange={setValue}
+                                onCommit={commitNow}
+                            />
+                        );
+                    })}
+                </div>
+                {/* fader 열은 좁아 문장이 안 들어간다 — 경고는 패널 폭 전체를 쓴다 */}
+                {ROLE_ORDER.some((role) => limits[role] != null && unacknowledged.has(role)) && (
+                    <p className="text-[11px] leading-snug text-red-500">
+                        기기가 명령을 반영하지 않았습니다. 조작반이 원격 제어를 허용하는지 확인하세요.
+                    </p>
+                )}
                 <PidControlPanel
                     sidecarConnected={sidecarConnected}
                     capability={pidCapability}

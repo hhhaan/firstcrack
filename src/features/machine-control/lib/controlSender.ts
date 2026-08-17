@@ -1,9 +1,6 @@
 export type ControlRole = 'heater' | 'fan' | 'drum';
 export type ControlCommand = Partial<Record<ControlRole, number>>;
 
-/** 슬라이더를 끄는 동안 매 픽셀마다 PLC에 쓰지 않도록 커밋을 모으는 간격 */
-export const COMMIT_DEBOUNCE_MS = 250;
-
 /**
  * 기기가 지시값을 따라잡은 role 목록.
  *
@@ -27,26 +24,22 @@ interface Options {
     onApplied?: (applied: ControlCommand) => void;
     onError?: (err: unknown) => void;
     onSendingChange?: (sending: boolean) => void;
-    debounceMs?: number;
 }
 
 /**
- * 제어 명령 전송기 — debounce + 순서 보장.
+ * 제어 명령 전송기 — 손 뗄 때만 전송 + 순서 보장.
+ *
+ * 드래그 중간값은 기기에 보내지 않는다. 보내면 가스 밸브·팬이 실제로 그 값들을
+ * 거쳐 가고(기계적 낭비), 그 궤적이 로스팅 기록 차트에 톱니로 남는다. 차트는
+ * 기기 실측을 그리므로 차트 쪽을 걸러 봐야 소용없다 — 애초에 안 보내는 게 답이다.
  *
  * 요청을 동시에 두 개 띄우지 않는다. 전송 중에 새 값이 들어오면 pending에 모아
  * 두었다가 끝난 뒤 한 번 더 보낸다. 동시에 보내면 PLC 도착 순서가 뒤집혀 히터가
  * 사용자가 마지막으로 지시한 값이 아닌 옛 값에 머무를 수 있다.
  */
-export const createControlSender = ({
-    send,
-    onApplied,
-    onError,
-    onSendingChange,
-    debounceMs = COMMIT_DEBOUNCE_MS,
-}: Options) => {
+export const createControlSender = ({ send, onApplied, onError, onSendingChange }: Options) => {
     let pending: ControlCommand = {};
     let inFlight = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
     // dispose 세대 — 폐기 이후에 도착한 응답의 콜백을 무시한다. 그러지 않으면
     // 연결이 끊겨 상태를 비운 뒤에 늦게 온 응답이 옛 setpoint를 되살린다.
     let generation = 0;
@@ -74,21 +67,15 @@ export const createControlSender = ({
     };
 
     return {
-        /** 값 변경 — debounce 후 전송 */
+        /** 값 변경 — 화면만 따라가고 전송은 하지 않는다. 보내려면 commitNow. */
         queue(role: ControlRole, value: number): void {
             pending = { ...pending, [role]: value };
-            if (timer) clearTimeout(timer);
-            timer = setTimeout(() => void flush(), debounceMs);
         },
-        /** 슬라이더에서 손을 뗀 순간 — debounce를 기다리지 않고 즉시 전송 */
+        /** 슬라이더에서 손을 뗀 순간 — 마지막 값 하나만 전송 */
         commitNow(): Promise<void> {
-            if (timer) clearTimeout(timer);
-            timer = null;
             return flush();
         },
         dispose(): void {
-            if (timer) clearTimeout(timer);
-            timer = null;
             pending = {};
             generation += 1; // 진행 중인 요청의 콜백을 무효화한다
         },

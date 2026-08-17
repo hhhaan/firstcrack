@@ -55,54 +55,56 @@ describe('createControlSender', () => {
         vi.useFakeTimers();
     });
 
-    it('debounce로 연속 변경을 한 번의 전송으로 모은다', async () => {
+    it('드래그 중간값은 기기로 나가지 않는다 — 손을 뗄 때 마지막 값 하나만', async () => {
         const send = vi.fn(async (cmd: ControlCommand) => cmd);
-        const sender = createControlSender({ send, debounceMs: 250 });
+        const sender = createControlSender({ send });
 
         sender.queue('heater', 10);
         sender.queue('heater', 20);
         sender.queue('heater', 30);
+        // 시간이 아무리 지나도 저절로 나가지 않는다
+        await vi.advanceTimersByTimeAsync(5000);
         expect(send).not.toHaveBeenCalled();
 
-        await vi.advanceTimersByTimeAsync(250);
+        await sender.commitNow();
         expect(send).toHaveBeenCalledTimes(1);
         expect(send).toHaveBeenCalledWith({ heater: 30 });
     });
 
     it('여러 role 변경을 하나의 명령으로 합친다', async () => {
         const send = vi.fn(async (cmd: ControlCommand) => cmd);
-        const sender = createControlSender({ send, debounceMs: 250 });
+        const sender = createControlSender({ send });
 
         sender.queue('heater', 60);
         sender.queue('fan', 40);
-        await vi.advanceTimersByTimeAsync(250);
+        await sender.commitNow();
 
         expect(send).toHaveBeenCalledWith({ heater: 60, fan: 40 });
     });
 
-    it('commitNow는 debounce를 기다리지 않는다', async () => {
+    it('보낼 값이 없으면 전송하지 않는다', async () => {
         const send = vi.fn(async (cmd: ControlCommand) => cmd);
-        const sender = createControlSender({ send, debounceMs: 250 });
+        const sender = createControlSender({ send });
 
-        sender.queue('heater', 70);
         await sender.commitNow();
-
-        expect(send).toHaveBeenCalledTimes(1);
-        expect(send).toHaveBeenCalledWith({ heater: 70 });
+        expect(send).not.toHaveBeenCalled();
     });
 
     it('전송 중에는 새 요청을 겹쳐 보내지 않고, 끝난 뒤 최신값만 보낸다', async () => {
         const d = deferredSend();
-        const sender = createControlSender({ send: d.send, debounceMs: 0 });
+        const sender = createControlSender({ send: d.send });
 
         sender.queue('heater', 10);
+        void sender.commitNow();
         await vi.advanceTimersByTimeAsync(0);
         expect(d.calls).toEqual([{ heater: 10 }]);
 
         // 첫 요청이 아직 응답 전 — 사용자가 슬라이더를 더 움직였다
         sender.queue('heater', 55);
+        void sender.commitNow();
         await vi.advanceTimersByTimeAsync(0);
         sender.queue('heater', 80);
+        void sender.commitNow();
         await vi.advanceTimersByTimeAsync(0);
         expect(d.calls).toHaveLength(1); // 아직 겹쳐 보내지 않았다
 
@@ -115,14 +117,10 @@ describe('createControlSender', () => {
 
     it('사이드카가 자른 값을 onApplied로 돌려준다', async () => {
         const onApplied = vi.fn();
-        const sender = createControlSender({
-            send: async () => ({ heater: 100 }),
-            onApplied,
-            debounceMs: 0,
-        });
+        const sender = createControlSender({ send: async () => ({ heater: 100 }), onApplied });
 
         sender.queue('heater', 150);
-        await vi.advanceTimersByTimeAsync(0);
+        await sender.commitNow();
 
         expect(onApplied).toHaveBeenCalledWith({ heater: 100 });
     });
@@ -134,15 +132,15 @@ describe('createControlSender', () => {
             if (shouldFail) throw new Error('409');
             return cmd;
         });
-        const sender = createControlSender({ send, onError, debounceMs: 0 });
+        const sender = createControlSender({ send, onError });
 
         sender.queue('heater', 50);
-        await vi.advanceTimersByTimeAsync(0);
+        await sender.commitNow();
         expect(onError).toHaveBeenCalledTimes(1);
 
         shouldFail = false;
         sender.queue('heater', 60);
-        await vi.advanceTimersByTimeAsync(0);
+        await sender.commitNow();
         expect(send).toHaveBeenCalledTimes(2);
     });
 
@@ -151,15 +149,10 @@ describe('createControlSender', () => {
         const onApplied = vi.fn();
         const onError = vi.fn();
         const onSendingChange = vi.fn();
-        const sender = createControlSender({
-            send: d.send,
-            onApplied,
-            onError,
-            onSendingChange,
-            debounceMs: 0,
-        });
+        const sender = createControlSender({ send: d.send, onApplied, onError, onSendingChange });
 
         sender.queue('heater', 50);
+        void sender.commitNow();
         await vi.advanceTimersByTimeAsync(0);
         expect(d.calls).toHaveLength(1);
 
@@ -174,13 +167,13 @@ describe('createControlSender', () => {
         expect(onSendingChange).not.toHaveBeenCalled();
     });
 
-    it('dispose 후에는 예약된 전송이 나가지 않는다', async () => {
+    it('dispose는 아직 안 보낸 값을 버린다', async () => {
         const send = vi.fn(async (cmd: ControlCommand) => cmd);
-        const sender = createControlSender({ send, debounceMs: 250 });
+        const sender = createControlSender({ send });
 
         sender.queue('heater', 50);
         sender.dispose();
-        await vi.advanceTimersByTimeAsync(500);
+        await sender.commitNow();
 
         expect(send).not.toHaveBeenCalled();
     });
