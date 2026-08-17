@@ -65,6 +65,7 @@ export const MachineControlPanel = ({
     const statusDot = PID_DOT[pidState];
     // fault 포함 — 화력이 남았을 수 있는 동안은 상태·에러가 계속 보여야 한다
     const pidActive = pidState !== 'off';
+    const anyUnacknowledged = ROLE_ORDER.some((role) => limits[role] != null && unacknowledged.has(role));
 
     // Pro+ 전용. 게이트를 여기 한 곳에만 두는 이유: 슬라이더와 PID가 같은 쓰기 권한을
     // 공유하므로, 화력을 쓸 수 없으면 PID도 의미가 없다.
@@ -105,6 +106,15 @@ export const MachineControlPanel = ({
                         aria-label={`PID ${pidState}`}
                     />
                 )}
+                {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
+                {collapsed && anyUnacknowledged && (
+                    <span
+                        role="img"
+                        className="h-2 w-2 rounded-full bg-red-500"
+                        title="기기가 명령을 반영하지 않았습니다"
+                        aria-label="기기가 명령을 반영하지 않았습니다"
+                    />
+                )}
             </div>
 
             {/* 접혀도 트리 유지 — PID/DROP 훅 언마운트 방지 */}
@@ -133,7 +143,7 @@ export const MachineControlPanel = ({
                     })}
                 </div>
                 {/* fader 열은 좁아 문장이 안 들어간다 — 경고는 패널 폭 전체를 쓴다 */}
-                {ROLE_ORDER.some((role) => limits[role] != null && unacknowledged.has(role)) && (
+                {anyUnacknowledged && (
                     <p className="text-[11px] leading-snug text-red-500">
                         기기가 명령을 반영하지 않았습니다. 조작반이 원격 제어를 허용하는지 확인하세요.
                     </p>
