@@ -1,6 +1,11 @@
 """Shared fixtures for sidecar tests."""
 import asyncio
+import os
 import time
+
+# main.py가 import 시점에 Sentry를 init한다 — 테스트에서 production DSN으로
+# 이벤트가 전송되지 않게 어떤 테스트 모듈보다 먼저 끈다 (#269).
+os.environ.setdefault("SIDECAR_DISABLE_SENTRY", "1")
 from collections import deque
 from unittest.mock import AsyncMock, MagicMock, patch
 

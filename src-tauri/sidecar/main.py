@@ -44,7 +44,10 @@ _SENTRY_DSN = (
     "https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944"
 )
 
-if _SENTRY_DSN:
+# opt-out 가드 — 테스트/개발에서 production DSN으로 이벤트가 나가는 것을 막는다.
+# (pytest는 conftest.py에서 이 env를 세운다. opt-in으로 뒤집으면 프로덕션
+# launch 경로가 env를 세워야 해서 배포가 조용히 깨진다.)
+if _SENTRY_DSN and not os.environ.get("SIDECAR_DISABLE_SENTRY"):
     sentry_sdk.init(
         dsn=_SENTRY_DSN,
         environment="production",
