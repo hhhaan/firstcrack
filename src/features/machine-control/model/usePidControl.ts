@@ -66,14 +66,15 @@ export const usePidControl = ({
         }
     }, [sv]);
 
-    /** 성공 여부를 돌려준다 — 자동 해제가 실패를 알아야 재시도할 수 있다 */
-    const turnOff = useCallback(async (mode: 'hold' | 'zero') => {
+    /** 성공 여부를 돌려준다 — 자동 해제가 실패를 알아야 재시도할 수 있다.
+     * notify=false는 재시도. 쓰기는 계속하되 토스트/Sentry는 첫 실패만. */
+    const turnOff = useCallback(async (mode: 'hold' | 'zero', notify = true) => {
         setBusy(true);
         try {
             await sidecar.pidOff(mode);
             return true;
         } catch (err) {
-            reportError(err, 'PID를 끄지 못했습니다.');
+            if (notify) reportError(err, 'PID를 끄지 못했습니다.');
             return false;
         } finally {
             setBusy(false);
@@ -129,7 +130,7 @@ export const usePidControl = ({
         let cancelled = false;
         const timer = setTimeout(
             () => {
-                void turnOff(dropBehavior).then((ok) => {
+                void turnOff(dropBehavior, offAttempt === 0).then((ok) => {
                     if (!ok && !cancelled) setOffAttempt((n) => n + 1);
                 });
             },

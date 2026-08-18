@@ -252,14 +252,17 @@ async def handle_control(request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "applied": applied})
 
 
-def _pid_error_response(exc: Exception, manager: RoasterManager) -> web.Response:
+def _pid_error_response(
+    exc: Exception, manager: RoasterManager, *, once: bool = False
+) -> web.Response:
     if isinstance(exc, control_guard.ControlRangeError):
         return web.json_response({"error": str(exc)}, status=400)
     if isinstance(exc, control_guard.ControlUnavailable):
         return web.json_response({"error": str(exc)}, status=409)
     _log.error("PID 요청 실패: %s", exc, exc_info=True)
     # safe-off 쓰기 실패 포함 — 배출 후 버너가 안 꺼진 경로가 여기로 온다 (#269)
-    manager._capture_hardware_error(exc, "pid_request_failed")
+    # /pid/off 재시도는 once=True — 같은 사고를 5초마다 Slack/Sentry에 안 쌓는다
+    manager._capture_hardware_error(exc, "pid_request_failed", once=once)
     return web.json_response({"error": "PID 명령을 처리하지 못했습니다."}, status=502)
 
 
@@ -306,7 +309,7 @@ async def handle_pid_off(request: web.Request) -> web.Response:
     try:
         state = await manager.pid_stop(mode or pid_runner.STOP_HOLD)
     except Exception as exc:
-        return _pid_error_response(exc, manager)
+        return _pid_error_response(exc, manager, once=True)
     return web.json_response({"ok": True, "pid": state})
 
 

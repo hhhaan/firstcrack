@@ -832,3 +832,46 @@ class TestEnterStandby:
             await asyncio.wait_for(standby, timeout=1.0)
 
         assert called.is_set()
+
+
+# ---------------------------------------------------------------------------
+# _capture_hardware_error once=
+# ---------------------------------------------------------------------------
+
+class TestHardwareAlertDedupe:
+    async def test_once_emits_first_then_breadcrumbs(self, manager):
+        exc = OSError("PLC unreachable")
+        with (
+            patch("manager.sentry_sdk.capture_exception") as capture,
+            patch("manager.sentry_sdk.add_breadcrumb") as breadcrumb,
+        ):
+            manager._capture_hardware_error(exc, "pid_request_failed", once=True)
+            manager._capture_hardware_error(exc, "pid_request_failed", once=True)
+        assert capture.call_count == 1
+        assert breadcrumb.call_count == 1
+        assert "duplicate suppressed" in breadcrumb.call_args.kwargs["message"]
+
+    async def test_once_false_always_emits(self, manager):
+        exc = OSError("PLC unreachable")
+        with patch("manager.sentry_sdk.capture_exception") as capture:
+            manager._capture_hardware_error(exc, "connect_failed")
+            manager._capture_hardware_error(exc, "connect_failed")
+        assert capture.call_count == 2
+
+    async def test_pid_stop_success_allows_next_incident(self, manager):
+        class _Pid:
+            async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
+                return None
+
+            def state(self):
+                return {"state": "off", "error": None}
+
+        manager._pid = _Pid()
+        manager._hw_alerts_sent.add("pid_request_failed")
+        await manager.pid_stop("zero")
+        assert "pid_request_failed" not in manager._hw_alerts_sent
+
+    async def test_disconnect_clears_sent_alerts(self, manager):
+        manager._hw_alerts_sent.add("pid_request_failed")
+        await manager.disconnect()
+        assert manager._hw_alerts_sent == set()

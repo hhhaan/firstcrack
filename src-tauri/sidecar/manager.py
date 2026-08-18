@@ -173,10 +173,31 @@ class RoasterManager:
         self._ror_window_secs: float = config.ROR_WINDOW_SECS
         self._pid: PidRunner | None = None
         self._pid_task: asyncio.Task[None] | None = None
+        # once=True 캡처가 이미 나간 event. 성공/disconnect 때 비운다.
+        self._hw_alerts_sent: set[str] = set()
 
-    def _capture_hardware_error(self, exc: Exception, event: str = "hardware_error") -> None:
-        """하드웨어 에러를 Sentry에 캡처 — 프로토콜/로스터 정보 포함."""
+    def _capture_hardware_error(
+        self, exc: Exception, event: str = "hardware_error", *, once: bool = False
+    ) -> None:
+        """하드웨어 에러를 Sentry/Slack에 캡처 — 프로토콜/로스터 정보 포함.
+
+        once=True면 같은 event는 성공할 때까지 한 번만 쏜다. /pid/off 자동
+        재시도가 5초마다 같은 쓰기를 반복해도 채널을 채우지 않게 한다.
+        반복분은 breadcrumb만 남겨 다음 실사고에 붙는다.
+        """
         try:
+            if once and event in self._hw_alerts_sent:
+                sentry_sdk.add_breadcrumb(
+                    category="hardware",
+                    message=f"{event} (duplicate suppressed)",
+                    level="error",
+                    data={
+                        "roaster": self._roaster_key,
+                        "protocol": self._protocol,
+                        "error": str(exc),
+                    },
+                )
+                return
             sentry_sdk.set_tag("roaster", self._roaster_key)
             sentry_sdk.set_tag("protocol", self._protocol)
             sentry_sdk.set_tag("event", event)
@@ -198,6 +219,8 @@ class RoasterManager:
                     "comport": self._merged_params.get("comport"),
                 })
             sentry_sdk.capture_exception(exc)
+            if once:
+                self._hw_alerts_sent.add(event)
             try:
                 from slack_notify import notify_hardware_error
 
@@ -363,6 +386,7 @@ class RoasterManager:
         self._roaster_key = ""
         self._protocol = ""
         self._merged_params = {}
+        self._hw_alerts_sent.clear()
         self._ror_window.clear()
         self._et_ror_window.clear()
         self._bt_ema = None
@@ -715,6 +739,8 @@ class RoasterManager:
         if self._pid is None:
             return {"state": "off", "error": None}
         await self._pid.stop("user", mode=mode)
+        # 다음 사고는 다시 알릴 수 있게 — 재시도 루프가 끝난 뒤에만 여기 온다
+        self._hw_alerts_sent.discard("pid_request_failed")
         return self._pid.state()
 
     async def pid_set_sv(self, sv: float) -> dict[str, Any]:
