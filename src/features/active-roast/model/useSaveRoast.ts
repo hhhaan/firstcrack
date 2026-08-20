@@ -2,7 +2,7 @@ import { beanKeys } from '@entities/bean/queries';
 import { stockEventKeys } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
 import { useUpdateSingleBatch } from '@entities/plan';
-import { invalidateAfterCreateRoastSession, type RoastSessionInsert, roastSessionApi } from '@entities/roast';
+import { invalidateRoastSessionQueries, type RoastSessionInsert, roastSessionApi } from '@entities/roast';
 import { roastedStockKeys } from '@entities/roasted-stock-event';
 import { determineStockDeduction } from '@features/active-roast/lib/determine-stock-deduction';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
@@ -255,7 +255,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     });
 
     // Await so inactive History/dashboard caches refetch before the user switches tabs.
-    await invalidateAfterCreateRoastSession(qc, userId);
+    await invalidateRoastSessionQueries(qc, userId);
     if (wantDeduct && provisionalPlan) {
         void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries, refetchType: 'all' });
         if (provisionalPlan.singleBeanId) {

@@ -236,7 +236,7 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
                                                 </div>
                                             </td>
                                         </tr>
-                                        {expanded ? <ProductHistoryRow productId={p.id} /> : null}
+                                        {expanded ? <ProductHistoryRow userId={userId} productId={p.id} /> : null}
                                     </Fragment>
                                 );
                             })}
@@ -277,9 +277,9 @@ const PRODUCT_EVENT_I18N: Record<string, string> = {
     write_off: 'inventory.event.write_off',
 };
 
-function ProductHistoryRow({ productId }: { productId: string }) {
+function ProductHistoryRow({ userId, productId }: { userId: string; productId: string }) {
     const { t } = useTranslation();
-    const { data: events = [], isLoading } = useProductStockEvents(productId, true);
+    const { data: events = [], isLoading } = useProductStockEvents(userId, productId, true);
 
     return (
         <tr className="border-b border-border-subtle dark:border-[#585d61]">

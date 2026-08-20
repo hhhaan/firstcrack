@@ -19,6 +19,24 @@ export const inventoryQueryRoots = {
     productStock: ['product-stock'] as const,
 };
 
+/**
+ * User roasted stock + event log. Events nest under `byUser` so invalidate(byUser)
+ * also drops the ledger (sibling `['roasted-stock','events',userId]` never matched).
+ */
+export const roastedStockKeys = {
+    root: inventoryQueryRoots.roastedStock,
+    byUser: (userId: string) => [...inventoryQueryRoots.roastedStock, userId] as const,
+    events: (userId: string) => [...inventoryQueryRoots.roastedStock, userId, 'events'] as const,
+};
+
+/** Product stock + per-product events nested under `byUser`. */
+export const productStockKeys = {
+    root: inventoryQueryRoots.productStock,
+    byUser: (userId: string) => [...inventoryQueryRoots.productStock, userId] as const,
+    events: (userId: string, productId: string) =>
+        [...inventoryQueryRoots.productStock, userId, 'events', productId] as const,
+};
+
 /** Plan / schedule — used only via planKeys factories + invalidateScheduledBatchQueries */
 export const planQueryRoots = {
     day: ['day_plan'] as const,
