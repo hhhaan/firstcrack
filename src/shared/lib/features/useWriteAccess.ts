@@ -26,7 +26,7 @@ export function useWriteAccess(): boolean {
     // Shared org workspace → admin/host plan only (unified R/W on owner account).
     if (isForeignWorkspace) {
         const hostPlan = ownerPlanById[workspaceOwnerId] ?? '';
-        return isWritablePlan(hostPlan) && hostPlan !== '';
+        return isWritablePlan(hostPlan);
     }
 
     if (!isWritablePlan(plan)) return false;

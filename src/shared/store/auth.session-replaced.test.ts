@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type AuthCb = (event: string, session: { user: { id: string } } | null) => void;
@@ -8,6 +10,7 @@ const getSession = vi.fn();
 const signInWithPassword = vi.fn();
 const signOut = vi.fn();
 const sendOsNotification = vi.fn();
+const from = vi.fn();
 
 vi.mock('../lib/supabase', () => ({
     supabase: {
@@ -20,13 +23,7 @@ vi.mock('../lib/supabase', () => ({
                 return { data: { subscription: { unsubscribe } } };
             },
         },
-        from: () => ({
-            select: () => ({
-                eq: () => ({
-                    single: () => Promise.resolve({ data: { plan: 'pro' }, error: null }),
-                }),
-            }),
-        }),
+        from: (...a: unknown[]) => from(...a),
     },
 }));
 
@@ -56,12 +53,12 @@ describe('auth session_replaced (single-session UX)', () => {
         signInWithPassword.mockReset();
         signOut.mockReset();
         sendOsNotification.mockReset();
+        from.mockReset();
         // getSession resolves after init subscribed; keep loading true until we drive authCb
         getSession.mockReturnValue(new Promise(() => {}));
         signOut.mockResolvedValue({ error: null });
         useAuthStore.setState({
             user: null,
-            plan: 'free',
             loading: true,
             oauthPending: false,
             oauthError: null,
@@ -96,5 +93,15 @@ describe('auth session_replaced (single-session UX)', () => {
         authCb?.('INITIAL_SESSION', null);
         expect(useAuthStore.getState().oauthError).toBeNull();
         expect(sendOsNotification).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch profiles.plan', () => {
+        authCb?.('SIGNED_IN', { user });
+        expect(from).not.toHaveBeenCalled();
+        expect(useAuthStore.getState()).not.toHaveProperty('plan');
+        const src = readFileSync(fileURLToPath(new URL('./auth.ts', import.meta.url)), 'utf8');
+        expect(src).not.toContain('fetchPlan');
+        expect(src).not.toContain("from('profiles')");
+        expect(src).not.toContain("select('plan')");
     });
 });

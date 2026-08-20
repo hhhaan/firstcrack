@@ -122,9 +122,9 @@ const migratePollIntervalMs = (ms: unknown): PollIntervalMs => {
 
 /**
  * 500ms polling is Pro-gated (FEATURE.fastPolling). Applied at read time, never persisted:
- * `auth.plan` starts as the 'free' placeholder before the profile fetch resolves, so a
- * persisted coercion (the 250→500 migration pattern) would clobber a Pro user's stored
- * 500ms on every launch. Read-time coercion also restores 500ms if the user re-upgrades.
+ * the profile RQ plan is empty until it resolves, so a persisted coercion (the 250→500
+ * migration pattern) would clobber a Pro user's stored 500ms on every launch. Read-time
+ * coercion also restores 500ms if the user re-upgrades.
  */
 export const coercePollIntervalForPlan = (ms: PollIntervalMs, canFastPoll: boolean): PollIntervalMs =>
     ms === 500 && !canFastPoll ? 1000 : ms;

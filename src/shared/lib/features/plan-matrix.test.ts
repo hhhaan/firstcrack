@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEATURE } from './keys';
+import { FEATURE, type FeatureKey } from './keys';
 import {
     canAddMachine,
     canCompleteBatch,
@@ -77,11 +77,29 @@ describe('plan state helpers', () => {
         expect(isCoreEntitled('free')).toBe(false);
     });
 
-    it('isWritablePlan: only read_only is blocked', () => {
+    it('isWritablePlan: only known writable plans', () => {
         expect(isWritablePlan('read_only')).toBe(false);
         expect(isWritablePlan('trial')).toBe(true);
         expect(isWritablePlan('pro')).toBe(true);
         expect(isWritablePlan('free')).toBe(true);
+        expect(isWritablePlan('nope')).toBe(false);
+        expect(isWritablePlan('')).toBe(false);
+    });
+
+    it('planHasFeature is exhaustive over FeatureKey (no silent-deny default)', () => {
+        const pro: Record<FeatureKey, boolean> = {
+            cupping: true,
+            orderIntegration: false,
+            bbp: true,
+            roastedInventory: false,
+            productStock: false,
+            team: false,
+            fastPolling: true,
+            machineControl: false,
+        };
+        for (const key of Object.values(FEATURE)) {
+            expect(planHasFeature('pro', key)).toBe(pro[key]);
+        }
     });
 
     it('trialEndsAt adds 14 days', () => {
