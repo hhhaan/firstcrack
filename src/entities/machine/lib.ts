@@ -20,8 +20,6 @@ export {
     validateAddressMaps,
 } from './addressMap';
 
-export const CUSTOM_ROASTER_KEY = '__custom__';
-
 export const TCP_ONLY_FIELDS = new Set(['host', 'port']);
 export const RTU_ONLY_FIELDS = new Set(['comport', 'baudrate', 'bytesize', 'parity', 'stopbits']);
 

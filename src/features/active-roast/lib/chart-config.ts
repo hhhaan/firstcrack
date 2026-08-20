@@ -10,13 +10,7 @@ export const PHASE_BAR_HEIGHT = 26;
 export const PHASE_BAR_WIDE_THRESHOLD = 70;
 export const PHASE_BAR_NARROW_THRESHOLD = 30;
 export const PHASE_BAR_TEXT_INSET = 6;
-/** @deprecated Prefer getResolvedChartColors().phaseBarStroke — kept for non-canvas fallbacks */
-export const PHASE_BAR_STROKE = 'var(--color-chart-phasebar-stroke)';
 export const PHASE_BAR_STROKE_WIDTH = 0.5;
-/** @deprecated Prefer getResolvedChartColors().phaseBarName */
-export const PHASE_BAR_NAME_COLOR = 'var(--color-chart-phasebar-name)';
-/** @deprecated Prefer getResolvedChartColors().phaseBarDuration */
-export const PHASE_BAR_DURATION_COLOR = 'var(--color-chart-phasebar-duration)';
 export const PHASE_BAR_FONT_SIZE = 10;
 export const PHASE_BAR_FONT_SIZE_NARROW = 9;
 export const PHASE_BAR_FONT_FAMILY = 'monospace';

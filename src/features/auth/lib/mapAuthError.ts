@@ -1,3 +1,4 @@
+import { errorMessage, isOpaqueNetworkError } from '@shared/lib/errorMessage';
 import type { AuthErrorCode } from '@shared/store/auth';
 
 export type { AuthErrorCode };
@@ -9,11 +10,7 @@ export const mapAuthError = (error: unknown): AuthErrorCode => {
     if (!error) return 'generic';
 
     const code = isRecord(error) && typeof error.code === 'string' ? error.code : '';
-    let message: string;
-    if (error instanceof Error) message = error.message;
-    else if (isRecord(error) && typeof error.message === 'string') message = error.message;
-    else message = String(error);
-    const lower = message.toLowerCase();
+    const lower = errorMessage(error).toLowerCase();
 
     if (
         code === 'invalid_credentials' ||
@@ -23,13 +20,7 @@ export const mapAuthError = (error: unknown): AuthErrorCode => {
         return 'invalid_credentials';
     }
 
-    if (
-        code === 'network_error' ||
-        error instanceof TypeError ||
-        /failed to fetch|networkerror|network request failed|load failed|fetch failed|econnrefused|enotfound|offline/i.test(
-            lower,
-        )
-    ) {
+    if (code === 'network_error' || isOpaqueNetworkError(error)) {
         return 'network';
     }
 
