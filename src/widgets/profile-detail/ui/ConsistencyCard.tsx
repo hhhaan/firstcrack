@@ -1,4 +1,5 @@
 import { useProfileConsistency } from '@entities/roast-profile';
+import { formatTemp, tempUnitLabel, toDisplayRoR, useRoastSettings } from '@features/active-roast';
 import { formatDuration } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
 import { Sparkline } from '@shared/ui/Sparkline';
@@ -7,14 +8,17 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { computeConsistencyStats, MIN_CONSISTENCY_SESSIONS } from '../lib/consistency';
 
-const metricFormats: Record<string, { value: (v: number) => string; sd: (v: number) => string }> = {
-    dropTemp: { value: (v) => `${v.toFixed(1)}°C`, sd: (v) => `±${v.toFixed(1)}°C` },
-    duration: { value: (v) => formatDuration(Math.round(v)), sd: (v) => `±${Math.round(v)}s` },
-    weight: { value: (v) => `${Math.round(v)}g`, sd: (v) => `±${Math.round(v)}g` },
-};
-
 export const ConsistencyCard = ({ profileId }: { profileId: string }) => {
     const { t } = useTranslation();
+    const unit = useRoastSettings().temperatureUnit;
+    const metricFormats: Record<string, { value: (v: number) => string; sd: (v: number) => string }> = {
+        dropTemp: {
+            value: (v) => formatTemp(v, unit),
+            sd: (v) => `±${toDisplayRoR(v, unit).toFixed(1)}${tempUnitLabel(unit)}`,
+        },
+        duration: { value: (v) => formatDuration(Math.round(v)), sd: (v) => `±${Math.round(v)}s` },
+        weight: { value: (v) => `${Math.round(v)}g`, sd: (v) => `±${Math.round(v)}g` },
+    };
     const { data: rows = [] } = useProfileConsistency(profileId);
     const metrics = useMemo(() => computeConsistencyStats(rows), [rows]);
 

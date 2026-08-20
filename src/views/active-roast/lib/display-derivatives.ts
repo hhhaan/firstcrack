@@ -4,6 +4,7 @@ import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-even
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { interpolateProfileBT } from '@shared/data/roast-profiles';
+import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry } from '@shared/types/roast';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
 
@@ -23,7 +24,7 @@ export const calcDevTime = (fcStartEntry: LogEntry | undefined, elapsed: number)
     const devSec = elapsed - logEntryTimeSec(fcStartEntry);
     if (devSec <= 0) return EMPTY_DEV;
     const pct = Math.round((devSec / elapsed) * 100);
-    const mmss = `${Math.floor(devSec / 60)}:${String(devSec % 60).padStart(2, '0')}`;
+    const mmss = formatElapsed(devSec);
     return { devTimeStr: `${mmss} (${pct}%)`, devTimeOnly: mmss, dtrPct: pct };
 };
 

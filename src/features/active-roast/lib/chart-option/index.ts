@@ -1,3 +1,4 @@
+import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
 import {
     buildAxisStyles,
@@ -59,10 +60,11 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
     const { tempYMin, tempYMax } = computeTempYRange(tempMinC, tempMaxC, temperatureUnit);
+    const rorYMinDisp = toDisplayRoR(rorYMin, temperatureUnit);
+    const rorYMaxDisp = toDisplayRoR(rorYMax, temperatureUnit);
 
-    // formatTemp와 동일: °+C/F (℃/℉ 단일 글리프는 monospace에서 깨짐)
-    const unitLabel = temperatureUnit === 'C' ? '°C' : '°F';
-    const rorUnit = temperatureUnit === 'C' ? '℃/min' : '℉/min';
+    const unitLabel = tempUnitLabel(temperatureUnit);
+    const rorUnit = rorUnitLabel(temperatureUnit);
 
     const formatAxisTooltip = createAxisTooltipFormatter({
         showET,
@@ -147,8 +149,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             xMax,
             tempYMin,
             tempYMax,
-            rorYMin,
-            rorYMax,
+            rorYMin: rorYMinDisp,
+            rorYMax: rorYMaxDisp,
             controlYMin,
             controlYMax,
             colors,
@@ -202,8 +204,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         xMax,
         tempYMin,
         tempYMax,
-        rorYMin,
-        rorYMax,
+        rorYMin: rorYMinDisp,
+        rorYMax: rorYMaxDisp,
         colors,
         axisLabelStyle,
         axisNameStyle,

@@ -1,5 +1,12 @@
 import { sessionBeanName, useHistoryChart } from '@entities/roast';
 import { useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
+import {
+    formatTemp,
+    type TemperatureUnit,
+    toDisplayRoR,
+    toDisplayTemp,
+    useRoastSettings,
+} from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
@@ -47,7 +54,7 @@ type Column = {
     render: (s: RoastSessionWithRelations) => ReactNode;
 };
 
-const columns: Column[] = [
+const columnsFor = (unit: TemperatureUnit): Column[] => [
     { key: 'date', label: 'Date', width: '100px', sortable: true, render: (s) => formatDateShort(s.roasted_at) },
     {
         key: 'bean',
@@ -70,7 +77,7 @@ const columns: Column[] = [
         label: 'Drop',
         width: '80px',
         sortable: true,
-        render: (s) => (s.drop_temp_celsius != null ? `${s.drop_temp_celsius}°C` : '—'),
+        render: (s) => formatTemp(s.drop_temp_celsius, unit),
     },
     {
         key: 'duration',
@@ -154,16 +161,29 @@ type ExpandedRowProps = {
 
 function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
     const { t } = useTranslation();
+    const unit = useRoastSettings().temperatureUnit;
     const { xs, btActual, etActual, rorActual, isLoading, isError } = useHistoryChart(session.tsv_path ?? null);
-    const eventMarkers = useMemo(() => storedEventsToMarkers(parseStoredRoastEvents(session.events)), [session.events]);
+    const eventMarkers = useMemo(
+        () => storedEventsToMarkers(parseStoredRoastEvents(session.events), unit),
+        [session.events, unit],
+    );
 
     // 세션의 타깃 프로파일 커브 오버레이 (실측 TSV 우선, 없으면 synthetic)
     const { data: profiles = [] } = useRoastProfiles(session.user_id);
     const profile = session.profile_id ? (profiles.find((p) => p.id === session.profile_id) ?? null) : null;
     const { points: targetPoints } = useResolvedProfileCurve(profile);
     const { targetXs, targetBt } = useMemo(
-        () => ({ targetXs: targetPoints.map((p) => p.t), targetBt: targetPoints.map((p) => p.bt) }),
-        [targetPoints],
+        () => ({
+            targetXs: targetPoints.map((p) => p.t),
+            targetBt: targetPoints.map((p) => toDisplayTemp(p.bt, unit)),
+        }),
+        [targetPoints, unit],
+    );
+    const displayBt = useMemo(() => btActual.map((v) => toDisplayTemp(v, unit)), [btActual, unit]);
+    const displayEt = useMemo(() => etActual.map((v) => (v != null ? toDisplayTemp(v, unit) : null)), [etActual, unit]);
+    const displayRor = useMemo(
+        () => rorActual.map((v) => (v != null ? toDisplayRoR(v, unit) : null)),
+        [rorActual, unit],
     );
 
     return (
@@ -174,7 +194,7 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                         { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
                         {
                             label: t('history.expanded.dropTemp'),
-                            value: session.drop_temp_celsius != null ? `${session.drop_temp_celsius}°C` : '—',
+                            value: formatTemp(session.drop_temp_celsius, unit),
                         },
                         { label: t('history.expanded.duration'), value: formatDuration(session.duration_seconds) },
                     ].map(({ label, value }) => (
@@ -213,9 +233,9 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                         ) : (
                             <RoastTempChart
                                 xs={xs}
-                                btActual={btActual}
-                                etActual={etActual}
-                                rorActual={rorActual}
+                                btActual={displayBt}
+                                etActual={displayEt}
+                                rorActual={displayRor}
                                 btTarget={[]}
                                 currentTimeSec={0}
                                 eventMarkers={eventMarkers}
@@ -223,6 +243,7 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                                 targetXs={targetXs}
                                 targetBt={targetBt}
                                 showRoRET={false}
+                                temperatureUnit={unit}
                                 height={550}
                             />
                         )}
@@ -273,6 +294,8 @@ export const HistoryTable = ({
     onPageChange,
 }: HistoryTableProps): ReactNode => {
     const { t } = useTranslation();
+    const unit = useRoastSettings().temperatureUnit;
+    const columns = columnsFor(unit);
     const start = (page - 1) * pageSize + 1;
     const end = Math.min(page * pageSize, filteredTotal);
 

@@ -9,6 +9,7 @@ import {
     useRoastProfiles,
     useUpdateRoastProfile,
 } from '@entities/roast-profile';
+import { formatTemp, useRoastSettings } from '@features/active-roast';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { formatDuration } from '@shared/lib/format';
 import { useAuthStore } from '@shared/store/auth';
@@ -39,6 +40,7 @@ interface ProfilesProps {
 
 export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const { t } = useTranslation();
+    const unit = useRoastSettings().temperatureUnit;
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
     const { data: profiles = [], isLoading } = useRoastProfiles(workspaceOwnerId);
@@ -231,7 +233,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                     </div>
                                     <div className="text-[12px] text-muted tracking-[0.14px]">
                                         {profile.drop_temp_celsius != null
-                                            ? `${t('profiles.drop')} ${profile.drop_temp_celsius}°C`
+                                            ? `${t('profiles.drop')} ${formatTemp(profile.drop_temp_celsius, unit)}`
                                             : profile.target_level}
                                         {profile.duration_sec != null && ` · ${formatDuration(profile.duration_sec)}`}
                                     </div>

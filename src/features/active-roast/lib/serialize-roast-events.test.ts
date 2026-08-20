@@ -121,6 +121,12 @@ describe('storedEventsToLogEntries', () => {
             },
         ]);
     });
+
+    it('converts log temps with toDisplayTemp', () => {
+        const [row] = storedEventsToLogEntries([{ id: '1', type: 'Drop', time_sec: 600, temp_c: 210 }], 'F');
+        expect(row.temp).toBe('410°F');
+        expect(row.tempC).toBe(210);
+    });
 });
 
 describe('storedEventsToMarkers', () => {
@@ -139,6 +145,9 @@ describe('storedEventsToMarkers', () => {
         expect(markers[1].temp).toBe('210');
         expect(markers[1].timeStr).toBe('10:00');
         expect(markers[0].color).toBe('#abc');
+
+        const fMarkers = storedEventsToMarkers([{ id: '4', type: 'Drop', time_sec: 600, temp_c: 210 }], 'F');
+        expect(fMarkers[0].temp).toBe('410');
 
         vi.unstubAllGlobals();
     });

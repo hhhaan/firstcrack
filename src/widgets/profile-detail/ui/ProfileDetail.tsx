@@ -1,10 +1,12 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { useProfileBeanHistory, useSourceSessionEvents } from '@entities/roast-profile';
+import { formatTemp, useRoastSettings } from '@features/active-roast';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import { useCsvFileExport } from '@features/export-csv';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
+import { formatDuration } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
@@ -15,13 +17,6 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { profileExportBasename, profileToCsv } from '../lib/export-profile-csv';
 import { ConsistencyCard } from './ConsistencyCard';
-
-const fmtDuration = (sec: number | null): string => {
-    if (sec == null) return '—';
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${String(s).padStart(2, '0')}`;
-};
 
 const DefaultBadge = ({
     id,
@@ -89,17 +84,18 @@ interface ProfileDetailProps {
 
 const useTableRows = (): { label: string; getValue: (p: RoastProfileWithSource) => string }[] => {
     const { t } = useTranslation();
+    const unit = useRoastSettings().temperatureUnit;
     return [
-        { label: t('profiles.detail.totalDuration'), getValue: (p) => fmtDuration(p.duration_sec) },
+        { label: t('profiles.detail.totalDuration'), getValue: (p) => formatDuration(p.duration_sec) },
         {
             label: t('profiles.detail.dropTemp'),
-            getValue: (p) => (p.drop_temp_celsius != null ? `${p.drop_temp_celsius}°C` : '—'),
+            getValue: (p) => formatTemp(p.drop_temp_celsius, unit),
         },
         {
             label: t('profiles.detail.chargeTemp'),
-            getValue: (p) => (p.charge_temp_celsius != null ? `${p.charge_temp_celsius}°C` : '—'),
+            getValue: (p) => formatTemp(p.charge_temp_celsius, unit),
         },
-        { label: t('profiles.detail.devTime'), getValue: (p) => fmtDuration(p.dev_time_sec) },
+        { label: t('profiles.detail.devTime'), getValue: (p) => formatDuration(p.dev_time_sec) },
         { label: t('profiles.detail.devPct'), getValue: (p) => (p.dev_pct != null ? `${p.dev_pct.toFixed(1)}%` : '—') },
         { label: t('profiles.detail.targetLevel'), getValue: (p) => p.target_level ?? '—' },
     ];
@@ -122,9 +118,10 @@ export const ProfileDetail = ({
     const { data: sourceEvents = null } = useSourceSessionEvents(selected.source_session_id);
     const TABLE_ROWS = useTableRows();
     const exportFile = useCsvFileExport();
+    const unit = useRoastSettings().temperatureUnit;
     const roastLogEntries = useMemo(
-        () => storedEventsToLogEntries(parseStoredRoastEvents(sourceEvents)),
-        [sourceEvents],
+        () => storedEventsToLogEntries(parseStoredRoastEvents(sourceEvents), unit),
+        [sourceEvents, unit],
     );
 
     const handleExport = useCallback(async () => {

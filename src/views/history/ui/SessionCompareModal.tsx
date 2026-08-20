@@ -1,5 +1,5 @@
 import { sessionBeanName, useHistoryCharts } from '@entities/roast';
-import { computePhaseSegments } from '@features/active-roast';
+import { computePhaseSegments, formatTemp, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { deriveSessionDevMetrics } from '@shared/lib/roast-delta';
@@ -21,6 +21,7 @@ interface SessionCompareModalProps {
 
 export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalProps): ReactNode => {
     const { t } = useTranslation();
+    const unit = useRoastSettings().temperatureUnit;
     const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
 
     const curveQueries = useHistoryCharts(
@@ -229,8 +230,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                                         {
                                             key: 'drop',
                                             label: t('history.compare.dropTemp'),
-                                            get: (it: CompareSidebarItem) =>
-                                                it.dropBt != null ? `${it.dropBt.toFixed(1)}°C` : '—',
+                                            get: (it: CompareSidebarItem) => formatTemp(it.dropBt, unit),
                                         },
                                         {
                                             key: 'dtr',

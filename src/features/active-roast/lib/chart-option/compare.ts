@@ -5,6 +5,8 @@ import {
     ROR_Y_MIN,
     TEMP_Y_INTERVAL,
 } from '@features/active-roast/lib/chart-config';
+import { rorUnitLabel, tempUnitLabel, toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import type { EChartsOption } from 'echarts';
 import {
     buildAxisStyles,
@@ -45,19 +47,34 @@ export const buildCompareChartOption = (
     active: CompareChartSeries[],
     showRoR: boolean,
     xView: { start: number; end: number },
+    temperatureUnit: TemperatureUnit = 'C',
 ): EChartsOption => {
     const colors = getResolvedChartColors();
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
     const crossLineStyle = buildCrossLineStyle(colors);
     const { leftMargin, rightMargin, topMargin } = computeGridMargins(showRoR);
+    const unitLabel = tempUnitLabel(temperatureUnit);
+    const rorLabel = rorUnitLabel(temperatureUnit);
 
-    const allBt = active.flatMap((s) => s.points.map((p) => p.bt)).filter(Number.isFinite);
+    const plotSeries = active.map((s) => ({
+        ...s,
+        points: s.points.map((p) => ({
+            ...p,
+            bt: toDisplayTemp(p.bt, temperatureUnit),
+            et: p.et != null ? toDisplayTemp(p.et, temperatureUnit) : null,
+            ror: p.ror != null ? toDisplayRoR(p.ror, temperatureUnit) : null,
+        })),
+    }));
+
+    const allBt = plotSeries.flatMap((s) => s.points.map((p) => p.bt)).filter(Number.isFinite);
+    const defaultMin = toDisplayTemp(100, temperatureUnit);
+    const defaultMax = toDisplayTemp(220, temperatureUnit);
     const tempYMin = allBt.length
-        ? Math.min(100, Math.floor((Math.min(...allBt) - 10) / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL)
-        : 100;
+        ? Math.min(defaultMin, Math.floor((Math.min(...allBt) - 10) / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL)
+        : defaultMin;
     const tempYMax = allBt.length
-        ? Math.max(220, Math.ceil((Math.max(...allBt) + 10) / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL)
-        : 250;
+        ? Math.max(defaultMax, Math.ceil((Math.max(...allBt) + 10) / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL)
+        : toDisplayTemp(250, temperatureUnit);
 
     const { grid, xAxis, yAxis } = buildSingleGridLayout({
         leftMargin,
@@ -67,8 +84,8 @@ export const buildCompareChartOption = (
         xMax: xView.end,
         tempYMin,
         tempYMax,
-        rorYMin: ROR_Y_MIN,
-        rorYMax: ROR_Y_MAX,
+        rorYMin: toDisplayRoR(ROR_Y_MIN, temperatureUnit),
+        rorYMax: toDisplayRoR(ROR_Y_MAX, temperatureUnit),
         colors,
         axisLabelStyle,
         axisNameStyle,
@@ -79,10 +96,10 @@ export const buildCompareChartOption = (
     // modal chart: no phase-bar strip below the plot, so reclaim the tall bottom margin
     (grid as { bottom?: number }[])[0].bottom = 30;
 
-    const resolved = new Map(active.map((s) => [s.id, resolveCssColor(s.color)]));
+    const resolved = new Map(plotSeries.map((s) => [s.id, resolveCssColor(s.color)]));
     const series: object[] = [];
 
-    for (const s of active) {
+    for (const s of plotSeries) {
         const color = resolved.get(s.id) as string;
         series.push({
             name: `bt|${s.id}`,
@@ -162,14 +179,14 @@ export const buildCompareChartOption = (
             rows.set(id, row);
         }
         let html = `<div style="font-weight:500;color:${colors.tooltipTimeColor};margin-bottom:6px;font-family:monospace">${fmtSec(Number(t))}</div>`;
-        for (const s of active) {
+        for (const s of plotSeries) {
             const row = rows.get(s.id);
             if (row?.bt == null) continue;
             html += `<div style="display:flex;align-items:center;gap:6px;margin-top:3px">
                 <span style="width:8px;height:8px;border-radius:2px;background:${resolved.get(s.id)}"></span>
                 <span style="color:${colors.tooltipTimeColor};max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.label)}</span>
-                <span style="font-weight:600;font-variant-numeric:tabular-nums">${row.bt.toFixed(1)}°C</span>
-                ${row.ror != null ? `<span style="color:${colors.tooltipTimeColor};font-variant-numeric:tabular-nums">${row.ror.toFixed(1)}°/min</span>` : ''}
+                <span style="font-weight:600;font-variant-numeric:tabular-nums">${row.bt.toFixed(1)}${unitLabel}</span>
+                ${row.ror != null ? `<span style="color:${colors.tooltipTimeColor};font-variant-numeric:tabular-nums">${row.ror.toFixed(1)}${rorLabel}</span>` : ''}
             </div>`;
         }
         return html;

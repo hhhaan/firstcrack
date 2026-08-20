@@ -1,10 +1,12 @@
 import { getResolvedEventColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
+import { tempUnitLabel, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { parseTimeSec } from '@features/active-roast/lib/time';
+import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry, StoredRoastEvent } from '@shared/types/roast';
 
-const formatStoredEventTemp = (tempC: number | null | undefined): string =>
-    tempC != null && Number.isFinite(tempC) ? `${Math.round(tempC)}°C` : '—';
+const formatStoredEventTemp = (tempC: number | null | undefined, unit: TemperatureUnit): string =>
+    tempC != null && Number.isFinite(tempC) ? `${Math.round(toDisplayTemp(tempC, unit))}${tempUnitLabel(unit)}` : '—';
 
 /** Prefer stored timeSec; fall back to display "m:ss". */
 export const logEntryTimeSec = (entry: Pick<LogEntry, 'time' | 'timeSec'>): number =>
@@ -65,7 +67,7 @@ export type HistoryEventMarker = {
 };
 
 /** Stored events → read-only log rows for profile/history UI. */
-export const storedEventsToLogEntries = (events: StoredRoastEvent[]): LogEntry[] =>
+export const storedEventsToLogEntries = (events: StoredRoastEvent[], unit: TemperatureUnit = 'C'): LogEntry[] =>
     [...events]
         .sort((a, b) => a.time_sec - b.time_sec)
         .map((e) => ({
@@ -73,13 +75,13 @@ export const storedEventsToLogEntries = (events: StoredRoastEvent[]): LogEntry[]
             time: formatElapsed(e.time_sec),
             timeSec: e.time_sec,
             event: e.type,
-            temp: formatStoredEventTemp(e.temp_c),
+            temp: formatStoredEventTemp(e.temp_c, unit),
             tempC: e.temp_c ?? null,
             note: e.note ?? '',
         }));
 
 /** Stored events → chart markers (same filter as live buildEventMarkers). */
-export const storedEventsToMarkers = (events: StoredRoastEvent[]): HistoryEventMarker[] =>
+export const storedEventsToMarkers = (events: StoredRoastEvent[], unit: TemperatureUnit = 'C'): HistoryEventMarker[] =>
     events
         .filter((e) => isChartEventMarker(e.type))
         .map((e) => ({
@@ -87,5 +89,5 @@ export const storedEventsToMarkers = (events: StoredRoastEvent[]): HistoryEventM
             event: e.type,
             color: getResolvedEventColor(e.type),
             timeStr: formatElapsed(e.time_sec),
-            temp: e.temp_c != null ? `${Math.round(e.temp_c)}` : '',
+            temp: e.temp_c != null ? `${Math.round(toDisplayTemp(e.temp_c, unit))}` : '',
         }));
