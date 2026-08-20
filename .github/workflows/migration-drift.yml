@@ -1,0 +1,70 @@
+name: Migration drift check
+
+# 로컬 migration 파일 vs remote DB 적용 상태 비교 → pending 있으면 Slack 알림.
+# 배포는 여전히 수동 (Deploy migrations dispatch) — 이건 깜빡임 방지용 알림만.
+# push(migration 변경) 시 즉시 + 평일 오전 재확인 (pending 없으면 조용).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+  schedule:
+    - cron: '0 0 * * 1-5' # 09:00 KST weekdays
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # pin: supabase/setup-cli@v1.7.1
+      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520
+        with:
+          version: 2.24.3
+
+      - name: Check pending migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          supabase link --project-ref vjdgdolfxvnxushxrmff
+
+          # ponytail: CLI 테이블 출력 파싱(│ 구분자) — CLI 포맷 바뀌면 깨짐, 버전 고정으로 방어
+          pending=$(supabase migration list --linked \
+            | awk -F'│' 'NF>=2 {l=$1; r=$2; gsub(/[[:space:]]/,"",l); gsub(/[[:space:]]/,"",r); if (l ~ /^[0-9]+$/ && r=="") print l}')
+
+          if [ -z "$pending" ]; then
+            echo "No pending migrations — local and remote in sync."
+            exit 0
+          fi
+
+          count=$(echo "$pending" | wc -l | tr -d ' ')
+          echo "::warning::$count pending migration(s) not applied to prod:"
+          echo "$pending"
+
+          if [ -z "$SLACK_WEBHOOK" ]; then
+            echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
+            exit 0
+          fi
+
+          deploy_url="${{ github.server_url }}/${{ github.repository }}/actions/workflows/deploy-migrations.yml"
+          jq -n --arg count "$count" --arg list "$pending" --arg url "$deploy_url" '{
+            blocks: [
+              { type: "section",
+                text: { type: "mrkdwn",
+                  text: (":warning: *Pending migrations (" + $count + ")* — prod DB에 미적용:\n```" + $list + "```") } },
+              { type: "actions",
+                elements: [
+                  { type: "button", style: "primary",
+                    text: { type: "plain_text", text: "Deploy migrations 실행" },
+                    url: $url } ] }
+            ]
+          }' | curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" --data @-
