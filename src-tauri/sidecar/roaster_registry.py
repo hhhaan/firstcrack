@@ -112,6 +112,31 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
             "required": False,
             "placeholder": "57600",
         },
+        {
+            "key": "bytesize",
+            "label": "Byte Size",
+            "type": "number",
+            "required": False,
+        },
+        {
+            "key": "parity",
+            "label": "Parity",
+            "type": "select",
+            "required": False,
+            "options": [
+                {"value": "N", "label": "None (N)"},
+                {"value": "E", "label": "Even (E)"},
+                {"value": "O", "label": "Odd (O)"},
+                {"value": "M", "label": "Mark (M)"},
+                {"value": "S", "label": "Space (S)"},
+            ],
+        },
+        {
+            "key": "stopbits",
+            "label": "Stop Bits",
+            "type": "number",
+            "required": False,
+        },
     ],
     "probat_ws": [
         {
@@ -158,6 +183,31 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
             "placeholder": _comport_placeholder,
         },
         {"key": "baudrate", "label": "Baud Rate", "type": "number", "required": False},
+        {
+            "key": "bytesize",
+            "label": "Byte Size",
+            "type": "number",
+            "required": False,
+        },
+        {
+            "key": "parity",
+            "label": "Parity",
+            "type": "select",
+            "required": False,
+            "options": [
+                {"value": "N", "label": "None (N)"},
+                {"value": "E", "label": "Even (E)"},
+                {"value": "O", "label": "Odd (O)"},
+                {"value": "M", "label": "Mark (M)"},
+                {"value": "S", "label": "Space (S)"},
+            ],
+        },
+        {
+            "key": "stopbits",
+            "label": "Stop Bits",
+            "type": "number",
+            "required": False,
+        },
     ],
     "phidget": [
         {
