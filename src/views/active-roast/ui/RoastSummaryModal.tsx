@@ -12,6 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { BeanCombobox } from '@shared/ui/BeanCombobox';
+import { formErrorCls } from '@shared/ui/form-styles';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
@@ -384,9 +385,7 @@ export const RoastSummaryModal = ({
                                             })}
                                         </p>
                                     )}
-                                    {errors.planBatchId && (
-                                        <p className="text-[11px] text-red-500 mt-1">{errors.planBatchId.message}</p>
-                                    )}
+                                    {errors.planBatchId && <p className={formErrorCls}>{errors.planBatchId.message}</p>}
                                 </>
                             )}
                         </>
@@ -439,7 +438,7 @@ export const RoastSummaryModal = ({
                                     />
                                 </div>
                                 {errors.beanLabel || errors.beanId ? (
-                                    <p className="text-[11px] text-red-500 mt-1">
+                                    <p className={formErrorCls}>
                                         {errors.beanLabel?.message ?? errors.beanId?.message}
                                     </p>
                                 ) : isCustomBean ? (
@@ -485,9 +484,7 @@ export const RoastSummaryModal = ({
                         />
                         <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">kg</span>
                     </div>
-                    {errors.weightGrams && (
-                        <p className="text-[11px] text-red-500 mt-1">{errors.weightGrams.message}</p>
-                    )}
+                    {errors.weightGrams && <p className={formErrorCls}>{errors.weightGrams.message}</p>}
                 </div>
 
                 <div className="mb-3.5">
@@ -505,7 +502,7 @@ export const RoastSummaryModal = ({
                         <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">kg</span>
                     </div>
                     {errors.outputWeightKg ? (
-                        <p className="text-[11px] text-red-500 mt-1">{errors.outputWeightKg.message}</p>
+                        <p className={formErrorCls}>{errors.outputWeightKg.message}</p>
                     ) : (
                         <p className="text-[11px] text-muted mt-1">
                             {lossPreview !== null

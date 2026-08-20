@@ -39,3 +39,6 @@ export const modalCancelBtnCls =
 
 export const modalPrimaryBtnCls =
     'flex-1 cursor-pointer rounded-2xl border border-transparent bg-primary py-3.5 text-[15px] font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,0.15)] transition-opacity duration-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white dark:bg-black';
+
+/** Inline validation under form fields. */
+export const formErrorCls = 'text-[11px] text-red-500 mt-1';

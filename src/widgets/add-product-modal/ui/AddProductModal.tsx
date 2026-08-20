@@ -6,14 +6,8 @@ import { useCreateProduct, useUpdateProduct } from '@entities/product';
 import { useRoastProfiles } from '@entities/roast-profile';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { FormSelect } from '@shared/ui/FormSelect';
-import {
-    inputCls,
-    labelCls,
-    modalCancelBtnCls,
-    modalFooterChrome,
-    modalHeaderChrome,
-    modalPrimaryBtnCls,
-} from '@shared/ui/form-styles';
+import { inputCls, labelCls, modalHeaderChrome } from '@shared/ui/form-styles';
+import { ModalFooter } from '@shared/ui/modal-shell/ModalFooter';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -232,21 +226,13 @@ export const AddProductModal = ({ open, onClose, editing }: Props) => {
                 </div>
             </ModalScrollBody>
 
-            <div className={modalFooterChrome}>
-                <div className="flex gap-3">
-                    <button type="button" onClick={onClose} className={modalCancelBtnCls}>
-                        {t('common.cancel')}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => void onSubmit()}
-                        disabled={!valid || submitting}
-                        className={modalPrimaryBtnCls}
-                    >
-                        {editing ? t('common.save') : t('common.add')}
-                    </button>
-                </div>
-            </div>
+            <ModalFooter
+                onCancel={onClose}
+                cancelLabel={t('common.cancel')}
+                onPrimary={() => void onSubmit()}
+                primaryDisabled={!valid || submitting}
+                primaryLabel={editing ? t('common.save') : t('common.add')}
+            />
         </ModalShell>
     );
 };

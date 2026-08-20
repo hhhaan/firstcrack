@@ -5,14 +5,8 @@ import { blendTotalRatio } from '@entities/blend/lib';
 import { useActiveWorkspace } from '@entities/organization';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import {
-    inputCls,
-    labelCls,
-    modalCancelBtnCls,
-    modalFooterChrome,
-    modalHeaderChrome,
-    modalPrimaryBtnCls,
-} from '@shared/ui/form-styles';
+import { formErrorCls, inputCls, labelCls, modalHeaderChrome } from '@shared/ui/form-styles';
+import { ModalFooter } from '@shared/ui/modal-shell/ModalFooter';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -119,7 +113,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                             className={inputCls}
                             placeholder={t('beans.blend.modal.namePlaceholder')}
                         />
-                        {errors.name && <p className="mt-1 text-[11px] text-red-500">{errors.name.message}</p>}
+                        {errors.name && <p className={formErrorCls}>{errors.name.message}</p>}
                     </div>
 
                     <div>
@@ -141,7 +135,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                             </span>
                         </div>
                         {errors.components?.root && (
-                            <p className="mb-2 text-[11px] text-red-500">{errors.components.root.message}</p>
+                            <p className={`mb-2 ${formErrorCls}`}>{errors.components.root.message}</p>
                         )}
 
                         <div className="space-y-2">
@@ -167,16 +161,13 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                     </div>
                 </ModalScrollBody>
 
-                <div className={modalFooterChrome}>
-                    <div className="flex gap-3">
-                        <button type="button" onClick={onClose} className={modalCancelBtnCls}>
-                            {t('beans.blend.modal.cancel')}
-                        </button>
-                        <button type="submit" disabled={!isValid} className={modalPrimaryBtnCls}>
-                            {editing ? t('beans.blend.modal.save') : t('beans.blend.modal.add')}
-                        </button>
-                    </div>
-                </div>
+                <ModalFooter
+                    onCancel={onClose}
+                    cancelLabel={t('beans.blend.modal.cancel')}
+                    primaryType="submit"
+                    primaryDisabled={!isValid}
+                    primaryLabel={editing ? t('beans.blend.modal.save') : t('beans.blend.modal.add')}
+                />
             </form>
         </ModalShell>
     );

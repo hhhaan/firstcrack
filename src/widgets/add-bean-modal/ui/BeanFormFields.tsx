@@ -5,7 +5,7 @@ import {
     REGIONS_BY_ORIGIN,
     VARIETIES_BY_ORIGIN,
 } from '@entities/bean/lib/coffee-origins';
-import { chipCls, inputCls, labelCls } from '@shared/ui/form-styles';
+import { chipCls, formErrorCls, inputCls, labelCls } from '@shared/ui/form-styles';
 import { numericInputProps } from '@shared/ui/numeric-input';
 import { Info, MapPin, Scale, Tag } from 'lucide-react';
 import type { FieldErrors, UseFormGetValues, UseFormRegister, UseFormSetValue } from 'react-hook-form';
@@ -70,7 +70,7 @@ export const BeanFormFields = ({
                     placeholder={t('addBeanModal.form.lotNamePlaceholder')}
                     {...register('name', { onChange: () => setNameIsAuto(false) })}
                 />
-                {errors.name && <p className="text-[11px] text-red-500 mt-1">{errors.name.message}</p>}
+                {errors.name && <p className={formErrorCls}>{errors.name.message}</p>}
             </div>
 
             <div>

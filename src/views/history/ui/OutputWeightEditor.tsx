@@ -3,6 +3,7 @@ import { useSetOutputWeight } from '@entities/roast';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { formErrorCls } from '@shared/ui/form-styles';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -94,7 +95,7 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
                 )}
             </div>
             {invalid && (
-                <p className="mt-1 text-[11px] text-red-500">
+                <p className={formErrorCls}>
                     {t('history.expanded.outputWeightInvalid', { max: session.weight_grams })}
                 </p>
             )}

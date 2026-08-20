@@ -1,6 +1,7 @@
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { AdjustStockFields, type AdjustStockSign, type AdjustStockType } from '@shared/ui/AdjustStockFields';
-import { modalCancelBtnCls, modalFooterChrome, modalHeaderChrome, modalPrimaryBtnCls } from '@shared/ui/form-styles';
+import { modalHeaderChrome } from '@shared/ui/form-styles';
+import { ModalFooter } from '@shared/ui/modal-shell/ModalFooter';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -131,19 +132,13 @@ export const AdjustStockModal = (props: AdjustStockModalProps) => {
                     onNoteChange={setNote}
                 />
             </ModalScrollBody>
-            <div className={`${modalFooterChrome} flex gap-3`}>
-                <button type="button" className={modalCancelBtnCls} onClick={onClose}>
-                    {t('common.cancel')}
-                </button>
-                <button
-                    type="button"
-                    className={modalPrimaryBtnCls}
-                    disabled={isPending || !canSubmit}
-                    onClick={() => void submit()}
-                >
-                    {t('inventory.adjust.submit')}
-                </button>
-            </div>
+            <ModalFooter
+                onCancel={onClose}
+                cancelLabel={t('common.cancel')}
+                onPrimary={() => void submit()}
+                primaryDisabled={isPending || !canSubmit}
+                primaryLabel={t('inventory.adjust.submit')}
+            />
         </ModalShell>
     );
 };

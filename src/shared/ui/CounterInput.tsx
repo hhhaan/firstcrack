@@ -1,11 +1,7 @@
 import { sanitizeDecimal } from '@shared/lib/format';
+import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-
-const inputCls =
-    'w-full rounded-xl border border-[rgba(0,0,0,0.08)] dark:border-[#585d61] bg-surface dark:bg-surface-elevated px-3.5 py-2.5 text-[13px] text-primary outline-none focus:border-[rgba(0,0,0,0.2)] shadow-(--shadow-inset)';
-
-const labelCls = 'block text-[12px] font-medium text-secondary mb-1.5';
 
 export const CounterInput = ({
     label,
