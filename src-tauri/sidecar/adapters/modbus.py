@@ -5,6 +5,7 @@ import logging
 from typing import Any
 from pymodbus.framer import FramerType
 from adapters.base import Reading
+from control_guard import ControlUnavailable
 from protocol_trace import TRACE
 
 import config
@@ -316,7 +317,7 @@ class ModbusAdapter:
         fan: float | None = None,
         drum: float | None = None,
     ) -> None:
-        pass  # 제어 기능 미사용 — 제거 예정
+        raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")
 
     @property
     def connected(self) -> bool:

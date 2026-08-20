@@ -356,8 +356,8 @@ class S7Adapter:
     ) -> None:
         """write_map에 매핑된 role만 PLC에 쓴다.
 
-        미연결이거나 write_map에 없는 role은 조용히 무시한다 — 어댑터는 관대하게,
-        연결/권한 검사는 상위(manager, /control 핸들러)가 담당한다.
+        write_map에 없는 role은 조용히 무시한다. _plc가 없으면 쓰지 못한 것이므로
+        성공으로 빠져나가면 안 된다 — manager가 그걸 200으로 보고한다 (#270).
         """
         requested = {"heater": heater, "fan": fan, "drum": drum}
         targets = [
@@ -365,8 +365,10 @@ class S7Adapter:
             for role, value in requested.items()
             if value is not None and role in self._write_map
         ]
-        if not targets or self._plc is None:
+        if not targets:
             return
+        if self._plc is None:
+            raise ConnectionError("S7 PLC가 연결되지 않음")
 
         def _write_all() -> None:
             # 최악: 락 0.5s + (스로틀 0.04 + RecvTimeout 0.5) = 1.04s.
@@ -376,7 +378,7 @@ class S7Adapter:
             try:
                 plc = self._plc
                 if plc is None:  # 사전 검사 이후 disconnect된 경우
-                    return
+                    raise ConnectionError("S7 PLC가 연결되지 않음")
                 for role, spec, value in targets:
                     self._write_channel_sync(role, spec, value, plc)
             finally:
