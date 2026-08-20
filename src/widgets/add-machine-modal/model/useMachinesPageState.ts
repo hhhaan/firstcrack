@@ -1,5 +1,5 @@
 import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
-import { useMachines, VIRTUAL_ID } from '@entities/machine';
+import { controlCapabilitiesFromParams, useMachines, VIRTUAL_ID } from '@entities/machine';
 import { canAddMachine, planMaxMachines } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import { useAuthStore } from '@shared/store/auth';
@@ -48,7 +48,7 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
                 models: meta?.name?.trim() ? [name] : def.models,
                 protocol: def.protocol,
                 connectionParams: params,
-                capabilities: def.capabilities,
+                capabilities: controlCapabilitiesFromParams(params),
                 pid: def.pid,
             });
         },
@@ -59,7 +59,10 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
         async (id: string, params: Record<string, unknown>, keepConnection = false): Promise<void> => {
             const machine = machines.find((m) => m.id === id);
             const wasConnected = machine ? isThisMachineConnected(machine) : false;
-            updateMachine(id, { connectionParams: params });
+            updateMachine(id, {
+                connectionParams: params,
+                capabilities: controlCapabilitiesFromParams(params),
+            });
             if (wasConnected && !keepConnection) {
                 const status = await sidecar.disconnect().catch(() => null);
                 if (status) setSidecarStatus(status);

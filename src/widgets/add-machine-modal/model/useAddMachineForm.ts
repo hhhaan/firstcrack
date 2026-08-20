@@ -7,7 +7,9 @@ import {
     PROTOCOLS_WITH_ADDRESS_MAP,
     ROASTER_REGISTRY,
     resolveCustomConnectKey,
+    writeMapFormFlags,
 } from '@entities/machine';
+import { FEATURE, useFeature } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -110,6 +112,12 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
     const protocolForAddress = selectedDef?.protocol ?? '';
     const showAddressMap = isCustom && PROTOCOLS_WITH_ADDRESS_MAP.has(protocolForAddress);
     const addressFields = showAddressMap ? addressFormFieldsForProtocol(protocolForAddress) : [];
+    const canConfigureControl = useFeature(FEATURE.customMachineControl);
+    const { showWriteMap, includeWriteMap } = writeMapFormFlags({
+        isCustom,
+        protocol: protocolForAddress,
+        canConfigureControl,
+    });
 
     const connectKey = isCustom
         ? editingIsCustom && editing
@@ -159,6 +167,7 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
         customBrand,
         params,
         showAddressMap,
+        includeWriteMap,
         editing,
         onEdit,
         onAdd,
@@ -198,6 +207,7 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
         selectedDef,
         showAddressMap,
         addressFields,
+        showWriteMap,
         canCommit,
         handleClose,
         commit,

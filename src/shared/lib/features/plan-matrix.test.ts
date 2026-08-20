@@ -114,6 +114,14 @@ describe('roasted inventory / product stock gating', () => {
         expect(planHasFeature('enterprise', FEATURE.team)).toBe(true);
         expect(planHasFeature('team', FEATURE.team)).toBe(true);
     });
+
+    it('grants customMachineControl to enterprise-class only', () => {
+        expect(planHasFeature('pro_plus', FEATURE.customMachineControl)).toBe(false);
+        expect(planHasFeature('pro', FEATURE.customMachineControl)).toBe(false);
+        expect(planHasFeature('enterprise', FEATURE.customMachineControl)).toBe(true);
+        expect(planHasFeature('team', FEATURE.customMachineControl)).toBe(true);
+        expect(planHasFeature('tester', FEATURE.customMachineControl)).toBe(true);
+    });
 });
 
 describe('resolveFeature', () => {

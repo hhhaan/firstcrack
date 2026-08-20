@@ -16,6 +16,11 @@ export const FEATURE = {
      * 서버처럼 강제할 수 없다 (fastPolling과 동일한 한계).
      */
     machineControl: 'machineControl',
+    /**
+     * Custom-machine write_map persist. Enterprise-class only.
+     * Runtime control UI is gated separately by machineControl (Pro+).
+     */
+    customMachineControl: 'customMachineControl',
 } as const;
 
 export type FeatureKey = (typeof FEATURE)[keyof typeof FEATURE];

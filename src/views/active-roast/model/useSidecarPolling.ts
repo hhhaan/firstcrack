@@ -1,3 +1,4 @@
+import { type ControlCapability, writeRolesFromStatus } from '@entities/machine';
 import { createBtFilter } from '@features/active-roast/lib/btFilter';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -55,6 +56,7 @@ type SidecarStatusLike = {
     reconnecting?: boolean;
     error?: string | null;
     capabilities?: string[];
+    control?: ControlCapability | null;
 };
 
 /**
@@ -75,9 +77,10 @@ export async function checkSidecarAndRecoverIdle(deps: {
         if (s.connected) {
             deps.setReconnecting?.(false);
             deps.setError?.(null);
-            deps.setConnected(true, s.capabilities);
+            const writeRoles = writeRolesFromStatus(s);
+            deps.setConnected(true, writeRoles);
             if (deps.getPhase() === 'idle') {
-                deps.enterPreheating(s.capabilities);
+                deps.enterPreheating(writeRoles);
             }
             return;
         }
