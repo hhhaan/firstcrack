@@ -7,7 +7,7 @@
  * Address/write maps stay Python-only — not required in the TS mirror.
  */
 
-/** Python-only connect payload (S7 channels, modbus maps, WS nodes). */
+/** Python-only connect payload (address maps, WS nodes, connect-only defaults). */
 const PY_ONLY_PARAM_KEYS = new Set([
     'channels',
     'write_map',
@@ -15,6 +15,8 @@ const PY_ONLY_PARAM_KEYS = new Set([
     'channel_nodes',
     'pid_db',
     'pid_sv_register',
+    'path',
+    'word_order',
 ]);
 
 const PY_REGISTRY_RE = /ROASTER_REGISTRY:\s*dict\[str,\s*dict\[str,\s*Any\]\]\s*=\s*\{/;
@@ -193,7 +195,9 @@ function parseDefaultParamKeys(body, quoted) {
     if (!m) return [];
     const openIdx = skipWs(body, m.index + m[0].length);
     if (body[openIdx] !== '{') return [];
-    return objectTopLevelKeys(sliceBalanced(body, openIdx), quoted).filter((k) => !PY_ONLY_PARAM_KEYS.has(k));
+    const keys = objectTopLevelKeys(sliceBalanced(body, openIdx), quoted);
+    // Filter py-only keys on the Python side only. If TS mirrors one, it is ts-only.
+    return quoted ? keys.filter((k) => !PY_ONLY_PARAM_KEYS.has(k)) : keys;
 }
 
 function parseRegistryEntries(block, quoted) {
@@ -226,32 +230,45 @@ function formFieldKeysFromArrayInner(inner, quoted) {
     return [...text.matchAll(re)].map((m) => m[1]);
 }
 
+function resolveNamedArray(sourceText, name, declRe, kind) {
+    const m = declRe.exec(sourceText);
+    if (!m) throw new Error(`${kind} ${name} not found`);
+    const openIdx = skipWs(sourceText, m.index + m[0].length);
+    if (sourceText[openIdx] !== '[') {
+        throw new Error(`${kind} ${name} is not an array`);
+    }
+    return sliceBalanced(sourceText, openIdx);
+}
+
 function expandTsArraySpreads(tsText, arrayInner) {
     return arrayInner.replace(/\.\.\.([A-Za-z_][A-Za-z0-9_]*)/g, (_, name) => {
         const re = new RegExp(`(?:export\\s+)?const ${name}(?::[^=]+)?\\s*=`);
-        const m = re.exec(tsText);
-        if (!m) throw new Error(`spread ${name} not found`);
-        const openIdx = skipWs(tsText, m.index + m[0].length);
-        if (tsText[openIdx] !== '[') {
-            throw new Error(`spread ${name} is not an array`);
-        }
-        return sliceBalanced(tsText, openIdx);
+        return resolveNamedArray(tsText, name, re, 'spread');
     });
 }
 
-function parseFormFieldKeys(block, quoted, tsText) {
+function expandPyArraySpreads(pyText, arrayInner) {
+    return arrayInner.replace(/(^|[\s,])\*([A-Za-z_][A-Za-z0-9_]*)/g, (_, prefix, name) => {
+        const re = new RegExp(`\\b${name}(?::[^=]+)?\\s*=`);
+        return prefix + resolveNamedArray(pyText, name, re, 'splat');
+    });
+}
+
+function parseFormFieldKeys(block, quoted, sourceText) {
     const entries = parseTopLevelKeyedBlocks(block, quoted, '[');
     const out = new Map();
     for (const [key, inner] of entries) {
-        const expanded = quoted ? inner : expandTsArraySpreads(tsText, inner);
+        const expanded = quoted ? expandPyArraySpreads(sourceText, inner) : expandTsArraySpreads(sourceText, inner);
         out.set(key, formFieldKeysFromArrayInner(expanded, quoted));
     }
     return out;
 }
 
+const localeSort = (a, b) => a.localeCompare(b);
+
 function diffSets(a, b) {
-    const onlyA = [...a].filter((k) => !b.has(k)).sort();
-    const onlyB = [...b].filter((k) => !a.has(k)).sort();
+    const onlyA = [...a].filter((k) => !b.has(k)).sort(localeSort);
+    const onlyB = [...b].filter((k) => !a.has(k)).sort(localeSort);
     return { onlyA, onlyB };
 }
 
@@ -261,7 +278,7 @@ function fmtList(xs) {
 
 function capsKey(caps) {
     if (caps == null) return '∅';
-    return [...caps].sort().join(',');
+    return [...caps].sort(localeSort).join(',');
 }
 
 /**
@@ -280,7 +297,7 @@ export function compareRoasterRegistries(pyText, tsText) {
 
     const pyEntries = parseRegistryEntries(pyRegistry, true);
     const tsEntries = parseRegistryEntries(tsRegistry, false);
-    const pyFormKeys = parseFormFieldKeys(pyForm, true);
+    const pyFormKeys = parseFormFieldKeys(pyForm, true, pyText);
     const tsFormKeys = parseFormFieldKeys(tsForm, false, tsText);
 
     const pyKeys = new Set(pyEntries.keys());
@@ -310,7 +327,7 @@ export function compareRoasterRegistries(pyText, tsText) {
     const pidMismatches = [];
     const paramMismatches = [];
     const capMismatches = [];
-    for (const key of [...pyKeys].sort()) {
+    for (const key of [...pyKeys].sort(localeSort)) {
         if (!tsKeys.has(key)) continue;
         const py = pyEntries.get(key);
         const ts = tsEntries.get(key);
@@ -339,7 +356,7 @@ export function compareRoasterRegistries(pyText, tsText) {
     }
 
     const formFieldMismatches = [];
-    for (const proto of [...pyProtoKeys].sort()) {
+    for (const proto of [...pyProtoKeys].sort(localeSort)) {
         if (!tsProtoKeys.has(proto)) continue;
         const { onlyA, onlyB } = diffSets(new Set(pyFormKeys.get(proto)), new Set(tsFormKeys.get(proto)));
         if (onlyA.length || onlyB.length) {

@@ -167,7 +167,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             mode: 'TCP',
             host: '127.0.0.1',
             port: 80,
-            path: 'ws',
             comport: '',
             baudrate: 57600,
             bytesize: 8,
@@ -374,7 +373,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             mode: 'TCP',
             host: '127.0.0.1',
             port: 80,
-            path: 'ws',
             comport: '',
             baudrate: 57600,
         },
@@ -443,7 +441,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             comport: '',
             baudrate: 9600,
             stopbits: 2,
-            word_order: 'big',
         },
     },
     easyster_smart: {
@@ -476,7 +473,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             comport: '',
             baudrate: 9600,
             stopbits: 2,
-            word_order: 'big',
         },
     },
     proaster_thcr01a: {
@@ -492,7 +488,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             port: 502,
             comport: '',
             baudrate: 38400,
-            word_order: 'big',
         },
     },
     // ── Trinitas ──────────────────────────────────────────────────────────────

@@ -42,6 +42,47 @@ _comport_placeholder = {"Darwin": "/dev/cu.usbserial-XXXX", "Windows": "COM3"}.g
 # GET /roasters 응답에 포함 → AddMachineModal 동적 렌더링
 # ---------------------------------------------------------------------------
 
+_SERIAL_FORM_FIELDS: list[dict[str, Any]] = [
+    {
+        "key": "comport",
+        "label": "Serial Port",
+        "type": "text",
+        "required": False,
+        "placeholder": _comport_placeholder,
+    },
+    {
+        "key": "baudrate",
+        "label": "Baud Rate",
+        "type": "number",
+        "required": False,
+    },
+    {
+        "key": "bytesize",
+        "label": "Byte Size",
+        "type": "number",
+        "required": False,
+    },
+    {
+        "key": "parity",
+        "label": "Parity",
+        "type": "select",
+        "required": False,
+        "options": [
+            {"value": "N", "label": "None (N)"},
+            {"value": "E", "label": "Even (E)"},
+            {"value": "O", "label": "Odd (O)"},
+            {"value": "M", "label": "Mark (M)"},
+            {"value": "S", "label": "Space (S)"},
+        ],
+    },
+    {
+        "key": "stopbits",
+        "label": "Stop Bits",
+        "type": "number",
+        "required": False,
+    },
+]
+
 PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
     "s7": [
         {
@@ -98,45 +139,7 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
             "required": False,
             "placeholder": "80",
         },
-        {
-            "key": "comport",
-            "label": "Serial Port",
-            "type": "text",
-            "required": False,
-            "placeholder": _comport_placeholder,
-        },
-        {
-            "key": "baudrate",
-            "label": "Baud Rate",
-            "type": "number",
-            "required": False,
-            "placeholder": "57600",
-        },
-        {
-            "key": "bytesize",
-            "label": "Byte Size",
-            "type": "number",
-            "required": False,
-        },
-        {
-            "key": "parity",
-            "label": "Parity",
-            "type": "select",
-            "required": False,
-            "options": [
-                {"value": "N", "label": "None (N)"},
-                {"value": "E", "label": "Even (E)"},
-                {"value": "O", "label": "Odd (O)"},
-                {"value": "M", "label": "Mark (M)"},
-                {"value": "S", "label": "Space (S)"},
-            ],
-        },
-        {
-            "key": "stopbits",
-            "label": "Stop Bits",
-            "type": "number",
-            "required": False,
-        },
+        *_SERIAL_FORM_FIELDS,
     ],
     "probat_ws": [
         {
@@ -175,39 +178,7 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
             "placeholder": "127.0.0.1",
         },
         {"key": "port", "label": "Port", "type": "number", "required": False},
-        {
-            "key": "comport",
-            "label": "Serial Port",
-            "type": "text",
-            "required": False,
-            "placeholder": _comport_placeholder,
-        },
-        {"key": "baudrate", "label": "Baud Rate", "type": "number", "required": False},
-        {
-            "key": "bytesize",
-            "label": "Byte Size",
-            "type": "number",
-            "required": False,
-        },
-        {
-            "key": "parity",
-            "label": "Parity",
-            "type": "select",
-            "required": False,
-            "options": [
-                {"value": "N", "label": "None (N)"},
-                {"value": "E", "label": "Even (E)"},
-                {"value": "O", "label": "Odd (O)"},
-                {"value": "M", "label": "Mark (M)"},
-                {"value": "S", "label": "Space (S)"},
-            ],
-        },
-        {
-            "key": "stopbits",
-            "label": "Stop Bits",
-            "type": "number",
-            "required": False,
-        },
+        *_SERIAL_FORM_FIELDS,
     ],
     "phidget": [
         {

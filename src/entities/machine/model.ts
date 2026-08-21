@@ -1,22 +1,25 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { ROASTER_REGISTRY } from './roasterRegistry';
 import type { Machine } from './types';
 
 const uid = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 export const VIRTUAL_ID = '__virtual__';
 
+const virtualReg = ROASTER_REGISTRY.virtual;
+
 const VIRTUAL_MACHINE: Machine = {
     id: VIRTUAL_ID,
     name: 'Virtual Machine',
     roasterKey: 'virtual',
     displayName: 'Virtual Machine',
-    brand: 'Internal',
-    models: ['가상 머신'],
-    protocol: 'virtual',
+    brand: virtualReg.brand,
+    models: virtualReg.models,
+    protocol: virtualReg.protocol,
     connectionParams: {},
-    capabilities: [],
-    pid: null,
+    capabilities: [...virtualReg.capabilities],
+    pid: virtualReg.pid ? { ...virtualReg.pid } : null,
     createdAt: '2024-01-01T00:00:00.000Z',
 };
 
