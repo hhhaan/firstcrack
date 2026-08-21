@@ -1,10 +1,9 @@
+import { fetchProfile } from '@shared/lib/profile';
 import { profileKeys } from '@shared/lib/query-keys';
-import { supabase } from '@shared/lib/supabase';
 import { useAuthStore } from '@shared/store/auth';
 import { useWorkspaceStore } from '@shared/store/workspace';
-import type { Profile } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
-import { resolveEffectivePlan } from './effective-plan';
+import { PERSONAL_PLAN_PLACEHOLDER, resolveEffectivePlan } from './effective-plan';
 import type { FeatureKey } from './keys';
 
 /**
@@ -16,14 +15,11 @@ export function useEffectivePlan(featureKey?: FeatureKey): string {
     const authUserId = useAuthStore((s) => s.user?.id ?? '');
     const activeOwnerId = useWorkspaceStore((s) => s.activeOwnerId);
     const ownerPlanById = useWorkspaceStore((s) => s.ownerPlanById);
-    const { data: personalPlan = '' } = useQuery({
+    const { data: personalPlan = PERSONAL_PLAN_PLACEHOLDER } = useQuery({
         queryKey: profileKeys.detail(authUserId),
-        queryFn: async (): Promise<Profile | null> => {
-            const { data } = await supabase.from('profiles').select('*').eq('id', authUserId).single();
-            return data;
-        },
+        queryFn: () => fetchProfile(authUserId),
         enabled: !!authUserId,
-        select: (row) => row?.plan ?? '',
+        select: (row) => row?.plan || PERSONAL_PLAN_PLACEHOLDER,
     });
 
     return resolveEffectivePlan({ personalPlan, authUserId, activeOwnerId, ownerPlanById, featureKey });

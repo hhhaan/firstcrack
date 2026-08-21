@@ -1,8 +1,22 @@
 import type { User } from '@supabase/supabase-js';
+import type { QueryClient } from '@tanstack/react-query';
 import i18n from 'i18next';
 import { create } from 'zustand';
 import { sendOsNotification } from '../lib/osNotification';
+import { profileKeys } from '../lib/query-keys';
 import { supabase } from '../lib/supabase';
+
+/** Bound once from `main.tsx`. Profile plan cache is Infinity-gc and must drop on auth change. */
+let queryClient: QueryClient | undefined;
+
+export function bindAuthQueryClient(qc: QueryClient): void {
+    queryClient = qc;
+}
+
+function dropProfilePlanCache(userId: string | undefined): void {
+    if (!userId) return;
+    queryClient?.removeQueries({ queryKey: profileKeys.detail(userId) });
+}
 
 /** Stable auth UI error codes — no raw Supabase strings in UI. */
 export type AuthErrorCode = 'invalid_credentials' | 'network' | 'oauth_failed' | 'session_replaced' | 'generic';
@@ -90,6 +104,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             if (!next) {
                 const replaced = Boolean(prevUser) && !intentionalSignOut;
                 intentionalSignOut = false;
+                dropProfilePlanCache(prevUser?.id);
                 set({
                     user: null,
                     loading: false,
@@ -103,6 +118,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             }
 
             intentionalSignOut = false;
+            dropProfilePlanCache(next.id);
             set({
                 user: next,
                 loading: false,
@@ -145,12 +161,14 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
     signOut: async () => {
         intentionalSignOut = true;
+        const prevId = get().user?.id;
         const { error } = await supabase.auth.signOut();
         if (error) {
             intentionalSignOut = false;
             throw error;
         }
         clearOAuthTimeout();
+        dropProfilePlanCache(prevId);
         set({ user: null, oauthPending: false, oauthError: null });
     },
 }));

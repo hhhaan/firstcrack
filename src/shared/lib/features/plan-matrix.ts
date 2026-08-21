@@ -37,7 +37,7 @@ const FEATURE_PREDICATE = {
 
 /** Plan → feature. Only place that encodes “who gets what”. Exhaustive on FeatureKey. */
 export function planHasFeature(plan: string, key: FeatureKey): boolean {
-    return FEATURE_PREDICATE[key](plan);
+    return FEATURE_PREDICATE[key]?.(plan) ?? false;
 }
 
 /**

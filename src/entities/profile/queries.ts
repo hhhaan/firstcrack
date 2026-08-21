@@ -10,8 +10,6 @@ type ProfilePatch = Partial<
     >
 >;
 
-export { profileKeys };
-
 export const useProfile = (userId: string) =>
     useQuery({
         queryKey: profileKeys.detail(userId),

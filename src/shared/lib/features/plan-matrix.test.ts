@@ -86,6 +86,10 @@ describe('plan state helpers', () => {
         expect(isWritablePlan('')).toBe(false);
     });
 
+    it('bogus FeatureKey fail-closes instead of throwing', () => {
+        expect(planHasFeature('pro', 'notAFeature' as FeatureKey)).toBe(false);
+    });
+
     it('planHasFeature is exhaustive over FeatureKey (no silent-deny default)', () => {
         const pro: Record<FeatureKey, boolean> = {
             cupping: true,
