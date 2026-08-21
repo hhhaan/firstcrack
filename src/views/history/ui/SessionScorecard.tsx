@@ -1,5 +1,5 @@
 import { useRoastProfiles } from '@entities/roast-profile';
-import { formatTemp, tempUnitLabel, toDisplayRoR, useRoastSettings } from '@features/active-roast';
+import { formatTemp, tempUnitLabel, toDisplayTempDelta, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDuration } from '@shared/lib/format';
 import { deltaOrNull, deriveSessionDevMetrics } from '@shared/lib/roast-delta';
@@ -45,7 +45,7 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
             target: profile.drop_temp_celsius,
             band: BANDS.dropTemp,
             format: (v) => formatTemp(v, unit),
-            formatDelta: (d) => signed(d, `${Math.abs(toDisplayRoR(d, unit)).toFixed(1)}${tempUnitLabel(unit)}`),
+            formatDelta: (d) => signed(d, `${Math.abs(toDisplayTempDelta(d, unit)).toFixed(1)}${tempUnitLabel(unit)}`),
         },
         {
             key: 'duration',

@@ -79,7 +79,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
         () =>
             sessions.map((s, i) => {
                 const events = eventsBySession[i];
-                const logs = storedEventsToLogEntries(events);
+                const logs = storedEventsToLogEntries(events, unit);
                 const totalSec =
                     s.duration_seconds ??
                     events.find((e) => e.type === 'Drop')?.time_sec ??
@@ -94,7 +94,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                     visible: !hiddenIds.has(s.id),
                 };
             }),
-        [sessions, eventsBySession, hiddenIds],
+        [sessions, eventsBySession, hiddenIds, unit],
     );
 
     const maxPhaseSec = Math.max(1, ...phaseRows.map((r) => r.totalSec));

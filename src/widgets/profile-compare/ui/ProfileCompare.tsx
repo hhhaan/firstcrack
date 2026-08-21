@@ -5,6 +5,7 @@ import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { formatDuration } from '@shared/lib/format';
 import type { SeriesData } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { COMPARE_COLORS, ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
+import { useProfileTableRows } from '@widgets/profile-detail/model/useProfileTableRows';
 import { AlertCircle, GitCompare, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -60,25 +61,6 @@ const DefaultBadge = ({
     );
 };
 
-const useTableRows = (): { label: string; getValue: (p: RoastProfileWithSource) => string }[] => {
-    const { t } = useTranslation();
-    const unit = useRoastSettings().temperatureUnit;
-    return [
-        { label: t('profiles.detail.duration'), getValue: (p) => formatDuration(p.duration_sec) },
-        {
-            label: t('profiles.detail.dropTemp'),
-            getValue: (p) => formatTemp(p.drop_temp_celsius, unit),
-        },
-        {
-            label: t('profiles.detail.chargeTemp'),
-            getValue: (p) => formatTemp(p.charge_temp_celsius, unit),
-        },
-        { label: t('profiles.detail.devTime'), getValue: (p) => formatDuration(p.dev_time_sec) },
-        { label: t('profiles.detail.devPct'), getValue: (p) => (p.dev_pct != null ? `${p.dev_pct.toFixed(1)}%` : '—') },
-        { label: t('profiles.detail.targetLevel'), getValue: (p) => p.target_level ?? '—' },
-    ];
-};
-
 interface ProfileCompareProps {
     compareIds: string[];
     compareProfiles: RoastProfileWithSource[];
@@ -98,7 +80,7 @@ export const ProfileCompare = ({
 }: ProfileCompareProps) => {
     const { t } = useTranslation();
     const unit = useRoastSettings().temperatureUnit;
-    const TABLE_ROWS = useTableRows();
+    const TABLE_ROWS = useProfileTableRows('profiles.detail.duration');
     const compareQueries = useRoastProfileCurves(
         compareProfiles.map((p) => resolveSourceSession(p.source_session)?.tsv_path),
         compareProfiles.map((p) => p.id),

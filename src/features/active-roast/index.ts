@@ -13,6 +13,7 @@ export {
     tempUnitLabel,
     toDisplayRoR,
     toDisplayTemp,
+    toDisplayTempDelta,
 } from './lib/temperature';
 export type { TurningPoint } from './lib/turningPoints';
 export { detectTurningPoints } from './lib/turningPoints';

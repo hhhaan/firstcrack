@@ -86,11 +86,14 @@ describe('parseStoredRoastEvents', () => {
 describe('storedEventsToLogEntries', () => {
     it('maps stored events to read-only log rows', () => {
         expect(
-            storedEventsToLogEntries([
-                { id: '2', type: 'Yellow', time_sec: 120, temp_c: 165.2 },
-                { id: '1', type: 'Charge', time_sec: 0, temp_c: 200, note: 'start' },
-                { id: '3', type: 'Note', time_sec: 300, note: 'check aroma' },
-            ]),
+            storedEventsToLogEntries(
+                [
+                    { id: '2', type: 'Yellow', time_sec: 120, temp_c: 165.2 },
+                    { id: '1', type: 'Charge', time_sec: 0, temp_c: 200, note: 'start' },
+                    { id: '3', type: 'Note', time_sec: 300, note: 'check aroma' },
+                ],
+                'C',
+            ),
         ).toEqual([
             {
                 id: '1',

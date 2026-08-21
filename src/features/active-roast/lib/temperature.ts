@@ -16,3 +16,6 @@ export const formatTemp = (celsius: number | null, unit: TemperatureUnit): strin
 /** RoR는 델타 온도 단위 — °F/min = °C/min × 9/5 */
 export const toDisplayRoR = (cPerMin: number, unit: TemperatureUnit): number =>
     unit === 'F' ? (cPerMin * 9) / 5 : cPerMin;
+
+/** Drop-temp Δ / SD — same °C→°F scale as RoR (not absolute toDisplayTemp). */
+export const toDisplayTempDelta = toDisplayRoR;

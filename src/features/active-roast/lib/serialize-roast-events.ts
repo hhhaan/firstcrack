@@ -67,7 +67,7 @@ export type HistoryEventMarker = {
 };
 
 /** Stored events → read-only log rows for profile/history UI. */
-export const storedEventsToLogEntries = (events: StoredRoastEvent[], unit: TemperatureUnit = 'C'): LogEntry[] =>
+export const storedEventsToLogEntries = (events: StoredRoastEvent[], unit: TemperatureUnit): LogEntry[] =>
     [...events]
         .sort((a, b) => a.time_sec - b.time_sec)
         .map((e) => ({

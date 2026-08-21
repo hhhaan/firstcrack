@@ -1,12 +1,11 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { useProfileBeanHistory, useSourceSessionEvents } from '@entities/roast-profile';
-import { formatTemp, useRoastSettings } from '@features/active-roast';
+import { useRoastSettings } from '@features/active-roast';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import { useCsvFileExport } from '@features/export-csv';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
-import { formatDuration } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
@@ -16,6 +15,7 @@ import { AlertCircle, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-re
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { profileExportBasename, profileToCsv } from '../lib/export-profile-csv';
+import { useProfileTableRows } from '../model/useProfileTableRows';
 import { ConsistencyCard } from './ConsistencyCard';
 
 const DefaultBadge = ({
@@ -82,25 +82,6 @@ interface ProfileDetailProps {
     onNavigate: (view: View) => void;
 }
 
-const useTableRows = (): { label: string; getValue: (p: RoastProfileWithSource) => string }[] => {
-    const { t } = useTranslation();
-    const unit = useRoastSettings().temperatureUnit;
-    return [
-        { label: t('profiles.detail.totalDuration'), getValue: (p) => formatDuration(p.duration_sec) },
-        {
-            label: t('profiles.detail.dropTemp'),
-            getValue: (p) => formatTemp(p.drop_temp_celsius, unit),
-        },
-        {
-            label: t('profiles.detail.chargeTemp'),
-            getValue: (p) => formatTemp(p.charge_temp_celsius, unit),
-        },
-        { label: t('profiles.detail.devTime'), getValue: (p) => formatDuration(p.dev_time_sec) },
-        { label: t('profiles.detail.devPct'), getValue: (p) => (p.dev_pct != null ? `${p.dev_pct.toFixed(1)}%` : '—') },
-        { label: t('profiles.detail.targetLevel'), getValue: (p) => p.target_level ?? '—' },
-    ];
-};
-
 export const ProfileDetail = ({
     selected,
     selectedRealCurve,
@@ -116,7 +97,7 @@ export const ProfileDetail = ({
     const [moreOpen, setMoreOpen] = useState(false);
     const { data: beanHistory = [] } = useProfileBeanHistory(selected.id ?? '');
     const { data: sourceEvents = null } = useSourceSessionEvents(selected.source_session_id);
-    const TABLE_ROWS = useTableRows();
+    const TABLE_ROWS = useProfileTableRows('profiles.detail.totalDuration');
     const exportFile = useCsvFileExport();
     const unit = useRoastSettings().temperatureUnit;
     const roastLogEntries = useMemo(
