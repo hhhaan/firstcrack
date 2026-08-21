@@ -98,6 +98,51 @@ class TestNoopProtocolControl:
             await manager.control(heater=50)
 
 
+class TestWritableHonorsProtocol:
+    """write_map만 있으면 kaleido PID/제어 UI가 열리는 구멍 (#270 B1)."""
+
+    def test_registry_write_maps_only_on_writable_protocols(self):
+        protocols = {
+            v["protocol"]
+            for v in ROASTER_REGISTRY.values()
+            if v["default_params"].get("write_map")
+        }
+        assert protocols <= WRITABLE_PROTOCOLS
+
+    @pytest.mark.parametrize("roaster", ("kaleido", "custom_kaleido"))
+    def test_kaleido_client_write_map_not_writable(self, manager, roaster):
+        assert ROASTER_REGISTRY[roaster]["pid"]
+        manager._connected = True
+        manager._protocol = "kaleido"
+        manager._roaster_key = roaster
+        manager._merged_params = {"write_map": _CLIENT_WRITE_MAP}
+
+        control = manager.status()["control"]
+        assert "heater" in manager.write_limits()
+        assert control["writable"] is False
+        assert control["pid"]["supported"] is False
+        assert manager.pid_capability()["supported"] is False
+
+    @pytest.mark.parametrize("roaster", ("kaleido", "custom_kaleido"))
+    async def test_kaleido_client_write_map_http_not_writable(self, client, roaster):
+        with (
+            patch.object(KaleidoAdapter, "connect", new_callable=AsyncMock),
+            patch.object(KaleidoAdapter, "disconnect", new_callable=AsyncMock),
+        ):
+            connected = await client.post(
+                "/connect",
+                json={"roaster": roaster, "write_map": _CLIENT_WRITE_MAP},
+            )
+            assert connected.status == 200
+
+            control = (await (await client.get("/status")).json())["control"]
+            assert control["writable"] is False
+            assert control["pid"]["supported"] is False
+
+            pid = await client.post("/pid/on", json={"sv": 200})
+            assert pid.status == 409
+
+
 class TestS7PlcNone:
     async def test_s7_plc_none_is_not_success(self, manager):
         adapter = S7Adapter(
@@ -163,8 +208,39 @@ class TestResetRoast:
 
         assert manager._connected is False
         assert manager.status()["connected"] is False
+        assert manager._reconnecting()
+        assert manager.status()["reconnecting"] is True
         assert manager._pid is None
         assert stopped == [("reset", "zero", True)]
+
+    async def test_reset_reconnect_fail_loop_retries_connect(self, manager, monkeypatch):
+        import config
+
+        monkeypatch.setattr(config, "RECONNECT_BACKOFFS", [0.01])
+        defaults = ROASTER_REGISTRY["virtual"]["default_params"]
+        adapter = VirtualMachineAdapter(write_map=defaults["write_map"])
+        await adapter.connect()
+        _bind_virtual(manager, adapter)
+
+        calls = {"n": 0}
+
+        async def boom() -> None:
+            calls["n"] += 1
+            raise ConnectionError("Connection refused")
+
+        adapter.connect = boom  # type: ignore[method-assign]
+
+        with pytest.raises(ConnectionError):
+            await manager.reset_roast()
+        assert calls["n"] == 1
+        assert manager._connected is False
+        assert manager._reconnecting()
+        for _ in range(50):
+            if calls["n"] >= 2:
+                break
+            await asyncio.sleep(0.01)
+        else:
+            pytest.fail("reconnect loop did not retry connect")
 
     async def test_reset_reconnect_fail_http_matches_state(self, client):
         defaults = ROASTER_REGISTRY["virtual"]["default_params"]
@@ -184,6 +260,7 @@ class TestResetRoast:
         assert body["connected"] is False
         status = await (await client.get("/status")).json()
         assert status["connected"] is False
+        assert status["reconnecting"] is True
 
     async def test_control_rejected_during_reset(self, manager):
         defaults = ROASTER_REGISTRY["virtual"]["default_params"]

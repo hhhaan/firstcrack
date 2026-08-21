@@ -648,6 +648,10 @@ class RoasterManager:
         """
         return dict(self._merged_params.get("write_map") or {})
 
+    def _control_writable(self) -> bool:
+        """실제로 하드웨어에 쓸 수 있는지. write_map ∩ WRITABLE_PROTOCOLS."""
+        return bool(self.write_limits()) and self._protocol in WRITABLE_PROTOCOLS
+
     async def control(
         self,
         heater: float | None = None,
@@ -709,10 +713,14 @@ class RoasterManager:
     # ── 소프트웨어 PID ─────────────────────────────────────────────────────
 
     def pid_capability(self) -> dict[str, Any]:
-        """PID 지원 여부(정적). 게인과 heater 쓰기 맵이 둘 다 있어야 돌릴 수 있다."""
+        """PID 지원 여부(정적). 게인 + heater 쓰기 + 실제 쓰기 프로토콜."""
         reg = ROASTER_REGISTRY.get(self._roaster_key, {})
         gains = reg.get("pid")
-        supported = bool(gains) and "heater" in self.write_limits()
+        supported = (
+            bool(gains)
+            and "heater" in self.write_limits()
+            and self._control_writable()
+        )
         return {
             "supported": supported,
             "sv_min": config.PID_SV_MIN_C,
@@ -733,8 +741,6 @@ class RoasterManager:
         )
 
     async def _pid_write_duty(self, duty: float) -> None:
-        if self._resetting:
-            raise ControlUnavailable("로스터 초기화 중입니다.")
         applied = await self.control(heater=duty)
         if not applied:
             raise RuntimeError("duty 쓰기가 적용되지 않았습니다.")
@@ -880,6 +886,10 @@ class RoasterManager:
                 )
                 _log.error("reset 재연결 실패: %s", exc, exc_info=True)
                 self._capture_hardware_error(exc, "reset_failed")
+                # _refresh_reading은 _connected=False면 재연결을 안 띄운다.
+                # 루프는 sleep 후 lock을 잡으므로 여기서 spawn해도 데드락 없음.
+                if self._reconnect_task is None or self._reconnect_task.done():
+                    self._reconnect_task = asyncio.create_task(self._reconnect_loop())
                 raise
             finally:
                 self._resetting = False
@@ -910,7 +920,7 @@ class RoasterManager:
             # 제어 능력은 레지스트리 capabilities(표시용)와 다르다 — 실제로 쓸 수 있는
             # role만 담는다. writable=false면 프론트는 제어 UI를 렌더하지 않는다.
             "control": {
-                "writable": bool(self.write_limits()),
+                "writable": self._control_writable(),
                 "limits": self.write_limits(),
                 "pid": self.pid_capability(),
             },
