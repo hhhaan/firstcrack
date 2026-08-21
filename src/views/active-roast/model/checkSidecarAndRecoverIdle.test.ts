@@ -7,11 +7,7 @@ describe('checkSidecarAndRecoverIdle (#178)', () => {
         const enterPreheating = vi.fn();
 
         await checkSidecarAndRecoverIdle({
-            getStatus: async () => ({
-                connected: true,
-                capabilities: ['heater', 'fan', 'drum'],
-                control: { writable: true, limits: { heater: { min: 0, max: 100 } } },
-            }),
+            getStatus: async () => ({ connected: true, capabilities: ['heater'] }),
             getPhase: () => 'idle',
             setConnected,
             enterPreheating,
@@ -26,11 +22,7 @@ describe('checkSidecarAndRecoverIdle (#178)', () => {
         const enterPreheating = vi.fn();
 
         await checkSidecarAndRecoverIdle({
-            getStatus: async () => ({
-                connected: true,
-                capabilities: ['heater', 'fan', 'drum'],
-                control: { writable: false, limits: {} },
-            }),
+            getStatus: async () => ({ connected: true, capabilities: [] }),
             getPhase: () => 'roasting',
             setConnected,
             enterPreheating,

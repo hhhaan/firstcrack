@@ -1,5 +1,5 @@
 import type { Machine } from '@entities/machine';
-import { useMachines, VIRTUAL_ID, writeDisplayRoles, writeRolesFromStatus } from '@entities/machine';
+import { useMachines, VIRTUAL_ID } from '@entities/machine';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useMachineSidecarConnection } from '@features/machine-connection';
 import type { View } from '@shared/types/view';
@@ -69,11 +69,10 @@ export const Machines = ({
         const status = await connectMachine(machine);
         if (status?.connected) {
             const { phase, enterPreheating, setConnected } = useRoastingStore.getState();
-            const writeRoles = writeRolesFromStatus(status);
             if (phase === 'idle' || phase === 'ended') {
-                enterPreheating(writeRoles);
+                enterPreheating(status.capabilities);
             } else {
-                setConnected(true, writeRoles);
+                setConnected(true, status.capabilities);
             }
         }
     };
@@ -199,10 +198,7 @@ export const Machines = ({
                                             {[
                                                 selected.brand,
                                                 selected.protocol.toUpperCase(),
-                                                ...writeDisplayRoles(
-                                                    selected.connectionParams,
-                                                    isSelectedConnected ? sidecarStatus?.control : undefined,
-                                                ),
+                                                ...selected.capabilities,
                                             ].map((tag) => (
                                                 <Badge key={tag} tone="neutral" className="px-2.25 font-semibold">
                                                     {tag}

@@ -1,12 +1,9 @@
-export type { ControlRole } from './lib';
 export {
     addressFormFieldsForProtocol,
     buildProtocolRoasterDef,
     buildTypedConnectionParams,
-    CONTROL_ROLES,
     CUSTOM_CONNECT_KEYS,
     CUSTOM_ROASTER_KEY,
-    controlCapabilitiesFromParams,
     flattenAddressMaps,
     groupRoastersByBrand,
     initRoasterFormParams,
@@ -17,14 +14,10 @@ export {
     nestAddressMaps,
     networkScanProtocol,
     PROTOCOLS_WITH_ADDRESS_MAP,
-    PROTOCOLS_WITH_WRITE_MAP,
     resolveCustomConnectKey,
     validateAddressMaps,
     validateRoasterFormFields,
-    writeDisplayRoles,
     writeMapFormFlags,
-    writeRolesFromControl,
-    writeRolesFromStatus,
 } from './lib';
 export { useMachines, VIRTUAL_ID } from './model';
 export { PROTOCOL_FORM_FIELDS, ROASTER_REGISTRY } from './roasterRegistry';

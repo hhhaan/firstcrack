@@ -17,7 +17,7 @@ export const assembleConnectionParams = (
     selectedDef: RoasterDef,
     params: Record<string, string>,
     showAddressMap: boolean,
-    includeWriteMap = false,
+    includeWriteMap: boolean,
 ): { ok: true; typed: Record<string, unknown> } | { ok: false; missing: string } => {
     const missing = validateRoasterFormFields(selectedDef, params, {
         includeAddressMap: showAddressMap,

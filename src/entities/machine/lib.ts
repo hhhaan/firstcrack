@@ -7,7 +7,7 @@ import {
     validateAddressMaps,
 } from './addressMap';
 import { PROTOCOL_FORM_FIELDS } from './roasterRegistry';
-import type { ControlCapability, RoasterDef, SidecarStatus } from './types';
+import type { RoasterDef, SidecarStatus } from './types';
 
 export {
     addressDefaultsForProtocol,
@@ -23,10 +23,7 @@ export {
 export const CUSTOM_ROASTER_KEY = '__custom__';
 
 /** Protocols whose adapters honor a client-supplied write_map. */
-export const PROTOCOLS_WITH_WRITE_MAP = new Set(['s7']);
-
-export const CONTROL_ROLES = ['heater', 'fan', 'drum'] as const;
-export type ControlRole = (typeof CONTROL_ROLES)[number];
+const WRITE_MAP_PROTOCOLS = new Set(['s7']);
 
 /** Show and persist use the same plan/protocol gate — never persist a hidden write map. */
 export const writeMapFormFlags = (input: {
@@ -34,32 +31,8 @@ export const writeMapFormFlags = (input: {
     protocol: string;
     canConfigureControl: boolean;
 }): { showWriteMap: boolean; includeWriteMap: boolean } => {
-    const showWriteMap = input.isCustom && PROTOCOLS_WITH_WRITE_MAP.has(input.protocol) && input.canConfigureControl;
+    const showWriteMap = input.isCustom && WRITE_MAP_PROTOCOLS.has(input.protocol) && input.canConfigureControl;
     return { showWriteMap, includeWriteMap: showWriteMap };
-};
-
-/** Writable roles from persisted write_map keys. Read channels are not writable. */
-export const controlCapabilitiesFromParams = (params: Record<string, unknown>): string[] => {
-    const writeMap = params.write_map;
-    if (!writeMap || typeof writeMap !== 'object' || Array.isArray(writeMap)) return [];
-    return CONTROL_ROLES.filter((role) => role in writeMap);
-};
-
-export const writeRolesFromControl = (control?: ControlCapability | null): string[] => {
-    if (!control) return [];
-    const limits = control.limits;
-    if (!limits || typeof limits !== 'object') return [];
-    return CONTROL_ROLES.filter((role) => limits[role] != null);
-};
-
-/** Live /status.control wins; never fall back to registry `capabilities`. */
-export const writeRolesFromStatus = (status: { control?: ControlCapability | null } | null | undefined): string[] =>
-    writeRolesFromControl(status?.control);
-
-export const writeDisplayRoles = (params: Record<string, unknown>, control?: ControlCapability | null): string[] => {
-    const live = writeRolesFromControl(control);
-    if (live.length > 0) return live;
-    return controlCapabilitiesFromParams(params);
 };
 
 export const TCP_ONLY_FIELDS = new Set(['host', 'port']);
