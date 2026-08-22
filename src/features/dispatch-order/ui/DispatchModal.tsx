@@ -3,14 +3,8 @@ import { useActiveWorkspace } from '@entities/organization';
 import { CARRIER_OPTIONS, type ClientCarrierId } from '@shared/lib/carriers';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { FormSelect } from '@shared/ui/FormSelect';
-import {
-    inputCls,
-    labelCls,
-    modalCancelBtnCls,
-    modalFooterChrome,
-    modalHeaderChrome,
-    modalPrimaryBtnCls,
-} from '@shared/ui/form-styles';
+import { inputCls, labelCls, modalHeaderChrome } from '@shared/ui/form-styles';
+import { ModalFooter } from '@shared/ui/modal-shell/ModalFooter';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -122,21 +116,13 @@ export const DispatchModal = ({ open, orderId, onClose }: Props) => {
                 ) : null}
             </ModalScrollBody>
 
-            <div className={modalFooterChrome}>
-                <div className="flex gap-3">
-                    <button type="button" onClick={onClose} className={modalCancelBtnCls}>
-                        {t('common.cancel')}
-                    </button>
-                    <button
-                        type="button"
-                        disabled={dispatch.isPending || !tracking.trim()}
-                        onClick={() => void submit()}
-                        className={modalPrimaryBtnCls}
-                    >
-                        {dispatch.isPending ? t('orders.dispatch.submitting') : t('orders.dispatch.submit')}
-                    </button>
-                </div>
-            </div>
+            <ModalFooter
+                onCancel={onClose}
+                cancelLabel={t('common.cancel')}
+                onPrimary={() => void submit()}
+                primaryDisabled={dispatch.isPending || !tracking.trim()}
+                primaryLabel={dispatch.isPending ? t('orders.dispatch.submitting') : t('orders.dispatch.submit')}
+            />
         </ModalShell>
     );
 };

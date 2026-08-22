@@ -6,13 +6,8 @@ import {
 } from '@entities/cupping';
 import { useRoastSessions } from '@entities/roast';
 import { formatDateShort } from '@shared/lib/format';
-import {
-    modalCancelBtnCls,
-    modalFooterChrome,
-    modalHeaderChrome,
-    modalPrimaryBtnCls,
-    tabCls,
-} from '@shared/ui/form-styles';
+import { modalHeaderChrome, tabCls } from '@shared/ui/form-styles';
+import { ModalFooter } from '@shared/ui/modal-shell/ModalFooter';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -225,21 +220,14 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose, sample }: Cupp
                 {addError ? <div className="mt-3 text-xs text-red-600">{addError}</div> : null}
             </ModalScrollBody>
 
-            <div className={modalFooterChrome}>
-                <div className="flex gap-3">
-                    <button type="button" onClick={onClose} className={modalCancelBtnCls}>
-                        {t('cupping.cancel')}
-                    </button>
-                    <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() => void handleSubmit()}
-                        className={`${modalPrimaryBtnCls} flex-[2]`}
-                    >
-                        {submitLabel}
-                    </button>
-                </div>
-            </div>
+            <ModalFooter
+                onCancel={onClose}
+                cancelLabel={t('cupping.cancel')}
+                onPrimary={() => void handleSubmit()}
+                primaryDisabled={pending}
+                primaryClassName="flex-[2]"
+                primaryLabel={submitLabel}
+            />
         </ModalShell>
     );
 };

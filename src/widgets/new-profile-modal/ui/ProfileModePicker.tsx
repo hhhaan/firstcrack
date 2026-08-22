@@ -1,4 +1,6 @@
-import { ChevronRight, History, Pencil, X } from 'lucide-react';
+import { modalCancelBtnCls, modalFooterChrome, modalHeaderChrome } from '@shared/ui/form-styles';
+import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
+import { ChevronRight, History, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ProfileFormMode } from '../lib/types';
 
@@ -12,22 +14,14 @@ export const ProfileModePicker = ({ onSelectMode, onClose }: ProfileModePickerPr
 
     return (
         <div className="flex flex-col flex-1 overflow-hidden">
-            <div className="shrink-0 bg-white/60 dark:bg-[#1a1e23] backdrop-blur-sm z-10 border-b border-black/4 dark:border-[#585d61]">
-                <div className="flex items-center justify-between px-8 pt-6 pb-4">
-                    <h2
-                        id="new-profile-modal-title"
-                        className="font-(--font-display) text-2xl text-primary tracking-[-0.02em] m-0"
-                    >
-                        {t('newProfileModal.newTitle')}
-                    </h2>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="w-9 h-9 rounded-xl border-none bg-surface dark:bg-surface-elevated text-muted flex items-center justify-center cursor-pointer transition-all duration-200 hover:text-primary"
-                    >
-                        <X size={18} strokeWidth={2.5} />
-                    </button>
-                </div>
+            <div className={modalHeaderChrome}>
+                <ModalHeader
+                    titleId="new-profile-modal-title"
+                    title={t('newProfileModal.newTitle')}
+                    onClose={onClose}
+                    closeLabel={t('common.close')}
+                    className="px-8 pt-6 pb-4"
+                />
             </div>
 
             <div className="px-8 py-6 overflow-y-auto flex-1">
@@ -82,14 +76,12 @@ export const ProfileModePicker = ({ onSelectMode, onClose }: ProfileModePickerPr
                 </div>
             </div>
 
-            <div className="px-8 pt-5 pb-8 bg-white/80 dark:bg-[#1a1e23] backdrop-blur-sm border-t border-black/4 dark:border-[#585d61] shrink-0">
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="w-full py-3.5 rounded-2xl border-none bg-surface dark:bg-surface-elevated text-secondary dark:text-[#e5e5e5] text-[15px] font-semibold cursor-pointer shadow-(--shadow-inset)"
-                >
-                    {t('newProfileModal.cancel')}
-                </button>
+            <div className={modalFooterChrome}>
+                <div className="flex gap-3">
+                    <button type="button" onClick={onClose} className={modalCancelBtnCls}>
+                        {t('newProfileModal.cancel')}
+                    </button>
+                </div>
             </div>
         </div>
     );
