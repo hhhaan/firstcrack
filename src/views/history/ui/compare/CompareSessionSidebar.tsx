@@ -1,3 +1,4 @@
+import { toDisplayTemp, useRoastSettings } from '@features/active-roast';
 import { formatDuration, formatElapsed } from '@shared/lib/format';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -22,8 +23,6 @@ interface CompareSessionSidebarProps {
     onToggle: (id: string) => void;
 }
 
-const val = (n: number | null, digits = 1) => (n != null && Number.isFinite(n) ? n.toFixed(digits) : '—');
-
 const eventTime = (events: StoredRoastEvent[], type: string): string => {
     const e = events.find((x) => x.type === type);
     return e ? formatElapsed(e.time_sec) : '—';
@@ -31,6 +30,9 @@ const eventTime = (events: StoredRoastEvent[], type: string): string => {
 
 export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebarProps) => {
     const { t } = useTranslation();
+    const unit = useRoastSettings().temperatureUnit;
+    const val = (n: number | null, digits = 1) =>
+        n != null && Number.isFinite(n) ? toDisplayTemp(n, unit).toFixed(digits) : '—';
 
     return (
         <div className="flex h-full min-h-0 flex-col">

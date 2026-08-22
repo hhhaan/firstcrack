@@ -1,3 +1,4 @@
+import { formatElapsed } from '@shared/lib/format';
 import { useEffect, useState } from 'react';
 import { useBbpStore } from './bbp';
 
@@ -17,5 +18,5 @@ export const useBbpTimer = (): string | null => {
     }, [active, startMs]);
 
     if (!active || startMs <= 0) return null;
-    return `${Math.floor(elapsedSec / 60)}:${String(elapsedSec % 60).padStart(2, '0')}`;
+    return formatElapsed(elapsedSec);
 };

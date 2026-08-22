@@ -11,6 +11,7 @@ import {
     PHASE_BAR_WIDE_THRESHOLD,
 } from '@features/active-roast/lib/chart-config';
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { formatElapsed } from '@shared/lib/format';
 import * as echarts from 'echarts';
 import type { ControlData, ResolvedChartColors } from './types';
 
@@ -259,9 +260,7 @@ export const buildPhaseSeries = (params: PhaseSeriesParams) => {
             const pct = api.value(3) as number;
             const color = api.value(4) as string;
             const name = api.value(5) as string;
-            const durMin = Math.floor(durSec / 60);
-            const durS = String(durSec % 60).padStart(2, '0');
-            const durLabel = `${durMin}:${durS}  ${pct}%`;
+            const durLabel = `${formatElapsed(durSec)}  ${pct}%`;
             const { x, y, width, height: h } = clipped;
             const textY = y + h / 2;
 

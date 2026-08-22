@@ -1,12 +1,13 @@
 export const sanitizeDecimal = (v: string) => v.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
 
+/** Live elapsed clock: floor fractional seconds. 90.6 → "1:30" */
 export const formatElapsed = (secs: number): string => {
     const m = Math.floor(secs / 60);
     const s = Math.floor(secs % 60);
     return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-/** Format seconds → "m:ss". Returns '—' for null (display-friendly). */
+/** Recorded duration: round fractional seconds; null → "—". 90.6 → "1:31" */
 export const formatDuration = (seconds: number | null): string => {
     if (seconds == null) return '—';
     const m = Math.floor(seconds / 60);

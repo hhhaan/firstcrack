@@ -1,3 +1,4 @@
+import { useRoastSettings } from '@features/active-roast';
 import { CHART_GRID_RIGHT, CHART_GRID_RIGHT_WITH_ROR } from '@features/active-roast/lib/chart-config';
 import {
     buildCompareChartOption,
@@ -22,6 +23,7 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
     const elRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<echarts.ECharts | null>(null);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+    const temperatureUnit = useRoastSettings().temperatureUnit;
 
     const active = useMemo(() => series.filter((s) => s.visible !== false && s.points.length > 0), [series]);
 
@@ -53,8 +55,8 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
                 })
                 .join(
                     '|',
-                )}|ror:${showRoR}|${resolvedTheme}|zoom:${effectiveZoomRange?.start ?? ''}:${effectiveZoomRange?.end ?? ''}`,
-        [active, showRoR, resolvedTheme, effectiveZoomRange],
+                )}|ror:${showRoR}|${resolvedTheme}|unit:${temperatureUnit}|zoom:${effectiveZoomRange?.start ?? ''}:${effectiveZoomRange?.end ?? ''}`,
+        [active, showRoR, resolvedTheme, temperatureUnit, effectiveZoomRange],
     );
 
     useEffect(() => {
@@ -89,7 +91,7 @@ export const CompareMultiChart = ({ series, height = 320, showRoR = true }: Comp
             effectiveZoomRange && effectiveZoomRange.start < effectiveZoomRange.end
                 ? effectiveZoomRange
                 : { start: 0, end: xMax };
-        chart.setOption(buildCompareChartOption(active, showRoR, xView), { notMerge: true });
+        chart.setOption(buildCompareChartOption(active, showRoR, xView, temperatureUnit), { notMerge: true });
     }, [fingerprint]);
 
     return (
