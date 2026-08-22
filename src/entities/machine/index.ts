@@ -3,7 +3,6 @@ export {
     buildProtocolRoasterDef,
     buildTypedConnectionParams,
     CUSTOM_CONNECT_KEYS,
-    CUSTOM_ROASTER_KEY,
     flattenAddressMaps,
     groupRoastersByBrand,
     initRoasterFormParams,
