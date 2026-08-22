@@ -1,12 +1,8 @@
-import { inventoryQueryRoots } from '@shared/lib/query-keys';
+import { roastedStockKeys } from '@shared/lib/query-keys';
 import { type QueryClient, useQuery } from '@tanstack/react-query';
 import { roastedStockEventApi } from './api';
 
-export const roastedStockKeys = {
-    root: inventoryQueryRoots.roastedStock,
-    byUser: (userId: string) => [...inventoryQueryRoots.roastedStock, userId] as const,
-    events: (userId: string) => [...inventoryQueryRoots.roastedStock, 'events', userId] as const,
-};
+export { roastedStockKeys };
 
 /** Cache-first roasted bulk stock; fetches once if missing. */
 export const ensureRoastedStock = (qc: QueryClient, userId: string) =>

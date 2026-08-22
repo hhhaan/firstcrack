@@ -1,3 +1,4 @@
+import { roastedStockKeys } from '@entities/roasted-stock-event';
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deductRoastStock } from './useDeductRoastStock';
@@ -51,6 +52,27 @@ describe('deductRoastStock integration', () => {
             ],
         );
         expect(invalidateSpy).toHaveBeenCalled();
+        expect(
+            invalidateSpy.mock.calls.map((c) => (c[0] as { queryKey?: readonly unknown[] })?.queryKey),
+        ).toContainEqual(roastedStockKeys.byUser('user-1'));
+    });
+
+    it('byUser invalidation marks nested roasted events stale', async () => {
+        const eventsKey = roastedStockKeys.events('user-1');
+        qc.setQueryData(eventsKey, [{ id: 'old-log' }]);
+
+        await deductRoastStock(
+            { userId: 'user-1', qc, insertMany, getBlend },
+            {
+                deductionGrams: 100,
+                singleBeanId: 'bean-1',
+                blendId: null,
+                referenceId: 'sess-ev',
+            },
+        );
+
+        expect(roastedStockKeys.events('user-1')).toEqual([...roastedStockKeys.byUser('user-1'), 'events']);
+        expect(qc.getQueryState(eventsKey)?.isInvalidated).toBe(true);
     });
 
     it('blend roast: splits green by ratios and roasted inbound on blend', async () => {
