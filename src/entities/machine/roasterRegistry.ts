@@ -35,6 +35,15 @@ const STOPBITS_OPTIONS = [
     { value: '2', label: '2' },
 ];
 
+/** 시리얼 공통 폼 필드 (kaleido/modbus 공유) — py _SERIAL_FORM_FIELDS와 미러. */
+const SERIAL_FORM_FIELDS: RoasterDef['form_fields'] = [
+    { key: 'comport', label: 'Serial Port', type: 'text', required: false, placeholder: COMPORT_PLACEHOLDER },
+    { key: 'baudrate', label: 'Baud Rate', type: 'number', required: false, options: BAUD_RATE_OPTIONS },
+    { key: 'bytesize', label: 'Byte Size', type: 'number', required: false, options: BYTESIZE_OPTIONS },
+    { key: 'parity', label: 'Parity', type: 'select', required: false, options: PARITY_OPTIONS },
+    { key: 'stopbits', label: 'Stop Bits', type: 'number', required: false, options: STOPBITS_OPTIONS },
+];
+
 export const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
     s7: [
         { key: 'host', label: 'PLC IP Address', type: 'text', required: true, placeholder: '192.168.1.100' },
@@ -55,11 +64,7 @@ export const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
         },
         { key: 'host', label: 'IP Address', type: 'text', required: false, placeholder: '127.0.0.1' },
         { key: 'port', label: 'Port', type: 'number', required: false, placeholder: '80' },
-        { key: 'comport', label: 'Serial Port', type: 'text', required: false, placeholder: COMPORT_PLACEHOLDER },
-        { key: 'baudrate', label: 'Baud Rate', type: 'number', required: false, options: BAUD_RATE_OPTIONS },
-        { key: 'bytesize', label: 'Byte Size', type: 'number', required: false, options: BYTESIZE_OPTIONS },
-        { key: 'parity', label: 'Parity', type: 'select', required: false, options: PARITY_OPTIONS },
-        { key: 'stopbits', label: 'Stop Bits', type: 'number', required: false, options: STOPBITS_OPTIONS },
+        ...SERIAL_FORM_FIELDS,
         // { key: 'interval', label: 'Sampling Interval', type: 'number', required: false, options: INTERVAL_OPTIONS },
     ],
     probat_ws: [
@@ -81,11 +86,7 @@ export const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
         },
         { key: 'host', label: 'IP Address', type: 'text', required: false, placeholder: '127.0.0.1' },
         { key: 'port', label: 'Port', type: 'number', required: false, placeholder: '502' },
-        { key: 'comport', label: 'Serial Port', type: 'text', required: false, placeholder: COMPORT_PLACEHOLDER },
-        { key: 'baudrate', label: 'Baud Rate', type: 'number', required: false, options: BAUD_RATE_OPTIONS },
-        { key: 'bytesize', label: 'Byte Size', type: 'number', required: false, options: BYTESIZE_OPTIONS },
-        { key: 'parity', label: 'Parity', type: 'select', required: false, options: PARITY_OPTIONS },
-        { key: 'stopbits', label: 'Stop Bits', type: 'number', required: false, options: STOPBITS_OPTIONS },
+        ...SERIAL_FORM_FIELDS,
         // { key: 'interval', label: 'Sampling Interval', type: 'number', required: false, options: INTERVAL_OPTIONS },
     ],
     phidget: [
@@ -117,7 +118,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
         models: ['가상 머신'],
         protocol: 'virtual',
         capabilities: ['heater', 'fan', 'drum'],
-        pid: null,
+        pid: { Kp: 4, Ki: 0.3, Kd: 2 },
         default_params: { mode: 'C' },
     },
     // ── Custom (address maps supplied by client connectionParams) ─────────────
@@ -132,6 +133,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
             mode: 'tcp',
             host: '127.0.0.1',
             port: 502,
+            comport: '',
             baudrate: 9600,
             bytesize: 8,
             parity: 'N',
@@ -343,6 +345,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
             mode: 'tcp',
             host: '127.0.0.1',
             port: 502,
+            comport: '',
             baudrate: 115200,
             bytesize: 8,
             parity: 'N',
@@ -361,6 +364,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
             mode: 'tcp',
             host: '127.0.0.1',
             port: 502,
+            comport: '',
             baudrate: 115200,
             bytesize: 8,
             parity: 'N',
@@ -400,6 +404,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
             mode: 'tcp',
             host: '125.135.119.211',
             port: 8010,
+            comport: '',
             baudrate: 115200,
             bytesize: 8,
             parity: 'N',
@@ -418,6 +423,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
             mode: 'tcp',
             host: '192.168.251.202',
             port: 8010,
+            comport: '',
             baudrate: 115200,
             bytesize: 8,
             parity: 'N',
@@ -432,7 +438,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
         protocol: 'phidget',
         capabilities: [],
         pid: null,
-        default_params: { device_type: '1048', channel_bt: 0, channel_et: 1 },
+        default_params: { device_type: '1048', channel_bt: 0, channel_et: 1, serial_number: null },
     },
     diedrich_phidget_6ch: {
         display_name: 'Diedrich 6-Sensor Data Logging',
@@ -441,7 +447,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
         protocol: 'phidget',
         capabilities: [],
         pid: null,
-        default_params: { device_type: '1048', channel_bt: 0, channel_et: 1 },
+        default_params: { device_type: '1048', channel_bt: 0, channel_et: 1, serial_number: null },
     },
     // ── Easyster ──────────────────────────────────────────────────────────────
     easyster: {
@@ -453,6 +459,8 @@ const REGISTRY: Record<string, RegistryEntry> = {
         pid: null,
         default_params: {
             mode: 'rtu',
+            host: '127.0.0.1',
+            port: 502,
             comport: '',
             baudrate: 9600,
             bytesize: 8,
@@ -472,6 +480,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
             mode: 'tcp',
             host: '192.168.0.2',
             port: 3000,
+            comport: '',
             baudrate: 115200,
             bytesize: 8,
             parity: 'N',
@@ -489,6 +498,8 @@ const REGISTRY: Record<string, RegistryEntry> = {
         pid: null,
         default_params: {
             mode: 'rtu',
+            host: '127.0.0.1',
+            port: 502,
             comport: '',
             baudrate: 9600,
             bytesize: 8,
@@ -506,6 +517,8 @@ const REGISTRY: Record<string, RegistryEntry> = {
         pid: null,
         default_params: {
             mode: 'rtu',
+            host: '127.0.0.1',
+            port: 502,
             comport: '',
             baudrate: 38400,
             bytesize: 8,
@@ -524,6 +537,8 @@ const REGISTRY: Record<string, RegistryEntry> = {
         pid: null,
         default_params: {
             mode: 'rtu',
+            host: '127.0.0.1',
+            port: 502,
             comport: '',
             baudrate: 9600,
             bytesize: 8,
@@ -541,6 +556,8 @@ const REGISTRY: Record<string, RegistryEntry> = {
         pid: null,
         default_params: {
             mode: 'rtu',
+            host: '127.0.0.1',
+            port: 502,
             comport: '',
             baudrate: 9600,
             bytesize: 8,
@@ -559,6 +576,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
         pid: null,
         default_params: {
             mode: 'rtu',
+            comport: '',
             baudrate: 9600,
             bytesize: 8,
             parity: 'N',
@@ -575,6 +593,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
         pid: null,
         default_params: {
             mode: 'rtu',
+            comport: '',
             baudrate: 9600,
             bytesize: 8,
             parity: 'N',
@@ -591,6 +610,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
         pid: null,
         default_params: {
             mode: 'rtu',
+            comport: '',
             baudrate: 9600,
             bytesize: 8,
             parity: 'N',
@@ -620,7 +640,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
         protocol: 'phidget',
         capabilities: [],
         pid: null,
-        default_params: { device_type: 'TMP1101', channel_bt: 0, channel_et: 1 },
+        default_params: { device_type: 'TMP1101', channel_bt: 0, channel_et: 1, serial_number: null },
     },
     phidget_tmp1200: {
         display_name: 'Phidget TMP1200 (1x RTD)',
@@ -629,7 +649,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
         protocol: 'phidget',
         capabilities: [],
         pid: null,
-        default_params: { device_type: 'TMP1200', channel_bt: 0 },
+        default_params: { device_type: 'TMP1200', channel_bt: 0, channel_et: null, serial_number: null },
     },
     phidget_1048: {
         display_name: 'Phidget 1048 (4x TC, USB)',
@@ -638,7 +658,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
         protocol: 'phidget',
         capabilities: [],
         pid: null,
-        default_params: { device_type: '1048', channel_bt: 0, channel_et: 1 },
+        default_params: { device_type: '1048', channel_bt: 0, channel_et: 1, serial_number: null },
     },
     // ── Loring ────────────────────────────────────────────────────────────────
     loring_smart_roast: {
@@ -652,6 +672,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
             mode: 'tcp',
             host: '192.168.1.199',
             port: 502,
+            comport: 'COM5',
             baudrate: 115200,
             bytesize: 8,
             parity: 'N',
@@ -670,6 +691,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
             mode: 'tcp',
             host: '192.168.1.199',
             port: 502,
+            comport: 'COM5',
             baudrate: 115200,
             bytesize: 8,
             parity: 'N',
