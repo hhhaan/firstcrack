@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from adapters.base import Reading
+from control_guard import ControlUnavailable
 
 _log = logging.getLogger(__name__)
 
@@ -169,7 +170,7 @@ class KaleidoAdapter:
         return await asyncio.to_thread(self._read_sync)
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
-        pass  # 제어 기능 미사용 — 제거 예정
+        raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")
 
     @property
     def connected(self) -> bool:

@@ -8,6 +8,8 @@ import {
     inventoryQueryRoots,
     orderKeys,
     planQueryRoots,
+    productStockKeys,
+    roastedStockKeys,
     weatherKeys,
 } from './query-keys';
 import { roastCurveKeys } from './roast-curve';
@@ -31,6 +33,8 @@ describe('query key factories', () => {
         expect(inventoryAlertKeys.list('u1')).toEqual([...inventoryQueryRoots.inventoryAlerts, 'u1']);
         expect(inventoryQueryRoots.roastedStock).toEqual(['roasted-stock']);
         expect(inventoryQueryRoots.productStock).toEqual(['product-stock']);
+        expect(roastedStockKeys.events('u1')).toEqual([...roastedStockKeys.byUser('u1'), 'events']);
+        expect(productStockKeys.events('u1', 'p1')).toEqual([...productStockKeys.byUser('u1'), 'events', 'p1']);
         expect(stockEventKeys.purchaseCostsByUser('u1')).toEqual([...inventoryQueryRoots.beanPurchaseCosts, 'u1']);
         expect(stockEventKeys.purchaseCostsRoot).toBe(inventoryQueryRoots.beanPurchaseCosts);
     });

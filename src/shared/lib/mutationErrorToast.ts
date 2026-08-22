@@ -1,5 +1,5 @@
 import { i18n } from '@shared/i18n';
-import { resolveMutationErrorText } from '@shared/lib/mutationErrorMessage';
+import { formatMutationError, resolveMutationErrorText } from '@shared/lib/mutationErrorMessage';
 import { useToastStore } from '@shared/store/toast';
 
 /**
@@ -9,10 +9,5 @@ import { useToastStore } from '@shared/store/toast';
  */
 export const showMutationErrorToast = (error: unknown, meta: { silentError?: boolean } | undefined) => {
     if (meta?.silentError) return;
-    const text = resolveMutationErrorText(error);
-    useToastStore
-        .getState()
-        .show(
-            text.key === 'errors.mutationFailedDetail' ? i18n.t(text.key, { message: text.detail }) : i18n.t(text.key),
-        );
+    useToastStore.getState().show(formatMutationError(i18n.t, resolveMutationErrorText(error)));
 };

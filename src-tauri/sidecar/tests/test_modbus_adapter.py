@@ -478,5 +478,8 @@ class TestConnected:
 # ---------------------------------------------------------------------------
 
 class TestControl:
-    async def test_control_is_noop(self, adapter):
-        await adapter.control(heater=80, fan=60, drum=50)
+    async def test_control_is_unavailable(self, adapter):
+        from control_guard import ControlUnavailable
+
+        with pytest.raises(ControlUnavailable):
+            await adapter.control(heater=80, fan=60, drum=50)

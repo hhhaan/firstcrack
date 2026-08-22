@@ -1,3 +1,4 @@
+import { formatDuration } from '@shared/lib/format';
 import type { Bean } from '@shared/types/database.types';
 import { FormSelect } from '@shared/ui/FormSelect';
 import {
@@ -11,7 +12,7 @@ import {
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { Check, ChevronRight, History, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { fmtDate, fmtDuration } from '../lib/format';
+import { fmtDate } from '../lib/format';
 import { type ProfileDefaultType, type ProfileFormMode, type ProfileFormState, ROAST_LEVELS } from '../lib/types';
 import { ProfileCurveFields } from './ProfileCurveFields';
 import { ProfileDefaultSourceFields } from './ProfileDefaultSourceFields';
@@ -107,7 +108,7 @@ export const ProfileFormBody = ({
                                 {' · '}
                                 {fmtDate(selectedSession.roasted_at)}
                                 {selectedSession.duration_seconds != null &&
-                                    ` · ${fmtDuration(selectedSession.duration_seconds)}`}
+                                    ` · ${formatDuration(selectedSession.duration_seconds)}`}
                             </span>
                         </div>
                     </div>

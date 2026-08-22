@@ -153,12 +153,26 @@ def test_non_giesen_s7_has_no_write_map() -> None:
 
 
 @pytest.mark.asyncio
-async def test_s7_adapter_control_does_not_require_connection() -> None:
-    """미연결 어댑터의 control()은 예외 없이 no-op이어야 한다."""
-    adapter = S7Adapter(host="127.0.0.1", channels=[
-        {"role": "BT", "db": 3, "offset": 116, "area": 6, "type": 1, "div": 0},
-    ])
-    await adapter.control(heater=50.0, fan=30.0, drum=40.0)
+async def test_s7_adapter_control_without_plc_does_not_succeed() -> None:
+    """write_map이 있어도 PLC가 없으면 성공으로 끝나면 안 된다 (#270)."""
+    adapter = S7Adapter(
+        host="127.0.0.1",
+        channels=[
+            {"role": "BT", "db": 3, "offset": 116, "area": 6, "type": 1, "div": 0},
+        ],
+        write_map={
+            "heater": {
+                "db": 2,
+                "offset": 14,
+                "type": 0,
+                "div": 0,
+                "min": 0,
+                "max": 100,
+            }
+        },
+    )
+    with pytest.raises(ConnectionError, match="연결되지 않음"):
+        await adapter.control(heater=50.0, fan=30.0, drum=40.0)
 
 
 def test_main_exposes_post_control_route() -> None:

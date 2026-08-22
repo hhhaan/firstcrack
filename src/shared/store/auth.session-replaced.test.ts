@@ -1,3 +1,4 @@
+import { profileKeys } from '@shared/lib/query-keys';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type AuthCb = (event: string, session: { user: { id: string } } | null) => void;
@@ -8,6 +9,7 @@ const getSession = vi.fn();
 const signInWithPassword = vi.fn();
 const signOut = vi.fn();
 const sendOsNotification = vi.fn();
+const from = vi.fn();
 
 vi.mock('../lib/supabase', () => ({
     supabase: {
@@ -20,13 +22,7 @@ vi.mock('../lib/supabase', () => ({
                 return { data: { subscription: { unsubscribe } } };
             },
         },
-        from: () => ({
-            select: () => ({
-                eq: () => ({
-                    single: () => Promise.resolve({ data: { plan: 'pro' }, error: null }),
-                }),
-            }),
-        }),
+        from: (...a: unknown[]) => from(...a),
     },
 }));
 
@@ -42,9 +38,10 @@ vi.mock('i18next', () => ({
     default: { t: (k: string) => k },
 }));
 
-import { useAuthStore } from './auth';
+import { bindAuthQueryClient, useAuthStore } from './auth';
 
 const user = { id: 'user-1' };
+const removeQueries = vi.fn();
 
 describe('auth session_replaced (single-session UX)', () => {
     let cleanup: (() => void) | undefined;
@@ -56,12 +53,14 @@ describe('auth session_replaced (single-session UX)', () => {
         signInWithPassword.mockReset();
         signOut.mockReset();
         sendOsNotification.mockReset();
+        from.mockReset();
+        removeQueries.mockReset();
+        bindAuthQueryClient({ removeQueries } as never);
         // getSession resolves after init subscribed; keep loading true until we drive authCb
         getSession.mockReturnValue(new Promise(() => {}));
         signOut.mockResolvedValue({ error: null });
         useAuthStore.setState({
             user: null,
-            plan: 'free',
             loading: true,
             oauthPending: false,
             oauthError: null,
@@ -96,5 +95,27 @@ describe('auth session_replaced (single-session UX)', () => {
         authCb?.('INITIAL_SESSION', null);
         expect(useAuthStore.getState().oauthError).toBeNull();
         expect(sendOsNotification).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch profiles.plan', () => {
+        authCb?.('SIGNED_IN', { user });
+        expect(from).not.toHaveBeenCalled();
+        expect(useAuthStore.getState()).not.toHaveProperty('plan');
+    });
+
+    it('clears profile plan cache on SIGNED_IN and logout', async () => {
+        authCb?.('SIGNED_IN', { user });
+        expect(removeQueries).toHaveBeenCalledWith({ queryKey: profileKeys.detail('user-1') });
+
+        removeQueries.mockClear();
+        await useAuthStore.getState().signOut();
+        expect(removeQueries).toHaveBeenCalledWith({ queryKey: profileKeys.detail('user-1') });
+    });
+
+    it('clears profile plan cache on SIGNED_OUT', () => {
+        authCb?.('SIGNED_IN', { user });
+        removeQueries.mockClear();
+        authCb?.('SIGNED_OUT', null);
+        expect(removeQueries).toHaveBeenCalledWith({ queryKey: profileKeys.detail('user-1') });
     });
 });

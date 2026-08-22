@@ -8,7 +8,6 @@ import {
     useSyncOrders,
 } from '@entities/sales-channel';
 import { formatDateShort } from '@shared/lib/format';
-import { resolveMutationErrorText } from '@shared/lib/mutationErrorMessage';
 import { useToastStore } from '@shared/store/toast';
 import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
@@ -16,6 +15,7 @@ import { ConnectChannelModal } from '@widgets/connect-channel-modal';
 import { Link2, RefreshCw, Store } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatChannelSyncError } from './formatChannelSyncError';
 import { ChannelsListSkeleton } from './OrdersSkeleton';
 import { channelStatusTone, EmptyState, GhostButton } from './orderUi';
 
@@ -44,8 +44,7 @@ export function ChannelsTab() {
         } catch (e) {
             // Raw server messages can run long; a fixed-position toast cannot wrap like the old
             // inline paragraph did, so reuse the truncating resolver the global error bridge uses.
-            const text = resolveMutationErrorText(e);
-            show(text.key === 'errors.mutationFailedDetail' ? t(text.key, { detail: text.detail }) : t(text.key));
+            show(formatChannelSyncError(t, e));
         }
     };
 

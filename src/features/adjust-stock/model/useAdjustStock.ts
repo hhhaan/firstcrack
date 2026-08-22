@@ -68,7 +68,7 @@ export const useAdjustStock = () => {
         onSuccess: (result) => {
             if (result.kind === 'product') {
                 void qc.invalidateQueries({ queryKey: productStockKeys.byUser(result.ownerId) });
-                void qc.invalidateQueries({ queryKey: productStockKeys.events(result.productId) });
+                void qc.invalidateQueries({ queryKey: productStockKeys.events(result.ownerId, result.productId) });
                 return;
             }
             void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(result.ownerId) });

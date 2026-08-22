@@ -6,6 +6,7 @@ import { App } from './App';
 import { initI18n } from './shared/i18n';
 import { logger } from './shared/lib/logger';
 import { showMutationErrorToast } from './shared/lib/mutationErrorToast';
+import { bindAuthQueryClient } from './shared/store/auth';
 import { ToastViewport } from './shared/ui/ToastViewport';
 import 'uplot/dist/uPlot.min.css';
 
@@ -41,6 +42,7 @@ const queryClient = new QueryClient({
         },
     },
 });
+bindAuthQueryClient(queryClient);
 
 // DSN은 클라이언트 공개값 (Rust/사이드카도 동일하게 하드코딩) — 빌드 시크릿 의존 제거
 const SENTRY_DSN = 'https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944';

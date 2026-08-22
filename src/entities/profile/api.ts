@@ -1,5 +1,6 @@
-import { supabase } from '../../shared/lib/supabase';
-import type { Profile } from '../../shared/types/database.types';
+import { fetchProfile } from '@shared/lib/profile';
+import { supabase } from '@shared/lib/supabase';
+import type { Profile } from '@shared/types/database.types';
 
 type ProfilePatch = Partial<
     Pick<
@@ -9,10 +10,7 @@ type ProfilePatch = Partial<
 >;
 
 export const profileApi = {
-    get: async (userId: string): Promise<Profile | null> => {
-        const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
-        return data;
-    },
+    get: fetchProfile,
 
     update: async (userId: string, patch: ProfilePatch): Promise<Profile> => {
         const { data, error } = await supabase

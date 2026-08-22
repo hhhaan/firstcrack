@@ -1,17 +1,13 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
 import { resolveSourceSession, useRoastProfileCurves } from '@entities/roast-profile';
+import { formatTemp, useRoastSettings } from '@features/active-roast';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
+import { formatDuration } from '@shared/lib/format';
 import type { SeriesData } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { COMPARE_COLORS, ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
+import { useProfileTableRows } from '@widgets/profile-detail/model/useProfileTableRows';
 import { AlertCircle, GitCompare, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-
-const fmtDuration = (sec: number | null): string => {
-    if (sec == null) return '—';
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${String(s).padStart(2, '0')}`;
-};
 
 const DefaultBadge = ({
     id,
@@ -65,24 +61,6 @@ const DefaultBadge = ({
     );
 };
 
-const useTableRows = (): { label: string; getValue: (p: RoastProfileWithSource) => string }[] => {
-    const { t } = useTranslation();
-    return [
-        { label: t('profiles.detail.duration'), getValue: (p) => fmtDuration(p.duration_sec) },
-        {
-            label: t('profiles.detail.dropTemp'),
-            getValue: (p) => (p.drop_temp_celsius != null ? `${p.drop_temp_celsius}°C` : '—'),
-        },
-        {
-            label: t('profiles.detail.chargeTemp'),
-            getValue: (p) => (p.charge_temp_celsius != null ? `${p.charge_temp_celsius}°C` : '—'),
-        },
-        { label: t('profiles.detail.devTime'), getValue: (p) => fmtDuration(p.dev_time_sec) },
-        { label: t('profiles.detail.devPct'), getValue: (p) => (p.dev_pct != null ? `${p.dev_pct.toFixed(1)}%` : '—') },
-        { label: t('profiles.detail.targetLevel'), getValue: (p) => p.target_level ?? '—' },
-    ];
-};
-
 interface ProfileCompareProps {
     compareIds: string[];
     compareProfiles: RoastProfileWithSource[];
@@ -101,7 +79,8 @@ export const ProfileCompare = ({
     onSetDefault,
 }: ProfileCompareProps) => {
     const { t } = useTranslation();
-    const TABLE_ROWS = useTableRows();
+    const unit = useRoastSettings().temperatureUnit;
+    const TABLE_ROWS = useProfileTableRows('profiles.detail.duration');
     const compareQueries = useRoastProfileCurves(
         compareProfiles.map((p) => resolveSourceSession(p.source_session)?.tsv_path),
         compareProfiles.map((p) => p.id),
@@ -243,7 +222,7 @@ export const ProfileCompare = ({
                                                 className="font-mono text-[12px] font-semibold tabular-nums"
                                                 style={{ color }}
                                             >
-                                                {p.drop_temp_celsius != null ? `${p.drop_temp_celsius}` : '—'}
+                                                {formatTemp(p.drop_temp_celsius, unit)}
                                             </span>
                                         </div>
                                         <div className="flex items-baseline justify-between gap-1">
@@ -251,7 +230,7 @@ export const ProfileCompare = ({
                                                 {t('profiles.detail.duration')}
                                             </span>
                                             <span className="font-mono text-[11px] tabular-nums text-secondary">
-                                                {fmtDuration(p.duration_sec)}
+                                                {formatDuration(p.duration_sec)}
                                             </span>
                                         </div>
                                         <div className="flex items-baseline justify-between gap-1">
@@ -267,7 +246,7 @@ export const ProfileCompare = ({
                                                 {t('profiles.detail.chargeTemp')}
                                             </span>
                                             <span className="font-mono text-[11px] tabular-nums text-secondary">
-                                                {p.charge_temp_celsius != null ? `${p.charge_temp_celsius}` : '—'}
+                                                {formatTemp(p.charge_temp_celsius, unit)}
                                             </span>
                                         </div>
                                     </div>

@@ -1,4 +1,4 @@
-import { BatchLimitError } from '@shared/lib/features';
+import { BatchLimitError, resolveEffectivePlan } from '@shared/lib/features';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -110,6 +110,31 @@ describe('saveRoastCore', () => {
 
     it('read_only → 즉시 거부', async () => {
         const deps = makeDeps({ plan: 'read_only' });
+        await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'read_only_plan' });
+        expect(deps.saveOp).not.toHaveBeenCalled();
+    });
+
+    it('empty personal plan on self workspace does not block save', async () => {
+        const plan = resolveEffectivePlan({
+            personalPlan: '',
+            authUserId: 'user-1',
+            activeOwnerId: null,
+            ownerPlanById: {},
+        });
+        const deps = makeDeps({ plan });
+        const result = await saveRoastCore(deps, baseParams);
+        expect(result.savedSession).toEqual({ id: 'sess-db-1' });
+        expect(deps.saveOp).toHaveBeenCalledTimes(1);
+    });
+
+    it('foreign workspace missing host plan still blocks save', async () => {
+        const plan = resolveEffectivePlan({
+            personalPlan: 'pro',
+            authUserId: 'user-1',
+            activeOwnerId: 'owner-1',
+            ownerPlanById: { 'owner-1': '' },
+        });
+        const deps = makeDeps({ plan });
         await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'read_only_plan' });
         expect(deps.saveOp).not.toHaveBeenCalled();
     });

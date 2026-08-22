@@ -1,5 +1,34 @@
-import { describe, expect, it } from 'vitest';
-import { resolveMutationErrorText } from './mutationErrorMessage';
+import i18n from 'i18next';
+import { beforeAll, describe, expect, it } from 'vitest';
+import en from '../i18n/locales/en.json';
+import ja from '../i18n/locales/ja.json';
+import ko from '../i18n/locales/ko.json';
+import zhCN from '../i18n/locales/zh-CN.json';
+import { formatMutationError, resolveMutationErrorText } from './mutationErrorMessage';
+
+const resources = {
+    en: { translation: en },
+    ko: { translation: ko },
+    ja: { translation: ja },
+    'zh-CN': { translation: zhCN },
+} as const;
+
+const DETAIL = 'shop not found';
+
+const ensureI18n = async () => {
+    if (!i18n.isInitialized) {
+        await i18n.init({
+            lng: 'en',
+            fallbackLng: 'en',
+            resources,
+            interpolation: { escapeValue: false },
+        });
+        return;
+    }
+    for (const [lng, bundle] of Object.entries(resources)) {
+        i18n.addResourceBundle(lng, 'translation', bundle.translation, true, true);
+    }
+};
 
 describe('resolveMutationErrorText', () => {
     it('surfaces a server message the user can act on', () => {
@@ -49,5 +78,26 @@ describe('resolveMutationErrorText', () => {
     it('truncates long messages', () => {
         const result = resolveMutationErrorText(new Error('x'.repeat(400)));
         expect(result).toEqual({ key: 'errors.mutationFailedDetail', detail: `${'x'.repeat(160)}…` });
+    });
+});
+
+describe('formatMutationError', () => {
+    beforeAll(ensureI18n);
+
+    it('interpolates the server detail through {{message}} in every locale', async () => {
+        const text = resolveMutationErrorText(new Error(DETAIL));
+        for (const lng of Object.keys(resources)) {
+            await i18n.changeLanguage(lng);
+            const out = formatMutationError(i18n.t, text);
+            expect(out, lng).toContain(DETAIL);
+            expect(out, lng).not.toContain('{{message}}');
+        }
+    });
+
+    it('does not leak {{message}} when the wrong options bag is used (documents the bug)', async () => {
+        await i18n.changeLanguage('en');
+        const broken = i18n.t('errors.mutationFailedDetail', { detail: DETAIL });
+        expect(broken).toContain('{{message}}');
+        expect(formatMutationError(i18n.t, resolveMutationErrorText(new Error(DETAIL)))).not.toContain('{{message}}');
     });
 });

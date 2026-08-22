@@ -21,6 +21,7 @@ describe('formatElapsed', () => {
     it('formats seconds as m:ss with floored seconds', () => {
         expect(formatElapsed(0)).toBe('0:00');
         expect(formatElapsed(65)).toBe('1:05');
+        expect(formatElapsed(90.6)).toBe('1:30');
         expect(formatElapsed(125.9)).toBe('2:05');
     });
 });
@@ -31,6 +32,7 @@ describe('formatDuration', () => {
         expect(formatDuration(0)).toBe('0:00');
         expect(formatDuration(65.4)).toBe('1:05');
         expect(formatDuration(65.6)).toBe('1:06');
+        expect(formatDuration(90.6)).toBe('1:31');
     });
 });
 

@@ -1,8 +1,10 @@
+import { formatTemp, useRoastSettings } from '@features/active-roast';
+import { formatDuration } from '@shared/lib/format';
 import { modalCancelBtnCls, modalFooterChrome, modalHeaderChrome } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { fmtDate, fmtDuration } from '../lib/format';
+import { fmtDate } from '../lib/format';
 
 type SessionOption = {
     id: string;
@@ -22,6 +24,7 @@ type ProfileSessionPickerProps = {
 
 export const ProfileSessionPicker = ({ sessions, onSelect, onBack, onClose }: ProfileSessionPickerProps) => {
     const { t } = useTranslation();
+    const unit = useRoastSettings().temperatureUnit;
 
     return (
         <div className="flex flex-col flex-1 overflow-hidden">
@@ -64,9 +67,9 @@ export const ProfileSessionPicker = ({ sessions, onSelect, onBack, onClose }: Pr
                                         <span className="text-[12px] text-muted">
                                             {fmtDate(session.roasted_at)}
                                             {session.drop_temp_celsius != null &&
-                                                ` · ${t('newProfileModal.drop')} ${session.drop_temp_celsius}°C`}
+                                                ` · ${t('newProfileModal.drop')} ${formatTemp(session.drop_temp_celsius, unit)}`}
                                             {session.duration_seconds != null &&
-                                                ` · ${fmtDuration(session.duration_seconds)}`}
+                                                ` · ${formatDuration(session.duration_seconds)}`}
                                             {session.roast_level && ` · ${session.roast_level}`}
                                         </span>
                                     </div>

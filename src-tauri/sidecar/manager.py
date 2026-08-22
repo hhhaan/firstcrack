@@ -8,7 +8,7 @@ from typing import Any
 import sentry_sdk
 
 import config
-from adapters import make_adapter
+from adapters import WRITABLE_PROTOCOLS, make_adapter
 from control_guard import ControlRangeError, ControlUnavailable, clamp_command
 from pid import PidGains
 from pid_runner import STOP_HOLD, STOP_ZERO, PidRunner, PvSample
@@ -141,6 +141,35 @@ def _format_connection_error(
     return msg
 
 
+_MAP_KEYS = ("write_map", "channels")
+
+
+def _has_real_map(value: Any) -> bool:
+    """클라이언트가 레지스트리 맵을 교체할 실제 맵을 보냈는지."""
+    if isinstance(value, dict):
+        return len(value) > 0
+    if isinstance(value, (list, tuple)):
+        return len(value) > 0
+    return False
+
+
+def _merge_connect_params(
+    defaults: dict[str, Any], params: dict[str, Any]
+) -> dict[str, Any]:
+    """레지스트리 default_params 위에 클라이언트 파라미터를 얹는다.
+
+    빈 write_map/channels 는 저장된 커스텀이 아니라 '없음'이다. 얕은 merge가
+    알려진 머신의 주소 맵을 통째로 지우지 않게 레지스트리 값을 유지한다 (#270).
+    """
+    merged = {**defaults, **params}
+    for key in _MAP_KEYS:
+        if key not in params:
+            continue
+        if not _has_real_map(params[key]) and key in defaults:
+            merged[key] = defaults[key]
+    return merged
+
+
 class RoasterManager:
     def __init__(self) -> None:
         self._adapter: Any = None
@@ -173,6 +202,9 @@ class RoasterManager:
         self._ror_window_secs: float = config.ROR_WINDOW_SECS
         self._pid: PidRunner | None = None
         self._pid_task: asyncio.Task[None] | None = None
+        # reset_roast 구간. control/PID write만 막는다 — PID 루프 전체를
+        # connect lock에 넣지 않는다 (#270).
+        self._resetting: bool = False
         # once=True 캡처가 이미 나간 event. 성공/disconnect 때 비운다.
         self._hw_alerts_sent: set[str] = set()
 
@@ -284,7 +316,7 @@ class RoasterManager:
                 raise ValueError(f"알 수 없는 로스터: {roaster_key}")
 
             protocol = reg["protocol"]
-            merged = {**reg["default_params"], **params}
+            merged = _merge_connect_params(reg["default_params"], params)
 
             self._adapter = make_adapter(protocol, merged)
             self._roaster_key = roaster_key
@@ -383,6 +415,7 @@ class RoasterManager:
             )
         self._adapter = None
         self._connected = False
+        self._resetting = False
         self._roaster_key = ""
         self._protocol = ""
         self._merged_params = {}
@@ -615,6 +648,10 @@ class RoasterManager:
         """
         return dict(self._merged_params.get("write_map") or {})
 
+    def _control_writable(self) -> bool:
+        """실제로 하드웨어에 쓸 수 있는지. write_map ∩ WRITABLE_PROTOCOLS."""
+        return bool(self.write_limits()) and self._protocol in WRITABLE_PROTOCOLS
+
     async def control(
         self,
         heater: float | None = None,
@@ -633,8 +670,12 @@ class RoasterManager:
 
         # read와 동일하게 어댑터를 스냅샷 — await 도중 disconnect되면 조용히 무시한다 (H4)
         adapter = self._adapter
-        if not self._connected or adapter is None or not hasattr(adapter, "control"):
+        if self._resetting:
+            raise ControlUnavailable("로스터 초기화 중입니다.")
+        if not self._connected or adapter is None:
             raise ControlUnavailable("머신이 연결되지 않았습니다.")
+        if self._protocol not in WRITABLE_PROTOCOLS:
+            raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")
 
         write_map = self.write_limits()
         if not write_map:
@@ -672,10 +713,14 @@ class RoasterManager:
     # ── 소프트웨어 PID ─────────────────────────────────────────────────────
 
     def pid_capability(self) -> dict[str, Any]:
-        """PID 지원 여부(정적). 게인과 heater 쓰기 맵이 둘 다 있어야 돌릴 수 있다."""
+        """PID 지원 여부(정적). 게인 + heater 쓰기 + 실제 쓰기 프로토콜."""
         reg = ROASTER_REGISTRY.get(self._roaster_key, {})
         gains = reg.get("pid")
-        supported = bool(gains) and "heater" in self.write_limits()
+        supported = (
+            bool(gains)
+            and "heater" in self.write_limits()
+            and self._control_writable()
+        )
         return {
             "supported": supported,
             "sv_min": config.PID_SV_MIN_C,
@@ -795,7 +840,11 @@ class RoasterManager:
                 await self._adapter.start_roast()
 
     async def reset_roast(self) -> None:
-        """로스트 종료 후 어댑터 상태를 초기화한다 (connect() 재호출). RoR 윈도우도 클리어."""
+        """로스트 종료 후 어댑터 상태를 초기화한다 (connect() 재호출). RoR 윈도우도 클리어.
+
+        재연결 실패 시 _connected=False 를 남긴다. HTTP 200 + connected=True 로
+        끝나서는 안 된다. 연결 게이트는 두지 않는다 — 어댑터만 있으면 재시도한다.
+        """
         async with self._lock:
             self._ror_window.clear()
             self._et_ror_window.clear()
@@ -803,13 +852,47 @@ class RoasterManager:
             self._et_ema = None
             self._bt_display_ema = None
             self._et_display_ema = None
-            if self._adapter is not None and self._connected:
-                # connect()만 재호출하면 어댑터에 따라 기존 소켓/핸들이 누수된다
+            self._ror_warmup = config.ROR_WARMUP_READS
+            if self._adapter is None:
+                return
+
+            # 히터 0은 쓰기 게이트를 닫기 전에. control()은 _resetting/_connected
+            # 이후 거절한다 (#219와 같은 순서).
+            if self._pid is not None:
+                try:
+                    await self._pid.stop("reset", mode=STOP_ZERO)
+                except Exception:
+                    pass
+            if self._pid_task is not None and not self._pid_task.done():
+                self._pid_task.cancel()
+            self._pid_task = None
+            self._pid = None
+
+            self._resetting = True
+            self._connected = False
+            try:
                 try:
                     await self._adapter.disconnect()
                 except Exception:
                     pass
                 await self._adapter.connect()
+                self._connected = True
+                self._error = None
+                self._consecutive_errors = 0
+            except Exception as exc:
+                self._connected = False
+                self._error = _format_connection_error(
+                    exc, self._protocol, self._merged_params
+                )
+                _log.error("reset 재연결 실패: %s", exc, exc_info=True)
+                self._capture_hardware_error(exc, "reset_failed")
+                # _refresh_reading은 _connected=False면 재연결을 안 띄운다.
+                # 루프는 sleep 후 lock을 잡으므로 여기서 spawn해도 데드락 없음.
+                if self._reconnect_task is None or self._reconnect_task.done():
+                    self._reconnect_task = asyncio.create_task(self._reconnect_loop())
+                raise
+            finally:
+                self._resetting = False
 
     def update_settings(self, settings: dict[str, Any]) -> None:
         """프론트엔드 설정 변경을 런타임에 반영."""
@@ -837,7 +920,7 @@ class RoasterManager:
             # 제어 능력은 레지스트리 capabilities(표시용)와 다르다 — 실제로 쓸 수 있는
             # role만 담는다. writable=false면 프론트는 제어 UI를 렌더하지 않는다.
             "control": {
-                "writable": bool(self.write_limits()),
+                "writable": self._control_writable(),
                 "limits": self.write_limits(),
                 "pid": self.pid_capability(),
             },

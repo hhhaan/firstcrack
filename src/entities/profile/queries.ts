@@ -1,3 +1,4 @@
+import { profileKeys } from '@shared/lib/query-keys';
 import type { Profile } from '@shared/types/database.types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { profileApi } from './api';
@@ -8,10 +9,6 @@ type ProfilePatch = Partial<
         'display_name' | 'avatar_url' | 'business_name' | 'business_registration_number' | 'default_roast_profile_id'
     >
 >;
-
-export const profileKeys = {
-    detail: (userId: string) => ['profile', userId] as const,
-};
 
 export const useProfile = (userId: string) =>
     useQuery({

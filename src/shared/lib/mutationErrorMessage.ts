@@ -1,14 +1,7 @@
+import { errorMessage, isOpaqueNetworkError } from './errorMessage';
+
 /** Longer server messages are truncated so a toast stays one glanceable line block. */
 const MAX_DETAIL_LENGTH = 160;
-
-/** Transport-level strings that tell the user nothing actionable. */
-const OPAQUE_MESSAGES = new Set([
-    'failed to fetch',
-    'fetch failed',
-    'load failed',
-    'network error',
-    'network request failed',
-]);
 
 /**
  * Negative-stock hard blocks raised by the RPC guards (`fulfill_order`,
@@ -58,11 +51,18 @@ export const resolveMutationErrorText = (error: unknown): MutationErrorText => {
     const guardKey = guardMessageKeyOf(error);
     if (guardKey) return { key: guardKey };
 
-    const raw = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+    // Only Error/string messages are surfaced — an arbitrary Postgres error object must not leak SQL.
+    const raw = error instanceof Error || typeof error === 'string' ? errorMessage(error) : '';
     const detail = raw.trim();
-    if (!detail || OPAQUE_MESSAGES.has(detail.toLowerCase())) return { key: 'errors.mutationFailed' };
+    if (!detail || isOpaqueNetworkError(error)) return { key: 'errors.mutationFailed' };
     return {
         key: 'errors.mutationFailedDetail',
         detail: detail.length > MAX_DETAIL_LENGTH ? `${detail.slice(0, MAX_DETAIL_LENGTH)}…` : detail,
     };
 };
+
+type Translate = (key: string, options?: { message: string }) => string;
+
+/** i18n key `errors.mutationFailedDetail` interpolates `{{message}}` — never pass `{ detail }`. */
+export const formatMutationError = (t: Translate, text: MutationErrorText): string =>
+    text.key === 'errors.mutationFailedDetail' ? t(text.key, { message: text.detail }) : t(text.key);
