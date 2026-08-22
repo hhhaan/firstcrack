@@ -20,6 +20,19 @@ export {
     validateAddressMaps,
 } from './addressMap';
 
+/** Protocols whose adapters honor a client-supplied write_map. */
+const WRITE_MAP_PROTOCOLS = new Set(['s7']);
+
+/** Show and persist use the same plan/protocol gate — never persist a hidden write map. */
+export const writeMapFormFlags = (input: {
+    isCustom: boolean;
+    protocol: string;
+    canConfigureControl: boolean;
+}): { showWriteMap: boolean; includeWriteMap: boolean } => {
+    const showWriteMap = input.isCustom && WRITE_MAP_PROTOCOLS.has(input.protocol) && input.canConfigureControl;
+    return { showWriteMap, includeWriteMap: showWriteMap };
+};
+
 export const TCP_ONLY_FIELDS = new Set(['host', 'port']);
 export const RTU_ONLY_FIELDS = new Set(['comport', 'baudrate', 'bytesize', 'parity', 'stopbits']);
 

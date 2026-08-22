@@ -29,6 +29,7 @@ const FEATURE_PREDICATE = {
     [FEATURE.bbp]: isCoreEntitled,
     [FEATURE.fastPolling]: isCoreEntitled,
     [FEATURE.orderIntegration]: (plan: string) => ORDER_INTEGRATION_PLANS.has(plan),
+    [FEATURE.customMachineControl]: (plan: string) => ORDER_INTEGRATION_PLANS.has(plan),
     [FEATURE.team]: (plan: string) => ORDER_INTEGRATION_PLANS.has(plan),
     [FEATURE.roastedInventory]: (plan: string) => PRO_PLUS_PLANS.has(plan),
     [FEATURE.productStock]: (plan: string) => PRO_PLUS_PLANS.has(plan),

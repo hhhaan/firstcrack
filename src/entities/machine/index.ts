@@ -16,6 +16,7 @@ export {
     resolveCustomConnectKey,
     validateAddressMaps,
     validateRoasterFormFields,
+    writeMapFormFlags,
 } from './lib';
 export { useMachines, VIRTUAL_ID } from './model';
 export { PROTOCOL_FORM_FIELDS, ROASTER_REGISTRY } from './roasterRegistry';

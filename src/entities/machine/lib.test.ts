@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isRoasterFieldVisible } from './lib';
+import { isRoasterFieldVisible, writeMapFormFlags } from './lib';
 
 describe('isRoasterFieldVisible', () => {
     it.each(['rtu', 'ascii', 'serial'])('serial mode %s hides TCP fields, shows serial fields', (mode) => {
@@ -18,5 +18,32 @@ describe('isRoasterFieldVisible', () => {
     it('unknown/empty mode shows everything', () => {
         expect(isRoasterFieldVisible('host', undefined)).toBe(true);
         expect(isRoasterFieldVisible('comport', '')).toBe(true);
+    });
+});
+
+describe('writeMapFormFlags', () => {
+    it('includeWriteMap equals showWriteMap in every case', () => {
+        const cases = [
+            { isCustom: true, protocol: 's7', canConfigureControl: true },
+            { isCustom: true, protocol: 's7', canConfigureControl: false },
+            { isCustom: true, protocol: 'modbus', canConfigureControl: true },
+            { isCustom: false, protocol: 's7', canConfigureControl: true },
+        ];
+        for (const input of cases) {
+            const { showWriteMap, includeWriteMap } = writeMapFormFlags(input);
+            expect(includeWriteMap).toBe(showWriteMap);
+        }
+    });
+
+    it('is on only for custom s7 with the plan flag', () => {
+        expect(writeMapFormFlags({ isCustom: true, protocol: 's7', canConfigureControl: true }).includeWriteMap).toBe(
+            true,
+        );
+        expect(writeMapFormFlags({ isCustom: true, protocol: 's7', canConfigureControl: false }).includeWriteMap).toBe(
+            false,
+        );
+        expect(writeMapFormFlags({ isCustom: false, protocol: 's7', canConfigureControl: true }).includeWriteMap).toBe(
+            false,
+        );
     });
 });

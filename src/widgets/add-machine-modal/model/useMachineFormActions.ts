@@ -14,6 +14,7 @@ type Args = {
     customBrand: string;
     params: Record<string, string>;
     showAddressMap: boolean;
+    includeWriteMap: boolean;
     editing: Machine | null | undefined;
     onEdit?: (id: string, params: Record<string, unknown>, keepConnection?: boolean) => Promise<void>;
     onAdd: (
@@ -39,6 +40,7 @@ export const useMachineFormActions = ({
     customBrand,
     params,
     showAddressMap,
+    includeWriteMap,
     editing,
     onEdit,
     onAdd,
@@ -62,7 +64,7 @@ export const useMachineFormActions = ({
             return;
         }
 
-        const assembled = assembleConnectionParams(selectedDef, params, showAddressMap);
+        const assembled = assembleConnectionParams(selectedDef, params, showAddressMap, includeWriteMap);
         if (!assembled.ok) {
             setError(t('addMachine.fieldRequired', { field: assembled.missing }));
             return;
@@ -106,7 +108,7 @@ export const useMachineFormActions = ({
             return;
         }
 
-        const assembled = assembleConnectionParams(selectedDef, params, showAddressMap);
+        const assembled = assembleConnectionParams(selectedDef, params, showAddressMap, includeWriteMap);
         if (!assembled.ok) {
             setError(t('addMachine.fieldRequired', { field: assembled.missing }));
             return;
