@@ -100,6 +100,7 @@ describe('plan state helpers', () => {
             team: false,
             fastPolling: true,
             machineControl: false,
+            customMachineControl: false,
         };
         for (const key of Object.values(FEATURE)) {
             expect(planHasFeature('pro', key)).toBe(pro[key]);
