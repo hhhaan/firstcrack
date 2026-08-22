@@ -61,7 +61,8 @@ def test_giesen_standard_includes_w60a_and_control_capabilities() -> None:
     assert (roles["BT"]["db"], roles["BT"]["offset"]) == (3, 116)
     assert (roles["ET"]["db"], roles["ET"]["offset"]) == (3, 112)
     assert (roles["heater"]["db"], roles["heater"]["offset"]) == (2, 48)
-    assert (roles["fan"]["db"], roles["fan"]["offset"]) == (2, 10)
+    # fan% = DB2.54 (aset "{0} %"). DB2.10은 PID SV 레지스터 — fan으로 읽으면 안 된다.
+    assert (roles["fan"]["db"], roles["fan"]["offset"]) == (2, 54)
     assert (roles["drum"]["db"], roles["drum"]["offset"]) == (2, 18)
 
 
@@ -80,7 +81,10 @@ def test_db2_giesen_write_map_targets_heater_setpoint(key: str) -> None:
     assert (heater["min"], heater["max"]) == (0, 100)
     # 쓰기 대상이 읽기 role 어느 것과도 겹치지 않아야 한다 (피드백 덮어쓰기 방지)
     roles = _role_map(ROASTER_REGISTRY[key]["default_params"]["channels"])
+    # WxA/WxA+는 fan 읽기 채널이 없다 (aset에 fan% 채널 부재) — 있는 role만 검사.
     for role in ("heater", "fan", "drum"):
+        if role not in roles:
+            continue
         assert (roles[role]["db"], roles[role]["offset"]) != (heater["db"], heater["offset"])
 
 

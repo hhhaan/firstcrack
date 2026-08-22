@@ -383,9 +383,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "type": 0,
                     "div": 0,
                 },
-                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                # fan% = db2/54 (aset idx8 "{0} %", heater db2/48 "{3} %"의 짝).
+                # db2/10은 PID SV 레지스터(aset PID_SV_register=10, °C) — fan 아님.
+                {"role": "fan", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
                 {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
-                {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
             ],
             "write_map": _GIESEN_DB2_WRITE_MAP,
         },
@@ -415,9 +416,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "type": 0,
                     "div": 0,
                 },
-                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                # fan% = db2/54 (aset idx8 "{0} %", heater db2/48 "{3} %"의 짝).
+                # db2/10은 PID SV 레지스터(aset PID_SV_register=10, °C) — fan 아님.
+                {"role": "fan", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
                 {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
-                {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
             ],
             "write_map": _GIESEN_DB2_WRITE_MAP,
         },
@@ -446,9 +448,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "type": 0,
                     "div": 0,
                 },
-                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                # fan% = db2/54 (aset idx8 "{0} %", heater db2/48 "{3} %"의 짝).
+                # db2/10은 PID SV 레지스터(aset PID_SV_register=10, °C) — fan 아님.
+                {"role": "fan", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
                 {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
-                {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
                 {
                     "role": "extra",
                     "db": 3,
@@ -463,7 +466,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
     },
-    # W30A PRO — BT/ET=standard와 동일, 추가 채널 db2/54
+    # W30A PRO — BT/ET=standard와 동일
     "giesen_w30a_pro": {
         "display_name": "Giesen W30A PRO",
         "brand": "Giesen",
@@ -485,17 +488,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "type": 0,
                     "div": 0,
                 },
-                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                # fan% = db2/54 (aset idx8 "{0} %", heater db2/48 "{3} %"의 짝).
+                # db2/10은 PID SV 레지스터(aset PID_SV_register=10, °C) — fan 아님.
+                {"role": "fan", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
                 {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
-                {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
-                {
-                    "role": "extra",
-                    "db": 2,
-                    "offset": 54,
-                    "area": 6,
-                    "type": 0,
-                    "div": 0,
-                },
             ],
             "write_map": _GIESEN_DB2_WRITE_MAP,
         },
@@ -524,9 +520,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "type": 0,
                     "div": 0,
                 },
-                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                # fan% = db2/54 (aset idx8 "{0} %", heater db2/48 "{3} %"의 짝).
+                # db2/10은 PID SV 레지스터(aset PID_SV_register=10, °C) — fan 아님.
+                {"role": "fan", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
                 {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
-                {"role": "AT", "db": 2, "offset": 54, "area": 6, "type": 0, "div": 0},
             ],
             "write_map": _GIESEN_DB2_WRITE_MAP,
         },
@@ -569,26 +566,19 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "type": 0,
                     "div": 0,
                 },
+                # fan% = db1006/96 (aset "{0} %"). db1006/20은 REAL °C 채널 — fan 아님.
                 {
                     "role": "fan",
                     "db": 1006,
-                    "offset": 20,
+                    "offset": 96,
                     "area": 6,
-                    "type": 1,
+                    "type": 0,
                     "div": 0,
                 },
                 {
                     "role": "drum",
                     "db": 1006,
                     "offset": 62,
-                    "area": 6,
-                    "type": 0,
-                    "div": 0,
-                },
-                {
-                    "role": "AT",
-                    "db": 1006,
-                    "offset": 96,
                     "area": 6,
                     "type": 0,
                     "div": 0,
@@ -630,13 +620,14 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "type": 0,
                     "div": 0,
                 },
-                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                # WxA aset에는 fan% 읽기 채널이 없다 (idx8/idx9 area=0).
+                # 기존 db2/10은 PID SV 레지스터라 fan 매핑 제거.
                 {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
             ],
             "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
-        "capabilities": ["heater", "fan", "drum"],
+        "capabilities": ["heater", "drum"],
     },
     # WxA+, WxA+ IR, WxA+ IR Env — db4, INT(type=1)
     # BT=db4/10/INT, ET=db4/6/INT (WxA와 DB 번호, 오프셋, 타입 모두 다름)
@@ -663,13 +654,13 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "type": 0,
                     "div": 0,
                 },
-                {"role": "fan", "db": 2, "offset": 10, "area": 6, "type": 0, "div": 0},
+                # WxA+ aset에도 fan% 읽기 채널이 없다. db2/10은 PID SV — fan 매핑 제거.
                 {"role": "drum", "db": 2, "offset": 18, "area": 6, "type": 0, "div": 0},
             ],
             "write_map": _GIESEN_DB2_WRITE_MAP,
         },
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
-        "capabilities": ["heater", "fan", "drum"],
+        "capabilities": ["heater", "drum"],
     },
     # -----------------------------------------------------------------------
     # Bühler Roastmaster — S7 read-only (no control write in Artisan presets)
@@ -783,18 +774,20 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "channels": [
                 {"role": "BT", "db": 100, "offset": 4, "area": 6, "type": 1, "div": 0},
                 {"role": "ET", "db": 100, "offset": 8, "area": 6, "type": 1, "div": 0},
+                # aset: db100/0은 IT(REAL °C, 0/4/8 온도 3형제) — heater 아님.
+                # heater=Burner {3}=db100/28, drum={1}=db100/22, fan=Air {0}=db100/30 (전부 INT).
                 {
                     "role": "heater",
                     "db": 100,
-                    "offset": 0,
+                    "offset": 28,
                     "area": 6,
-                    "type": 1,
+                    "type": 0,
                     "div": 0,
                 },
                 {
                     "role": "fan",
                     "db": 100,
-                    "offset": 22,
+                    "offset": 30,
                     "area": 6,
                     "type": 0,
                     "div": 0,
@@ -802,7 +795,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                 {
                     "role": "drum",
                     "db": 100,
-                    "offset": 28,
+                    "offset": 22,
                     "area": 6,
                     "type": 0,
                     "div": 0,
@@ -828,31 +821,32 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "channels": [
                 {"role": "BT", "db": 200, "offset": 18, "area": 6, "type": 1, "div": 0},
                 {"role": "ET", "db": 200, "offset": 22, "area": 6, "type": 1, "div": 0},
+                # aset: db200/14=IT, db200/30=AT (REAL °C, 14/18/22/30 온도 4형제) — 게이지 아님.
+                # heater=Burner {3}=db200/80, fan=Air {0}=db200/64, drum={1}=db200/72 (전부 INT).
                 {
                     "role": "heater",
-                    "db": 200,
-                    "offset": 14,
-                    "area": 6,
-                    "type": 1,
-                    "div": 0,
-                },
-                {
-                    "role": "fan",
-                    "db": 200,
-                    "offset": 30,
-                    "area": 6,
-                    "type": 1,
-                    "div": 0,
-                },
-                {
-                    "role": "drum",
                     "db": 200,
                     "offset": 80,
                     "area": 6,
                     "type": 0,
                     "div": 0,
                 },
-                {"role": "AT", "db": 200, "offset": 64, "area": 6, "type": 0, "div": 0},
+                {
+                    "role": "fan",
+                    "db": 200,
+                    "offset": 64,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
+                {
+                    "role": "drum",
+                    "db": 200,
+                    "offset": 72,
+                    "area": 6,
+                    "type": 0,
+                    "div": 0,
+                },
                 {
                     "role": "extra",
                     "db": 200,
@@ -1643,7 +1637,8 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 1,
                     "mode": "F",
                 },
-                "drum": {
+                # aset: 778 = {3} = Burner(연소율%) — drum 아님 (etypesdefault[3]).
+                "heater": {
                     "register": 778,
                     "func": 3,
                     "unit_id": 1,
@@ -1656,7 +1651,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             },
         },
         "pid": None,
-        "capabilities": ["drum"],
+        "capabilities": ["heater"],
     },
     # Smart Roast Auto — Smart Roast와 동일하나 자동 로스팅 상태 채널 추가
     # auto_status: register=284, func=2(Discrete Input), unit_id=1, div=0
@@ -1720,7 +1715,8 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 1,
                     "mode": "F",
                 },
-                "drum": {
+                # aset: 778 = {3} = Burner(연소율%) — drum 아님 (etypesdefault[3]).
+                "heater": {
                     "register": 778,
                     "func": 3,
                     "unit_id": 1,
@@ -1742,6 +1738,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             },
         },
         "pid": None,
-        "capabilities": ["drum"],
+        "capabilities": ["heater"],
     },
 }
