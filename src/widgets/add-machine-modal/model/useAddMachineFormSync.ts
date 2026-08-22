@@ -74,7 +74,13 @@ export const useAddMachineFormSync = ({
             const def = includeAddressMap
                 ? buildProtocolRoasterDef(editing.protocol)
                 : ROASTER_REGISTRY[editing.roasterKey];
-            if (def) setParams(initRoasterFormParams(def, editing.connectionParams, { includeAddressMap }));
+            if (def)
+                setParams(
+                    initRoasterFormParams(def, editing.connectionParams, {
+                        includeAddressMap,
+                        includeWriteMap: includeAddressMap,
+                    }),
+                );
             return;
         }
         setTab('supported');
@@ -94,6 +100,6 @@ export const useAddMachineFormSync = ({
     useEffect(() => {
         if (!open || editingId || !isCustom || !customProtocol) return;
         const def = buildProtocolRoasterDef(customProtocol);
-        setParams(initRoasterFormParams(def, undefined, { includeAddressMap: true }));
+        setParams(initRoasterFormParams(def, undefined, { includeAddressMap: true, includeWriteMap: true }));
     }, [open, editingId, isCustom, customProtocol, setParams]);
 };

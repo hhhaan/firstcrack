@@ -20,7 +20,7 @@ const FUNC_OPTIONS = [
     { value: '2', label: '2 Discrete' },
 ];
 
-const DIV_OPTIONS = [
+export const DIV_OPTIONS = [
     { value: '0', label: 'raw (÷1)' },
     { value: '1', label: '÷10' },
     { value: '2', label: '÷100' },
@@ -36,7 +36,7 @@ const TEMP_MODE_OPTIONS = [
     { value: 'F', label: '°F' },
 ];
 
-const S7_TYPE_OPTIONS = [
+export const S7_TYPE_OPTIONS = [
     { value: '0', label: 'INT (16-bit)' },
     { value: '1', label: 'REAL (float)' },
 ];

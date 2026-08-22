@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useAddMachineForm } from '../model/useAddMachineForm';
 import { ConfirmStepFooter } from './ConfirmStepFooter';
 import { ConnectionMethodSection } from './ConnectionMethodSection';
+import { ControlSettingsSection } from './ControlSettingsSection';
 import { DriverSettingsSection } from './DriverSettingsSection';
 
 interface AddMachineModalProps {
@@ -94,6 +95,15 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                     showAddressMap={form.showAddressMap}
                     addressFields={form.addressFields}
                 />
+
+                {form.showWriteMap && form.selectedDef && (
+                    <ControlSettingsSection
+                        protocol={form.selectedDef.protocol}
+                        params={form.params}
+                        setParam={form.setParam}
+                        serialPorts={form.serialPorts}
+                    />
+                )}
 
                 {form.error && (
                     <div className="text-[13px] text-red-600 dark:text-red-400 px-3 py-2 rounded-lg bg-red-500/8 dark:bg-red-500/10">

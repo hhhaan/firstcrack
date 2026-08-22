@@ -16,6 +16,11 @@ export const FEATURE = {
      * 서버처럼 강제할 수 없다 (fastPolling과 동일한 한계).
      */
     machineControl: 'machineControl',
+    /**
+     * 커스텀 머신 write_map / PID 게인 입력. Enterprise-class only.
+     * 로스팅 중 제어 UI는 machineControl (Pro+)이 별도로 게이트한다.
+     */
+    customMachineControl: 'customMachineControl',
 } as const;
 
 export type FeatureKey = (typeof FEATURE)[keyof typeof FEATURE];

@@ -1,5 +1,11 @@
 import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
-import { useMachines, VIRTUAL_ID } from '@entities/machine';
+import {
+    controlCapabilitiesFromParams,
+    isCustomConnectKey,
+    pidFromParams,
+    useMachines,
+    VIRTUAL_ID,
+} from '@entities/machine';
 import { canAddMachine, planMaxMachines } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import { useAuthStore } from '@shared/store/auth';
@@ -40,6 +46,7 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
             }
             const name = meta?.name?.trim() || def.display_name;
             const brand = meta?.brand?.trim() || def.brand;
+            const controlCaps = controlCapabilitiesFromParams(params);
             addMachine({
                 name,
                 roasterKey,
@@ -48,8 +55,8 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
                 models: meta?.name?.trim() ? [name] : def.models,
                 protocol: def.protocol,
                 connectionParams: params,
-                capabilities: def.capabilities,
-                pid: def.pid,
+                capabilities: controlCaps.length > 0 ? controlCaps : def.capabilities,
+                pid: pidFromParams(params) ?? def.pid,
             });
         },
         [addMachine, plan, realMachineCount],
@@ -59,7 +66,16 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
         async (id: string, params: Record<string, unknown>, keepConnection = false): Promise<void> => {
             const machine = machines.find((m) => m.id === id);
             const wasConnected = machine ? isThisMachineConnected(machine) : false;
-            updateMachine(id, { connectionParams: params });
+            const isCustom = machine ? isCustomConnectKey(machine.roasterKey) : false;
+            updateMachine(id, {
+                connectionParams: params,
+                ...(isCustom
+                    ? {
+                          pid: pidFromParams(params),
+                          capabilities: controlCapabilitiesFromParams(params),
+                      }
+                    : {}),
+            });
             if (wasConnected && !keepConnection) {
                 const status = await sidecar.disconnect().catch(() => null);
                 if (status) setSidecarStatus(status);

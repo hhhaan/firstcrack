@@ -35,6 +35,7 @@ export function planHasFeature(plan: string, key: FeatureKey): boolean {
             return isCoreEntitled(plan);
         case FEATURE.orderIntegration:
         case FEATURE.team:
+        case FEATURE.customMachineControl:
             return ORDER_INTEGRATION_PLANS.has(plan);
         case FEATURE.roastedInventory:
         case FEATURE.productStock:
