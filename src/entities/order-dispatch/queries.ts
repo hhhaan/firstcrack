@@ -1,4 +1,4 @@
-import { inventoryQueryRoots, orderKeys } from '@shared/lib/query-keys';
+import { orderKeys, productStockKeys } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { orderDispatchApi } from './api';
 
@@ -25,7 +25,7 @@ export const useDispatchOrder = (userId: string) => {
             void qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
             // C3: dispatch may call fulfill_order — mirror useFulfillOrder invalidation
             if (res.fulfilled) {
-                void qc.invalidateQueries({ queryKey: [...inventoryQueryRoots.productStock, userId] });
+                void qc.invalidateQueries({ queryKey: productStockKeys.byUser(userId) });
                 void qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) });
             }
         },

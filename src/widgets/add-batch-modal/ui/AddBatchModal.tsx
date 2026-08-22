@@ -36,8 +36,6 @@ interface AddBatchModalProps {
     open: boolean;
     onClose: () => void;
     onSave?: (data: NewBatchData) => Promise<void>;
-    /** @deprecated Use onSave */
-    onAdd?: (data: NewBatchData) => void;
     editingBatch?: PlanBatchWithProgress | null;
     editScope?: EditScope | null;
     currentDateKey?: string;
@@ -48,7 +46,6 @@ export const AddBatchModal = ({
     open,
     onClose,
     onSave,
-    onAdd,
     editingBatch,
     editScope,
     currentDateKey,
@@ -145,23 +142,15 @@ export const AddBatchModal = ({
     const dateChanged = isEdit && !!currentDateKey && newDateKey !== currentDateKey;
     const canSubmit = date !== undefined && !!machineId && targetNum > 0 && batchSizeNum > 0 && !saving;
 
-    const saveHandler =
-        onSave ??
-        (onAdd
-            ? async (data: NewBatchData) => {
-                  onAdd(data);
-              }
-            : undefined);
-
     const handleSubmit = async () => {
-        if (!canSubmit || !date || !saveHandler) return;
+        if (!canSubmit || !date || !onSave) return;
 
         const isBlendType = batchType === 'Pre-roast Blend' || batchType === 'Post-roast Blend';
         const effectiveStockKg = (stockSummary?.effectiveGrams ?? 0) / 1000;
 
         setSaving(true);
         try {
-            await saveHandler(
+            await onSave(
                 buildNewBatchPayload({
                     date,
                     machineId,

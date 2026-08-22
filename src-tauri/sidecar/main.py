@@ -202,7 +202,13 @@ async def handle_start(request: web.Request) -> web.Response:
 
 async def handle_reset(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
-    await manager.reset_roast()
+    try:
+        await manager.reset_roast()
+    except Exception as exc:
+        _log.error("reset 실패: %s", exc, exc_info=True)
+        body = manager.status()
+        body["ok"] = False
+        return web.json_response(body, status=500)
     return web.json_response({"ok": True})
 
 

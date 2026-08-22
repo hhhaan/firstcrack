@@ -20,8 +20,6 @@ export {
     validateAddressMaps,
 } from './addressMap';
 
-export const CUSTOM_ROASTER_KEY = '__custom__';
-
 /** Protocols whose adapters honor a client-supplied write_map. */
 const WRITE_MAP_PROTOCOLS = new Set(['s7']);
 

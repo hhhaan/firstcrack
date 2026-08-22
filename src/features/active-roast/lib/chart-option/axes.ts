@@ -15,16 +15,11 @@ import {
     Y_AXIS_NAME_GAP,
 } from '@features/active-roast/lib/chart-config';
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { formatElapsed } from '@shared/lib/format';
 import type { EChartsOption } from 'echarts';
 import type { ResolvedChartColors } from './types';
 
-export const fmtSec = (v: number) => {
-    const sign = v < 0 ? '-' : '';
-    const abs = Math.abs(v);
-    const m = Math.floor(abs / 60);
-    const s = Math.floor(abs % 60);
-    return `${sign}${m}:${String(s).padStart(2, '0')}`;
-};
+export const fmtSec = (v: number) => `${v < 0 ? '-' : ''}${formatElapsed(Math.abs(v))}`;
 
 /** Labels only at 0, 50, 100… — not from axis min (e.g. 20→300 → 50…300) */
 export const formatTempYLabel = (v: number) => {

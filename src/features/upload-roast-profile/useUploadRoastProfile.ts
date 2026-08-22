@@ -1,9 +1,7 @@
 import { useActiveWorkspace } from '@entities/organization';
-import { roastSessionApi } from '@entities/roast';
-import { roastSessionKeys } from '@entities/roast/queries';
+import { patchRoastSessionTsvPaths, roastSessionApi } from '@entities/roast';
 import { logger } from '@shared/lib/logger';
 import { deleteBbpTsv, deleteSessionTsv, flushTsv } from '@shared/lib/tsv-writer';
-import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadBbpProfile, uploadRoastProfile } from './uploadRoastProfile';
 
@@ -21,11 +19,6 @@ const shouldRetry = (failureCount: number, error: unknown): boolean => {
     if (/R2 upload failed \(4\d\d\)/.test(error.message)) return false;
     return true;
 };
-
-type PaginatedCache = { data: RoastSessionWithRelations[]; total: number };
-
-const isPaginatedCache = (old: unknown): old is PaginatedCache =>
-    !!old && typeof old === 'object' && 'data' in old && Array.isArray((old as PaginatedCache).data);
 
 /**
  * flush → R2 (main + optional BBP) → single DB update → delete local (only on full success).
@@ -68,17 +61,9 @@ export const useUploadRoastProfile = () => {
         retry: shouldRetry,
         retryDelay: (attemptIndex) => 1000 * (attemptIndex + 1),
         onSuccess: ({ key, bbpKey }, { roastSessionId }) => {
+            if (!workspaceOwnerId) return;
             // Patch path fields into list caches (network 0) — do not invalidate unbounded lists.
-            // Shape-guard: filterMeta and other non-list shapes under prefix must pass through.
-            const patch = (row: RoastSessionWithRelations) =>
-                row.id === roastSessionId ? { ...row, tsv_path: key, bbp_tsv_path: bbpKey ?? row.bbp_tsv_path } : row;
-
-            qc.setQueriesData({ queryKey: ['roast_sessions'] }, (old: unknown) => {
-                if (Array.isArray(old)) return (old as RoastSessionWithRelations[]).map(patch);
-                if (isPaginatedCache(old)) return { ...old, data: old.data.map(patch) };
-                return old;
-            });
-            void qc.invalidateQueries({ queryKey: roastSessionKeys.detail(roastSessionId) });
+            patchRoastSessionTsvPaths(qc, workspaceOwnerId, roastSessionId, key, bbpKey);
         },
     });
 };

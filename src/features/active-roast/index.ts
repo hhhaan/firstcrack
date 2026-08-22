@@ -6,7 +6,15 @@ export type { RoastEventMarker } from './lib/chart-option';
 export type { PhaseSegment } from './lib/phases';
 export { computePhaseSegments } from './lib/phases';
 // lib
-export { formatTemp, fromDisplayTemp, toDisplayRoR, toDisplayTemp } from './lib/temperature';
+export {
+    formatTemp,
+    fromDisplayTemp,
+    rorUnitLabel,
+    tempUnitLabel,
+    toDisplayRoR,
+    toDisplayTemp,
+    toDisplayTempDelta,
+} from './lib/temperature';
 export type { TurningPoint } from './lib/turningPoints';
 export { detectTurningPoints } from './lib/turningPoints';
 export type { BbpSample, BbpSummary } from './model/bbp';

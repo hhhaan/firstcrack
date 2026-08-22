@@ -42,6 +42,21 @@ _comport_placeholder = {"Darwin": "/dev/cu.usbserial-XXXX", "Windows": "COM3"}.g
 # GET /roasters 응답에 포함 → AddMachineModal 동적 렌더링
 # ---------------------------------------------------------------------------
 
+# 시리얼 공통 폼 필드 (kaleido/modbus 공유) — TS SERIAL_FORM_FIELDS와 미러.
+_SERIAL_FORM_FIELDS: list[dict[str, Any]] = [
+    {
+        "key": "comport",
+        "label": "Serial Port",
+        "type": "text",
+        "required": False,
+        "placeholder": _comport_placeholder,
+    },
+    {"key": "baudrate", "label": "Baud Rate", "type": "number", "required": False},
+    {"key": "bytesize", "label": "Byte Size", "type": "number", "required": False},
+    {"key": "parity", "label": "Parity", "type": "select", "required": False},
+    {"key": "stopbits", "label": "Stop Bits", "type": "number", "required": False},
+]
+
 PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
     "s7": [
         {
@@ -98,20 +113,7 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
             "required": False,
             "placeholder": "80",
         },
-        {
-            "key": "comport",
-            "label": "Serial Port",
-            "type": "text",
-            "required": False,
-            "placeholder": _comport_placeholder,
-        },
-        {
-            "key": "baudrate",
-            "label": "Baud Rate",
-            "type": "number",
-            "required": False,
-            "placeholder": "57600",
-        },
+        *_SERIAL_FORM_FIELDS,
     ],
     "probat_ws": [
         {
@@ -150,14 +152,7 @@ PROTOCOL_FORM_FIELDS: dict[str, list[dict[str, Any]]] = {
             "placeholder": "127.0.0.1",
         },
         {"key": "port", "label": "Port", "type": "number", "required": False},
-        {
-            "key": "comport",
-            "label": "Serial Port",
-            "type": "text",
-            "required": False,
-            "placeholder": _comport_placeholder,
-        },
-        {"key": "baudrate", "label": "Baud Rate", "type": "number", "required": False},
+        *_SERIAL_FORM_FIELDS,
     ],
     "phidget": [
         {
@@ -925,6 +920,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 502,
             "comport": "",
             "baudrate": 115200,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 12392,
@@ -953,6 +952,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 502,
             "comport": "",
             "baudrate": 115200,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 12392,
@@ -993,6 +996,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "path": "ws",
             "comport": "",
             "baudrate": 57600,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
         },
         "pid": {"Kp": 15, "Ki": 0.07, "Kd": 0.06},
         "capabilities": ["heater", "fan", "drum"],
@@ -1016,6 +1023,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 8010,
             "comport": "",
             "baudrate": 115200,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 0,
@@ -1050,6 +1061,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 8010,
             "comport": "",
             "baudrate": 115200,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 0,
@@ -1121,7 +1136,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 502,
             "comport": "",
             "baudrate": 9600,
+            "bytesize": 8,
+            "parity": "N",
             "stopbits": 2,
+            "interval": 1,
             "word_order": "big",
             "modbus_registers": {
                 "BT": {
@@ -1158,6 +1176,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 3000,
             "comport": "",
             "baudrate": 115200,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 3,
@@ -1199,7 +1221,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 502,
             "comport": "",
             "baudrate": 9600,
+            "bytesize": 8,
+            "parity": "N",
             "stopbits": 2,
+            "interval": 1,
             "word_order": "big",
             "modbus_registers": {
                 "BT": {
@@ -1236,6 +1261,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 502,
             "comport": "",
             "baudrate": 38400,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
             "word_order": "big",
             "modbus_registers": {
                 "BT": {
@@ -1277,7 +1306,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 502,
             "comport": "",
             "baudrate": 9600,
+            "bytesize": 8,
+            "parity": "N",
             "stopbits": 2,
+            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 1000,
@@ -1313,6 +1345,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 502,
             "comport": "",
             "baudrate": 9600,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 1,
@@ -1566,6 +1602,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 502,
             "comport": "COM5",
             "baudrate": 115200,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 768,
@@ -1639,6 +1679,10 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "port": 502,
             "comport": "COM5",
             "baudrate": 115200,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 768,

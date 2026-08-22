@@ -1,3 +1,4 @@
+import { formatTemp, useRoastSettings } from '@features/active-roast';
 import { formatDuration } from '@shared/lib/format';
 import { sessionBeanName } from '@shared/lib/sessionBeanName';
 import type { View } from '@shared/types/view';
@@ -16,6 +17,7 @@ interface RecentSessionsTableProps {
 
 export const RecentSessionsTable = ({ data, loading, onNavigate }: RecentSessionsTableProps) => {
     const { t } = useTranslation();
+    const unit = useRoastSettings().temperatureUnit;
 
     return (
         <div className="bg-main-bg rounded-lg overflow-hidden dark:border dark:border-[#585d61]">
@@ -83,7 +85,7 @@ export const RecentSessionsTable = ({ data, loading, onNavigate }: RecentSession
                                         {formatWeight(session.weight_grams)}
                                     </td>
                                     <td className="px-6 py-3 text-[13px] text-secondary font-mono whitespace-nowrap">
-                                        {session.drop_temp_celsius ? `${session.drop_temp_celsius}°C` : '—'}
+                                        {formatTemp(session.drop_temp_celsius, unit)}
                                     </td>
                                     <td className="px-6 py-3 text-[13px] text-secondary font-mono whitespace-nowrap">
                                         {session.duration_seconds ? formatDuration(session.duration_seconds) : '—'}

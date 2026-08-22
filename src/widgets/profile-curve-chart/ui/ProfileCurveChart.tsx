@@ -1,3 +1,5 @@
+import { tempUnitLabel, toDisplayTemp, useRoastSettings } from '@features/active-roast';
+import { formatElapsed } from '@shared/lib/format';
 import { resolveColor } from '@shared/ui/Sparkline';
 import { useEffect, useMemo, useRef } from 'react';
 import uPlot from 'uplot';
@@ -24,30 +26,40 @@ interface ProfileCurveChartProps {
 export const ProfileCurveChart = ({ series }: ProfileCurveChartProps) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const plotRef = useRef<uPlot | null>(null);
+    const unit = useRoastSettings().temperatureUnit;
+    const displaySeries = useMemo(
+        () =>
+            series.map((s) => ({
+                ...s,
+                curve: s.curve.map((p) => ({ t: p.t, bt: toDisplayTemp(p.bt, unit) })),
+            })),
+        [series, unit],
+    );
 
     const plotDataKey = useMemo(
         () =>
-            series
+            `${unit}|${displaySeries
                 .map((s) => {
                     const last = s.curve[s.curve.length - 1];
                     return `${s.curve.length}:${s.curve[0]?.t ?? ''}:${last?.t ?? ''}:${s.curve[0]?.bt ?? ''}:${last?.bt ?? ''}`;
                 })
-                .join('|'),
-        [series],
+                .join('|')}`,
+        [displaySeries, unit],
     );
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: series fingerprinted via plotDataKey to avoid parent inline-array churn
     useEffect(() => {
         const el = containerRef.current;
-        if (!el || series.length === 0) return;
+        if (!el || displaySeries.length === 0) return;
 
         const cs = getComputedStyle(document.documentElement);
         const colorMuted = cs.getPropertyValue('--color-muted').trim() || '#9ca3af';
+        const unitLabel = tempUnitLabel(unit);
 
-        const { xs, ysArrays, yRange } = buildProfileCurvePlotData(series.map((s) => s.curve));
+        const { xs, ysArrays, yRange } = buildProfileCurvePlotData(displaySeries.map((s) => s.curve));
 
-        const isMulti = series.length > 1;
-        const resolvedColors = series.map((s) => resolveColor(s.color));
+        const isMulti = displaySeries.length > 1;
+        const resolvedColors = displaySeries.map((s) => resolveColor(s.color));
 
         const ttEl = document.createElement('div');
         Object.assign(ttEl.style, {
@@ -79,16 +91,14 @@ export const ProfileCurveChart = ({ series }: ProfileCurveChartProps) => {
                             return;
                         }
                         const xSec = (u.data[0] as number[])[idx];
-                        const m = Math.floor(xSec / 60);
-                        const s = Math.round(xSec % 60);
-                        let html = `<div style="font-weight:500;color:${colorMuted};margin-bottom:4px">${m}:${String(s).padStart(2, '0')}</div>`;
-                        series.forEach((ser, i) => {
+                        let html = `<div style="font-weight:500;color:${colorMuted};margin-bottom:4px">${formatElapsed(xSec)}</div>`;
+                        displaySeries.forEach((ser, i) => {
                             const val = (u.data[i + 1] as (number | null)[])[idx];
                             if (val == null) return;
                             html += `<div style="display:flex;align-items:center;gap:6px;${i > 0 ? 'margin-top:3px' : ''}">
                                 <div style="width:8px;height:8px;border-radius:2px;background:${resolvedColors[i]}"></div>
                                 <span style="color:${colorMuted}">${isMulti ? ser.label : 'Bean Temp'}:</span>
-                                <span style="font-weight:600;color:#171717">${val.toFixed(1)}°C</span>
+                                <span style="font-weight:600;color:#171717">${val.toFixed(1)}${unitLabel}</span>
                             </div>`;
                         });
                         const tw = ttEl.offsetWidth || 160;

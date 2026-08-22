@@ -19,31 +19,26 @@ export function isCoreEntitled(plan: string): boolean {
     return plan === 'trial' || isPaidPlan(plan);
 }
 
-/** read_only blocks all core writes — server-enforced; this mirrors it for UI. */
+/** Known writable plans only — unknown/garbage strings are not writable. */
 export function isWritablePlan(plan: string): boolean {
-    return plan !== 'read_only';
+    return isCoreEntitled(plan) || plan === 'free';
 }
 
-/** Plan → feature. Only place that encodes “who gets what”. */
+const FEATURE_PREDICATE = {
+    [FEATURE.cupping]: isCoreEntitled,
+    [FEATURE.bbp]: isCoreEntitled,
+    [FEATURE.fastPolling]: isCoreEntitled,
+    [FEATURE.orderIntegration]: (plan: string) => ORDER_INTEGRATION_PLANS.has(plan),
+    [FEATURE.customMachineControl]: (plan: string) => ORDER_INTEGRATION_PLANS.has(plan),
+    [FEATURE.team]: (plan: string) => ORDER_INTEGRATION_PLANS.has(plan),
+    [FEATURE.roastedInventory]: (plan: string) => PRO_PLUS_PLANS.has(plan),
+    [FEATURE.productStock]: (plan: string) => PRO_PLUS_PLANS.has(plan),
+    [FEATURE.machineControl]: (plan: string) => PRO_PLUS_PLANS.has(plan),
+} satisfies Record<FeatureKey, (plan: string) => boolean>;
+
+/** Plan → feature. Only place that encodes “who gets what”. Exhaustive on FeatureKey. */
 export function planHasFeature(plan: string, key: FeatureKey): boolean {
-    switch (key) {
-        case FEATURE.cupping:
-            return isCoreEntitled(plan);
-        case FEATURE.bbp:
-            return isCoreEntitled(plan);
-        case FEATURE.fastPolling:
-            return isCoreEntitled(plan);
-        case FEATURE.orderIntegration:
-        case FEATURE.team:
-        case FEATURE.customMachineControl:
-            return ORDER_INTEGRATION_PLANS.has(plan);
-        case FEATURE.roastedInventory:
-        case FEATURE.productStock:
-        case FEATURE.machineControl:
-            return PRO_PLUS_PLANS.has(plan);
-        default:
-            return false;
-    }
+    return FEATURE_PREDICATE[key]?.(plan) ?? false;
 }
 
 /**
