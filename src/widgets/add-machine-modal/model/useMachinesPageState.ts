@@ -1,8 +1,7 @@
 import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
 import { useMachines, VIRTUAL_ID } from '@entities/machine';
-import { canAddMachine, planMaxMachines } from '@shared/lib/features';
+import { canAddMachine, planMaxMachines, useEffectivePlan } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
-import { useAuthStore } from '@shared/store/auth';
 import { type Dispatch, type SetStateAction, useCallback, useMemo, useState } from 'react';
 
 type Args = {
@@ -13,7 +12,7 @@ type Args = {
 
 export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps }: Args) => {
     const { addMachine, updateMachine, machines } = useMachines();
-    const plan = useAuthStore((s) => s.plan);
+    const plan = useEffectivePlan();
     const [modalOpen, setModalOpen] = useState(false);
     const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
     const [limitBlocked, setLimitBlocked] = useState(false);

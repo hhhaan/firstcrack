@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { resolveEffectivePlan } from './effective-plan';
+import { PERSONAL_PLAN_PLACEHOLDER, resolveEffectivePlan } from './effective-plan';
 import { FEATURE } from './keys';
-import { planHasFeature } from './plan-matrix';
+import { canAddMachine, isWritablePlan, planHasFeature, planMaxMachines } from './plan-matrix';
 
 describe('resolveEffectivePlan', () => {
     const me = 'user-me';
@@ -60,6 +60,28 @@ describe('resolveEffectivePlan', () => {
         ).toBe('');
     });
 
+    it('self workspace missing personal plan uses writable placeholder', () => {
+        const plan = resolveEffectivePlan({
+            personalPlan: '',
+            authUserId: me,
+            activeOwnerId: null,
+            ownerPlanById: {},
+        });
+        expect(plan).toBe(PERSONAL_PLAN_PLACEHOLDER);
+        expect(isWritablePlan(plan)).toBe(true);
+    });
+
+    it('foreign workspace still denies when host plan is missing', () => {
+        const plan = resolveEffectivePlan({
+            personalPlan: 'pro',
+            authUserId: me,
+            activeOwnerId: owner,
+            ownerPlanById: { [owner]: '' },
+        });
+        expect(plan).toBe('');
+        expect(isWritablePlan(plan)).toBe(false);
+    });
+
     it('keeps FEATURE.team on personal plan even in foreign workspace', () => {
         expect(
             resolveEffectivePlan({
@@ -104,5 +126,16 @@ describe('inherited plan feature matrix', () => {
             featureKey: FEATURE.cupping,
         });
         expect(planHasFeature(plan, FEATURE.cupping)).toBe(false);
+    });
+
+    it('personal pro + host enterprise: machine quota follows host (unlimited)', () => {
+        const plan = resolveEffectivePlan({
+            personalPlan: 'pro',
+            authUserId: me,
+            activeOwnerId: owner,
+            ownerPlanById: { [owner]: 'enterprise' },
+        });
+        expect(planMaxMachines(plan)).toBeNull();
+        expect(canAddMachine(plan, 99)).toBe(true);
     });
 });

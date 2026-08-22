@@ -8,6 +8,11 @@ export const dashboardKeys = {
     all: (userId: string) => ['dashboard', userId] as const,
 };
 
+/** Profile row — gates (`useEffectivePlan`) + entity `useProfile` share this cache. */
+export const profileKeys = {
+    detail: (userId: string) => ['profile', userId] as const,
+};
+
 /** Inventory / stock — used by bean-stock-event, inventory-alert, roast deduct, packaging, dashboard */
 export const inventoryQueryRoots = {
     beanStockSummaries: ['bean-stock-summaries'] as const,
