@@ -87,10 +87,11 @@ class TestControlWrite:
         assert adapter._plc.db_write.call_count == 1
         assert _written(adapter._plc)[1] == 14
 
-    async def test_noop_when_plc_none(self, adapter):
+    async def test_raises_when_plc_none(self, adapter):
         plc = adapter._plc
         adapter._plc = None
-        await adapter.control(heater=50.0)
+        with pytest.raises(ConnectionError, match="연결되지 않음"):
+            await adapter.control(heater=50.0)
         plc.db_write.assert_not_called()
 
     async def test_noop_when_no_value_requested(self, adapter):

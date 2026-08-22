@@ -198,7 +198,7 @@ class TestControlEndpoint:
         assert resp.status == 400
         assert fake.control_calls == []
 
-    async def test_control_unsupported_role_returns_400(self, client):
+    async def test_control_unsupported_role_returns_409(self, client):
         """probat_ws는 write_map이 없다 — 쓰기 미지원 머신."""
         fake = FakeAdapter(readings=[make_reading(bt=150.0)])
         with patch("manager.make_adapter", return_value=fake):
