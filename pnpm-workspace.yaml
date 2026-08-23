@@ -1,3 +1,4 @@
+minimumReleaseAge: 10080
 allowBuilds:
   '@carbon/icon-helpers': false
   '@carbon/icons-react': false

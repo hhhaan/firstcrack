@@ -73,7 +73,7 @@ export const usePricingCalculator = () => {
     const [priceDriven, setPriceDriven] = useState(false);
     const [sellingPriceOverride, setSellingPriceOverride] = useState<number | null>(null);
 
-    const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const persistReadyRef = useRef(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -87,32 +87,27 @@ export const usePricingCalculator = () => {
         };
     }, []);
 
-    const persistOverheads = useCallback((items: FixedOverheadItem[]) => {
-        if (saveTimer.current) clearTimeout(saveTimer.current);
-        saveTimer.current = setTimeout(() => {
-            pricingStore.setFixedOverheads(items).catch((err) => {
+    useEffect(() => {
+        if (!overheadsReady) return;
+        if (!persistReadyRef.current) {
+            persistReadyRef.current = true;
+            return;
+        }
+        const id = setTimeout(() => {
+            pricingStore.setFixedOverheads(fixedOverheads).catch((err) => {
                 logger.capture(err, { context: 'pricing.fixedOverheads.persist' });
             });
         }, SAVE_DEBOUNCE_MS);
-    }, []);
-
-    useEffect(() => {
-        return () => {
-            if (saveTimer.current) clearTimeout(saveTimer.current);
-        };
-    }, []);
+        return () => clearTimeout(id);
+    }, [fixedOverheads, overheadsReady]);
 
     const updateOverheads = useCallback(
         (next: FixedOverheadItem[] | ((prev: FixedOverheadItem[]) => FixedOverheadItem[])) => {
-            setFixedOverheads((prev) => {
-                const resolved = typeof next === 'function' ? next(prev) : next;
-                if (overheadsReady) persistOverheads(resolved);
-                return resolved;
-            });
+            setFixedOverheads((prev) => (typeof next === 'function' ? next(prev) : next));
             setPriceDriven(false);
             setSellingPriceOverride(null);
         },
-        [overheadsReady, persistOverheads],
+        [],
     );
 
     const selectedBean = beans.find((b) => b.id === selectedBeanId) ?? null;

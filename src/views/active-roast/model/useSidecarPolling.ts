@@ -206,7 +206,9 @@ export const useSidecarPolling = ({
     useEffect(() => {
         if (phase === 'idle') return;
 
+        let cancelled = false;
         const applyConnection = (decision: ReturnType<typeof classifySidecarConnection>) => {
+            if (cancelled) return;
             const store = useRoastingStore.getState();
             store.setError(decision.error);
             store.setReconnecting(decision.reconnecting);
@@ -216,9 +218,11 @@ export const useSidecarPolling = ({
         const poll = async () => {
             try {
                 const data = await sidecar.getTemperatures();
+                if (cancelled) return;
                 // bt가 null이면 연결 끊김 가능성 → /status로 이중 확인
                 if (data.bt === null || data.bt === undefined) {
                     const status = await sidecar.getStatus().catch(() => null);
+                    if (cancelled) return;
                     const decision = classifySidecarConnection({
                         kind: 'null_bt',
                         dataReconnecting: data.reconnecting,
@@ -334,6 +338,7 @@ export const useSidecarPolling = ({
                 // Transient HTTP/timeout must not wipe reconnecting or force hard disconnect
                 // while the sidecar is still up or hardware auto-reconnect is running.
                 const status = await sidecar.getStatus().catch(() => null);
+                if (cancelled) return;
                 applyConnection(
                     classifySidecarConnection({
                         kind: 'poll_error',
@@ -345,7 +350,10 @@ export const useSidecarPolling = ({
 
         void poll();
         const id = setInterval(() => void poll(), pollIntervalMs);
-        return () => clearInterval(id);
+        return () => {
+            cancelled = true;
+            clearInterval(id);
+        };
     }, [phase, pollIntervalMs]);
 
     return { livePoints, setLivePoints };

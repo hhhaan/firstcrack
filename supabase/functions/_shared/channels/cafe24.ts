@@ -93,7 +93,11 @@ class Cafe24HttpError extends Error {
  * `refreshCafe24Token`.
  */
 async function cafe24Request(url: URL | string, init?: RequestInit): Promise<HttpAttempt> {
-    return withRetry(() => fetch(url, init).then(readHttpAttempt), cafe24Throttle, { label: 'cafe24' });
+    return withRetry(
+        () => fetch(url, { ...init, redirect: 'manual' }).then(readHttpAttempt),
+        cafe24Throttle,
+        { label: 'cafe24' },
+    );
 }
 
 async function cafe24Get(

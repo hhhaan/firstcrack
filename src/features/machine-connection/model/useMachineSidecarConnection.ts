@@ -41,11 +41,13 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
             return;
         }
 
+        let cancelled = false;
         const poll = async () => {
             const [nextTemps, nextStatus] = await Promise.all([
                 sidecar.getTemperatures().catch(() => null),
                 sidecar.getStatus().catch(() => null),
             ]);
+            if (cancelled) return;
             if (nextTemps) setTemps(nextTemps);
             if (nextStatus) {
                 setSidecarStatus((prev) => (isSameSidecarStatus(prev, nextStatus) ? prev : nextStatus));
@@ -55,7 +57,10 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
         const id = setInterval(() => {
             void poll();
         }, POLL_INTERVAL_MS);
-        return () => clearInterval(id);
+        return () => {
+            cancelled = true;
+            clearInterval(id);
+        };
     }, [isActive, sidecarStatus?.connected, modalOpen]);
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: only re-run on connection change (user can reselect)

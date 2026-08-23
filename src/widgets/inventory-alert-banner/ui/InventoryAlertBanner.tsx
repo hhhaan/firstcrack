@@ -2,7 +2,7 @@ import { type InventoryAlert, useDismissInventoryAlert, useInventoryAlerts } fro
 import { alertColor } from '@shared/lib/inventory-alert-styles';
 import type { View } from '@shared/types/view';
 import { X } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const STORAGE_KEY = 'fc_dismissed_alerts';
@@ -37,14 +37,13 @@ export const InventoryAlertBanner = ({ userId, onNavigate }: InventoryAlertBanne
     const dismiss = useDismissInventoryAlert(userId);
     const [dismissedIds, setDismissedIds] = useState(() => loadDismissed());
 
+    useEffect(() => {
+        persistDismissed(dismissedIds);
+    }, [dismissedIds]);
+
     const dismissAlert = useCallback(
         (id: string) => {
-            setDismissedIds((prev) => {
-                const next = new Set(prev);
-                next.add(id);
-                persistDismissed(next);
-                return next;
-            });
+            setDismissedIds((prev) => new Set([...prev, id]));
             dismiss.mutate(id);
         },
         [dismiss],
