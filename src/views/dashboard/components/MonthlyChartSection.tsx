@@ -44,9 +44,6 @@ export const MonthlyChartSection = ({
             </div>
 
             <div className="mt-5 pt-4 border-t border-divider shrink-0">
-                <div className="text-xs text-muted mb-3 tracking-[0.5px] uppercase font-medium text-center">
-                    {t('dashboard.thisMonth')}
-                </div>
                 <div className="flex items-center justify-center gap-0 w-full">
                     <div className="flex-1 text-center border-x border-divider max-w-[160px]">
                         <div className="text-[22px] font-semibold text-primary tracking-[-0.4px]">
