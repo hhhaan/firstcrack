@@ -8,7 +8,7 @@ python-snap7==2.1.0
 bleak==3.0.2
 
 # MODBUS (used directly by santoker.py)
-pymodbus==3.14.0
+pymodbus==3.15.0
 
 # PID filters
 # (numpy/scipy removed - using pure python implementation in manager.py)
