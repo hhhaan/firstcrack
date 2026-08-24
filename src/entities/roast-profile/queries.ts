@@ -87,6 +87,9 @@ export const useResolvedProfileCurve = (profile: RoastProfileWithSource | null) 
                       bt: p.bt,
                       et: null as number | null,
                       ror: null as number | null,
+                      heater: null as number | null,
+                      fan: null as number | null,
+                      drum: null as number | null,
                   }))
                 : [],
         [profile],
