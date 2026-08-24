@@ -19,6 +19,8 @@ interface Props {
      * 숨겨질 때 DROP 자동 해제 effect까지 언마운트된다(#269). */
     pid: ReturnType<typeof usePidControl>;
     dropBehavior: 'hold' | 'zero';
+    /** Replay가 히터를 잡고 있는 동안 PID 켜기 차단 — 히터 소유권은 하나 (#300) */
+    replayActive: boolean;
 }
 
 /**
@@ -26,7 +28,7 @@ interface Props {
  *
  * PID를 지원하지 않는 머신(게인이나 heater 쓰기 맵이 없는 경우)에서는 렌더하지 않는다.
  */
-export const PidControlPanel = ({ pid, dropBehavior }: Props) => {
+export const PidControlPanel = ({ pid, dropBehavior, replayActive }: Props) => {
     if (!pid.supported) return null;
 
     return (
@@ -42,7 +44,8 @@ export const PidControlPanel = ({ pid, dropBehavior }: Props) => {
                 <input
                     type="checkbox"
                     checked={pid.engaged}
-                    disabled={pid.busy}
+                    // Replay 중 켜기 차단 — 끄기는 engaged일 때만 의미 있고 그때 Replay는 이미 죽어 있다
+                    disabled={pid.busy || (!pid.engaged && replayActive)}
                     onChange={(e) => {
                         if (e.target.checked) void pid.turnOn();
                         else void pid.turnOff(dropBehavior);

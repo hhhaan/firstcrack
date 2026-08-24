@@ -1,11 +1,14 @@
 import type { PidRuntime } from '@entities/machine';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { ControlRole } from '../lib/controlSender';
+import type { ReplayPoint } from '../lib/replay';
 import { useMachineControl } from '../model/useMachineControl';
 import { usePidControl } from '../model/usePidControl';
+import { useReplayControl } from '../model/useReplayControl';
 import { PidControlPanel } from './PidControlPanel';
+import { ReplayControlPanel } from './ReplayControlPanel';
 import { SetpointControl } from './SetpointControl';
 
 const ROLE_ORDER: ControlRole[] = ['heater', 'fan', 'drum'];
@@ -23,6 +26,13 @@ interface Props {
     /** 배출·로스팅 종료 — PID 자동 해제 신호 */
     roastFinished: boolean;
     pidDropBehavior: 'hold' | 'zero';
+    /** 타겟 프로파일 커브 — Replay Assist 레퍼런스 (#300). 없으면 Replay 숨김 */
+    replayPoints: ReplayPoint[] | null;
+    liveBt: number | null;
+    elapsed: number;
+    roasting: boolean;
+    /** 실기 TP 확정 여부 — 하강 구간 BT 트리거 오발 방지 */
+    afterTurningPoint: boolean;
 }
 
 /**
@@ -41,6 +51,11 @@ export const MachineControlPanel = ({
     pidRuntime,
     roastFinished,
     pidDropBehavior,
+    replayPoints,
+    liveBt,
+    elapsed,
+    roasting,
+    afterTurningPoint,
 }: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
     const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
@@ -66,6 +81,37 @@ export const MachineControlPanel = ({
     // fault 포함 — 화력이 남았을 수 있는 동안은 상태·에러가 계속 보여야 한다
     const pidActive = pidState !== 'off';
     const anyUnacknowledged = ROLE_ORDER.some((role) => limits[role] != null && unacknowledged.has(role));
+
+    // Replay 쓰기 경로 — setValue만으로는 전송되지 않는다(드래그 억제 설계), commit까지 한 쌍
+    const writeHeater = useCallback(
+        (value: number) => {
+            setValue('heater', value);
+            void commitNow();
+        },
+        [setValue, commitNow],
+    );
+    const replay = useReplayControl({
+        referencePoints: replayPoints,
+        liveBt,
+        elapsed,
+        roasting,
+        afterTurningPoint,
+        heaterWritable: writable && limits.heater != null,
+        // fault 포함 — PID가 off가 아닌 동안 히터 소유권을 넘기지 않는다
+        pidEngaged: pidActive,
+        roastFinished,
+        sidecarConnected,
+        heaterUnacknowledged: unacknowledged.has('heater'),
+        writeHeater,
+    });
+    // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다
+    const handleManualChange = useCallback(
+        (role: ControlRole, value: number) => {
+            if (role === 'heater') replay.stop();
+            setValue(role, value);
+        },
+        [replay.stop, setValue],
+    );
 
     // Pro+ 전용. 게이트를 여기 한 곳에만 두는 이유: 슬라이더와 PID가 같은 쓰기 권한을
     // 공유하므로, 화력을 쓸 수 없으면 PID도 의미가 없다.
@@ -136,7 +182,7 @@ export const MachineControlPanel = ({
                                 disabled={!writable || !supported || lockedByPid}
                                 unsupported={!supported}
                                 lockedNote={!supported ? 'N/A' : lockedByPid ? 'PID' : undefined}
-                                onChange={setValue}
+                                onChange={handleManualChange}
                                 onCommit={commitNow}
                             />
                         );
@@ -148,7 +194,8 @@ export const MachineControlPanel = ({
                         기기가 명령을 반영하지 않았습니다. 조작반이 원격 제어를 허용하는지 확인하세요.
                     </p>
                 )}
-                <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} />
+                <ReplayControlPanel replay={replay} />
+                <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />
             </div>
         </div>
     );
