@@ -152,6 +152,15 @@ export const MachineControlPanel = ({
                         aria-label={`PID ${pidState}`}
                     />
                 )}
+                {/* 접혀도 Replay가 히터를 잡고 있다는 표시는 보여야 한다 (#300) */}
+                {collapsed && replay.active && (
+                    <span
+                        role="img"
+                        className="h-2 w-2 rounded-full bg-emerald-500"
+                        title="Replay 재생 중"
+                        aria-label="Replay 재생 중"
+                    />
+                )}
                 {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
                 {collapsed && anyUnacknowledged && (
                     <span

@@ -20,6 +20,16 @@ export interface ReplayControlInputs {
     writeHeater: (value: number) => void;
 }
 
+/** 재생 중지 사유 — 'finished'는 배치 종료라 UI에 표시하지 않는다 */
+export type ReplayStopReason =
+    | 'disconnected'
+    | 'pid'
+    | 'unacknowledged'
+    | 'unwritable'
+    | 'finished'
+    | 'manual'
+    | 'profileChanged';
+
 /**
  * Replay Assist 수명 관리 (#300). 판정은 lib/replay의 순수 함수가 하고,
  * 이 훅은 켜기/끄기와 안전 중지만 담당한다.
@@ -48,30 +58,57 @@ export const useReplayControl = ({
 
     const [active, setActive] = useState(false);
     const [index, setIndex] = useState(0);
+    /** 마지막 자동/수동 중지 사유 — 토글 재시작 전까지 UI에 지속 표시 */
+    const [stopReason, setStopReason] = useState<ReplayStopReason | null>(null);
 
-    const stop = useCallback(() => setActive(false), []);
-
-    // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다
-    // biome-ignore lint/correctness/useExhaustiveDependencies: plan 교체 감지가 목적인 의도적 dep
-    useEffect(() => {
-        setActive(false);
+    // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
+    // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
+    // effect가 stale active + 옛 index + 새 plan으로 한 번 실행돼 엉뚱한 쓰기를 쏠 수 있다.
+    const [prevPlan, setPrevPlan] = useState(plan);
+    if (plan !== prevPlan) {
+        setPrevPlan(plan);
         setIndex(0);
-    }, [plan]);
+        if (active) {
+            setActive(false);
+            setStopReason('profileChanged');
+        }
+    }
+
+    const stop = useCallback(() => {
+        if (!active) return;
+        setActive(false);
+        setStopReason('manual');
+    }, [active]);
 
     // 안전 중지 — 조건이 하나라도 성립하는 동안 active로 남아 있으면 안 된다
-    const mustStop = pidEngaged || roastFinished || !sidecarConnected || !heaterWritable || heaterUnacknowledged;
+    const stopCause: ReplayStopReason | null = !sidecarConnected
+        ? 'disconnected'
+        : pidEngaged
+          ? 'pid'
+          : heaterUnacknowledged
+            ? 'unacknowledged'
+            : !heaterWritable
+              ? 'unwritable'
+              : roastFinished
+                ? 'finished'
+                : null;
     useEffect(() => {
-        if (active && mustStop) setActive(false);
-    }, [active, mustStop]);
+        if (!active || stopCause == null) return;
+        setActive(false);
+        setStopReason(stopCause);
+    }, [active, stopCause]);
 
     const toggle = useCallback(() => {
-        setActive((on) => {
-            if (on) return false;
-            if (plan == null || mustStop) return false;
-            setIndex(0); // 켤 때마다 처음부터 — 이미 지난 이벤트는 첫 판정이 최신 값 하나로 따라잡는다
-            return true;
-        });
-    }, [plan, mustStop]);
+        if (active) {
+            setActive(false);
+            setStopReason(null); // 사용자가 직접 껐다 — 안내할 사유가 없다
+            return;
+        }
+        if (plan == null || stopCause != null) return;
+        setIndex(0); // 켤 때마다 처음부터 — 이미 지난 이벤트는 첫 판정이 최신 값 하나로 따라잡는다
+        setStopReason(null);
+        setActive(true);
+    }, [active, plan, stopCause]);
 
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
     useEffect(() => {
@@ -88,6 +125,8 @@ export const useReplayControl = ({
         /** 레퍼런스에 heater 기록이 있고(합성/PID 기록 아님) 쓰기 가능한가 */
         available: plan != null && heaterWritable && sidecarConnected,
         active,
+        /** 마지막 중지 사유 — 재시작·직접 끄기 전까지 유지. UI 안내용 */
+        stopReason,
         /** 다음에 발화할 이벤트 — UI 미리보기용. 다 소진했으면 null */
         nextEvent,
         toggle,

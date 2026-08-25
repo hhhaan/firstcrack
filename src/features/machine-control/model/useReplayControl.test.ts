@@ -118,6 +118,50 @@ describe('useReplayControl', () => {
         await act(async () => h.get().toggle());
         await h.rerender({ referencePoints: [...POINTS.map((p) => ({ ...p, heater: (p.heater ?? 0) + 5 }))] });
         expect(h.get().active).toBe(false);
+        expect(h.get().stopReason).toBe('profileChanged');
+        h.unmount();
+    });
+
+    it('레퍼런스 교체 커밋에서 옛 인덱스로 새 계획을 판정하지 않는다 — stale write 회귀', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle()); // t=0 이벤트 발화, index=1
+        h.writeHeater.mockClear();
+        // 교체와 동시에 새 계획의 남은 이벤트가 전부 발화 가능한 조건을 준다.
+        // 리셋이 effect였다면 판정 effect가 stale active로 한 번 실행돼 catch-up 쓰기가 나간다.
+        await h.rerender({
+            referencePoints: POINTS.map((p) => ({ ...p, heater: (p.heater ?? 0) + 5 })),
+            liveBt: 160,
+            elapsed: 400,
+            afterTurningPoint: true,
+        });
+        expect(h.get().active).toBe(false);
+        expect(h.writeHeater).not.toHaveBeenCalled();
+        h.unmount();
+    });
+
+    it('자동 중지 시 사유가 남고, 다시 켜면 지워진다', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        await h.rerender({ pidEngaged: true });
+        expect(h.get().stopReason).toBe('pid');
+        await h.rerender({ pidEngaged: false });
+        await act(async () => h.get().toggle());
+        expect(h.get().active).toBe(true);
+        expect(h.get().stopReason).toBeNull();
+        h.unmount();
+    });
+
+    it('stop()은 active일 때만 manual 사유를 남기고, 직접 토글 OFF는 사유가 없다', async () => {
+        const h = await renderReplay();
+        // 비활성 상태의 슬라이더 조작(stop 호출)은 사유를 만들지 않는다
+        await act(async () => h.get().stop());
+        expect(h.get().stopReason).toBeNull();
+        await act(async () => h.get().toggle());
+        await act(async () => h.get().stop());
+        expect(h.get().stopReason).toBe('manual');
+        await act(async () => h.get().toggle());
+        await act(async () => h.get().toggle()); // 직접 OFF
+        expect(h.get().stopReason).toBeNull();
         h.unmount();
     });
 
