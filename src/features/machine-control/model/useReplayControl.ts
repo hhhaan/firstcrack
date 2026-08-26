@@ -34,9 +34,8 @@ export type ReplayStopReason =
  * Replay Assist 수명 관리 (#300). 판정은 lib/replay의 순수 함수가 하고,
  * 이 훅은 켜기/끄기와 안전 중지만 담당한다.
  *
- * 기본 OFF, 명시적 토글로만 시작. DROP·연결 끊김·PID 개입·수동 슬라이더 조작·
- * 쓰기 미반영 중 하나라도 걸리면 그 배치의 재생은 끝이다 — 재개하지 않는다.
- * (재개는 "어디부터"라는 새 문제를 만든다. Cropster도 배치 단위로 죽인다.)
+ * 기본 OFF, 명시적 토글로만 시작. 슬라이더·PID·끊김으로 멈춰도 인덱스는 남긴다.
+ * 다시 켜면 남은 이벤트부터 이어간다 — 지난 값을 다시 쓰지 않는다.
  */
 export const useReplayControl = ({
     referencePoints,
@@ -105,25 +104,29 @@ export const useReplayControl = ({
             return;
         }
         if (plan == null || stopCause != null) return;
-        setIndex(0); // 켤 때마다 처음부터 — 이미 지난 이벤트는 첫 판정이 최신 값 하나로 따라잡는다
         setStopReason(null);
         setActive(true);
     }, [active, plan, stopCause]);
 
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
+    // stopCause 가드: pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다 —
+    // 위 중지 effect의 setActive(false)는 다음 렌더에나 반영되므로, 같은 커밋의 이
+    // effect가 stale active로 한 번 더 쓰는 것을 여기서 막아야 한다.
     useEffect(() => {
-        if (!active || !roasting || liveBt == null || plan == null) return;
+        if (!active || stopCause != null || !roasting || liveBt == null || plan == null) return;
         const result = judgeReplay(plan, index, { bt: liveBt, elapsed, afterTurningPoint });
         if (result.nextIndex === index) return;
         setIndex(result.nextIndex);
         if (result.heater != null) writeHeater(result.heater);
-    }, [active, roasting, liveBt, elapsed, afterTurningPoint, plan, index, writeHeater]);
+    }, [active, stopCause, roasting, liveBt, elapsed, afterTurningPoint, plan, index, writeHeater]);
 
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;
 
     return {
         /** 레퍼런스에 heater 기록이 있고(합성/PID 기록 아님) 쓰기 가능한가 */
         available: plan != null && heaterWritable && sidecarConnected,
+        /** 지금 켤 수 없는 상태(PID 점유 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */
+        blocked: stopCause != null,
         active,
         /** 마지막 중지 사유 — 재시작·직접 끄기 전까지 유지. UI 안내용 */
         stopReason,

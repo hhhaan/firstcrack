@@ -585,6 +585,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         elapsed={elapsed}
                         roasting={phase === 'roasting'}
                         afterTurningPoint={confirmedTP !== null}
+                        temperatureUnit={unit}
                     />
 
                     <RoastSidePanel

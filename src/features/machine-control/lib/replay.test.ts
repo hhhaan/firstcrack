@@ -26,6 +26,17 @@ describe('extractReplayEvents', () => {
         expect(plan?.tpTime).toBe(60);
     });
 
+    it('배출 후 쿨다운 꼬리가 TP보다 식어도 TP는 골짜기로 잡힌다', () => {
+        // drop(205°) 이후 세션 종료 전까지 기록된 꼬리 — BT가 TP(95°) 아래로 떨어진다
+        const tail: ReplayPoint[] = [
+            { t: 610, bt: 150, heater: 0 },
+            { t: 660, bt: 90, heater: 0 },
+            { t: 720, bt: 60, heater: 0 },
+        ];
+        const plan = extractReplayEvents([...curve({ 0: 80, 300: 40 }), ...tail]);
+        expect(plan?.tpTime).toBe(60);
+    });
+
     it('heater가 전부 null(합성 프로파일)이면 null', () => {
         expect(extractReplayEvents(curve({}))).toBeNull();
     });

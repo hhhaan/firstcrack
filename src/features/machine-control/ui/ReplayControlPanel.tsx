@@ -2,6 +2,8 @@ import type { ReplayStopReason, useReplayControl } from '../model/useReplayContr
 
 interface Props {
     replay: ReturnType<typeof useReplayControl>;
+    /** 표시 단위 — 내부 판정은 °C, 표시만 변환한다 */
+    unit: 'C' | 'F';
 }
 
 // 'finished'는 배치 종료라 안내하지 않는다 — 맵에 없으면 렌더 생략
@@ -20,7 +22,7 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
  * 레퍼런스에 heater 기록이 없거나(합성 프로파일·PID 기록) 히터 쓰기가 불가하면
  * 렌더하지 않는다. 기본 OFF — 명시적 토글로만 시작한다.
  */
-export const ReplayControlPanel = ({ replay }: Props) => {
+export const ReplayControlPanel = ({ replay, unit }: Props) => {
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
     // 중지 사유가 있으면 available이 무너져도(연결 끊김 등) 패널을 유지한다 —
     // 숨겨버리면 "왜 꺼졌는지"를 보여줄 자리가 사라진다
@@ -40,7 +42,7 @@ export const ReplayControlPanel = ({ replay }: Props) => {
                     type="checkbox"
                     checked={replay.active}
                     onChange={replay.toggle}
-                    disabled={!replay.available}
+                    disabled={!replay.available || (!replay.active && replay.blocked)}
                     className="h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
                 />
                 <span className="text-[12px] text-secondary">레퍼런스 화력 재생</span>
@@ -51,7 +53,8 @@ export const ReplayControlPanel = ({ replay }: Props) => {
             {replay.active &&
                 (replay.nextEvent ? (
                     <p className="font-mono text-[11px] text-muted">
-                        다음: BT {Math.round(replay.nextEvent.bt)}°C → {Math.round(replay.nextEvent.heater)}%
+                        다음: BT {Math.round(unit === 'F' ? (replay.nextEvent.bt * 9) / 5 + 32 : replay.nextEvent.bt)}°
+                        {unit} → {Math.round(replay.nextEvent.heater)}%
                     </p>
                 ) : (
                     <p className="text-[11px] text-muted">모든 이벤트 재생 완료</p>
@@ -59,7 +62,7 @@ export const ReplayControlPanel = ({ replay }: Props) => {
 
             {replay.active && (
                 <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
-                    자리를 비우지 마세요. 슬라이더를 조작하면 이번 배치의 재생이 중지됩니다. 기센은 본체 Auto를 Manual로
+                    슬라이더를 조작하면 재생이 멈춥니다. 다시 켜면 남은 구간부터 이어집니다. 기센은 본체 Auto를 Manual로
                     두어야 합니다.
                 </p>
             )}

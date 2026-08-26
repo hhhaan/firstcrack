@@ -102,7 +102,29 @@ describe('useReplayControl', () => {
         h.unmount();
     });
 
-    it('stop() — 수동 슬라이더 개입 — 후에는 이벤트가 더 발화하지 않는다', async () => {
+    it('중지 조건과 새 샘플이 같은 커밋에 오면 쓰지 않는다 — stale write 회귀', async () => {
+        // pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다.
+        // setActive(false)는 다음 렌더에나 반영되므로 판정 effect의 stopCause 가드가 막아야 한다.
+        for (const cut of [{ pidEngaged: true }, { heaterUnacknowledged: true }]) {
+            const h = await renderReplay();
+            await act(async () => h.get().toggle()); // t=0 이벤트 발화
+            h.writeHeater.mockClear();
+            await h.rerender({ ...cut, liveBt: 111, elapsed: 130, afterTurningPoint: true });
+            expect(h.get().active).toBe(false);
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            h.unmount();
+        }
+    });
+
+    it('PID가 켜져 있으면 blocked=true — UI가 체크박스를 disabled로 보여야 한다', async () => {
+        const h = await renderReplay({ pidEngaged: true });
+        expect(h.get().blocked).toBe(true);
+        await act(async () => h.get().toggle());
+        expect(h.get().active).toBe(false);
+        h.unmount();
+    });
+
+    it('stop() — 수동 슬라이더 개입 — 꺼진 동안은 이벤트가 발화하지 않는다', async () => {
         const h = await renderReplay();
         await act(async () => h.get().toggle());
         h.writeHeater.mockClear();
@@ -110,6 +132,24 @@ describe('useReplayControl', () => {
         await h.rerender({ liveBt: 160, elapsed: 400, afterTurningPoint: true });
         expect(h.get().active).toBe(false);
         expect(h.writeHeater).not.toHaveBeenCalled();
+        h.unmount();
+    });
+
+    it('수동 중지 후 다시 켜면 지난 이벤트를 다시 쓰지 않고 남은 구간부터 이어간다', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle()); // t=0 h=80, index=1
+        h.writeHeater.mockClear();
+        await act(async () => h.get().stop());
+
+        // 아직 다음 BT 이벤트(110°) 전 — 재개해도 즉시 쓰기 없음, 손 값이 유지
+        await act(async () => h.get().toggle());
+        expect(h.get().active).toBe(true);
+        expect(h.writeHeater).not.toHaveBeenCalled();
+
+        await h.rerender({ liveBt: 111, elapsed: 130, afterTurningPoint: true });
+        expect(h.writeHeater).toHaveBeenCalledTimes(1);
+        expect(h.writeHeater).toHaveBeenCalledWith(60);
+        expect(h.writeHeater).not.toHaveBeenCalledWith(80);
         h.unmount();
     });
 

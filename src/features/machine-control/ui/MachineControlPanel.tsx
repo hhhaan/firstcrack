@@ -33,6 +33,8 @@ interface Props {
     roasting: boolean;
     /** 실기 TP 확정 여부 — 하강 구간 BT 트리거 오발 방지 */
     afterTurningPoint: boolean;
+    /** 표시 온도 단위 — Replay 안내 문구용 */
+    temperatureUnit: 'C' | 'F';
 }
 
 /**
@@ -56,6 +58,7 @@ export const MachineControlPanel = ({
     elapsed,
     roasting,
     afterTurningPoint,
+    temperatureUnit,
 }: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
     const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
@@ -203,7 +206,7 @@ export const MachineControlPanel = ({
                         기기가 명령을 반영하지 않았습니다. 조작반이 원격 제어를 허용하는지 확인하세요.
                     </p>
                 )}
-                <ReplayControlPanel replay={replay} />
+                <ReplayControlPanel replay={replay} unit={temperatureUnit} />
                 <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />
             </div>
         </div>

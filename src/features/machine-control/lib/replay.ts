@@ -65,9 +65,14 @@ export const extractReplayEvents = (points: ReplayPoint[]): ReplayPlan | null =>
     }
     if (events.length === 0) return null;
 
-    // 완성된 로스팅 커브에서 BT 전역 최솟값이 곧 TP다 (charge 고온 → 골짜기 → drop)
+    // TP는 BT 피크(≈drop) 이전 구간의 최솟값 (charge 고온 → 골짜기 → drop 피크).
+    // 전역 최솟값을 쓰면 배출 후에도 기록된 쿨다운 꼬리(phase는 endRoast까지
+    // 'roasting'이라 TSV에 남는다)가 TP를 말미로 밀어 전 이벤트가 시간축 재생으로
+    // 강등된다 — 피크 이전으로 한정하면 꼬리가 아무리 식어도 영향이 없다.
+    let peak = 0;
+    for (let i = 1; i < post.length; i++) if (post[i].bt > post[peak].bt) peak = i;
     let tp = post[0];
-    for (const p of post) if (p.bt < tp.bt) tp = p;
+    for (let i = 1; i <= peak; i++) if (post[i].bt < tp.bt) tp = post[i];
 
     return { events, tpTime: tp.t };
 };
