@@ -205,6 +205,23 @@ describe('useReplayControl', () => {
         h.unmount();
     });
 
+    it('이전 배치에서 이벤트를 소진해도 새 배치가 시작되면 처음부터 재생한다', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        // 배치 1: 늦은 시각 + 고온으로 전 이벤트 소진
+        await h.rerender({ liveBt: 210, elapsed: 650, afterTurningPoint: true });
+        expect(h.get().nextEvent).toBeNull();
+        // 배출 → 종료
+        await h.rerender({ liveBt: 210, elapsed: 660, afterTurningPoint: true, roastFinished: true, roasting: false });
+        // 배치 2: 같은 레퍼런스로 새로 시작
+        await h.rerender({ liveBt: 180, elapsed: 0, afterTurningPoint: false });
+        h.writeHeater.mockClear();
+        await act(async () => h.get().toggle());
+        expect(h.get().active).toBe(true);
+        expect(h.writeHeater).toHaveBeenCalledWith(80); // 초기 화력 이벤트가 다시 발화
+        h.unmount();
+    });
+
     it('heater 기록이 없는 레퍼런스(합성)에서는 available=false, 토글해도 켜지지 않는다', async () => {
         const h = await renderReplay({ referencePoints: POINTS.map((p) => ({ ...p, heater: null })) });
         expect(h.get().available).toBe(false);

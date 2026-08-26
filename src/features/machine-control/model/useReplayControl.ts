@@ -36,6 +36,7 @@ export type ReplayStopReason =
  *
  * 기본 OFF, 명시적 토글로만 시작. 슬라이더·PID·끊김으로 멈춰도 인덱스는 남긴다.
  * 다시 켜면 남은 이벤트부터 이어간다 — 지난 값을 다시 쓰지 않는다.
+ * 단, 배치 안에서만이다 — 새 배치가 시작되면 인덱스는 처음으로 돌아간다.
  */
 export const useReplayControl = ({
     referencePoints,
@@ -71,6 +72,15 @@ export const useReplayControl = ({
             setActive(false);
             setStopReason('profileChanged');
         }
+    }
+
+    // 새 배치가 시작되면(roasting 상승 에지) 인덱스를 되돌린다 — 남은 인덱스는 이전
+    // 배치 것이라, 그대로 두면 새 배치에서 "모든 이벤트 재생 완료"로 영영 침묵한다.
+    // reconnect 중에는 phase가 유지되므로(#233) 순간 끊김으로는 오리셋되지 않는다.
+    const [prevRoasting, setPrevRoasting] = useState(roasting);
+    if (roasting !== prevRoasting) {
+        setPrevRoasting(roasting);
+        if (roasting) setIndex(0);
     }
 
     const stop = useCallback(() => {
