@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { parseTsv } from '@shared/lib/tsv';
 import { describe, expect, it } from 'vitest';
 import { extractReplayEvents, judgeReplay, type ReplayPoint } from './replay';
 
@@ -41,6 +44,34 @@ describe('extractReplayEvents', () => {
         // 하강 구간 이벤트 6건은 시간축(t ≤ TP), 회복 구간 1건만 BT 트리거
         expect(plan?.events.map((e) => e.heater)).toEqual([75, 90, 12, 84, 18, 71, 47]);
         expect(plan?.events.filter((e) => e.t <= 140).map((e) => e.heater)).toEqual([75, 90, 12, 84, 18, 71]);
+    });
+
+    it('#310 실데이터: TP는 실제 골짜기, 시간축 5 + BT 2로 분류되고 7건 전부 순서대로 발화한다', () => {
+        // "테스트임" 레퍼런스 원본 TSV — charge 200.2° → 145.5°(t≈122.5) → 168°까지만 회복
+        const points = parseTsv(
+            readFileSync(fileURLToPath(new URL('./__fixtures__/issue310-reference.tsv', import.meta.url)), 'utf8'),
+        );
+        const plan = extractReplayEvents(points);
+        expect(plan).not.toBeNull();
+        if (!plan) return;
+
+        expect(plan.events.map((e) => e.heater)).toEqual([75, 90, 12, 84, 18, 71, 47]);
+        // 골짜기(145.5°) 시각 — 하강 중 ±0.1° 흔들림이 마진(2°)을 뚫고 TP를 앞당기지 않아야 한다
+        expect(plan.tpTime).toBeGreaterThan(120);
+        expect(plan.tpTime).toBeLessThan(127);
+        // 하강 구간 5건은 시간축, 회복 중 기록된 71·47은 BT 트리거(임계 오름차순 → collapse 없음)
+        expect(plan.events.filter((e) => e.t <= plan.tpTime).map((e) => e.heater)).toEqual([75, 90, 12, 84, 18]);
+
+        // 레퍼런스 커브를 라이브 피드로 재생 시뮬레이션 — 7건 전부, 기록 순서대로 발화
+        const fired: number[] = [];
+        let index = 0;
+        for (const p of points) {
+            if (p.t < 0) continue;
+            const r = judgeReplay(plan, index, { bt: p.bt, elapsed: p.t, afterTurningPoint: p.t > plan.tpTime });
+            if (r.nextIndex > index) for (let i = index; i < r.nextIndex; i++) fired.push(plan.events[i].heater);
+            index = r.nextIndex;
+        }
+        expect(fired).toEqual([75, 90, 12, 84, 18, 71, 47]);
     });
 
     it('단조 하강만 있는 세션은 TP 미확정(Infinity) — 전 이벤트 시간축', () => {
