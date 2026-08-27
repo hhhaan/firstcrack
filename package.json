@@ -17,7 +17,7 @@
         "check:registry": "node scripts/check-roaster-registry.mjs",
         "check:plan-caps": "node scripts/check-plan-caps.mjs",
         "verify:sidecar": "bash scripts/verify-sidecar.sh",
-        "verify:all": "pnpm verify && pnpm verify:sidecar",
+        "verify:all": "concurrently -g --raw \"pnpm verify\" \"pnpm verify:sidecar\"",
         "preview": "vite preview",
         "tauri": "tauri",
         "types:gen": "supabase gen types typescript --linked 2>/dev/null > src/shared/types/database.types.ts && node scripts/append-db-aliases.mjs",
