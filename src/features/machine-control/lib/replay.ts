@@ -43,6 +43,12 @@ const MIN_HEATER_DELTA = 1;
 const MAX_EVENTS = 30;
 
 /**
+ * running min 대비 이만큼 BT가 회복해야 TP로 확정한다 — 센서 흔들림이
+ * 하강 중의 가짜 전환점을 TP로 잡는 것을 막는 히스테리시스.
+ */
+const TP_RISE_MARGIN = 2;
+
+/**
  * 레퍼런스 커브에서 재생 계획을 뽑는다. heater 기록이 없거나(합성 프로파일),
  * 이벤트가 비정상적으로 많으면(PID 기록) null — Replay 부적합.
  *
@@ -65,16 +71,23 @@ export const extractReplayEvents = (points: ReplayPoint[]): ReplayPlan | null =>
     }
     if (events.length === 0) return null;
 
-    // TP는 BT 피크(≈drop) 이전 구간의 최솟값 (charge 고온 → 골짜기 → drop 피크).
-    // 전역 최솟값을 쓰면 배출 후에도 기록된 쿨다운 꼬리(phase는 endRoast까지
-    // 'roasting'이라 TSV에 남는다)가 TP를 말미로 밀어 전 이벤트가 시간축 재생으로
-    // 강등된다 — 피크 이전으로 한정하면 꼬리가 아무리 식어도 영향이 없다.
-    let peak = 0;
-    for (let i = 1; i < post.length; i++) if (post[i].bt > post[peak].bt) peak = i;
-    let tp = post[0];
-    for (let i = 1; i <= peak; i++) if (post[i].bt < tp.bt) tp = post[i];
+    // TP는 첫 하강→상승 전환점: running min을 추적하다 BT가 마진 이상 회복하는
+    // 순간 그 min 지점으로 확정한다. 전역 최솟값은 쿨다운 꼬리(phase는 endRoast까지
+    // 'roasting'이라 TSV에 남는다)에 오염되고, "피크 이전 최솟값"(ff9dbb0)은 charge가
+    // 전 구간 최대인 커브(#310)에서 탐색 구간이 charge로 붕괴한다 — 둘 다 안 된다.
+    // 회복이 끝까지 없으면(단조 하강 초단기 세션) Infinity → 전 이벤트 시간축 재생.
+    // 시간축은 오발이 불가능한 안전한 퇴화 케이스다.
+    let tpTime = Number.POSITIVE_INFINITY;
+    let min = 0;
+    for (let i = 1; i < post.length; i++) {
+        if (post[i].bt < post[min].bt) min = i;
+        else if (post[i].bt >= post[min].bt + TP_RISE_MARGIN) {
+            tpTime = post[min].t;
+            break;
+        }
+    }
 
-    return { events, tpTime: tp.t };
+    return { events, tpTime };
 };
 
 export interface ReplaySample {

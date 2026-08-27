@@ -21,9 +21,39 @@ describe('extractReplayEvents', () => {
         expect(plan?.events[0].t).toBe(0);
     });
 
-    it('TP는 BT 전역 최솟값 시각이다', () => {
+    it('TP는 첫 하강→상승 전환점(골짜기) 시각이다', () => {
         const plan = extractReplayEvents(curve({ 0: 80 }));
         expect(plan?.tpTime).toBe(60);
+    });
+
+    it('peak-at-charge 커브(#310): charge BT를 끝까지 못 넘어도 TP는 골짜기로 잡힌다', () => {
+        // 실데이터 형상: charge 200° → 145°까지 하강(t=140) → 168°까지만 회복
+        const pts: ReplayPoint[] = [];
+        for (let t = 0; t <= 320; t += 4) {
+            const bt = t <= 140 ? 200 - (t / 140) * 55 : 145 + ((t - 140) / 180) * 23;
+            pts.push({ t, bt, heater: null });
+        }
+        const heaterAt: Record<number, number> = { 0: 75, 56: 90, 72: 12, 80: 84, 100: 18, 132: 71, 316: 47 };
+        for (const p of pts) if (heaterAt[p.t] != null) p.heater = heaterAt[p.t];
+
+        const plan = extractReplayEvents(pts);
+        expect(plan?.tpTime).toBe(140);
+        // 하강 구간 이벤트 6건은 시간축(t ≤ TP), 회복 구간 1건만 BT 트리거
+        expect(plan?.events.map((e) => e.heater)).toEqual([75, 90, 12, 84, 18, 71, 47]);
+        expect(plan?.events.filter((e) => e.t <= 140).map((e) => e.heater)).toEqual([75, 90, 12, 84, 18, 71]);
+    });
+
+    it('단조 하강만 있는 세션은 TP 미확정(Infinity) — 전 이벤트 시간축', () => {
+        const pts: ReplayPoint[] = [];
+        for (let t = 0; t <= 120; t += 10) pts.push({ t, bt: 200 - t, heater: t === 0 ? 75 : null });
+        expect(extractReplayEvents(pts)?.tpTime).toBe(Number.POSITIVE_INFINITY);
+    });
+
+    it('마진 미만의 미세 회복(센서 흔들림)은 TP로 확정하지 않는다', () => {
+        // t=20에서 +1° 블립(마진 2° 미만) → 무시, 진짜 골짜기 t=50에서 +3° 회복 → 확정
+        const bts = [200, 190, 191, 180, 170, 160, 163, 166];
+        const pts: ReplayPoint[] = bts.map((bt, i) => ({ t: i * 10, bt, heater: i === 0 ? 75 : null }));
+        expect(extractReplayEvents(pts)?.tpTime).toBe(50);
     });
 
     it('배출 후 쿨다운 꼬리가 TP보다 식어도 TP는 골짜기로 잡힌다', () => {
