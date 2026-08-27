@@ -107,7 +107,9 @@ export const MachineControlPanel = ({
         heaterUnacknowledged: unacknowledged.has('heater'),
         writeHeater,
     });
-    // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다
+    // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.
+    // 재생 중 heater 슬라이더는 잠기므로 평소엔 닿지 않는 경로지만, 드래그 도중
+    // 재생이 켜지는 경계에서 이벤트가 새면 여기가 마지막 방어선이다.
     const handleManualChange = useCallback(
         (role: ControlRole, value: number) => {
             if (role === 'heater') replay.stop();
@@ -183,6 +185,9 @@ export const MachineControlPanel = ({
                     {ROLE_ORDER.map((role) => {
                         const supported = limits[role] != null;
                         const lockedByPid = role === 'heater' && pidHoldsHeater;
+                        // Replay 재생 중 화력 소유권은 Replay에 있다 — 수동 조절은 체크 해제 후.
+                        // (fan/drum은 Replay가 안 만지므로 열어둔다)
+                        const lockedByReplay = role === 'heater' && replay.active;
                         return (
                             <SetpointControl
                                 key={role}
@@ -191,9 +196,11 @@ export const MachineControlPanel = ({
                                 value={supported ? desired[role] : undefined}
                                 feedback={supported && liveData ? liveData[role] : null}
                                 unacknowledged={supported && unacknowledged.has(role)}
-                                disabled={!writable || !supported || lockedByPid}
+                                disabled={!writable || !supported || lockedByPid || lockedByReplay}
                                 unsupported={!supported}
-                                lockedNote={!supported ? 'N/A' : lockedByPid ? 'PID' : undefined}
+                                lockedNote={
+                                    !supported ? 'N/A' : lockedByPid ? 'PID' : lockedByReplay ? 'Replay' : undefined
+                                }
                                 onChange={handleManualChange}
                                 onCommit={commitNow}
                             />
