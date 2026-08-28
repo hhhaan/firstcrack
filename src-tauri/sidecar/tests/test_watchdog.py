@@ -68,12 +68,20 @@ class TestParentWatchdog:
         exit_called_with = []
         manager = mock.AsyncMock()
 
-        with mock.patch("main.os._exit", side_effect=lambda code: exit_called_with.append(code)):
+        class _Exited(Exception):
+            pass
+
+        def fake_exit(code):
+            # 실제 _exit처럼 루프를 끝내야 한다 — 아니면 짧은 interval에서 계속 돈다
+            exit_called_with.append(code)
+            raise _Exited(code)
+
+        with mock.patch("main.os._exit", side_effect=fake_exit):
             with mock.patch("main._pid_alive", return_value=False):
-                task = asyncio.create_task(parent_watchdog(999999999, manager))
+                task = asyncio.create_task(parent_watchdog(999999999, manager, interval=0.05))
                 try:
                     await asyncio.wait_for(task, timeout=2.0)
-                except (asyncio.TimeoutError, asyncio.CancelledError, SystemExit):
+                except (asyncio.TimeoutError, asyncio.CancelledError, _Exited):
                     pass
 
         manager.disconnect.assert_awaited_once()
@@ -92,8 +100,8 @@ class TestParentWatchdog:
             return True
 
         with mock.patch("main._pid_alive", side_effect=fake_pid_alive):
-            task = asyncio.create_task(parent_watchdog(os.getpid(), manager))
-            await asyncio.sleep(2.5)
+            task = asyncio.create_task(parent_watchdog(os.getpid(), manager, interval=0.05))
+            await asyncio.sleep(0.3)
             task.cancel()
             try:
                 await task
