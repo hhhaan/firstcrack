@@ -61,10 +61,16 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
                 ))}
 
             {replay.active && (
-                <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
-                    재생 중에는 화력 슬라이더가 잠깁니다. 수동 조절하려면 체크를 해제하세요 — 다시 켜면 남은 구간부터
-                    이어집니다. 기센은 본체 Auto를 Manual로 두어야 합니다.
-                </p>
+                <>
+                    <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
+                        재생 중에는 자리를 비우지 마세요. 기계 패널 직접 조작은 감지되지 않습니다 — 개입은 앱에서만
+                        하세요.
+                    </p>
+                    <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
+                        재생 중에는 화력 슬라이더가 잠깁니다. 수동 조절하려면 체크를 해제하세요 — 다시 켜면 남은
+                        구간부터 이어집니다. 기센은 본체 Auto를 Manual로 두어야 합니다.
+                    </p>
+                </>
             )}
         </div>
     );
