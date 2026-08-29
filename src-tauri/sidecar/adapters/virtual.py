@@ -230,7 +230,9 @@ class VirtualMachineAdapter:
         bt = bt_profile + bt_offset + _noise(0.4)
         et = et_profile + bt_offset * 0.3 + _noise(0.25)
 
-        heater = max(40.0, 75.0 - (tx / 780.0) * 25.0)
+        # 화력은 스크립트가 건드리지 않는다 — 실기처럼 control() 명령으로만 변한다.
+        # (자동 스텝다운 스크립트는 배치당 30+회의 가짜 조정 이벤트를 기록에 남겨 삭제)
+        heater = 60.0
         fan = min(70.0, 30.0 + (tx / 780.0) * 40.0)
         drum = 50.0
 
