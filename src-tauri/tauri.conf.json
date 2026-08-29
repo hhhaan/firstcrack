@@ -21,7 +21,8 @@
                 "minWidth": 1024,
                 "minHeight": 680,
                 "devtools": true,
-                "backgroundThrottling": "disabled"
+                "backgroundThrottling": "disabled",
+                "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows"
             }
         ],
         "security": {
