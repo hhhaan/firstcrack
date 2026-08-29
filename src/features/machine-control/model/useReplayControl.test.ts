@@ -28,6 +28,7 @@ const BASE: Omit<ReplayControlInputs, 'writeHeater'> = {
     roastFinished: false,
     sidecarConnected: true,
     heaterUnacknowledged: false,
+    dropBehavior: 'hold',
 };
 
 /** repo 표준 패턴 — 실제 훅을 렌더해 반환값을 노출한다 */
@@ -238,100 +239,102 @@ describe('useReplayControl', () => {
         h.unmount();
     });
 
-    describe('배출 후 초기 화력 reset (#316)', () => {
-        const finishRoast = {
-            liveBt: 210,
-            elapsed: 660,
-            afterTurningPoint: true,
-            roastFinished: true,
-            roasting: false,
-        };
+    describe('배출 시 화력 정책 (#316) — pidDropBehavior 공용', () => {
+        // 실제 흐름: Drop 마크 시점에 phase는 아직 'roasting'이다(endRoast까지 유지).
+        const dropMarked = { liveBt: 205, elapsed: 650, afterTurningPoint: true, roastFinished: true };
 
-        it('재생 중 배출되면 5초 뒤 레퍼런스 초기 화력으로 reset write가 나간다', async () => {
-            vi.useFakeTimers();
-            try {
-                const h = await renderReplay();
-                await act(async () => h.get().toggle());
-                await h.rerender(finishRoast);
-                expect(h.get().active).toBe(false);
-                h.writeHeater.mockClear();
-
-                await act(async () => void vi.advanceTimersByTime(4999));
-                expect(h.writeHeater).not.toHaveBeenCalled();
-                await act(async () => void vi.advanceTimersByTime(1));
-                expect(h.writeHeater).toHaveBeenCalledWith(80);
-                h.unmount();
-            } finally {
-                vi.useRealTimers();
-            }
+        it('zero: 재생 중 배출되면 즉시 heater 0을 쓴다 — 반복 커밋에도 한 번만', async () => {
+            const h = await renderReplay({ dropBehavior: 'zero' });
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked });
+            expect(h.get().active).toBe(false);
+            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked, liveBt: 200 });
+            expect(h.writeHeater).toHaveBeenCalledTimes(1);
+            h.unmount();
         });
 
-        it('reset 전에 새 배치가 시작되면 이전 배치 timer가 발화하지 않는다', async () => {
-            vi.useFakeTimers();
-            try {
-                const h = await renderReplay();
-                await act(async () => h.get().toggle());
-                await h.rerender(finishRoast);
-                h.writeHeater.mockClear();
-                // 5초 안에 새 배치 차지
-                await h.rerender({ liveBt: 180, elapsed: 0, afterTurningPoint: false });
-                await act(async () => void vi.advanceTimersByTime(10_000));
-                expect(h.writeHeater).not.toHaveBeenCalled();
-                h.unmount();
-            } finally {
-                vi.useRealTimers();
-            }
+        it('hold: 배출 시 아무 write도 하지 않는다 — 설정으로 선택된 잔류', async () => {
+            const h = await renderReplay({ dropBehavior: 'hold' });
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender({ dropBehavior: 'hold', ...dropMarked });
+            expect(h.get().active).toBe(false);
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            h.unmount();
         });
 
-        it('배출 전에 수동 중지된 상태였으면 reset하지 않는다 — 화력 소유권은 사람에게 있다', async () => {
-            vi.useFakeTimers();
-            try {
-                const h = await renderReplay();
-                await act(async () => h.get().toggle());
-                await act(async () => h.get().stop());
-                await h.rerender(finishRoast);
-                h.writeHeater.mockClear();
-                await act(async () => void vi.advanceTimersByTime(10_000));
-                expect(h.writeHeater).not.toHaveBeenCalled();
-                h.unmount();
-            } finally {
-                vi.useRealTimers();
-            }
+        it('zero: 기기가 안 따라오면(unacknowledged) 다시 쓴다 — safe-off 재시도', async () => {
+            const h = await renderReplay({ dropBehavior: 'zero' });
+            await act(async () => h.get().toggle());
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked });
+            h.writeHeater.mockClear();
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked, heaterUnacknowledged: true });
+            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            h.unmount();
         });
 
-        it('5초 안에 수동 슬라이더 개입(stop)이 오면 reset이 손 값을 덮지 않는다', async () => {
-            vi.useFakeTimers();
-            try {
-                const h = await renderReplay();
-                await act(async () => h.get().toggle());
-                await h.rerender(finishRoast);
-                h.writeHeater.mockClear();
-                await act(async () => h.get().stop());
-                await act(async () => void vi.advanceTimersByTime(10_000));
-                expect(h.writeHeater).not.toHaveBeenCalled();
-                h.unmount();
-            } finally {
-                vi.useRealTimers();
-            }
+        it('zero: End Roast 확정(roasting 하강) 후에도 재시도가 살아 있다', async () => {
+            // Drop(roasting 유지) → 몇 초 뒤 End Roast 확정이 실제 2단계 흐름이다.
+            // roasting 에지에서 재시도 상태를 지우면 이 흐름에서 safe-off가 죽는다.
+            const h = await renderReplay({ dropBehavior: 'zero' });
+            await act(async () => h.get().toggle());
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked });
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked, roasting: false });
+            h.writeHeater.mockClear();
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked, roasting: false, heaterUnacknowledged: true });
+            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            h.unmount();
         });
 
-        it('배출 시점에 끊겨 있으면 재연결 후 5초 뒤에 reset한다', async () => {
-            vi.useFakeTimers();
-            try {
-                const h = await renderReplay();
-                await act(async () => h.get().toggle());
-                await h.rerender({ ...finishRoast, sidecarConnected: false });
-                h.writeHeater.mockClear();
-                await act(async () => void vi.advanceTimersByTime(10_000));
-                expect(h.writeHeater).not.toHaveBeenCalled();
-                // 재연결 → 타이머가 그때부터 다시 5초
-                await h.rerender({ ...finishRoast, sidecarConnected: true });
-                await act(async () => void vi.advanceTimersByTime(5000));
-                expect(h.writeHeater).toHaveBeenCalledWith(80);
-                h.unmount();
-            } finally {
-                vi.useRealTimers();
-            }
+        it('zero: 새 배치가 시작되면 재시도를 멈춘다 — 이전 배치 정책이 새 배치 화력을 덮지 않는다', async () => {
+            const h = await renderReplay({ dropBehavior: 'zero' });
+            await act(async () => h.get().toggle());
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked });
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked, roasting: false });
+            // 새 배치 차지
+            await h.rerender({ dropBehavior: 'zero', liveBt: 180, elapsed: 0, afterTurningPoint: false });
+            h.writeHeater.mockClear();
+            await h.rerender({
+                dropBehavior: 'zero',
+                liveBt: 180,
+                elapsed: 5,
+                afterTurningPoint: false,
+                heaterUnacknowledged: true,
+            });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            h.unmount();
+        });
+
+        it('zero: 수동 슬라이더 개입(stop)은 재시도를 취소한다 — 화력 소유권은 사람에게 넘어간다', async () => {
+            const h = await renderReplay({ dropBehavior: 'zero' });
+            await act(async () => h.get().toggle());
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked });
+            await act(async () => h.get().stop());
+            h.writeHeater.mockClear();
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked, heaterUnacknowledged: true });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            h.unmount();
+        });
+
+        it('zero: 배출 전에 수동 중지된 상태였으면 쓰지 않는다 — 재생이 화력을 잡고 있던 경우만', async () => {
+            const h = await renderReplay({ dropBehavior: 'zero' });
+            await act(async () => h.get().toggle());
+            await act(async () => h.get().stop());
+            h.writeHeater.mockClear();
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            h.unmount();
+        });
+
+        it('zero: 배출 시점에 끊겨 있어도 write를 시도한다 — 실패는 토스트/Sentry로 관측된다', async () => {
+            const h = await renderReplay({ dropBehavior: 'zero' });
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked, sidecarConnected: false });
+            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            h.unmount();
         });
     });
 

@@ -109,6 +109,8 @@ export const MachineControlPanel = ({
         roastFinished,
         sidecarConnected,
         heaterUnacknowledged: unacknowledged.has('heater'),
+        // 배출 시 화력 정책은 PID와 공용 — "DROP 후 화력"은 구동 주체와 무관한 한 정책 (#316)
+        dropBehavior: pidDropBehavior,
         writeHeater,
     });
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.

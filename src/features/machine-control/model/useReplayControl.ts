@@ -19,14 +19,15 @@ export interface ReplayControlInputs {
     sidecarConnected: boolean;
     /** 지시했는데 기기가 안 따라온 상태 — 재생을 계속 밀어붙이지 않는다 (#269) */
     heaterUnacknowledged: boolean;
+    /**
+     * 배출 시 화력 정책 — pidDropBehavior 공용 (#316). PID든 Replay든 "DROP 후
+     * 화력을 어떻게 둘지"는 한 정책이다. zero면 배출 즉시 heater 0을 쓴다(PID
+     * off와 같은 타이밍 — 유예를 두면 Drop 취소·End 확정과 얽혀 오발/누락이 생긴다).
+     * hold면 마지막 재생 값을 남긴다 — 설정으로 선택된, 문서화된 잔류다.
+     */
+    dropBehavior: 'hold' | 'zero';
     writeHeater: (value: number) => void;
 }
-
-/**
- * 배출 후 초기 화력 reset까지의 유예 (#316, 정책은 #300).
- * 즉시 쓰지 않는 이유: DROP 직후는 배출 조작(문 열기 등)과 겹쳐 순간 개입이 잦다.
- */
-const RESET_DELAY_MS = 5000;
 
 /** 재생 중지 사유 — 'finished'는 배치 종료라 UI에 표시하지 않는다 */
 export type ReplayStopReason =
@@ -58,6 +59,7 @@ export const useReplayControl = ({
     roastFinished,
     sidecarConnected,
     heaterUnacknowledged,
+    dropBehavior,
     writeHeater,
 }: ReplayControlInputs) => {
     const plan = useMemo(
@@ -72,8 +74,8 @@ export const useReplayControl = ({
     const [index, setIndex] = useState(0);
     /** 마지막 자동/수동 중지 사유 — 토글 재시작 전까지 UI에 지속 표시 */
     const [stopReason, setStopReason] = useState<ReplayStopReason | null>(null);
-    /** 배출 후 되돌릴 초기 화력 — null이면 예약 없음. 재생 중 배출됐을 때만 잡힌다 (#316) */
-    const [pendingReset, setPendingReset] = useState<number | null>(null);
+    /** zero 정책의 safe-off write가 나갔다 — 기기가 따라올 때까지 재시도 대상 (#316) */
+    const [safeOffIssued, setSafeOffIssued] = useState(false);
 
     // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
     // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
@@ -98,15 +100,17 @@ export const useReplayControl = ({
         setPrevRoasting(roasting);
         setIndex(0);
         setStopReason(null);
-        // 상승 에지: 이전 배치의 reset timer가 새 배치 화력을 덮으면 안 된다 (#316).
-        // 하강 에지(배출)는 무해하다 — 예약은 이 리셋 뒤의 중지 effect에서 잡힌다.
-        setPendingReset(null);
+        // 상승 에지(새 배치 차지)에서만 지운다 — 이전 배치의 safe-off 재시도가 새
+        // 배치 화력을 덮으면 안 된다. 하강 에지(End Roast 확정)에서 지우면 안 되는
+        // 이유: Drop은 phase를 안 바꾸므로 safe-off는 roasting 중에 발행되고, 몇 초
+        // 뒤 End 확정의 하강 에지가 재시도를 죽이면 미반영 기기가 그대로 남는다.
+        if (roasting) setSafeOffIssued(false);
     }
 
     const stop = useCallback(() => {
-        // 수동 개입은 active 여부와 무관하게 예약된 reset을 취소한다 —
-        // 배출 후 5초 안에 사람이 만진 화력을 timer가 덮으면 안 된다 (#316)
-        setPendingReset(null);
+        // 수동 개입은 active 여부와 무관하게 safe-off 재시도를 취소한다 —
+        // 배출 후 사람이 만진 화력을 재시도가 덮으면 안 된다 (#316)
+        setSafeOffIssued(false);
         if (!active) return;
         setActive(false);
         setStopReason('manual');
@@ -128,26 +132,25 @@ export const useReplayControl = ({
         if (!active || stopCause == null) return;
         setActive(false);
         setStopReason(stopCause);
-        // 재생이 화력을 잡은 채 배출됐다 — 마지막 재생 값이 실기기에 남으므로
-        // 레퍼런스 초기 화력으로 되돌릴 것을 예약한다 (#316). stopCause 라벨이
-        // 'disconnected' 등으로 밀려도 배출과 동시면 예약한다 — 우선순위 때문에
-        // 'finished'만 보면 "끊김+배출" 커밋에서 아무도 불을 못 끈다.
-        if (roastFinished) setPendingReset(plan?.events[0]?.heater ?? null);
-    }, [active, stopCause, roastFinished, plan]);
+        // 재생이 화력을 잡은 채 배출됐다 — zero 정책이면 즉시 끈다 (#316, PID off와
+        // 동일 타이밍). stopCause 라벨이 아니라 roastFinished를 보는 이유: "끊김+배출"
+        // 커밋에서는 우선순위가 'disconnected'로 밀리는데, 그때도 write는 시도해야
+        // 실패가 토스트/Sentry로 관측된다. hold면 아무것도 안 쓴다 — 설정으로 선택된
+        // 잔류라 PID hold와 같은 등급의 문서화된 동작이다.
+        if (roastFinished && dropBehavior === 'zero') {
+            writeHeater(0);
+            setSafeOffIssued(true);
+        }
+    }, [active, stopCause, roastFinished, dropBehavior, writeHeater]);
 
-    // 예약된 초기 화력 reset. 끊겨 있으면 보낼 경로가 없다 — 재연결되면 그때부터
-    // 다시 5초 세고 쓴다. 실패 시 재시도는 하지 않는다: 값이 flame-off가 아니라
-    // 재가동 값이라, 조용한 재시도 루프가 사람 개입과 싸우는 쪽이 더 위험하다.
-    // 실패 관측은 기존 경로가 한다 — HTTP 실패는 토스트+Sentry(controlSender.onError),
-    // 기기 미반영은 unacknowledged 경고. 이것이 #316이 요구하는 명시 정책이다.
+    // safe-off 재시도 — zero write가 나갔는데 기기가 안 따라오면 다시 쓴다 (#269의
+    // PID safe-off와 같은 등급: 아무도 안 보는 로스터에 불이 남는 쪽이 최악이다).
+    // 재시도 간격은 unacknowledged 판정 주기(폴링 N회 ≈ 5~10초)가 자연히 만든다 —
+    // 매 write가 미반영 카운트를 되돌리므로 tight loop이 될 수 없다.
     useEffect(() => {
-        if (pendingReset == null || !sidecarConnected) return;
-        const timer = setTimeout(() => {
-            setPendingReset(null);
-            writeHeater(pendingReset);
-        }, RESET_DELAY_MS);
-        return () => clearTimeout(timer);
-    }, [pendingReset, sidecarConnected, writeHeater]);
+        if (!safeOffIssued || !heaterUnacknowledged || !sidecarConnected) return;
+        writeHeater(0);
+    }, [safeOffIssued, heaterUnacknowledged, sidecarConnected, writeHeater]);
 
     const toggle = useCallback(() => {
         if (active) {
