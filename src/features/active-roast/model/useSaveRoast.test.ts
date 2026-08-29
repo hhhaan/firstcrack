@@ -50,6 +50,7 @@ function makeDeps(overrides: Partial<SaveRoastDeps> = {}): SaveRoastDeps {
         countCompletedThisMonth: vi.fn().mockResolvedValue(0),
         countCompletedTotal: vi.fn().mockResolvedValue(0),
         saveOp: vi.fn().mockResolvedValue({ id: 'sess-db-1' }),
+        flushCurve: vi.fn().mockResolvedValue(undefined),
         syncRoastCurve: vi.fn().mockResolvedValue(undefined),
         updatePlanBatch: vi.fn().mockResolvedValue(undefined),
         startBatch: vi.fn(),
@@ -111,6 +112,15 @@ describe('saveRoastCore', () => {
     it('read_only → 즉시 거부', async () => {
         const deps = makeDeps({ plan: 'read_only' });
         await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'read_only_plan' });
+        expect(deps.saveOp).not.toHaveBeenCalled();
+    });
+
+    it('로컬 커브 flush 실패 시 메타데이터를 저장하지 않는다', async () => {
+        const flushCurve = vi.fn().mockRejectedValue(new Error('TSV initialization failed'));
+        const deps = makeDeps({ flushCurve });
+
+        await expect(saveRoastCore(deps, baseParams)).rejects.toThrow('TSV initialization failed');
+        expect(flushCurve).toHaveBeenCalledWith('local-sess');
         expect(deps.saveOp).not.toHaveBeenCalled();
     });
 

@@ -116,12 +116,11 @@ export const useSidecarPolling = ({
     preChargeDisplaySec,
 }: Params) => {
     const [livePoints, setLivePoints] = useState<LiveRoastPoint[]>([]);
-    // TSV writer ready — sessionId 변경 시 재초기화
-    const tsvInitializedRef = useRef(false);
     // pre-charge 버퍼: absTime으로 누적 (charge 시 음수 상대 시간으로 변환에 사용)
     const preChargeBufferRef = useRef<(Omit<LiveRoastPoint, 'time' | 'label'> & { absTime: number })[]>([]);
     // preheating 첫 폴링 시각 — livePoints 실시간 표시용 세션 기준점
     const preChargeStartRef = useRef<number>(0);
+    const lastRoastPointTimeRef = useRef<number | null>(null);
     const prevPhaseRef = useRef(phase);
     // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
     const btFilterRef = useRef(createBtFilter());
@@ -129,12 +128,7 @@ export const useSidecarPolling = ({
     // sessionId가 새로 설정되면 TSV 파일을 헤더로 초기화한다.
     useEffect(() => {
         if (!sessionId) return;
-        tsvInitializedRef.current = false;
-        void initSessionTsv(sessionId)
-            .then(() => {
-                tsvInitializedRef.current = true;
-            })
-            .catch(() => {});
+        void initSessionTsv(sessionId).catch(() => {});
     }, [sessionId]);
 
     // phase → 'roasting' 전환 감지:
@@ -174,6 +168,7 @@ export const useSidecarPolling = ({
             setLivePoints(prePoints);
             preChargeBufferRef.current = [];
             preChargeStartRef.current = 0;
+            lastRoastPointTimeRef.current = null;
         }
         prevPhaseRef.current = phase;
     }, [phase, roastStartTimeRef, preChargeDisplaySec]);
@@ -269,32 +264,31 @@ export const useSidecarPolling = ({
                     if (useRoastingStore.getState().elapsed !== elapsedSec) {
                         useRoastingStore.setState({ elapsed: elapsedSec });
                     }
-                    setLivePoints((prev) => {
-                        // 폴링 주기보다 짧은 간격은 무시해 중복 포인트를 방지한다.
-                        if (prev.length > 0 && t - prev[prev.length - 1].time < 0.4) return prev;
-                        const min = Math.floor(t / 60);
-                        const sec = Math.floor(t % 60);
-                        const point: LiveRoastPoint = {
-                            time: t,
-                            label: `${min}:${String(sec).padStart(2, '0')}`,
-                            bt,
-                            et: data.et ?? null,
-                            ror: data.ror,
-                            ror_et: data.ror_et ?? null,
-                            heater: data.heater ?? 0,
-                            fan: data.fan ?? 0,
-                            drum: data.drum ?? 0,
-                        };
+                    // 폴링 주기보다 짧은 간격은 무시해 중복 포인트를 방지한다.
+                    const lastRoastPointTime = lastRoastPointTimeRef.current;
+                    if (lastRoastPointTime !== null && t >= lastRoastPointTime && t - lastRoastPointTime < 0.4) return;
+                    lastRoastPointTimeRef.current = t;
 
-                        // TSV에 데이터 포인트 추가 (serial write queue)
-                        const currentSessionId = useRoastingStore.getState().sessionId;
-                        if (tsvInitializedRef.current && currentSessionId) {
-                            const row = `${t.toFixed(2)}\t${bt}\t${data.et ?? ''}\t${data.ror ?? ''}\t${data.heater ?? 0}\t${data.fan ?? 0}\t${data.drum ?? 0}\n`;
-                            enqueueTsvRow(currentSessionId, row);
-                        }
+                    const min = Math.floor(t / 60);
+                    const sec = Math.floor(t % 60);
+                    const point: LiveRoastPoint = {
+                        time: t,
+                        label: `${min}:${String(sec).padStart(2, '0')}`,
+                        bt,
+                        et: data.et ?? null,
+                        ror: data.ror,
+                        ror_et: data.ror_et ?? null,
+                        heater: data.heater ?? 0,
+                        fan: data.fan ?? 0,
+                        drum: data.drum ?? 0,
+                    };
 
-                        return [...prev, point];
-                    });
+                    const currentSessionId = useRoastingStore.getState().sessionId;
+                    if (currentSessionId) {
+                        const row = `${t.toFixed(2)}\t${bt}\t${data.et ?? ''}\t${data.ror ?? ''}\t${data.heater ?? 0}\t${data.fan ?? 0}\t${data.drum ?? 0}\n`;
+                        enqueueTsvRow(currentSessionId, row);
+                    }
+                    setLivePoints((prev) => [...prev, point]);
                 } else if (currentPhase === 'standby') {
                     // pre-charge: 버퍼(absTime)와 livePoints(세션 상대 시간) 동시 기록
                     const absTime = Date.now();

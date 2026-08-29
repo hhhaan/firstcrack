@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     _resetTsvWriterForTests,
     bbpTsvPath,
@@ -12,6 +12,9 @@ import {
     writeBbpTsv,
 } from './tsv-writer';
 
+const loggerCapture = vi.hoisted(() => vi.fn());
+vi.mock('@shared/lib/logger', () => ({ logger: { capture: loggerCapture } }));
+
 describe('tsv-writer', () => {
     const writes: { path: string; contents: string; append: boolean }[] = [];
     const removed: string[] = [];
@@ -21,6 +24,7 @@ describe('tsv-writer', () => {
         writes.length = 0;
         removed.length = 0;
         writeDelayMs = 0;
+        loggerCapture.mockClear();
         _resetTsvWriterForTests({
             write: async (path, contents, options) => {
                 if (writeDelayMs > 0) {
@@ -75,6 +79,109 @@ describe('tsv-writer', () => {
         await flushTsv('s1');
         expect(writes[0]).toEqual({ path: 'session_s1.tsv', contents: TSV_HEADER, append: false });
         expect(writes.filter((w) => w.append).map((w) => w.contents)).toEqual(['early\n']);
+    });
+
+    it('writes rows queued during delayed init after the header in order', async () => {
+        writeDelayMs = 10;
+        const init = initSessionTsv('s1');
+        enqueueTsvRow('s1', 'first\n');
+        enqueueTsvRow('s1', 'second\n');
+
+        await init;
+        await flushTsv('s1');
+
+        expect(writes.map((w) => w.contents)).toEqual([TSV_HEADER, 'first\n', 'second\n']);
+    });
+
+    it('retries failed init on the next row and preserves pending rows', async () => {
+        let failHeader = true;
+        _resetTsvWriterForTests({
+            write: async (path, contents, options) => {
+                if (contents === TSV_HEADER && failHeader) {
+                    failHeader = false;
+                    throw new Error('disk unavailable');
+                }
+                writes.push({ path, contents, append: options.append ?? false });
+            },
+        });
+
+        const init = initSessionTsv('s1');
+        enqueueTsvRow('s1', 'first\n');
+        await expect(init).rejects.toThrow('disk unavailable');
+        enqueueTsvRow('s1', 'second\n');
+        await flushTsv('s1');
+
+        expect(writes.map((w) => w.contents)).toEqual([TSV_HEADER, 'first\n', 'second\n']);
+    });
+
+    it('flush retries failed init and persists the pending curve', async () => {
+        let failHeader = true;
+        _resetTsvWriterForTests({
+            write: async (path, contents, options) => {
+                if (contents === TSV_HEADER && failHeader) {
+                    failHeader = false;
+                    throw new Error('disk unavailable');
+                }
+                writes.push({ path, contents, append: options.append ?? false });
+            },
+        });
+
+        const init = initSessionTsv('s1');
+        enqueueTsvRow('s1', 'first\n');
+        await expect(init).rejects.toThrow('disk unavailable');
+        await flushTsv('s1');
+
+        expect(writes.map((w) => w.contents)).toEqual([TSV_HEADER, 'first\n']);
+    });
+
+    it('flush retries init and rejects when the TSV still cannot be created', async () => {
+        _resetTsvWriterForTests({
+            write: async () => {
+                throw new Error('disk unavailable');
+            },
+        });
+
+        const init = initSessionTsv('s1');
+        enqueueTsvRow('s1', 'first\n');
+        await expect(init).rejects.toThrow('disk unavailable');
+        await expect(flushTsv('s1')).rejects.toThrow('disk unavailable');
+    });
+
+    it('retries after a falsy init rejection', async () => {
+        let failHeader = true;
+        _resetTsvWriterForTests({
+            write: async (path, contents, options) => {
+                if (contents === TSV_HEADER && failHeader) {
+                    failHeader = false;
+                    throw undefined;
+                }
+                writes.push({ path, contents, append: options.append ?? false });
+            },
+        });
+
+        const init = initSessionTsv('s1');
+        enqueueTsvRow('s1', 'first\n');
+        await expect(init).rejects.toThrow();
+        enqueueTsvRow('s1', 'second\n');
+        await flushTsv('s1');
+
+        expect(writes.map((w) => w.contents)).toEqual([TSV_HEADER, 'first\n', 'second\n']);
+    });
+
+    it('reports a persistent init failure only once across retries', async () => {
+        _resetTsvWriterForTests({
+            write: async () => {
+                throw new Error('disk unavailable');
+            },
+        });
+
+        const init = initSessionTsv('s1');
+        enqueueTsvRow('s1', 'first\n');
+        await expect(init).rejects.toThrow('disk unavailable');
+        enqueueTsvRow('s1', 'second\n');
+        await expect(flushTsv('s1')).rejects.toThrow('disk unavailable');
+
+        expect(loggerCapture).toHaveBeenCalledOnce();
     });
 
     it('second init is a no-op when already ready', async () => {

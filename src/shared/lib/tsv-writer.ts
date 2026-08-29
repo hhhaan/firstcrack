@@ -24,6 +24,8 @@ interface SessionQueue {
     ready: boolean;
     /** Header write scheduled or completed — prevents StrictMode double-init wipe */
     initScheduled: boolean;
+    /** Last header error — surfaced by init/flush while the queue stays reusable */
+    initError: Error | null;
     /** Rows enqueued before header is ready */
     pending: string[];
 }
@@ -35,7 +37,7 @@ let removeImpl: TsvRemoveFn = defaultRemove;
 const getQueue = (sessionId: string): SessionQueue => {
     let q = sessions.get(sessionId);
     if (!q) {
-        q = { chain: Promise.resolve(), ready: false, initScheduled: false, pending: [] };
+        q = { chain: Promise.resolve(), ready: false, initScheduled: false, initError: null, pending: [] };
         sessions.set(sessionId, q);
     }
     return q;
@@ -73,22 +75,30 @@ export const initSessionTsv = async (sessionId: string): Promise<void> => {
             try {
                 await writeImpl(path, TSV_HEADER, { append: false });
                 q.ready = true;
+                q.initError = null;
                 for (const line of q.pending) {
                     await writeImpl(path, line, { append: true });
                 }
                 q.pending.length = 0;
             } catch (err) {
+                const error = err instanceof Error ? err : new Error(String(err ?? 'TSV initialization failed'));
                 q.initScheduled = false;
                 q.ready = false;
-                captureIo(err, 'tsv-writer init', sessionId);
+                if (q.initError === null) captureIo(error, 'tsv-writer init', sessionId);
+                q.initError = error;
             }
         });
     }
 
     await q.chain;
+    if (!q.ready) throw q.initError ?? new Error(`TSV initialization failed: ${sessionId}`);
 };
 
 export const enqueueTsvRow = (sessionId: string, row: string): void => {
+    const q = getQueue(sessionId);
+    if (q.initError !== null && !q.initScheduled) {
+        void initSessionTsv(sessionId).catch(() => {});
+    }
     const line = row.endsWith('\n') ? row : `${row}\n`;
     const path = sessionTsvPath(sessionId);
 
@@ -105,7 +115,11 @@ export const enqueueTsvRow = (sessionId: string, row: string): void => {
 export const flushTsv = async (sessionId?: string): Promise<void> => {
     if (sessionId) {
         const q = sessions.get(sessionId);
-        if (q) await q.chain;
+        if (q) {
+            await q.chain;
+            if (!q.ready && q.initError !== null) await initSessionTsv(sessionId);
+            await q.chain;
+        }
         return;
     }
     await Promise.all([...sessions.values()].map((q) => q.chain));

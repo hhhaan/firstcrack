@@ -20,6 +20,7 @@ import {
 } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { inventoryQueryRoots } from '@shared/lib/query-keys';
+import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean, PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
@@ -92,6 +93,7 @@ export type SaveRoastDeps = {
     countCompletedThisMonth: (userId: string) => Promise<number>;
     countCompletedTotal: (userId: string) => Promise<number>;
     saveOp: typeof roastSessionApi.saveOp;
+    flushCurve: (sessionId: string) => Promise<void>;
     syncRoastCurve: SyncRoastCurve;
     updatePlanBatch: ReturnType<typeof useUpdateSingleBatch>['mutateAsync'];
     startBatch: (b: PlanBatchHandoff) => void;
@@ -115,6 +117,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         countCompletedThisMonth,
         countCompletedTotal,
         saveOp,
+        flushCurve,
         syncRoastCurve,
         updatePlanBatch,
         startBatch,
@@ -244,6 +247,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     const wantDeduct = Boolean(formData.deductStock && provisionalPlan?.canDeduct);
     const deductionGrams = wantDeduct ? (provisionalPlan?.deductionGrams ?? 0) : 0;
 
+    if (sessionId) await flushCurve(sessionId);
+
     const savedSession = await saveOp({
         session: payload,
         deduct: wantDeduct,
@@ -360,6 +365,7 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
                         countCompletedThisMonth: roastSessionApi.countCompletedThisMonth,
                         countCompletedTotal: roastSessionApi.countCompletedTotal,
                         saveOp: roastSessionApi.saveOp,
+                        flushCurve: flushTsv,
                         syncRoastCurve,
                         updatePlanBatch,
                         startBatch,
