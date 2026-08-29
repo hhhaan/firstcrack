@@ -2,6 +2,7 @@ minimumReleaseAge: 10080
 allowBuilds:
   '@carbon/icon-helpers': false
   '@carbon/icons-react': false
+  '@sentry/cli': true
   esbuild: true
   gifsicle: true
   jpegtran-bin: true

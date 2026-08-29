@@ -1,3 +1,5 @@
+mod sentry_config;
+
 use tauri::RunEvent;
 #[cfg(desktop)]
 use std::sync::Mutex;
@@ -283,14 +285,19 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                         }
                         CommandEvent::Terminated(payload) => {
                             eprintln!("[sidecar] terminated: code={:?}", payload.code);
-                            sentry::capture_message(
-                                &format!(
-                                    "[sidecar-terminated] code={:?} after {:.0}s",
+                            // 이슈로 만들지 않는다 — 정상 종료·앱 종료·재시작으로 회복되는
+                            // 경우가 대부분이다. 조치가 필요한 건 아래 sidecar-dead뿐이고,
+                            // 그 이벤트에 이 breadcrumb들이 붙어 경위를 보여준다.
+                            sentry::add_breadcrumb(sentry::Breadcrumb {
+                                category: Some("sidecar".into()),
+                                level: sentry::Level::Warning,
+                                message: Some(format!(
+                                    "terminated: code={:?} after {:.0}s",
                                     payload.code,
                                     spawned_at.elapsed().as_secs_f64(),
-                                ),
-                                sentry::Level::Warning,
-                            );
+                                )),
+                                ..Default::default()
+                            });
                             break;
                         }
                         _ => {}
@@ -344,6 +351,13 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                 }
                 Err(e) => {
                     eprintln!("[sidecar-restart] spawn 실패: {e}");
+                    // 중간 재시도 실패는 아직 조치 대상이 아니다 — 소진돼야 이슈다.
+                    sentry::add_breadcrumb(sentry::Breadcrumb {
+                        category: Some("sidecar".into()),
+                        level: sentry::Level::Error,
+                        message: Some(format!("restart spawn failed ({attempts}): {e}")),
+                        ..Default::default()
+                    });
                     attempts += 1;
                 }
             }
@@ -353,16 +367,10 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let client = sentry::Client::from((
-        "https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944",
-        sentry::ClientOptions {
-            release: sentry::release_name!(),
-            environment: Some(std::borrow::Cow::Borrowed("production")),
-            traces_sample_rate: 0.1,
-            ..Default::default()
-        },
-    ));
-    sentry::Hub::main().bind_client(Some(std::sync::Arc::new(client.clone())));
+    // context를 먼저 만들어 tauri.conf.json의 앱 버전(= 프론트 release와 같은 값)을
+    // 읽는다. sentry::release_name!()은 crate 이름을 써서 roastery-agent@x가 된다.
+    let context = tauri::generate_context!();
+    let sentry_client = sentry_config::init(&context.package_info().version.to_string());
 
     let builder = tauri::Builder::default();
 
@@ -388,28 +396,23 @@ pub fn run() {
         .manage(SidecarToken(generate_sidecar_token()))
         .invoke_handler(tauri::generate_handler![relaunch_for_update, sidecar_token]);
 
-    let app = builder
+    let mut builder = builder
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_sentry::init(&client))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_notification::init());
+
+    // Sentry가 꺼진 debug 빌드에서는 플러그인(webview JS 주입 포함)도 붙이지 않는다.
+    if let Some(client) = &sentry_client {
+        builder = builder.plugin(tauri_plugin_sentry::init(client));
+    }
+
+    let app = builder
         .setup(|app| {
-            // Diagnostic: 앱 시작 버전·경로를 Sentry에 기록 — 업데이터 재시작 전후 버전 전이 추적용
-            {
-                let exe = std::env::current_exe()
-                    .map(|p| p.to_string_lossy().into_owned())
-                    .unwrap_or_else(|_| "unknown".to_owned());
-                let ver = app.package_info().version.to_string();
-                sentry::capture_message(
-                    &format!("[startup] v{ver} from {exe}"),
-                    sentry::Level::Info,
-                );
-            }
             #[cfg(desktop)]
             {
                 configure_main_window(app);
@@ -419,7 +422,7 @@ pub fn run() {
 
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while running tauri application");
 
     app.run(|_app, event| {

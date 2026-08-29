@@ -876,3 +876,37 @@ class TestHardwareAlertDedupe:
         manager._hw_alerts_sent.add("pid_request_failed")
         await manager.disconnect()
         assert manager._hw_alerts_sent == set()
+
+    async def test_reconnect_loop_captures_once_per_incident(self, manager, monkeypatch):
+        """무한 재시도 루프가 실패마다 이슈를 만들면 안 된다 — 사고 1건 = 이슈 1건."""
+        import config
+
+        monkeypatch.setattr(config, "RECONNECT_BACKOFFS", [0.01, 0.01, 0.01])
+        adapter = FlakyConnectAdapter(fail_times=5)
+        manager._adapter = adapter
+        manager._connected = False
+        manager._roaster_key = "test"
+        manager._protocol = "virtual"
+        manager._merged_params = {}
+
+        with patch("manager.sentry_sdk.capture_exception") as capture:
+            manager._reconnect_task = asyncio.create_task(manager._reconnect_loop())
+            await asyncio.wait_for(manager._reconnect_task, timeout=2.0)
+
+        assert adapter.connect_call_count == 6
+        assert capture.call_count == 1
+        # 재연결에 성공했으니 다음 사고는 다시 알릴 수 있어야 한다
+        assert "reconnect_failed" not in manager._hw_alerts_sent
+
+    async def test_capture_omits_host_and_comport(self, manager):
+        manager._roaster_key = "test"
+        manager._protocol = "modbus_tcp"
+        manager._merged_params = {"mode": "tcp", "host": "10.0.0.2", "comport": "COM3"}
+        with (
+            patch("manager.sentry_sdk.capture_exception"),
+            patch("manager.sentry_sdk.set_context") as set_context,
+        ):
+            manager._capture_hardware_error(OSError("PLC unreachable"), "connect_failed")
+        dumped = repr(set_context.call_args_list)
+        assert "10.0.0.2" not in dumped
+        assert "COM3" not in dumped

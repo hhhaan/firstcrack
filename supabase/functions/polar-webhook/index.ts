@@ -1,5 +1,5 @@
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
-import { captureEdgeException } from '../_shared/sentry.ts';
+import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 import { postSlack } from '../_shared/slack.ts';
 import { verifyPolarSignature } from '../_shared/webhook-auth.ts';
 
@@ -30,7 +30,7 @@ async function notifyPayment(lines: string[]): Promise<void> {
     await postSlack({ text: lines.join('\n') });
 }
 
-Deno.serve(async (req) => {
+serveWithSentry('polar-webhook', async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', {
             headers: {
@@ -194,6 +194,8 @@ Deno.serve(async (req) => {
         console.error('[polar-webhook] error', err);
         await Promise.all([
             captureEdgeException(err, {
+                function: 'polar-webhook',
+                status: 500,
                 tags: { component: 'polar-webhook', event_type: event.type },
             }),
             postSlack({

@@ -1,25 +1,24 @@
-import * as Sentry from '@sentry/react';
+import { httpStatusOf } from '@shared/lib/httpStatus';
+import { logger } from '@shared/lib/logger';
+// Sentry 초기화는 이 모듈 import의 side effect다 — App보다 먼저 평가되어야 한다.
+import { captureActionable, reactRootOptions } from '@shared/lib/sentry';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { initI18n } from './shared/i18n';
-import { logger } from './shared/lib/logger';
 import { showMutationErrorToast } from './shared/lib/mutationErrorToast';
 import { bindAuthQueryClient } from './shared/store/auth';
 import { ToastViewport } from './shared/ui/ToastViewport';
 import 'uplot/dist/uPlot.min.css';
 
 const is4xx = (error: unknown) => {
-    if (!error || typeof error !== 'object') return false;
-    const status =
-        (error as Record<string, unknown>).status ?? (error as { response?: { status?: unknown } }).response?.status;
-    return typeof status === 'number' && status >= 400 && status < 500;
+    const status = httpStatusOf(error);
+    return status !== undefined && status >= 400 && status < 500;
 };
 
-const onQueryError = (error: Error) => {
-    if (import.meta.env.PROD) logger.capture(error);
-};
+// silentError(meta)는 토스트 표시 정책일 뿐이다 — Sentry 전송 여부와 연결하지 않는다.
+const onQueryError = (error: Error) => captureActionable(error);
 
 const queryClient = new QueryClient({
     queryCache: new QueryCache({ onError: onQueryError }),
@@ -44,19 +43,6 @@ const queryClient = new QueryClient({
 });
 bindAuthQueryClient(queryClient);
 
-// DSN은 클라이언트 공개값 (Rust/사이드카도 동일하게 하드코딩) — 빌드 시크릿 의존 제거
-const SENTRY_DSN = 'https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944';
-
-if (import.meta.env.PROD) {
-    Sentry.init({
-        dsn: SENTRY_DSN,
-        environment: 'production',
-        release: __APP_VERSION__,
-        integrations: [Sentry.browserTracingIntegration()],
-        tracesSampleRate: 0.1,
-    });
-}
-
 const bootstrap = async () => {
     await initI18n();
 
@@ -65,7 +51,12 @@ const bootstrap = async () => {
         installE2eBridge();
     }
 
-    ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+    ReactDOM.createRoot(
+        document.getElementById('root') as HTMLElement,
+        // Sentry 비활성 시 undefined — React 기본 콘솔 리포팅을 그대로 둔다.
+        // 활성 시에는 커스텀 핸들러가 콘솔 출력을 대체하므로 DEV 스모크에서 직접 찍어준다.
+        reactRootOptions((error) => logger.error('[react] handled error', error)),
+    ).render(
         <React.StrictMode>
             <QueryClientProvider client={queryClient}>
                 <App />

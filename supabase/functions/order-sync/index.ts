@@ -11,6 +11,7 @@ import { upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { reclaimStaleRuns } from '../_shared/channels/run-lock.ts';
 import { loadSecretsSession } from '../_shared/channels/secrets-session.ts';
 import type { Platform, PollCursor } from '../_shared/channels/types.ts';
+import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 
 /** Cron sweeps every active connection, so one invocation must stay well inside the wall clock. */
 const INVOCATION_BUDGET_MS = 90 * 1000;
@@ -153,7 +154,7 @@ async function syncOne(
     }
 }
 
-Deno.serve(async (req) => {
+serveWithSentry('order-sync', async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
     if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
@@ -205,6 +206,7 @@ Deno.serve(async (req) => {
         .limit(MAX_CONNECTIONS_PER_RUN);
     if (error) {
         console.error('[order-sync] list', error);
+        await captureEdgeException(error, { function: 'order-sync', status: 500 });
         return jsonResponse({ error: 'Failed to list connections' }, 500);
     }
 

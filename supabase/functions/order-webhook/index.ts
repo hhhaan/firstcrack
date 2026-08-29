@@ -15,6 +15,7 @@ import { lineQuantity, upsertCanonicalOrders } from '../_shared/channels/normali
 import { classifyShopifyTopic } from '../_shared/channels/shopify-webhook.ts';
 import { cafe24ToCanonical, shopifyToCanonical } from '../_shared/channels/status-map.ts';
 import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
+import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 import { verifySharedSecret, verifyShopifyHmac } from '../_shared/webhook-auth.ts';
 
 type ConnRow = {
@@ -147,7 +148,7 @@ function parseCafe24Order(payload: Record<string, unknown>): CanonicalOrder | nu
     };
 }
 
-Deno.serve(async (req) => {
+serveWithSentry('order-webhook', async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', {
             headers: {
@@ -392,6 +393,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, upserted: 1 });
     } catch (e) {
         console.error('[order-webhook]', platform, e);
+        await captureEdgeException(e, { function: 'order-webhook', status: 500, tags: { platform } });
         // Still 200 for platform retry control when we partially handled — use 500 only for hard failures
         return jsonResponse({ error: e instanceof Error ? e.message : String(e) }, 500);
     }

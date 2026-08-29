@@ -5,8 +5,9 @@
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
+import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 
-Deno.serve(async (req) => {
+serveWithSentry('channel-disconnect', async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
     if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
@@ -40,6 +41,7 @@ Deno.serve(async (req) => {
 
     if (error) {
         console.error('[channel-disconnect]', error);
+        await captureEdgeException(error, { function: 'channel-disconnect', status: 500 });
         return jsonResponse({ error: 'Failed to disconnect' }, 500);
     }
     // RLS filtered it out or it never existed — do not report success.

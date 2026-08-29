@@ -42,4 +42,8 @@ tokio = { version = "1", features = ["time"] }
 [profile.release]
 lto = true
 codegen-units = 1
+# debug=1(line tables) + split-debuginfo="packed"로 심볼을 바이너리 밖(macOS .dSYM / Windows .pdb)으로
+# 뽑아낸 뒤 strip=true로 배포 바이너리에서 제거한다 — Sentry 업로드용 심볼은 별도 파일로 남는다.
+debug = 1
+split-debuginfo = "packed"
 strip = true

@@ -12,6 +12,10 @@ import {
     verifyCafe24OAuthState,
 } from '../_shared/channels/cafe24-oauth.ts';
 import { cafe24Adapter } from '../_shared/channels/cafe24.ts';
+import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
+
+/** A tampered/expired state is a rejected caller, not a bug — same class as a 401. */
+const STATE_REJECT_RE = /invalid state|state expired|state secret/i;
 
 function serviceClient() {
     return createClient(
@@ -38,7 +42,7 @@ function htmlPage(title: string, body: string, ok: boolean): Response {
     });
 }
 
-Deno.serve(async (req) => {
+serveWithSentry('cafe24-oauth-callback', async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', {
             headers: {
@@ -147,6 +151,9 @@ Deno.serve(async (req) => {
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error('[cafe24-oauth-callback]', msg);
+        if (!STATE_REJECT_RE.test(msg)) {
+            await captureEdgeException(e, { function: 'cafe24-oauth-callback' });
+        }
         return htmlPage('연결 실패', msg.slice(0, 400), false);
     }
 });

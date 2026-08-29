@@ -19,6 +19,12 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
   3. roaster_registry.py 에 항목 추가
 """
 
+# Sentry는 다른 앱 모듈보다 **먼저** 초기화한다 — import 중 터진 예외도 잡히게.
+# 활성 조건·release·스크러빙 정책은 모두 sentry_config에 있다.
+import sentry_config
+
+sentry_config.init()
+
 import logging
 import math
 import os
@@ -26,8 +32,6 @@ import sys
 import time
 from typing import Any
 
-import sentry_sdk
-from sentry_sdk.integrations.aiohttp import AioHttpIntegration
 from aiohttp import web
 
 import control_guard
@@ -36,26 +40,6 @@ from manager import RoasterManager
 
 from protocol_trace import TRACE
 from roaster_registry import ROASTER_REGISTRY, PROTOCOL_FORM_FIELDS
-
-# ---------------------------------------------------------------------------
-# Sentry
-# ---------------------------------------------------------------------------
-_SENTRY_DSN = (
-    "https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944"
-)
-
-# opt-out 가드 — 테스트/개발에서 production DSN으로 이벤트가 나가는 것을 막는다.
-# (pytest는 conftest.py에서 이 env를 세운다. opt-in으로 뒤집으면 프로덕션
-# launch 경로가 env를 세워야 해서 배포가 조용히 깨진다.)
-if _SENTRY_DSN and not os.environ.get("SIDECAR_DISABLE_SENTRY"):
-    sentry_sdk.init(
-        dsn=_SENTRY_DSN,
-        environment="production",
-        release=os.environ.get("SIDECAR_VERSION", "unknown"),
-        traces_sample_rate=0.1,
-        integrations=[AioHttpIntegration()],
-        send_default_pii=False,
-    )
 
 logging.basicConfig(
     level=os.environ.get("SIDECAR_LOG_LEVEL", "INFO").upper(),

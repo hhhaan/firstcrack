@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse } from '../_shared/auth.ts';
+import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 
 const serviceClient = () =>
     createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
@@ -53,7 +54,7 @@ function toSampleOut(id: string, label: string, bean: BeanMeta | null): SampleOu
     };
 }
 
-Deno.serve(async (req) => {
+serveWithSentry('get-cupping-session', async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
     let token: string | undefined;
@@ -84,7 +85,7 @@ Deno.serve(async (req) => {
 
     if (error) {
         console.error('[get-cupping-session]', error);
-        return jsonResponse({ error: 'lookup failed' }, 500);
+        return respondServerError('get-cupping-session', 'lookup failed', error);
     }
     if (!invite) return jsonResponse({ error: 'not_found' }, 404);
     if (invite.revoked_at) return jsonResponse({ error: 'revoked' }, 410);

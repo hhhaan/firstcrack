@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
 import { normalizeDescriptors, parseScaV1Scores, totalScoreScaV1 } from '../_shared/cupping-score.ts';
+import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 
 const serviceClient = () =>
     createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
@@ -23,7 +24,7 @@ type Body = {
  * - used_count seats = unique cuppers on this invite, not rows per sample
  * - Re-sync / edit same sample does not burn another seat
  */
-Deno.serve(async (req) => {
+serveWithSentry('submit-cupping', async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
     if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
 
         if (error) {
             console.error('[submit-cupping] invite', error);
-            return jsonResponse({ error: 'lookup failed' }, 500);
+            return respondServerError('submit-cupping', 'lookup failed', error);
         }
         if (!invite) return jsonResponse({ error: 'not_found' }, 404);
         if (invite.revoked_at) return jsonResponse({ error: 'revoked' }, 410);
@@ -141,7 +142,7 @@ Deno.serve(async (req) => {
                 .maybeSingle();
             if (exErr) {
                 console.error('[submit-cupping] existing lookup', exErr);
-                return jsonResponse({ error: 'lookup failed' }, 500);
+                return respondServerError('submit-cupping', 'lookup failed', exErr);
             }
             if (existing) {
                 const { data: row, error: updErr } = await supabase
@@ -161,7 +162,7 @@ Deno.serve(async (req) => {
                     .single();
                 if (updErr || !row) {
                     console.error('[submit-cupping] update', updErr);
-                    return jsonResponse({ error: 'update failed' }, 500);
+                    return respondServerError('submit-cupping', 'update failed', updErr);
                 }
                 return jsonResponse({ id: row.id, totalScore: row.total_score, cuppedAt: row.cupped_at }, 200);
             }
@@ -177,7 +178,7 @@ Deno.serve(async (req) => {
             .maybeSingle();
         if (priorErr) {
             console.error('[submit-cupping] prior cupper', priorErr);
-            return jsonResponse({ error: 'lookup failed' }, 500);
+            return respondServerError('submit-cupping', 'lookup failed', priorErr);
         }
         const needsSeat = !priorCupper;
 
@@ -193,7 +194,7 @@ Deno.serve(async (req) => {
                     .eq('id', invite.id)
                     .maybeSingle();
                 if (curErr || !current) {
-                    return jsonResponse({ error: 'lookup failed' }, 500);
+                    return respondServerError('submit-cupping', 'lookup failed', curErr);
                 }
                 if (current.revoked_at) return jsonResponse({ error: 'revoked' }, 410);
                 if (new Date(current.expires_at) <= new Date()) return jsonResponse({ error: 'expired' }, 410);
@@ -211,7 +212,7 @@ Deno.serve(async (req) => {
 
                 if (bumpErr) {
                     console.error('[submit-cupping] bump', bumpErr);
-                    return jsonResponse({ error: 'lookup failed' }, 500);
+                    return respondServerError('submit-cupping', 'lookup failed', bumpErr);
                 }
                 if (bumped) {
                     consumedFrom = current.used_count;
@@ -228,7 +229,7 @@ Deno.serve(async (req) => {
                 .select('revoked_at, expires_at')
                 .eq('id', invite.id)
                 .maybeSingle();
-            if (curErr || !current) return jsonResponse({ error: 'lookup failed' }, 500);
+            if (curErr || !current) return respondServerError('submit-cupping', 'lookup failed', curErr);
             if (current.revoked_at) return jsonResponse({ error: 'revoked' }, 410);
             if (new Date(current.expires_at) <= new Date()) return jsonResponse({ error: 'expired' }, 410);
         }
@@ -262,7 +263,7 @@ Deno.serve(async (req) => {
                     .eq('id', invite.id)
                     .eq('used_count', consumedFrom + 1);
             }
-            return jsonResponse({ error: 'insert failed' }, 500);
+            return respondServerError('submit-cupping', 'insert failed', insertErr);
         }
 
         return jsonResponse({ id: row.id, totalScore: row.total_score, cuppedAt: row.cupped_at }, 201);
@@ -325,7 +326,7 @@ Deno.serve(async (req) => {
 
     if (insertErr || !row) {
         console.error('[submit-cupping] owner insert', insertErr);
-        return jsonResponse({ error: 'insert failed' }, 500);
+        return respondServerError('submit-cupping', 'insert failed', insertErr);
     }
 
     return jsonResponse({ id: row.id, totalScore: row.total_score, cuppedAt: row.cupped_at }, 201);

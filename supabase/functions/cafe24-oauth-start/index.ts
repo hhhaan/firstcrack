@@ -17,8 +17,9 @@ import {
     normalizeMallId,
     signCafe24OAuthState,
 } from '../_shared/channels/cafe24-oauth.ts';
+import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 
-Deno.serve(async (req) => {
+serveWithSentry('cafe24-oauth-start', async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
     if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
@@ -58,6 +59,7 @@ Deno.serve(async (req) => {
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error('[cafe24-oauth-start]', msg);
+        await captureEdgeException(e, { function: 'cafe24-oauth-start', status: 500 });
         return jsonResponse({ error: msg }, 500);
     }
 });

@@ -226,7 +226,7 @@ class RoasterManager:
                     data={
                         "roaster": self._roaster_key,
                         "protocol": self._protocol,
-                        "error": str(exc),
+                        "type": type(exc).__name__,
                     },
                 )
                 return
@@ -243,13 +243,10 @@ class RoasterManager:
                     "reconnect_attempt": self._reconnect_attempt,
                 },
             )
+            # host/comport는 남기지 않는다 — 연결 대상 자체가 식별정보이고, 어느
+            # 장비에서 났는지는 roaster/protocol/mode로 이미 좁혀진다.
             if self._merged_params:
                 sentry_sdk.set_tag("mode", self._merged_params.get("mode"))
-                sentry_sdk.set_context("connection", {
-                    "mode": self._merged_params.get("mode"),
-                    "host": self._merged_params.get("host"),
-                    "comport": self._merged_params.get("comport"),
-                })
             sentry_sdk.capture_exception(exc)
             if once:
                 self._hw_alerts_sent.add(event)
@@ -466,6 +463,7 @@ class RoasterManager:
                         self._bt_display_ema = None
                         self._et_display_ema = None
                         self._ror_warmup = config.ROR_WARMUP_READS
+                        self._hw_alerts_sent.discard("reconnect_failed")
                         _log.info("자동 재연결 성공: %s", self._roaster_key)
                         sentry_sdk.add_breadcrumb(
                             category="hardware",
@@ -490,7 +488,9 @@ class RoasterManager:
                             message=f"reconnect failed ({attempt}): {exc}",
                             level="error",
                         )
-                        self._capture_hardware_error(exc, "reconnect_failed")
+                        # 무한 재시도 루프다 — 사고 1건에 이슈 1건. 나머지 시도는
+                        # 위 breadcrumb만 남는다. 재연결 성공 시 다시 열린다.
+                        self._capture_hardware_error(exc, "reconnect_failed", once=True)
         finally:
             self._reconnect_attempt = 0
 

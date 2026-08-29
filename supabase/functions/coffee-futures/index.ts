@@ -1,3 +1,5 @@
+import { serveWithSentry } from '../_shared/sentry.ts';
+
 const SYMBOL = 'KC=F';
 const YAHOO_URL = 'https://query1.finance.yahoo.com/v8/finance/chart/' + SYMBOL + '?interval=1d&range=2d';
 const CACHE_MAX_AGE = 300;
@@ -23,7 +25,7 @@ const json = (body: unknown, status = 200): Response =>
         },
     });
 
-Deno.serve(async (_req: Request) => {
+serveWithSentry('coffee-futures', async (_req: Request) => {
     if (_req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
     if (cached && Date.now() - cached.at < TTL_MS) {

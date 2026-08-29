@@ -1,7 +1,8 @@
 import { corsHeaders, createUserClient, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
 import { isValidSessionId, isValidUserId, presignUploadUrl } from '../_shared/r2.ts';
+import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 
-Deno.serve(async (req) => {
+serveWithSentry('get-upload-url', async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
@@ -53,6 +54,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ url });
     } catch (err) {
         console.error('[get-upload-url]', err);
+        await captureEdgeException(err, { function: 'get-upload-url', status: 500 });
         return jsonResponse({ error: 'Failed to generate upload URL' }, 500);
     }
 });

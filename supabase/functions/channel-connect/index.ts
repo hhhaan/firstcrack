@@ -21,6 +21,7 @@ import {
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import { pickConnectCredentials } from '../_shared/channels/connect-credentials.ts';
 import type { ChannelSecrets, Platform } from '../_shared/channels/types.ts';
+import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 
 const PLATFORMS = new Set(['naver', 'cafe24', 'shopify']);
 
@@ -47,7 +48,7 @@ function validateCredentials(platform: Platform, credentials: ChannelSecrets): s
     return null;
 }
 
-Deno.serve(async (req) => {
+serveWithSentry('channel-connect', async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
     if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
@@ -157,6 +158,11 @@ Deno.serve(async (req) => {
             .eq('user_id', ownerId);
         if (error) {
             console.error('[channel-connect] update', error);
+            await captureEdgeException(error, {
+                function: 'channel-connect',
+                status: 500,
+                tags: { platform },
+            });
             return jsonResponse({ error: 'Failed to update connection' }, 500);
         }
     } else {
@@ -173,6 +179,11 @@ Deno.serve(async (req) => {
             .single();
         if (error || !created) {
             console.error('[channel-connect] insert', error);
+            await captureEdgeException(error, {
+                function: 'channel-connect',
+                status: 500,
+                tags: { platform },
+            });
             return jsonResponse({ error: 'Failed to create connection' }, 500);
         }
         connectionId = created.id;
@@ -185,6 +196,11 @@ Deno.serve(async (req) => {
     });
     if (secretErr) {
         console.error('[channel-connect] secrets', secretErr);
+        await captureEdgeException(secretErr, {
+            function: 'channel-connect',
+            status: 500,
+            tags: { platform },
+        });
         return jsonResponse({ error: 'Failed to store credentials' }, 500);
     }
 

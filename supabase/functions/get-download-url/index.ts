@@ -1,9 +1,10 @@
 import { corsHeaders, createUserClient, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
 import { isValidUserId, presignDownloadUrl } from '../_shared/r2.ts';
+import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 
 const PROFILE_OWNER_RE = /^profiles\/([0-9a-f-]{36})\//i;
 
-Deno.serve(async (req) => {
+serveWithSentry('get-download-url', async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
@@ -53,6 +54,7 @@ Deno.serve(async (req) => {
             return jsonResponse({ error: 'Forbidden' }, 403);
         }
         console.error('[get-download-url]', err);
+        await captureEdgeException(err, { function: 'get-download-url', status: 500 });
         return jsonResponse({ error: 'Failed to generate download URL' }, 500);
     }
 });

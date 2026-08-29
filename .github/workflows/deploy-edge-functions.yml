@@ -132,6 +132,11 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           FUNCTIONS_JSON: ${{ steps.changed.outputs.functions }}
           PROJECT_REF: ${{ steps.changed.outputs.project_ref }}
+          # `supabase functions deploy`는 이 셸 env를 런타임에 전달하지 않는다 — Edge Function이
+          # Deno.env.get('SENTRY_RELEASE')를 읽게 하려면 이 값을 Supabase 프로젝트 시크릿으로도
+          # 등록해야 한다 (`supabase secrets set SENTRY_RELEASE=first-crack@<sha>`, 수동 또는 별도
+          # 문서화된 절차). 여기서는 배포 커맨드 자체의 컨텍스트로 export만 해둔다.
+          SENTRY_RELEASE: first-crack@${{ github.sha }}
         run: |
           echo "$FUNCTIONS_JSON" | jq -r '.[]' | while read fn; do
             echo "▶ Deploying $fn..."

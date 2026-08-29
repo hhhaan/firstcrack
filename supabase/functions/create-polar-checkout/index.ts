@@ -1,4 +1,5 @@
 import { corsHeaders, getAuthenticatedUser, jsonResponse } from '../_shared/auth.ts';
+import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 
 const POLAR_ACCESS_TOKEN = Deno.env.get('POLAR_ACCESS_TOKEN');
 
@@ -30,7 +31,7 @@ const ALLOWED_PRICE_IDS = new Set([
     'POLAR_PRO_PLUS_PRODUCT_ID_JP_YEARLY',
 ]);
 
-Deno.serve(async (req) => {
+serveWithSentry('create-polar-checkout', async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
@@ -41,6 +42,10 @@ Deno.serve(async (req) => {
 
     if (!POLAR_ACCESS_TOKEN) {
         console.error('[create-polar-checkout] missing env vars');
+        await captureEdgeException(new Error('POLAR_ACCESS_TOKEN is not set'), {
+            function: 'create-polar-checkout',
+            status: 500,
+        });
         return jsonResponse({ error: 'Server misconfigured' }, 500);
     }
 
@@ -85,6 +90,11 @@ Deno.serve(async (req) => {
     if (!checkoutRes.ok) {
         const errBody = await checkoutRes.text();
         console.error('[create-polar-checkout] checkout create:', errBody);
+        await captureEdgeException(new Error(`polar checkout ${checkoutRes.status}`), {
+            function: 'create-polar-checkout',
+            status: 500,
+            extra: { polarStatus: checkoutRes.status, polarBody: errBody.slice(0, 500) },
+        });
         return jsonResponse({ error: 'Failed to create checkout' }, 500);
     }
 

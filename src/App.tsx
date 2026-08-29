@@ -1,5 +1,5 @@
-import * as Sentry from '@sentry/react';
 import { logger } from '@shared/lib/logger';
+import { setSentryIdentity } from '@shared/lib/sentry';
 import { supabase } from '@shared/lib/supabase';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useCallback, useEffect, useState } from 'react';
@@ -16,7 +16,7 @@ import { useUpdateChecker } from './features/updater';
 import { useAuthStore } from './shared/store/auth';
 import { useThemeStore } from './shared/store/theme';
 import type { View } from './shared/types/view';
-import { ViewErrorBoundary } from './shared/ui/ErrorBoundary';
+import { ErrorBoundary, ViewErrorBoundary } from './shared/ui/ErrorBoundary';
 import { ActiveRoast } from './views/active-roast/ActiveRoast';
 import { Beans } from './views/bean/Beans';
 import { Cupping } from './views/cupping/Cupping';
@@ -49,6 +49,10 @@ export const App = () => {
     useEffect(() => init(), [init]);
     useEffect(() => initTheme(), [initTheme]);
     useOAuthDeepLink();
+
+    // 이슈를 사용자/워크스페이스 단위로 좁힌다 (id만 — 이메일·이름은 보내지 않는다).
+    // 로그아웃/워크스페이스 미확정 시 초기화되어 다음 사용자에게 새지 않는다.
+    useEffect(() => setSentryIdentity(user?.id, workspaceOwnerId), [user?.id, workspaceOwnerId]);
 
     // Auto-updater: silent background download → system notification
     const { t } = useTranslation();
@@ -177,14 +181,13 @@ export const App = () => {
         );
     if (!user) return <Login />;
 
-    const sentryFallback = ({ error, resetError }: { error: unknown; resetError: () => void }) => (
+    // 캡처는 하지 않는다 — React 19 root onCaughtError가 유일한 Sentry 경로다 (중복 이슈 방지).
+    const appShellFallback = ({ error, reset }: { error: Error; reset: () => void }) => (
         <div className="flex flex-col items-center justify-center h-screen gap-4 p-8 text-center bg-[var(--color-surface)]">
-            <p className="text-sm text-red-400">
-                {error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'}
-            </p>
+            <p className="text-sm text-red-400">{error.message || '알 수 없는 오류가 발생했습니다.'}</p>
             <button
                 type="button"
-                onClick={resetError}
+                onClick={reset}
                 className="px-4 py-2 text-sm rounded-md bg-stone-700 hover:bg-stone-600 text-stone-100 transition-colors"
             >
                 다시 시도
@@ -193,7 +196,7 @@ export const App = () => {
     );
 
     return (
-        <Sentry.ErrorBoundary fallback={sentryFallback}>
+        <ErrorBoundary fallback={appShellFallback}>
             <div
                 style={{
                     display: 'flex',
@@ -353,6 +356,6 @@ export const App = () => {
                     </div>
                 )}
             </div>
-        </Sentry.ErrorBoundary>
+        </ErrorBoundary>
     );
 };

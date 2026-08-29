@@ -17,12 +17,13 @@ import {
 import { loadSecretsSession, type SecretsSession } from '../_shared/channels/secrets-session.ts';
 import { mergeStatus } from '../_shared/channels/status-map.ts';
 import type { CanonicalStatus, Platform } from '../_shared/channels/types.ts';
+import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 
 function serviceClient() {
     return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 }
 
-Deno.serve(async (req) => {
+serveWithSentry('order-dispatch', async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
     if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
@@ -101,6 +102,10 @@ Deno.serve(async (req) => {
     });
     if (!lock.ok) {
         if (lock.conflict) return jsonResponse({ error: 'another run in progress' }, 409);
+        await captureEdgeException(new Error(lock.error ?? 'Failed to acquire run lock'), {
+            function: 'order-dispatch',
+            status: 500,
+        });
         return jsonResponse({ error: lock.error ?? 'Failed to acquire run lock' }, 500);
     }
 
@@ -124,6 +129,7 @@ Deno.serve(async (req) => {
             if (error) {
                 console.error('[order-dispatch] update row', error);
                 outcome = { status: 'error', errorMessage: 'Failed to prepare dispatch' };
+                await captureEdgeException(error, { function: 'order-dispatch', status: 500 });
                 return jsonResponse({ error: 'Failed to prepare dispatch' }, 500);
             }
             dispatchId = existingDispatch.id;
@@ -145,6 +151,10 @@ Deno.serve(async (req) => {
             if (error || !created) {
                 console.error('[order-dispatch] insert', error);
                 outcome = { status: 'error', errorMessage: 'Failed to create dispatch' };
+                await captureEdgeException(error ?? new Error('Failed to create dispatch'), {
+                    function: 'order-dispatch',
+                    status: 500,
+                });
                 return jsonResponse({ error: 'Failed to create dispatch' }, 500);
             }
             dispatchId = created.id;
@@ -301,6 +311,7 @@ Deno.serve(async (req) => {
         const msg = e instanceof Error ? e.message : String(e);
         console.error('[order-dispatch]', msg);
         outcome = { status: 'error', errorMessage: msg };
+        await captureEdgeException(e, { function: 'order-dispatch', status: 500 });
         return jsonResponse({ error: msg }, 500);
     } finally {
         await releaseRunLock(admin, lock.runId, outcome);

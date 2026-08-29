@@ -1,4 +1,5 @@
 import { corsHeaders, jsonResponse } from '../_shared/auth.ts';
+import { serveWithSentry } from '../_shared/sentry.ts';
 import { verifySharedSecret } from '../_shared/webhook-auth.ts';
 import { postSlack } from '../_shared/slack.ts';
 
@@ -15,7 +16,7 @@ type DbWebhookPayload = {
     };
 };
 
-Deno.serve(async (req) => {
+serveWithSentry('notify-signup', async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }

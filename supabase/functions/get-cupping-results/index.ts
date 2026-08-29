@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse } from '../_shared/auth.ts';
 import { SCA_V1_KEYS } from '../_shared/cupping-score.ts';
+import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
 
 const serviceClient = () =>
     createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
@@ -32,7 +33,7 @@ function generateToken(): string {
     return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-Deno.serve(async (req) => {
+serveWithSentry('get-cupping-results', async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
     let token: string | undefined;
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
             .maybeSingle();
         if (error) {
             console.error('[get-cupping-results] event by results_token', error);
-            return jsonResponse({ error: 'lookup failed' }, 500);
+            return respondServerError('get-cupping-results', 'lookup failed', error);
         }
         event = data;
     }
@@ -85,7 +86,7 @@ Deno.serve(async (req) => {
             .maybeSingle();
         if (invErr) {
             console.error('[get-cupping-results] invite', invErr);
-            return jsonResponse({ error: 'lookup failed' }, 500);
+            return respondServerError('get-cupping-results', 'lookup failed', invErr);
         }
         if (!invite) return jsonResponse({ error: 'not_found' }, 404);
 
@@ -107,7 +108,7 @@ Deno.serve(async (req) => {
             .maybeSingle();
         if (error) {
             console.error('[get-cupping-results] event by invite', error);
-            return jsonResponse({ error: 'lookup failed' }, 500);
+            return respondServerError('get-cupping-results', 'lookup failed', error);
         }
         event = data;
     }
@@ -128,7 +129,7 @@ Deno.serve(async (req) => {
             .maybeSingle();
         if (upErr) {
             console.error('[get-cupping-results] mint token', upErr);
-            return jsonResponse({ error: 'lookup failed' }, 500);
+            return respondServerError('get-cupping-results', 'lookup failed', upErr);
         }
         resultsToken = updated?.results_token ?? resultsToken;
         if (!updated?.results_token) {
@@ -149,7 +150,7 @@ Deno.serve(async (req) => {
         .order('created_at', { ascending: true });
     if (sErr) {
         console.error('[get-cupping-results] samples', sErr);
-        return jsonResponse({ error: 'lookup failed' }, 500);
+        return respondServerError('get-cupping-results', 'lookup failed', sErr);
     }
 
     const samples = sampleRows ?? [];
@@ -185,7 +186,7 @@ Deno.serve(async (req) => {
             .order('cupped_at', { ascending: true });
         if (cErr) {
             console.error('[get-cupping-results] scores', cErr);
-            return jsonResponse({ error: 'lookup failed' }, 500);
+            return respondServerError('get-cupping-results', 'lookup failed', cErr);
         }
         scoreRows = (scores ?? []) as ScoreRow[];
     }
