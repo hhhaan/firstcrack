@@ -20,7 +20,8 @@
                 "resizable": true,
                 "minWidth": 1024,
                 "minHeight": 680,
-                "devtools": true
+                "devtools": true,
+                "backgroundThrottling": "disabled"
             }
         ],
         "security": {
