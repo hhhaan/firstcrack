@@ -3712,6 +3712,8 @@ dependencies = [
 name = "roastery-agent"
 version = "1.1.32"
 dependencies = [
+ "objc2",
+ "objc2-foundation",
  "sentry",
  "serde",
  "serde_json",

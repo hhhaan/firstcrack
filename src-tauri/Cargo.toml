@@ -39,6 +39,15 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tokio = { version = "1", features = ["time"] }
 
+# App Nap 억제 (#308). beginActivity 토큰을 프로세스 수명 동안 보유.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6", default-features = false, features = ["std"] }
+objc2-foundation = { version = "0.3", default-features = false, features = [
+    "std",
+    "NSProcessInfo",
+    "NSString",
+] }
+
 [profile.release]
 lto = true
 codegen-units = 1
