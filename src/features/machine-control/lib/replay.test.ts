@@ -98,6 +98,17 @@ describe('extractReplayEvents', () => {
         expect(plan?.tpTime).toBe(60);
     });
 
+    it('dropTime 이후 포인트(배출 후 쿨다운 조작)는 이벤트에서 제외한다', () => {
+        // drop(600s) 후 쿨다운 중 슬라이더 조작 — BT 하강 꼬리라 이번 배치의 발전 구간과 겹친다
+        const tail: ReplayPoint[] = [
+            { t: 610, bt: 160, heater: 69 },
+            { t: 660, bt: 163, heater: 21 },
+            { t: 720, bt: 165, heater: 100 },
+        ];
+        const plan = extractReplayEvents([...curve({ 0: 80, 300: 40 }), ...tail], 600);
+        expect(plan?.events.map((e) => e.heater)).toEqual([80, 40]);
+    });
+
     it('heater가 전부 null(합성 프로파일)이면 null', () => {
         expect(extractReplayEvents(curve({}))).toBeNull();
     });

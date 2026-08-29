@@ -57,9 +57,15 @@ const TP_RISE_MARGIN = 2;
  *
  * 이벤트는 heater 값이 직전 이벤트 대비 MIN_HEATER_DELTA 이상 바뀐 지점만.
  * 첫 non-null heater는 초기 화력으로 항상 포함한다 (t=0이면 charge 직후 발화).
+ *
+ * dropTime(레퍼런스의 charge→drop 초) 이후 포인트는 버린다 — 레코더는 배출 후에도
+ * 기록을 계속하므로 쿨다운 중 슬라이더 조작이 TSV에 남고, 그 BT 구간(하강 꼬리)은
+ * 이번 배치의 발전 구간과 겹쳐 배출 후 조작이 로스팅 한복판에 발화한다
+ * (Artisan도 DROP 이후 이벤트는 재생하지 않는다).
  */
-export const extractReplayEvents = (points: ReplayPoint[]): ReplayPlan | null => {
-    const post = points.filter((p) => p.t >= 0);
+export const extractReplayEvents = (points: ReplayPoint[], dropTime?: number | null): ReplayPlan | null => {
+    const cutoff = dropTime ?? Number.POSITIVE_INFINITY;
+    const post = points.filter((p) => p.t >= 0 && p.t <= cutoff);
     if (post.length === 0) return null;
 
     const events: ReplayEvent[] = [];

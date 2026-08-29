@@ -28,6 +28,8 @@ interface Props {
     pidDropBehavior: 'hold' | 'zero';
     /** 타겟 프로파일 커브 — Replay Assist 레퍼런스 (#300). 없으면 Replay 숨김 */
     replayPoints: ReplayPoint[] | null;
+    /** 레퍼런스의 charge→drop 초 — 배출 후 기록 제외용 */
+    replayDropTime: number | null;
     liveBt: number | null;
     elapsed: number;
     roasting: boolean;
@@ -54,6 +56,7 @@ export const MachineControlPanel = ({
     roastFinished,
     pidDropBehavior,
     replayPoints,
+    replayDropTime,
     liveBt,
     elapsed,
     roasting,
@@ -95,6 +98,7 @@ export const MachineControlPanel = ({
     );
     const replay = useReplayControl({
         referencePoints: replayPoints,
+        referenceDropTime: replayDropTime,
         liveBt,
         elapsed,
         roasting,

@@ -581,6 +581,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         pidDropBehavior={roastSettings.pidDropBehavior}
                         // Replay Assist (#300) — 합성 곡선은 heater가 null이라 자연 비활성
                         replayPoints={targetCurvePoints}
+                        replayDropTime={targetProfile?.duration_sec ?? null}
                         liveBt={rawBT}
                         elapsed={elapsed}
                         roasting={phase === 'roasting'}

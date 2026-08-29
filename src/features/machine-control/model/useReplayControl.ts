@@ -4,6 +4,8 @@ import { extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } 
 export interface ReplayControlInputs {
     /** 타겟 프로파일 커브 (charge 기준 상대 시간) — 없으면 Replay 비활성 */
     referencePoints: ReplayPoint[] | null;
+    /** 레퍼런스의 charge→drop 초 — 배출 후 기록(쿨다운 조작)을 재생에서 제외한다 */
+    referenceDropTime: number | null;
     liveBt: number | null;
     elapsed: number;
     /** phase === 'roasting' — 이 밖에서는 판정도 쓰기도 하지 않는다 */
@@ -40,6 +42,7 @@ export type ReplayStopReason =
  */
 export const useReplayControl = ({
     referencePoints,
+    referenceDropTime,
     liveBt,
     elapsed,
     roasting,
@@ -52,8 +55,11 @@ export const useReplayControl = ({
     writeHeater,
 }: ReplayControlInputs) => {
     const plan = useMemo(
-        () => (referencePoints && referencePoints.length > 0 ? extractReplayEvents(referencePoints) : null),
-        [referencePoints],
+        () =>
+            referencePoints && referencePoints.length > 0
+                ? extractReplayEvents(referencePoints, referenceDropTime)
+                : null,
+        [referencePoints, referenceDropTime],
     );
 
     const [active, setActive] = useState(false);

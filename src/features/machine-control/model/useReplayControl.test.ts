@@ -18,6 +18,7 @@ const POINTS: ReplayPoint[] = [
 
 const BASE: Omit<ReplayControlInputs, 'writeHeater'> = {
     referencePoints: POINTS,
+    referenceDropTime: null,
     liveBt: 180,
     elapsed: 0,
     roasting: true,
