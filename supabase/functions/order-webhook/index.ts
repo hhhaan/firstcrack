@@ -11,7 +11,7 @@
  */
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
 import { isCafe24Uninstall } from '../_shared/channels/cafe24-webhook.ts';
-import { upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
+import { lineQuantity, upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { classifyShopifyTopic } from '../_shared/channels/shopify-webhook.ts';
 import { cafe24ToCanonical, shopifyToCanonical } from '../_shared/channels/status-map.ts';
 import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
@@ -77,7 +77,7 @@ function parseShopifyOrder(payload: Record<string, unknown>): CanonicalOrder | n
             platformVariantId: li.variant_id != null ? String(li.variant_id) : null,
             sku: li.sku ? String(li.sku) : null,
             title: String(li.name ?? li.title ?? 'Item'),
-            quantity: Number(li.quantity ?? 1) || 1,
+            quantity: lineQuantity(li.quantity),
             unitPrice: li.price != null ? Number(li.price) : null,
             status: lineStatus as CanonicalOrderLine['status'],
         };
@@ -119,7 +119,7 @@ function parseCafe24Order(payload: Record<string, unknown>): CanonicalOrder | nu
               platformProductId: it.product_no != null ? String(it.product_no) : null,
               platformVariantId: it.variant_code != null ? String(it.variant_code) : null,
               title: String(it.product_name ?? 'Item'),
-              quantity: Number(it.quantity ?? 1) || 1,
+              quantity: lineQuantity(it.quantity),
               unitPrice: it.product_price != null ? Number(it.product_price) : null,
               status: status === 'cancelled' ? 'cancelled' : status === 'refunded' ? 'refunded' : 'active',
           }))

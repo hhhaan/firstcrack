@@ -17,6 +17,7 @@ import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Spinner } from '@shared/ui/Spinner';
+import { ask } from '@tauri-apps/plugin-dialog';
 import { format } from 'date-fns';
 import { Check, Coffee } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -576,7 +577,16 @@ export const RoastSummaryModal = ({
                 </button>
                 <button
                     type="button"
-                    onClick={onDiscard}
+                    onClick={async () => {
+                        // 확인 없는 즉시 폐기 방지 (#317) — 창 닫기 가드(#177)와 동급의 한 겹
+                        const ok = await ask(t('activeRoast.summary.discardConfirmMsg'), {
+                            title: t('activeRoast.summary.discardConfirmTitle'),
+                            kind: 'warning',
+                            okLabel: t('activeRoast.summary.discardConfirmOk'),
+                            cancelLabel: t('activeRoast.summary.discardConfirmCancel'),
+                        });
+                        if (ok) onDiscard();
+                    }}
                     className="w-full py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border"
                 >
                     {t('activeRoast.summary.discard')}

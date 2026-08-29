@@ -135,7 +135,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const exitFullscreen = useCallback(() => setIsFullscreen(false), []);
 
     // ── 공유 ref ──────────────────────────────────────────────────
-    const roastStartTimeRef = useRef(0);
+    // 리마운트(ErrorBoundary 재시도 등) 시 스토어 roastStartMs로 재수화 —
+    // 0으로 남으면 폴링이 로스팅 분기를 영원히 건너뛴다 (#317)
+    const roastStartTimeRef = useRef(useRoastingStore.getState().roastStartMs);
 
     // ── 사이드카 폴림 및 실시간 데이터 ───────────────────────────
     const { livePoints, setLivePoints } = useSidecarPolling({

@@ -613,6 +613,10 @@
             "notes": "ノート",
             "notesPlaceholder": "フレーバーノート、観察、次回の調整...",
             "save": "保存",
+            "discardConfirmTitle": "ロースト破棄",
+            "discardConfirmMsg": "保存せずにこのローストを削除します。続行しますか？",
+            "discardConfirmOk": "破棄",
+            "discardConfirmCancel": "キャンセル",
             "discard": "保存しない",
             "levels": {
                 "light": "ライト",

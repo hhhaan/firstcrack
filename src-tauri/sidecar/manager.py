@@ -496,6 +496,9 @@ class RoasterManager:
 
     async def _safety_after_reconnect(self) -> None:
         """Reconnect must not leave FAULT PID or last heater duty stuck (#205)."""
+        # PID를 켠 적 없는 수동 로스팅의 화력을 덮어쓰면 안 된다 (#317)
+        if self._pid is None:
+            return
         try:
             if self._pid is not None and self._pid.state_name != "off":
                 await self._pid.stop("reconnect", mode=STOP_ZERO)

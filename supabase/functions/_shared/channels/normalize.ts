@@ -89,6 +89,12 @@ type LineRow = {
  * `buildProductMap` collects and `resolveProductId` looks up through this same list — the
  * lookup can never consider a key the collection pass did not fetch.
  */
+/** Line quantity: 0 stays 0 (order-edit removals, #317); missing/junk → 1. */
+export function lineQuantity(v: unknown): number {
+    const n = Number(v ?? 1);
+    return Number.isFinite(n) ? n : 1;
+}
+
 export function lineMatchKeys(line: CanonicalOrderLine): string[] {
     const keys: string[] = [];
     if (line.platformVariantId) keys.push(line.platformVariantId);

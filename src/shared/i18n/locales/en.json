@@ -613,6 +613,10 @@
             "notes": "Notes",
             "notesPlaceholder": "Flavor notes, observations, adjustments for next time...",
             "save": "Save",
+            "discardConfirmTitle": "Discard roast",
+            "discardConfirmMsg": "This roast will be deleted without saving. Continue?",
+            "discardConfirmOk": "Discard",
+            "discardConfirmCancel": "Cancel",
             "discard": "Don't Save",
             "levels": {
                 "light": "Light",

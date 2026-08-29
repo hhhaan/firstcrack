@@ -33,6 +33,7 @@ import {
     readNaverDispatchResult,
 } from './dispatch.ts';
 import { planNaverScan } from './naver-windows.ts';
+import { lineQuantity } from './normalize.ts';
 import { nextPollCursor } from './poll-cursor.ts';
 import { type HttpAttempt, naverThrottle, readHttpAttempt, withRetry } from './rate-limit.ts';
 import { naverToCanonical } from './status-map.ts';
@@ -241,7 +242,7 @@ function mapDetail(entry: Record<string, unknown>): CanonicalOrder | null {
         naverToCanonical(String(po.productOrderStatus ?? ''), po.claimStatus != null ? String(po.claimStatus) : null) ??
         'paid';
 
-    const qty = Number(po.remainQuantity ?? po.quantity ?? po.initialQuantity ?? 1) || 1;
+    const qty = lineQuantity(po.remainQuantity ?? po.quantity ?? po.initialQuantity);
     const unitPrice = po.unitPrice != null ? Number(po.unitPrice) : null;
     const totalPay =
         po.remainPaymentAmount != null

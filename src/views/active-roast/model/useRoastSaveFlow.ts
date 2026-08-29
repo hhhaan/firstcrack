@@ -9,6 +9,7 @@ import {
     clearPendingRoastSave,
     type PendingRoastParams,
     type PendingRoastSave,
+    readPendingRoastSave,
     toSaveRoastParams,
     writePendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
@@ -19,6 +20,7 @@ import { ensureSession } from '@shared/lib/ensureSession';
 import { isGreenRoastAlreadyClaimed } from '@shared/lib/f3-green-deduct';
 import { BatchLimitError } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
+import { useRoastSessionStore } from '@shared/store/roastSession';
 import { useToastStore } from '@shared/store/toast';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
@@ -208,6 +210,12 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     }
                 }
 
+                // 남은 배치가 없으면 Continue 모달이 안 열려 핸드오프 해제 기회가 없다 —
+                // 여기서 떼지 않으면 다음 애드혹 로스트가 끝난 배치에 붙는다 (#317)
+                if (continueCandidates.length === 0) {
+                    useRoastSessionStore.getState().completeBatch();
+                }
+
                 flow.onSaveSuccess({
                     shouldOpenContinue: continueCandidates.length > 0,
                     continueCandidates,
@@ -274,6 +282,13 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
     // opens, with modal-default form values. Overwritten with the real form on Save.
     const confirmEndRoast = useCallback(
         (summaryData: RoastSummaryData) => {
+            // 이전 로스트의 저장 실패 스냅샷(submitted:true)을 덮어쓰지 않는다 (#317).
+            // 이 경우 슬롯은 이전 로스트 소유 — discardSummary도 건드리지 않는다.
+            const pending = readPendingRoastSave();
+            if (pending?.submitted && pending.params.sessionId !== sessionId) {
+                flow.confirmEndRoast(summaryData);
+                return;
+            }
             writePendingRoastSave({
                 version: 1,
                 submitted: false,
@@ -292,13 +307,15 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             });
             flow.confirmEndRoast(summaryData);
         },
-        [snapshotParams, planBatchHandoff, selectedBeanId, flow.confirmEndRoast],
+        [snapshotParams, planBatchHandoff, selectedBeanId, sessionId, flow.confirmEndRoast],
     );
 
     const discardSummary = useCallback(() => {
-        clearPendingRoastSave();
+        // 다른 세션의 submitted:true 슬롯은 이전 로스트의 복구 데이터 — 폐기 대상이 아니다 (#317)
+        const pending = readPendingRoastSave();
+        if (!pending?.submitted || pending.params.sessionId === sessionId) clearPendingRoastSave();
         flow.discardSummary();
-    }, [flow.discardSummary]);
+    }, [flow.discardSummary, sessionId]);
 
     return {
         flow,

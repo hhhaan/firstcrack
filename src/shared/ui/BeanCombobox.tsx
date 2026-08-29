@@ -128,6 +128,8 @@ export const BeanCombobox = ({
                             return;
                         }
                         if (e.key === 'Enter') {
+                            // 한글 조합 확정 Enter는 선택/커밋으로 소비하지 않는다 (#317)
+                            if (e.nativeEvent.isComposing) return;
                             e.preventDefault();
                             if (filtered.length === 1) {
                                 onSelect(filtered[0].id);

@@ -28,6 +28,7 @@
 
 import { tokenExpiresAtMs } from './cafe24-oauth.ts';
 import { buildCafe24ShipmentPayload } from './dispatch.ts';
+import { lineQuantity } from './normalize.ts';
 import { nextPollCursor } from './poll-cursor.ts';
 import { cafe24Throttle, type HttpAttempt, readHttpAttempt, withRetry } from './rate-limit.ts';
 import { cafe24ToCanonical } from './status-map.ts';
@@ -247,7 +248,7 @@ function mapItems(order: Record<string, unknown>, orderStatus: string): Canonica
         platformVariantId:
             it.variant_code != null ? String(it.variant_code) : it.option_id != null ? String(it.option_id) : null,
         title: String(it.product_name ?? it.product_name_default ?? 'Item'),
-        quantity: Number(it.quantity ?? 1) || 1,
+        quantity: lineQuantity(it.quantity),
         unitPrice: it.product_price != null ? Number(it.product_price) : it.price != null ? Number(it.price) : null,
         status: lineStatus as CanonicalOrderLine['status'],
     }));

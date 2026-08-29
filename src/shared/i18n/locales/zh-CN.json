@@ -613,6 +613,10 @@
             "notes": "备注",
             "notesPlaceholder": "风味笔记、观察、下次调整...",
             "save": "保存",
+            "discardConfirmTitle": "丢弃烘焙",
+            "discardConfirmMsg": "将不保存并删除此烘焙记录。继续吗？",
+            "discardConfirmOk": "丢弃",
+            "discardConfirmCancel": "取消",
             "discard": "不保存",
             "levels": {
                 "light": "浅烘焙",
