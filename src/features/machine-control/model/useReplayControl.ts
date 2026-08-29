@@ -74,13 +74,16 @@ export const useReplayControl = ({
         }
     }
 
-    // 새 배치가 시작되면(roasting 상승 에지) 인덱스를 되돌린다 — 남은 인덱스는 이전
-    // 배치 것이라, 그대로 두면 새 배치에서 "모든 이벤트 재생 완료"로 영영 침묵한다.
+    // 배치 경계(roasting 양쪽 에지)에서 인덱스를 되돌린다 — 남은 인덱스는 이전 배치
+    // 것이라, 상승 에지만 리셋하면 차지 전(standby/preheat)에 토글을 켰을 때 stale
+    // 인덱스가 "모든 이벤트 재생 완료"로 새어나온다. 이전 배치의 중지 사유도 함께
+    // 지운다 — 새 배치 패널에 지난 'pid'/'manual' 안내가 남으면 안 된다.
     // reconnect 중에는 phase가 유지되므로(#233) 순간 끊김으로는 오리셋되지 않는다.
     const [prevRoasting, setPrevRoasting] = useState(roasting);
     if (roasting !== prevRoasting) {
         setPrevRoasting(roasting);
-        if (roasting) setIndex(0);
+        setIndex(0);
+        setStopReason(null);
     }
 
     const stop = useCallback(() => {

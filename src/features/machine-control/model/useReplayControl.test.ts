@@ -222,6 +222,21 @@ describe('useReplayControl', () => {
         h.unmount();
     });
 
+    it('배치 종료 후 차지 전에 토글해도 stale index가 "완료"로 보이지 않는다', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        // 배치 1: 전 이벤트 소진 → 배출로 종료
+        await h.rerender({ liveBt: 210, elapsed: 650, afterTurningPoint: true });
+        await h.rerender({ liveBt: 210, elapsed: 660, afterTurningPoint: true, roastFinished: true, roasting: false });
+        // 차지 전(standby/preheat)에 미리 켠다 — 하강 에지에서 index가 리셋됐어야 한다
+        await h.rerender({ liveBt: 180, elapsed: 0, afterTurningPoint: false, roasting: false });
+        await act(async () => h.get().toggle());
+        expect(h.get().active).toBe(true);
+        expect(h.get().nextEvent).not.toBeNull();
+        expect(h.get().stopReason).toBeNull();
+        h.unmount();
+    });
+
     it('heater 기록이 없는 레퍼런스(합성)에서는 available=false, 토글해도 켜지지 않는다', async () => {
         const h = await renderReplay({ referencePoints: POINTS.map((p) => ({ ...p, heater: null })) });
         expect(h.get().available).toBe(false);
