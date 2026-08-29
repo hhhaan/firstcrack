@@ -238,6 +238,103 @@ describe('useReplayControl', () => {
         h.unmount();
     });
 
+    describe('배출 후 초기 화력 reset (#316)', () => {
+        const finishRoast = {
+            liveBt: 210,
+            elapsed: 660,
+            afterTurningPoint: true,
+            roastFinished: true,
+            roasting: false,
+        };
+
+        it('재생 중 배출되면 5초 뒤 레퍼런스 초기 화력으로 reset write가 나간다', async () => {
+            vi.useFakeTimers();
+            try {
+                const h = await renderReplay();
+                await act(async () => h.get().toggle());
+                await h.rerender(finishRoast);
+                expect(h.get().active).toBe(false);
+                h.writeHeater.mockClear();
+
+                await act(async () => void vi.advanceTimersByTime(4999));
+                expect(h.writeHeater).not.toHaveBeenCalled();
+                await act(async () => void vi.advanceTimersByTime(1));
+                expect(h.writeHeater).toHaveBeenCalledWith(80);
+                h.unmount();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('reset 전에 새 배치가 시작되면 이전 배치 timer가 발화하지 않는다', async () => {
+            vi.useFakeTimers();
+            try {
+                const h = await renderReplay();
+                await act(async () => h.get().toggle());
+                await h.rerender(finishRoast);
+                h.writeHeater.mockClear();
+                // 5초 안에 새 배치 차지
+                await h.rerender({ liveBt: 180, elapsed: 0, afterTurningPoint: false });
+                await act(async () => void vi.advanceTimersByTime(10_000));
+                expect(h.writeHeater).not.toHaveBeenCalled();
+                h.unmount();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('배출 전에 수동 중지된 상태였으면 reset하지 않는다 — 화력 소유권은 사람에게 있다', async () => {
+            vi.useFakeTimers();
+            try {
+                const h = await renderReplay();
+                await act(async () => h.get().toggle());
+                await act(async () => h.get().stop());
+                await h.rerender(finishRoast);
+                h.writeHeater.mockClear();
+                await act(async () => void vi.advanceTimersByTime(10_000));
+                expect(h.writeHeater).not.toHaveBeenCalled();
+                h.unmount();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('5초 안에 수동 슬라이더 개입(stop)이 오면 reset이 손 값을 덮지 않는다', async () => {
+            vi.useFakeTimers();
+            try {
+                const h = await renderReplay();
+                await act(async () => h.get().toggle());
+                await h.rerender(finishRoast);
+                h.writeHeater.mockClear();
+                await act(async () => h.get().stop());
+                await act(async () => void vi.advanceTimersByTime(10_000));
+                expect(h.writeHeater).not.toHaveBeenCalled();
+                h.unmount();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('배출 시점에 끊겨 있으면 재연결 후 5초 뒤에 reset한다', async () => {
+            vi.useFakeTimers();
+            try {
+                const h = await renderReplay();
+                await act(async () => h.get().toggle());
+                await h.rerender({ ...finishRoast, sidecarConnected: false });
+                h.writeHeater.mockClear();
+                await act(async () => void vi.advanceTimersByTime(10_000));
+                expect(h.writeHeater).not.toHaveBeenCalled();
+                // 재연결 → 타이머가 그때부터 다시 5초
+                await h.rerender({ ...finishRoast, sidecarConnected: true });
+                await act(async () => void vi.advanceTimersByTime(5000));
+                expect(h.writeHeater).toHaveBeenCalledWith(80);
+                h.unmount();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+    });
+
     it('heater 기록이 없는 레퍼런스(합성)에서는 available=false, 토글해도 켜지지 않는다', async () => {
         const h = await renderReplay({ referencePoints: POINTS.map((p) => ({ ...p, heater: null })) });
         expect(h.get().available).toBe(false);

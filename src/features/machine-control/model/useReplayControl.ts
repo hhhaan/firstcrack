@@ -22,6 +22,12 @@ export interface ReplayControlInputs {
     writeHeater: (value: number) => void;
 }
 
+/**
+ * 배출 후 초기 화력 reset까지의 유예 (#316, 정책은 #300).
+ * 즉시 쓰지 않는 이유: DROP 직후는 배출 조작(문 열기 등)과 겹쳐 순간 개입이 잦다.
+ */
+const RESET_DELAY_MS = 5000;
+
 /** 재생 중지 사유 — 'finished'는 배치 종료라 UI에 표시하지 않는다 */
 export type ReplayStopReason =
     | 'disconnected'
@@ -66,6 +72,8 @@ export const useReplayControl = ({
     const [index, setIndex] = useState(0);
     /** 마지막 자동/수동 중지 사유 — 토글 재시작 전까지 UI에 지속 표시 */
     const [stopReason, setStopReason] = useState<ReplayStopReason | null>(null);
+    /** 배출 후 되돌릴 초기 화력 — null이면 예약 없음. 재생 중 배출됐을 때만 잡힌다 (#316) */
+    const [pendingReset, setPendingReset] = useState<number | null>(null);
 
     // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
     // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
@@ -90,9 +98,15 @@ export const useReplayControl = ({
         setPrevRoasting(roasting);
         setIndex(0);
         setStopReason(null);
+        // 상승 에지: 이전 배치의 reset timer가 새 배치 화력을 덮으면 안 된다 (#316).
+        // 하강 에지(배출)는 무해하다 — 예약은 이 리셋 뒤의 중지 effect에서 잡힌다.
+        setPendingReset(null);
     }
 
     const stop = useCallback(() => {
+        // 수동 개입은 active 여부와 무관하게 예약된 reset을 취소한다 —
+        // 배출 후 5초 안에 사람이 만진 화력을 timer가 덮으면 안 된다 (#316)
+        setPendingReset(null);
         if (!active) return;
         setActive(false);
         setStopReason('manual');
@@ -114,7 +128,26 @@ export const useReplayControl = ({
         if (!active || stopCause == null) return;
         setActive(false);
         setStopReason(stopCause);
-    }, [active, stopCause]);
+        // 재생이 화력을 잡은 채 배출됐다 — 마지막 재생 값이 실기기에 남으므로
+        // 레퍼런스 초기 화력으로 되돌릴 것을 예약한다 (#316). stopCause 라벨이
+        // 'disconnected' 등으로 밀려도 배출과 동시면 예약한다 — 우선순위 때문에
+        // 'finished'만 보면 "끊김+배출" 커밋에서 아무도 불을 못 끈다.
+        if (roastFinished) setPendingReset(plan?.events[0]?.heater ?? null);
+    }, [active, stopCause, roastFinished, plan]);
+
+    // 예약된 초기 화력 reset. 끊겨 있으면 보낼 경로가 없다 — 재연결되면 그때부터
+    // 다시 5초 세고 쓴다. 실패 시 재시도는 하지 않는다: 값이 flame-off가 아니라
+    // 재가동 값이라, 조용한 재시도 루프가 사람 개입과 싸우는 쪽이 더 위험하다.
+    // 실패 관측은 기존 경로가 한다 — HTTP 실패는 토스트+Sentry(controlSender.onError),
+    // 기기 미반영은 unacknowledged 경고. 이것이 #316이 요구하는 명시 정책이다.
+    useEffect(() => {
+        if (pendingReset == null || !sidecarConnected) return;
+        const timer = setTimeout(() => {
+            setPendingReset(null);
+            writeHeater(pendingReset);
+        }, RESET_DELAY_MS);
+        return () => clearTimeout(timer);
+    }, [pendingReset, sidecarConnected, writeHeater]);
 
     const toggle = useCallback(() => {
         if (active) {
