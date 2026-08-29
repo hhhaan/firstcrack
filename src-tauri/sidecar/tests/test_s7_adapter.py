@@ -199,29 +199,44 @@ class TestIoSerialization:
 # TestReadBudget (#209) — 읽기 전체를 벽시계 예산으로 묶는다
 # ---------------------------------------------------------------------------
 
-RECV_S = config.S7_RECV_TIMEOUT_MS / 1000.0
+def _recv_s() -> float:
+    return config.S7_RECV_TIMEOUT_MS / 1000.0
 
 
-def _unresponsive_read(delay: float = RECV_S):
+@pytest.fixture
+def fast_s7_timing(monkeypatch):
+    """실제 상수의 1/5로 축소 — 벽시계 예산 로직은 비율만 유지되면 동일하게 검증된다.
+
+    상수 간 부등식 자체는 TestBudgetRelation이 실제 값으로 검증한다.
+    """
+    monkeypatch.setattr(config, "S7_RECV_TIMEOUT_MS", 100)
+    monkeypatch.setattr(config, "S7_READ_BUDGET_S", 0.4)
+    monkeypatch.setattr(config, "S7_IO_LOCK_TIMEOUT_S", 0.1)
+    monkeypatch.setattr(config, "S7_TEARDOWN_LOCK_TIMEOUT_S", 0.6)
+    monkeypatch.setattr(config, "READ_TIMEOUT", 0.6)
+
+
+def _unresponsive_read(delay: float | None = None):
     """무응답 PLC: RecvTimeout만큼 버틴 뒤 실패한다."""
 
     def _read(db, offset, size):
-        time.sleep(delay)
+        time.sleep(_recv_s() if delay is None else delay)
         raise RuntimeError("RecvTimeout")
 
     return _read
 
 
-def _slow_ok_read(delay: float = RECV_S):
+def _slow_ok_read(delay: float | None = None):
     """느리지만 성공하는 PLC — 채널 수가 예산을 잡아먹는 경우."""
 
     def _read(db, offset, size):
-        time.sleep(delay)
+        time.sleep(_recv_s() if delay is None else delay)
         return _int_bytes(0) if size == 2 else bytearray(4)
 
     return _read
 
 
+@pytest.mark.usefixtures("fast_s7_timing")
 class TestReadBudget:
     async def test_unresponsive_plc_returns_within_budget(self, adapter):
         """manager의 READ_TIMEOUT(3.0) 만료 전에 스레드가 스스로 락을 놓아야 한다."""
@@ -233,7 +248,7 @@ class TestReadBudget:
         elapsed = time.monotonic() - t0
 
         assert elapsed < config.READ_TIMEOUT, f"예산 초과: {elapsed:.2f}s"
-        assert elapsed < config.S7_READ_BUDGET_S + config.S7_MIN_REQUEST_INTERVAL + RECV_S
+        assert elapsed < config.S7_READ_BUDGET_S + config.S7_MIN_REQUEST_INTERVAL + _recv_s()
         # 락이 반납됐어야 다음 요청이 대기 없이 들어온다 (좀비 없음)
         assert adapter._io_lock.acquire(timeout=0.0) is True
         adapter._io_lock.release()
@@ -282,8 +297,9 @@ class TestReadBudget:
         await adapter.read_raw_channel("heater")
         adapter._plc.get_cpu_state.assert_not_called()
 
+class TestBudgetRelation:
     def test_budget_relation_holds(self):
-        """어느 상수를 손대든 이 부등식이 깨지면 좀비 스레드가 돌아온다."""
+        """어느 상수를 손대든 이 부등식이 깨지면 좀비 스레드가 돌아온다. 실제 config 값으로 검증."""
         worst = (
             config.S7_READ_BUDGET_S
             + config.S7_MIN_REQUEST_INTERVAL
@@ -297,6 +313,7 @@ class TestReadBudget:
 # TestIoLockTimeout (#209) — 락 대기가 무한하지 않다
 # ---------------------------------------------------------------------------
 
+@pytest.mark.usefixtures("fast_s7_timing")
 class TestIoLockTimeout:
     async def test_read_gives_up_on_held_lock(self, adapter):
         """다른 스레드가 락을 오래 쥐면 읽기는 기다리지 않고 실패로 승격한다."""
@@ -304,7 +321,7 @@ class TestIoLockTimeout:
 
         def hold():
             with adapter._io_lock:
-                release.wait(1.5)
+                release.wait(0.5)
 
         holder = threading.Thread(target=hold)
         holder.start()
@@ -320,14 +337,14 @@ class TestIoLockTimeout:
 
     async def test_disconnect_not_blocked_behind_slow_read(self, adapter):
         """느린 read가 락을 쥐고 있어도 disconnect가 백오프 안에 끝나야 한다."""
-        adapter._plc.db_read.side_effect = _slow_ok_read(2.0)
+        adapter._plc.db_read.side_effect = _slow_ok_read(0.5)
         plc = adapter._plc
 
         read_task = asyncio.create_task(adapter.read())
         await asyncio.sleep(0.05)
 
         t0 = time.monotonic()
-        await asyncio.wait_for(adapter.disconnect(), timeout=4.0)
+        await asyncio.wait_for(adapter.disconnect(), timeout=2.0)
         assert time.monotonic() - t0 < config.S7_TEARDOWN_LOCK_TIMEOUT_S + 0.5
         assert adapter._plc is None
 

@@ -101,11 +101,11 @@ async def _cleanup_manager(manager: RoasterManager) -> None:
         _log.exception("shutdown disconnect failed")
 
 
-async def parent_watchdog(parent_pid: int, manager: RoasterManager) -> None:
+async def parent_watchdog(parent_pid: int, manager: RoasterManager, interval: float = 1.0) -> None:
     """Tauri 부모 프로세스가 죽으면 어댑터 정리 후 sidecar 종료."""
     import asyncio
     while True:
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(interval)
         if not _pid_alive(parent_pid):
             _log.info("부모 프로세스(PID %d) 종료 감지 — sidecar 종료", parent_pid)
             await _cleanup_manager(manager)

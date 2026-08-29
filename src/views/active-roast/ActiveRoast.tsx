@@ -253,7 +253,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         roastStartTimeRef,
     });
 
-    const { turningPoints, resetAutoDetection, disableAutoCharge, rearmAutoCharge } = useAutoDetection({
+    const { turningPoints, confirmedTP, resetAutoDetection, disableAutoCharge, rearmAutoCharge } = useAutoDetection({
         livePoints,
         onAutoCharge: triggerCharge,
         onAutoDrop: handleAutoDrop,
@@ -579,6 +579,13 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         // 배출·로스팅 종료 시 PID 자동 해제 (무인 화력 방지)
                         roastFinished={roastEnded || logEntries.some((e) => e.event === 'Drop')}
                         pidDropBehavior={roastSettings.pidDropBehavior}
+                        // Replay Assist (#300) — 합성 곡선은 heater가 null이라 자연 비활성
+                        replayPoints={targetCurvePoints}
+                        liveBt={rawBT}
+                        elapsed={elapsed}
+                        roasting={phase === 'roasting'}
+                        afterTurningPoint={confirmedTP !== null}
+                        temperatureUnit={unit}
                     />
 
                     <RoastSidePanel

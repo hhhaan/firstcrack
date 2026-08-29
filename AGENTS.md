@@ -116,6 +116,9 @@ When "smallest possible diff" conflicts with separation of concerns, SRP, or lay
 - env: NO assume HOME exists (unset on Windows) → Path.home() / platform-safe API
 - shortcuts: Tauri `mod+` notation only | NO hardcode Cmd+/Ctrl+
 - UI: NO custom titlebar/tray/window chrome → native OS UI only
-- sidecar/native deps: no Windows sidecar binary built yet → serial/socket/driver code NOT Unix-path-assuming
+- sidecar/native deps: Windows sidecar IS built at release (release.yml matrix) but never runtime-tested → serial/socket/driver code NOT Unix-path-assuming
 
 - before tag: PR touched sidecar or path logic → manual full-matrix build first
+
+## Wiki
+Durable decisions, standing rules, open loops → `/Users/hanseungheon/wiki` same turn (`~/wiki/AGENTS.md`). Append `log.md`. Skip one-off chat, repo-local paths, secrets.
