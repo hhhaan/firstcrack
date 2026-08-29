@@ -7,9 +7,19 @@ import { useRoastProfileSelection } from './useRoastProfileSelection';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const roastingState = {
+    pendingBeanId: null as string | null,
+    pendingBeanName: null as string | null,
+    pendingProfileId: null as string | null,
+    setPendingBean: vi.fn(),
+    setPendingProfile: (id: string | null) => {
+        roastingState.pendingProfileId = id;
+    },
+};
+
 vi.mock('@features/active-roast/model/status', () => ({
     useRoastingStore: {
-        getState: () => ({ pendingBeanId: null, pendingBeanName: null, setPendingBean: vi.fn() }),
+        getState: () => roastingState,
     },
 }));
 
@@ -31,15 +41,62 @@ function mountHook(props: Parameters<typeof useRoastProfileSelection>[0]) {
         get api() {
             return api!;
         },
+        rerender(next: Parameters<typeof useRoastProfileSelection>[0]) {
+            props = next;
+            void act(() => root.render(createElement(Probe)));
+        },
         unmount() {
             void act(() => root.unmount());
         },
     };
 }
 
+describe('useRoastProfileSelection pending profile handoff', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        roastingState.pendingProfileId = null;
+    });
+
+    it('consumes pendingProfileId on activation and resists default overwrite', () => {
+        roastingState.pendingProfileId = 'prof-1';
+        const h = mountHook({
+            isActive: true,
+            charged: false,
+            userProfile: { default_roast_profile_id: 'default-prof' },
+            beans: [],
+            beansReady: true,
+        });
+        expect(h.api.targetProfileId).toBe('prof-1');
+        expect(roastingState.pendingProfileId).toBeNull();
+
+        h.rerender({
+            isActive: true,
+            charged: false,
+            userProfile: { default_roast_profile_id: 'other-default' },
+            beans: [],
+            beansReady: true,
+        });
+        expect(h.api.targetProfileId).toBe('prof-1');
+        h.unmount();
+    });
+
+    it('no pending id → falls back to default profile', () => {
+        const h = mountHook({
+            isActive: true,
+            charged: false,
+            userProfile: { default_roast_profile_id: 'default-prof' },
+            beans: [],
+            beansReady: true,
+        });
+        expect(h.api.targetProfileId).toBe('default-prof');
+        h.unmount();
+    });
+});
+
 describe('useRoastProfileSelection stale bean clear (#176)', () => {
     beforeEach(() => {
         localStorage.clear();
+        roastingState.pendingProfileId = null;
         localStorage.setItem(DEFAULT_BEAN_KEY, 'stale-bean');
     });
 

@@ -69,6 +69,17 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         setPendingBean(null);
     }, [isActive]);
 
+    // Profiles page "start with this profile" → consume pendingProfileId when roast view activates
+    useEffect(() => {
+        if (!isActive) return;
+        const { pendingProfileId, setPendingProfile } = useRoastingStore.getState();
+        if (!pendingProfileId) return;
+
+        userSelectedTargetRef.current = true;
+        setTargetProfileId(pendingProfileId);
+        setPendingProfile(null);
+    }, [isActive]);
+
     // Schedule batch handoff → bean/profile on active roast
     const planBatchHandoff = useRoastSessionStore((s) => s.planBatchHandoff);
     useEffect(() => {

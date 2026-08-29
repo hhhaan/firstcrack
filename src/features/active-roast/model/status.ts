@@ -28,6 +28,8 @@ export interface RoastingState {
     /** Inventory/other entry → active roast bean handoff (consumed once when roast view activates). */
     pendingBeanId: string | null;
     pendingBeanName: string | null;
+    /** Profiles page "start with this profile" → target profile handoff (consumed once). */
+    pendingProfileId: string | null;
     sessionId: string | null;
     reconnecting: boolean;
 
@@ -47,6 +49,7 @@ export interface RoastingState {
     updateLiveData: (data: LiveData) => void;
     setPid: (pid: PidRuntime | null) => void;
     setPendingBean: (beanId: string | null, beanName?: string | null) => void;
+    setPendingProfile: (profileId: string | null) => void;
     reset: () => void;
 }
 
@@ -61,6 +64,7 @@ const initialState = {
     pid: null as PidRuntime | null,
     pendingBeanId: null as string | null,
     pendingBeanName: null as string | null,
+    pendingProfileId: null as string | null,
     sessionId: null as string | null,
     reconnecting: false,
     isRoasting: false,
@@ -124,6 +128,8 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     setPendingBean: (beanId, beanName = null) => {
         set({ pendingBeanId: beanId, pendingBeanName: beanId ? (beanName ?? null) : null });
     },
+
+    setPendingProfile: (profileId) => set({ pendingProfileId: profileId }),
 
     updateLiveData: (data) => {
         const current = get().liveData;

@@ -3,6 +3,7 @@ import { useProfileBeanHistory, useSourceSessionEvents } from '@entities/roast-p
 import { useRoastSettings } from '@features/active-roast';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import { useCsvFileExport } from '@features/export-csv';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
@@ -266,7 +267,10 @@ export const ProfileDetail = ({
             <div className="flex gap-2.5">
                 <button
                     type="button"
-                    onClick={() => onNavigate('roast')}
+                    onClick={() => {
+                        useRoastingStore.getState().setPendingProfile(selected.id);
+                        onNavigate('roast');
+                    }}
                     className="flex-1 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium cursor-pointer tracking-[0.14px] "
                 >
                     {t('profiles.detail.startWith')}
