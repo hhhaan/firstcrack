@@ -401,6 +401,34 @@ describe('useReplayControl', () => {
             h.unmount();
         });
 
+        it('이탈 후보 1~2틱째에는 이벤트를 쓰지 않는다 — 확정 대기 중 개입 덮어쓰기 회귀', async () => {
+            // 1틱째에 다음 BT 이벤트(110°→60%) 조건이 같이 성립해도 보류해야 한다.
+            // 여기서 쓰면 개입을 덮는 동시에 lastWritten·pending으로 판정이 리셋된다.
+            const h = await armed();
+            await h.rerender({ heaterFeedback: 50, elapsed: 130, liveBt: 111, afterTurningPoint: true });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            await h.rerender({ heaterFeedback: 50, elapsed: 131, liveBt: 111, afterTurningPoint: true });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            expect(h.get().active).toBe(true); // 아직 확정 전 — 보류 상태
+            await h.rerender({ heaterFeedback: 50, elapsed: 132, liveBt: 111, afterTurningPoint: true });
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('controlDiverged');
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            h.unmount();
+        });
+
+        it('노이즈로 판명되면(복귀) 보류했던 이벤트를 따라잡는다', async () => {
+            const h = await armed();
+            await h.rerender({ heaterFeedback: 50, elapsed: 130, liveBt: 111, afterTurningPoint: true });
+            await h.rerender({ heaterFeedback: 50, elapsed: 131, liveBt: 111, afterTurningPoint: true });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            // 실측 복귀 → 카운터 리셋 → 밀린 이벤트 catch-up
+            await h.rerender({ heaterFeedback: 80, elapsed: 132, liveBt: 111, afterTurningPoint: true });
+            expect(h.get().active).toBe(true);
+            expect(h.writeHeater).toHaveBeenCalledWith(60);
+            h.unmount();
+        });
+
         it('이탈 확정 커밋에 이벤트 발화 조건이 같이 와도 쓰지 않는다 — stale write 회귀', async () => {
             const h = await armed();
             await h.rerender({ heaterFeedback: 50, elapsed: 10 });

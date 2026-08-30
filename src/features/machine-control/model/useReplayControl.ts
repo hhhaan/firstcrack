@@ -150,7 +150,9 @@ export const useReplayControl = ({
             heaterFeedback != null &&
             Math.abs(heaterFeedback - lastWritten) > DIVERGE_TOLERANCE;
         const ticks = deviated ? diverge.ticks + 1 : 0;
-        setDiverge({ tick: elapsed, ticks });
+        // 카운터가 0→0이면 setState 생략 — 유휴 중 매초 여분 렌더를 만들지 않는다.
+        // tick이 stale해져도 무해하다: 다음 이탈의 첫 렌더에서 1부터 정상 카운트된다.
+        if (ticks !== 0 || diverge.ticks !== 0) setDiverge({ tick: elapsed, ticks });
         if (ticks >= DIVERGE_TICKS) {
             setDivergedLock(true);
             setActive(false);
@@ -223,6 +225,11 @@ export const useReplayControl = ({
     // effect가 stale active로 한 번 더 쓰는 것을 여기서 막아야 한다.
     useEffect(() => {
         if (!active || stopCause != null || !roasting || liveBt == null || plan == null) return;
+        // 이탈 후보 확정 대기 중(1~2틱)에는 이벤트를 쓰지 않는다 — 여기서 쓰면 실기
+        // 개입을 덮는 동시에 lastWritten 갱신·pending으로 판정까지 리셋돼, #307이
+        // 막으려던 경로가 확정 창 안에서 재현된다. 노이즈로 판명되면(카운터 0 복귀)
+        // 이 effect가 다시 실행되고 judgeReplay가 밀린 이벤트를 한 번에 따라잡는다.
+        if (diverge.ticks > 0) return;
         const result = judgeReplay(plan, index, { bt: liveBt, elapsed, afterTurningPoint });
         if (result.nextIndex === index) return;
         setIndex(result.nextIndex);
@@ -230,7 +237,7 @@ export const useReplayControl = ({
             writeHeater(result.heater);
             setLastWritten(result.heater);
         }
-    }, [active, stopCause, roasting, liveBt, elapsed, afterTurningPoint, plan, index, writeHeater]);
+    }, [active, stopCause, roasting, liveBt, elapsed, afterTurningPoint, plan, index, diverge.ticks, writeHeater]);
 
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;
 
