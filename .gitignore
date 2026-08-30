@@ -54,8 +54,25 @@ src-tauri/sidecar/extern/
 
 # Documentation and planning
 plans/
-docs/
 NOTES.md
+# docs: 추적 중인 공개 문서만 예외 — 나머지는 로컬 전용
+docs/*
+!docs/agent/
+!docs/MOBILE.md
+!docs/abstraction-roi.md
+!docs/domain-architecture-code-review.md
+!docs/inventory-architecture.md
+!docs/phidget-driver-setup.md
+!docs/replay-assist-guide.md
+!docs/sidecar-api.md
+!docs/pricing/
+docs/pricing/*
+!docs/pricing/07-integrations-catalog.md
+!docs/superpowers/
+docs/superpowers/*
+!docs/superpowers/specs/
+docs/superpowers/specs/*
+!docs/superpowers/specs/2026-07-21-green-inventory-asset-valuation-design.md
 
 extern/
 screenshots/
