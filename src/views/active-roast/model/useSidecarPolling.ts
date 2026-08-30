@@ -4,6 +4,7 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
+import { listen } from '@tauri-apps/api/event';
 import type { MutableRefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { classifySidecarConnection } from '../lib/classify-sidecar-connection';
@@ -343,6 +344,25 @@ export const useSidecarPolling = ({
         };
 
         void poll();
+        // Tauri: 호스트 500ms `sidecar-poll-tick` (숨김 setInterval 1s 정렬 회피).
+        // 웹 전용/테스트: setInterval. pollIntervalMs가 1000이면 tick을 건너뛴다.
+        if ('__TAURI_INTERNALS__' in window) {
+            let last = Date.now();
+            let unlisten: (() => void) | undefined;
+            void listen('sidecar-poll-tick', () => {
+                const now = Date.now();
+                if (now - last < pollIntervalMs) return;
+                last = now;
+                void poll();
+            }).then((fn) => {
+                if (cancelled) fn();
+                else unlisten = fn;
+            });
+            return () => {
+                cancelled = true;
+                unlisten?.();
+            };
+        }
         const id = setInterval(() => void poll(), pollIntervalMs);
         return () => {
             cancelled = true;

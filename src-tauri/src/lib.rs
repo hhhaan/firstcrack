@@ -1,4 +1,6 @@
 mod app_nap;
+#[cfg(desktop)]
+mod poll_clock;
 mod sentry_config;
 
 use tauri::RunEvent;
@@ -418,6 +420,7 @@ pub fn run() {
             {
                 configure_main_window(app);
                 app_nap::hold();
+                poll_clock::start(app.handle().clone());
                 // 실패해도 setup을 깨뜨리지 않는다 — 사이드카 없이도 앱은 떠야 한다
                 spawn_and_watch_sidecar(app);
             }
