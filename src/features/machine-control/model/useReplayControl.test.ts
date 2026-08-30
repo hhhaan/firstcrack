@@ -31,6 +31,7 @@ const BASE: Omit<ReplayControlInputs, 'writeHeater'> = {
     dropBehavior: 'hold',
     heaterFeedback: null,
     heaterPending: false,
+    reconnecting: false,
 };
 
 /** repo 표준 패턴 — 실제 훅을 렌더해 반환값을 노출한다 */
@@ -437,6 +438,22 @@ describe('useReplayControl', () => {
             await h.rerender({ heaterFeedback: 50, elapsed: 130, liveBt: 111, afterTurningPoint: true });
             expect(h.get().active).toBe(false);
             expect(h.writeHeater).not.toHaveBeenCalled();
+            h.unmount();
+        });
+
+        it('reconnecting 동안은 카운트가 멈춘다 — 동결 실측 1샘플로 확정하지 않는다', async () => {
+            const h = await armed();
+            await h.rerender({ heaterFeedback: 50, elapsed: 10 }); // 1틱
+            // 재연결 대기 — 실측 동결, elapsed만 흐른다
+            await h.rerender({ heaterFeedback: 50, elapsed: 11, reconnecting: true });
+            await h.rerender({ heaterFeedback: 50, elapsed: 12, reconnecting: true });
+            await h.rerender({ heaterFeedback: 50, elapsed: 13, reconnecting: true });
+            expect(h.get().active).toBe(true); // 정지 중 확정 금지 (리셋도 아님)
+            // 복구 후 새 샘플로 이어 센다 — 2·3틱째
+            await h.rerender({ heaterFeedback: 50, elapsed: 14 });
+            await h.rerender({ heaterFeedback: 50, elapsed: 15 });
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('controlDiverged');
             h.unmount();
         });
 

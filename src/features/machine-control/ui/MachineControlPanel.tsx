@@ -21,6 +21,8 @@ const PID_DOT: Record<string, string> = {
 
 interface Props {
     sidecarConnected: boolean;
+    /** 사이드카 재연결 대기 — 실측 동결 중이라 이탈 카운트를 멈춘다 (#307) */
+    reconnecting: boolean;
     liveData: { heater: number; fan: number; drum: number } | null;
     pidRuntime: PidRuntime | null;
     /** 배출·로스팅 종료 — PID 자동 해제 신호 */
@@ -51,6 +53,7 @@ interface Props {
  */
 export const MachineControlPanel = ({
     sidecarConnected,
+    reconnecting,
     liveData,
     pidRuntime,
     roastFinished,
@@ -114,6 +117,7 @@ export const MachineControlPanel = ({
         // 외부 개입(지속 이탈) 감지 재료 (#307) — 실측과 "지시 미수렴" 상태
         heaterFeedback: liveData?.heater ?? null,
         heaterPending: desired.heater != null,
+        reconnecting,
         writeHeater,
     });
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.

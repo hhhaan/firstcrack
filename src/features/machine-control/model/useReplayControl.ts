@@ -30,6 +30,11 @@ export interface ReplayControlInputs {
     heaterFeedback: number | null;
     /** heater 지시가 아직 수렴하지 않았다(desired 잔존) — settling 동안은 이탈 판정 제외 */
     heaterPending: boolean;
+    /**
+     * 사이드카 재연결 대기 중 — 이 동안 실측은 동결되는데 elapsed는 호스트 시계라
+     * 계속 흘러, 같은 샘플 하나로 "지속 이탈"을 확정할 수 있다. 카운트를 멈춘다.
+     */
+    reconnecting: boolean;
     writeHeater: (value: number) => void;
 }
 
@@ -77,6 +82,7 @@ export const useReplayControl = ({
     dropBehavior,
     heaterFeedback,
     heaterPending,
+    reconnecting,
     writeHeater,
 }: ReplayControlInputs) => {
     const plan = useMemo(
@@ -141,7 +147,9 @@ export const useReplayControl = ({
     // effect가 아니라 렌더 중 판정인 이유: 확정 커밋에서 아래 판정 effect가 stale
     // active로 이벤트를 한 번 더 써서 개입을 덮는 것(프로파일 교체와 같은 레이스)을 막는다.
     // write는 절대 하지 않는다 — 이탈 시 존중해야 할 값은 기기에 있는 값이다.
-    if (elapsed !== diverge.tick) {
+    // reconnecting 동안은 카운트 일시정지(리셋 아님) — 동결된 실측을 elapsed 틱으로
+    // 여러 번 세면 1샘플로 확정된다. 복구 후 새 샘플부터 이어 센다.
+    if (elapsed !== diverge.tick && !reconnecting) {
         const deviated =
             active &&
             roasting &&

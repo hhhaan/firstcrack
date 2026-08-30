@@ -75,6 +75,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         tick,
         sessionId,
         sidecarConnected,
+        reconnecting,
         machineCapabilities,
     } = useRoastingStore(
         useShallow((s) => ({
@@ -85,6 +86,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             tick: s.tick,
             sessionId: s.sessionId,
             sidecarConnected: s.sidecarConnected,
+            reconnecting: s.reconnecting,
             machineCapabilities: s.machineCapabilities,
         })),
     );
@@ -576,6 +578,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     {/* 그래프 | Machine Control | 온도 패널 — MC는 쓰기 가능 머신에서만 렌더 */}
                     <MachineControlPanel
                         sidecarConnected={sidecarConnected}
+                        reconnecting={reconnecting}
                         liveData={liveData}
                         pidRuntime={pidRuntime}
                         // 배출·로스팅 종료 시 PID 자동 해제 (무인 화력 방지)
