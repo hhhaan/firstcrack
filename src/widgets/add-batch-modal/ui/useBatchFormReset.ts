@@ -6,6 +6,16 @@ import { type BatchType, DEFAULT_BATCH_SIZE, DEFAULT_YIELD } from '../lib/types'
 
 const todayDate = () => new Date();
 
+export const resolveInitialBatchDate = (editingBatch: PlanBatchWithProgress | null, currentDateKey?: string): Date => {
+    if (editingBatch?.scheduled_date) {
+        return new Date(`${editingBatch.scheduled_date}T00:00:00`);
+    }
+    if (currentDateKey) {
+        return new Date(`${currentDateKey}T00:00:00`);
+    }
+    return todayDate();
+};
+
 type Params = {
     open: boolean;
     editingBatch: PlanBatchWithProgress | null;
@@ -45,13 +55,7 @@ export const useBatchFormReset = ({
         if (!open) return;
 
         if (editingBatch) {
-            setDate(
-                currentDateKey
-                    ? new Date(`${currentDateKey}T00:00:00`)
-                    : editingBatch.scheduled_date
-                      ? new Date(`${editingBatch.scheduled_date}T00:00:00`)
-                      : todayDate(),
-            );
+            setDate(resolveInitialBatchDate(editingBatch, currentDateKey));
             setRecurringInterval(editingBatch.rrule ? parseRruleToInterval(editingBatch.rrule) : null);
             setMachineId(editingBatch.machine_id ?? machines[0]?.id ?? '');
             setBatchType((editingBatch.batch_type as BatchType) || 'Single Origin');
@@ -63,7 +67,7 @@ export const useBatchFormReset = ({
             setYieldPct(String(Math.round((editingBatch.yield_pct ?? 0.82) * 100)));
             setNotes(editingBatch.notes ?? '');
         } else {
-            setDate(todayDate());
+            setDate(resolveInitialBatchDate(null, currentDateKey));
             setRecurringInterval(null);
             setMachineId(machines[0]?.id ?? '');
             setBatchType('Single Origin');

@@ -139,7 +139,8 @@ export const AddBatchModal = ({
     };
 
     const newDateKey = date ? format(date, 'yyyy-MM-dd') : '';
-    const dateChanged = isEdit && !!currentDateKey && newDateKey !== currentDateKey;
+    const originalDateKey = editingBatch?.scheduled_date ?? currentDateKey;
+    const dateChanged = isEdit && !!originalDateKey && newDateKey !== originalDateKey;
     const canSubmit = date !== undefined && !!machineId && targetNum > 0 && batchSizeNum > 0 && !saving;
 
     const handleSubmit = async () => {
