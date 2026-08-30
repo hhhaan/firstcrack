@@ -29,6 +29,8 @@ const BASE: Omit<ReplayControlInputs, 'writeHeater'> = {
     sidecarConnected: true,
     heaterUnacknowledged: false,
     dropBehavior: 'hold',
+    heaterFeedback: null,
+    heaterPending: false,
 };
 
 /** repo 표준 패턴 — 실제 훅을 렌더해 반환값을 노출한다 */
@@ -334,6 +336,95 @@ describe('useReplayControl', () => {
             h.writeHeater.mockClear();
             await h.rerender({ dropBehavior: 'zero', ...dropMarked, sidecarConnected: false });
             expect(h.writeHeater).toHaveBeenCalledWith(0);
+            h.unmount();
+        });
+    });
+
+    describe('외부 개입 — controlDiverged (#307)', () => {
+        // 토글 ON → t=0 이벤트가 80을 쓰고 lastWritten=80이 된다. 실측 80 = 수렴 상태.
+        const armed = async () => {
+            const h = await renderReplay({ heaterFeedback: 80 });
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledWith(80);
+            h.writeHeater.mockClear();
+            return h;
+        };
+
+        it('수렴 후 실측이 지시에서 지속 이탈하면 재생 중지 + 배치 끝까지 잠금', async () => {
+            const h = await armed();
+            await h.rerender({ heaterFeedback: 50, elapsed: 10 });
+            await h.rerender({ heaterFeedback: 50, elapsed: 11 });
+            expect(h.get().active).toBe(true); // 2틱 — 아직 확정 아님
+            await h.rerender({ heaterFeedback: 50, elapsed: 12 });
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('controlDiverged');
+            // 개입 값을 존중한다 — 어떤 write도 없어야 한다
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            // 배치가 끝나기 전에는 다시 켤 수 없다
+            expect(h.get().blocked).toBe(true);
+            await act(async () => h.get().toggle());
+            expect(h.get().active).toBe(false);
+            h.unmount();
+        });
+
+        it('경계값: 이탈이 정확히 tolerance(수렴 잔차+노이즈 최악 정상치)면 중지하지 않는다', async () => {
+            const h = await armed();
+            await h.rerender({ heaterFeedback: 78, elapsed: 10 });
+            await h.rerender({ heaterFeedback: 78, elapsed: 11 });
+            await h.rerender({ heaterFeedback: 78, elapsed: 12 });
+            await h.rerender({ heaterFeedback: 78, elapsed: 13 });
+            expect(h.get().active).toBe(true);
+            h.unmount();
+        });
+
+        it('settling(지시 미수렴) 동안은 판정하지 않는다 — 그 구간은 unacknowledged 경로가 잡는다', async () => {
+            // 쓰기 직후 기기가 램프하는 동안 실측은 당연히 지시와 다르다. 이 창에서
+            // 기기가 끝내 안 따라오면 STALE_COMMAND_POLLS(10폴) → 'unacknowledged'가
+            // 중지시킨다. 두 경로가 시간축을 빈틈없이 나눈다.
+            const h = await armed();
+            await h.rerender({ heaterFeedback: 20, heaterPending: true, elapsed: 10 });
+            await h.rerender({ heaterFeedback: 20, heaterPending: true, elapsed: 11 });
+            await h.rerender({ heaterFeedback: 20, heaterPending: true, elapsed: 12 });
+            await h.rerender({ heaterFeedback: 20, heaterPending: true, elapsed: 13 });
+            expect(h.get().active).toBe(true);
+            h.unmount();
+        });
+
+        it('일시 이탈 후 복귀하면 카운트가 리셋된다', async () => {
+            const h = await armed();
+            await h.rerender({ heaterFeedback: 50, elapsed: 10 });
+            await h.rerender({ heaterFeedback: 50, elapsed: 11 });
+            await h.rerender({ heaterFeedback: 80, elapsed: 12 }); // 복귀 → 리셋
+            await h.rerender({ heaterFeedback: 50, elapsed: 13 });
+            await h.rerender({ heaterFeedback: 50, elapsed: 14 });
+            expect(h.get().active).toBe(true);
+            h.unmount();
+        });
+
+        it('이탈 확정 커밋에 이벤트 발화 조건이 같이 와도 쓰지 않는다 — stale write 회귀', async () => {
+            const h = await armed();
+            await h.rerender({ heaterFeedback: 50, elapsed: 10 });
+            await h.rerender({ heaterFeedback: 50, elapsed: 11 });
+            // 3번째 틱 + 다음 BT 이벤트(110°→60%) 발화 조건 동시 성립
+            await h.rerender({ heaterFeedback: 50, elapsed: 130, liveBt: 111, afterTurningPoint: true });
+            expect(h.get().active).toBe(false);
+            expect(h.writeHeater).not.toHaveBeenCalled();
+            h.unmount();
+        });
+
+        it('새 배치가 시작되면 잠금이 풀린다', async () => {
+            const h = await armed();
+            await h.rerender({ heaterFeedback: 50, elapsed: 10 });
+            await h.rerender({ heaterFeedback: 50, elapsed: 11 });
+            await h.rerender({ heaterFeedback: 50, elapsed: 12 });
+            expect(h.get().stopReason).toBe('controlDiverged');
+            // 배출 → 종료 → 새 배치 차지
+            await h.rerender({ heaterFeedback: 50, elapsed: 20, roastFinished: true, roasting: false });
+            await h.rerender({ heaterFeedback: 80, elapsed: 0 });
+            h.writeHeater.mockClear();
+            await act(async () => h.get().toggle());
+            expect(h.get().active).toBe(true);
+            expect(h.writeHeater).toHaveBeenCalledWith(80);
             h.unmount();
         });
     });

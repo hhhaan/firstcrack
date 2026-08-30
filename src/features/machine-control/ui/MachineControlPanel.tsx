@@ -111,6 +111,9 @@ export const MachineControlPanel = ({
         heaterUnacknowledged: unacknowledged.has('heater'),
         // 배출 시 화력 정책은 PID와 공용 — "DROP 후 화력"은 구동 주체와 무관한 한 정책 (#316)
         dropBehavior: pidDropBehavior,
+        // 외부 개입(지속 이탈) 감지 재료 (#307) — 실측과 "지시 미수렴" 상태
+        heaterFeedback: liveData?.heater ?? null,
+        heaterPending: desired.heater != null,
         writeHeater,
     });
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.
