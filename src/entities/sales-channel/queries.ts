@@ -1,10 +1,17 @@
-import { orderKeys } from '@shared/lib/query-keys';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { orderKeys, productStockKeys } from '@shared/lib/query-keys';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ChannelPlatform, ConnectCredentials } from './api';
 import { salesChannelApi } from './api';
 
 export const salesChannelKeys = {
     all: (userId: string) => ['sales-channels', userId] as const,
+};
+
+export const invalidateAfterSyncOrders = (qc: QueryClient, userId: string) => {
+    void qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
+    void qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) });
+    void qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
+    void qc.invalidateQueries({ queryKey: productStockKeys.byUser(userId) });
 };
 
 export const useSalesChannels = (userId: string) =>
@@ -70,9 +77,7 @@ export const useSyncOrders = (userId: string) => {
         // bridge cannot express); letting the global bridge fire too would stack two toasts.
         meta: { silentError: true },
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: orderKeys.all(userId) });
-            void qc.invalidateQueries({ queryKey: orderKeys.requirements(userId) });
-            void qc.invalidateQueries({ queryKey: salesChannelKeys.all(userId) });
+            invalidateAfterSyncOrders(qc, userId);
         },
     });
 };
