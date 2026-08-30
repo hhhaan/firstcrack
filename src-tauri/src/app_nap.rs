@@ -25,11 +25,13 @@ mod imp {
         if TOKEN.get().is_some() {
             return;
         }
-        let options = NSActivityOptions::UserInitiated | NSActivityOptions::LatencyCritical;
+        // LatencyCritical 불포함 — 오디오 녹음급 정밀도 요구라 장기 보유 시 시스템
+        // 전원 관리에 악영향(Apple 헤더 경고). 500ms 폴링은 지터 게이트가 흡수한다.
+        let options = NSActivityOptions::UserInitiated;
         let activity = NSProcessInfo::processInfo()
             .beginActivityWithOptions_reason(options, ns_string!("First Crack roast sampling"));
         if TOKEN.set(Token { activity }).is_ok() {
-            eprintln!("[app-nap] beginActivity UserInitiated|LatencyCritical");
+            eprintln!("[app-nap] beginActivity UserInitiated");
         }
     }
 }

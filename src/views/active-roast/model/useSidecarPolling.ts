@@ -8,6 +8,7 @@ import { listen } from '@tauri-apps/api/event';
 import type { MutableRefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { classifySidecarConnection } from '../lib/classify-sidecar-connection';
+import { shouldAcceptTick } from '../lib/poll-tick-gate';
 
 /** 폴링 중 누적하는 실시간 측정 포인트 */
 export interface LiveRoastPoint {
@@ -349,18 +350,26 @@ export const useSidecarPolling = ({
         if ('__TAURI_INTERNALS__' in window) {
             let last = Date.now();
             let unlisten: (() => void) | undefined;
-            void listen('sidecar-poll-tick', () => {
+            let fallbackId: ReturnType<typeof setInterval> | undefined;
+            listen('sidecar-poll-tick', () => {
                 const now = Date.now();
-                if (now - last < pollIntervalMs) return;
+                if (!shouldAcceptTick(now, last, pollIntervalMs)) return;
                 last = now;
                 void poll();
-            }).then((fn) => {
-                if (cancelled) fn();
-                else unlisten = fn;
-            });
+            }).then(
+                (fn) => {
+                    if (cancelled) fn();
+                    else unlisten = fn;
+                },
+                () => {
+                    // listen 실패가 폴링 영구 정지가 되지 않도록 webview 타이머로 폴백
+                    if (!cancelled) fallbackId = setInterval(() => void poll(), pollIntervalMs);
+                },
+            );
             return () => {
                 cancelled = true;
                 unlisten?.();
+                if (fallbackId !== undefined) clearInterval(fallbackId);
             };
         }
         const id = setInterval(() => void poll(), pollIntervalMs);
