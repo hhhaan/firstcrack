@@ -1,3 +1,4 @@
+import { Info } from 'lucide-react';
 import type { ReplayStopReason, useReplayControl } from '../model/useReplayControl';
 
 interface Props {
@@ -20,14 +21,17 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
 /**
  * Replay Assist 패널 (#300) — 레퍼런스 배치의 가스 조작을 BT 도달 시점에 재생.
  *
- * 레퍼런스에 heater 기록이 없거나(합성 프로파일·PID 기록) 히터 쓰기가 불가하면
- * 렌더하지 않는다. 기본 OFF — 명시적 토글로만 시작한다.
+ * 항상 렌더한다 — 타겟 미선택·합성 프로파일 등으로 재생 불가면 체크박스만
+ * disabled로 둔다. 숨겨버리면 "기능이 사라졌다"로 읽힌다. 기본 OFF.
  */
 export const ReplayControlPanel = ({ replay, unit }: Props) => {
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
-    // 중지 사유가 있으면 available이 무너져도(연결 끊김 등) 패널을 유지한다 —
-    // 숨겨버리면 "왜 꺼졌는지"를 보여줄 자리가 사라진다
-    if (!replay.available && !stopText) return null;
+    // disabled 사유 안내 — native title은 OS 지연(~1s)이 있어 CSS 툴팁으로 즉시 띄운다
+    const disabledHint = !replay.available
+        ? '레퍼런스 화력 기록이 없습니다 — heater 기록이 있는 타겟 프로파일을 선택하세요'
+        : !replay.active && replay.blocked
+          ? '지금은 켤 수 없습니다 — PID 해제·연결 상태를 확인하세요'
+          : undefined;
 
     return (
         <div className="flex shrink-0 flex-col gap-2">
@@ -38,7 +42,7 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
                 </span>
             </div>
 
-            <label className="flex cursor-pointer items-center gap-2">
+            <label className="group relative flex cursor-pointer items-center gap-2">
                 <input
                     type="checkbox"
                     checked={replay.active}
@@ -47,6 +51,14 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
                     className="h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
                 />
                 <span className="text-[12px] text-secondary">레퍼런스 화력 재생</span>
+                {disabledHint && (
+                    <span
+                        role="tooltip"
+                        className="pointer-events-none absolute top-full left-0 right-0 z-10 mt-1 hidden rounded-md border border-border-subtle bg-surface-elevated p-2 text-[11px] leading-snug text-secondary group-hover:block"
+                    >
+                        {disabledHint}
+                    </span>
+                )}
             </label>
 
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
@@ -61,16 +73,20 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
                     <p className="text-[11px] text-muted">모든 이벤트 재생 완료</p>
                 ))}
 
+            {/* 상세 안내는 hover 툴팁으로 — 재생 내내 문단 2개가 패널을 차지하면 안 된다 */}
             {replay.active && (
-                <>
-                    <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
-                        재생 중에는 자리를 비우지 마세요. 화력이 재생 지시에서 계속 벗어나면 재생이 자동 중지됩니다.
-                    </p>
-                    <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
-                        재생 중에는 화력 슬라이더가 잠깁니다. 수동 조절하려면 체크를 해제하세요 — 다시 켜면 남은
-                        구간부터 이어집니다. 기센은 본체 Auto를 Manual로 두어야 합니다.
-                    </p>
-                </>
+                <div className="group relative flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-500">
+                    <Info size={12} strokeWidth={2} className="shrink-0" />
+                    <span>슬라이더 잠김</span>
+                    <span
+                        role="tooltip"
+                        className="pointer-events-none absolute bottom-full left-0 right-0 z-10 mb-1 hidden rounded-md border border-border-subtle bg-surface-elevated p-2 leading-snug text-secondary group-hover:block"
+                    >
+                        재생 중에는 자리를 비우지 마세요 — 화력이 재생 지시에서 계속 벗어나면 자동 중지됩니다. 수동
+                        조절은 체크 해제 후 하세요. 다시 켜면 남은 구간부터 이어집니다. 기센은 본체 Auto를 Manual로
+                        두어야 합니다.
+                    </span>
+                </div>
             )}
         </div>
     );
