@@ -93,18 +93,18 @@
         "eslint": "^10.8.0",
         "eslint-plugin-react-hooks": "^7.1.1",
         "eslint-plugin-react-refresh": "^0.5.3",
-        "globals": "^17.9.0",
+        "globals": "^17.11.0",
         "husky": "^9.1.7",
         "imagemin-lint-staged": "^0.5.1",
         "jsdom": "^29.1.1",
         "lint-staged": "^17.3.0",
-        "react-doctor": "^0.9.5",
+        "react-doctor": "^0.9.12",
         "secretlint": "^13.0.4",
         "tailwindcss": "^4.3.3",
         "typescript": "~5.9.3",
         "typescript-eslint": "^8.66.0",
         "vite": "^7.3.6",
-        "vitest": "^4.1.10"
+        "vitest": "^4.1.11"
     },
     "lint-staged": {
         "src/**/*.{ts,tsx}": "biome check --write --no-errors-on-unmatched",
