@@ -51,8 +51,9 @@ export type ReplayStopReason =
 
 /**
  * 마지막 확정 명령에서 실측이 이만큼 **초과** 이탈하면 외부 개입 후보로 센다.
- * 수렴 잔차(CONVERGE_TOLERANCE=1) + 리드백 노이즈 ±1이 겹친 최악 정상치가 정확히 2라
- * 초과(>) 판정이어야 오탐이 없다.
+ * CONVERGE_TOLERANCE + 1로 유도된 값: 수렴 잔차(1) + 리드백 노이즈 ±1이 겹친 최악
+ * 정상치가 정확히 2라 초과(>) 판정이어야 오탐이 없다. 수렴 허용치를 머신별로
+ * 바꾸게 되면 이 값도 독립 상수가 아니라 거기서 유도해야 경계 불변식이 유지된다.
  * ponytail: 고정 deadband — 아날로그 duty 리드백이 더 시끄러운 기종이 나오면 머신별 설정으로.
  */
 const DIVERGE_TOLERANCE = 2;
@@ -106,8 +107,6 @@ export const useReplayControl = ({
      */
     const [lastWritten, setLastWritten] = useState<number | null>(null);
     const [diverge, setDiverge] = useState({ tick: elapsed, ticks: 0 });
-    /** 이탈 확정 후 배치 끝까지 재생 금지 — 재개하면 다음 이벤트가 개입을 또 덮는다 */
-    const [divergedLock, setDivergedLock] = useState(false);
 
     // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
     // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
@@ -139,7 +138,6 @@ export const useReplayControl = ({
         if (roasting) setSafeOffIssued(false);
         setLastWritten(null);
         setDiverge({ tick: elapsed, ticks: 0 });
-        setDivergedLock(false);
     }
 
     // 외부 개입 판정 (#307) — elapsed를 틱으로 쓰는 이유: liveData 스토어는 값이 같으면
@@ -161,8 +159,11 @@ export const useReplayControl = ({
         // 카운터가 0→0이면 setState 생략 — 유휴 중 매초 여분 렌더를 만들지 않는다.
         // tick이 stale해져도 무해하다: 다음 이탈의 첫 렌더에서 1부터 정상 카운트된다.
         if (ticks !== 0 || diverge.ticks !== 0) setDiverge({ tick: elapsed, ticks });
+        // 확정 시 중지만 한다 — 배치 잠금은 두지 않는다. 재개는 사람이 토글해야만
+        // 가능하고, 토글이 lastWritten을 리셋해 감지가 즉시 재무장되므로 원인이
+        // 지속되면(인터락·타 소프트웨어) 다음 이벤트 write 후 ~3틱 안에 다시 걸린다.
+        // 앱 슬라이더 개입(manual)과 처벌을 다르게 둘 이유가 없다.
         if (ticks >= DIVERGE_TICKS) {
-            setDivergedLock(true);
             setActive(false);
             setStopReason('controlDiverged');
         }
@@ -219,13 +220,13 @@ export const useReplayControl = ({
             setStopReason(null); // 사용자가 직접 껐다 — 안내할 사유가 없다
             return;
         }
-        if (plan == null || stopCause != null || divergedLock) return;
+        if (plan == null || stopCause != null) return;
         setStopReason(null);
         // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
         setLastWritten(null);
         setDiverge((d) => ({ ...d, ticks: 0 }));
         setActive(true);
-    }, [active, plan, stopCause, divergedLock]);
+    }, [active, plan, stopCause]);
 
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
     // stopCause 가드: pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다 —
@@ -252,8 +253,8 @@ export const useReplayControl = ({
     return {
         /** 레퍼런스에 heater 기록이 있고(합성/PID 기록 아님) 쓰기 가능한가 */
         available: plan != null && heaterWritable && sidecarConnected,
-        /** 지금 켤 수 없는 상태(PID 점유·이탈 잠금 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */
-        blocked: stopCause != null || divergedLock,
+        /** 지금 켤 수 없는 상태(PID 점유 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */
+        blocked: stopCause != null,
         active,
         /** 마지막 중지 사유 — 재시작·직접 끄기 전까지 유지. UI 안내용 */
         stopReason,

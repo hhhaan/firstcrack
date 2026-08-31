@@ -351,7 +351,7 @@ describe('useReplayControl', () => {
             return h;
         };
 
-        it('수렴 후 실측이 지시에서 지속 이탈하면 재생 중지 + 배치 끝까지 잠금', async () => {
+        it('수렴 후 실측이 지시에서 지속 이탈하면 재생 중지 — write 없음, 재개는 토글로', async () => {
             const h = await armed();
             await h.rerender({ heaterFeedback: 50, elapsed: 10 });
             await h.rerender({ heaterFeedback: 50, elapsed: 11 });
@@ -361,10 +361,31 @@ describe('useReplayControl', () => {
             expect(h.get().stopReason).toBe('controlDiverged');
             // 개입 값을 존중한다 — 어떤 write도 없어야 한다
             expect(h.writeHeater).not.toHaveBeenCalled();
-            // 배치가 끝나기 전에는 다시 켤 수 없다
-            expect(h.get().blocked).toBe(true);
+            // 배치 잠금은 없다 — manual 중지와 같은 등급, 사람이 토글하면 재개된다
+            expect(h.get().blocked).toBe(false);
             await act(async () => h.get().toggle());
+            expect(h.get().active).toBe(true);
+            expect(h.get().stopReason).toBeNull();
+            h.unmount();
+        });
+
+        it('재개 후 원인이 지속되면 다음 write 뒤 다시 걸린다 — 감지 재무장', async () => {
+            const h = await armed();
+            await h.rerender({ heaterFeedback: 50, elapsed: 10 });
+            await h.rerender({ heaterFeedback: 50, elapsed: 11 });
+            await h.rerender({ heaterFeedback: 50, elapsed: 12 });
+            expect(h.get().stopReason).toBe('controlDiverged');
+            // 사람이 재개 — lastWritten 리셋, 즉시 오판 없음
+            await act(async () => h.get().toggle());
+            expect(h.get().active).toBe(true);
+            // 다음 이벤트 발화(110°→60%)로 기준이 다시 생기고, 실측(50)이 계속 벗어나 있으면 재확정
+            await h.rerender({ heaterFeedback: 50, elapsed: 130, liveBt: 111, afterTurningPoint: true });
+            expect(h.writeHeater).toHaveBeenCalledWith(60);
+            await h.rerender({ heaterFeedback: 50, elapsed: 131, liveBt: 111, afterTurningPoint: true });
+            await h.rerender({ heaterFeedback: 50, elapsed: 132, liveBt: 111, afterTurningPoint: true });
+            await h.rerender({ heaterFeedback: 50, elapsed: 133, liveBt: 111, afterTurningPoint: true });
             expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('controlDiverged');
             h.unmount();
         });
 
@@ -457,7 +478,7 @@ describe('useReplayControl', () => {
             h.unmount();
         });
 
-        it('새 배치가 시작되면 잠금이 풀린다', async () => {
+        it('새 배치가 시작되면 이탈 상태(카운터·기준·사유)가 초기화된다', async () => {
             const h = await armed();
             await h.rerender({ heaterFeedback: 50, elapsed: 10 });
             await h.rerender({ heaterFeedback: 50, elapsed: 11 });

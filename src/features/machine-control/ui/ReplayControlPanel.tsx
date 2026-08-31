@@ -14,7 +14,7 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
     unwritable: '히터 제어 불가로 재생 중지',
     manual: '수동 조작으로 재생 중지',
     profileChanged: '프로파일 변경으로 재생 중지',
-    controlDiverged: '화력이 재생 지시에서 벗어나 재생 중지 — 이번 배치 동안 잠깁니다',
+    controlDiverged: '화력이 재생 지시에서 벗어나 재생 중지',
 };
 
 /**
@@ -64,8 +64,7 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
             {replay.active && (
                 <>
                     <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
-                        재생 중에는 자리를 비우지 마세요. 화력이 재생 지시에서 계속 벗어나면 재생이 중지되고 이번 배치
-                        동안 잠깁니다 — 개입은 앱에서 하세요.
+                        재생 중에는 자리를 비우지 마세요. 화력이 재생 지시에서 계속 벗어나면 재생이 자동 중지됩니다.
                     </p>
                     <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
                         재생 중에는 화력 슬라이더가 잠깁니다. 수동 조절하려면 체크를 해제하세요 — 다시 켜면 남은
