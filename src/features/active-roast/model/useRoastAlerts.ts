@@ -1,40 +1,20 @@
 import type { LogEntry } from '@shared/types/roast';
 import { useEffect, useRef, useState } from 'react';
+import { type AlertSoundTone, playAlertTone } from '../lib/alertTone';
 import { evaluateRoastAlerts, type RoastAlertKind } from '../lib/roastAlerts';
 import { useRoastingStore } from './status';
 
 type UseRoastAlertsParams = {
     enabled: boolean;
     soundEnabled: boolean;
+    /** 1–100. Maps to oscillator gain. OS volume is still the ceiling. */
+    soundVolume: number;
+    soundTone: AlertSoundTone;
     rorCrashCPerMin: number;
     btMaxC: number;
     /** RoR is legitimately negative until the turning point is confirmed. */
     afterTurningPoint: boolean;
     logEntries: LogEntry[];
-};
-
-/** Reused across beeps — a context per beep would leak until GC and can hit the per-page limit. */
-let _audioCtx: AudioContext | null = null;
-
-const beep = () => {
-    try {
-        _audioCtx ??= new AudioContext();
-        const ctx = _audioCtx;
-        if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined);
-
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = 880;
-        // Short ramp down — a hard stop clicks.
-        gain.gain.setValueAtTime(0.18, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
-        osc.connect(gain).connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.25);
-    } catch {
-        // no audio device / autoplay blocked — the banner still shows
-    }
 };
 
 /**
@@ -44,6 +24,8 @@ const beep = () => {
 export const useRoastAlerts = ({
     enabled,
     soundEnabled,
+    soundVolume,
+    soundTone,
     rorCrashCPerMin,
     btMaxC,
     afterTurningPoint,
@@ -54,10 +36,20 @@ export const useRoastAlerts = ({
     const [active, setActive] = useState<RoastAlertKind[]>([]);
     const activeRef = useRef<RoastAlertKind[]>([]);
     const soundRef = useRef(soundEnabled);
+    const volumeRef = useRef(soundVolume);
+    const toneRef = useRef(soundTone);
 
     useEffect(() => {
         soundRef.current = soundEnabled;
     }, [soundEnabled]);
+
+    useEffect(() => {
+        volumeRef.current = soundVolume;
+    }, [soundVolume]);
+
+    useEffect(() => {
+        toneRef.current = soundTone;
+    }, [soundTone]);
 
     const dropped = logEntries.some((e) => e.event === 'Drop' || e.event === 'End');
     const armed = enabled && phase === 'roasting' && !dropped;
@@ -83,7 +75,7 @@ export const useRoastAlerts = ({
 
         activeRef.current = next;
         setActive(next);
-        if (rising.length > 0 && soundRef.current) beep();
+        if (rising.length > 0 && soundRef.current) playAlertTone(volumeRef.current, toneRef.current);
     }, [armed, liveData, afterTurningPoint, rorCrashCPerMin, btMaxC]);
 
     return active;

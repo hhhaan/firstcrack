@@ -1,5 +1,7 @@
 // model
 
+export type { AlertSoundTone } from './lib/alertTone';
+export { ALERT_SOUND_TONES, playAlertTone } from './lib/alertTone';
 export type { ChargeOnset, ChargeSample } from './lib/chargeOnset';
 export { detectChargeOnset } from './lib/chargeOnset';
 export type { RoastEventMarker } from './lib/chart-option';

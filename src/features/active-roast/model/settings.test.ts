@@ -47,6 +47,33 @@ describe('normalize — phase temperatures', () => {
     });
 });
 
+describe('normalize — alert sound volume', () => {
+    it('defaults to 100 for a noisy roast floor', () => {
+        expect(normalizeRoastSettings({})).toMatchObject({ alertSoundVolume: 100 });
+    });
+
+    it('clamps out of 10–100', () => {
+        expect(normalizeRoastSettings({ alertSoundVolume: 0 })).toMatchObject({ alertSoundVolume: 10 });
+        expect(normalizeRoastSettings({ alertSoundVolume: 150 })).toMatchObject({ alertSoundVolume: 100 });
+    });
+
+    it('keeps a valid volume', () => {
+        expect(normalizeRoastSettings({ alertSoundVolume: 40 })).toMatchObject({ alertSoundVolume: 40 });
+    });
+
+    it('defaults tone to soft', () => {
+        expect(normalizeRoastSettings({})).toMatchObject({ alertSoundTone: 'soft' });
+    });
+
+    it('keeps alarm tone', () => {
+        expect(normalizeRoastSettings({ alertSoundTone: 'alarm' })).toMatchObject({ alertSoundTone: 'alarm' });
+    });
+
+    it('falls back on unknown tone', () => {
+        expect(normalizeRoastSettings({ alertSoundTone: 'siren' as never })).toMatchObject({ alertSoundTone: 'soft' });
+    });
+});
+
 describe('FEATURE.fastPolling plan matrix', () => {
     it('grants Pro core level (trial runs at Pro)', () => {
         for (const plan of ['trial', 'pro', 'pro_plus', 'enterprise', 'team']) {

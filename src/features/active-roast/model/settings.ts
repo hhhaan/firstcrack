@@ -1,5 +1,8 @@
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { useSyncExternalStore } from 'react';
+import { type AlertSoundTone, isAlertSoundTone } from '../lib/alertTone';
+
+export type { AlertSoundTone };
 
 const LEGACY_STORAGE_KEY = 'fc_roast_settings';
 const STORE_KEY = 'roast.settings';
@@ -53,6 +56,9 @@ export type RoastSettings = {
     /** Live threshold alarms (RoR crash / BT ceiling). */
     alertsEnabled: boolean;
     alertSoundEnabled: boolean;
+    /** Oscillator gain 1–100. Default is loud enough for a noisy roast floor. */
+    alertSoundVolume: number;
+    alertSoundTone: AlertSoundTone;
     alertRorCrashCPerMin: number;
     alertBtMaxC: number;
     /**
@@ -99,6 +105,8 @@ const DEFAULT_SETTINGS: RoastSettings = {
     preChargeDisplaySec: 60,
     alertsEnabled: true,
     alertSoundEnabled: true,
+    alertSoundVolume: 100,
+    alertSoundTone: 'soft',
     alertRorCrashCPerMin: 0,
     alertBtMaxC: 250,
     pidDropBehavior: 'hold',
@@ -162,6 +170,10 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         fcDualMarkEnabled,
         alertsEnabled: asBool(merged.alertsEnabled, DEFAULT_SETTINGS.alertsEnabled),
         alertSoundEnabled: asBool(merged.alertSoundEnabled, DEFAULT_SETTINGS.alertSoundEnabled),
+        alertSoundVolume: clampNum(merged.alertSoundVolume, 10, 100, DEFAULT_SETTINGS.alertSoundVolume),
+        alertSoundTone: isAlertSoundTone(merged.alertSoundTone)
+            ? merged.alertSoundTone
+            : DEFAULT_SETTINGS.alertSoundTone,
         alertRorCrashCPerMin: clampNum(merged.alertRorCrashCPerMin, -20, 20, DEFAULT_SETTINGS.alertRorCrashCPerMin),
         alertBtMaxC: clampNum(merged.alertBtMaxC, 100, 400, DEFAULT_SETTINGS.alertBtMaxC),
         pidDropBehavior: isPidDropBehavior(merged.pidDropBehavior)

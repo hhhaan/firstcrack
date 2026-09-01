@@ -1,8 +1,10 @@
 import {
+    ALERT_SOUND_TONES,
     type EventMarkerStyle,
     fromDisplayTemp,
     type PidDropBehavior,
     type PollIntervalMs,
+    playAlertTone,
     type RorSpanSec,
     type TemperatureUnit,
     toDisplayTemp,
@@ -117,6 +119,25 @@ const controlSeriesOptions = [
 
 const numberInputWrapCls =
     'flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E5E7EB] dark:border-[#585d61] bg-white dark:bg-[#262b31]';
+
+const checkboxCls = 'w-4 h-4 accent-[#111827] dark:accent-[#F2F2F2] shrink-0 mt-0.5';
+
+/** Same track/thumb as MarginSlider — widgets cannot import each other. */
+const sliderThumbCls = [
+    'appearance-none bg-transparent cursor-pointer',
+    '[&::-webkit-slider-runnable-track]:h-2.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent',
+    '[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5',
+    '[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-main-bg',
+    '[&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-border [&::-webkit-slider-thumb]:shadow-ring',
+    '[&::-webkit-slider-thumb]:-mt-[5px]',
+    '[&::-moz-range-track]:h-2.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent',
+    '[&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full',
+    '[&::-moz-range-thumb]:bg-main-bg [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-border',
+    '[&::-moz-range-progress]:h-2.5 [&::-moz-range-progress]:rounded-full [&::-moz-range-progress]:bg-primary',
+].join(' ');
+
+const SOUND_VOL_MIN = 10;
+const SOUND_VOL_MAX = 100;
 
 const NumberInput = ({
     value,
@@ -481,12 +502,85 @@ export const RoastSettingsTab = () => {
                         description={tk('alertsEnabledDescription')}
                         onChange={() => updateRoastSettings({ alertsEnabled: !roastSettings.alertsEnabled })}
                     />
-                    <SettingsCheckRow
-                        checked={roastSettings.alertSoundEnabled}
-                        label={tk('alertSound')}
-                        description={tk('alertSoundDescription')}
-                        onChange={() => updateRoastSettings({ alertSoundEnabled: !roastSettings.alertSoundEnabled })}
-                    />
+                    <SettingsOptionRow align="start">
+                        <input
+                            id="alert-sound-enabled"
+                            type="checkbox"
+                            className={checkboxCls}
+                            checked={roastSettings.alertSoundEnabled}
+                            onChange={() =>
+                                updateRoastSettings({ alertSoundEnabled: !roastSettings.alertSoundEnabled })
+                            }
+                        />
+                        <div className="min-w-0 flex-1 flex flex-col gap-2">
+                            <div className="flex items-start justify-between gap-3">
+                                <label htmlFor="alert-sound-enabled" className="min-w-0 cursor-pointer">
+                                    <div className={settingsOptionLabelCls}>{tk('alertSound')}</div>
+                                    <div className={settingsOptionDescCls}>{tk('alertSoundDescription')}</div>
+                                </label>
+                                {roastSettings.alertSoundEnabled ? (
+                                    <span className="text-base font-semibold text-primary tabular-nums shrink-0 leading-snug">
+                                        {roastSettings.alertSoundVolume}%
+                                    </span>
+                                ) : null}
+                            </div>
+                            {roastSettings.alertSoundEnabled ? (
+                                <>
+                                    <div className="relative h-8 flex items-center">
+                                        <div
+                                            className="absolute inset-x-0 h-2.5 rounded-full bg-surface dark:bg-surface-elevated pointer-events-none overflow-hidden"
+                                            aria-hidden
+                                        >
+                                            <div
+                                                className="h-full bg-primary"
+                                                style={{
+                                                    width: `${((roastSettings.alertSoundVolume - SOUND_VOL_MIN) / (SOUND_VOL_MAX - SOUND_VOL_MIN)) * 100}%`,
+                                                }}
+                                            />
+                                        </div>
+                                        <input
+                                            id="alert-sound-volume"
+                                            type="range"
+                                            min={SOUND_VOL_MIN}
+                                            max={SOUND_VOL_MAX}
+                                            step={1}
+                                            value={roastSettings.alertSoundVolume}
+                                            aria-label={tk('alertSoundVolume')}
+                                            aria-valuemin={SOUND_VOL_MIN}
+                                            aria-valuemax={SOUND_VOL_MAX}
+                                            aria-valuenow={roastSettings.alertSoundVolume}
+                                            onChange={(e) =>
+                                                updateRoastSettings({ alertSoundVolume: Number(e.target.value) })
+                                            }
+                                            className={`relative z-10 w-full h-8 ${sliderThumbCls}`}
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        {ALERT_SOUND_TONES.map((tone) => {
+                                            const on = roastSettings.alertSoundTone === tone;
+                                            return (
+                                                <button
+                                                    key={tone}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        updateRoastSettings({ alertSoundTone: tone });
+                                                        playAlertTone(roastSettings.alertSoundVolume, tone);
+                                                    }}
+                                                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium cursor-pointer transition-colors border-none ${
+                                                        on
+                                                            ? 'bg-primary text-white dark:bg-white dark:text-primary'
+                                                            : 'bg-surface dark:bg-surface-elevated text-muted hover:text-secondary'
+                                                    }`}
+                                                >
+                                                    {tk(tone === 'soft' ? 'alertSoundSoft' : 'alertSoundAlarm')}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            ) : null}
+                        </div>
+                    </SettingsOptionRow>
                     <SettingsOptionRow justify="between">
                         <div>
                             <div className={settingsOptionLabelCls}>{tk('alertRorCrash')}</div>
