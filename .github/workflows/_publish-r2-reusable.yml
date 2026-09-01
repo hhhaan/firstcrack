@@ -218,7 +218,7 @@ jobs:
             return 1
           }
           check_manifest() {
-            curl -fsSL "${R2_PUBLIC_URL}/releases/latest.json" -o verified.json || return 1
+            curl -fsSL --proto '=https' --tlsv1.2 "${R2_PUBLIC_URL}/releases/latest.json" -o verified.json || return 1
             [ "$(jq -r .version verified.json)" = "$VERSION" ]
           }
           # brief settle for eventual consistency
@@ -232,7 +232,7 @@ jobs:
           cat verified.json
           # Every platform binary URL must be reachable
           for url in $(jq -r '.platforms[].url' verified.json); do
-            retry 3 5 curl -fsSIL -o /dev/null "$url" \
+            retry 3 5 curl -fsSIL --proto '=https' --tlsv1.2 -o /dev/null "$url" \
               || { echo "::error::Unreachable: $url"; exit 1; }
             echo "  OK: $url"
           done

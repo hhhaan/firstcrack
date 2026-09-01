@@ -474,13 +474,12 @@ def create_app() -> web.Application:
     async def _cleanup_on_app_exit(app: web.Application) -> None:
         import asyncio
         task = app.get("watchdog_task")
-        if task is not None and not task.done():
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-        await _cleanup_manager(app["manager"])
+        try:
+            if task is not None and not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+        finally:
+            await _cleanup_manager(app["manager"])
 
     app.on_startup.append(_start_watchdog)
     app.on_cleanup.append(_cleanup_on_app_exit)
