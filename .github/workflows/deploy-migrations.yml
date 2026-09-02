@@ -78,7 +78,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Safety check
-        if: github.event_name == 'workflow_dispatch'
+        # Nested Release calls inherit the caller's event_name (push or
+        # workflow_dispatch). confirm exists only on this workflow's own dispatch.
+        if: github.workflow == 'Deploy migrations'
         env:
           CONFIRM: ${{ inputs.confirm }}
         run: |
