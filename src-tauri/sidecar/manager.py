@@ -112,6 +112,9 @@ def _format_connection_error(
             return f"PLC({host}) 응답 없음. 같은 네트워크에 있는지, IP 주소가 맞는지 확인하세요."
         return f"{host} 응답 없음. 머신이 같은 네트워크에 있는지 확인하세요."
 
+    if exc_type == "gaierror" or "nodename nor servname" in msg or "Name or service not known" in msg:
+        return f"호스트({params.get('host', '')})를 찾을 수 없습니다. IP 주소를 확인하세요."
+
     if "Network is unreachable" in msg or "No route to host" in msg:
         return f"호스트({params.get('host', '')})에 도달할 수 없습니다. 네트워크 연결을 확인하세요."
 

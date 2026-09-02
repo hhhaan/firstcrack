@@ -137,6 +137,8 @@ export const useMachineFormActions = ({
                 setTestMessage(status.error ?? t('addMachine.connectionFailed'));
             }
         } catch (e) {
+            // 타임아웃 후에도 사이드카가 핸드셰이크를 쥐고 있으면 다음 시도가 락에 막힌다
+            void sidecar.disconnect().catch(() => null);
             setTestState('failed');
             setTestMessage(e instanceof Error ? e.message : t('addMachine.connectionFailed'));
         }

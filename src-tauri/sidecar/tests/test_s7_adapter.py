@@ -5,6 +5,7 @@ INT/REAL 인코딩, 락 직렬화)은 실제로 돌린다. 하드웨어 불필�
 """
 
 import asyncio
+import socket
 import threading
 import time
 from unittest.mock import MagicMock, patch
@@ -15,7 +16,7 @@ import config
 from snap7.util.getters import get_int, get_real
 from snap7.util.setters import set_int
 
-from adapters.s7 import S7Adapter
+from adapters.s7 import S7Adapter, _probe_tcp  # autouse 패치 이전의 원본을 잡아둔다
 
 
 GIESEN_CHANNELS = [
@@ -36,6 +37,12 @@ def _int_bytes(value: int) -> bytearray:
     ba = bytearray(2)
     set_int(ba, 0, value)
     return ba
+
+
+@pytest.fixture(autouse=True)
+def _no_tcp_probe(monkeypatch):
+    """connect()의 TCP 프로브는 실소켓이다 — 단위 테스트에서는 항상 통과시킨다."""
+    monkeypatch.setattr("adapters.s7._probe_tcp", lambda *a, **k: None)
 
 
 @pytest.fixture
@@ -431,3 +438,40 @@ class TestPlcRebind:
         before = adapter._session
         await adapter.disconnect()
         assert adapter._session == before + 1
+
+
+class TestConnectProbe:
+    async def test_unreachable_host_fails_fast_without_snap7(self, adapter, monkeypatch):
+        """프로브가 막히면 snap7 클라이언트를 만들지도 않고 즉시 실패한다 (Artisan isOpen)."""
+        adapter._plc = None
+        monkeypatch.setattr(config, "S7_PROBE_TIMEOUT_S", 0.05)
+        monkeypatch.setattr(
+            "adapters.s7._probe_tcp",
+            lambda *a, **k: (_ for _ in ()).throw(socket.timeout("timed out")),
+        )
+        with patch("snap7.client.Client") as client_cls:
+            t0 = time.monotonic()
+            with pytest.raises(OSError, match="timed out"):
+                await adapter.connect()
+            assert time.monotonic() - t0 < 1.0
+            client_cls.assert_not_called()
+        assert adapter._plc is None
+
+    def test_probe_uses_host_port_and_timeout(self, monkeypatch):
+        seen = {}
+
+        def fake_create_connection(addr, timeout):
+            seen["addr"], seen["timeout"] = addr, timeout
+
+            class _Sock:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *a):
+                    return False
+
+            return _Sock()
+
+        monkeypatch.setattr(socket, "create_connection", fake_create_connection)
+        _probe_tcp("172.30.30.90", 102, 0.7)
+        assert seen == {"addr": ("172.30.30.90", 102), "timeout": 0.7}

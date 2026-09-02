@@ -39,6 +39,10 @@ MODBUS_RTU_TIMEOUT = 0.3        # 시리얼 응답 지연 여유
 MODBUS_RTU_CONNECT_DELAY = 0.5  # modbus_serial_connect_delay
 MODBUS_CLOSE_TIMEOUT = 1.0      # 불량 포트에서 close() 행 방지
 S7_MIN_REQUEST_INTERVAL = 0.04  # PLC 과부하 방지 40ms
+# snap7 connect 전 TCP 프로브 상한. Artisan isOpen()은 0.3s — 무선/VLAN 여유로 1s.
+# snap7 Cli_ConnectTo는 도달 불가 호스트에서 커널 SYN 타임아웃(macOS 75s)까지
+# 블로킹되고 PingTimeout으로도 못 끊는다(실측) — 이 프로브가 유일한 상한이다.
+S7_PROBE_TIMEOUT_S = 1.0
 
 # ── S7 I/O 예산 ─────────────────────────────────────────────────────────
 # manager의 wait_for(READ_TIMEOUT)는 코루틴만 풀어주고 snap7 동기 호출이 도는

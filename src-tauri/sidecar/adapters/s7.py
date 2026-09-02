@@ -1,5 +1,6 @@
 import asyncio
 import math
+import socket
 import threading
 import time
 import logging
@@ -27,6 +28,17 @@ def _client_alive(plc: Any) -> bool:
         )
     except Exception:
         return False
+
+
+def _probe_tcp(host: str, port: int, timeout: float) -> None:
+    """snap7 전 TCP 프로브 — Artisan s7port.connect()의 isOpen()과 같은 자리.
+
+    도달 불가 IP에서 Cli_ConnectTo는 커널 SYN 타임아웃(macOS 75s)까지 블로킹되고
+    PingTimeout(750ms)은 connect에 적용되지 않는다(실측). 소켓 예외는 그대로 올린다 —
+    manager._format_connection_error가 refused/timed out/unreachable을 분류한다.
+    """
+    with socket.create_connection((host, port), timeout=timeout):
+        pass
 
 
 class S7Adapter:
@@ -96,6 +108,7 @@ class S7Adapter:
         session = self._session
 
         def _connect() -> Any:
+            _probe_tcp(self._host, self._port, config.S7_PROBE_TIMEOUT_S)
             client = snap7.client.Client()
             # RecvTimeout 기본 3s → config 값. PLC가 응답 없이 hang하면 manager의
             # wait_for(3s)는 만료돼도 snap7 동기 호출이 잡은 executor 스레드는

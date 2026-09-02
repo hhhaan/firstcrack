@@ -98,6 +98,10 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
             }
             return status;
         } catch (e) {
+            // 프론트 타임아웃(20s)이 먼저 끊겨도 사이드카는 핸드셰이크를 계속 쥐고 있다
+            // (aiohttp는 peer abort에 핸들러를 취소하지 않는다). 대기 중 connect를 취소해
+            // manager 락을 돌려받아야 재시도가 즉시 가능하다.
+            void sidecar.disconnect().catch(() => null);
             logger.capture(e, { context: 'machine connect' });
             Sentry.addBreadcrumb({
                 category: 'hardware.connection',

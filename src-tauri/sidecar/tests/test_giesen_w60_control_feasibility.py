@@ -38,8 +38,12 @@ ARTISAN_W60A = (
 # db2 계열 Giesen (W1A~W140A, WxA/WxA+) — 슬라이더 쓰기 맵이 전 기종 동일
 GIESEN_DB2_KEYS = [
     "giesen_w1",
+    "giesen_sample",
     "giesen_standard",
+    "giesen_w30a",
+    "giesen_w45a_w60a",
     "giesen_w15e",
+    "giesen_w140a_v1",
     "giesen_w30a_pro",
     "giesen_w140a_v2",
     "giesen_wxa",
@@ -51,10 +55,13 @@ def _role_map(channels: list[dict]) -> dict[str, dict]:
     return {c["role"]: c for c in channels}
 
 
-def test_giesen_standard_includes_w60a_and_control_capabilities() -> None:
-    entry = ROASTER_REGISTRY["giesen_standard"]
+def test_giesen_w45a_w60a_matches_artisan_host_and_control_capabilities() -> None:
+    entry = ROASTER_REGISTRY["giesen_w45a_w60a"]
     assert entry["protocol"] == "s7"
     assert "W60A" in entry["models"]
+    # W60A.aset host= — giesen_standard(.50)에 묶여 있던 잘못된 기본 IP 회귀 방지
+    assert entry["default_params"]["host"] == "172.30.30.90"
+    assert entry["default_params"]["channels"] == ROASTER_REGISTRY["giesen_standard"]["default_params"]["channels"]
     assert set(entry["capabilities"]) >= {"heater", "fan", "drum"}
     roles = _role_map(entry["default_params"]["channels"])
     # 읽기 맵 — Artisan W60A-class 텔레메트리
@@ -214,3 +221,19 @@ def test_giesen_py_is_csv_import_not_control() -> None:
     assert "extractProfileGiesenCSV" in src
     assert "snap7" not in src
     assert "writeInt" not in src
+
+
+def test_giesen_variant_hosts_match_artisan_asets() -> None:
+    """host만 다른 파생 항목 — 각 .aset의 host= 값."""
+    expected = {
+        "giesen_sample": "172.30.30.10",
+        "giesen_w30a": "172.30.30.70",
+        "giesen_w45a_w60a": "172.30.30.90",
+        "giesen_w140a_v1": "172.30.30.110",
+        "giesen_wxa_coarse": "192.168.3.230",
+    }
+    for key, host in expected.items():
+        assert ROASTER_REGISTRY[key]["default_params"]["host"] == host, key
+    # coarse는 버너 0~10 스텝(aset sliderfactors 0.1) — % 맵을 공유하면 범위 초과
+    assert ROASTER_REGISTRY["giesen_wxa_coarse"]["default_params"]["write_map"]["heater"]["max"] == 10
+    assert ROASTER_REGISTRY["giesen_wxa"]["default_params"]["write_map"]["heater"]["max"] == 100

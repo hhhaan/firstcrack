@@ -360,12 +360,12 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
     # 출처: Giesen/*.aset
     # 공통: port=102, rack=0, slot=0, div=0, PID Kp=20/Ki=0.01/Kd=3
     # -----------------------------------------------------------------------
-    # W1A, W1E, Sample_WPE, Sample_WPG
+    # W1A, W1E (Sample WPE/WPG는 host가 달라 giesen_sample로 분리)
     # BT=db3/118/INT, ET=db3/114/INT
     "giesen_w1": {
-        "display_name": "Giesen W1A / W1E / Sample",
+        "display_name": "Giesen W1A / W1E",
         "brand": "Giesen",
-        "models": ["W1A", "W1E", "Sample WPE", "Sample WPG"],
+        "models": ["W1A", "W1E"],
         "protocol": "s7",
         "default_params": {
             "host": "172.30.30.30",
@@ -393,12 +393,12 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
     },
-    # W6A, W6E, W15A, W30A, W45A, W60A
+    # W6A, W6E, W15A (W30A→.70, W45A/W60A→.90 은 host가 달라 별도 항목)
     # BT=db3/116/INT, ET=db3/112/INT
     "giesen_standard": {
-        "display_name": "Giesen W6A / W15A / W30A / W45A / W60A",
+        "display_name": "Giesen W6A / W6E / W15A",
         "brand": "Giesen",
-        "models": ["W6A", "W6E", "W15A", "W30A", "W45A", "W60A"],
+        "models": ["W6A", "W6E", "W15A"],
         "protocol": "s7",
         "default_params": {
             "host": "172.30.30.50",
@@ -426,11 +426,11 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": {"Kp": 20, "Ki": 0.01, "Kd": 3},
         "capabilities": ["heater", "fan", "drum"],
     },
-    # W15E, W140A v1 — BT/ET=standard와 동일, 추가 채널 db3/184
+    # W15E — BT/ET=standard와 동일, 추가 채널 db3/184 (W140A v1은 host .110로 분리)
     "giesen_w15e": {
-        "display_name": "Giesen W15E / W140A (v1)",
+        "display_name": "Giesen W15E",
         "brand": "Giesen",
-        "models": ["W15E", "W140A v1"],
+        "models": ["W15E"],
         "protocol": "s7",
         "default_params": {
             "host": "172.30.30.50",
@@ -602,7 +602,7 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
     "giesen_wxa": {
         "display_name": "Giesen WxA / WxA IR",
         "brand": "Giesen",
-        "models": ["WxA", "WxA coarse", "WxA IR", "WxA IR Env"],
+        "models": ["WxA", "WxA IR", "WxA IR Env"],
         "protocol": "s7",
         "default_params": {
             "host": "192.168.2.180",
@@ -1741,3 +1741,47 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "capabilities": ["heater"],
     },
 }
+
+
+# ---------------------------------------------------------------------------
+# Giesen host 파생 항목 — 레지스터 맵은 같고 공장 기본 IP만 다른 모델.
+# 출처: 각 .aset의 host=. 잘못된 기본 IP는 snap7 connect가 커널 SYN 타임아웃
+# (macOS 75s)까지 블로킹되는 경로로 직행하므로 모델별로 정확히 둔다.
+# 기존 키(giesen_standard 등)는 저장된 머신이 참조하므로 유지한다.
+# ---------------------------------------------------------------------------
+def _giesen_variant(
+    base_key: str, *, display_name: str, models: list[str], host: str,
+    write_map: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    base = ROASTER_REGISTRY[base_key]
+    params = {**base["default_params"], "host": host}
+    if write_map is not None:
+        params["write_map"] = write_map
+    return {**base, "display_name": display_name, "models": models, "default_params": params}
+
+
+# WxA coarse: aset sliderfactors 0.1 → 버너가 0~10 스텝(+1 오프셋)이라 % 맵을 쓰면 범위 초과
+_GIESEN_DB2_COARSE_WRITE_MAP: dict[str, dict[str, Any]] = {
+    "heater": {**_GIESEN_DB2_WRITE_MAP["heater"], "max": 10, "unit": "step"},
+}
+
+ROASTER_REGISTRY.update({
+    "giesen_sample": _giesen_variant(
+        "giesen_w1", display_name="Giesen Sample WPE / WPG",
+        models=["Sample WPE", "Sample WPG"], host="172.30.30.10",
+    ),
+    "giesen_w30a": _giesen_variant(
+        "giesen_standard", display_name="Giesen W30A", models=["W30A"], host="172.30.30.70",
+    ),
+    "giesen_w45a_w60a": _giesen_variant(
+        "giesen_standard", display_name="Giesen W45A / W60A",
+        models=["W45A", "W60A"], host="172.30.30.90",
+    ),
+    "giesen_w140a_v1": _giesen_variant(
+        "giesen_w15e", display_name="Giesen W140A (v1)", models=["W140A v1"], host="172.30.30.110",
+    ),
+    "giesen_wxa_coarse": _giesen_variant(
+        "giesen_wxa", display_name="Giesen WxA coarse", models=["WxA coarse"],
+        host="192.168.3.230", write_map=_GIESEN_DB2_COARSE_WRITE_MAP,
+    ),
+})
