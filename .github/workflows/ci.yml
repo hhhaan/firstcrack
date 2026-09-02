@@ -46,7 +46,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  typecheck:
+  # Cheap SHA diff so macos ios-check is not queued on frontend-only PRs.
+  paths:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tauri: ${{ steps.detect.outputs.tauri }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: detect
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE:-}" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "tauri=true" >> "$GITHUB_OUTPUT"
+            echo "No base SHA — run ios-check"
+            exit 0
+          fi
+          if git diff --name-only "$BASE" "$HEAD" | grep -q '^src-tauri/'; then
+            echo "tauri=true" >> "$GITHUB_OUTPUT"
+            echo "src-tauri changed — run ios-check"
+          else
+            echo "tauri=false" >> "$GITHUB_OUTPUT"
+            echo "src-tauri unchanged — skip ios-check"
+          fi
+
+  # One pnpm install for typecheck + biome + i18n + registry + eslint + secretlint.
+  # Job id is the check-run name — keep in sync with release.yml ci-gate + scripts/release.mjs.
+  check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -57,14 +89,6 @@ jobs:
       - name: Type check
         run: pnpm typecheck
 
-  lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: ./.github/actions/setup
-
       - name: Biome check
         run: pnpm check
 
@@ -74,16 +98,11 @@ jobs:
       - name: Roaster registry py↔ts sync
         run: pnpm check:registry
 
-  eslint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: ./.github/actions/setup
-
       - name: ESLint (react-refresh)
         run: pnpm lint
+
+      - name: Secretlint
+        run: pnpm scan:secrets
 
   test:
     runs-on: ubuntu-latest
@@ -96,20 +115,11 @@ jobs:
       - name: Vitest
         run: pnpm test
 
-  secrets:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: ./.github/actions/setup
-
-      - name: Secretlint
-        run: pnpm scan:secrets
-
   # 모바일 cfg 게이트 회귀 방지 — 데스크톱 전용 코드(사이드카/업데이터)가
   # 게이트 없이 추가되면 여기서 잡힌다. 빌드/서명 없이 컴파일만 확인.
   ios-check:
+    needs: paths
+    if: needs.paths.outputs.tauri == 'true'
     runs-on: macos-latest
     timeout-minutes: 20
     steps:

@@ -40,8 +40,64 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Resolved version: $VERSION"
 
-  migrate:
+  ci-gate:
     needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Wait for CI checks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Checking CI status for commit ${GITHUB_SHA}..."
+
+          # Retry up to 10 minutes (20×30s). Names = ci.yml job ids.
+          # skipped (ios-check path filter) is success, not pending.
+          for i in $(seq 1 20); do
+            RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
+              --jq '[.check_runs[] | select(.name == "paths" or .name == "check" or .name == "test" or .name == "sidecar" or .name == "ios-check")]')
+            TOTAL=$(echo "$RESPONSE" | jq 'length')
+
+            if [ "$TOTAL" -eq 0 ]; then
+              # CI check-runs appear within seconds of a push. If none exist after
+              # ~2 min, this SHA was never a push head (e.g. tag on a stacked commit
+              # pushed in a batch — v1.1.18) and checks will NEVER appear. Fail fast.
+              if [ "$i" -ge 4 ]; then
+                echo "::error::No CI check-runs on ${GITHUB_SHA} after $i attempts — this commit was likely never a push head (tag points at a stacked commit). Tag the pushed main HEAD via 'pnpm release' instead."
+                exit 1
+              fi
+              echo "::warning::No CI checks found yet (attempt $i/20). Waiting 30s..."
+              sleep 30
+              continue
+            fi
+
+            FAILED=$(echo "$RESPONSE" | jq '[.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled")] | length')
+            PENDING=$(echo "$RESPONSE" | jq '[.[] | select(.conclusion == null or .conclusion == "neutral")] | length')
+
+            echo "CI checks found: $TOTAL (pending: $PENDING, failed: $FAILED)"
+            echo "$RESPONSE" | jq -r '.[] | "  \(.name): \(.conclusion)"'
+
+            if [ "$FAILED" -gt 0 ]; then
+              echo "::error::$FAILED CI check(s) failed. Release aborted."
+              exit 1
+            fi
+
+            if [ "$PENDING" -eq 0 ]; then
+              echo "✅ All CI checks passed."
+              exit 0
+            fi
+
+            if [ "$i" -lt 20 ]; then
+              echo "⏳ $PENDING check(s) still running — waiting 30s (attempt $i/20)..."
+              sleep 30
+            fi
+          done
+
+          echo "::error::CI checks still pending after 10 min — aborting release. Re-run once CI completes."
+          exit 1
+
+  migrate:
+    needs: [setup, ci-gate]
     uses: ./.github/workflows/deploy-migrations.yml
     with:
       version: ${{ needs.setup.outputs.version }}
@@ -68,60 +124,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-
-      - name: Check CI status before building
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Checking CI status for commit ${GITHUB_SHA}..."
-
-          # Retry up to 10 minutes (20×30s) to wait for CI to start/finish
-          # NOTE: check names must match ci.yml job names — renaming there breaks this gate.
-          for i in $(seq 1 20); do
-            RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
-              --jq '[.check_runs[] | select(.name == "typecheck" or .name == "lint" or .name == "eslint" or .name == "test" or .name == "secrets" or .name == "sidecar")]')
-            TOTAL=$(echo "$RESPONSE" | jq 'length')
-
-            if [ "$TOTAL" -eq 0 ]; then
-              # CI check-runs appear within seconds of a push. If none exist after
-              # ~2 min, this SHA was never a push head (e.g. tag on a stacked commit
-              # pushed in a batch — v1.1.18) and checks will NEVER appear. Fail fast.
-              if [ "$i" -ge 4 ]; then
-                echo "::error::No CI check-runs on ${GITHUB_SHA} after $i attempts — this commit was likely never a push head (tag points at a stacked commit). Tag the pushed main HEAD via 'pnpm release' instead."
-                exit 1
-              fi
-              echo "::warning::No CI checks found yet (attempt $i/20). Waiting 30s..."
-              sleep 30
-              continue
-            fi
-
-            # Count failures only — null/pending/in_progress are fine
-            FAILED=$(echo "$RESPONSE" | jq '[.[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled")] | length')
-            PENDING=$(echo "$RESPONSE" | jq '[.[] | select(.conclusion == null or .conclusion == "neutral" or .conclusion == "skipped")] | length')
-
-            echo "CI checks found: $TOTAL (pending: $PENDING, failed: $FAILED)"
-            echo "$RESPONSE" | jq -r '.[] | "  \(.name): \(.conclusion)"'
-
-            if [ "$FAILED" -gt 0 ]; then
-              echo "::error::$FAILED CI check(s) failed. Release aborted."
-              exit 1
-            fi
-
-            if [ "$PENDING" -eq 0 ]; then
-              echo "✅ All CI checks passed."
-              exit 0
-            fi
-
-            if [ "$i" -lt 20 ]; then
-              echo "⏳ $PENDING check(s) still running — waiting 30s (attempt $i/20)..."
-              sleep 30
-            fi
-          done
-
-          # After all retries — either checks are still pending, or none ever
-          # appeared. Both are unsafe to release on: fail hard.
-          echo "::error::CI checks still pending after 10 min — aborting release. Re-run once CI completes."
-          exit 1
 
       - name: Validate required secrets
         env:

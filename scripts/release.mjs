@@ -98,8 +98,9 @@ if (!force) {
         );
     }
 
-    // origin/main HEAD의 CI 게이트 6종이 전부 success인지 확인 (이름 = ci.yml job key)
-    const gateChecks = ['typecheck', 'lint', 'eslint', 'test', 'secrets', 'sidecar'];
+    // origin/main HEAD의 CI 게이트가 green인지 (이름 = ci.yml job id).
+    // ios-check is skipped when src-tauri did not change — treat skipped as pass.
+    const gateChecks = ['paths', 'check', 'test', 'sidecar', 'ios-check'];
     let runs;
     try {
         runs = JSON.parse(
@@ -111,7 +112,7 @@ if (!force) {
     if (runs.length === 0) {
         fail('이 커밋에 CI check-run이 없음 (docs-only push로 CI 스킵?) — CI가 붙은 커밋에서 릴리스');
     }
-    const notGreen = runs.filter((r) => r.conclusion !== 'success');
+    const notGreen = runs.filter((r) => r.conclusion !== 'success' && r.conclusion !== 'skipped');
     if (notGreen.length > 0) {
         fail(`CI가 green이 아님: ${notGreen.map((r) => `${r.name}=${r.conclusion ?? 'pending'}`).join(', ')}`);
     }
