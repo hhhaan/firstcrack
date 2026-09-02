@@ -52,11 +52,22 @@ const MAX_EVENTS = 60;
 const TP_RISE_MARGIN = 2;
 
 /**
+ * 이 시각 이전에는 TP를 확정하지 않는다 — 실기 감지기(detectTurningPoints)·Artisan과 같은 floor.
+ * charge 직후의 프로브 범프(+2°)가 TP로 잡히면 하강 구간의 가스 조작 전부가 BT축으로 밀려
+ * 실기 TP 이후에야(수 분 늦게) 발화한다.
+ */
+const TP_MIN_ELAPSED_S = 20;
+
+/**
  * 레퍼런스 커브에서 재생 계획을 뽑는다. heater 기록이 없거나(합성 프로파일),
  * 이벤트가 비정상적으로 많으면(PID 기록) null — Replay 부적합.
  *
  * 이벤트는 heater 값이 직전 이벤트 대비 MIN_HEATER_DELTA 이상 바뀐 지점만.
  * 첫 non-null heater는 초기 화력으로 항상 포함한다 (t=0이면 charge 직후 발화).
+ *
+ * 음수 heater는 null로 본다 — Giesen은 unlock 코드 없이 -1을 읽는다. 양수가 한 번도 없는
+ * 기록(읽기 전용 기종은 heater 0으로 기록된다)도 null — 그대로 재생하면 charge에서
+ * 버너를 꺼 버린다. 로스팅 중 0으로 내리는 조작은 양수 이벤트가 앞에 있으므로 살아남는다.
  *
  * dropTime(레퍼런스의 charge→drop 초) 이후 포인트는 버린다 — 레코더는 배출 후에도
  * 기록을 계속하므로 쿨다운 중 슬라이더 조작이 TSV에 남고, 그 BT 구간(하강 꼬리)은
@@ -71,14 +82,14 @@ export const extractReplayEvents = (points: ReplayPoint[], dropTime?: number | n
     const events: ReplayEvent[] = [];
     let lastHeater: number | null = null;
     for (const p of post) {
-        if (p.heater == null) continue;
+        if (p.heater == null || p.heater < 0) continue;
         if (lastHeater == null || Math.abs(p.heater - lastHeater) >= MIN_HEATER_DELTA) {
             events.push({ t: p.t, bt: p.bt, heater: p.heater });
             lastHeater = p.heater;
             if (events.length > MAX_EVENTS) return null;
         }
     }
-    if (events.length === 0) return null;
+    if (!events.some((e) => e.heater > 0)) return null;
 
     // TP는 첫 하강→상승 전환점: running min을 추적하다 BT가 마진 이상 회복하는
     // 순간 그 min 지점으로 확정한다. 전역 최솟값은 쿨다운 꼬리(phase는 endRoast까지
@@ -86,10 +97,13 @@ export const extractReplayEvents = (points: ReplayPoint[], dropTime?: number | n
     // 전 구간 최대인 커브(#310)에서 탐색 구간이 charge로 붕괴한다 — 둘 다 안 된다.
     // 회복이 끝까지 없으면(단조 하강 초단기 세션) Infinity → 전 이벤트 시간축 재생.
     // 시간축은 오발이 불가능한 안전한 퇴화 케이스다.
+    // floor는 골짜기 후보 자체에 건다 — 회복 샘플에만 걸면 t<20의 글리치 골짜기가
+    // 20초 이후 첫 샘플의 회복으로 그대로 확정된다.
     let tpTime = Number.POSITIVE_INFINITY;
-    let min = 0;
-    for (let i = 1; i < post.length; i++) {
-        if (post[i].bt < post[min].bt) min = i;
+    let min = -1;
+    for (let i = 0; i < post.length; i++) {
+        if (post[i].t < TP_MIN_ELAPSED_S) continue;
+        if (min < 0 || post[i].bt < post[min].bt) min = i;
         else if (post[i].bt >= post[min].bt + TP_RISE_MARGIN) {
             tpTime = post[min].t;
             break;

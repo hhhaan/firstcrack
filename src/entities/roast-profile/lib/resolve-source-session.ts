@@ -1,5 +1,7 @@
 export type SourceSessionSnapshot = {
     tsv_path: string | null;
+    /** roast_sessions.events jsonb — 조인에 events를 안 실은 호출자는 생략 */
+    events?: unknown;
 };
 
 type SourceSessionJoin = SourceSessionSnapshot | SourceSessionSnapshot[] | null | undefined;

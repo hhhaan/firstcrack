@@ -232,8 +232,11 @@ export const useReplayControl = ({
     // stopCause 가드: pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다 —
     // 위 중지 effect의 setActive(false)는 다음 렌더에나 반영되므로, 같은 커밋의 이
     // effect가 stale active로 한 번 더 쓰는 것을 여기서 막아야 한다.
+    // reconnecting 가드: 링크 복구 대기 중에도 sidecarConnected는 true로 유지되고(세션 보존)
+    // elapsed는 호스트 시계라 계속 흘러, 시간축 이벤트가 409로 실패하면서 인덱스만 소비된다.
+    // 여기서 멈추면 복구 후 judgeReplay가 밀린 이벤트를 한 번에 따라잡는다.
     useEffect(() => {
-        if (!active || stopCause != null || !roasting || liveBt == null || plan == null) return;
+        if (!active || stopCause != null || !roasting || reconnecting || liveBt == null || plan == null) return;
         // 이탈 후보 확정 대기 중(1~2틱)에는 이벤트를 쓰지 않는다 — 여기서 쓰면 실기
         // 개입을 덮는 동시에 lastWritten 갱신·pending으로 판정까지 리셋돼, #307이
         // 막으려던 경로가 확정 창 안에서 재현된다. 노이즈로 판명되면(카운터 0 복귀)
@@ -246,7 +249,19 @@ export const useReplayControl = ({
             writeHeater(result.heater);
             setLastWritten(result.heater);
         }
-    }, [active, stopCause, roasting, liveBt, elapsed, afterTurningPoint, plan, index, diverge.ticks, writeHeater]);
+    }, [
+        active,
+        stopCause,
+        roasting,
+        reconnecting,
+        liveBt,
+        elapsed,
+        afterTurningPoint,
+        plan,
+        index,
+        diverge.ticks,
+        writeHeater,
+    ]);
 
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;
 

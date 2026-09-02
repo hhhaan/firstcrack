@@ -1,7 +1,7 @@
 import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
-import { useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
+import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import {
     computePhaseSegments,
     formatTemp,
@@ -13,6 +13,7 @@ import {
 } from '@features/active-roast';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { applyEventMarkerDrag } from '@features/active-roast/lib/event-marker-drag';
+import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
@@ -159,6 +160,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [dbProfiles, targetProfileId],
     );
     const { points: targetCurvePoints } = useResolvedProfileCurve(targetProfile);
+    // Replay 컷오프는 레퍼런스의 Drop 마크다. duration_sec는 End 확정 시각(store elapsed)이라
+    // Drop→End 사이 쿨다운 조작(다음 배치 예열용 가스 올림)이 재생 계획에 섞인다.
+    const replayDropTime = useMemo(() => {
+        const events = parseStoredRoastEvents(resolveSourceSession(targetProfile?.source_session)?.events);
+        return events.find((e) => e.type === 'Drop')?.time_sec ?? targetProfile?.duration_sec ?? null;
+    }, [targetProfile]);
 
     const actualPreSec =
         charged && livePoints.length > 0 && livePoints[0].time < 0 ? Math.ceil(Math.abs(livePoints[0].time)) : 0;
@@ -586,7 +593,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         pidDropBehavior={roastSettings.pidDropBehavior}
                         // Replay Assist (#300) — 합성 곡선은 heater가 null이라 자연 비활성
                         replayPoints={targetCurvePoints}
-                        replayDropTime={targetProfile?.duration_sec ?? null}
+                        replayDropTime={replayDropTime}
                         liveBt={rawBT}
                         elapsed={elapsed}
                         roasting={phase === 'roasting'}

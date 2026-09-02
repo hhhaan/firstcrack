@@ -113,6 +113,30 @@ describe('extractReplayEvents', () => {
         expect(extractReplayEvents(curve({}))).toBeNull();
     });
 
+    it('양수가 한 번도 없는 기록(읽기 전용 기종 0 / Giesen unlock 없음 -1)은 null — charge에서 버너를 끄지 않는다', () => {
+        expect(extractReplayEvents(curve({ 0: 0 }))).toBeNull();
+        expect(extractReplayEvents(curve({ 0: -1 }))).toBeNull();
+    });
+
+    it('음수 구간은 null로 건너뛰고, 양수 뒤의 0(가스 컷)은 이벤트로 남는다', () => {
+        const plan = extractReplayEvents(curve({ 0: 80, 100: -1, 200: 0, 300: 60 }));
+        expect(plan?.events.map((e) => e.heater)).toEqual([80, 0, 60]);
+    });
+
+    it('charge 직후 글리치 골짜기(t<20)는 TP로 확정하지 않는다 — 하강 구간 조작이 BT축으로 밀리지 않는다', () => {
+        // t=10에 140°로 푹 꺼졌다가 t=20 자연 하강값(151.7°)이 +2° 이상 "회복"으로 보이는 형상.
+        // floor가 없으면 tpTime=10이 되어 t=30 가스 조작이 BT축(실기 TP 이후)으로 밀린다.
+        const pts = curve({ 0: 80, 30: 60 }).map((p) => (p.t === 10 ? { ...p, bt: 140 } : p));
+        const plan = extractReplayEvents(pts);
+        expect(plan?.tpTime).toBe(60);
+        expect(plan?.events.filter((e) => e.t <= 60).map((e) => e.heater)).toEqual([80, 60]);
+    });
+
+    it('Drop 마크 직후 safe-off(heater 0)는 컷오프 밖이다 — 정수 Drop 시각 vs 소수 샘플 시각', () => {
+        const plan = extractReplayEvents([...curve({ 0: 80, 300: 40 }), { t: 600.5, bt: 204, heater: 0 }], 600);
+        expect(plan?.events.map((e) => e.heater)).toEqual([80, 40]);
+    });
+
     it('pre-charge(t<0) 포인트는 무시한다', () => {
         const pts: ReplayPoint[] = [{ t: -30, bt: 150, heater: 90 }, ...curve({ 100: 70 })];
         const plan = extractReplayEvents(pts);

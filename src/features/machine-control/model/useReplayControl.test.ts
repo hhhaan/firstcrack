@@ -73,6 +73,27 @@ describe('useReplayControl', () => {
         h.unmount();
     });
 
+    it('reconnecting 동안은 이벤트를 소비하지 않는다 — 복구 후 밀린 이벤트를 한 번에 따라잡는다', async () => {
+        // t=30 시간축 이벤트 — 링크 복구 대기 중 elapsed만 흐르는 동안 409로 버려지면 안 된다
+        const pts: ReplayPoint[] = [
+            { t: 0, bt: 180, heater: 80 },
+            { t: 30, bt: 140, heater: 70 },
+            { t: 60, bt: 95, heater: 70 },
+            { t: 300, bt: 155, heater: 40 },
+        ];
+        const h = await renderReplay({ referencePoints: pts });
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(80);
+        await h.rerender({ referencePoints: pts, elapsed: 31, liveBt: 140, reconnecting: true });
+        await h.rerender({ referencePoints: pts, elapsed: 35, liveBt: 140, reconnecting: true });
+        expect(h.writeHeater).toHaveBeenCalledTimes(1);
+        expect(h.get().active).toBe(true);
+        expect(h.get().nextEvent?.heater).toBe(70);
+        await h.rerender({ referencePoints: pts, elapsed: 36, liveBt: 138, reconnecting: false });
+        expect(h.writeHeater).toHaveBeenLastCalledWith(70);
+        h.unmount();
+    });
+
     it('roasting이 아니면 판정하지 않는다', async () => {
         const h = await renderReplay({ roasting: false, elapsed: 10 });
         await act(async () => h.get().toggle());
