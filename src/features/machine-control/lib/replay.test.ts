@@ -109,6 +109,16 @@ describe('extractReplayEvents', () => {
         expect(plan?.events.map((e) => e.heater)).toEqual([80, 40]);
     });
 
+    it('화력 채널 없는 머신의 TSV 왕복: 빈 칸 → null → 재생 부적합', () => {
+        // 레코더가 실제로 쓰는 형식(useSidecarPolling): heater 열이 빈 문자열.
+        // 이 왕복이 깨지면 빈 칸이 0으로 파싱돼 charge에서 화력 0이 나간다.
+        const header = 'time\tbt\tet\tror\theater\tfan\tdrum\n';
+        const rows = [0, 30, 60, 120, 300].map((t) => `${t.toFixed(2)}\t${200 - t / 4}\t210\t-5\t\t0\t0\n`).join('');
+        const points = parseTsv(header + rows);
+        expect(points.every((p) => p.heater === null)).toBe(true);
+        expect(extractReplayEvents(points)).toBeNull();
+    });
+
     it('heater가 전부 null(합성 프로파일)이면 null', () => {
         expect(extractReplayEvents(curve({}))).toBeNull();
     });
