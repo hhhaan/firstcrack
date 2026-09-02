@@ -165,7 +165,7 @@ class VirtualMachineAdapter:
 
     async def read(self) -> Reading:
         if not self._connected:
-            return Reading(bt=-1.0, et=-1.0, heater=0, fan=0, drum=0, timestamp=time.monotonic())
+            return Reading(bt=-1.0, et=-1.0, heater=None, fan=0, drum=0, timestamp=time.monotonic())
 
         if self._model is not None:
             return self._read_thermal()

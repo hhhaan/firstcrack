@@ -192,6 +192,36 @@ class TestReadTemperatures:
         assert result["et"] is not None
         assert isinstance(result["ror"], float)
 
+    async def test_heater_none_is_not_reported_as_zero(self, manager):
+        """화력 피드백 채널이 없는 머신은 None으로 나가야 한다.
+
+        0으로 채우면 TSV에 '측정 0'으로 남아, 그 프로파일을 쓰기 가능한 머신에서
+        Replay 레퍼런스로 쓸 때 charge 직후 화력 0이 나간다.
+        """
+        reading = make_reading(bt=185.0, et=220.0, ts=time.monotonic())
+        reading = Reading(
+            bt=reading.bt, et=reading.et, heater=None,
+            fan=reading.fan, drum=reading.drum, timestamp=reading.timestamp,
+        )
+        fake = FakeAdapter(readings=[reading, reading])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("virtual", {})
+        result = await manager.read_temperatures()
+        assert result["heater"] is None
+        assert result["fan"] == int(round(reading.fan))
+
+    async def test_heater_zero_is_preserved_as_zero(self, manager):
+        """진짜 측정 0은 그대로 0 — None과 구분된다."""
+        base = make_reading(bt=185.0, et=220.0, ts=time.monotonic())
+        reading = Reading(
+            bt=base.bt, et=base.et, heater=0.0,
+            fan=base.fan, drum=base.drum, timestamp=base.timestamp,
+        )
+        fake = FakeAdapter(readings=[reading, reading])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("virtual", {})
+        assert (await manager.read_temperatures())["heater"] == 0
+
     async def test_read_failure_sets_not_connected(self, manager):
         fake = FakeAdapter(readings=[])  # no readings → read() will raise
         with patch("manager.make_adapter", return_value=fake):

@@ -8,7 +8,8 @@ type LiveData = {
     et: number | null;
     ror: number;
     ror_et: number;
-    heater: number;
+    /** null = 이 머신에 화력 피드백 채널이 없다 */
+    heater: number | null;
     fan: number;
     drum: number;
 };

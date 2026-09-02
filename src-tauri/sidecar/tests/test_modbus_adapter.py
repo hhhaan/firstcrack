@@ -379,7 +379,7 @@ class TestRead:
         assert result.bt == 1800.0
         assert result.et == 2200.0
         assert result.drum == 500.0
-        assert result.heater == 0.0
+        assert result.heater is None  # 레지스터 미매핑 = 채널 없음
         assert result.fan == 0.0
 
     async def test_read_not_connected_raises(self, adapter):

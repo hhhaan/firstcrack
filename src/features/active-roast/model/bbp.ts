@@ -7,7 +7,7 @@ export const BBP_MAX_SECONDS = 1800;
 export interface BbpSample {
     bt: number;
     et: number | null;
-    heater: number;
+    heater: number | null;
     fan: number;
     drum: number;
 }
@@ -48,7 +48,7 @@ interface BbpState {
 
 const toTsv = (points: BbpPoint[]): string =>
     TSV_HEADER +
-    points.map((p) => `${p.t.toFixed(1)}\t${p.bt}\t${p.et ?? ''}\t\t${p.heater}\t${p.fan}\t${p.drum}\n`).join('');
+    points.map((p) => `${p.t.toFixed(1)}\t${p.bt}\t${p.et ?? ''}\t\t${p.heater ?? ''}\t${p.fan}\t${p.drum}\n`).join('');
 
 export const useBbpStore = create<BbpState>((set, get) => ({
     active: false,

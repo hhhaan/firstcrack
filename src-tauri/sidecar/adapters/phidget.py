@@ -117,7 +117,8 @@ class PhidgetAdapter:
 
         loop = asyncio.get_running_loop()
         bt, et = await loop.run_in_executor(None, _read_temps)
-        return Reading(bt=bt, et=et, heater=0.0, fan=0.0, drum=0.0, timestamp=time.monotonic())
+        # 열전대뿐이라 화력 채널이 없다 — 0으로 채우면 기록이 "측정 0"과 구분되지 않는다
+        return Reading(bt=bt, et=et, heater=None, fan=0.0, drum=0.0, timestamp=time.monotonic())
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
         raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")

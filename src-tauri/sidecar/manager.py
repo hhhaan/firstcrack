@@ -523,7 +523,7 @@ class RoasterManager:
             "et": None,
             "ror": 0.0,
             "ror_et": 0.0,
-            "heater": 0,
+            "heater": None,
             "fan": 0,
             "drum": 0,
             "timestamp": time.monotonic(),
@@ -635,7 +635,9 @@ class RoasterManager:
             "et": round(self._et_display_ema if self._et_display_ema is not None else reading.et, 1),
             "ror": ror,
             "ror_et": ror_et,
-            "heater": int(round(reading.heater)),
+            # None = 화력 피드백 채널 없음. 0으로 바꾸면 TSV에 "측정 0"으로 남아
+            # Replay가 빈 기록을 진짜 화력 0으로 재생한다.
+            "heater": int(round(reading.heater)) if reading.heater is not None else None,
             "fan": int(round(reading.fan)),
             "drum": round(reading.drum, 1),
             "timestamp": reading.timestamp,

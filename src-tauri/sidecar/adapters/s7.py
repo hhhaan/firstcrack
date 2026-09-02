@@ -264,7 +264,7 @@ class S7Adapter:
         # "executor 스레드가 manager의 wait_for 만료 전에 락을 놓는다"가 성립한다.
         deadline = time.monotonic() + config.S7_READ_BUDGET_S
 
-        def _read_all() -> tuple[float, float, float, float, float]:
+        def _read_all() -> tuple[float, float, float | None, float, float]:
             if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
                 raise TimeoutError("S7 I/O 락 획득 실패 — 이전 요청이 아직 진행 중입니다.")
             try:
@@ -278,7 +278,7 @@ class S7Adapter:
                     raise ConnectionError("S7 PLC가 연결되지 않음")
                 bt = self._read_channel_sync(self._bt_ch, plc, deadline) if self._bt_ch else -1.0
                 et = self._read_channel_sync(self._et_ch, plc, deadline) if self._et_ch else -1.0
-                hp = self._read_channel_sync(self._hp_ch, plc, deadline) if self._hp_ch else 0.0
+                hp = self._read_channel_sync(self._hp_ch, plc, deadline) if self._hp_ch else None
                 fc = self._read_channel_sync(self._fc_ch, plc, deadline) if self._fc_ch else 0.0
                 drum = self._read_channel_sync(self._drum_ch, plc, deadline) if self._drum_ch else 0.0
                 return bt, et, hp, fc, drum

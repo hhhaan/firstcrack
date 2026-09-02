@@ -18,7 +18,8 @@ export interface LiveRoastPoint {
     et: number | null;
     ror: number | null;
     ror_et: number | null;
-    heater: number;
+    /** null = 화력 피드백 채널 없음 — TSV에는 빈칸으로 남는다 */
+    heater: number | null;
     fan: number;
     drum: number;
 }
@@ -250,7 +251,7 @@ export const useSidecarPolling = ({
                         {
                             bt,
                             et: data.et ?? null,
-                            heater: data.heater ?? 0,
+                            heater: data.heater ?? null,
                             fan: data.fan ?? 0,
                             drum: data.drum ?? 0,
                         },
@@ -280,14 +281,14 @@ export const useSidecarPolling = ({
                         et: data.et ?? null,
                         ror: data.ror,
                         ror_et: data.ror_et ?? null,
-                        heater: data.heater ?? 0,
+                        heater: data.heater ?? null,
                         fan: data.fan ?? 0,
                         drum: data.drum ?? 0,
                     };
 
                     const currentSessionId = useRoastingStore.getState().sessionId;
                     if (currentSessionId) {
-                        const row = `${t.toFixed(2)}\t${bt}\t${data.et ?? ''}\t${data.ror ?? ''}\t${data.heater ?? 0}\t${data.fan ?? 0}\t${data.drum ?? 0}\n`;
+                        const row = `${t.toFixed(2)}\t${bt}\t${data.et ?? ''}\t${data.ror ?? ''}\t${data.heater ?? ''}\t${data.fan ?? 0}\t${data.drum ?? 0}\n`;
                         enqueueTsvRow(currentSessionId, row);
                     }
                     setLivePoints((prev) => [...prev, point]);
@@ -307,7 +308,7 @@ export const useSidecarPolling = ({
                         et: data.et ?? null,
                         ror: data.ror,
                         ror_et: data.ror_et ?? null,
-                        heater: data.heater ?? 0,
+                        heater: data.heater ?? null,
                         fan: data.fan ?? 0,
                         drum: data.drum ?? 0,
                     };

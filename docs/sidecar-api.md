@@ -59,7 +59,7 @@ interface TemperatureReading {
     et: number | null;
     ror: number;
     ror_et: number;
-    heater: number;
+    heater: number | null;
     fan: number;
     drum: number;
     timestamp: number;
@@ -76,7 +76,7 @@ interface TemperatureReading {
 | `et`        | Environment Temperature, 환경/배기 온도. 섭씨.                                   |
 | `ror`       | BT 기준 Rate of Rise. 최근 30초 BT window의 선형 최소제곱 기울기. 단위 `°C/min`. |
 | `ror_et`    | ET 기준 Rate of Rise. 최근 30초 ET window의 선형 최소제곱 기울기. 단위 `°C/min`. |
-| `heater`    | 히터/버너 출력 값. adapter에 따라 0-100 또는 장비 raw 값.                        |
+| `heater`    | 히터/버너 출력 값. adapter에 따라 0-100 또는 장비 raw 값. 화력 피드백 채널이 없는 머신(Phidget, heater 미매핑 Modbus/Probat WS)은 `null`. |
 | `fan`       | 팬 출력 값. adapter에 따라 0-100 또는 장비 raw 값.                               |
 | `drum`      | 드럼 속도 값. adapter에 따라 0-100, RPM %, 또는 raw speed.                       |
 | `timestamp` | Python `time.monotonic()` 값.                                                    |
@@ -337,7 +337,7 @@ Notes:
 
 - `bt`, `et`는 adapter reading을 소수점 1자리로 반올림한다.
 - `ror`, `ror_et`는 소수점 2자리로 반올림한다.
-- `heater`, `fan`은 `int()`로 변환한다.
+- `heater`, `fan`은 `int()`로 변환한다. `heater`는 채널이 없으면 `null`(0 아님).
 - `drum`은 소수점 1자리로 반올림한다.
 - BT/ET가 0보다 큰 경우만 RoR window에 추가한다.
 - RoR window는 최근 30초 값만 유지한다.

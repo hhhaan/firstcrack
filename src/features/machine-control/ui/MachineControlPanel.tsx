@@ -23,7 +23,7 @@ interface Props {
     sidecarConnected: boolean;
     /** 사이드카 재연결 대기 — 실측 동결 중이라 이탈 카운트를 멈춘다 (#307) */
     reconnecting: boolean;
-    liveData: { heater: number; fan: number; drum: number } | null;
+    liveData: { heater: number | null; fan: number; drum: number } | null;
     pidRuntime: PidRuntime | null;
     /** 배출·로스팅 종료 — PID 자동 해제 신호 */
     roastFinished: boolean;

@@ -24,7 +24,8 @@ const STALE_COMMAND_POLLS = 10;
 /** /status 실패 시 capability 재조회 간격 */
 const CAPABILITY_RETRY_MS = 3000;
 
-export type MachineFeedback = Record<ControlRole, number> | null;
+/** role 값 null = 그 채널의 피드백을 읽을 수 없는 머신 — 수렴 판정이 영영 안 되므로 미반영으로 드러난다 */
+export type MachineFeedback = Record<ControlRole, number | null> | null;
 
 /**
  * 머신 수동 제어(setpoint 쓰기) 상태.

@@ -10,12 +10,13 @@ export type ControlCommand = Partial<Record<ControlRole, number>>;
  */
 export const settledRoles = (
     desired: ControlCommand,
-    feedback: Record<ControlRole, number>,
+    feedback: Record<ControlRole, number | null>,
     tolerance: number,
 ): ControlRole[] =>
     (['heater', 'fan', 'drum'] as ControlRole[]).filter((role) => {
         const target = desired[role];
-        return target != null && Math.abs(target - feedback[role]) <= tolerance;
+        const fb = feedback[role];
+        return target != null && fb != null && Math.abs(target - fb) <= tolerance;
     });
 
 interface Options {

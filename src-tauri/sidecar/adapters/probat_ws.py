@@ -132,7 +132,7 @@ class ProbatWSAdapter:
             data: dict[str, Any] = j.get("data", {})
             nodes = self._channel_nodes
 
-            def _get(role: str, default: float) -> float:
+            def _get(role: str, default: float | None) -> float | None:
                 node = nodes.get(role)
                 if node and node in data:
                     try:
@@ -144,7 +144,7 @@ class ProbatWSAdapter:
             return Reading(
                 bt=_get("BT", -1.0),
                 et=_get("ET", -1.0),
-                heater=_get("heater", 0.0),
+                heater=_get("heater", None),  # burner 노드 미매핑 = 채널 없음
                 fan=_get("fan", 0.0),
                 drum=_get("drum", 0.0),
                 timestamp=time.monotonic(),

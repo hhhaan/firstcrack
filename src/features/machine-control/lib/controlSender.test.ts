@@ -41,6 +41,12 @@ describe('settledRoles', () => {
         expect(settledRoles({}, fb, 1)).toEqual([]);
     });
 
+    it('피드백을 읽을 수 없는 채널(null)은 절대 도달로 보지 않는다', () => {
+        // 화력 피드백 채널이 없는 머신 — 수렴 판정이 안 되므로 미반영 경로가 드러나야 한다
+        expect(settledRoles({ heater: 60 }, { heater: null, fan: 100, drum: 50 }, 1)).toEqual([]);
+        expect(settledRoles({ heater: 60, fan: 100 }, { heater: null, fan: 100, drum: 50 }, 1)).toEqual(['fan']);
+    });
+
     it('여러 role을 동시에 판정한다', () => {
         expect(settledRoles({ heater: 60, fan: 100, drum: 20 }, fb, 1)).toEqual(['heater', 'fan']);
     });

@@ -307,7 +307,7 @@ class ModbusAdapter:
 
         bt = await self._read_channel(bt_cfg) if bt_cfg else -1.0
         et = await self._read_channel(et_cfg) if et_cfg else -1.0
-        heater = await self._read_channel(heater_cfg) if heater_cfg else 0.0
+        heater = await self._read_channel(heater_cfg) if heater_cfg else None  # 레지스터 없음 = 채널 없음
         fan = await self._read_channel(fan_cfg) if fan_cfg else 0.0
         drum = await self._read_channel(drum_cfg) if drum_cfg else 0.0
 

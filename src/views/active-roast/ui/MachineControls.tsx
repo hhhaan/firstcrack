@@ -7,7 +7,7 @@ export const MachineControls = ({
 }: {
     machineCapabilities: string[];
     sidecarConnected: boolean;
-    liveData: { heater: number; fan: number; drum: number } | null;
+    liveData: { heater: number | null; fan: number; drum: number } | null;
 }) => {
     if (machineCapabilities.length === 0 && sidecarConnected) return null;
 
@@ -17,7 +17,7 @@ export const MachineControls = ({
                 <span className="text-[13px] text-muted">
                     Heater{' '}
                     <span className="font-mono font-normal" style={{ color: PHASE_COLORS.development }}>
-                        {liveData ? `${liveData.heater}%` : '—'}
+                        {liveData?.heater != null ? `${liveData.heater}%` : '—'}
                     </span>
                 </span>
             )}

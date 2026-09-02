@@ -94,7 +94,7 @@ export interface TemperatureReading {
     et: number | null;
     ror: number;
     ror_et: number;
-    heater: number;
+    heater: number | null;
     fan: number;
     drum: number;
     timestamp: number;

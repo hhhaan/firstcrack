@@ -48,6 +48,15 @@ class TestPhidgetRead:
         assert reading.bt == 180.0
         assert reading.et == -1.0
 
+    async def test_heater_channel_is_none_not_zero(self):
+        """열전대만 있는 장치는 화력 채널이 없다 — 0은 '측정 0'과 구분되지 않는다."""
+        adapter = PhidgetAdapter()
+        adapter._sensor_bt = _sensor(180.0)
+        adapter._sensor_et = _sensor(210.0)
+
+        reading = await adapter.read()
+        assert reading.heater is None
+
     async def test_read_without_connect_raises(self):
         adapter = PhidgetAdapter()
         with pytest.raises(ConnectionError):
