@@ -204,6 +204,27 @@ class TestKaleidoReadDisconnect:
         assert reading.drum == 10.0
         driver.getBTET.assert_called_once()
 
+    async def test_missing_hp_state_is_none_not_zero(self):
+        """HP 키가 없는 펌웨어/모델은 화력 채널이 없는 것 — 0은 측정값과 구분되지 않는다."""
+        driver = _make_driver({"FC": 30, "RC": 10, **_HANDSHAKE_OK})
+        driver.getBTET.return_value = (180.5, 200.0, 1)
+        adapter = _make_adapter([driver])
+
+        await adapter.connect()
+        reading = await adapter.read()
+
+        assert reading.heater is None
+        assert reading.fan == 30.0
+
+    async def test_reported_zero_hp_stays_zero(self):
+        """진짜 화력 0은 그대로 0 — None과 구분된다."""
+        driver = _make_driver({"HP": 0, "FC": 30, "RC": 10, **_HANDSHAKE_OK})
+        driver.getBTET.return_value = (180.5, 200.0, 1)
+        adapter = _make_adapter([driver])
+
+        await adapter.connect()
+        assert (await adapter.read()).heater == 0.0
+
     async def test_disconnect_calls_stop(self):
         driver = _make_driver(_HANDSHAKE_OK)
         adapter = _make_adapter([driver])

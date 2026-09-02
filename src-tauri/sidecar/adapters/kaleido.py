@@ -152,10 +152,12 @@ class KaleidoAdapter:
         if driver is None:
             raise ConnectionError("Kaleido 드라이버가 연결돼 있지 않습니다.")
         bt, et, _sid = driver.getBTET()
+        # HP 키가 없으면 None — 0으로 채우면 "화력 0"으로 기록돼 측정값과 구분되지 않는다
         try:
-            hp = float(driver.get_state("HP") or 0)
+            raw_hp = driver.get_state("HP")
+            hp = None if raw_hp is None else float(raw_hp or 0)
         except (KeyError, TypeError):
-            hp = 0.0
+            hp = None
         try:
             fc = float(driver.get_state("FC") or 0)  # fan: FC (not SM)
         except (KeyError, TypeError):
