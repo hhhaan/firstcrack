@@ -85,7 +85,8 @@ def test_db2_giesen_write_map_targets_heater_setpoint(key: str) -> None:
     write_map = ROASTER_REGISTRY[key]["default_params"]["write_map"]
     heater = write_map["heater"]
     assert (heater["db"], heater["offset"]) == (2, 14)
-    assert (heater["min"], heater["max"]) == (0, 100)
+    # min=1: 0은 버너 off가 아니라 기센 AUTO 인계다 (아래 전용 테스트가 근거를 담는다)
+    assert (heater["min"], heater["max"]) == (1, 100)
     # 쓰기 대상이 읽기 role 어느 것과도 겹치지 않아야 한다 (피드백 덮어쓰기 방지)
     roles = _role_map(ROASTER_REGISTRY[key]["default_params"]["channels"])
     # WxA/WxA+는 fan 읽기 채널이 없다 (aset에 fan% 채널 부재) — 있는 role만 검사.
@@ -132,6 +133,7 @@ def test_w6a_pro_write_map_targets_db1001_42() -> None:
     """W6A PRO는 읽기 db1006 / 쓰기 db1001로 계열이 다르다."""
     heater = ROASTER_REGISTRY["giesen_w6a_pro"]["default_params"]["write_map"]["heater"]
     assert (heater["db"], heater["offset"]) == (1001, 42)
+    # PRO는 AUTO 센티널이 -1이라 0이 정상 버너 값 — DB2 계열과 달리 하한을 올리지 않는다
     assert (heater["min"], heater["max"]) == (0, 100)
 
 
@@ -237,3 +239,28 @@ def test_giesen_variant_hosts_match_artisan_asets() -> None:
     # coarse는 버너 0~10 스텝(aset sliderfactors 0.1) — % 맵을 공유하면 범위 초과
     assert ROASTER_REGISTRY["giesen_wxa_coarse"]["default_params"]["write_map"]["heater"]["max"] == 10
     assert ROASTER_REGISTRY["giesen_wxa"]["default_params"]["write_map"]["heater"]["max"] == 100
+
+
+def test_classic_giesen_never_writes_zero_to_burner_setpoint() -> None:
+    """DB2.14=0은 버너 off가 아니라 기센 AUTO 인계 — 하한 1이 없으면
+    배출·끊김·FAULT의 안전 정지가 전부 자동 모드를 켠다 (Artisan #827).
+
+    Artisan 수동 슬라이더도 heater만 slideroffsets=1이라 1..101을 보낸다.
+    """
+    for key in GIESEN_DB2_KEYS:
+        heater = ROASTER_REGISTRY[key]["default_params"]["write_map"]["heater"]
+        assert heater["min"] == 1, f"{key}: 0을 쓰면 기센이 AUTO로 넘어간다"
+
+
+def test_w6a_pro_keeps_zero_as_a_valid_burner_value() -> None:
+    """W6A PRO는 AUTO 센티널이 -1이고 슬라이더 오프셋도 0 — 0은 정상 값이다."""
+    heater = ROASTER_REGISTRY["giesen_w6a_pro"]["default_params"]["write_map"]["heater"]
+    assert heater["min"] == 0
+
+
+def test_clamp_turns_a_safe_off_zero_into_one_on_classic_giesen() -> None:
+    """안전 정지 경로(heater=0)가 실제로 1로 잘려 나가는지 — 계약의 끝단."""
+    from control_guard import clamp_command
+
+    write_map = ROASTER_REGISTRY["giesen_standard"]["default_params"]["write_map"]
+    assert clamp_command({"heater": 0.0}, write_map) == {"heater": 1.0}
