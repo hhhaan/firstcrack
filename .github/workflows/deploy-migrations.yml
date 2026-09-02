@@ -71,7 +71,9 @@ jobs:
           echo "Prod apply: next desktop release (automatic) or Actions → Deploy migrations → confirm=deploy"
 
   deploy:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call'
+    # Reusable workflows inherit the caller's event_name (tag Release = push),
+    # not workflow_call. PR stays dry-run; dispatch and tag-push both deploy.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

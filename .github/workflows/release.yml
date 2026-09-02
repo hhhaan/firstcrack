@@ -103,8 +103,25 @@ jobs:
       version: ${{ needs.setup.outputs.version }}
     secrets: inherit
 
-  build:
+  # Inner jobs all skipped → reusable result is skipped, run stays green.
+  # Fail here so a bad migrate `if:` cannot ship a no-op release.
+  migrate-ok:
     needs: [setup, migrate]
+    if: always() && needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require migrate success
+        run: |
+          result="${{ needs.migrate.result }}"
+          echo "migrate result=$result"
+          if [ "$result" != "success" ]; then
+            echo "::error::migrate did not succeed (got $result). Reusable workflows inherit the caller event_name (tag push ≠ workflow_call)."
+            exit 1
+          fi
+
+  build:
+    needs: [setup, migrate-ok]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:
