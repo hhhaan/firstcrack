@@ -1045,6 +1045,7 @@
             "devTime": "DT",
             "devPct": "DTR",
             "targetLevel": "目标等级",
+            "machine": "机器",
             "duration": "时间",
             "curveOverlay": "曲线叠加",
             "selectToCompare": "从列表中选择要比较的曲线",

@@ -13,6 +13,7 @@ import {
     toSaveRoastParams,
     writePendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import { type SaveRoastFormData, useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
@@ -94,6 +95,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             sessionId,
             handoffBeanName,
             logEntries,
+            machineSnapshot: useRoastingStore.getState().machineSnapshot,
         }),
         [
             workspaceOwnerId,

@@ -30,6 +30,7 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 | `git commit` (2) | migration staged w/o `database.types.ts` → block (bypass `SKIP_TYPES_GEN=1`) | no |
 | `git push` | `pnpm verify:all` | no |
 | CI | typecheck, lint (biome), eslint, test, i18n keys, secretlint, sidecar | no |
+| `pnpm release` / `v*` tag | `supabase db push` then 3-platform build | no |
 | repomix | manual — `pnpm repomix` at session start or after large/structural change | — |
 
 ### Hook bypass (use sparingly)

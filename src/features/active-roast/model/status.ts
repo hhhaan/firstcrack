@@ -1,4 +1,4 @@
-import type { PidRuntime } from '@entities/machine';
+import type { MachineSnapshot, PidRuntime } from '@entities/machine';
 import { create } from 'zustand';
 
 export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended';
@@ -33,6 +33,8 @@ export interface RoastingState {
     pendingProfileId: string | null;
     sessionId: string | null;
     reconnecting: boolean;
+    /** Last connected machine this roast; kept through disconnect until reset. */
+    machineSnapshot: MachineSnapshot | null;
 
     // derived convenience
     isRoasting: boolean;
@@ -51,6 +53,7 @@ export interface RoastingState {
     setPid: (pid: PidRuntime | null) => void;
     setPendingBean: (beanId: string | null, beanName?: string | null) => void;
     setPendingProfile: (profileId: string | null) => void;
+    rememberMachineSnapshot: (snapshot: MachineSnapshot) => void;
     reset: () => void;
 }
 
@@ -68,6 +71,7 @@ const initialState = {
     pendingProfileId: null as string | null,
     sessionId: null as string | null,
     reconnecting: false,
+    machineSnapshot: null as MachineSnapshot | null,
     isRoasting: false,
     charged: false,
 };
@@ -131,6 +135,19 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     },
 
     setPendingProfile: (profileId) => set({ pendingProfileId: profileId }),
+
+    rememberMachineSnapshot: (snapshot) => {
+        const current = get().machineSnapshot;
+        if (
+            current?.machine_id === snapshot.machine_id &&
+            current?.machine_name === snapshot.machine_name &&
+            current?.machine_roaster_key === snapshot.machine_roaster_key &&
+            current?.machine_brand === snapshot.machine_brand &&
+            current?.machine_protocol === snapshot.machine_protocol
+        )
+            return;
+        set({ machineSnapshot: snapshot });
+    },
 
     updateLiveData: (data) => {
         const current = get().liveData;

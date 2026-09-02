@@ -1,5 +1,6 @@
 import { beanKeys } from '@entities/bean/queries';
 import { stockEventKeys } from '@entities/bean-stock-event';
+import { copyMachineSnapshot, EMPTY_MACHINE_SNAPSHOT, type MachineSnapshot } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useUpdateSingleBatch } from '@entities/plan';
 import { invalidateRoastSessionQueries, type RoastSessionInsert, roastSessionApi } from '@entities/roast';
@@ -8,6 +9,7 @@ import { determineStockDeduction } from '@features/active-roast/lib/determine-st
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useBbpStore } from '@features/active-roast/model/bbp';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import { i18n } from '@shared/i18n';
 import {
     BatchLimitError,
@@ -75,6 +77,7 @@ export interface SaveRoastParams {
     targetProfileId: string | null;
     planBatchHandoff: PlanBatchHandoff | null;
     logEntries: LogEntry[];
+    machineSnapshot?: MachineSnapshot | null;
 }
 
 export interface SaveRoastResult {
@@ -214,6 +217,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         charge_temp_celsius: bbpSummary != null ? Math.round(bbpSummary.chargeTemp) : null,
         plan_batch_id: effectiveBatch?.planBatchId ?? null,
         events: serializeRoastEvents(payloadParams.logEntries),
+        ...copyMachineSnapshot(payloadParams.machineSnapshot ?? EMPTY_MACHINE_SNAPSHOT),
     };
 
     // Free-text label sessions never touch inventory (green deduct or roasted inbound).
@@ -372,7 +376,10 @@ export const useSaveRoast = (planBatchHandoff: PlanBatchHandoff | null, syncRoas
                         recordAdhocSave: (p) => useRoastSessionStore.getState().recordAdhocSave(p),
                         getFinalizedBbp: () => useBbpStore.getState().finalized,
                     },
-                    params,
+                    {
+                        ...params,
+                        machineSnapshot: params.machineSnapshot ?? useRoastingStore.getState().machineSnapshot,
+                    },
                 );
             } finally {
                 setIsSaving(false);

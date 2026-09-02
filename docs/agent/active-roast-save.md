@@ -54,6 +54,7 @@ Form field semantics (`SaveRoastFormData` in `useSaveRoast.ts`):
 - `weightGrams` field is **green input in kg** (name is historical — do not treat as grams without conversion)
 - `outputWeightKg` measured roasted output; missing → estimated bulk inbound (`is_estimate`)
 - `deductStock` → server-side green roast events when allowed
+- Connected machine is snapshotted onto `roast_sessions` (`machine_id` TEXT + name/brand/protocol/`roaster_key`). Local `fc_machines` ids are not a FK. Profile-from-session copies the same columns.
 
 ---
 

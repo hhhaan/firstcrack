@@ -17,6 +17,21 @@ describe('checkSidecarAndRecoverIdle (#178)', () => {
         expect(enterPreheating).toHaveBeenCalledWith(['heater']);
     });
 
+    it('connected status is forwarded for machine snapshot', async () => {
+        const onConnectedStatus = vi.fn();
+        const status = { connected: true, roaster: 'giesen_w6a', display_name: 'Giesen W6A', brand: 'Giesen' };
+
+        await checkSidecarAndRecoverIdle({
+            getStatus: async () => status,
+            getPhase: () => 'roasting',
+            setConnected: vi.fn(),
+            enterPreheating: vi.fn(),
+            onConnectedStatus,
+        });
+
+        expect(onConnectedStatus).toHaveBeenCalledWith(status);
+    });
+
     it('does not enter preheating when already non-idle', async () => {
         const setConnected = vi.fn();
         const enterPreheating = vi.fn();

@@ -7,7 +7,7 @@ import {
     validateAddressMaps,
 } from './addressMap';
 import { PROTOCOL_FORM_FIELDS } from './roasterRegistry';
-import type { RoasterDef, SidecarStatus } from './types';
+import type { Machine, MachineSnapshot, RoasterDef, SidecarStatus } from './types';
 
 export {
     addressDefaultsForProtocol,
@@ -163,3 +163,43 @@ export const isSameSidecarStatus = (prev: SidecarStatus | null, next: SidecarSta
     prev?.roaster === next.roaster &&
     prev?.error === next.error &&
     prev?.reconnecting === next.reconnecting;
+
+export const EMPTY_MACHINE_SNAPSHOT: MachineSnapshot = {
+    machine_id: null,
+    machine_name: null,
+    machine_roaster_key: null,
+    machine_brand: null,
+    machine_protocol: null,
+};
+
+export const copyMachineSnapshot = (src: Partial<MachineSnapshot> | null | undefined): MachineSnapshot => ({
+    machine_id: src?.machine_id ?? null,
+    machine_name: src?.machine_name ?? null,
+    machine_roaster_key: src?.machine_roaster_key ?? null,
+    machine_brand: src?.machine_brand ?? null,
+    machine_protocol: src?.machine_protocol ?? null,
+});
+
+type SidecarSnapshotSource = {
+    connected?: boolean;
+    roaster?: string | null;
+    display_name?: string | null;
+    brand?: string | null;
+};
+
+/** Connected sidecar + local machine list → durable snapshot. Null if not connected. */
+export const snapshotFromSidecar = (
+    status: SidecarSnapshotSource | null | undefined,
+    machines: Machine[],
+): MachineSnapshot | null => {
+    if (!status?.connected || !status.roaster) return null;
+    const machine = machines.find((m) => m.roasterKey === status.roaster);
+    const name = machine?.name || machine?.displayName || status.display_name || status.roaster;
+    return {
+        machine_id: machine?.id ?? null,
+        machine_name: name.trim() || null,
+        machine_roaster_key: status.roaster,
+        machine_brand: machine?.brand || status.brand || null,
+        machine_protocol: machine?.protocol ?? null,
+    };
+};

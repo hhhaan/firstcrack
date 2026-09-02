@@ -1,3 +1,4 @@
+import { snapshotFromSidecar, useMachines } from '@entities/machine';
 import { createBtFilter } from '@features/active-roast/lib/btFilter';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -58,6 +59,9 @@ type SidecarStatusLike = {
     reconnecting?: boolean;
     error?: string | null;
     capabilities?: string[];
+    roaster?: string | null;
+    display_name?: string | null;
+    brand?: string | null;
 };
 
 /**
@@ -72,6 +76,7 @@ export async function checkSidecarAndRecoverIdle(deps: {
     enterPreheating: (capabilities?: string[]) => void;
     setReconnecting?: (reconnecting: boolean) => void;
     setError?: (error: string | null) => void;
+    onConnectedStatus?: (status: SidecarStatusLike) => void;
 }): Promise<void> {
     try {
         const s = await deps.getStatus();
@@ -79,6 +84,7 @@ export async function checkSidecarAndRecoverIdle(deps: {
             deps.setReconnecting?.(false);
             deps.setError?.(null);
             deps.setConnected(true, s.capabilities);
+            deps.onConnectedStatus?.(s);
             if (deps.getPhase() === 'idle') {
                 deps.enterPreheating(s.capabilities);
             }
@@ -190,6 +196,10 @@ export const useSidecarPolling = ({
                 enterPreheating,
                 setReconnecting: (r) => useRoastingStore.getState().setReconnecting(r),
                 setError: (err) => useRoastingStore.getState().setError(err),
+                onConnectedStatus: (status) => {
+                    const snap = snapshotFromSidecar(status, useMachines.getState().machines);
+                    if (snap) useRoastingStore.getState().rememberMachineSnapshot(snap);
+                },
             });
 
         check(); // 즉시 1회 (기존 isActive 전환 동작 보존)

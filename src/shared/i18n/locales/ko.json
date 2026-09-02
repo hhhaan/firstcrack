@@ -1033,6 +1033,7 @@
             "devTime": "DT",
             "devPct": "DTR",
             "targetLevel": "Target Level",
+            "machine": "머신",
             "duration": "시간",
             "curveOverlay": "곡선 오버레이",
             "selectToCompare": "좌측 리스트에서 프로파일을 선택하세요",

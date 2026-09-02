@@ -23,5 +23,6 @@ export const useProfileTableRows = (
         { label: t('profiles.detail.devTime'), getValue: (p) => formatDuration(p.dev_time_sec) },
         { label: t('profiles.detail.devPct'), getValue: (p) => (p.dev_pct != null ? `${p.dev_pct.toFixed(1)}%` : '—') },
         { label: t('profiles.detail.targetLevel'), getValue: (p) => p.target_level ?? '—' },
+        { label: t('profiles.detail.machine'), getValue: (p) => p.machine_name ?? '—' },
     ];
 };

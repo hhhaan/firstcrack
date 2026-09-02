@@ -335,6 +335,37 @@ describe('saveRoastCore', () => {
         expect(arg.inboundGrams).toBe(0);
     });
 
+    it('연결된 머신 스냅샷을 세션에 저장한다', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            machineSnapshot: {
+                machine_id: 'm1',
+                machine_name: 'Shop Giesen',
+                machine_roaster_key: 'giesen_w6a',
+                machine_brand: 'Giesen',
+                machine_protocol: 's7',
+            },
+        });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.machine_id).toBe('m1');
+        expect(arg.session.machine_name).toBe('Shop Giesen');
+        expect(arg.session.machine_roaster_key).toBe('giesen_w6a');
+        expect(arg.session.machine_brand).toBe('Giesen');
+        expect(arg.session.machine_protocol).toBe('s7');
+    });
+
+    it('스냅샷 없으면 머신 필드는 null', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, baseParams);
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.machine_id).toBeNull();
+        expect(arg.session.machine_name).toBeNull();
+        expect(arg.session.machine_roaster_key).toBeNull();
+        expect(arg.session.machine_brand).toBeNull();
+        expect(arg.session.machine_protocol).toBeNull();
+    });
+
     it('inventory bean 있으면 bean_label 무시', async () => {
         const deps = makeDeps();
         await saveRoastCore(deps, {

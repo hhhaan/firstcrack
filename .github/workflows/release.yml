@@ -40,8 +40,15 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Resolved version: $VERSION"
 
-  build:
+  migrate:
     needs: setup
+    uses: ./.github/workflows/deploy-migrations.yml
+    with:
+      version: ${{ needs.setup.outputs.version }}
+    secrets: inherit
+
+  build:
+    needs: [setup, migrate]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:

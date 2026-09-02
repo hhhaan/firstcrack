@@ -1033,6 +1033,7 @@
             "devTime": "DT",
             "devPct": "DTR",
             "targetLevel": "Target level",
+            "machine": "Machine",
             "duration": "Duration",
             "curveOverlay": "Curve Overlay",
             "selectToCompare": "Select profiles from the list to compare",

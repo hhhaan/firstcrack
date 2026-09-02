@@ -27,3 +27,12 @@ export interface Machine {
     pid: { Kp: number; Ki: number; Kd: number } | null;
     createdAt: string;
 }
+
+/** Durable roast/profile copy of the machine used. Local id is not a FK. */
+export interface MachineSnapshot {
+    machine_id: string | null;
+    machine_name: string | null;
+    machine_roaster_key: string | null;
+    machine_brand: string | null;
+    machine_protocol: string | null;
+}

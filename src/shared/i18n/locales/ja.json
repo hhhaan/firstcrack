@@ -1033,6 +1033,7 @@
             "devTime": "DT",
             "devPct": "DTR",
             "targetLevel": "目標レベル",
+            "machine": "マシン",
             "duration": "時間",
             "curveOverlay": "カーブオーバーレイ",
             "selectToCompare": "リストから比較するプロファイルを選択してください",

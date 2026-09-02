@@ -81,6 +81,8 @@ Filenames under `supabase/migrations/` (group by prefix):
 
 After schema migrations: **`pnpm types:gen`** updates `src/shared/types/database.types.ts`. Pre-commit blocks migrations staged without types (bypass only for pure RLS/GRANT: `SKIP_TYPES_GEN=1`).
 
+Prod apply is **automatic on desktop release** (`release.yml` → `deploy-migrations.yml` `supabase db push`). Pending files on `main` sit until the next `pnpm release`. Hotfix without a desktop build: Actions → Deploy migrations → `confirm=deploy`. Do not `db push` from a laptop against prod.
+
 CI gate (supabase-ci `rls-check`): a **new** migration with `CREATE TABLE` must contain `GRANT ... TO authenticated` in the same file, or opt out with a `-- skip-grant-check: <reason>` comment (service_role-only tables like `sales_channel_secrets`).
 
 ---

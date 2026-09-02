@@ -57,6 +57,11 @@ export type RoastSession = {
     bbp_seconds: number | null;
     charge_temp_celsius: number | null;
     plan_batch_id: string | null;
+    machine_id: string | null;
+    machine_name: string | null;
+    machine_roaster_key: string | null;
+    machine_brand: string | null;
+    machine_protocol: string | null;
     events: unknown;
     created_at: string;
     updated_at: string;
@@ -295,6 +300,11 @@ export class MockDb {
             bbp_seconds: (params.session.bbp_seconds as number | null) ?? null,
             charge_temp_celsius: (params.session.charge_temp_celsius as number | null) ?? null,
             plan_batch_id: planBatchId,
+            machine_id: (params.session.machine_id as string | null) ?? null,
+            machine_name: (params.session.machine_name as string | null) ?? null,
+            machine_roaster_key: (params.session.machine_roaster_key as string | null) ?? null,
+            machine_brand: (params.session.machine_brand as string | null) ?? null,
+            machine_protocol: (params.session.machine_protocol as string | null) ?? null,
             events: params.session.events ?? [],
             created_at: nowIso(),
             updated_at: nowIso(),

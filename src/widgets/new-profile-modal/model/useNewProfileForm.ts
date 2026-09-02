@@ -1,5 +1,6 @@
 import { useBeans } from '@entities/bean/queries';
 import { useBlends } from '@entities/blend';
+import { copyMachineSnapshot, EMPTY_MACHINE_SNAPSHOT } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useRoastSessions } from '@entities/roast';
 import type { RoastProfileWithSource } from '@entities/roast-profile';
@@ -129,6 +130,7 @@ export const useNewProfileForm = ({
     }, [open, initialSessionId, editingProfile, mode, sessions.length]);
 
     const isValid = form.name.trim().length > 0;
+    const selectedSession = selectedSessionId ? (sessions.find((s) => s.id === selectedSessionId) ?? null) : null;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -162,14 +164,13 @@ export const useNewProfileForm = ({
                 source_session_id: mode === 'from-session' ? selectedSessionId : null,
                 default_bean_id: defaultType === 'bean' ? defaultBeanId : null,
                 default_blend_id: defaultType === 'blend' ? defaultBlendId : null,
+                ...copyMachineSnapshot(mode === 'from-session' ? selectedSession : EMPTY_MACHINE_SNAPSHOT),
             };
 
             onCreated(profile as RoastProfile);
         }
         onClose();
     };
-
-    const selectedSession = selectedSessionId ? (sessions.find((s) => s.id === selectedSessionId) ?? null) : null;
 
     return {
         mode,

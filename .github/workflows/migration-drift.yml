@@ -1,7 +1,8 @@
 name: Migration drift check
 
 # 로컬 migration 파일 vs remote DB 적용 상태 비교 → pending 있으면 Slack 알림.
-# 배포는 여전히 수동 (Deploy migrations dispatch) — 이건 깜빡임 방지용 알림만.
+# 프로덕션 적용은 데스크톱 릴리스에서 자동 (release.yml → deploy-migrations).
+# 핫픽스(앱 없이 스키마만)는 Deploy migrations dispatch. 이 워크플로는 깜빡임 방지용.
 # push(migration 변경) 시 즉시 + 평일 오전 재확인 (pending 없으면 조용).
 
 on:
@@ -60,11 +61,11 @@ jobs:
             blocks: [
               { type: "section",
                 text: { type: "mrkdwn",
-                  text: (":warning: *Pending migrations (" + $count + ")* — prod DB에 미적용:\n```" + $list + "```") } },
+                  text: (":warning: *Pending migrations (" + $count + ")* — prod DB에 미적용. 다음 `pnpm release`에서 자동 적용. 핫픽스는 아래 버튼:\n```" + $list + "```") } },
               { type: "actions",
                 elements: [
                   { type: "button", style: "primary",
-                    text: { type: "plain_text", text: "Deploy migrations 실행" },
+                    text: { type: "plain_text", text: "지금 적용 (dispatch)" },
                     url: $url } ] }
             ]
           }' | curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" --data @-
