@@ -940,3 +940,42 @@ class TestHardwareAlertDedupe:
         dumped = repr(set_context.call_args_list)
         assert "10.0.0.2" not in dumped
         assert "COM3" not in dumped
+
+
+class TestSafetyAfterReconnect:
+    """재연결 safe-off는 PID가 화력을 잡고 있을 때만 — 껐다 둔 PID 객체가 남아 있어도 수동/Replay 화력을 덮지 않는다."""
+
+    class _Pid:
+        def __init__(self, state: str) -> None:
+            self.state_name = state
+            self.stopped: list[tuple[str, str]] = []
+
+        async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
+            self.stopped.append((reason, mode))
+
+    async def _connected(self, manager):
+        fake = FakeAdapter(readings=[make_reading(ts=time.monotonic())])
+        with patch("manager.make_adapter", return_value=fake):
+            await manager.connect("virtual", {})
+        return fake
+
+    async def test_pid_never_used_keeps_heater(self, manager):
+        fake = await self._connected(manager)
+        await manager._safety_after_reconnect()
+        assert fake.control_calls == []
+
+    async def test_pid_stopped_keeps_heater(self, manager):
+        fake = await self._connected(manager)
+        pid = self._Pid("off")
+        manager._pid = pid
+        await manager._safety_after_reconnect()
+        assert fake.control_calls == []
+        assert pid.stopped == []
+
+    async def test_pid_running_is_zeroed(self, manager):
+        fake = await self._connected(manager)
+        pid = self._Pid("running")
+        manager._pid = pid
+        await manager._safety_after_reconnect()
+        assert pid.stopped == [("reconnect", "zero")]
+        assert fake.control_calls == [{"heater": 0.0, "fan": None, "drum": None}]
