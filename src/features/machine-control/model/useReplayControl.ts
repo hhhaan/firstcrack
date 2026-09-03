@@ -4,6 +4,12 @@ import { extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } 
 export interface ReplayControlInputs {
     /** 타겟 프로파일 커브 (charge 기준 상대 시간) — 없으면 Replay 비활성 */
     referencePoints: ReplayPoint[] | null;
+    /**
+     * 레퍼런스가 다른 기종에서 기록됐다 — Replay는 같은 기기만 재생한다. 히터 스케일이
+     * 다르면(WxA coarse 0~10 스텝 vs % 기종) 전 이벤트가 clamp로 최대/최소 화력에 붙는다.
+     * 양쪽 키가 모두 있고 다를 때만 true — 마이그레이션 이전 프로파일(null)은 막지 않는다.
+     */
+    referenceMachineMismatch: boolean;
     /** 레퍼런스의 charge→drop 초 — 배출 후 기록(쿨다운 조작)을 재생에서 제외한다 */
     referenceDropTime: number | null;
     liveBt: number | null;
@@ -70,6 +76,7 @@ const DIVERGE_TICKS = 3;
  */
 export const useReplayControl = ({
     referencePoints,
+    referenceMachineMismatch,
     referenceDropTime,
     liveBt,
     elapsed,
@@ -220,13 +227,13 @@ export const useReplayControl = ({
             setStopReason(null); // 사용자가 직접 껐다 — 안내할 사유가 없다
             return;
         }
-        if (plan == null || stopCause != null) return;
+        if (plan == null || referenceMachineMismatch || stopCause != null) return;
         setStopReason(null);
         // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
         setLastWritten(null);
         setDiverge((d) => ({ ...d, ticks: 0 }));
         setActive(true);
-    }, [active, plan, stopCause]);
+    }, [active, plan, referenceMachineMismatch, stopCause]);
 
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
     // stopCause 가드: pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다 —
@@ -266,8 +273,10 @@ export const useReplayControl = ({
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;
 
     return {
-        /** 레퍼런스에 heater 기록이 있고(합성/PID 기록 아님) 쓰기 가능한가 */
-        available: plan != null && heaterWritable && sidecarConnected,
+        /** 레퍼런스에 heater 기록이 있고(합성/PID 기록 아님) 같은 기기이며 쓰기 가능한가 */
+        available: plan != null && !referenceMachineMismatch && heaterWritable && sidecarConnected,
+        /** 다른 기종 기록 — UI 힌트 분리용 */
+        machineMismatch: referenceMachineMismatch,
         /** 지금 켤 수 없는 상태(PID 점유 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */
         blocked: stopCause != null,
         active,

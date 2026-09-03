@@ -18,6 +18,7 @@ const POINTS: ReplayPoint[] = [
 
 const BASE: Omit<ReplayControlInputs, 'writeHeater'> = {
     referencePoints: POINTS,
+    referenceMachineMismatch: false,
     referenceDropTime: null,
     liveBt: 180,
     elapsed: 0,
@@ -519,6 +520,16 @@ describe('useReplayControl', () => {
     it('heater 기록이 없는 레퍼런스(합성)에서는 available=false, 토글해도 켜지지 않는다', async () => {
         const h = await renderReplay({ referencePoints: POINTS.map((p) => ({ ...p, heater: null })) });
         expect(h.get().available).toBe(false);
+        await act(async () => h.get().toggle());
+        expect(h.get().active).toBe(false);
+        expect(h.writeHeater).not.toHaveBeenCalled();
+        h.unmount();
+    });
+
+    it('다른 기종 기록(machine mismatch)이면 available=false, 토글해도 켜지지 않는다', async () => {
+        const h = await renderReplay({ referenceMachineMismatch: true });
+        expect(h.get().available).toBe(false);
+        expect(h.get().machineMismatch).toBe(true);
         await act(async () => h.get().toggle());
         expect(h.get().active).toBe(false);
         expect(h.writeHeater).not.toHaveBeenCalled();

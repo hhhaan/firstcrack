@@ -78,6 +78,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         sidecarConnected,
         reconnecting,
         machineCapabilities,
+        machineSnapshot,
     } = useRoastingStore(
         useShallow((s) => ({
             phase: s.phase,
@@ -89,6 +90,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             sidecarConnected: s.sidecarConnected,
             reconnecting: s.reconnecting,
             machineCapabilities: s.machineCapabilities,
+            machineSnapshot: s.machineSnapshot,
         })),
     );
     const storeActions = useRoastingStore.getState();
@@ -166,6 +168,11 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         const events = parseStoredRoastEvents(resolveSourceSession(targetProfile?.source_session)?.events);
         return events.find((e) => e.type === 'Drop')?.time_sec ?? targetProfile?.duration_sec ?? null;
     }, [targetProfile]);
+
+    // Replay는 같은 기기만 — 키가 양쪽 다 있고 다를 때만 차단(레거시 null 프로파일은 허용)
+    const referenceKey = targetProfile?.machine_roaster_key ?? null;
+    const currentKey = machineSnapshot?.machine_roaster_key ?? null;
+    const replayMachineMismatch = referenceKey != null && currentKey != null && referenceKey !== currentKey;
 
     const actualPreSec =
         charged && livePoints.length > 0 && livePoints[0].time < 0 ? Math.ceil(Math.abs(livePoints[0].time)) : 0;
@@ -593,6 +600,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         pidDropBehavior={roastSettings.pidDropBehavior}
                         // Replay Assist (#300) — 합성 곡선은 heater가 null이라 자연 비활성
                         replayPoints={targetCurvePoints}
+                        replayMachineMismatch={replayMachineMismatch}
                         replayDropTime={replayDropTime}
                         liveBt={rawBT}
                         elapsed={elapsed}

@@ -86,6 +86,7 @@ const renderRig = async () => {
             heaterFeedback: inputs.feedback?.heater ?? null,
             heaterPending: mc.desired.heater != null,
             reconnecting: false,
+            referenceMachineMismatch: false,
             writeHeater,
         });
         latest = { replay, mc };
