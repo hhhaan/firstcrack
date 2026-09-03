@@ -9,6 +9,7 @@
  * - 앱 내 ErrorBoundary는 캡처하지 않는다. React 19 root 핸들러(reactRootOptions)가 유일한 경로다.
  */
 import * as Sentry from '@sentry/react';
+import { mapServerBatchGateError } from './features/plan-matrix';
 import { httpStatusOf } from './httpStatus';
 
 // DSN은 클라이언트 공개값 (Rust/사이드카도 동일하게 하드코딩) — 빌드 시크릿 의존 제거
@@ -55,14 +56,25 @@ export const scrubSensitive = (value: unknown, depth = 0): unknown => {
 };
 
 /**
+ * 클라이언트가 기대한 거절. HTTP 4xx와 같은 자리의 PostgREST 플랜 게이트
+ * (`read_only_plan` 등) — supabase-js 오류에는 status가 없어서 httpStatusOf만으로는 안 잡힌다.
+ * React Query 재시도와 Sentry 필터가 같은 판정을 쓴다.
+ */
+export const isClientRefusal = (error: unknown): boolean => {
+    if ((error as { name?: unknown } | null | undefined)?.name === 'BatchLimitError') return true;
+    if (mapServerBatchGateError(error)) return true;
+    const status = httpStatusOf(error);
+    return status !== undefined && status >= 400 && status < 500;
+};
+
+/**
  * 조치 가능한 오류만 이슈로 남긴다. 기본은 capture이고, 사용자가 취소한 요청(AbortError)과
  * 클라이언트 4xx(인증/권한/검증 — 서버 로그로 다룬다)만 제외한다.
  * 429는 예외: 레이트 리밋은 우리가 손봐야 하는 운영 문제다.
  */
 export const isActionableError = (error: unknown): boolean => {
     if ((error as { name?: unknown } | null | undefined)?.name === 'AbortError') return false;
-    const status = httpStatusOf(error);
-    if (status !== undefined && status >= 400 && status < 500) return status === 429;
+    if (isClientRefusal(error)) return httpStatusOf(error) === 429;
     return true;
 };
 
