@@ -28,9 +28,11 @@ jobs:
     steps:
       - name: Resolve version
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ -n "${{ inputs.version }}" ]; then
-            VERSION="${{ inputs.version }}"
+          if [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
           elif [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
           else
@@ -55,7 +57,7 @@ jobs:
           # skipped (ios-check path filter) is success, not pending.
           for i in $(seq 1 20); do
             RESPONSE=$(gh api "repos/${{ github.repository }}/commits/${GITHUB_SHA}/check-runs" \
-              --jq '[.check_runs[] | select(.name == "paths" or .name == "check" or .name == "test" or .name == "sidecar" or .name == "ios-check")]')
+              --jq '[.check_runs[] | select(.name == "paths" or .name == "check" or .name == "test" or .name == "sidecar" or .name == "ios-check" or .name == "semgrep")]')
             TOTAL=$(echo "$RESPONSE" | jq 'length')
 
             if [ "$TOTAL" -eq 0 ]; then
@@ -288,7 +290,7 @@ jobs:
       # (macOS .dSYM / Windows .pdb). sentry-cli는 npm 의존성이 아니라 공식 설치 스크립트로 받는다 —
       # @sentry/cli는 @sentry/vite-plugin의 간접 의존성일 뿐 pnpm bin에 노출되지 않는다.
       - name: Install sentry-cli
-        run: |
+        run: | # nosemgrep: yaml.github-actions.security.gha-curl-pipe-shell.gha-curl-pipe-shell
           INSTALL_DIR="$RUNNER_TEMP/sentry-cli-bin"
           mkdir -p "$INSTALL_DIR"
           curl -sL https://sentry.io/get-cli/ | INSTALL_DIR="$INSTALL_DIR" sh

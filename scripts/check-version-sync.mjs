@@ -4,6 +4,7 @@
 import { execSync } from 'child_process';
 
 // Read a file's content from the git index (what is about to be committed).
+// nosemgrep: javascript.lang.security.detect-child-process.detect-child-process — path is a literal below
 const fromIndex = (path) => execSync(`git show :${path}`, { encoding: 'utf8' });
 
 const first = (content, regex, label) => {

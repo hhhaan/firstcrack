@@ -154,3 +154,21 @@ jobs:
       - name: Run sidecar tests
         run: python -m pytest tests/ -q --tb=short
         working-directory: src-tauri/sidecar
+
+  # SAST — official semgrep image, no pnpm install. Gate on ERROR only (WARNING = mutable action tags etc.).
+  # ws:// rule excluded: roasters are LAN devices without TLS. secrets-inherit: reusable workflows by design.
+  semgrep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Semgrep
+        run: >-
+          semgrep scan --error --severity ERROR
+          --config p/default --config p/typescript --config p/react --config p/python --config p/rust --config p/github-actions --config p/secrets
+          --exclude-rule javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
+          --exclude-rule yaml.github-actions.security.secrets-inherit.secrets-inherit
+          --exclude repomix-output.xml
