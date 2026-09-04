@@ -29,7 +29,8 @@ CI "Sync version across manifests" overwrites from tag — tag is final authorit
 | `git commit` | lint-staged → `biome check --write` on **staged files only** + secretlint | yes; lint-staged re-stages fixed files |
 | `git commit` (2) | migration staged w/o `database.types.ts` → block (bypass `SKIP_TYPES_GEN=1`) | no |
 | `git push` | `pnpm verify:all` | no |
-| CI | `check` (typecheck+biome+i18n+registry+eslint+secrets), test, sidecar, semgrep (ERROR only), ios-check (`src-tauri/**` only) | no |
+| CI | `check` (typecheck+biome+i18n+registry+eslint+secretlint), test, sidecar, semgrep (ERROR only), ios-check (`src-tauri/**` only) | no |
+| schedule (Mon 09:00 KST) | gitleaks (HEAD tree + last 7d history) | no |
 | `pnpm release` / `v*` tag | `supabase db push` then 3-platform build | no |
 | repomix | manual — `pnpm repomix` at session start or after large/structural change | — |
 

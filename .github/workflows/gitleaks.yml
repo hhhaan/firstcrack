@@ -1,0 +1,59 @@
+name: Gitleaks
+
+# Weekly secret scan of HEAD + commits from the last 7 days.
+# Monday 00:00 UTC = Monday 09:00 KST (same slot as Dependabot / migration-drift).
+# Full git history is not scanned: June 2026 still contains a sentry-org-token
+# in now-ignored .codex/.mcp.json/repomix dumps, which would fail every run.
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitleaks
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: '8.30.1'
+          GITLEAKS_SHA256: '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb'
+        run: |
+          set -euo pipefail
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}" -o "/tmp/${archive}"
+          echo "${GITLEAKS_SHA256}  /tmp/${archive}" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "/tmp/${archive}" -C "$HOME/.local/bin" gitleaks
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/gitleaks" version
+
+      - name: Scan last 7 days of git history
+        run: gitleaks git . --log-opts='--since=1.week' --verbose --redact --no-banner
+
+      - name: Scan current tree
+        run: gitleaks dir . --verbose --redact --no-banner
+
+      - name: Notify gitleaks failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.VITE_SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -s -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK" \
+              --data "{\"text\":\":x: *Gitleaks FAILED* — secret detected in HEAD or last 7 days | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"}"
+          else
+            echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
+          fi
