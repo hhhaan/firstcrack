@@ -119,3 +119,25 @@ e2e-report/
 playwright-report/
 
 design*
+
+# OS
+Thumbs.db
+._*
+
+# Tool caches / build metadata
+.codegraph
+.ruby-lsp/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.eslintcache
+*.tsbuildinfo
+.vite/
+.turbo/
+coverage/
+.husky/_/
+src-tauri/gen/schemas/
+
+# Local agent dirs
+.agents/skills/*/.local/
+.cursor/*.log
