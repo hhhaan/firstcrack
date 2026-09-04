@@ -1,5 +1,6 @@
 import type { NetworkHost, PidRuntime, SerialPort, SidecarStatus, TemperatureReading } from '@shared/types/sidecar';
 import { invoke } from '@tauri-apps/api/core';
+import { isSidecarStartingError } from './errorMessage';
 import { logger } from './logger';
 
 export const SIDECAR_BASE = 'http://127.0.0.1:9999';
@@ -27,6 +28,10 @@ const getSidecarToken = (): Promise<string | null> => {
     });
     return tokenPromise;
 };
+
+const CONNECT_RETRY_BUDGET_MS = 8_000;
+const CONNECT_RETRY_GAP_MS = 400;
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
     try {
@@ -57,15 +62,24 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_
 export const sidecar = {
     getStatus: () => request<SidecarStatus>('/status'),
 
-    connect: (roasterKey: string, params: Record<string, unknown>) =>
-        request<SidecarStatus>(
-            '/connect',
-            {
-                method: 'POST',
-                body: JSON.stringify({ roaster: roasterKey, ...params }),
-            },
-            CONNECT_TIMEOUT_MS,
-        ),
+    connect: async (roasterKey: string, params: Record<string, unknown>) => {
+        const deadline = Date.now() + CONNECT_RETRY_BUDGET_MS;
+        for (;;) {
+            try {
+                return await request<SidecarStatus>(
+                    '/connect',
+                    {
+                        method: 'POST',
+                        body: JSON.stringify({ roaster: roasterKey, ...params }),
+                    },
+                    CONNECT_TIMEOUT_MS,
+                );
+            } catch (e) {
+                if (!isSidecarStartingError(e) || Date.now() >= deadline) throw e;
+                await wait(CONNECT_RETRY_GAP_MS);
+            }
+        }
+    },
 
     // connect와 같은 예산을 준다 — 진행 중인 핸드셰이크를 취소하고 정리가 끝나기를
     // 기다려야 하므로, 5s 기본값이면 요청이 먼저 abort돼 상태가 갱신되지 않는다.

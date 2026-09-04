@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { errorMessage, isOpaqueNetworkError } from './errorMessage';
+import { errorMessage, isOpaqueNetworkError, isSidecarStartingError } from './errorMessage';
 
 describe('errorMessage', () => {
     it('reads Error, string, and { message }', () => {
@@ -25,5 +25,18 @@ describe('isOpaqueNetworkError', () => {
         expect(isOpaqueNetworkError(new Error('invite_expired'))).toBe(false);
         expect(isOpaqueNetworkError(new Error(''))).toBe(false);
         expect(isOpaqueNetworkError({ code: 'PGRST301' })).toBe(false);
+    });
+});
+
+describe('isSidecarStartingError', () => {
+    it('treats WKWebView connection-refused and sidecar 401 as startup', () => {
+        expect(isSidecarStartingError(new TypeError('Load failed'))).toBe(true);
+        expect(isSidecarStartingError(new TypeError('Failed to fetch'))).toBe(true);
+        expect(isSidecarStartingError(new Error('unauthorized'))).toBe(true);
+    });
+
+    it('leaves adapter/protocol failures alone', () => {
+        expect(isSidecarStartingError(new Error('modbus handshake timeout'))).toBe(false);
+        expect(isSidecarStartingError(new Error('HTTP 409'))).toBe(false);
     });
 });

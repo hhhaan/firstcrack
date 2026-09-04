@@ -449,11 +449,11 @@ export const useScheduleDayView = ({
             } else if (planId) {
                 await createBatch.mutateAsync({ ...baseBatch, plan_id: planId });
             } else {
-                // Day plan query not resolved — fail loud instead of silently dropping the batch.
-                throw new Error('day plan not loaded');
+                const plan = await dayPlanApi.getOrCreate(userId, dateKey);
+                await createBatch.mutateAsync({ ...baseBatch, plan_id: plan.id });
             }
         },
-        [planId, batches, createBatch, createRecurringBatches],
+        [planId, batches, createBatch, createRecurringBatches, userId, dateKey],
     );
 
     const handleSaveBatch = useCallback(

@@ -18,4 +18,9 @@ describe('useMachineSidecarConnection', () => {
     it('does not import other features (unidirectional features rule)', () => {
         expect(hookSrc).not.toMatch(/@features\/active-roast/);
     });
+
+    it('does not Sentry-capture opaque sidecar-down errors (FC-16)', () => {
+        expect(hookSrc).toMatch(/isOpaqueNetworkError/);
+        expect(hookSrc).toMatch(/logger\.capture/);
+    });
 });

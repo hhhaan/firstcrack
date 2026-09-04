@@ -2,14 +2,19 @@ import { supabase } from '@shared/lib/supabase';
 import type { DayPlan } from '@shared/types/database.types';
 
 export const dayPlanApi = {
-    getOrCreate: async (userId: string, date: string): Promise<DayPlan> => {
-        const { data: existing } = await supabase
+    get: async (userId: string, date: string): Promise<DayPlan | null> => {
+        const { data, error } = await supabase
             .from('roast_day_plans')
             .select('*')
             .eq('user_id', userId)
             .eq('date', date)
             .maybeSingle();
+        if (error) throw error;
+        return data;
+    },
 
+    getOrCreate: async (userId: string, date: string): Promise<DayPlan> => {
+        const existing = await dayPlanApi.get(userId, date);
         if (existing) return existing;
 
         const { data, error } = await supabase
