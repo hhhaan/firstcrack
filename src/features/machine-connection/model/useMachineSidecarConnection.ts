@@ -1,6 +1,7 @@
 import type { Machine, SidecarStatus, TemperatureReading } from '@entities/machine';
 import { isSameSidecarStatus } from '@entities/machine';
 import * as Sentry from '@sentry/react';
+import { isOpaqueNetworkError } from '@shared/lib/errorMessage';
 import { logger } from '@shared/lib/logger';
 import { sendOsNotification } from '@shared/lib/osNotification';
 import { sidecar } from '@shared/lib/sidecar';
@@ -102,7 +103,9 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
             // (aiohttp는 peer abort에 핸들러를 취소하지 않는다). 대기 중 connect를 취소해
             // manager 락을 돌려받아야 재시도가 즉시 가능하다.
             void sidecar.disconnect().catch(() => null);
-            logger.capture(e, { context: 'machine connect' });
+            // sidecar가 아직 bind 전일 때의 Load failed는 재시도로 흡수하고, 소진돼도
+            // 프로세스 사망은 Rust sidecar-dead가 남긴다. 401 등만 이슈로 남긴다.
+            if (!isOpaqueNetworkError(e)) logger.capture(e, { context: 'machine connect' });
             Sentry.addBreadcrumb({
                 category: 'hardware.connection',
                 message: `로스터 연결 중 예외: ${machine.name}`,

@@ -28,3 +28,7 @@ export const isOpaqueNetworkError = (err: unknown): boolean => {
     if (!msg) return false;
     return OPAQUE_NETWORK_SNIPPETS.some((snippet) => msg.includes(snippet));
 };
+
+/** Sidecar not listening yet, or 401 from a just-bound process racing the token header. */
+export const isSidecarStartingError = (err: unknown): boolean =>
+    isOpaqueNetworkError(err) || errorMessage(err).toLowerCase() === 'unauthorized';

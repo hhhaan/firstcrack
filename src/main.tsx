@@ -1,7 +1,6 @@
-import { httpStatusOf } from '@shared/lib/httpStatus';
 import { logger } from '@shared/lib/logger';
 // Sentry 초기화는 이 모듈 import의 side effect다 — App보다 먼저 평가되어야 한다.
-import { captureActionable, reactRootOptions } from '@shared/lib/sentry';
+import { captureActionable, isClientRefusal, reactRootOptions } from '@shared/lib/sentry';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
@@ -12,10 +11,7 @@ import { bindAuthQueryClient } from './shared/store/auth';
 import { ToastViewport } from './shared/ui/ToastViewport';
 import 'uplot/dist/uPlot.min.css';
 
-const is4xx = (error: unknown) => {
-    const status = httpStatusOf(error);
-    return status !== undefined && status >= 400 && status < 500;
-};
+const is4xx = isClientRefusal;
 
 // silentError(meta)는 토스트 표시 정책일 뿐이다 — Sentry 전송 여부와 연결하지 않는다.
 const onQueryError = (error: Error) => captureActionable(error);

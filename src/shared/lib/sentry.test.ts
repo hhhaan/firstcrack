@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { BatchLimitError } from './features/plan-matrix';
 import {
     buildSentryOptions,
     captureActionable,
@@ -61,6 +62,14 @@ describe('isActionableError', () => {
         expect(isActionableError({ status: 500 })).toBe(true);
         expect(isActionableError({ status: '404' })).toBe(true);
     });
+
+    it('drops plan-gate refusals that supabase-js surfaces without HTTP status', () => {
+        expect(isActionableError({ code: '23514', message: 'read_only_plan', details: 'table=roast_day_plans' })).toBe(
+            false,
+        );
+        expect(isActionableError({ message: 'trial_expired' })).toBe(false);
+        expect(isActionableError(new BatchLimitError(0, 0, 'read_only_plan'))).toBe(false);
+    });
 });
 
 describe('captureActionable', () => {
@@ -82,6 +91,7 @@ describe('captureActionable', () => {
         const abort = new Error('cancelled');
         abort.name = 'AbortError';
         captureActionable(abort);
+        captureActionable({ code: '23514', message: 'read_only_plan' });
         expect(Sentry.captureException).not.toHaveBeenCalled();
     });
 });
