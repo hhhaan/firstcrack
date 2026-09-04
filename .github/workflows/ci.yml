@@ -172,3 +172,27 @@ jobs:
           --exclude-rule javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket
           --exclude-rule yaml.github-actions.security.secrets-inherit.secrets-inherit
           --exclude repomix-output.xml
+
+  # History-range only. Full git history still has a June 2026 sentry-org-token
+  # in now-ignored .codex/.mcp.json/repomix dumps — that is the Monday job's catch-up window, not this gate.
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/gitleaks
+
+      - name: Scan this change
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE:-}" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            gitleaks git . --log-opts='-1' --verbose --redact --no-banner
+            exit 0
+          fi
+          gitleaks git . --log-opts="${BASE}..${HEAD}" --verbose --redact --no-banner

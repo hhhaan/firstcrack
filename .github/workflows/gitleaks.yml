@@ -26,19 +26,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install gitleaks
-        env:
-          GITLEAKS_VERSION: '8.30.1'
-          GITLEAKS_SHA256: '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb'
-        run: |
-          set -euo pipefail
-          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}" -o "/tmp/${archive}"
-          echo "${GITLEAKS_SHA256}  /tmp/${archive}" | sha256sum -c -
-          mkdir -p "$HOME/.local/bin"
-          tar -xzf "/tmp/${archive}" -C "$HOME/.local/bin" gitleaks
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          "$HOME/.local/bin/gitleaks" version
+      - uses: ./.github/actions/gitleaks
 
       - name: Scan last 7 days of git history
         run: gitleaks git . --log-opts='--since=1.week' --verbose --redact --no-banner
