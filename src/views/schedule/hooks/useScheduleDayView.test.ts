@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     buildReorderIds,
     type CompleteBatchFlowDeps,
+    isRoastBlockingScheduleStart,
     nextOneOffOrderIndex,
     runCompleteBatchFlow,
 } from './useScheduleDayView';
@@ -125,5 +126,18 @@ describe('nextOneOffOrderIndex', () => {
         const recurring = baseBatch({ id: 'rule-1:d', recurrence_rule_id: 'rule-1', order_index: 0 });
         expect(nextOneOffOrderIndex([recurring])).toBe(1);
         expect(nextOneOffOrderIndex([])).toBe(1);
+    });
+});
+
+describe('isRoastBlockingScheduleStart', () => {
+    it('머신 연결(preheating/standby)과 idle은 허용', () => {
+        expect(isRoastBlockingScheduleStart('idle')).toBe(false);
+        expect(isRoastBlockingScheduleStart('preheating')).toBe(false);
+        expect(isRoastBlockingScheduleStart('standby')).toBe(false);
+    });
+
+    it('차지 중·미저장 종료만 차단', () => {
+        expect(isRoastBlockingScheduleStart('roasting')).toBe(true);
+        expect(isRoastBlockingScheduleStart('ended')).toBe(true);
     });
 });
