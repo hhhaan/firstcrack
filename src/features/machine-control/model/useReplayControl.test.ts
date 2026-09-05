@@ -37,7 +37,7 @@ const BASE: Omit<ReplayControlInputs, 'writeHeater'> = {
 
 /** repo 표준 패턴 — 실제 훅을 렌더해 반환값을 노출한다 */
 const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
-    const writeHeater = vi.fn();
+    const writeHeater = vi.fn(async (_value: number) => true);
     const root = createRoot(document.createElement('div'));
     let latest!: ReturnType<typeof useReplayControl>;
     const Probe = ({ inputs }: { inputs: Partial<ReplayControlInputs> }) => {
@@ -575,6 +575,36 @@ describe('useReplayControl', () => {
         await act(async () => h.get().toggle());
         expect(h.get().active).toBe(true);
         expect(h.get().stopReason).toBeNull();
+        h.unmount();
+    });
+    it('/control 실패 시 이벤트를 소진하지 않고 writeFailed로 멈춘다 — 재개하면 같은 이벤트부터 (#312)', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        h.writeHeater.mockClear();
+        h.writeHeater.mockResolvedValueOnce(false);
+        await h.rerender({ liveBt: 111, elapsed: 130, afterTurningPoint: true });
+        expect(h.writeHeater).toHaveBeenCalledTimes(1);
+        expect(h.writeHeater).toHaveBeenCalledWith(60);
+        expect(h.get().active).toBe(false);
+        expect(h.get().stopReason).toBe('writeFailed');
+        // 실측이 우연히 목표와 같아도 실패는 숨겨지지 않는다 — 다시 켜면 60부터 재발화
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenLastCalledWith(60);
+        expect(h.get().nextEvent?.heater).toBe(40);
+        h.unmount();
+    });
+
+    it('write 응답 대기 중 새 샘플은 같은 이벤트를 다시 쓰지 않는다', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        h.writeHeater.mockClear();
+        let resolve!: (ok: boolean) => void;
+        h.writeHeater.mockImplementationOnce(() => new Promise<boolean>((r) => (resolve = r)));
+        await h.rerender({ liveBt: 111, elapsed: 130, afterTurningPoint: true });
+        await h.rerender({ liveBt: 112, elapsed: 131, afterTurningPoint: true });
+        expect(h.writeHeater).toHaveBeenCalledTimes(1);
+        await act(async () => resolve(true));
+        expect(h.get().nextEvent?.heater).toBe(40);
         h.unmount();
     });
 });

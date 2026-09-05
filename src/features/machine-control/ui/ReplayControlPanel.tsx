@@ -17,6 +17,7 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
     profileChanged: '프로파일 변경으로 재생 중지',
     controlDiverged: '화력이 재생 지시에서 벗어나 재생 중지',
     timingGap: '화면이 멈췄던 동안 재생 중지 — 현재 화력을 확인하세요',
+    writeFailed: '화력 명령 전송 실패로 재생 중지 — 현재 화력을 확인하세요',
 };
 
 /**

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
 
 export interface ReplayControlInputs {
@@ -41,7 +41,8 @@ export interface ReplayControlInputs {
      * 계속 흘러, 같은 샘플 하나로 "지속 이탈"을 확정할 수 있다. 카운트를 멈춘다.
      */
     reconnecting: boolean;
-    writeHeater: (value: number) => void;
+    /** resolve false = /control 실패(timeout·409·502) — Replay는 그 이벤트를 소진하지 않는다 (#312) */
+    writeHeater: (value: number) => Promise<boolean>;
 }
 
 /** 재생 중지 사유 — 'finished'는 배치 종료라 UI에 표시하지 않는다 */
@@ -54,7 +55,8 @@ export type ReplayStopReason =
     | 'manual'
     | 'profileChanged'
     | 'controlDiverged'
-    | 'timingGap';
+    | 'timingGap'
+    | 'writeFailed';
 
 /**
  * 마지막 확정 명령에서 실측이 이만큼 **초과** 이탈하면 외부 개입 후보로 센다.
@@ -126,6 +128,13 @@ export const useReplayControl = ({
     const [diverge, setDiverge] = useState({ tick: elapsed, ticks: 0 });
     /** 직전 렌더의 elapsed — 타이밍 갭 감지 기준 (#313) */
     const [prevElapsed, setPrevElapsed] = useState(elapsed);
+    /**
+     * 이벤트 write가 /control 응답 대기 중 — 그동안 판정을 멈춰 같은 이벤트를 두 번 쓰지
+     * 않는다 (#312). 응답 세대: 배치·프로파일 경계를 넘어 도착한 늦은 응답은 무시한다 —
+     * 리셋된 index를 옛 nextIndex로 덮으면 안 된다.
+     */
+    const [writing, setWriting] = useState(false);
+    const writeGenRef = useRef(0);
 
     // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
     // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
@@ -134,6 +143,7 @@ export const useReplayControl = ({
     if (plan !== prevPlan) {
         setPrevPlan(plan);
         setIndex(0);
+        writeGenRef.current += 1;
         if (active) {
             setActive(false);
             setStopReason('profileChanged');
@@ -149,6 +159,7 @@ export const useReplayControl = ({
     if (roasting !== prevRoasting) {
         setPrevRoasting(roasting);
         setIndex(0);
+        writeGenRef.current += 1;
         setStopReason(null);
         // 상승 에지(새 배치 차지)에서만 지운다 — 이전 배치의 safe-off 재시도가 새
         // 배치 화력을 덮으면 안 된다. 하강 에지(End Roast 확정)에서 지우면 안 되는
@@ -233,7 +244,7 @@ export const useReplayControl = ({
         // 실패가 토스트/Sentry로 관측된다. hold면 아무것도 안 쓴다 — 설정으로 선택된
         // 잔류라 PID hold와 같은 등급의 문서화된 동작이다.
         if (roastFinished && dropBehavior === 'zero') {
-            writeHeater(0);
+            void writeHeater(0);
             setSafeOffIssued(true);
         }
     }, [active, stopCause, roastFinished, dropBehavior, writeHeater]);
@@ -244,7 +255,7 @@ export const useReplayControl = ({
     // 매 write가 미반영 카운트를 되돌리므로 tight loop이 될 수 없다.
     useEffect(() => {
         if (!safeOffIssued || !heaterUnacknowledged || !sidecarConnected) return;
-        writeHeater(0);
+        void writeHeater(0);
     }, [safeOffIssued, heaterUnacknowledged, sidecarConnected, writeHeater]);
 
     const toggle = useCallback(() => {
@@ -274,14 +285,25 @@ export const useReplayControl = ({
         // 개입을 덮는 동시에 lastWritten 갱신·pending으로 판정까지 리셋돼, #307이
         // 막으려던 경로가 확정 창 안에서 재현된다. 노이즈로 판명되면(카운터 0 복귀)
         // 이 effect가 다시 실행되고 judgeReplay가 밀린 이벤트를 한 번에 따라잡는다.
-        if (diverge.ticks > 0) return;
+        if (diverge.ticks > 0 || writing) return;
         const result = judgeReplay(plan, index, { bt: liveBt, elapsed, afterTurningPoint });
-        if (result.nextIndex === index) return;
-        setIndex(result.nextIndex);
-        if (result.heater != null) {
-            writeHeater(result.heater);
-            setLastWritten(result.heater);
-        }
+        if (result.nextIndex === index || result.heater == null) return;
+        // 성공을 확인한 뒤에만 index를 전진한다 — 실패한 이벤트는 남겨 두고 fail-closed로
+        // 멈춘다. 자동 재시도는 없다: 물리 제어 실패는 사람이 기기를 보고 다시 켠다.
+        const heater = result.heater;
+        const gen = writeGenRef.current;
+        setWriting(true);
+        void writeHeater(heater).then((ok) => {
+            setWriting(false);
+            if (gen !== writeGenRef.current) return;
+            if (ok) {
+                setIndex(result.nextIndex);
+                setLastWritten(heater);
+                return;
+            }
+            setActive(false);
+            setStopReason('writeFailed');
+        });
     }, [
         active,
         stopCause,
@@ -293,6 +315,7 @@ export const useReplayControl = ({
         plan,
         index,
         diverge.ticks,
+        writing,
         writeHeater,
     ]);
 
