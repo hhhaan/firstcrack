@@ -28,13 +28,14 @@
 
 import { tokenExpiresAtMs } from './cafe24-oauth.ts';
 import { buildCafe24ShipmentPayload } from './dispatch.ts';
-import { lineQuantity } from './normalize.ts';
+import { lineQuantity, lineStatusOf } from './normalize.ts';
 import { nextPollCursor } from './poll-cursor.ts';
 import { cafe24Throttle, type HttpAttempt, readHttpAttempt, withRetry } from './rate-limit.ts';
 import { cafe24ToCanonical } from './status-map.ts';
 import type {
     CanonicalOrder,
     CanonicalOrderLine,
+    CanonicalStatus,
     ChannelAdapter,
     ChannelSecrets,
     FetchOrdersResult,
@@ -238,9 +239,9 @@ function amountOf(order: Record<string, unknown>): number | null {
     return null;
 }
 
-function mapItems(order: Record<string, unknown>, orderStatus: string): CanonicalOrderLine[] {
+function mapItems(order: Record<string, unknown>, orderStatus: CanonicalStatus): CanonicalOrderLine[] {
     const items = (order.items ?? []) as Array<Record<string, unknown>>;
-    const lineStatus = orderStatus === 'cancelled' ? 'cancelled' : orderStatus === 'refunded' ? 'refunded' : 'active';
+    const lineStatus = lineStatusOf(orderStatus);
 
     return items.map((it, i) => ({
         platformLineId: String(it.order_item_code ?? it.item_no ?? `${order.order_id}-${i}`),
@@ -250,7 +251,7 @@ function mapItems(order: Record<string, unknown>, orderStatus: string): Canonica
         title: String(it.product_name ?? it.product_name_default ?? 'Item'),
         quantity: lineQuantity(it.quantity),
         unitPrice: it.product_price != null ? Number(it.product_price) : it.price != null ? Number(it.price) : null,
-        status: lineStatus as CanonicalOrderLine['status'],
+        status: lineStatus,
     }));
 }
 

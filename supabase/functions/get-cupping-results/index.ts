@@ -1,25 +1,7 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders, jsonResponse } from '../_shared/auth.ts';
+import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
+import { type BeanMeta, beanMetaLine } from '../_shared/cupping-bean-meta.ts';
 import { SCA_V1_KEYS } from '../_shared/cupping-score.ts';
 import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
-
-const serviceClient = () =>
-    createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-
-type BeanMeta = {
-    name: string | null;
-    origin: string | null;
-    region: string | null;
-    variety: string | null;
-    process: string | null;
-    farm: string | null;
-};
-
-function beanMetaLine(b: BeanMeta | null | undefined): string | null {
-    if (!b) return null;
-    const line = [b.origin, b.region, b.variety, b.process, b.farm].filter(Boolean).join(' · ');
-    return line || null;
-}
 
 function avg(nums: number[]): number | null {
     if (!nums.length) return null;

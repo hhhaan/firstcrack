@@ -33,7 +33,7 @@ import {
     readNaverDispatchResult,
 } from './dispatch.ts';
 import { planNaverScan } from './naver-windows.ts';
-import { lineQuantity } from './normalize.ts';
+import { lineQuantity, lineStatusOf } from './normalize.ts';
 import { nextPollCursor } from './poll-cursor.ts';
 import { type HttpAttempt, naverThrottle, readHttpAttempt, withRetry } from './rate-limit.ts';
 import { naverToCanonical } from './status-map.ts';
@@ -253,8 +253,7 @@ function mapDetail(entry: Record<string, unknown>): CanonicalOrder | null {
                 ? Number(po.initialPaymentAmount)
                 : null;
 
-    const lineStatus =
-        status === 'cancelled' ? 'cancelled' : status === 'refunded' ? 'refunded' : 'active';
+    const lineStatus = lineStatusOf(status);
 
     const line: CanonicalOrderLine = {
         platformLineId: productOrderId || `${orderId}-line`,

@@ -18,6 +18,7 @@
  */
 
 import { buildShopifyFulfillmentInput } from './dispatch.ts';
+import { gidToId, lineStatusOf } from './normalize.ts';
 import { nextPollCursor } from './poll-cursor.ts';
 import { readHttpAttempt, shopifyThrottle, withRetry } from './rate-limit.ts';
 import { shopifyToCanonical } from './status-map.ts';
@@ -87,11 +88,6 @@ async function gql<T>(shop: string, token: string, query: string, variables?: Re
     return json.data;
 }
 
-function gidToId(gid: string): string {
-    const parts = gid.split('/');
-    return parts[parts.length - 1] ?? gid;
-}
-
 type ShopifyOrderNode = {
     id: string;
     name: string;
@@ -124,8 +120,6 @@ function mapOrder(node: ShopifyOrderNode): CanonicalOrder {
 
     const lines: CanonicalOrderLine[] = (node.lineItems?.edges ?? []).map(({ node: li }) => {
         const unit = li.originalUnitPriceSet?.shopMoney?.amount;
-        const lineStatus =
-            status === 'cancelled' ? 'cancelled' : status === 'refunded' ? 'refunded' : 'active';
         return {
             platformLineId: gidToId(li.id),
             platformProductId: li.product?.id ? gidToId(li.product.id) : null,
@@ -134,7 +128,7 @@ function mapOrder(node: ShopifyOrderNode): CanonicalOrder {
             title: li.name || li.title || 'Item',
             quantity: li.quantity,
             unitPrice: unit != null ? Number(unit) : null,
-            status: lineStatus as CanonicalOrderLine['status'],
+            status: lineStatusOf(status),
         };
     });
 

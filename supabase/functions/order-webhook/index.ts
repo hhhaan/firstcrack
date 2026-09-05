@@ -11,7 +11,7 @@
  */
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
 import { isCafe24Uninstall } from '../_shared/channels/cafe24-webhook.ts';
-import { lineQuantity, upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
+import { gidToId, lineQuantity, lineStatusOf, upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { classifyShopifyTopic } from '../_shared/channels/shopify-webhook.ts';
 import { cafe24ToCanonical, shopifyToCanonical } from '../_shared/channels/status-map.ts';
 import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
@@ -50,11 +50,6 @@ async function resolveConnection(
     return { conn: rows[0] ?? null, ambiguous: false };
 }
 
-function gidToId(gid: string): string {
-    const parts = gid.split('/');
-    return parts[parts.length - 1] ?? gid;
-}
-
 function parseShopifyOrder(payload: Record<string, unknown>): CanonicalOrder | null {
     const id =
         payload.id != null
@@ -71,7 +66,6 @@ function parseShopifyOrder(payload: Record<string, unknown>): CanonicalOrder | n
 
     const lineItems = (payload.line_items as Array<Record<string, unknown>> | undefined) ?? [];
     const lines: CanonicalOrderLine[] = lineItems.map((li, i) => {
-        const lineStatus = status === 'cancelled' ? 'cancelled' : status === 'refunded' ? 'refunded' : 'active';
         return {
             platformLineId: li.id != null ? String(li.id) : `${id}-${i}`,
             platformProductId: li.product_id != null ? String(li.product_id) : null,
@@ -80,7 +74,7 @@ function parseShopifyOrder(payload: Record<string, unknown>): CanonicalOrder | n
             title: String(li.name ?? li.title ?? 'Item'),
             quantity: lineQuantity(li.quantity),
             unitPrice: li.price != null ? Number(li.price) : null,
-            status: lineStatus as CanonicalOrderLine['status'],
+            status: lineStatusOf(status),
         };
     });
 
@@ -122,7 +116,7 @@ function parseCafe24Order(payload: Record<string, unknown>): CanonicalOrder | nu
               title: String(it.product_name ?? 'Item'),
               quantity: lineQuantity(it.quantity),
               unitPrice: it.product_price != null ? Number(it.product_price) : null,
-              status: status === 'cancelled' ? 'cancelled' : status === 'refunded' ? 'refunded' : 'active',
+              status: lineStatusOf(status),
           }))
         : [
               {

@@ -90,6 +90,17 @@ type LineRow = {
  * lookup can never consider a key the collection pass did not fetch.
  */
 /** Line quantity: 0 stays 0 (order-edit removals, #317); missing/junk → 1. */
+/** Line status derived from the order-level status: only cancel/refund propagate to lines. */
+export function lineStatusOf(status: CanonicalStatus): LineStatus {
+    return status === 'cancelled' ? 'cancelled' : status === 'refunded' ? 'refunded' : 'active';
+}
+
+/** Shopify GID (`gid://shopify/Order/123`) → numeric REST id (`123`). */
+export function gidToId(gid: string): string {
+    const parts = gid.split('/');
+    return parts[parts.length - 1] ?? gid;
+}
+
 export function lineQuantity(v: unknown): number {
     const n = Number(v ?? 1);
     return Number.isFinite(n) ? n : 1;
