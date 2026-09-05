@@ -1,15 +1,16 @@
+import type { EditScope } from '@features/schedule';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { ArrowRight, Layers, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 /**
- * Edit scope for recurring batches.
+ * Edit scope for recurring batches (owned by features/schedule, re-exported here).
  * - single:      Edit only this occurrence (exception insert)
  * - from_this:   Edit this and all future occurrences (split rule)
  * - all:         Edit all occurrences (update entire rule)
  */
-export type EditScope = 'single' | 'from_this' | 'all';
+export type { EditScope };
 
 interface RecurringEditScopeModalProps {
     open: boolean;
