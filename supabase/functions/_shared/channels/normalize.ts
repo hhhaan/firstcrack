@@ -114,10 +114,17 @@ export function lineMatchKeys(line: CanonicalOrderLine): string[] {
     return keys;
 }
 
-/** Map platform product id / variant id / SKU → local product id, via exact `products.sku` match. */
+/**
+ * Map platform product id / variant id / SKU → local product id.
+ *
+ * `product_channel_skus` (#164, scoped to this platform) wins; `products.sku` exact match stays
+ * as the fallback so mappings made before the table existed keep resolving. A failed table read
+ * degrades to the fallback instead of failing the whole sync (the migration may lag the EF).
+ */
 export async function buildProductMap(
     supabase: SupabaseClient,
     userId: string,
+    platform: Platform,
     orders: CanonicalOrder[],
 ): Promise<Map<string, string>> {
     const keys = new Set<string>();
@@ -128,15 +135,28 @@ export async function buildProductMap(
     }
     if (!keys.size) return new Map();
 
+    const map = new Map<string, string>();
+
+    // Whole (user, platform) slice, filtered here: an `.in(keys)` on a backfill sync (hundreds of
+    // orders × 3 keys) overflows the query string and the fail-soft below would mask exactly the
+    // syncs #164 is for. The table is tiny per user, and products is already fetched the same way.
+    const { data: mappings, error: mapErr } = await supabase
+        .from('product_channel_skus')
+        .select('external_key, product_id')
+        .eq('user_id', userId)
+        .eq('platform', platform);
+    if (mapErr) console.error('[normalize] product_channel_skus lookup failed', mapErr.message);
+    for (const m of mappings ?? []) {
+        if (m.external_key && m.product_id && keys.has(m.external_key)) map.set(m.external_key, m.product_id);
+    }
+
     const { data: products } = await supabase
         .from('products')
         .select('id, sku')
         .eq('user_id', userId)
         .not('sku', 'is', null);
-
-    const map = new Map<string, string>();
     for (const p of products ?? []) {
-        if (p.sku && keys.has(p.sku)) map.set(p.sku, p.id);
+        if (p.sku && keys.has(p.sku) && !map.has(p.sku)) map.set(p.sku, p.id);
     }
     return map;
 }
@@ -176,7 +196,7 @@ export async function upsertCanonicalOrders(
         return { upserted: 0, cancelledCompensations: 0, autoFulfillments: 0, stockEventSkips: [] };
     }
 
-    const productMap = await buildProductMap(supabase, ctx.userId, orders);
+    const productMap = await buildProductMap(supabase, ctx.userId, ctx.platform, orders);
     let upserted = 0;
     let cancelledCompensations = 0;
     let autoFulfillments = 0;
@@ -257,7 +277,9 @@ export async function upsertCanonicalOrders(
 
         for (const line of order.lines) {
             const prevLine = lineByPlatform.get(line.platformLineId);
-            const productId = prevLine?.product_id ?? resolveProductId(productMap, line);
+            // A line first mapped after the order was fulfilled was never deducted; giving it a
+            // product now would let a later cancel restore stock that never left (#164).
+            const productId = prevLine?.product_id ?? (fulfilledAt ? null : resolveProductId(productMap, line));
 
             if (prevLine) {
                 diffs.push({

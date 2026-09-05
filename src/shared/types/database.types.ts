@@ -1039,6 +1039,41 @@ export type Database = {
                 };
                 Relationships: [];
             };
+            product_channel_skus: {
+                Row: {
+                    created_at: string;
+                    external_key: string;
+                    id: string;
+                    platform: string;
+                    product_id: string;
+                    user_id: string;
+                };
+                Insert: {
+                    created_at?: string;
+                    external_key: string;
+                    id?: string;
+                    platform: string;
+                    product_id: string;
+                    user_id: string;
+                };
+                Update: {
+                    created_at?: string;
+                    external_key?: string;
+                    id?: string;
+                    platform?: string;
+                    product_id?: string;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'product_channel_skus_product_id_fkey';
+                        columns: ['product_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'products';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             product_stock_events: {
                 Row: {
                     created_at: string;
@@ -2005,6 +2040,7 @@ export type Database = {
                 Args: { p_horizon_days?: number };
                 Returns: string;
             };
+            create_order: { Args: { p_lines: Json; p_order: Json }; Returns: string };
             create_org_invite: {
                 Args: { p_expires_in?: string; p_token: string };
                 Returns: string;

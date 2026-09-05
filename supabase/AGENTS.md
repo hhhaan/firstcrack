@@ -20,6 +20,7 @@ Schema lives in `supabase/migrations/`. Privileged network and secret handling l
 | `get-download-url` | user JWT | R2 GET presign; key must match owned profile shape | `functions/get-download-url/index.ts` |
 | `channel-connect` | user JWT | Validate Naver/Shopify creds; store connection + secrets (service role) | `functions/channel-connect/` |
 | `channel-disconnect` | user JWT | Delete connection (orders kept) | `functions/channel-disconnect/` |
+| `channel-products` | user JWT | List a connection's platform catalog for SKU mapping (#131); secrets stay server-side, Naver returns `[]` | `functions/channel-products/` |
 | `cafe24-oauth-start` | user JWT | Signed OAuth state → authorize URL | `functions/cafe24-oauth-start/` |
 | `cafe24-oauth-callback` | public redirect | Code exchange → connection + secrets | `functions/cafe24-oauth-callback/` |
 | `order-sync` | user JWT **or** `x-cron-secret` | Pull/upsert orders; token refresh | `functions/order-sync/`, `_shared/channels/*` |

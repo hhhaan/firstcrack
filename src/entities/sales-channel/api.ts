@@ -27,6 +27,14 @@ export type ConnectCredentials =
     | { client_id: string; client_secret: string } // naver
     | { shop: string; access_token: string; webhook_secret?: string }; // shopify
 
+/** One sellable variant/product as the platform reports it (from `channel-products`, secrets stay server-side). */
+export interface ChannelListing {
+    platformProductId: string;
+    platformVariantId: string | null;
+    title: string;
+    sku: string | null;
+}
+
 export const salesChannelApi = {
     list: async (userId: string): Promise<SalesChannelConnection[]> => {
         const { data, error } = await supabase
@@ -102,6 +110,16 @@ export const salesChannelApi = {
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
         return data as { results: Array<{ connectionId: string; ok: boolean; upserted: number; error?: string }> };
+    },
+
+    /** Platform catalog for a mapping picker. Naver returns [] until its product API is wired. */
+    listProducts: async (connectionId: string): Promise<ChannelListing[]> => {
+        const { data, error } = await supabase.functions.invoke('channel-products', {
+            body: { connectionId },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        return (data?.listings ?? []) as ChannelListing[];
     },
 
     setAutoFulfill: async (connectionId: string, enabled: boolean): Promise<void> => {

@@ -5,6 +5,7 @@ import { salesChannelApi } from './api';
 
 export const salesChannelKeys = {
     all: (userId: string) => ['sales-channels', userId] as const,
+    listings: (connectionId: string) => ['sales-channels', 'listings', connectionId] as const,
 };
 
 export const invalidateAfterSyncOrders = (qc: QueryClient, userId: string) => {
@@ -19,6 +20,15 @@ export const useSalesChannels = (userId: string) =>
         queryKey: salesChannelKeys.all(userId),
         queryFn: () => salesChannelApi.list(userId),
         enabled: !!userId,
+    });
+
+/** Catalog fetch is a live platform call — only run it while a picker is open for one connection. */
+export const useChannelListings = (connectionId: string | null) =>
+    useQuery({
+        queryKey: salesChannelKeys.listings(connectionId ?? ''),
+        queryFn: () => salesChannelApi.listProducts(connectionId ?? ''),
+        enabled: !!connectionId,
+        retry: false,
     });
 
 export const useConnectChannel = (userId: string) => {

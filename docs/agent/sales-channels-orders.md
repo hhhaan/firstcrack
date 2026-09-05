@@ -108,12 +108,21 @@ page cap means `complete: false` and the watermark stays put; advancing it drops
 rotated `sales_channel_secrets` — Cafe24 revokes the previous refresh_token immediately, so a
 rotation that never reaches the DB permanently breaks the connection.
 
-SKU mapping (`_shared/channels/normalize.ts`, `lineMatchKeys`): a line resolves to `product_id` when
-`products.sku` exactly equals — in priority order — the platform **variant id**, the platform **product id**,
-or the line's merchant **SKU** (Shopify only; Naver/Cafe24 report none). Unmatched ⇒ `product_id = null`,
-which makes `fulfill_order` deduct nothing for that line and drops it from roasting requirements. The Orders
-tab flags those lines per order; re-syncing a line re-attempts resolution while `product_id` is still null,
-so fixing a SKU repairs the line on the next update the platform reports (issue #131).
+SKU mapping (`_shared/channels/normalize.ts`, `lineMatchKeys` / `buildProductMap`): candidate keys per
+line are — in priority order — the platform **variant id**, the platform **product id**, and the line's
+merchant **SKU** (Shopify only; Naver/Cafe24 report none). Each key is looked up first in
+`product_channel_skus` (#164: one product ↔ N `(platform, external_key)` rows, scoped to the order's
+platform), then as an exact match on `products.sku` (legacy fallback, still valid). A failed table read logs
+and degrades to the fallback so a lagging migration never stops a sync. Unmatched ⇒ `product_id = null`,
+which makes `fulfill_order` deduct nothing for that line and drops it from roasting requirements.
+
+Mapping UI (#131): Products → **Channels** opens `MapChannelProductModal` (`src/features/map-channel-product`),
+which lists the platform catalog through EF `channel-products` (adapter `listProducts`; secrets stay
+server-side; Naver returns `[]` → manual key entry) and writes `product_channel_skus`. An unmapped order line
+offers **Link**: it saves the line's own variant/product id as a mapping and binds the line immediately
+(`orderApi.setLineProduct`). Both the direct bind and the sync-time re-resolution refuse lines of an order
+that is already fulfilled — such a line was never deducted, and a later cancel would restore stock that
+never left (`planInboundStockActions` gates restores on `fulfilled_at`).
 
 ---
 
