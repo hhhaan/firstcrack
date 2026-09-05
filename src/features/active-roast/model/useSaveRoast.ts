@@ -82,7 +82,6 @@ export interface SaveRoastParams {
 
 export interface SaveRoastResult {
     savedSession: RoastSession;
-    deductionPlan: ReturnType<typeof determineStockDeduction>;
     shouldOpenContinue: boolean;
     /** Session saved but plan_batch status=done update failed — user should complete it in Schedule. */
     batchStatusUpdateFailed?: boolean;
@@ -318,17 +317,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         });
     }
 
-    const deductionPlan = determineStockDeduction({
-        planBatchHandoff: effectiveBatch,
-        saveWeight: weightGrams,
-        selectedBeanId: resolvedBeanId,
-        referenceId: savedSession.id,
-        handoffBeanName: resolvedBeanName,
-    });
-
     return {
         savedSession,
-        deductionPlan,
         shouldOpenContinue: effectiveBatch != null,
         batchStatusUpdateFailed,
     };
