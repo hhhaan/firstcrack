@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { mapCafe24Order } from './cafe24.ts';
 import { isCafe24Uninstall } from './cafe24-webhook.ts';
 
 // Shape from https://developers.cafe24.com/ko/app/front/app/develop/webhook/sample (90077)
@@ -41,5 +42,19 @@ describe('isCafe24Uninstall', () => {
     it('ignores other app lifecycle events (90078/90079 out of scope)', () => {
         expect(isCafe24Uninstall({ event_no: 90078, resource: { mall_id: 'demomall' } })).toBe(false);
         expect(isCafe24Uninstall({ event_no: 90079, resource: { mall_id: 'demomall' } })).toBe(false);
+    });
+});
+
+describe('mapCafe24Order (webhook resource)', () => {
+    it('maps the webhook order resource with the same mapper the sync poll uses', () => {
+        const order = mapCafe24Order(orderPayload.resource);
+        expect(order?.platformOrderId).toBe('20260727-0000001');
+        expect(order?.status).toBe('paid');
+        expect(order?.lines[0]?.platformLineId).toBe('20260727-0000001-01');
+        expect(order?.currency).toBe('KRW');
+    });
+
+    it('returns null without order_id', () => {
+        expect(mapCafe24Order({ paid: 'T' })).toBeNull();
     });
 });
