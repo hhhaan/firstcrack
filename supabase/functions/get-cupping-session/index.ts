@@ -1,24 +1,12 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders, jsonResponse } from '../_shared/auth.ts';
+import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
+import { type BeanMeta, beanMetaLine } from '../_shared/cupping-bean-meta.ts';
 import { respondServerError, serveWithSentry } from '../_shared/sentry.ts';
-
-const serviceClient = () =>
-    createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
 type SampleRow = {
     id: string;
     label: string;
     sort_order: number;
     roast_session_id: string | null;
-};
-
-type BeanMeta = {
-    name: string | null;
-    origin: string | null;
-    region: string | null;
-    variety: string | null;
-    process: string | null;
-    farm: string | null;
 };
 
 type SampleOut = {
@@ -33,12 +21,6 @@ type SampleOut = {
     /** origin · region · variety · process · farm */
     beanMeta: string | null;
 };
-
-function beanMetaLine(b: BeanMeta | null | undefined): string | null {
-    if (!b) return null;
-    const line = [b.origin, b.region, b.variety, b.process, b.farm].filter(Boolean).join(' · ');
-    return line || null;
-}
 
 function toSampleOut(id: string, label: string, bean: BeanMeta | null): SampleOut {
     return {

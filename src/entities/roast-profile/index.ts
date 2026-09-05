@@ -15,3 +15,4 @@ export {
     useSourceSessionEvents,
     useUpdateRoastProfile,
 } from './queries';
+export { ProfileDefaultBadge } from './ui/ProfileDefaultBadge';
