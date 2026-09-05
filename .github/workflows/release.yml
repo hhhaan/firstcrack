@@ -12,7 +12,7 @@ on:
 
 permissions:
   contents: read
-  actions: write
+  actions: read
   checks: read
 
 concurrency:
@@ -269,15 +269,8 @@ jobs:
           args: --target ${{ matrix.target }}
 
       # JS 소스맵은 Vite 플러그인이 이미 업로드+삭제했다 — 여기서는 Rust 네이티브 심볼만 다룬다
-      # (macOS .dSYM / Windows .pdb). sentry-cli는 npm 의존성이 아니라 공식 설치 스크립트로 받는다 —
-      # @sentry/cli는 @sentry/vite-plugin의 간접 의존성일 뿐 pnpm bin에 노출되지 않는다.
-      - name: Install sentry-cli
-        run: | # nosemgrep: yaml.github-actions.security.gha-curl-pipe-shell.gha-curl-pipe-shell
-          INSTALL_DIR="$RUNNER_TEMP/sentry-cli-bin"
-          mkdir -p "$INSTALL_DIR"
-          curl -sL https://sentry.io/get-cli/ | INSTALL_DIR="$INSTALL_DIR" sh
-          echo "$INSTALL_DIR" >> "$GITHUB_PATH"
-
+      # (macOS .dSYM / Windows .pdb). @sentry/cli는 devDependency — lockfile 핀 + integrity 검증,
+      # curl|sh 설치 스크립트 없음.
       - name: Upload native debug symbols to Sentry
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -285,8 +278,8 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           VERSION: ${{ needs.setup.outputs.version }}
         run: |
-          sentry-cli debug-files upload "src-tauri/target/${{ matrix.target }}/release/"
-          sentry-cli releases finalize "first-crack@$VERSION"
+          pnpm exec sentry-cli debug-files upload "src-tauri/target/${{ matrix.target }}/release/"
+          pnpm exec sentry-cli releases finalize "first-crack@$VERSION"
 
       - name: Upload macOS artifacts
         if: runner.os == 'macOS'

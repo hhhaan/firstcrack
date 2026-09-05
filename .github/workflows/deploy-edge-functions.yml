@@ -155,6 +155,7 @@ jobs:
           ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
+          sleep 5 # settle so we probe the new version, not the previous deploy
           fail=0
           for fn in $(echo "$FUNCTIONS_JSON" | jq -r '.[]'); do
             code=$(curl -s -o body.txt -w '%{http_code}' -X POST "${SUPABASE_URL}/functions/v1/${fn}" \

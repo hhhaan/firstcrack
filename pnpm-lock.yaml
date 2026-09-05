@@ -120,6 +120,9 @@ importers:
       '@secretlint/secretlint-rule-preset-recommend':
         specifier: ^13.0.4
         version: 13.0.4
+      '@sentry/cli':
+        specifier: 2.58.6
+        version: 2.58.6
       '@sentry/vite-plugin':
         specifier: ^5.4.0
         version: 5.4.0(rollup@4.62.4)

@@ -156,21 +156,21 @@ jobs:
         working-directory: src-tauri/sidecar
 
   # Edge Function type check. _shared/*.test.ts already run under vitest (test job).
-  # Advisory until the 7 pre-existing errors are fixed (#342) — then drop continue-on-error.
+  # Advisory until the 7 pre-existing errors are fixed (#342) — then drop the step's continue-on-error.
   # --node-modules-dir=none: root package.json would otherwise make deno resolve npm: specifiers
   # from node_modules (byonm), which is not how the edge runtime resolves them.
   edge-check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
 
-      - uses: denoland/setup-deno@v2
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: v2.x
 
       - name: deno check
+        continue-on-error: true
         working-directory: supabase/functions
         run: deno check --node-modules-dir=none */index.ts
 
