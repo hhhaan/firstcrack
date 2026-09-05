@@ -143,7 +143,6 @@ export const useReplayControl = ({
     if (plan !== prevPlan) {
         setPrevPlan(plan);
         setIndex(0);
-        writeGenRef.current += 1;
         if (active) {
             setActive(false);
             setStopReason('profileChanged');
@@ -159,7 +158,6 @@ export const useReplayControl = ({
     if (roasting !== prevRoasting) {
         setPrevRoasting(roasting);
         setIndex(0);
-        writeGenRef.current += 1;
         setStopReason(null);
         // 상승 에지(새 배치 차지)에서만 지운다 — 이전 배치의 safe-off 재시도가 새
         // 배치 화력을 덮으면 안 된다. 하강 에지(End Roast 확정)에서 지우면 안 되는
@@ -172,6 +170,13 @@ export const useReplayControl = ({
         // 이전 배치 기준으로 재면 차지 직후 오중지된다.
         setPrevElapsed(elapsed);
     }
+
+    // 배치·프로파일 경계에서 write 세대를 올린다 — 위 렌더 중 리셋과 같은 커밋에 실행되므로
+    // 경계 전에 나간 write의 응답은 반드시 새 세대를 본다. (렌더 중 ref 갱신은 lint 금지)
+    // biome-ignore lint/correctness/useExhaustiveDependencies: plan·roasting은 트리거이지 읽는 값이 아니다
+    useEffect(() => {
+        writeGenRef.current += 1;
+    }, [plan, roasting]);
 
     // 타이밍 갭 판정 (#313) — 렌더 중인 이유는 profileChanged와 같다: 복귀 커밋에서
     // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
