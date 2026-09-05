@@ -99,6 +99,10 @@ jobs:
         if: steps.sidecar-cache.outputs.cache-hit != 'true'
         run: pnpm run build:sidecar
 
+      # Runs on cache hit too: a cached binary that no longer boots is exactly the bug (#342).
+      - name: Smoke-test sidecar binary
+        run: bash scripts/smoke-sidecar.sh ${{ matrix.target }}
+
       # --no-bundle: full release-profile cargo compile (what the cache is for),
       # skips bundling/signing/updater artifacts so no signing secrets needed.
       # CARGO_INCREMENTAL/RUSTFLAGS must match release.yml or dep fingerprints

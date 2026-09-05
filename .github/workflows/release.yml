@@ -98,32 +98,10 @@ jobs:
           echo "::error::CI checks still pending after 10 min — aborting release. Re-run once CI completes."
           exit 1
 
-  migrate:
-    needs: [setup, ci-gate]
-    uses: ./.github/workflows/deploy-migrations.yml
-    with:
-      version: ${{ needs.setup.outputs.version }}
-    secrets: inherit
-
-  # Inner jobs all skipped → reusable result is skipped, run stays green.
-  # Fail here so a bad migrate `if:` cannot ship a no-op release.
-  migrate-ok:
-    needs: [setup, migrate]
-    if: always() && needs.setup.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Require migrate success
-        run: |
-          result="${{ needs.migrate.result }}"
-          echo "migrate result=$result"
-          if [ "$result" != "success" ]; then
-            echo "::error::migrate did not succeed (got $result). Reusable workflows inherit the caller event_name (tag push ≠ workflow_call)."
-            exit 1
-          fi
-
+  # Order: build → migrate → publish. Migrating first left prod schema ahead of
+  # an app that never shipped whenever a 3-runner build failed (#342).
   build:
-    needs: [setup, migrate-ok]
+    needs: [setup, ci-gate]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:
@@ -261,6 +239,10 @@ jobs:
         if: steps.sidecar-cache.outputs.cache-hit != 'true'
         run: pnpm run build:sidecar
 
+      # Runs on cache hit too: a cached binary that no longer boots is exactly the bug (#342).
+      - name: Smoke-test sidecar binary
+        run: bash scripts/smoke-sidecar.sh ${{ matrix.target }}
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v1
         env:
@@ -357,8 +339,33 @@ jobs:
             echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
           fi
 
-  publish-r2:
+  migrate:
     needs: [setup, build]
+    uses: ./.github/workflows/deploy-migrations.yml
+    with:
+      version: ${{ needs.setup.outputs.version }}
+    secrets: inherit
+
+  # Inner jobs all skipped → reusable result is skipped, run stays green.
+  # Fail here so a bad migrate `if:` cannot ship a no-op release.
+  migrate-ok:
+    needs: [setup, migrate]
+    if: always() && needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require migrate success
+        run: |
+          result="${{ needs.migrate.result }}"
+          echo "migrate result=$result"
+          if [ "$result" != "success" ]; then
+            echo "::error::migrate did not succeed (got $result). Reusable workflows inherit the caller event_name (tag push ≠ workflow_call)."
+            exit 1
+          fi
+
+  # Build artifacts expire via retention-days: 1 — no cleanup job needed.
+  publish-r2:
+    needs: [setup, build, migrate-ok]
     permissions:
       contents: read
       actions: read
@@ -366,30 +373,3 @@ jobs:
     with:
       version: ${{ needs.setup.outputs.version }}
     secrets: inherit
-
-  cleanup-artifacts:
-    needs: [publish-r2]
-    if: success()
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      actions: write
-    steps:
-      - name: Delete release build artifacts
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          for name in \
-            "macos-aarch64-apple-darwin" \
-            "macos-x86_64-apple-darwin" \
-            "windows-x86_64-pc-windows-msvc"
-          do
-            id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-              --jq ".artifacts[] | select(.name == \"$name\") | .id")
-            if [ -n "$id" ]; then
-              gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id"
-              echo "Deleted artifact: $name (id: $id)"
-            else
-              echo "Artifact not found (already expired?): $name"
-            fi
-          done
