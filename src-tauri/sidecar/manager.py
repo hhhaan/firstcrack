@@ -281,16 +281,14 @@ class RoasterManager:
         self._connect_task = task
         try:
             await task
-        except asyncio.CancelledError:
-            # 요청 핸들러 자체가 취소된 경우(클라이언트 소켓 끊김)와 구분한다.
-            # 그때는 _connect_cancel_requested가 False이므로 그대로 전파해야
-            # aiohttp가 정상적으로 정리한다 — ConnectCancelled로 오판하면 안 된다.
-            if task.cancelled() and self._connect_cancel_requested:
-                raise ConnectCancelled from None
-            raise
         finally:
+            # 사용자 disconnect로 inner task가 취소된 경우만 ConnectCancelled.
+            # 핸들러 자체 취소(소켓 끊김)는 CancelledError를 그대로 올린다.
+            requested = task.cancelled() and self._connect_cancel_requested
             self._connect_task = None
             self._connect_cancel_requested = False
+            if requested:
+                raise ConnectCancelled
 
     def _cancel_pending_connect(self) -> None:
         """진행 중인 연결 시도를 락 **밖에서** 취소한다.
