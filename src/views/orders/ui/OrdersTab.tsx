@@ -345,7 +345,15 @@ function OrderRow({
                                         className="flex items-center gap-2 font-mono text-[12px] text-secondary"
                                     >
                                         <span className="truncate">{l.title}</span>
-                                        {l.product_id ? null : (
+                                        {l.product_id ? null : cancelled || fulfilled ? (
+                                            <AlertTriangle
+                                                size={11}
+                                                strokeWidth={1.75}
+                                                className="shrink-0 text-amber-600 dark:text-amber-400"
+                                                role="img"
+                                                aria-label={t('orders.order.unmappedHelp')}
+                                            />
+                                        ) : (
                                             <button
                                                 type="button"
                                                 onClick={() => onLinkLine(l)}

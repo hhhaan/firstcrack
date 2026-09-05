@@ -34,10 +34,7 @@ describe('product matching (#131 unmapped lines silently skip stock deduction)',
     type MappingRow = { external_key: string; product_id: string };
     type Fixture = { products: ProductRow[]; mappings?: MappingRow[]; mappingError?: boolean };
 
-    /**
-     * Dispatches on table: `products` → `.select().eq().not()`, `product_channel_skus` →
-     * `.select().eq().eq().in()` (filtered by the keys the caller asked for).
-     */
+    /** Dispatches on table: `products` → `.select().eq().not()`, `product_channel_skus` → `.select().eq().eq()`. */
     const fakeSupabase = (fx: Fixture): Supabase =>
         ({
             from: (table: string) =>
@@ -50,18 +47,12 @@ describe('product matching (#131 unmapped lines silently skip stock deduction)',
                     : {
                           select: () => ({
                               eq: () => ({
-                                  eq: () => ({
-                                      in: (_col: string, keys: string[]) =>
-                                          Promise.resolve(
-                                              fx.mappingError
-                                                  ? { data: null, error: { message: 'relation missing' } }
-                                                  : {
-                                                        data: (fx.mappings ?? []).filter((m) =>
-                                                            keys.includes(m.external_key),
-                                                        ),
-                                                    },
-                                          ),
-                                  }),
+                                  eq: () =>
+                                      Promise.resolve(
+                                          fx.mappingError
+                                              ? { data: null, error: { message: 'relation missing' } }
+                                              : { data: fx.mappings ?? [] },
+                                      ),
                               }),
                           }),
                       },

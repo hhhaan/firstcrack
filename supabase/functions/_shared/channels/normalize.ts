@@ -137,15 +137,17 @@ export async function buildProductMap(
 
     const map = new Map<string, string>();
 
+    // Whole (user, platform) slice, filtered here: an `.in(keys)` on a backfill sync (hundreds of
+    // orders × 3 keys) overflows the query string and the fail-soft below would mask exactly the
+    // syncs #164 is for. The table is tiny per user, and products is already fetched the same way.
     const { data: mappings, error: mapErr } = await supabase
         .from('product_channel_skus')
         .select('external_key, product_id')
         .eq('user_id', userId)
-        .eq('platform', platform)
-        .in('external_key', [...keys]);
+        .eq('platform', platform);
     if (mapErr) console.error('[normalize] product_channel_skus lookup failed', mapErr.message);
     for (const m of mappings ?? []) {
-        if (m.external_key && m.product_id) map.set(m.external_key, m.product_id);
+        if (m.external_key && m.product_id && keys.has(m.external_key)) map.set(m.external_key, m.product_id);
     }
 
     const { data: products } = await supabase

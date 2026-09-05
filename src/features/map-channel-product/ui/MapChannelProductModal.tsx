@@ -26,10 +26,17 @@ type Props = {
 
 /**
  * Bind a local product to the ids a sales channel uses for it (#164 / #131).
+ * The body (and its queries) only mounts while open — ProductsTable keeps this element around
+ * permanently, and the mapping table must not be read on every Products visit.
+ */
+export const MapChannelProductModal = ({ product, onClose }: Props) =>
+    product ? <MapChannelProductBody product={product} onClose={onClose} /> : null;
+
+/**
  * One product may hold one key per channel listing; the catalog picker is offered when the
  * platform can list products, otherwise the key is typed in (Naver, or a failed catalog call).
  */
-export const MapChannelProductModal = ({ product, onClose }: Props) => {
+function MapChannelProductBody({ product, onClose }: { product: Product; onClose: () => void }) {
     const { t } = useTranslation();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: connections = [] } = useSalesChannels(userId);
@@ -42,23 +49,16 @@ export const MapChannelProductModal = ({ product, onClose }: Props) => {
     const [pickedKey, setPickedKey] = useState('');
     const [error, setError] = useState<string | null>(null);
 
-    const open = product != null;
-    useFormEscape(open, onClose);
+    useFormEscape(true, onClose);
 
-    // biome-ignore lint/correctness/useExhaustiveDependencies: reset per product; connections may load after open
+    // biome-ignore lint/correctness/useExhaustiveDependencies: default to the first connection once they load
     useEffect(() => {
-        if (!open) return;
-        setConnectionId(connections[0]?.id ?? '');
-        setManualKey('');
-        setPickedKey('');
-        setError(null);
-    }, [open, product?.id, connections.length]);
+        setConnectionId((cur) => cur || (connections[0]?.id ?? ''));
+    }, [connections.length]);
 
     const connection = connections.find((c) => c.id === connectionId) ?? null;
     const listings = useChannelListings(connection?.id ?? null);
     const hasCatalog = (listings.data?.length ?? 0) > 0;
-
-    if (!product) return null;
 
     const own = mappings.filter((m) => m.product_id === product.id);
     const key = (hasCatalog ? pickedKey : manualKey).trim();
@@ -208,4 +208,4 @@ export const MapChannelProductModal = ({ product, onClose }: Props) => {
             />
         </ModalShell>
     );
-};
+}
