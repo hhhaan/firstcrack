@@ -605,7 +605,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         liveBt={rawBT}
                         elapsed={elapsed}
                         roasting={phase === 'roasting'}
-                        afterTurningPoint={confirmedTP !== null}
+                        // #314: 120초 fallback TP는 곡선에서 관측된 TP가 아니라 BT 게이트를 열 수 없다
+                        afterTurningPoint={confirmedTP !== null && !confirmedTP.fallback}
                         temperatureUnit={unit}
                     />
 
