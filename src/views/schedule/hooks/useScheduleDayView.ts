@@ -16,7 +16,12 @@ import {
     useUpdateFromThis,
     useUpdateSingleBatch,
 } from '@entities/plan';
-import { type DeductRoastStockParams, useDeductRoastStock, useRoastingStore } from '@features/active-roast';
+import {
+    type DeductRoastStockParams,
+    type RoastPhase,
+    useDeductRoastStock,
+    useRoastingStore,
+} from '@features/active-roast';
 import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { batchGreenNeededGramsFromBatch, isBatchStockShort } from '@shared/lib/batch-stock';
 import { logger } from '@shared/lib/logger';
@@ -98,6 +103,11 @@ export function buildReorderIds(batches: PlanBatchWithProgress[], index: number,
 export function nextOneOffOrderIndex(batches: PlanBatchWithProgress[]): number {
     const oneOffs = batches.filter((b) => !b.recurrence_rule_id);
     return oneOffs.length === 0 ? 1 : Math.max(...oneOffs.map((b) => b.order_index)) + 1;
+}
+
+/** Live/unsaved roast blocks schedule Start. Machine connected (preheating/standby) does not. */
+export function isRoastBlockingScheduleStart(phase: RoastPhase): boolean {
+    return phase === 'roasting' || phase === 'ended';
 }
 
 export const useScheduleDayView = ({
@@ -491,7 +501,7 @@ export const useScheduleDayView = ({
 
     const handleStart = useCallback(
         async (batch: PlanBatchWithProgress) => {
-            if (useRoastingStore.getState().phase !== 'idle') {
+            if (isRoastBlockingScheduleStart(useRoastingStore.getState().phase)) {
                 alert(i18n.t('schedule.error.roastInProgress'));
                 return;
             }
