@@ -53,7 +53,8 @@ export type ReplayStopReason =
     | 'finished'
     | 'manual'
     | 'profileChanged'
-    | 'controlDiverged';
+    | 'controlDiverged'
+    | 'timingGap';
 
 /**
  * 마지막 확정 명령에서 실측이 이만큼 **초과** 이탈하면 외부 개입 후보로 센다.
@@ -65,6 +66,15 @@ export type ReplayStopReason =
 const DIVERGE_TOLERANCE = 2;
 /** 이탈이 이만큼의 elapsed 틱(≈1초) 연속이어야 확정 — 순간 스파이크 제외 */
 const DIVERGE_TICKS = 3;
+/**
+ * 연속 렌더 사이 elapsed가 이만큼 **초과** 뛰면 JS가 멈췄던 것으로 본다 (#313).
+ * elapsed는 호스트 시계에서 유도되지만 갱신은 webview 타이머·폴링이 하므로, 창
+ * 최소화·App Nap·슬립으로 webview가 스로틀되면 멈췄다가 복귀 때 한 번에 점프한다.
+ * 그동안 실기는 마지막 화력으로 계속 돌았고 UI만 Replay On이었다 — fail-closed로
+ * 멈추고 사람이 확인 후 다시 켠다. 정상 틱은 1초(지터 2초), 최대 폴링 주기 1초.
+ * ponytail: sidecar heartbeat로 판정을 옮기면(#308) 이 감지는 그쪽 책임이 된다.
+ */
+const SAMPLE_GAP_LIMIT_S = 5;
 
 /**
  * Replay Assist 수명 관리 (#300). 판정은 lib/replay의 순수 함수가 하고,
@@ -114,6 +124,8 @@ export const useReplayControl = ({
      */
     const [lastWritten, setLastWritten] = useState<number | null>(null);
     const [diverge, setDiverge] = useState({ tick: elapsed, ticks: 0 });
+    /** 직전 렌더의 elapsed — 타이밍 갭 감지 기준 (#313) */
+    const [prevElapsed, setPrevElapsed] = useState(elapsed);
 
     // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
     // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
@@ -145,6 +157,20 @@ export const useReplayControl = ({
         if (roasting) setSafeOffIssued(false);
         setLastWritten(null);
         setDiverge({ tick: elapsed, ticks: 0 });
+        // lookback 자동 차지는 origin을 과거로 잡아 elapsed가 0보다 크게 시작한다 —
+        // 이전 배치 기준으로 재면 차지 직후 오중지된다.
+        setPrevElapsed(elapsed);
+    }
+
+    // 타이밍 갭 판정 (#313) — 렌더 중인 이유는 profileChanged와 같다: 복귀 커밋에서
+    // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
+    // 복귀 후 catch-up write는 하지 않는다 — 그동안의 실기 상태를 모른다.
+    if (elapsed !== prevElapsed) {
+        setPrevElapsed(elapsed);
+        if (active && roasting && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
+            setActive(false);
+            setStopReason('timingGap');
+        }
     }
 
     // 외부 개입 판정 (#307) — elapsed를 틱으로 쓰는 이유: liveData 스토어는 값이 같으면

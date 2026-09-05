@@ -44,10 +44,27 @@ const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
         latest = useReplayControl({ ...BASE, writeHeater, ...inputs });
         return null;
     };
-    const rerender = (inputs: Partial<ReplayControlInputs>) =>
+    const render = (inputs: Partial<ReplayControlInputs>) =>
         act(async () => root.render(createElement(Probe, { inputs })));
-    await rerender(initial);
-    return { get: () => latest, rerender, writeHeater, unmount: () => act(() => root.unmount()) };
+    // 실기에서는 elapsed가 1초씩 흐른다 — 테스트가 0→130으로 건너뛰면 #313 타이밍 갭으로
+    // 오중지되므로, 직전 입력 그대로 SAMPLE_GAP 이내 간격의 중간 틱을 채워 시간을 흘린다.
+    let last: Partial<ReplayControlInputs> = initial;
+    const rerender = async (inputs: Partial<ReplayControlInputs>) => {
+        const from = last.elapsed ?? BASE.elapsed;
+        const to = inputs.elapsed ?? from;
+        if (inputs.roasting == null || inputs.roasting === (last.roasting ?? BASE.roasting)) {
+            for (let e = from + 5; e < to; e += 5) await render({ ...last, elapsed: e });
+        }
+        last = inputs;
+        await render(inputs);
+    };
+    /** 중간 틱 없이 한 번에 점프 — webview 스로틀 복귀를 흉내낸다 (#313) */
+    const jump = (inputs: Partial<ReplayControlInputs>) => {
+        last = inputs;
+        return render(inputs);
+    };
+    await render(initial);
+    return { get: () => latest, rerender, jump, writeHeater, unmount: () => act(() => root.unmount()) };
 };
 
 describe('useReplayControl', () => {
@@ -85,6 +102,7 @@ describe('useReplayControl', () => {
         const h = await renderReplay({ referencePoints: pts });
         await act(async () => h.get().toggle());
         expect(h.writeHeater).toHaveBeenCalledWith(80);
+        await h.rerender({ referencePoints: pts, elapsed: 1, liveBt: 170, reconnecting: true });
         await h.rerender({ referencePoints: pts, elapsed: 31, liveBt: 140, reconnecting: true });
         await h.rerender({ referencePoints: pts, elapsed: 35, liveBt: 140, reconnecting: true });
         expect(h.writeHeater).toHaveBeenCalledTimes(1);
@@ -533,6 +551,30 @@ describe('useReplayControl', () => {
         await act(async () => h.get().toggle());
         expect(h.get().active).toBe(false);
         expect(h.writeHeater).not.toHaveBeenCalled();
+        h.unmount();
+    });
+    it('elapsed가 크게 점프하면(webview 스로틀 복귀) 밀린 이벤트를 쓰지 않고 timingGap으로 멈춘다 (#313)', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        h.writeHeater.mockClear();
+        await h.rerender({ liveBt: 150, elapsed: 30 });
+        // 5분 동안 JS가 멈췄다 — 복귀 렌더는 TP 확정·BT 도달 상태지만 write 없이 중지
+        await h.jump({ liveBt: 160, elapsed: 330, afterTurningPoint: true });
+        expect(h.writeHeater).not.toHaveBeenCalled();
+        expect(h.get().active).toBe(false);
+        expect(h.get().stopReason).toBe('timingGap');
+        // 사람이 다시 켜면 남은 이벤트부터 이어간다
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(40);
+        h.unmount();
+    });
+
+    it('lookback 자동 차지로 elapsed가 0보다 크게 시작해도 오중지하지 않는다', async () => {
+        const h = await renderReplay({ roasting: false, elapsed: 0 });
+        await h.rerender({ roasting: true, elapsed: 45 });
+        await act(async () => h.get().toggle());
+        expect(h.get().active).toBe(true);
+        expect(h.get().stopReason).toBeNull();
         h.unmount();
     });
 });
