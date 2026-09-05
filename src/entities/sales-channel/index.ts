@@ -1,8 +1,9 @@
-export type { ChannelPlatform, ChannelStatus, ConnectCredentials, SalesChannelConnection } from './api';
+export type { ChannelListing, ChannelPlatform, ChannelStatus, ConnectCredentials, SalesChannelConnection } from './api';
 export { salesChannelApi } from './api';
 export {
     invalidateAfterSyncOrders,
     salesChannelKeys,
+    useChannelListings,
     useConnectChannel,
     useDisconnectChannel,
     useSalesChannels,

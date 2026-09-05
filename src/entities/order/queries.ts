@@ -35,6 +35,17 @@ export const useRoastingRequirements = (userId: string) =>
         enabled: !!userId,
     });
 
+export const useSetOrderLineProduct = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ lineId, productId }: { lineId: string; productId: string }) =>
+            orderApi.setLineProduct(lineId, productId),
+        onSuccess: () => {
+            invalidateAfterCreateOrder(qc, userId);
+        },
+    });
+};
+
 export const useCreateOrder = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({

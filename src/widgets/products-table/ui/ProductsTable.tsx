@@ -4,12 +4,13 @@ import { useActiveWorkspace } from '@entities/organization';
 import { type Product, useDeleteProduct, useProducts } from '@entities/product';
 import { useProductStock, useProductStockEvents } from '@entities/product-stock-event';
 import { AdjustStockModal } from '@features/adjust-stock';
+import { MapChannelProductModal } from '@features/map-channel-product';
 import { usePackageProduct } from '@features/package-product';
 import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { TableSkeleton } from '@shared/ui/TableSkeleton';
 import { AddProductModal } from '@widgets/add-product-modal';
-import { Package, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { Link2, Package, Pencil, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -52,6 +53,7 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
     const [warning, setWarning] = useState<string | null>(null);
     const [unitsDraft, setUnitsDraft] = useState<Record<string, string>>({});
     const [adjustProduct, setAdjustProduct] = useState<Product | null>(null);
+    const [mapProduct, setMapProduct] = useState<Product | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const openNew = () => {
@@ -215,6 +217,14 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
                                                     </button>
                                                     <button
                                                         type="button"
+                                                        className={ghostBtn}
+                                                        onClick={() => setMapProduct(p)}
+                                                    >
+                                                        <Link2 size={13} strokeWidth={1.75} />
+                                                        {t('orders.mapping.channelButton')}
+                                                    </button>
+                                                    <button
+                                                        type="button"
                                                         onClick={() => openEdit(p)}
                                                         className={iconBtn}
                                                         aria-label={t('common.edit')}
@@ -255,6 +265,8 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
                     currentUnits={stockByProduct[adjustProduct.id] ?? 0}
                 />
             )}
+
+            <MapChannelProductModal product={mapProduct} onClose={() => setMapProduct(null)} />
 
             <AddProductModal
                 open={addOpen}

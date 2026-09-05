@@ -31,14 +31,40 @@ describe('product matching (#131 unmapped lines silently skip stock deduction)',
     type ProductRow = { id: string; sku: string | null };
     type Supabase = Parameters<typeof buildProductMap>[0];
 
-    /** Stands in for `.from('products').select().eq().not()`. */
-    const fakeSupabase = (products: ProductRow[]): Supabase =>
+    type MappingRow = { external_key: string; product_id: string };
+    type Fixture = { products: ProductRow[]; mappings?: MappingRow[]; mappingError?: boolean };
+
+    /**
+     * Dispatches on table: `products` → `.select().eq().not()`, `product_channel_skus` →
+     * `.select().eq().eq().in()` (filtered by the keys the caller asked for).
+     */
+    const fakeSupabase = (fx: Fixture): Supabase =>
         ({
-            from: () => ({
-                select: () => ({
-                    eq: () => ({ not: () => Promise.resolve({ data: products }) }),
-                }),
-            }),
+            from: (table: string) =>
+                table === 'products'
+                    ? {
+                          select: () => ({
+                              eq: () => ({ not: () => Promise.resolve({ data: fx.products }) }),
+                          }),
+                      }
+                    : {
+                          select: () => ({
+                              eq: () => ({
+                                  eq: () => ({
+                                      in: (_col: string, keys: string[]) =>
+                                          Promise.resolve(
+                                              fx.mappingError
+                                                  ? { data: null, error: { message: 'relation missing' } }
+                                                  : {
+                                                        data: (fx.mappings ?? []).filter((m) =>
+                                                            keys.includes(m.external_key),
+                                                        ),
+                                                    },
+                                          ),
+                                  }),
+                              }),
+                          }),
+                      },
         }) as unknown as Supabase;
 
     const line = (over: Partial<CanonicalOrderLine>): CanonicalOrderLine => ({
@@ -53,9 +79,9 @@ describe('product matching (#131 unmapped lines silently skip stock deduction)',
     });
 
     /** Full path: collect keys from the order → fetch products → resolve the line. */
-    const match = async (l: CanonicalOrderLine, products: ProductRow[]) => {
+    const match = async (l: CanonicalOrderLine, products: ProductRow[], extra: Omit<Fixture, 'products'> = {}) => {
         const order = { lines: [l] } as CanonicalOrder;
-        const map = await buildProductMap(fakeSupabase(products), 'user-1', [order]);
+        const map = await buildProductMap(fakeSupabase({ products, ...extra }), 'user-1', 'shopify', [order]);
         return resolveProductId(map, l);
     };
 
@@ -91,5 +117,27 @@ describe('product matching (#131 unmapped lines silently skip stock deduction)',
     it('ignores an empty SKU instead of matching a blank product sku', async () => {
         const l = line({ sku: '' });
         await expect(match(l, [{ id: 'blank', sku: '' }])).resolves.toBeNull();
+    });
+
+    it('resolves through product_channel_skus before products.sku (#164)', async () => {
+        const l = line({ platformProductId: 'P-1', platformVariantId: 'V-1' });
+        const mappings = [{ external_key: 'V-1', product_id: 'prod-mapped' }];
+        await expect(match(l, [{ id: 'prod-sku', sku: 'V-1' }], { mappings })).resolves.toBe('prod-mapped');
+    });
+
+    it('lets a product carry several channel keys at once (#164)', async () => {
+        const mappings = [
+            { external_key: 'V-shopify', product_id: 'prod-1' },
+            { external_key: 'P-cafe24', product_id: 'prod-1' },
+        ];
+        const a = line({ platformVariantId: 'V-shopify' });
+        const b = line({ platformProductId: 'P-cafe24' });
+        await expect(match(a, [], { mappings })).resolves.toBe('prod-1');
+        await expect(match(b, [], { mappings })).resolves.toBe('prod-1');
+    });
+
+    it('falls back to products.sku when the mapping table read fails', async () => {
+        const l = line({ platformVariantId: 'V-1' });
+        await expect(match(l, [{ id: 'prod-sku', sku: 'V-1' }], { mappingError: true })).resolves.toBe('prod-sku');
     });
 });

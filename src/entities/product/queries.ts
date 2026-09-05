@@ -1,10 +1,11 @@
 import { productStockKeys } from '@shared/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Product, ProductInsert, ProductUpdate } from './api';
-import { productApi } from './api';
+import type { Product, ProductChannelSkuInsert, ProductInsert, ProductUpdate } from './api';
+import { productApi, productChannelSkuApi } from './api';
 
 export const productKeys = {
     all: (userId: string) => ['products', userId] as const,
+    channelSkus: (userId: string) => ['products', userId, 'channel-skus'] as const,
 };
 
 export const useProducts = (userId: string) =>
@@ -48,5 +49,28 @@ export const useDeleteProduct = (userId: string) => {
                 return next;
             });
         },
+    });
+};
+
+export const useProductChannelSkus = (userId: string) =>
+    useQuery({
+        queryKey: productKeys.channelSkus(userId),
+        queryFn: () => productChannelSkuApi.list(userId),
+        enabled: !!userId,
+    });
+
+export const useUpsertProductChannelSku = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (row: ProductChannelSkuInsert) => productChannelSkuApi.upsert(row),
+        onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.channelSkus(userId) }),
+    });
+};
+
+export const useDeleteProductChannelSku = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: productChannelSkuApi.delete,
+        onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.channelSkus(userId) }),
     });
 };

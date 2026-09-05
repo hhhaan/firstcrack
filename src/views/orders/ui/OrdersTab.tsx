@@ -1,7 +1,8 @@
-import { type OrderStatusFilter, type OrderWithLines, useOrdersPaginated } from '@entities/order';
+import { type OrderLine, type OrderStatusFilter, type OrderWithLines, useOrdersPaginated } from '@entities/order';
 import { type OrderDispatch, useOrderDispatches } from '@entities/order-dispatch';
 import { useActiveWorkspace } from '@entities/organization';
 import { DispatchModal } from '@features/dispatch-order';
+import { LinkOrderLineModal } from '@features/map-channel-product';
 import { orderActionFlags, useCancelOrder, useFulfillOrder } from '@features/order-status';
 import { formatDateShort } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
@@ -45,6 +46,7 @@ export function OrdersTab() {
     const cancel = useCancelOrder();
     const [showAdd, setShowAdd] = useState(false);
     const [dispatchOrderId, setDispatchOrderId] = useState<string | null>(null);
+    const [linkLine, setLinkLine] = useState<{ line: OrderLine; platform: string } | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const dispatchByOrder = useMemo(() => {
@@ -171,6 +173,7 @@ export function OrdersTab() {
                                         }
                                     }}
                                     onDispatch={() => setDispatchOrderId(o.id)}
+                                    onLinkLine={(line) => setLinkLine({ line, platform: o.platform })}
                                 />
                             ))}
                         </tbody>
@@ -191,6 +194,11 @@ export function OrdersTab() {
                 orderId={dispatchOrderId}
                 onClose={() => setDispatchOrderId(null)}
             />
+            <LinkOrderLineModal
+                line={linkLine?.line ?? null}
+                platform={linkLine?.platform ?? 'manual'}
+                onClose={() => setLinkLine(null)}
+            />
         </div>
     );
 }
@@ -204,6 +212,7 @@ function OrderRow({
     onFulfill,
     onCancel,
     onDispatch,
+    onLinkLine,
 }: {
     order: OrderWithLines;
     dispatch?: OrderDispatch;
@@ -213,6 +222,7 @@ function OrderRow({
     onFulfill: () => void;
     onCancel: () => void;
     onDispatch: () => void;
+    onLinkLine: (line: OrderLine) => void;
 }) {
     const { t } = useTranslation();
     const [nowMs] = useState(() => Date.now());
@@ -336,13 +346,15 @@ function OrderRow({
                                     >
                                         <span className="truncate">{l.title}</span>
                                         {l.product_id ? null : (
-                                            <AlertTriangle
-                                                size={11}
-                                                strokeWidth={1.75}
-                                                className="shrink-0 text-amber-600 dark:text-amber-400"
-                                                role="img"
-                                                aria-label={t('orders.order.unmappedHelp')}
-                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => onLinkLine(l)}
+                                                title={t('orders.order.unmappedHelp')}
+                                                className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-amber-500/40 bg-transparent px-2 py-0.5 text-[11px] font-medium text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
+                                            >
+                                                <AlertTriangle size={11} strokeWidth={1.75} />
+                                                {t('orders.mapping.linkButton')}
+                                            </button>
                                         )}
                                         <span className="ml-auto shrink-0 text-muted">× {l.quantity}</span>
                                     </li>

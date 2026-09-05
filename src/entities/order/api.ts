@@ -1,5 +1,5 @@
 import { supabase } from '@shared/lib/supabase';
-import type { Database } from '@shared/types/database.types';
+import type { Database, Json } from '@shared/types/database.types';
 import { addMonths, format, parse } from 'date-fns';
 
 export type Order = Database['public']['Tables']['orders']['Row'];
@@ -105,27 +105,46 @@ export const orderApi = {
         return { data: data ?? [], total: count ?? 0 };
     },
 
-    /** Manual order entry — order + its lines in one call. */
+    /**
+     * Manual order entry. `create_order` inserts the header and its lines in one transaction —
+     * a failing line rolls the header back too, so no orphan orders (#105).
+     */
     create: async (
         order: OrderInsert,
         lines: Omit<OrderLineInsert, 'order_id' | 'user_id'>[],
     ): Promise<OrderWithLines> => {
-        const { data: newOrder, error: orderErr } = await supabase.from('orders').insert(order).select().single();
-        if (orderErr) throw orderErr;
-        const created = newOrder;
+        const { data: orderId, error } = await supabase.rpc('create_order', {
+            p_order: order as unknown as Json,
+            p_lines: lines as unknown as Json,
+        });
+        if (error) throw error;
+        const { data, error: readErr } = await supabase
+            .from('orders')
+            .select(SELECT_WITH_LINES)
+            .eq('id', orderId)
+            .single();
+        if (readErr) throw readErr;
+        return data;
+    },
 
-        if (!lines.length) return { ...created, order_lines: [] };
-
-        const { data: newLines, error: lineErr } = await supabase
+    /**
+     * Bind one synced line to a product right away (the mapping row makes future syncs agree).
+     * Refused once the order is fulfilled: that line was never deducted, and giving it a
+     * product now would let a later cancel restore stock that never left.
+     */
+    setLineProduct: async (lineId: string, productId: string): Promise<void> => {
+        const { data: line, error: readErr } = await supabase
             .from('order_lines')
-            .insert(lines.map((l) => ({ ...l, order_id: created.id, user_id: created.user_id })))
-            .select();
-        if (lineErr) {
-            // best-effort compensation: don't leave an orphan order behind
-            await supabase.from('orders').delete().eq('id', created.id);
-            throw lineErr;
+            .select('id, orders!inner(fulfilled_at, status)')
+            .eq('id', lineId)
+            .single();
+        if (readErr) throw readErr;
+        const order = line.orders as unknown as { fulfilled_at: string | null; status: string };
+        if (order.fulfilled_at || TERMINAL_STATUSES.includes(order.status)) {
+            throw new Error('order_line_not_relinkable');
         }
-        return { ...created, order_lines: newLines ?? [] };
+        const { error } = await supabase.from('order_lines').update({ product_id: productId }).eq('id', lineId);
+        if (error) throw error;
     },
 
     /** Atomic RPC: deducts stock for active mapped lines + stamps fulfilled_at in one transaction. */

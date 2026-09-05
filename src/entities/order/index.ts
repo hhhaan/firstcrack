@@ -10,4 +10,10 @@ export type {
     RoastingRequirements,
 } from './api';
 export { orderApi } from './api';
-export { orderKeys, useCreateOrder, useOrdersPaginated, useRoastingRequirements } from './queries';
+export {
+    orderKeys,
+    useCreateOrder,
+    useOrdersPaginated,
+    useRoastingRequirements,
+    useSetOrderLineProduct,
+} from './queries';
