@@ -3,7 +3,7 @@ import { fileURLToPath, URL } from 'node:url';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -19,68 +19,77 @@ const sentryProject: string | undefined = process.env.SENTRY_PROJECT;
 const appVersion: string = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version;
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
-    envPrefix: ['VITE_', 'PUBLIC_'],
-    define: {
-        __APP_VERSION__: JSON.stringify(appVersion),
-    },
-    build: {
-        // 업로드용 소스맵은 필요하지만 배포물에 노출하지 않는다 — sentryVitePlugin이 업로드 후 삭제.
-        sourcemap: sentryAuthToken ? 'hidden' : false,
-    },
-    plugins: [
-        react(),
-        tailwindcss(),
-        // 토큰이 없는 로컬 빌드/개발에서는 플러그인 자체를 넣지 않는다 — 업로드 시도도, 실패도 없다.
-        sentryAuthToken &&
-            sentryVitePlugin({
-                org: sentryOrg,
-                project: sentryProject,
-                authToken: sentryAuthToken,
-                release: { name: `first-crack@${appVersion}` },
-                sourcemaps: {
-                    filesToDeleteAfterUpload: ['./dist/**/*.map'],
-                },
-            }),
-    ],
-    resolve: {
-        alias: {
-            '@shared': fileURLToPath(new URL('./src/shared', import.meta.url)),
-            '@entities': fileURLToPath(new URL('./src/entities', import.meta.url)),
-            '@features': fileURLToPath(new URL('./src/features', import.meta.url)),
-            '@views': fileURLToPath(new URL('./src/views', import.meta.url)),
-            '@widgets': fileURLToPath(new URL('./src/widgets', import.meta.url)),
-        },
-    },
-    test: {
-        globals: true,
-        include: ['src/**/*.{test,spec}.{ts,tsx}', 'supabase/functions/_shared/**/*.test.ts'],
-        // CI has no .env — prevent createClient() throw on import chains that touch supabase.
-        env: {
-            VITE_SUPABASE_URL: 'https://vjdgdolfxvnxushxrmff.supabase.co',
-            VITE_SUPABASE_ANON_KEY: 'test-anon-key',
-        },
-    },
+export default defineConfig(async ({ command, mode }) => {
+    if (command === 'build' && mode === 'production') {
+        const env = loadEnv(mode, process.cwd(), 'VITE_');
+        if (!env.VITE_SUPABASE_URL?.trim() || !env.VITE_SUPABASE_ANON_KEY?.trim()) {
+            throw new Error('Production build requires VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+        }
+    }
 
-    // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-    //
-    // 1. prevent Vite from obscuring rust errors
-    clearScreen: false,
-    // 2. tauri expects a fixed port, fail if that port is not available
-    server: {
-        port: 1420,
-        strictPort: true,
-        host: host || false,
-        hmr: host
-            ? {
-                  protocol: 'ws',
-                  host,
-                  port: 1421,
-              }
-            : undefined,
-        watch: {
-            // 3. tell Vite to ignore watching `src-tauri`
-            ignored: ['**/src-tauri/**'],
+    return {
+        envPrefix: ['VITE_', 'PUBLIC_'],
+        define: {
+            __APP_VERSION__: JSON.stringify(appVersion),
         },
-    },
-}));
+        build: {
+            // 업로드용 소스맵은 필요하지만 배포물에 노출하지 않는다 — sentryVitePlugin이 업로드 후 삭제.
+            sourcemap: sentryAuthToken ? 'hidden' : false,
+        },
+        plugins: [
+            react(),
+            tailwindcss(),
+            // 토큰이 없는 로컬 빌드/개발에서는 플러그인 자체를 넣지 않는다 — 업로드 시도도, 실패도 없다.
+            sentryAuthToken &&
+                sentryVitePlugin({
+                    org: sentryOrg,
+                    project: sentryProject,
+                    authToken: sentryAuthToken,
+                    release: { name: `first-crack@${appVersion}` },
+                    sourcemaps: {
+                        filesToDeleteAfterUpload: ['./dist/**/*.map'],
+                    },
+                }),
+        ],
+        resolve: {
+            alias: {
+                '@shared': fileURLToPath(new URL('./src/shared', import.meta.url)),
+                '@entities': fileURLToPath(new URL('./src/entities', import.meta.url)),
+                '@features': fileURLToPath(new URL('./src/features', import.meta.url)),
+                '@views': fileURLToPath(new URL('./src/views', import.meta.url)),
+                '@widgets': fileURLToPath(new URL('./src/widgets', import.meta.url)),
+            },
+        },
+        test: {
+            globals: true,
+            include: ['src/**/*.{test,spec}.{ts,tsx}', 'supabase/functions/_shared/**/*.test.ts'],
+            // CI has no .env — prevent createClient() throw on import chains that touch supabase.
+            env: {
+                VITE_SUPABASE_URL: 'https://vjdgdolfxvnxushxrmff.supabase.co',
+                VITE_SUPABASE_ANON_KEY: 'test-anon-key',
+            },
+        },
+
+        // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+        //
+        // 1. prevent Vite from obscuring rust errors
+        clearScreen: false,
+        // 2. tauri expects a fixed port, fail if that port is not available
+        server: {
+            port: 1420,
+            strictPort: true,
+            host: host || false,
+            hmr: host
+                ? {
+                      protocol: 'ws',
+                      host,
+                      port: 1421,
+                  }
+                : undefined,
+            watch: {
+                // 3. tell Vite to ignore watching `src-tauri`
+                ignored: ['**/src-tauri/**'],
+            },
+        },
+    };
+});
