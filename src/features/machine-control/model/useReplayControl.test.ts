@@ -198,29 +198,81 @@ describe('useReplayControl', () => {
         h.unmount();
     });
 
-    it('레퍼런스가 바뀌면 재생이 중지되고 인덱스가 초기화된다', async () => {
+    it('재생 중 레퍼런스가 바뀌어도 켠 플랜을 유지하고 멈추지 않는다 (#377)', async () => {
         const h = await renderReplay();
         await act(async () => h.get().toggle());
+        expect(h.get().nextEvent?.heater).toBe(60);
         await h.rerender({ referencePoints: [...POINTS.map((p) => ({ ...p, heater: (p.heater ?? 0) + 5 }))] });
-        expect(h.get().active).toBe(false);
-        expect(h.get().stopReason).toBe('profileChanged');
+        expect(h.get().active).toBe(true);
+        expect(h.get().stopReason).toBeNull();
+        expect(h.get().planFrozen).toBe(true);
+        expect(h.get().nextEvent?.heater).toBe(60);
         h.unmount();
     });
 
-    it('레퍼런스 교체 커밋에서 옛 인덱스로 새 계획을 판정하지 않는다 — stale write 회귀', async () => {
+    it('꺼진 뒤에야 새 레퍼런스를 받아 인덱스를 되돌린다 (#377)', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle()); // t=0 h=80, index=1
+        const swapped = POINTS.map((p) => ({ ...p, heater: (p.heater ?? 0) + 5 }));
+        await h.rerender({ referencePoints: swapped });
+        expect(h.get().active).toBe(true);
+        await act(async () => h.get().toggle()); // OFF
+        expect(h.get().active).toBe(false);
+        h.writeHeater.mockClear();
+        await act(async () => h.get().toggle()); // ON — 새 플랜의 초기 화력부터
+        expect(h.get().active).toBe(true);
+        expect(h.writeHeater).toHaveBeenCalledWith(85);
+        h.unmount();
+    });
+
+    it('레퍼런스 교체 커밋에서 새 계획의 이벤트를 쓰지 않는다 — 켠 플랜만 (#377)', async () => {
         const h = await renderReplay();
         await act(async () => h.get().toggle()); // t=0 이벤트 발화, index=1
         h.writeHeater.mockClear();
-        // 교체와 동시에 새 계획의 남은 이벤트가 전부 발화 가능한 조건을 준다.
-        // 리셋이 effect였다면 판정 effect가 stale active로 한 번 실행돼 catch-up 쓰기가 나간다.
+        // 교체와 동시에 남은 이벤트가 전부 발화 가능한 조건. 켠 플랜이면 60·40,
+        // 새 플랜(+5)이면 65·45. 새 값 쓰기는 옛 인덱스로 새 계획을 판정한 것이다.
         await h.rerender({
             referencePoints: POINTS.map((p) => ({ ...p, heater: (p.heater ?? 0) + 5 })),
             liveBt: 160,
             elapsed: 400,
             afterTurningPoint: true,
         });
+        expect(h.get().active).toBe(true);
+        expect(h.writeHeater).not.toHaveBeenCalledWith(65);
+        expect(h.writeHeater).not.toHaveBeenCalledWith(45);
+        expect(h.writeHeater).toHaveBeenCalledWith(40);
+        h.unmount();
+    });
+
+    it('비활성 중 레퍼런스가 바뀌면 인덱스가 초기화된다', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        await h.rerender({ liveBt: 111, elapsed: 130, afterTurningPoint: true });
+        await act(async () => h.get().toggle()); // OFF, index는 다음 이벤트에 남아 있음
+        h.writeHeater.mockClear();
+        const swapped = POINTS.map((p) => ({ ...p, heater: (p.heater ?? 0) + 5 }));
+        await h.rerender({
+            referencePoints: swapped,
+            liveBt: 180,
+            elapsed: 0,
+            afterTurningPoint: false,
+        });
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledWith(85);
+        h.unmount();
+    });
+
+    it('재생 중 타겟을 다른 기종으로 바꿔도 끄기는 가능하다 (#377)', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        await h.rerender({ referenceMachineMismatch: true });
+        expect(h.get().active).toBe(true);
+        expect(h.get().available).toBe(true);
+        expect(h.get().machineMismatch).toBe(false);
+        await act(async () => h.get().toggle());
         expect(h.get().active).toBe(false);
-        expect(h.writeHeater).not.toHaveBeenCalled();
+        expect(h.get().available).toBe(false);
+        expect(h.get().machineMismatch).toBe(true);
         h.unmount();
     });
 

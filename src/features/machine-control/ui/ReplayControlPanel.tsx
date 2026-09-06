@@ -1,4 +1,5 @@
 import { Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { ReplayStopReason, useReplayControl } from '../model/useReplayControl';
 
 interface Props {
@@ -27,6 +28,7 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
  * disabled로 둔다. 숨겨버리면 "기능이 사라졌다"로 읽힌다. 기본 OFF.
  */
 export const ReplayControlPanel = ({ replay, unit }: Props) => {
+    const { t } = useTranslation();
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
     // disabled 사유 안내 — native title은 OS 지연(~1s)이 있어 CSS 툴팁으로 즉시 띄운다
     const disabledHint = replay.machineMismatch
@@ -66,6 +68,12 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
             </label>
 
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
+
+            {replay.planFrozen && (
+                <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500">
+                    {t('activeRoast.replay.planFrozen')}
+                </p>
+            )}
 
             {replay.active &&
                 (replay.nextEvent ? (

@@ -528,6 +528,9 @@
             "fan": "Fan",
             "drum": "Drum"
         },
+        "replay": {
+            "planFrozen": "Target changed — Replay keeps the plan from when it was turned on. Turn Replay off to use the new target."
+        },
         "log": {
             "title": "Roast Log",
             "deleteNote": "Delete note"

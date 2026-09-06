@@ -818,6 +818,9 @@
             "fan": "팬",
             "drum": "드럼"
         },
+        "replay": {
+            "planFrozen": "타겟이 바뀌었습니다 — Replay는 켠 시점의 플랜을 유지합니다. 새 타겟으로 재생하려면 Replay를 끄세요."
+        },
         "sidebar": {
             "time": "시간",
             "bt": "BT",

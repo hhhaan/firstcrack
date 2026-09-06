@@ -528,6 +528,9 @@
             "fan": "风扇",
             "drum": "滚筒"
         },
+        "replay": {
+            "planFrozen": "目标已更改 — Replay 保持开启时的计划。要用新目标播放，请先关闭 Replay。"
+        },
         "log": {
             "title": "烘焙记录",
             "deleteNote": "删除备注"

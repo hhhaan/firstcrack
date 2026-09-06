@@ -85,6 +85,7 @@ const SAMPLE_GAP_LIMIT_S = 5;
  * 기본 OFF, 명시적 토글로만 시작. 슬라이더·PID·끊김으로 멈춰도 인덱스는 남긴다.
  * 다시 켜면 남은 이벤트부터 이어간다 — 지난 값을 다시 쓰지 않는다.
  * 단, 배치 안에서만이다 — 새 배치가 시작되면 인덱스는 처음으로 돌아간다.
+ * 재생 중 타겟 교체는 켠 시점의 플랜을 유지한다 (#377). 꺼진 뒤에야 새 레퍼런스를 받는다.
  */
 export const useReplayControl = ({
     referencePoints,
@@ -105,7 +106,7 @@ export const useReplayControl = ({
     reconnecting,
     writeHeater,
 }: ReplayControlInputs) => {
-    const plan = useMemo(
+    const livePlan = useMemo(
         () =>
             referencePoints && referencePoints.length > 0
                 ? extractReplayEvents(referencePoints, referenceDropTime)
@@ -115,6 +116,8 @@ export const useReplayControl = ({
 
     const [active, setActive] = useState(false);
     const [index, setIndex] = useState(0);
+    /** 재생에 쓰는 플랜 — 켜져 있는 동안 livePlan 교체를 무시한다 (#377) */
+    const [plan, setPlan] = useState(livePlan);
     /** 마지막 자동/수동 중지 사유 — 토글 재시작 전까지 UI에 지속 표시 */
     const [stopReason, setStopReason] = useState<ReplayStopReason | null>(null);
     /** zero 정책의 safe-off write가 나갔다 — 기기가 따라올 때까지 재시도 대상 (#316) */
@@ -136,17 +139,13 @@ export const useReplayControl = ({
     const [writing, setWriting] = useState(false);
     const writeGenRef = useRef(0);
 
-    // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
-    // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
-    // effect가 stale active + 옛 index + 새 plan으로 한 번 실행돼 엉뚱한 쓰기를 쏠 수 있다.
-    const [prevPlan, setPrevPlan] = useState(plan);
-    if (plan !== prevPlan) {
-        setPrevPlan(plan);
+    // 재생 중 레퍼런스 교체는 켠 시점의 플랜·인덱스를 유지한다 (#377).
+    // 꺼진 뒤에만 새 플랜을 받고 인덱스를 되돌린다 — 옛 인덱스로 새 계획을
+    // 판정하면 안 되므로 비활성일 때의 리셋은 렌더 중에 한다 (effect면 한 프레임
+    // stale active + 옛 index + 새 plan으로 판정 effect가 돌아 엉뚱한 쓰기를 쏜다).
+    if (!active && livePlan !== plan) {
+        setPlan(livePlan);
         setIndex(0);
-        if (active) {
-            setActive(false);
-            setStopReason('profileChanged');
-        }
     }
 
     // 배치 경계(roasting 양쪽 에지)에서 인덱스를 되돌린다 — 남은 인덱스는 이전 배치
@@ -327,13 +326,17 @@ export const useReplayControl = ({
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;
 
     return {
-        /** 레퍼런스에 heater 기록이 있고(합성/PID 기록 아님) 같은 기기이며 쓰기 가능한가 */
-        available: plan != null && !referenceMachineMismatch && heaterWritable && sidecarConnected,
-        /** 다른 기종 기록 — UI 힌트 분리용 */
-        machineMismatch: referenceMachineMismatch,
+        /** 레퍼런스에 heater 기록이 있고(합성/PID 기록 아님) 같은 기기이며 쓰기 가능한가.
+         * 재생 중 타겟을 다른 기종으로 바꿔도 켠 플랜은 유지하므로(#377), 켜져 있는
+         * 동안은 mismatch로 체크박스를 잠그지 않는다 — 끄지 못하면 화력 소유권이 남는다. */
+        available: plan != null && (active || !referenceMachineMismatch) && heaterWritable && sidecarConnected,
+        /** 다른 기종 기록 — UI 힌트 분리용. 재생 중엔 켠 플랜 기준이라 힌트를 숨긴다. */
+        machineMismatch: referenceMachineMismatch && !active,
         /** 지금 켤 수 없는 상태(PID 점유 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */
         blocked: stopCause != null,
         active,
+        /** 재생 중 타겟이 바뀌어 차트와 플랜이 갈라진 상태 — UI 안내용 (#377) */
+        planFrozen: active && livePlan !== plan,
         /** 마지막 중지 사유 — 재시작·직접 끄기 전까지 유지. UI 안내용 */
         stopReason,
         /** 다음에 발화할 이벤트 — UI 미리보기용. 다 소진했으면 null */
