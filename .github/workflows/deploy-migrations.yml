@@ -23,6 +23,11 @@ on:
         required: false
         type: string
         default: ''
+      called_from_release:
+        description: 'Set by release.yml — skips the dispatch confirm gate'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-migrations
@@ -80,7 +85,9 @@ jobs:
       - name: Safety check
         # Nested Release calls inherit the caller's event_name (push or
         # workflow_dispatch). confirm exists only on this workflow's own dispatch.
-        if: github.workflow == 'Deploy migrations'
+        # Keyed on an explicit input, not `github.workflow` — renaming the
+        # workflow must not silently drop the gate (#335).
+        if: ${{ !inputs.called_from_release }}
         env:
           CONFIRM: ${{ inputs.confirm }}
         run: |

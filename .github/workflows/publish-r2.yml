@@ -9,6 +9,11 @@ on:
       version:
         description: 'Version string (e.g. 1.0.2)'
         required: true
+      allow_republish:
+        description: 'Overwrite releases/<version>/ if it already exists'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -20,4 +25,5 @@ jobs:
     with:
       version: ${{ inputs.version }}
       run_id: ${{ inputs.run_id }}
+      allow_republish: ${{ inputs.allow_republish }}
     secrets: inherit

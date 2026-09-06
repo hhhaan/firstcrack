@@ -12,6 +12,11 @@ on:
         required: false
         type: string
         default: ''
+      allow_republish:
+        description: 'Overwrite releases/<version>/ if it already exists (re-publish after a partial upload). Default refuses (#335).'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -56,6 +61,38 @@ jobs:
           verify_sig "$X64_SIG"     "macOS x86_64"
           verify_sig "$WIN_SIG"     "Windows x86_64"
           echo "All .sig files valid."
+
+      - name: Refuse to overwrite an existing release
+        # v1.2.0 was published 3 times in one day and the shipped binary ended up
+        # from a different commit than the tag (#335). Publish must fail on an
+        # existing prefix unless the caller explicitly opts into a re-publish.
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_PUBLISH_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_PUBLISH_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: https://${{ secrets.R2_PUBLISH_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_PUBLISH_BUCKET_NAME }}
+          VERSION: ${{ inputs.version }}
+          ALLOW_REPUBLISH: ${{ inputs.allow_republish }}
+        run: |
+          set -euo pipefail
+          # Distinguish "empty prefix" (rc=1, no output) from auth/network failure (#215).
+          set +e
+          EXISTING=$(aws s3 ls "s3://${R2_BUCKET}/releases/${VERSION}/" --endpoint-url "$R2_ENDPOINT" --region auto 2>&1)
+          LS_RC=$?
+          set -e
+          if [ "$LS_RC" -ne 0 ] && [ -n "$EXISTING" ]; then
+            echo "::error::Failed to list releases/${VERSION}/ (not an empty prefix): $EXISTING"
+            exit 1
+          elif [ -z "$EXISTING" ]; then
+            echo "releases/${VERSION}/ is empty — OK to publish"
+          elif [ "$ALLOW_REPUBLISH" = "true" ]; then
+            echo "::warning::releases/${VERSION}/ already exists — overwriting (allow_republish=true)"
+            echo "$EXISTING"
+          else
+            echo "::error::releases/${VERSION}/ already exists on R2. Bump the version, or re-run with allow_republish=true if this is an intentional re-publish."
+            echo "$EXISTING"
+            exit 1
+          fi
 
       - name: Backup current latest.json
         env:

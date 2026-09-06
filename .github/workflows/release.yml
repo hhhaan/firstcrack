@@ -7,8 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g. 1.0.2). Required when not triggered by a tag.'
+        description: 'Version to release (e.g. 1.0.2). Required when not triggered by a tag. Must equal tauri.conf.json version.'
         required: false
+      allow_republish:
+        description: 'Overwrite releases/<version>/ on R2 if it already exists'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -24,12 +29,20 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
+      - uses: actions/checkout@v7
       - name: Resolve version
         id: version
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
           if [ -n "$INPUT_VERSION" ]; then
+            # A dispatched version that differs from the manifest builds HEAD but
+            # publishes under another number (#335). Tag pushes are already synced.
+            MANIFEST=$(jq -r .version src-tauri/tauri.conf.json)
+            if [ "$INPUT_VERSION" != "$MANIFEST" ]; then
+              echo "::error::version input '$INPUT_VERSION' != tauri.conf.json version '$MANIFEST' on this ref"
+              exit 1
+            fi
             VERSION="$INPUT_VERSION"
           elif [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
@@ -337,6 +350,7 @@ jobs:
     uses: ./.github/workflows/deploy-migrations.yml
     with:
       version: ${{ needs.setup.outputs.version }}
+      called_from_release: true
     secrets: inherit
 
   # Inner jobs all skipped → reusable result is skipped, run stays green.
@@ -365,4 +379,5 @@ jobs:
     uses: ./.github/workflows/_publish-r2-reusable.yml
     with:
       version: ${{ needs.setup.outputs.version }}
+      allow_republish: ${{ inputs.allow_republish || false }}
     secrets: inherit
