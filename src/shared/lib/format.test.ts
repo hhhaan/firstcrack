@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+    currencySymbol,
     durationDiff,
+    formatAmount,
+    formatCurrency,
     formatDate,
     formatDateShort,
     formatDuration,
@@ -8,6 +11,18 @@ import {
     pctChange,
     sanitizeDecimal,
 } from './format';
+
+describe('formatAmount / currencySymbol', () => {
+    it('rounds and localizes amount; maps language to currency glyph', () => {
+        expect(formatAmount(1234.6, 'en')).toBe('1,235');
+        expect(currencySymbol('ko')).toBe('₩');
+        expect(currencySymbol('ja')).toBe('¥');
+        expect(currencySymbol('zh-CN')).toBe('¥');
+        expect(currencySymbol('en')).toBe('$');
+        expect(formatCurrency(0, 'en')).toBe('—');
+        expect(formatCurrency(10, 'en')).toBe('$10');
+    });
+});
 
 describe('sanitizeDecimal', () => {
     it('strips non-digits and keeps a single decimal point', () => {

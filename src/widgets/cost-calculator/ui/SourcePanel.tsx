@@ -1,7 +1,7 @@
+import { BlendCompositionBar, coloredSegmentsFromSources } from '@entities/blend';
 import type { Bean } from '@shared/types/database.types';
 import { BeanCombobox } from '@shared/ui/BeanCombobox';
 import { inputCls, labelCls } from '@shared/ui/form-styles';
-import { BlendCompositionBar, coloredSegmentsFromSources } from '@widgets/blend-list/ui/BlendCompositionBar';
 import { AlertTriangle, ChevronDown, Plus, X } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';

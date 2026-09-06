@@ -1,4 +1,5 @@
-import type { AdjustStockSign, AdjustStockType } from '@shared/ui/AdjustStockFields';
+export type AdjustStockType = 'adjustment' | 'write_off';
+export type AdjustStockSign = '+' | '-';
 
 /** Positive magnitude → signed delta. write_off always negative. null if amount ≤ 0. */
 export const signedDelta = (type: AdjustStockType, sign: AdjustStockSign, amount: number): number | null => {

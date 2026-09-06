@@ -4,10 +4,9 @@
  */
 import { buildBatchRoastedInbound } from '@features/active-roast/lib/buildBatchRoastedInbound';
 import { buildRoastStockEvents } from '@features/active-roast/lib/buildRoastStockEvents';
+import { isGreenRoastAlreadyClaimed } from '@features/active-roast/lib/f3-green-deduct';
 import { buildBlendingEvents } from '@features/blend-roasted/lib/buildBlendingEvents';
 import { buildPackagingEvents } from '@features/package-product/lib/buildPackagingEvents';
-import { describe, expect, it } from 'vitest';
-import { isGreenRoastAlreadyClaimed } from './f3-green-deduct';
 import {
     applyBeanEvents,
     applyPackagingOp,
@@ -18,7 +17,8 @@ import {
     sumBeanGrams,
     sumProductUnits,
     sumRoastedGrams,
-} from './inventory-ledger-sim';
+} from '@shared/lib/inventory-ledger-sim';
+import { describe, expect, it } from 'vitest';
 
 const USER = 'user-1';
 const BEAN = 'bean-1';

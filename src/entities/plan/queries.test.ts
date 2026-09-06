@@ -1,7 +1,19 @@
+import { planQueryRoots } from '@shared/lib/query-keys';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 import { patchDayBatchesCache, planKeys, reorderByIds, restoreDayBatchesCache } from './queries';
+
+describe('planKeys compose from planQueryRoots', () => {
+    it('uses stable string prefixes for partial invalidation', () => {
+        expect(planKeys.dayBatches('u1', '2026-07-01')).toEqual([...planQueryRoots.dayBatches, 'u1', '2026-07-01']);
+        expect(planKeys.dayBatches('u1', '2026-07-01')[0]).toBe('day_batches');
+        expect(planKeys.batches('p1')[0]).toBe('plan_batches');
+        expect(planKeys.recurrenceRules('u1')).toEqual([...planQueryRoots.recurrenceRules, 'u1']);
+        expect(planKeys.dayBatchesRoot).toBe(planQueryRoots.dayBatches);
+        expect(planKeys.batchesRoot).toEqual(['plan_batches']);
+    });
+});
 
 const row = (over: Partial<PlanBatchWithProgress>): PlanBatchWithProgress =>
     ({ bean_name: 'x', order_index: 0, recurrence_rule_id: null, ...over }) as PlanBatchWithProgress;

@@ -1,14 +1,13 @@
-import { useProfile, useUpdateProfile } from '@entities/profile';
-import { locationStore, parseLocationString } from '@shared/lib/locationStore';
+import { useProfile } from '@entities/profile';
+import { locationStore } from '@shared/lib/locationStore';
 import { logger } from '@shared/lib/logger';
-import { weatherKeys } from '@shared/lib/query-keys';
 import { useAuthStore } from '@shared/store/auth';
 import { SectionCard } from '@shared/ui/SectionCard';
-import { useQueryClient } from '@tanstack/react-query';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { LogOut } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSaveAccountProfile } from '../model/useSaveAccountProfile';
 
 type AccountSettingsTabProps = {
     onClose: () => void;
@@ -63,11 +62,10 @@ function InputField({
 export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
     const { t } = useTranslation();
     const tk = (key: string) => t(`settings.tabs.account.${key}`);
-    const qc = useQueryClient();
     const user = useAuthStore((s) => s.user);
     const signOut = useAuthStore((s) => s.signOut);
     const { data: profile } = useProfile(user?.id ?? '');
-    const updateProfile = useUpdateProfile(user?.id ?? '');
+    const { save, isPending } = useSaveAccountProfile(user?.id ?? '');
 
     const [displayName, setDisplayName] = useState('');
     const [businessName, setBusinessName] = useState('');
@@ -102,16 +100,12 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
     const handleSaveProfile = async () => {
         if (!user) return;
         try {
-            const coords = parseLocationString(location);
-            await Promise.all([
-                updateProfile.mutateAsync({
-                    display_name: displayName.trim(),
-                    business_name: businessName.trim() || null,
-                    business_registration_number: businessRegNumber.trim() || null,
-                }),
-                coords ? locationStore.set(coords) : Promise.resolve(),
-            ]);
-            if (coords) void qc.invalidateQueries({ queryKey: weatherKeys.coords });
+            await save({
+                display_name: displayName.trim(),
+                business_name: businessName.trim() || null,
+                business_registration_number: businessRegNumber.trim() || null,
+                location,
+            });
             setProfileSaveStatus('saved');
         } catch (e) {
             logger.capture(e, { context: 'settings save profile' });
@@ -186,10 +180,10 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                         <button
                             type="button"
                             onClick={handleSaveProfile}
-                            disabled={updateProfile.isPending}
+                            disabled={isPending}
                             className={primaryBtnCls}
                         >
-                            {updateProfile.isPending ? tk('saving') : tk('saveChanges')}
+                            {isPending ? tk('saving') : tk('saveChanges')}
                         </button>
                         {profileSaveStatus === 'saved' && (
                             <span className="text-[13px] text-green-600 dark:text-green-400 font-medium">

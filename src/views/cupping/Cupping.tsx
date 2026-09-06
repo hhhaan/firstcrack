@@ -1,4 +1,4 @@
-import { useCuppingEvents } from '@entities/cupping';
+import { useCuppingEvents, useInvalidateCuppingEvents } from '@entities/cupping';
 import { useActiveWorkspace } from '@entities/organization';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { PageHeader } from '@shared/ui/PageHeader';
@@ -18,7 +18,8 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
     const { t } = useTranslation();
     const canCupping = useFeature(FEATURE.cupping);
     const { workspaceOwnerId: userId } = useActiveWorkspace();
-    const { data: events = [], isLoading, isError, error, refetch } = useCuppingEvents(userId, canCupping);
+    const { data: events = [], isLoading, isError, error } = useCuppingEvents(userId, canCupping);
+    const invalidateEvents = useInvalidateCuppingEvents(userId);
 
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
@@ -53,7 +54,6 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
                 onBack={() => setSelectedEventId(null)}
                 onDeleted={() => {
                     setSelectedEventId(null);
-                    void refetch();
                 }}
             />
         );
@@ -66,7 +66,7 @@ export const Cupping = ({ onUpgrade }: CuppingProps) => {
             isLoading={isLoading}
             isError={isError}
             error={error}
-            onRetry={() => void refetch()}
+            onRetry={() => void invalidateEvents()}
             onSelect={setSelectedEventId}
         />
     );

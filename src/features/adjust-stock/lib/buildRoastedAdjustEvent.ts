@@ -1,6 +1,5 @@
 import type { RoastedStockEventInsert } from '@entities/roasted-stock-event';
-import type { AdjustStockSign, AdjustStockType } from '@shared/ui/AdjustStockFields';
-import { signedDelta, trimNote } from './signedDelta';
+import { type AdjustStockSign, type AdjustStockType, signedDelta, trimNote } from './signedDelta';
 
 export type RoastedAdjustParams = {
     userId: string;

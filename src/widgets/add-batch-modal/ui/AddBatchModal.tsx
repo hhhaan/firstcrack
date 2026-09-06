@@ -21,6 +21,7 @@ import { deriveBatchQuantities } from '../lib/batch-quantities';
 import { buildNewBatchPayload } from '../lib/build-new-batch-payload';
 import type { BatchType, EditScope, NewBatchData } from '../lib/types';
 import { DEFAULT_BATCH_SIZE } from '../lib/types';
+import { useBatchStockChecks } from '../model/useBatchStockChecks';
 import { BatchFormHeader } from './BatchFormHeader';
 import { BatchQuantityFields } from './BatchQuantityFields';
 import { BatchRecurrenceFields } from './BatchRecurrenceFields';
@@ -28,7 +29,6 @@ import { BatchSourceFields } from './BatchSourceFields';
 import { BatchStockPanel } from './BatchStockPanel';
 import { BatchTypeTabs } from './BatchTypeTabs';
 import { useBatchFormReset } from './useBatchFormReset';
-import { useBatchStockChecks } from './useBatchStockChecks';
 
 export type { EditScope, NewBatchData } from '../lib/types';
 
@@ -118,6 +118,7 @@ export const AddBatchModal = ({
         selectedBlend,
         selectedBeanId,
         stockSummary,
+        stockSummaries,
         plannedGrams,
         recurringInterval,
         date,

@@ -1,5 +1,5 @@
+import type { LiveRoastPoint } from '@features/active-roast';
 import { describe, expect, it } from 'vitest';
-import type { LiveRoastPoint } from '../model/useSidecarPolling';
 import { calcDelta, calcTargetDelta } from './display-derivatives';
 
 // 0s:200° → 60s:180° 직선 타겟

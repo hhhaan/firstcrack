@@ -1,5 +1,5 @@
+import type { LiveRoastPoint } from '@features/active-roast';
 import { describe, expect, it } from 'vitest';
-import type { LiveRoastPoint } from '../model/useSidecarPolling';
 import { buildLiveChartData, CHART_TOTAL_SECS } from './chart-pipeline-data';
 
 const pt = (time: number, bt = 100): LiveRoastPoint => ({

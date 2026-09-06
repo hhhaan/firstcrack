@@ -1,4 +1,4 @@
-import type { BlendSegmentSource } from '@entities/blend/lib';
+import type { BlendSegmentSource } from '../lib';
 
 export const BLEND_SEGMENT_COLORS = [
     'var(--color-palette-blue)',

@@ -7,6 +7,7 @@ import {
     findEventSummaryInCache,
     syncActiveInviteCache,
     syncEventEndedCache,
+    syncResultsTokenCache,
     writeThroughInvitesFromEvents,
 } from './queries';
 
@@ -123,6 +124,29 @@ describe('cupping invite/end cache sync', () => {
 
         expect(qc.getQueryData(cuppingKeys.invite(eventId))).toBeNull();
         expect(qc.getQueryData(cuppingKeys.invite('ev-open'))).toEqual(invite);
+    });
+
+    it('syncResultsTokenCache writes detail and list token together', () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        qc.setQueryData(cuppingKeys.events(userId), [makeSummary()]);
+        const ev: CuppingEvent = {
+            id: eventId,
+            user_id: userId,
+            title: 'Morning cupping',
+            held_at: '2026-07-01T00:00:00.000Z',
+            notes: null,
+            ended_at: '2026-07-02T00:00:00.000Z',
+            results_token: 'tok-results',
+            created_at: '2026-07-01T00:00:00.000Z',
+            updated_at: '2026-07-02T00:00:00.000Z',
+        };
+
+        syncResultsTokenCache(qc, userId, eventId, ev);
+
+        expect(qc.getQueryData(cuppingKeys.event(eventId))).toEqual(ev);
+        expect(qc.getQueryData<CuppingEventSummary[]>(cuppingKeys.events(userId))?.[0]?.results_token).toBe(
+            'tok-results',
+        );
     });
 
     it('findEventSummaryInCache skips detail keys', () => {

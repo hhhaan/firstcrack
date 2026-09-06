@@ -1,9 +1,9 @@
 import type { StockSummary } from '@entities/bean-stock-event';
 import type { BlendWithComponents } from '@entities/blend';
+import { BlendCompositionBar, coloredSegmentsFromSources } from '@entities/blend';
 import { blendSegmentsFromComponents, blendTotalRatio } from '@entities/blend/lib';
 import type { BlendRoastableResult } from '@shared/lib/blend-stock';
 import { Badge } from '@shared/ui/Badge';
-import { BlendCompositionBar, coloredSegmentsFromSources } from '@widgets/blend-list/ui/BlendCompositionBar';
 import { Edit3, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

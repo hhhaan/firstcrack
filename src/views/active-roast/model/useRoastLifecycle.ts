@@ -1,3 +1,4 @@
+import type { LiveRoastPoint } from '@features/active-roast';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
@@ -9,7 +10,6 @@ import type { LogEntry } from '@shared/types/roast';
 import { message } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
 import type { RoastSummaryData } from './useRoastCompletionFlow';
-import type { LiveRoastPoint } from './useSidecarPolling';
 
 export interface UseRoastLifecycleParams {
     phase: string;

@@ -1,6 +1,7 @@
 import { beanStockEventApi } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
 import { planBatchApi, planKeys, useDayBatches } from '@entities/plan';
+import { isGreenRoastAlreadyClaimed } from '@features/active-roast';
 import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { pgErrorCode } from '@features/active-roast/lib/saveErrorClassification';
@@ -18,7 +19,6 @@ import { type SaveRoastFormData, useSaveRoast } from '@features/active-roast/mod
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
 import { ensureSession } from '@shared/lib/ensureSession';
-import { isGreenRoastAlreadyClaimed } from '@shared/lib/f3-green-deduct';
 import { BatchLimitError } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { useRoastSessionStore } from '@shared/store/roastSession';

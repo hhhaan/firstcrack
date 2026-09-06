@@ -10,6 +10,7 @@ import {
     useRoastActions,
     useRoastKeyboardShortcuts,
     useRoastSettings,
+    useSidecarPolling,
 } from '@features/active-roast';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { applyEventMarkerDrag } from '@features/active-roast/lib/event-marker-drag';
@@ -46,7 +47,6 @@ import { useChartPipeline } from './model/useChartPipeline';
 import { useRoastLifecycle } from './model/useRoastLifecycle';
 import { useRoastProfileSelection } from './model/useRoastProfileSelection';
 import { useRoastSaveFlow } from './model/useRoastSaveFlow';
-import { useSidecarPolling } from './model/useSidecarPolling';
 import { EndRoastModal } from './ui/EndRoastModal';
 import { LiveReadings } from './ui/LiveReadings';
 import { MachineControls } from './ui/MachineControls';

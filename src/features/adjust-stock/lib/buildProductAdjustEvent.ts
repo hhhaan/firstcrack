@@ -1,6 +1,5 @@
 import type { ProductStockEventInsert } from '@entities/product-stock-event';
-import type { AdjustStockSign, AdjustStockType } from '@shared/ui/AdjustStockFields';
-import { signedDelta, trimNote } from './signedDelta';
+import { type AdjustStockSign, type AdjustStockType, signedDelta, trimNote } from './signedDelta';
 
 export type ProductAdjustParams = {
     userId: string;

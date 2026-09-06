@@ -1,5 +1,4 @@
 import { useFormEscape } from '@shared/lib/useFormEscape';
-import { AdjustStockFields, type AdjustStockSign, type AdjustStockType } from '@shared/ui/AdjustStockFields';
 import { modalHeaderChrome } from '@shared/ui/form-styles';
 import { ModalFooter } from '@shared/ui/modal-shell/ModalFooter';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
@@ -8,7 +7,9 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { AdjustStockSign, AdjustStockType } from '../lib/signedDelta';
 import { useAdjustStock } from '../model/useAdjustStock';
+import { AdjustStockFields } from './AdjustStockFields';
 
 type BaseProps = {
     open: boolean;

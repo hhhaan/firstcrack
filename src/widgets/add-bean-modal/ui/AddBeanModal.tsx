@@ -18,11 +18,11 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { beanFormSchema, EMPTY_BEAN_FORM } from '../lib/schema';
 import { BEAN_LIST_LIMIT, type BeanModalTab } from '../lib/types';
+import { useAddBeanSubmit } from '../model/useAddBeanSubmit';
 import { BeanAdjustTab } from './BeanAdjustTab';
 import { BeanFormFields } from './BeanFormFields';
 import { BeanRestockTab } from './BeanRestockTab';
 import { useAddBeanFormReset } from './useAddBeanFormReset';
-import { useAddBeanSubmit } from './useAddBeanSubmit';
 
 interface AddBeanModalProps {
     open: boolean;

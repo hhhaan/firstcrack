@@ -1,8 +1,8 @@
 import { getStatus, statusConfig, stockBarClass, stockLevelPct } from '@entities/bean/lib';
 import type { BeanAssetLine, StockSummary } from '@entities/bean-stock-event';
+import { currencySymbol, formatAmount } from '@shared/lib/format';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
-import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
 import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

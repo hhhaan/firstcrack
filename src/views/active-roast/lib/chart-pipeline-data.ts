@@ -1,4 +1,4 @@
-import type { LiveRoastPoint } from '../model/useSidecarPolling';
+import type { LiveRoastPoint } from '@features/active-roast';
 
 export const CHART_TOTAL_SECS = 780;
 

@@ -1,9 +1,7 @@
 import { inputCls, labelCls, tabCls } from '@shared/ui/form-styles';
 import { Info, Scale } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-
-export type AdjustStockType = 'adjustment' | 'write_off';
-export type AdjustStockSign = '+' | '-';
+import type { AdjustStockSign, AdjustStockType } from '../lib/signedDelta';
 
 type Props = {
     /** Target display name (bean / product) */

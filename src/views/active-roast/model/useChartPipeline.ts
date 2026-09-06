@@ -1,3 +1,4 @@
+import type { LiveRoastPoint } from '@features/active-roast';
 import { CHART_GRID_RIGHT, CHART_GRID_RIGHT_WITH_ROR } from '@features/active-roast/lib/chart-config';
 import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
@@ -5,7 +6,6 @@ import { useChartZoom } from '@features/active-roast/model/useChartZoom';
 import type { TsvPoint } from '@shared/lib/tsv';
 import { useMemo } from 'react';
 import { buildLiveChartData, CHART_TOTAL_SECS, type LiveChartRow } from '../lib/chart-pipeline-data';
-import type { LiveRoastPoint } from './useSidecarPolling';
 
 export interface UseChartPipelineParams {
     livePoints: LiveRoastPoint[];

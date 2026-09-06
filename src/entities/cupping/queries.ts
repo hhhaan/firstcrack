@@ -111,6 +111,14 @@ export function syncEventEndedCache(
     );
 }
 
+/** Patch detail + events list after ensureResultsToken (idempotent write). */
+export function syncResultsTokenCache(qc: QueryClient, userId: string, eventId: string, ev: CuppingEvent): void {
+    qc.setQueryData(cuppingKeys.event(eventId), ev);
+    qc.setQueryData<CuppingEventSummary[]>(cuppingKeys.events(userId), (old) =>
+        (old ?? []).map((e) => (e.id === eventId ? { ...e, results_token: ev.results_token } : e)),
+    );
+}
+
 /** After list fetch/refetch: write-through invite keys so detail remount matches list badges. */
 export function writeThroughInvitesFromEvents(qc: QueryClient, events: CuppingEventSummary[]): void {
     for (const ev of events) {
@@ -563,6 +571,21 @@ export const useCreateEventInvite = (userId: string, eventId: string) => {
             if (ctx?.skipped) return;
         },
     });
+};
+
+export const useEnsureCuppingResultsToken = (userId: string, eventId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: () => cuppingApi.ensureResultsToken(eventId),
+        onSuccess: (ev) => {
+            syncResultsTokenCache(qc, userId, eventId, ev);
+        },
+    });
+};
+
+export const useInvalidateCuppingEvents = (userId: string) => {
+    const qc = useQueryClient();
+    return () => qc.invalidateQueries({ queryKey: cuppingKeys.events(userId) });
 };
 
 export const useRevokeCuppingInvite = (eventId: string, userId?: string) => {

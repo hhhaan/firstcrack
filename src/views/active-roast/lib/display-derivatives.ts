@@ -1,3 +1,4 @@
+import type { LiveRoastPoint } from '@features/active-roast';
 import { getResolvedEventColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
 import type { RoastEventMarker } from '@features/active-roast/lib/chart-option';
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
@@ -6,7 +7,6 @@ import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { interpolateProfileBT } from '@shared/data/roast-profiles';
 import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry } from '@shared/types/roast';
-import type { LiveRoastPoint } from '../model/useSidecarPolling';
 
 export interface DevTimeResult {
     /** "m:ss (n%)" — 요약 모달용 (DTR을 따로 안 보여주는 곳) */

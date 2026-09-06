@@ -1,10 +1,10 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { productStockEventApi, productStockKeys } from '@entities/product-stock-event';
 import { roastedStockEventApi, roastedStockKeys } from '@entities/roasted-stock-event';
-import type { AdjustStockSign, AdjustStockType } from '@shared/ui/AdjustStockFields';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { buildProductAdjustEvent } from '../lib/buildProductAdjustEvent';
 import { buildRoastedAdjustEvent } from '../lib/buildRoastedAdjustEvent';
+import type { AdjustStockSign, AdjustStockType } from '../lib/signedDelta';
 
 type SharedFields = {
     type: AdjustStockType;

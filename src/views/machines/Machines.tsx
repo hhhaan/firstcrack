@@ -9,11 +9,11 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
-import { useMachinesPageState } from '@widgets/add-machine-modal/model/useMachinesPageState';
 import { AddMachineModal } from '@widgets/add-machine-modal/ui/AddMachineModal';
 import { Activity, AlertCircle, Cpu, Flame, Pencil, Plus, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useMachinesPageState } from './model/useMachinesPageState';
 
 export const Machines = ({
     isActive = false,

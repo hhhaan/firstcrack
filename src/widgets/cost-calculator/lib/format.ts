@@ -1,25 +1,9 @@
+import { currencySymbol, formatAmount, formatCurrency } from '@shared/lib/format';
+
+export { currencySymbol, formatAmount, formatCurrency };
+
 /** Percentage precision (margin, yield, blend ratio) — all locales. */
 export const PCT_DECIMALS = 2;
-
-export const formatAmount = (value: number, lang?: string): string => {
-    if (!Number.isFinite(value)) return '';
-    const locale = lang?.split('-')[0] || undefined;
-    return Math.round(value).toLocaleString(locale);
-};
-
-/** ko→₩, ja→¥, zh→¥, else→$ (USD fallback). */
-export const currencySymbol = (lang?: string): string => {
-    const l = lang?.toLowerCase() ?? '';
-    if (l.startsWith('ko')) return '₩';
-    if (l.startsWith('ja')) return '¥';
-    if (l.startsWith('zh')) return '¥';
-    return '$';
-};
-
-export const formatCurrency = (value: number, lang?: string): string => {
-    if (!Number.isFinite(value) || value <= 0) return '—';
-    return `${currencySymbol(lang)}${formatAmount(value, lang)}`;
-};
 
 /** @deprecated Prefer formatCurrency — kept for existing call sites. */
 export const formatKrw = formatCurrency;

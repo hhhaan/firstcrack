@@ -1,6 +1,6 @@
 import type { BlendWithComponents } from '@entities/blend';
+import { BlendCompositionBar, coloredSegmentsFromSources } from '@entities/blend';
 import { blendSegmentsFromComponents, blendTotalRatio } from '@entities/blend/lib';
-import { BlendCompositionBar, coloredSegmentsFromSources } from '@widgets/blend-list/ui/BlendCompositionBar';
 import { useTranslation } from 'react-i18next';
 
 export type BlendCardProps = {

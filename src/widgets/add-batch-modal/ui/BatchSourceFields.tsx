@@ -5,8 +5,8 @@ import { labelCls } from '@shared/ui/form-styles';
 import { AlertTriangle, Package } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { BatchType } from '../lib/types';
+import type { BatchStockChecks } from '../model/useBatchStockChecks';
 import { SearchableSelect } from './SearchableSelect';
-import type { BatchStockChecks } from './useBatchStockChecks';
 
 type Props = {
     batchType: BatchType;

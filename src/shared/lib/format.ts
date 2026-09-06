@@ -1,5 +1,25 @@
 export const sanitizeDecimal = (v: string) => v.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
 
+export const formatAmount = (value: number, lang?: string): string => {
+    if (!Number.isFinite(value)) return '';
+    const locale = lang?.split('-')[0] || undefined;
+    return Math.round(value).toLocaleString(locale);
+};
+
+/** ko→₩, ja→¥, zh→¥, else→$ (USD fallback). */
+export const currencySymbol = (lang?: string): string => {
+    const l = lang?.toLowerCase() ?? '';
+    if (l.startsWith('ko')) return '₩';
+    if (l.startsWith('ja')) return '¥';
+    if (l.startsWith('zh')) return '¥';
+    return '$';
+};
+
+export const formatCurrency = (value: number, lang?: string): string => {
+    if (!Number.isFinite(value) || value <= 0) return '—';
+    return `${currencySymbol(lang)}${formatAmount(value, lang)}`;
+};
+
 /** Live elapsed clock: floor fractional seconds. 90.6 → "1:30" */
 export const formatElapsed = (secs: number): string => {
     const m = Math.floor(secs / 60);

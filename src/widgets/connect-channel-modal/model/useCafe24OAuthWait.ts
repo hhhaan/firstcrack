@@ -30,7 +30,10 @@ interface UseCafe24OAuthWaitParams {
     enabled: boolean;
     mallId: string;
     channels: SalesChannelConnection[];
-    /** React Query `refetch` — stable identity, so the poll interval is not restarted per render. */
+    /**
+     * React Query `refetch` — stable identity, so the poll interval is not restarted per render.
+     * #272 exception: Cafe24 OAuth wait must poll until the callback stores the connection.
+     */
     refetchChannels: () => void;
     onConnected: () => void;
 }

@@ -3,11 +3,10 @@ import type { BlendWithComponents } from '@entities/blend';
 import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import type { Product } from '@entities/product';
-import { productStockEventApi, productStockKeys } from '@entities/product-stock-event';
-import { roastedStockEventApi, roastedStockKeys } from '@entities/roasted-stock-event';
 import { useRoastingStore } from '@features/active-roast';
 import { BlendRoastedModal } from '@features/blend-roasted';
 import { FEATURE, useFeature } from '@shared/lib/features';
+import { currencySymbol, formatAmount } from '@shared/lib/format';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
@@ -16,16 +15,17 @@ import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
-import { useQueryClient } from '@tanstack/react-query';
 import { AddBeanModal } from '@widgets/add-bean-modal/ui/AddBeanModal';
 import { AddBlendModal } from '@widgets/add-blend-modal';
 import { BeanDetail } from '@widgets/bean-detail/ui/BeanDetail';
 import { BeanList } from '@widgets/bean-list/ui/BeanList';
+import { BlendDetail } from '@widgets/blend-detail/ui/BlendDetail';
+import { useBlendListState } from '@widgets/blend-list/model/useBlendListState';
 import { BlendList } from '@widgets/blend-list/ui/BlendList';
-import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
+import { BlendListEmpty } from '@widgets/blend-list/ui/BlendListEmpty';
 import { ProductsTable } from '@widgets/products-table';
 import { Plus } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGreenInventoryAssets } from './model/useGreenInventoryAssets';
 import { InventoryLocked } from './ui/InventoryLocked';
@@ -39,7 +39,6 @@ type BeansProps = {
 
 export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     const { t, i18n } = useTranslation();
-    const qc = useQueryClient();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: beans = [], isLoading } = useBeans(userId);
     const {
@@ -52,23 +51,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     const { mutate: deleteBean } = useDeleteBean(userId);
     const canRoasted = useFeature(FEATURE.roastedInventory);
     const canProducts = useFeature(FEATURE.productStock);
-
-    // Warm inventory caches so tab switches are cache hits.
-    useEffect(() => {
-        if (!userId) return;
-        if (canRoasted) {
-            void qc.prefetchQuery({
-                queryKey: roastedStockKeys.byUser(userId),
-                queryFn: () => roastedStockEventApi.getUserRoastedStock(userId),
-            });
-        }
-        if (canProducts) {
-            void qc.prefetchQuery({
-                queryKey: productStockKeys.byUser(userId),
-                queryFn: () => productStockEventApi.getStockByUser(userId),
-            });
-        }
-    }, [userId, canRoasted, canProducts, qc]);
+    const blendList = useBlendListState();
 
     const [activeTab, setActiveTab] = useState<InventoryTab>('green');
     const [blendModalOpen, setBlendModalOpen] = useState(false);
@@ -228,12 +211,32 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
 
             {tab === 'blend' && (
                 <>
-                    <BlendList
-                        hasBeans={beans.length > 0}
-                        onAddOpen={openBlendAdd}
-                        onNeedBeans={openBeanFirst}
-                        onEditOpen={(blend: BlendWithComponents) => setEditingBlend(blend)}
-                    />
+                    {!blendList.isLoading && blendList.blends.length === 0 ? (
+                        <BlendListEmpty hasBeans={beans.length > 0} onAdd={openBlendAdd} onNeedBeans={openBeanFirst} />
+                    ) : (
+                        <MasterDetailLayout
+                            left={
+                                <BlendList
+                                    blends={blendList.blends}
+                                    isLoading={blendList.isLoading}
+                                    roastableByBlendId={blendList.roastableByBlendId}
+                                    onSelect={blendList.setSelectedId}
+                                />
+                            }
+                            detail={
+                                blendList.selected ? (
+                                    <BlendDetail
+                                        blend={blendList.selected}
+                                        roastable={blendList.roastable}
+                                        stockSummaries={blendList.stockSummaries}
+                                        onEdit={(blend: BlendWithComponents) => setEditingBlend(blend)}
+                                        onDelete={blendList.handleDelete}
+                                    />
+                                ) : null
+                            }
+                            placeholder={t('beans.blend.selectBlend')}
+                        />
+                    )}
                     <AddBlendModal
                         key={editingBlend?.id ?? 'new'}
                         open={isBlendAddOpen || !!editingBlend}
