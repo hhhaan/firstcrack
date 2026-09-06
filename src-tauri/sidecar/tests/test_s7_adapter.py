@@ -16,7 +16,8 @@ import config
 from snap7.util.getters import get_int, get_real
 from snap7.util.setters import set_int
 
-from adapters.s7 import S7Adapter, _probe_tcp  # autouse 패치 이전의 원본을 잡아둔다
+from adapters.s7 import S7Adapter, _client_alive, _client_probe, _probe_tcp  # autouse 패치 이전의 원본을 잡아둔다
+from manager import _format_connection_error
 
 
 GIESEN_CHANNELS = [
@@ -475,3 +476,77 @@ class TestConnectProbe:
         monkeypatch.setattr(socket, "create_connection", fake_create_connection)
         _probe_tcp("172.30.30.90", 102, 0.7)
         assert seen == {"addr": ("172.30.30.90", 102), "timeout": 0.7}
+
+
+# ---------------------------------------------------------------------------
+# CPU 상태 진단 (#347) — RUN 강제는 유지, 원인만 노출
+# ---------------------------------------------------------------------------
+
+class TestClientProbe:
+    def test_run_is_alive(self, adapter):
+        alive, diag = _client_probe(adapter._plc)
+        assert alive is True
+        assert diag == ""
+        assert _client_alive(adapter._plc) is True
+
+    def test_stop_reports_cpu_state(self, adapter):
+        adapter._plc.get_cpu_state.return_value = "S7CpuStatusStop"
+        alive, diag = _client_probe(adapter._plc)
+        assert alive is False
+        assert diag == "cpu_state=S7CpuStatusStop"
+        assert _client_alive(adapter._plc) is False
+
+    def test_unknown_reports_cpu_state(self, adapter):
+        adapter._plc.get_cpu_state.return_value = "S7CpuStatusUnknown"
+        alive, diag = _client_probe(adapter._plc)
+        assert alive is False
+        assert "cpu_state=S7CpuStatusUnknown" in diag
+
+    def test_cpu_state_exception_is_not_swallowed(self, adapter):
+        adapter._plc.get_cpu_state.side_effect = RuntimeError("CLI : Job pending")
+        alive, diag = _client_probe(adapter._plc)
+        assert alive is False
+        assert "get_cpu_state() failed" in diag
+        assert "Job pending" in diag
+
+    async def test_connect_error_includes_cpu_state(self, adapter):
+        adapter._plc = None
+        client = MagicMock()
+        client.get_connected.return_value = True
+        client.get_cpu_state.return_value = "S7CpuStatusStop"
+        with patch("snap7.client.Client", return_value=client):
+            with pytest.raises(ConnectionError, match="cpu_state=S7CpuStatusStop"):
+                await adapter.connect()
+
+    async def test_connect_error_includes_cpu_state_exception(self, adapter):
+        adapter._plc = None
+        client = MagicMock()
+        client.get_connected.return_value = True
+        client.get_cpu_state.side_effect = OSError("timed out")
+        with patch("snap7.client.Client", return_value=client):
+            with pytest.raises(ConnectionError, match="get_cpu_state\\(\\) failed"):
+                await adapter.connect()
+
+
+class TestFormatS7ConnectionError:
+    def test_preserves_cpu_state_diagnostic(self):
+        exc = ConnectionError(
+            "S7 연결 실패: 192.168.2.180:102 (rack=0, slot=0): cpu_state=S7CpuStatusStop"
+        )
+        msg = _format_connection_error(exc, "s7", {"host": "192.168.2.180"})
+        assert "cpu_state=S7CpuStatusStop" in msg
+        assert "rack/slot" not in msg
+
+    def test_preserves_probe_exception(self):
+        exc = ConnectionError(
+            "S7 연결 실패: 192.168.2.180:102 (rack=0, slot=0): "
+            "get_cpu_state() failed: OSError: timed out"
+        )
+        msg = _format_connection_error(exc, "s7", {"host": "192.168.2.180"})
+        assert "get_cpu_state() failed" in msg
+        assert "timed out" in msg
+
+    def test_generic_s7_failure_keeps_rack_slot_hint(self):
+        exc = ConnectionError("S7 연결 실패: 192.168.2.180:102 (rack=0, slot=0)")
+        msg = _format_connection_error(exc, "s7", {"host": "192.168.2.180"})
+        assert "rack/slot" in msg

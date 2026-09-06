@@ -91,6 +91,18 @@ def _format_connection_error(
     if "Phidget" in exc_type and ("Timeout" in msg or "timed out" in msg.lower()):
         return "Phidget 장치 응답 없음. USB 케이블과 시스템 드라이버를 확인하세요."
 
+    # ── S7 PLC 연결 확인 실패 (snap7 connected=False / CPU 상태) ────────
+    # timeout/refused보다 먼저 본다. get_cpu_state RecvTimeout이 "timed out"을
+    # 포함하면 아래 네트워크 분기가 cpu_state 진단을 다시 숨긴다 (#347).
+    if "S7 연결 실패" in msg or ("S7" in msg and "연결" in msg):
+        host = params.get("host", "")
+        # "(rack=…, slot=…): <diag>" 접미를 유지한다. 접미가 없으면 예전 rack/slot 안내.
+        close = msg.rfind("): ")
+        diag = msg[close + 3 :].strip() if close != -1 else ""
+        if diag:
+            return f"S7 PLC({host}) 연결 실패: {diag}"
+        return f"S7 PLC({host}) 연결 실패. rack/slot 값과 머신 전원을 확인하세요."
+
     # ── 네트워크 연결 실패 ───────────────────────────────────────────────
     if "Connection refused" in msg:
         host = params.get("host", "")
@@ -117,11 +129,6 @@ def _format_connection_error(
 
     if "Network is unreachable" in msg or "No route to host" in msg:
         return f"호스트({params.get('host', '')})에 도달할 수 없습니다. 네트워크 연결을 확인하세요."
-
-    # ── S7 PLC 연결 확인 실패 (snap7 connected=False) ───────────────────
-    if "S7 연결 실패" in msg or ("S7" in msg and "연결" in msg):
-        host = params.get("host", "")
-        return f"S7 PLC({host}) 연결 실패. rack/slot 값과 머신 전원을 확인하세요."
 
     # ── MODBUS 연결 확인 실패 ────────────────────────────────────────────
     if "MODBUS 연결 실패" in msg:

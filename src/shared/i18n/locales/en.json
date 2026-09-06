@@ -358,6 +358,8 @@
         "disconnect": "Disconnect",
         "connect": "Connect",
         "sidecarStarting": "Sidecar starting...",
+        "reconnecting": "Reconnecting",
+        "reconnectingAttempt": "reconnecting (attempt {{count}})",
         "startRoasting": "Start Roasting",
         "selectMachine": "Select a machine",
         "limit": {
@@ -527,6 +529,9 @@
             "heater": "Heater",
             "fan": "Fan",
             "drum": "Drum"
+        },
+        "replay": {
+            "curveLoadError": "Could not load the reference curve — check the network and try again"
         },
         "log": {
             "title": "Roast Log",

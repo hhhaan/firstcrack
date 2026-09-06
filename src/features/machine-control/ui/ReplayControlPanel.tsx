@@ -1,10 +1,13 @@
 import { Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { ReplayStopReason, useReplayControl } from '../model/useReplayControl';
 
 interface Props {
     replay: ReturnType<typeof useReplayControl>;
     /** 표시 단위 — 내부 판정은 °C, 표시만 변환한다 */
     unit: 'C' | 'F';
+    /** TSV 로드 실패 — 합성 곡선(heater 없음)과 구분 (#347) */
+    curveError?: boolean;
 }
 
 // 'finished'는 배치 종료라 안내하지 않는다 — 맵에 없으면 렌더 생략
@@ -26,16 +29,19 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
  * 항상 렌더한다 — 타겟 미선택·합성 프로파일 등으로 재생 불가면 체크박스만
  * disabled로 둔다. 숨겨버리면 "기능이 사라졌다"로 읽힌다. 기본 OFF.
  */
-export const ReplayControlPanel = ({ replay, unit }: Props) => {
+export const ReplayControlPanel = ({ replay, unit, curveError = false }: Props) => {
+    const { t } = useTranslation();
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
     // disabled 사유 안내 — native title은 OS 지연(~1s)이 있어 CSS 툴팁으로 즉시 띄운다
     const disabledHint = replay.machineMismatch
         ? '다른 기기에서 기록된 프로파일은 재생할 수 없습니다 — 이 기기로 기록한 프로파일을 선택하세요'
-        : !replay.available
-          ? '레퍼런스 화력 기록이 없습니다 — heater 기록이 있는 타겟 프로파일을 선택하세요'
-          : !replay.active && replay.blocked
-            ? '지금은 켤 수 없습니다 — PID 해제·연결 상태를 확인하세요'
-            : undefined;
+        : curveError && !replay.available
+          ? t('activeRoast.replay.curveLoadError')
+          : !replay.available
+            ? '레퍼런스 화력 기록이 없습니다 — heater 기록이 있는 타겟 프로파일을 선택하세요'
+            : !replay.active && replay.blocked
+              ? '지금은 켤 수 없습니다 — PID 해제·연결 상태를 확인하세요'
+              : undefined;
 
     return (
         <div className="flex shrink-0 flex-col gap-2">

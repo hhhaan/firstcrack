@@ -358,6 +358,8 @@
         "disconnect": "切断",
         "connect": "接続",
         "sidecarStarting": "サイドカーを起動中...",
+        "reconnecting": "再接続中",
+        "reconnectingAttempt": "再接続中 ({{count}}回)",
         "startRoasting": "ローストを開始",
         "selectMachine": "マシンを選択してください",
         "limit": {
@@ -527,6 +529,9 @@
             "heater": "ヒーター",
             "fan": "ファン",
             "drum": "ドラム"
+        },
+        "replay": {
+            "curveLoadError": "リファレンス曲線を読み込めませんでした — ネットワークを確認して再試行してください"
         },
         "log": {
             "title": "ローストログ",

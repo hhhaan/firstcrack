@@ -162,7 +162,8 @@ export const isSameSidecarStatus = (prev: SidecarStatus | null, next: SidecarSta
     prev?.connected === next.connected &&
     prev?.roaster === next.roaster &&
     prev?.error === next.error &&
-    prev?.reconnecting === next.reconnecting;
+    prev?.reconnecting === next.reconnecting &&
+    prev?.reconnect_attempt === next.reconnect_attempt;
 
 export const EMPTY_MACHINE_SNAPSHOT: MachineSnapshot = {
     machine_id: null,

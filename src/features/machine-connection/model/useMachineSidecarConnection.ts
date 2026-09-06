@@ -9,6 +9,8 @@ import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useState } from 'react';
 
 const POLL_INTERVAL_MS = 3000;
+/** disconnected 동안 sidecar 재연결을 보려면 status만 저속으로 유지 (#347) */
+const DISCONNECTED_POLL_INTERVAL_MS = 10_000;
 
 type Params = {
     isActive: boolean;
@@ -61,28 +63,46 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
         };
     }, [isActive, modalOpen]);
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: reconnect_attempt ticks must not reset the interval
     useEffect(() => {
-        if (!isActive || !sidecarStatus?.connected || modalOpen) {
+        if (!isActive || modalOpen) {
             if (!sidecarStatus?.connected) setTemps(null);
             return;
         }
+        // waitUntilReady 전(status=null)은 폴링하지 않는다. connected=false면
+        // 온도는 건너뛰고 /status만 저속 폴링해 sidecar 재연결을 반영한다 (#347).
+        if (sidecarStatus == null) return;
+
+        const connected = sidecarStatus.connected;
+        if (!connected) setTemps(null);
 
         let cancelled = false;
         const poll = async () => {
-            const [nextTemps, nextStatus] = await Promise.all([
-                sidecar.getTemperatures().catch(() => null),
-                sidecar.getStatus().catch(() => null),
-            ]);
+            if (connected) {
+                const [nextTemps, nextStatus] = await Promise.all([
+                    sidecar.getTemperatures().catch(() => null),
+                    sidecar.getStatus().catch(() => null),
+                ]);
+                if (cancelled) return;
+                if (nextTemps) setTemps(nextTemps);
+                if (nextStatus) {
+                    setSidecarStatus((prev) => (isSameSidecarStatus(prev, nextStatus) ? prev : nextStatus));
+                }
+                return;
+            }
+            const nextStatus = await sidecar.getStatus().catch(() => null);
             if (cancelled) return;
-            if (nextTemps) setTemps(nextTemps);
             if (nextStatus) {
                 setSidecarStatus((prev) => (isSameSidecarStatus(prev, nextStatus) ? prev : nextStatus));
             }
         };
         void poll();
-        const id = setInterval(() => {
-            void poll();
-        }, POLL_INTERVAL_MS);
+        const id = setInterval(
+            () => {
+                void poll();
+            },
+            connected ? POLL_INTERVAL_MS : DISCONNECTED_POLL_INTERVAL_MS,
+        );
         return () => {
             cancelled = true;
             clearInterval(id);

@@ -3,10 +3,11 @@ import {
     copyMachineSnapshot,
     EMPTY_MACHINE_SNAPSHOT,
     isRoasterFieldVisible,
+    isSameSidecarStatus,
     snapshotFromSidecar,
     writeMapFormFlags,
 } from './lib';
-import type { Machine } from './types';
+import type { Machine, SidecarStatus } from './types';
 
 describe('isRoasterFieldVisible', () => {
     it.each(['rtu', 'ascii', 'serial'])('serial mode %s hides TCP fields, shows serial fields', (mode) => {
@@ -115,5 +116,25 @@ describe('copyMachineSnapshot', () => {
             ...EMPTY_MACHINE_SNAPSHOT,
             machine_name: 'A',
         });
+    });
+});
+
+describe('isSameSidecarStatus', () => {
+    const base = (overrides: Partial<SidecarStatus> = {}): SidecarStatus => ({
+        connected: false,
+        roaster: 'giesen_w60a',
+        display_name: 'W60',
+        brand: 'Giesen',
+        capabilities: [],
+        uptime: 0,
+        error: null,
+        reconnecting: true,
+        reconnect_attempt: 1,
+        ...overrides,
+    });
+
+    it('treats reconnect_attempt changes as a new status so the Machines UI can show progress', () => {
+        expect(isSameSidecarStatus(base(), base({ reconnect_attempt: 2 }))).toBe(false);
+        expect(isSameSidecarStatus(base(), base())).toBe(true);
     });
 });

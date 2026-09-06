@@ -162,7 +162,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         () => dbProfiles.find((p) => p.id === targetProfileId) ?? null,
         [dbProfiles, targetProfileId],
     );
-    const { points: targetCurvePoints } = useResolvedProfileCurve(targetProfile);
+    const { points: targetCurvePoints, isError: replayCurveError } = useResolvedProfileCurve(targetProfile);
     // Replay 컷오프는 레퍼런스의 Drop 마크다. duration_sec는 End 확정 시각(store elapsed)이라
     // Drop→End 사이 쿨다운 조작(다음 배치 예열용 가스 올림)이 재생 계획에 섞인다.
     const replayDropTime = useMemo(() => {
@@ -603,6 +603,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         // Replay Assist (#300) — 합성 곡선은 heater가 null이라 자연 비활성
                         replayPoints={targetCurvePoints}
                         replayMachineMismatch={replayMachineMismatch}
+                        replayCurveError={replayCurveError}
                         replayDropTime={replayDropTime}
                         liveBt={rawBT}
                         elapsed={elapsed}

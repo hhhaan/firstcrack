@@ -358,6 +358,8 @@
         "disconnect": "断开连接",
         "connect": "连接",
         "sidecarStarting": "正在启动边车服务...",
+        "reconnecting": "正在重连",
+        "reconnectingAttempt": "正在重连（第 {{count}} 次）",
         "startRoasting": "开始烘焙",
         "selectMachine": "请选择设备",
         "limit": {
@@ -527,6 +529,9 @@
             "heater": "加热器",
             "fan": "风扇",
             "drum": "滚筒"
+        },
+        "replay": {
+            "curveLoadError": "无法加载参考曲线 — 请检查网络后重试"
         },
         "log": {
             "title": "烘焙记录",

@@ -32,6 +32,8 @@ interface Props {
     replayPoints: ReplayPoint[] | null;
     /** 레퍼런스가 다른 기종 기록 — Replay 차단 (같은 기기만 재생) */
     replayMachineMismatch: boolean;
+    /** TSV 로드 실패 — 기록 부재와 구분 (#347) */
+    replayCurveError?: boolean;
     /** 레퍼런스의 charge→drop 초 — 배출 후 기록 제외용 */
     replayDropTime: number | null;
     liveBt: number | null;
@@ -62,6 +64,7 @@ export const MachineControlPanel = ({
     pidDropBehavior,
     replayPoints,
     replayMachineMismatch,
+    replayCurveError = false,
     replayDropTime,
     liveBt,
     elapsed,
@@ -230,7 +233,7 @@ export const MachineControlPanel = ({
                         기기가 명령을 반영하지 않았습니다. 조작반이 원격 제어를 허용하는지 확인하세요.
                     </p>
                 )}
-                <ReplayControlPanel replay={replay} unit={temperatureUnit} />
+                <ReplayControlPanel replay={replay} unit={temperatureUnit} curveError={replayCurveError} />
                 <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />
             </div>
         </div>

@@ -31,4 +31,12 @@ describe('useMachineSidecarConnection', () => {
         expect(machinesSrc).toMatch(/disabled=\{connecting \|\| !sidecarReady\}/);
         expect(machinesSrc).toContain("t('machines.sidecarStarting')");
     });
+
+    it('keeps a slower /status poll while disconnected so sidecar reconnect is visible', () => {
+        expect(hookSrc).toContain('DISCONNECTED_POLL_INTERVAL_MS');
+        expect(hookSrc).toContain('connected ? POLL_INTERVAL_MS : DISCONNECTED_POLL_INTERVAL_MS');
+        expect(hookSrc).toMatch(/sidecar\.getStatus\(\)/);
+        expect(machinesSrc).toContain("t('machines.reconnecting')");
+        expect(machinesSrc).toContain("t('machines.reconnectingAttempt'");
+    });
 });

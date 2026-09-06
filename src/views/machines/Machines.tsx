@@ -98,7 +98,9 @@ export const Machines = ({
                 subtitle={`${t('machines.registered', { count: machines.length })}${
                     sidecarStatus?.connected && connectedMachine
                         ? ` · ${t('machines.connectedSuffix', { name: connectedMachine.name })}`
-                        : ` · ${t('machines.noActiveConnection')}`
+                        : sidecarStatus?.reconnecting
+                          ? ` · ${t('machines.reconnectingAttempt', { count: sidecarStatus.reconnect_attempt ?? 0 })}`
+                          : ` · ${t('machines.noActiveConnection')}`
                 }`}
                 actions={
                     <PillButton onClick={openAddModal}>
@@ -154,6 +156,10 @@ export const Machines = ({
                         <div className="flex flex-col gap-2">
                             {machines.map((machine) => {
                                 const isConnected = isThisMachineConnected(machine);
+                                const isReconnecting =
+                                    !isConnected &&
+                                    Boolean(sidecarStatus?.reconnecting) &&
+                                    sidecarStatus?.roaster === machine.roasterKey;
                                 return (
                                     <div
                                         key={machine.id}
@@ -170,10 +176,14 @@ export const Machines = ({
                                             <Badge
                                                 size="sm"
                                                 uppercase
-                                                tone={isConnected ? 'good' : 'bad'}
+                                                tone={isConnected ? 'good' : isReconnecting ? 'warn' : 'bad'}
                                                 className="px-1.75"
                                             >
-                                                {isConnected ? 'Live' : 'Offline'}
+                                                {isConnected
+                                                    ? 'Live'
+                                                    : isReconnecting
+                                                      ? t('machines.reconnecting')
+                                                      : 'Offline'}
                                             </Badge>
                                         </div>
                                         <div className="flex gap-2.5">

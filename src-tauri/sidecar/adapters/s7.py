@@ -13,6 +13,29 @@ from protocol_trace import TRACE
 _log = logging.getLogger(__name__)
 
 
+def _client_probe(plc: Any) -> tuple[bool, str]:
+    """(alive, diagnostic). diagnostic is empty when alive.
+
+    RUN 요구는 유지한다. STOP/UNKNOWN/조회 예외를 False로만 삼키지 않고
+    원인 문자열을 남긴다 — connect()가 이를 예외에 실어 _error·Sentry로 보낸다 (#347).
+    """
+    if plc is None:
+        return False, "plc is None"
+    try:
+        connected = bool(plc.get_connected())
+    except Exception as exc:
+        return False, f"get_connected() failed: {type(exc).__name__}: {exc}"
+    if not connected:
+        return False, "get_connected()=False"
+    try:
+        state = str(plc.get_cpu_state())
+    except Exception as exc:
+        return False, f"get_cpu_state() failed: {type(exc).__name__}: {exc}"
+    if state != "S7CpuStatusRun":
+        return False, f"cpu_state={state}"
+    return True, ""
+
+
 def _client_alive(plc: Any) -> bool:
     """클라이언트가 살아있는 PLC에 붙어 있는지 확인 (네트워크 왕복 포함).
 
@@ -20,14 +43,8 @@ def _client_alive(plc: Any) -> bool:
     CPU 상태 조회가 신뢰할 수 있는 신호다 — Artisan s7port.py 기준.
     비싸므로 connect 검증과 /status에서만 쓴다. 읽기 경로에서는 쓰지 않는다.
     """
-    try:
-        return (
-            plc is not None
-            and plc.get_connected()
-            and str(plc.get_cpu_state()) == "S7CpuStatusRun"
-        )
-    except Exception:
-        return False
+    alive, _ = _client_probe(plc)
+    return alive
 
 
 def _probe_tcp(host: str, port: int, timeout: float) -> None:
@@ -138,9 +155,11 @@ class S7Adapter:
 
         # 연결 검증은 get_cpu_state() 네트워크 왕복을 포함 → 이벤트 루프 밖에서 평가 (H5).
         # 읽기 경로에서는 제거했지만(예산 20% 낭비) connect 시에는 왕복 비용이 정당하다.
-        if not await loop.run_in_executor(None, lambda: _client_alive(client)):
+        alive, diag = await loop.run_in_executor(None, lambda: _client_probe(client))
+        if not alive:
+            _log.warning("S7 connect probe failed: %s", diag)
             raise ConnectionError(
-                f"S7 연결 실패: {self._host}:{self._port} (rack={self._rack}, slot={self._slot})"
+                f"S7 연결 실패: {self._host}:{self._port} (rack={self._rack}, slot={self._slot}): {diag}"
             )
         self._bt_ch = next((c for c in self._channels if c.get("role") == "BT"), None)
         self._et_ch = next((c for c in self._channels if c.get("role") == "ET"), None)
