@@ -1,6 +1,6 @@
 import { logger } from '@shared/lib/logger';
 import { bbpKeyForUser, profileKeyForUser, requestUploadUrl } from '@shared/lib/r2';
-import { BaseDirectory, readTextFile } from '@tauri-apps/plugin-fs';
+import { BaseDirectory, exists, readTextFile } from '@tauri-apps/plugin-fs';
 
 export const uploadRoastProfile = async (sessionId: string, userId: string): Promise<string | null> => {
     let tsvContent: string;
@@ -30,11 +30,12 @@ export const uploadRoastProfile = async (sessionId: string, userId: string): Pro
 
 /** BBP 커브 업로드. 로컬 파일 없으면(첫 배치/무료 플랜 등) null. */
 export const uploadBbpProfile = async (sessionId: string, userId: string): Promise<string | null> => {
+    const path = `bbp_${sessionId}.tsv`;
+    // 파일 부재는 정상 경로(BBP 없는 배치) — 읽기 실패만 Sentry로.
+    if (!(await exists(path, { baseDir: BaseDirectory.AppLocalData }))) return null;
     let tsvContent: string;
     try {
-        tsvContent = await readTextFile(`bbp_${sessionId}.tsv`, {
-            baseDir: BaseDirectory.AppLocalData,
-        });
+        tsvContent = await readTextFile(path, { baseDir: BaseDirectory.AppLocalData });
     } catch (err) {
         logger.capture(err, { scope: 'uploadRoastProfile.readBbpTsv' });
         return null;
