@@ -29,13 +29,43 @@ const getSidecarToken = (): Promise<string | null> => {
     return tokenPromise;
 };
 
+const STARTUP_RETRY_GAP_MS = 400;
 const CONNECT_RETRY_BUDGET_MS = 8_000;
-const CONNECT_RETRY_GAP_MS = 400;
+const READY_RETRY_BUDGET_MS = 30_000;
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+async function retryWhileSidecarStarts<T>(operation: () => Promise<T>, budgetMs: number): Promise<T> {
+    const deadline = Date.now() + budgetMs;
+    for (;;) {
+        try {
+            return await operation();
+        } catch (error) {
+            if (!isSidecarStartingError(error) || Date.now() >= deadline) throw error;
+            await wait(STARTUP_RETRY_GAP_MS);
+        }
+    }
+}
+
 async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
+    const requestStartedAt = Date.now();
     try {
         const token = await getSidecarToken();
+        // #region agent log
+        if (path === '/status' || path === '/connect')
+            fetch('http://127.0.0.1:7587/ingest/0bb0b05a-64a9-4b7c-808f-af9b5ec0a764', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c9b355' },
+                body: JSON.stringify({
+                    sessionId: 'c9b355',
+                    runId: 'pre-fix',
+                    hypothesisId: 'H1,H3,H4',
+                    location: 'src/shared/lib/sidecar.ts:41',
+                    message: 'Sidecar request starting',
+                    data: { path, method: init?.method ?? 'GET', tokenPresent: Boolean(token) },
+                    timestamp: Date.now(),
+                }),
+            }).catch(() => {});
+        // #endregion
         const res = await fetch(`${SIDECAR_BASE}${path}`, {
             headers: {
                 'Content-Type': 'application/json',
@@ -44,6 +74,28 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_
             ...init,
             signal: AbortSignal.timeout(timeoutMs),
         });
+        // #region agent log
+        if (path === '/status' || path === '/connect')
+            fetch('http://127.0.0.1:7587/ingest/0bb0b05a-64a9-4b7c-808f-af9b5ec0a764', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c9b355' },
+                body: JSON.stringify({
+                    sessionId: 'c9b355',
+                    runId: 'pre-fix',
+                    hypothesisId: 'H1,H3,H4',
+                    location: 'src/shared/lib/sidecar.ts:53',
+                    message: 'Sidecar response received',
+                    data: {
+                        path,
+                        method: init?.method ?? 'GET',
+                        status: res.status,
+                        elapsedMs: Date.now() - requestStartedAt,
+                        tokenPresent: Boolean(token),
+                    },
+                    timestamp: Date.now(),
+                }),
+            }).catch(() => {});
+        // #endregion
         if (!res.ok) {
             const body = await res.json().catch(() => ({}));
             const msg = (body as { error?: string }).error ?? `HTTP ${res.status}`;
@@ -52,6 +104,28 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_
         }
         return await (res.json() as Promise<T>);
     } catch (err) {
+        // #region agent log
+        if (path === '/status' || path === '/connect')
+            fetch('http://127.0.0.1:7587/ingest/0bb0b05a-64a9-4b7c-808f-af9b5ec0a764', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c9b355' },
+                body: JSON.stringify({
+                    sessionId: 'c9b355',
+                    runId: 'pre-fix',
+                    hypothesisId: 'H1,H4',
+                    location: 'src/shared/lib/sidecar.ts:66',
+                    message: 'Sidecar request failed',
+                    data: {
+                        path,
+                        method: init?.method ?? 'GET',
+                        elapsedMs: Date.now() - requestStartedAt,
+                        errorName: err instanceof Error ? err.name : typeof err,
+                        errorMessage: err instanceof Error ? err.message : String(err),
+                    },
+                    timestamp: Date.now(),
+                }),
+            }).catch(() => {});
+        // #endregion
         if (!(err instanceof Error && err.message.startsWith('HTTP'))) {
             logger.error(`[sidecar] ${path} 네트워크 오류:`, err);
         }
@@ -62,24 +136,22 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_
 export const sidecar = {
     getStatus: () => request<SidecarStatus>('/status'),
 
-    connect: async (roasterKey: string, params: Record<string, unknown>) => {
-        const deadline = Date.now() + CONNECT_RETRY_BUDGET_MS;
-        for (;;) {
-            try {
-                return await request<SidecarStatus>(
+    /** 재시작 직후 30초 예산 동안 사이드카 기동 실패를 삼키고 첫 정상 상태를 기다린다. */
+    waitUntilReady: () => retryWhileSidecarStarts(() => request<SidecarStatus>('/status'), READY_RETRY_BUDGET_MS),
+
+    connect: (roasterKey: string, params: Record<string, unknown>) =>
+        retryWhileSidecarStarts(
+            () =>
+                request<SidecarStatus>(
                     '/connect',
                     {
                         method: 'POST',
                         body: JSON.stringify({ roaster: roasterKey, ...params }),
                     },
                     CONNECT_TIMEOUT_MS,
-                );
-            } catch (e) {
-                if (!isSidecarStartingError(e) || Date.now() >= deadline) throw e;
-                await wait(CONNECT_RETRY_GAP_MS);
-            }
-        }
-    },
+                ),
+            CONNECT_RETRY_BUDGET_MS,
+        ),
 
     // connect와 같은 예산을 준다 — 진행 중인 핸드셰이크를 취소하고 정리가 끝나기를
     // 기다려야 하므로, 5s 기본값이면 요청이 먼저 abort돼 상태가 갱신되지 않는다.
