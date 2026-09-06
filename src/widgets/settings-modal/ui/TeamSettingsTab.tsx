@@ -1,6 +1,7 @@
 import { useActiveWorkspace, useMyOrganization, useRevokeOrgInvite } from '@entities/organization';
 import { useCreateInvite, useRedeemInvite, useRemoveMember } from '@features/team-invite';
 import { FEATURE, useFeature } from '@shared/lib/features';
+import { logger } from '@shared/lib/logger';
 import { SectionCard } from '@shared/ui/SectionCard';
 import { Check, Copy, Lock, Trash2, UserMinus, Users } from 'lucide-react';
 import { useState } from 'react';
@@ -59,7 +60,8 @@ export function TeamSettingsTab() {
             await navigator.clipboard.writeText(token);
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
-        } catch {
+        } catch (err) {
+            logger.capture(err, { scope: 'teamSettings.copyInvite' });
             setErrorKey('generic');
         }
     };

@@ -1,3 +1,4 @@
+import { logger } from '@shared/lib/logger';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { locale } from '@tauri-apps/plugin-os';
 import { ja as dateFnsJa, ko as dateFnsKo, enUS, zhCN } from 'date-fns/locale';
@@ -32,7 +33,8 @@ const getStoredLanguage = async (): Promise<string | undefined> => {
 const getSystemLanguage = async (): Promise<string | null> => {
     try {
         return await locale();
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'i18n.systemLocale' });
         return window.navigator.language;
     }
 };
@@ -41,7 +43,8 @@ const persistLanguage = async (language: SupportedLanguage) => {
     await settingsSet(LANGUAGE_KEY, language);
     try {
         window.localStorage.setItem(LOCAL_STORAGE_KEY, language);
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'i18n.persistLanguage' });
         /* private mode */
     }
 };

@@ -5,6 +5,7 @@ import {
     cuppingResultsUrl,
     useCuppingEvent,
 } from '@entities/cupping';
+import { logger } from '@shared/lib/logger';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, Link2, QrCode } from 'lucide-react';
@@ -75,7 +76,8 @@ export const CuppingResultsShare = ({ eventId, userId, listEvent }: CuppingResul
         try {
             await navigator.clipboard.writeText(url);
             setCopied(true);
-        } catch {
+        } catch (err) {
+            logger.capture(err, { scope: 'cuppingShare.copyLink' });
             setError(t('cupping.resultsLinkError'));
         }
     };

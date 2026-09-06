@@ -1,5 +1,6 @@
 import { type InventoryAlert, useDismissInventoryAlert, useInventoryAlerts } from '@entities/inventory-alert';
 import { alertColor } from '@shared/lib/inventory-alert-styles';
+import { logger } from '@shared/lib/logger';
 import type { View } from '@shared/types/view';
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -11,7 +12,8 @@ const loadDismissed = (): Set<string> => {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         return new Set<string>(raw ? JSON.parse(raw) : []);
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'inventoryAlertBanner.readDismissed' });
         return new Set<string>();
     }
 };

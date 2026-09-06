@@ -99,7 +99,8 @@ export async function checkSidecarAndRecoverIdle(deps: {
         deps.setError?.(decision.error);
         deps.setConnected(decision.connected);
         // reconnecting hold: do not enter preheating from idle until link is solid
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'sidecarPolling.status' });
         deps.setReconnecting?.(false);
         deps.setConnected(false);
     }

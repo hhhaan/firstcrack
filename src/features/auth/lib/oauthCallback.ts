@@ -14,7 +14,8 @@ export const exchangeOAuthCallbackUrl = async (rawUrl: string, _source = 'unknow
     let parsed: URL;
     try {
         parsed = new URL(rawUrl);
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'oauthCallback.exchange' });
         return { ok: false, code: 'oauth_failed' };
     }
 

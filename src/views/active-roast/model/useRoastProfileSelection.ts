@@ -1,5 +1,6 @@
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { logger } from '@shared/lib/logger';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean } from '@shared/types/database.types';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -35,7 +36,8 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(() => {
         try {
             return localStorage.getItem(DEFAULT_BEAN_KEY);
-        } catch {
+        } catch (err) {
+            logger.capture(err, { scope: 'roastProfileSelection.readDefaultBean' });
             return null;
         }
     });
@@ -108,8 +110,8 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
             if (stored) {
                 setSelectedBeanId(stored);
             }
-        } catch {
-            /* ignore */
+        } catch (err) {
+            logger.capture(err, { scope: 'roastProfileSelection.applyDefaultBean' });
         }
         appliedDefaultBeanRef.current = true;
     }, [isActive, selectedBeanId]);
@@ -123,7 +125,8 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         setSelectedBeanId(null);
         try {
             localStorage.removeItem(DEFAULT_BEAN_KEY);
-        } catch {
+        } catch (err) {
+            logger.capture(err, { scope: 'roastProfileSelection.clearDefaultBean' });
             /* ignore */
         }
     }, [beansReady, beans, selectedBeanId, handoffBeanName]);

@@ -1,4 +1,5 @@
 import type { Machine, RoasterDef } from '@entities/machine';
+import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -94,7 +95,8 @@ export const useMachineFormActions = ({
                 if (action === 'addAndConnect') testConnectedRef.current = false;
             }
             if (!keepTest) onClose();
-        } catch {
+        } catch (err) {
+            logger.capture(err, { scope: 'machineForm.commit' });
             setError(t(isEdit ? 'addMachine.failedToSave' : 'addMachine.failedToAdd'));
         } finally {
             setSaving(false);

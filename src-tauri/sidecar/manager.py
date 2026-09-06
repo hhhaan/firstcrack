@@ -267,8 +267,10 @@ class RoasterManager:
                     ),
                 )
             except Exception:
+                _log.exception("Slack hardware error notify scheduling failed (event=%s)", event)
                 pass
         except Exception:
+            _log.exception("_capture_hardware_error failed (event=%s)", event)
             pass
 
     async def _run_adapter_connect(self, adapter: Any) -> None:
@@ -350,6 +352,7 @@ class RoasterManager:
                 try:
                     await self._adapter.disconnect()
                 except Exception:
+                    _log.exception("adapter.disconnect() failed after connect cancelled [%s]", roaster_key)
                     pass
                 self._adapter = None
                 self._connected = False
@@ -363,6 +366,7 @@ class RoasterManager:
                 try:
                     await self._adapter.disconnect()
                 except Exception:
+                    _log.exception("adapter.disconnect() failed after connect_failed [%s]", roaster_key)
                     pass
                 self._error = _format_connection_error(exc, protocol, merged)
                 self._connected = False
@@ -388,6 +392,7 @@ class RoasterManager:
             try:
                 await self._pid.stop("disconnect", mode=STOP_ZERO)
             except Exception:
+                _log.exception("pid.stop() failed during disconnect [%s]", self._roaster_key)
                 pass
         # 쓰기 게이트를 첫 await보다 먼저 닫는다. cancel()은 기다리지 않으므로
         # 이미 control() 안에 진입한 tick이 아래 await 도중 재개해 한 번 더 쓸 수 있다.
@@ -404,6 +409,7 @@ class RoasterManager:
             try:
                 await self._adapter.disconnect()
             except Exception:
+                _log.exception("adapter.disconnect() failed during _disconnect_internal [%s]", self._roaster_key)
                 pass
         if self._roaster_key:
             sentry_sdk.add_breadcrumb(
@@ -452,6 +458,7 @@ class RoasterManager:
                         try:
                             await self._adapter.disconnect()
                         except Exception:
+                            _log.exception("adapter.disconnect() failed before reconnect attempt (%d) [%s]", attempt, self._roaster_key)
                             pass
                         await self._run_adapter_connect(self._adapter)
                         self._connected = True
@@ -506,6 +513,7 @@ class RoasterManager:
             if self._pid is not None and self._pid.state_name != "off":
                 await self._pid.stop("reconnect", mode=STOP_ZERO)
         except Exception:
+            _log.exception("pid.stop() failed during _safety_after_reconnect [%s]", self._roaster_key)
             pass
         try:
             if self._adapter is not None:

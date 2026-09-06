@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import { settingsGet, settingsSet } from './settings-store';
 
 export const PRICING_FIXED_OVERHEADS_KEY = 'pricing.fixedOverheads';
@@ -33,7 +34,8 @@ const readLocal = (): StoredFixedOverhead[] => {
         const raw = localStorage.getItem(PRICING_FIXED_OVERHEADS_KEY);
         if (!raw) return [];
         return normalize(JSON.parse(raw));
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'pricingStore.readLocal' });
         return [];
     }
 };
@@ -41,8 +43,9 @@ const readLocal = (): StoredFixedOverhead[] => {
 const writeLocal = (items: StoredFixedOverhead[]) => {
     try {
         localStorage.setItem(PRICING_FIXED_OVERHEADS_KEY, JSON.stringify(items));
-    } catch {
+    } catch (err) {
         /* web dev fallback only */
+        logger.capture(err, { scope: 'pricingStore.writeLocal' });
     }
 };
 
@@ -59,7 +62,8 @@ export const pricingStore = {
         const safe = normalize(items);
         try {
             writeLocal(safe);
-        } catch {
+        } catch (err) {
+            logger.capture(err, { scope: 'pricingStore.setFixedOverheads' });
             /* quota / private mode */
         }
         await settingsSet(PRICING_FIXED_OVERHEADS_KEY, safe);

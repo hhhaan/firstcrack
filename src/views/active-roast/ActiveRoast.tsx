@@ -22,6 +22,7 @@ import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnbo
 import { MachineControlPanel } from '@features/machine-control';
 import { useWeather } from '@shared/api/weather';
 import { formatElapsed } from '@shared/lib/format';
+import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
@@ -350,7 +351,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     if (sid) {
                         try {
                             await flushTsv(sid);
-                        } catch {
+                        } catch (err) {
+                            logger.capture(err, { scope: 'activeRoast.flushOnClose' });
                             // flush failure must not block window close
                         }
                     }

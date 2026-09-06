@@ -38,6 +38,7 @@ def local_ipv4_networks() -> list[ipaddress.IPv4Network]:
         try:
             net = ipaddress.IPv4Network(f"{ip}/24", strict=False)
         except ValueError:
+            _log.exception("local_ipv4_networks: unparsable IP %r", ip)
             return
         key = str(net)
         if key not in seen:
@@ -57,6 +58,7 @@ def local_ipv4_networks() -> list[ipaddress.IPv4Network]:
             s.connect(("8.8.8.8", 80))
             _add(s.getsockname()[0])
     except OSError:
+        _log.exception("local_ipv4_networks: primary outbound interface probe failed")
         pass
 
     return networks
@@ -94,9 +96,13 @@ async def _probe(host: str, port: int, sem: asyncio.Semaphore) -> str | None:
             try:
                 await writer.wait_closed()
             except Exception:
+                _log.exception("scanner: writer.wait_closed() failed for %s:%d", host, port)
                 pass
             return host
         except Exception:
+            # Normal path: most hosts in a /24 sweep refuse or time out on this
+            # port — a per-host breadcrumb only, not worth Sentry noise.
+            _log.warning("scanner: TCP probe failed for %s:%d", host, port)
             return None
 
 

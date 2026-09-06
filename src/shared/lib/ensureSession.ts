@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import { supabase } from './supabase';
 
 /**
@@ -12,7 +13,8 @@ export async function ensureSession(): Promise<boolean> {
         if (data.session) return true;
         const { data: refreshed } = await supabase.auth.refreshSession();
         return refreshed.session != null;
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'ensureSession' });
         return false;
     }
 }
