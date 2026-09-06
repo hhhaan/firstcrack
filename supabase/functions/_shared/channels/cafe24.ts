@@ -255,7 +255,11 @@ function mapItems(order: Record<string, unknown>, orderStatus: CanonicalStatus):
     }));
 }
 
-function mapCafe24Order(order: Record<string, unknown>): CanonicalOrder | null {
+/**
+ * Cafe24 order resource → CanonicalOrder. Shared by the sync poll and the order webhook —
+ * the webhook `resource` is the same REST order shape, so one mapper is the single entry point.
+ */
+export function mapCafe24Order(order: Record<string, unknown>): CanonicalOrder | null {
     const orderId = String(order.order_id ?? '');
     if (!orderId) return null;
 
