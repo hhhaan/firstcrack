@@ -38,7 +38,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
         watch,
         formState: { errors, isValid },
     } = useForm<BlendForm>({
-        resolver: zodResolver(blendFormSchema),
+        resolver: zodResolver(blendFormSchema(t)),
         mode: 'onChange',
         defaultValues: {
             name: '',

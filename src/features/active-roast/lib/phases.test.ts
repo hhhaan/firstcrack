@@ -1,9 +1,10 @@
+import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry } from '@shared/types/roast';
 import { describe, expect, it } from 'vitest';
 import { computePhaseSegments } from './phases';
 
 const entry = (event: string, timeSec: number): LogEntry => ({
-    time: `${Math.floor(timeSec / 60)}:${String(timeSec % 60).padStart(2, '0')}`,
+    time: formatElapsed(timeSec),
     timeSec,
     event,
     temp: '0',

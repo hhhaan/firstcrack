@@ -6,6 +6,7 @@ import { useProductStock, useProductStockEvents } from '@entities/product-stock-
 import { AdjustStockModal } from '@features/adjust-stock';
 import { MapChannelProductModal } from '@features/map-channel-product';
 import { usePackageProduct } from '@features/package-product';
+import { localeForDate } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { TableSkeleton } from '@shared/ui/TableSkeleton';
@@ -318,7 +319,7 @@ function ProductHistoryRow({ userId, productId }: { userId: string; productId: s
                                 </span>
                                 {ev.note ? <span className="text-muted">— {ev.note}</span> : null}
                                 <span className="ml-auto text-muted">
-                                    {new Date(ev.created_at).toLocaleDateString()}
+                                    {new Date(ev.created_at).toLocaleDateString(localeForDate())}
                                 </span>
                             </li>
                         ))}

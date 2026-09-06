@@ -2,6 +2,7 @@ import type { PidRuntime } from '@entities/machine';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ControlRole } from '../lib/controlSender';
 import type { ReplayPoint } from '../lib/replay';
 import { useMachineControl } from '../model/useMachineControl';
@@ -69,6 +70,7 @@ export const MachineControlPanel = ({
     afterTurningPoint,
     temperatureUnit,
 }: Props) => {
+    const { t } = useTranslation();
     const entitled = useFeature(FEATURE.machineControl);
     const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
         useMachineControl(sidecarConnected, liveData);
@@ -153,15 +155,15 @@ export const MachineControlPanel = ({
             <div className={collapsed ? 'flex flex-col items-center gap-2' : 'flex items-center justify-between gap-1'}>
                 {!collapsed && (
                     <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                        Machine Control
+                        {t('machineControl.title')}
                     </span>
                 )}
                 <button
                     type="button"
                     onClick={() => setCollapsed((c) => !c)}
-                    aria-label={collapsed ? 'Expand machine control' : 'Collapse machine control'}
+                    aria-label={collapsed ? t('machineControl.expand') : t('machineControl.collapse')}
                     aria-expanded={!collapsed}
-                    title={collapsed ? 'Expand machine control' : 'Collapse machine control'}
+                    title={collapsed ? t('machineControl.expand') : t('machineControl.collapse')}
                     className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-secondary hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated cursor-pointer border-none bg-transparent"
                 >
                     {collapsed ? <ChevronLeft size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
@@ -170,8 +172,8 @@ export const MachineControlPanel = ({
                     <span
                         role="img"
                         className={`h-2 w-2 rounded-full ${statusDot}`}
-                        title={`PID ${pidState}`}
-                        aria-label={`PID ${pidState}`}
+                        title={t('machineControl.pidState', { state: pidState })}
+                        aria-label={t('machineControl.pidState', { state: pidState })}
                     />
                 )}
                 {/* 접혀도 Replay가 히터를 잡고 있다는 표시는 보여야 한다 (#300) */}
@@ -179,8 +181,8 @@ export const MachineControlPanel = ({
                     <span
                         role="img"
                         className="h-2 w-2 rounded-full bg-emerald-500"
-                        title="Replay 재생 중"
-                        aria-label="Replay 재생 중"
+                        title={t('machineControl.replayActive')}
+                        aria-label={t('machineControl.replayActive')}
                     />
                 )}
                 {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
@@ -188,15 +190,15 @@ export const MachineControlPanel = ({
                     <span
                         role="img"
                         className="h-2 w-2 rounded-full bg-red-500"
-                        title="기기가 명령을 반영하지 않았습니다"
-                        aria-label="기기가 명령을 반영하지 않았습니다"
+                        title={t('machineControl.unacked')}
+                        aria-label={t('machineControl.unacked')}
                     />
                 )}
             </div>
 
             {/* 접혀도 트리 유지 — PID/DROP 훅 언마운트 방지 */}
             <div className={collapsed ? 'hidden' : 'flex min-h-0 flex-1 flex-col gap-3'} aria-hidden={collapsed}>
-                {sending && <span className="text-[11px] text-muted">sending…</span>}
+                {sending && <span className="text-[11px] text-muted">{t('machineControl.sending')}</span>}
                 {/* fader가 남는 높이를 먹는다. 창이 짧아지면 min-h까지 줄고 그 아래로는 패널이 스크롤된다 */}
                 <div className="flex min-h-24 flex-1 justify-around gap-1">
                     {ROLE_ORDER.map((role) => {

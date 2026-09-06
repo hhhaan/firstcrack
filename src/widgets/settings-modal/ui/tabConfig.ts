@@ -65,23 +65,5 @@ export const getTabs = (t: (key: string) => string): TabConfig[] => {
             title: tk('support', 'title'),
             description: tk('support', 'description'),
         },
-        /* TODO: notifications 탭 - 기능 구현 시 활성화
-        {
-            id: 'notifications',
-            label: tk('notifications', 'label'),
-            icon: Bell,
-            title: tk('notifications', 'title'),
-            description: tk('notifications', 'description'),
-        },
-        */
-        /* TODO: session 탭 - 기능 구현 시 활성화
-        {
-            id: 'session',
-            label: tk('session', 'label'),
-            icon: LayoutDashboard,
-            title: tk('session', 'title'),
-            description: tk('session', 'description'),
-        },
-        */
     ];
 };

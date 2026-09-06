@@ -11,25 +11,6 @@ interface LoginProps {
     onLogin?: () => void;
 }
 
-// Placeholder testimonials — re-enable when real quotes exist.
-// const testimonials = [
-//     {
-//         quote: 'First Crack cut our batch logging time in half. The temperature curves alone are worth it.',
-//         author: 'Mia Tanaka',
-//         role: 'Head Roaster, Silo Coffee',
-//     },
-//     {
-//         quote: 'Finally a roastery tool built for specialty. The profile library is exactly what we needed.',
-//         author: 'David Osei',
-//         role: 'Owner, Kintu Roasters',
-//     },
-//     {
-//         quote: 'The live ROR tracking changed how we approach development time. Incredibly accurate.',
-//         author: 'Sarah Moreau',
-//         role: 'Q Grader, Bloom Roastery',
-//     },
-// ];
-
 export const Login = ({ onLogin }: LoginProps) => {
     const { t } = useTranslation();
     const {
@@ -47,59 +28,22 @@ export const Login = ({ onLogin }: LoginProps) => {
     const errorMessage = displayError ? t(`auth.errors.${displayError}`) : null;
 
     return (
-        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-            {/* Left panel — brand */}
-            <div
-                style={{
-                    width: 480,
-                    flexShrink: 0,
-                    background: '#171717',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    padding: '48px 52px',
-                    position: 'relative',
-                    overflow: 'hidden',
-                }}
-            >
-                {/* Subtle grid texture */}
+        <div className="flex h-screen overflow-hidden">
+            <div className="relative flex w-[480px] shrink-0 flex-col justify-between overflow-hidden bg-[#171717] px-[52px] py-12">
                 <div
+                    className="pointer-events-none absolute inset-0"
                     style={{
-                        position: 'absolute',
-                        inset: 0,
                         backgroundImage: `
             linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
             linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)
           `,
                         backgroundSize: '48px 48px',
-                        pointerEvents: 'none',
                     }}
                 />
+                <div className="pointer-events-none absolute -bottom-[120px] -left-20 size-[400px] rounded-full bg-[radial-gradient(circle,rgba(78,50,23,0.35)_0%,transparent_70%)]" />
 
-                {/* Warm glow */}
                 <div
-                    style={{
-                        position: 'absolute',
-                        bottom: -120,
-                        left: -80,
-                        width: 400,
-                        height: 400,
-                        borderRadius: '50%',
-                        background: 'radial-gradient(circle, rgba(78,50,23,0.35) 0%, transparent 70%)',
-                        pointerEvents: 'none',
-                    }}
-                />
-
-                {/* Logo */}
-                <div
-                    style={{
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                        cursor: 'pointer',
-                        userSelect: 'none',
-                    }}
+                    className="relative flex cursor-pointer select-none items-center gap-3"
                     onClick={async () => {
                         if ((window as Window & { __TAURI__?: unknown }).__TAURI__) {
                             const { message } = await import('@tauri-apps/plugin-dialog');
@@ -109,221 +53,44 @@ export const Login = ({ onLogin }: LoginProps) => {
                         }
                     }}
                 >
-                    <span
-                        style={{
-                            fontFamily: 'var(--font-display)',
-                            fontWeight: 300,
-                            fontSize: 18,
-                            color: 'rgba(255,255,255,0.9)',
-                            letterSpacing: '-0.2px',
-                        }}
-                    >
+                    <span className="font-(--font-display) text-[18px] font-light tracking-[-0.2px] text-white/90">
                         First Crack
                     </span>
                 </div>
 
-                {/* Center content */}
-                <div style={{ position: 'relative' }}>
-                    <h2
-                        style={{
-                            fontFamily: 'var(--font-display)',
-                            fontWeight: 300,
-                            fontSize: 38,
-                            lineHeight: 1.12,
-                            color: 'rgba(255,255,255,0.95)',
-                            letterSpacing: '-0.8px',
-                            marginBottom: 20,
-                        }}
-                    >
-                        Every roast,
+                <div className="relative">
+                    <h2 className="mb-5 font-(--font-display) text-[38px] font-light leading-[1.12] tracking-[-0.8px] text-white/[0.95]">
+                        {t('auth.login.brandLine1')}
                         <br />
-                        perfectly logged.
+                        {t('auth.login.brandLine2')}
                     </h2>
-                    <p
-                        style={{
-                            fontSize: 15,
-                            lineHeight: 1.6,
-                            color: 'rgba(255,255,255,0.45)',
-                            letterSpacing: '0.15px',
-                            maxWidth: 320,
-                            marginBottom: 40,
-                        }}
-                    >
-                        Professional roast tracking, real-time temperature curves, and batch analytics — built for
-                        specialty coffee.
+                    <p className="mb-10 max-w-80 text-[15px] leading-[1.6] tracking-[0.15px] text-white/45">
+                        {t('auth.login.brandSub')}
                     </p>
-
-                    {/* Stats row — placeholder until real metrics; scale ~50 roasters */}
-                    <div style={{ display: 'flex', gap: 32 }}>
-                        {[
-                            { value: '50+', label: 'Roasters' },
-                            { value: '~3K', label: 'Batches logged' },
-                            { value: '99.9%', label: 'Uptime' },
-                        ].map(({ value, label }) => (
-                            <div key={label}>
-                                <div
-                                    style={{
-                                        fontFamily: 'var(--font-body)',
-                                        fontSize: 22,
-                                        fontWeight: 600,
-                                        color: 'rgba(255,255,255,0.9)',
-                                        letterSpacing: '-0.5px',
-                                        marginBottom: 2,
-                                    }}
-                                >
-                                    {value}
-                                </div>
-                                <div
-                                    style={{
-                                        fontSize: 12,
-                                        color: 'rgba(255,255,255,0.35)',
-                                        letterSpacing: '0.3px',
-                                    }}
-                                >
-                                    {label}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
                 </div>
 
-                {/* Testimonials — empty until real quotes
-                <div style={{ position: 'relative' }}>
-                    <div
-                        style={{
-                            borderTop: '1px solid rgba(255,255,255,0.08)',
-                            paddingTop: 28,
-                        }}
-                    >
-                        <p
-                            style={{
-                                fontSize: 14,
-                                lineHeight: 1.65,
-                                color: 'rgba(255,255,255,0.6)',
-                                letterSpacing: '0.15px',
-                                fontStyle: 'italic',
-                                marginBottom: 14,
-                            }}
-                        >
-                            "{testimonial.quote}"
-                        </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div
-                                style={{
-                                    width: 30,
-                                    height: 30,
-                                    borderRadius: '50%',
-                                    background: 'rgba(245,242,239,0.12)',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    color: 'rgba(255,255,255,0.7)',
-                                }}
-                            >
-                                {testimonial.author
-                                    .split(' ')
-                                    .map((n) => n[0])
-                                    .join('')}
-                            </div>
-                            <div>
-                                <div
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: 500,
-                                        color: 'rgba(255,255,255,0.75)',
-                                        letterSpacing: '0.14px',
-                                    }}
-                                >
-                                    {testimonial.author}
-                                </div>
-                                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.14px' }}>
-                                    {testimonial.role}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                */}
-                <div style={{ position: 'relative' }} />
+                <div className="relative" />
             </div>
 
-            {/* Right panel — form */}
-            <div
-                style={{
-                    flex: 1,
-                    background: 'var(--color-main-bg)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '48px 40px',
-                    overflow: 'auto',
-                }}
-            >
-                <div style={{ width: '100%', maxWidth: 380 }}>
-                    {/* Header */}
-                    <div style={{ marginBottom: 36 }}>
-                        <h1
-                            style={{
-                                fontFamily: 'var(--font-display)',
-                                fontWeight: 300,
-                                fontSize: 30,
-                                lineHeight: 1.13,
-                                color: 'var(--color-primary)',
-                                letterSpacing: '-0.4px',
-                                marginBottom: 8,
-                            }}
-                        >
-                            Sign in
+            <div className="flex flex-1 items-center justify-center overflow-auto bg-main-bg px-10 py-12">
+                <div className="w-full max-w-[380px]">
+                    <div className="mb-9">
+                        <h1 className="mb-2 font-(--font-display) text-[30px] font-light leading-[1.13] tracking-[-0.4px] text-primary">
+                            {t('auth.login.title')}
                         </h1>
-                        <p
-                            style={{
-                                fontSize: 14,
-                                color: 'var(--color-secondary)',
-                                letterSpacing: '0.14px',
-                                lineHeight: 1.5,
-                            }}
-                        >
-                            Welcome back. Enter your details to continue.
+                        <p className="text-sm leading-normal tracking-[0.14px] text-secondary">
+                            {t('auth.login.welcome')}
                         </p>
                     </div>
 
-                    {/* Google SSO */}
                     <button
                         type="button"
                         onClick={() => {
                             void handleGoogleOAuth();
                         }}
-                        style={{
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 10,
-                            padding: '11px 0',
-                            borderRadius: 9999,
-                            border: 'none',
-                            background: 'var(--bg-warm)',
-                            color: 'var(--color-primary)',
-                            fontSize: 14,
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                            letterSpacing: '0.14px',
-                            boxShadow: '0 4px 14px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)',
-                            marginBottom: 20,
-                            transition: 'box-shadow 0.15s, opacity 0.15s',
-                        }}
-                        onMouseEnter={(e) =>
-                            (e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.1), 0 3px 6px rgba(0,0,0,0.05)')
-                        }
-                        onMouseLeave={(e) =>
-                            (e.currentTarget.style.boxShadow =
-                                '0 4px 14px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)')
-                        }
+                        className="mb-5 flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-full border-none bg-(--bg-warm) py-[11px] text-sm font-medium tracking-[0.14px] text-primary shadow-[0_4px_14px_rgba(0,0,0,0.08),0_2px_4px_rgba(0,0,0,0.04)] transition-[box-shadow,opacity] duration-150 hover:shadow-[0_6px_20px_rgba(0,0,0,0.1),0_3px_6px_rgba(0,0,0,0.05)]"
                     >
-                        <svg width="16" height="16" viewBox="0 0 24 24">
+                        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                             <path
                                 fill="#4285F4"
                                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -341,249 +108,117 @@ export const Login = ({ onLogin }: LoginProps) => {
                                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                             />
                         </svg>
-                        Continue with Google
+                        {t('auth.login.continueGoogle')}
                     </button>
 
-                    {/* Divider */}
-                    <div
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12,
-                            marginBottom: 20,
-                        }}
-                    >
-                        <div style={{ flex: 1, height: 1, background: 'var(--color-border-subtle)' }} />
-                        <span style={{ fontSize: 12, color: 'var(--color-muted)', letterSpacing: '0.3px' }}>or</span>
-                        <div style={{ flex: 1, height: 1, background: 'var(--color-border-subtle)' }} />
+                    <div className="mb-5 flex items-center gap-3">
+                        <div className="h-px flex-1 bg-border-subtle" />
+                        <span className="text-xs tracking-[0.3px] text-muted">{t('auth.login.or')}</span>
+                        <div className="h-px flex-1 bg-border-subtle" />
                     </div>
 
-                    {/* Form */}
                     <form onSubmit={handleSubmit}>
-                        <div style={{ marginBottom: 14 }}>
+                        <div className="mb-3.5">
                             <label
-                                style={{
-                                    display: 'block',
-                                    fontSize: 13,
-                                    fontWeight: 500,
-                                    color: 'var(--color-secondary)',
-                                    letterSpacing: '0.14px',
-                                    marginBottom: 6,
-                                }}
+                                htmlFor="login-email"
+                                className="mb-1.5 block text-[13px] font-medium tracking-[0.14px] text-secondary"
                             >
-                                Work email
+                                {t('auth.login.workEmail')}
                             </label>
                             <input
+                                id="login-email"
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                placeholder="han@allyouneed.com"
+                                placeholder={t('auth.login.emailPlaceholder')}
                                 required
-                                style={{
-                                    width: '100%',
-                                    padding: '10px 14px',
-                                    borderRadius: 10,
-                                    border: 'none',
-                                    background: 'var(--color-surface)',
-                                    fontSize: 14,
-                                    color: 'var(--color-primary)',
-                                    fontFamily: 'var(--font-body)',
-                                    letterSpacing: '0.14px',
-                                    outline: 'none',
-                                    boxShadow: 'var(--shadow-inset)',
-                                    transition: 'box-shadow 0.15s',
-                                }}
-                                onFocus={(e) => {
-                                    e.target.style.boxShadow =
-                                        'rgba(0,0,0,0.075) 0px 0px 0px 0.5px inset, rgba(147,197,253,0.5) 0px 0px 0px 3px';
-                                }}
-                                onBlur={(e) => {
-                                    e.target.style.boxShadow = 'var(--shadow-inset)';
-                                }}
+                                className="w-full rounded-[10px] border-none bg-surface px-3.5 py-2.5 font-(--font-body) text-sm tracking-[0.14px] text-primary shadow-(--shadow-inset) outline-none transition-shadow focus:shadow-[rgba(0,0,0,0.075)_0_0_0_0.5px_inset,rgba(147,197,253,0.5)_0_0_0_3px]"
                             />
                         </div>
 
-                        <div style={{ marginBottom: 24 }}>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    marginBottom: 6,
-                                }}
-                            >
+                        <div className="mb-6">
+                            <div className="mb-1.5 flex items-center justify-between">
                                 <label
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: 500,
-                                        color: 'var(--color-secondary)',
-                                        letterSpacing: '0.14px',
-                                    }}
+                                    htmlFor="login-password"
+                                    className="text-[13px] font-medium tracking-[0.14px] text-secondary"
                                 >
-                                    Password
+                                    {t('auth.login.password')}
                                 </label>
                                 <button
                                     type="button"
                                     onClick={() => {
                                         void openUrl(FORGOT_PASSWORD_URL);
                                     }}
-                                    style={{
-                                        fontSize: 12,
-                                        color: 'var(--color-muted)',
-                                        background: 'none',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        letterSpacing: '0.14px',
-                                        padding: 0,
-                                        fontFamily: 'var(--font-body)',
-                                    }}
+                                    className="cursor-pointer border-none bg-transparent p-0 font-(--font-body) text-xs tracking-[0.14px] text-muted"
                                 >
-                                    Forgot password?
+                                    {t('auth.login.forgotPassword')}
                                 </button>
                             </div>
-                            <div style={{ position: 'relative' }}>
+                            <div className="relative">
                                 <input
+                                    id="login-password"
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••"
                                     required
-                                    style={{
-                                        width: '100%',
-                                        padding: '10px 40px 10px 14px',
-                                        borderRadius: 10,
-                                        border: 'none',
-                                        background: 'var(--color-surface)',
-                                        fontSize: 14,
-                                        color: 'var(--color-primary)',
-                                        fontFamily: 'var(--font-body)',
-                                        letterSpacing: '0.14px',
-                                        outline: 'none',
-                                        boxShadow: 'var(--shadow-inset)',
-                                        transition: 'box-shadow 0.15s',
-                                    }}
-                                    onFocus={(e) => {
-                                        e.target.style.boxShadow =
-                                            'rgba(0,0,0,0.075) 0px 0px 0px 0.5px inset, rgba(147,197,253,0.5) 0px 0px 0px 3px';
-                                    }}
-                                    onBlur={(e) => {
-                                        e.target.style.boxShadow = 'var(--shadow-inset)';
-                                    }}
+                                    className="w-full rounded-[10px] border-none bg-surface py-2.5 pr-10 pl-3.5 font-(--font-body) text-sm tracking-[0.14px] text-primary shadow-(--shadow-inset) outline-none transition-shadow focus:shadow-[rgba(0,0,0,0.075)_0_0_0_0.5px_inset,rgba(147,197,253,0.5)_0_0_0_3px]"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword((s) => !s)}
-                                    style={{
-                                        position: 'absolute',
-                                        right: 12,
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        background: 'none',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        padding: 0,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                    }}
+                                    aria-label={
+                                        showPassword ? t('auth.login.hidePassword') : t('auth.login.showPassword')
+                                    }
+                                    className="absolute top-1/2 right-3 flex -translate-y-1/2 cursor-pointer items-center border-none bg-transparent p-0"
                                 >
                                     {showPassword ? (
-                                        <EyeOff size={15} strokeWidth={1.5} color="var(--color-muted)" />
+                                        <EyeOff size={15} strokeWidth={1.5} className="text-muted" />
                                     ) : (
-                                        <Eye size={15} strokeWidth={1.5} color="var(--color-muted)" />
+                                        <Eye size={15} strokeWidth={1.5} className="text-muted" />
                                     )}
                                 </button>
                             </div>
                         </div>
 
-                        {/* Error message */}
                         {errorMessage && (
                             <div
                                 role="alert"
-                                style={{
-                                    marginBottom: 14,
-                                    padding: '10px 14px',
-                                    borderRadius: 10,
-                                    background: 'rgba(239,68,68,0.08)',
-                                    color: '#dc2626',
-                                    fontSize: 13,
-                                    letterSpacing: '0.14px',
-                                    lineHeight: 1.5,
-                                }}
+                                className="mb-3.5 rounded-[10px] bg-[rgba(239,68,68,0.08)] px-3.5 py-2.5 text-[13px] leading-normal tracking-[0.14px] text-[#dc2626]"
                             >
                                 {errorMessage}
                             </div>
                         )}
 
-                        {/* Submit */}
                         <button
                             type="submit"
                             disabled={loading}
-                            style={{
-                                width: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 8,
-                                padding: '12px 0',
-                                borderRadius: 9999,
-                                border: 'none',
-                                background: loading ? 'rgba(23,23,23,0.6)' : 'var(--color-primary)',
-                                color: 'white',
-                                fontSize: 14,
-                                fontWeight: 500,
-                                cursor: loading ? 'not-allowed' : 'pointer',
-                                letterSpacing: '0.14px',
-                                boxShadow: 'var(--shadow-card)',
-                                transition: 'background 0.2s, opacity 0.2s',
-                                marginBottom: 20,
-                            }}
+                            className={`mb-5 flex w-full items-center justify-center gap-2 rounded-full border-none py-3 text-sm font-medium tracking-[0.14px] text-white shadow-(--shadow-card) transition-[background,opacity] duration-200 ${loading ? 'cursor-not-allowed bg-primary/60' : 'cursor-pointer bg-primary'}`}
                         >
                             {loading ? (
                                 <>
                                     <Spinner />
-                                    Signing in...
+                                    {t('auth.login.signingIn')}
                                 </>
                             ) : (
                                 <>
-                                    Sign in
+                                    {t('auth.login.submit')}
                                     <ArrowRight size={14} strokeWidth={2} />
                                 </>
                             )}
                         </button>
                     </form>
 
-                    {/* Sign up link */}
-                    <p
-                        style={{
-                            textAlign: 'center',
-                            fontSize: 12,
-                            color: 'var(--color-muted)',
-                            letterSpacing: '0.14px',
-                            lineHeight: 1.5,
-                        }}
-                    >
-                        Don't have an account?{' '}
+                    <p className="text-center text-xs leading-normal tracking-[0.14px] text-muted">
+                        {t('auth.login.noAccount')}{' '}
                         <button
                             type="button"
                             onClick={async () => {
                                 await openUrl(BUSINESS_URL);
                             }}
-                            style={{
-                                background: 'none',
-                                border: 'none',
-                                padding: 0,
-                                fontSize: 12,
-                                fontWeight: 500,
-                                color: 'var(--color-muted)',
-                                cursor: 'pointer',
-                                fontFamily: 'var(--font-body)',
-                                letterSpacing: '0.14px',
-                                textDecoration: 'underline',
-                                textDecorationColor: 'var(--color-border-subtle)',
-                                textUnderlineOffset: '2px',
-                            }}
+                            className="cursor-pointer border-none bg-transparent p-0 font-(--font-body) text-xs font-medium tracking-[0.14px] text-muted underline decoration-border-subtle underline-offset-2"
                         >
-                            Start free trial
+                            {t('auth.login.startTrial')}
                         </button>
                     </p>
                 </div>

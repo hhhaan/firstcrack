@@ -139,41 +139,17 @@ export const App = () => {
 
     if (loading || oauthPending)
         return (
-            <div
-                style={{
-                    display: 'flex',
-                    height: '100vh',
-                    flexDirection: 'column',
-                    gap: 12,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'var(--color-surface)',
-                }}
-            >
+            <div className="flex h-screen flex-col items-center justify-center gap-3 bg-surface">
                 <Spinner size={24} />
                 {oauthPending && (
                     <>
-                        <p style={{ fontSize: 13, color: 'var(--color-secondary)', letterSpacing: '0.14px' }}>
-                            Completing sign-in…
-                        </p>
+                        <p className="text-[13px] tracking-[0.14px] text-secondary">{t('auth.oauthCompleting')}</p>
                         <button
                             type="button"
                             onClick={() => cancelOAuth()}
-                            style={{
-                                marginTop: 4,
-                                padding: '8px 16px',
-                                borderRadius: 9999,
-                                border: 'none',
-                                background: 'var(--bg-warm)',
-                                color: 'var(--color-primary)',
-                                fontSize: 13,
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                                letterSpacing: '0.14px',
-                                fontFamily: 'var(--font-body)',
-                            }}
+                            className="mt-1 cursor-pointer rounded-full border-none bg-(--bg-warm) px-4 py-2 font-(--font-body) text-[13px] font-medium tracking-[0.14px] text-primary"
                         >
-                            Cancel
+                            {t('auth.oauthCancel')}
                         </button>
                     </>
                 )}
@@ -184,13 +160,13 @@ export const App = () => {
     // 캡처는 하지 않는다 — React 19 root onCaughtError가 유일한 Sentry 경로다 (중복 이슈 방지).
     const appShellFallback = ({ error, reset }: { error: Error; reset: () => void }) => (
         <div className="flex flex-col items-center justify-center h-screen gap-4 p-8 text-center bg-[var(--color-surface)]">
-            <p className="text-sm text-red-400">{error.message || '알 수 없는 오류가 발생했습니다.'}</p>
+            <p className="text-sm text-red-400">{error.message || t('common.unknownError')}</p>
             <button
                 type="button"
                 onClick={reset}
                 className="px-4 py-2 text-sm rounded-md bg-stone-700 hover:bg-stone-600 text-stone-100 transition-colors"
             >
-                다시 시도
+                {t('common.retry')}
             </button>
         </div>
     );

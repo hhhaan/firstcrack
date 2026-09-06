@@ -93,15 +93,11 @@ export const RecurringEditScopeModal = ({
             {/* Scope options */}
             <div className="flex flex-col gap-2 mb-4">
                 {options.map(({ scope, icon, title, description }) => (
-                    <div
+                    <button
+                        type="button"
                         key={scope}
-                        className="flex items-start gap-3 px-3.5 py-3 rounded-xl bg-surface dark:bg-surface-elevated hover:bg-surface-raised cursor-pointer transition-colors border border-transparent dark:border-border hover:border-border"
+                        className="flex w-full items-start gap-3 px-3.5 py-3 rounded-xl bg-surface dark:bg-surface-elevated hover:bg-surface-raised cursor-pointer transition-colors border border-transparent dark:border-border hover:border-border text-left"
                         onClick={() => onConfirm(scope)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') onConfirm(scope);
-                        }}
                     >
                         <div className="w-8 h-8 rounded-lg bg-main-bg text-muted flex items-center justify-center shrink-0 mt-0.5">
                             {icon}
@@ -110,7 +106,7 @@ export const RecurringEditScopeModal = ({
                             <div className="text-[13px] font-semibold text-primary">{title}</div>
                             <div className="text-[11px] text-muted mt-0.5 leading-snug">{description}</div>
                         </div>
-                    </div>
+                    </button>
                 ))}
             </div>
 

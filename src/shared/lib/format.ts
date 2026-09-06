@@ -1,3 +1,5 @@
+import { i18n } from '@shared/i18n';
+
 export const sanitizeDecimal = (v: string) => v.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
 
 /** Live elapsed clock: floor fractional seconds. 90.6 → "1:30" */
@@ -15,11 +17,27 @@ export const formatDuration = (seconds: number | null): string => {
     return `${m}:${String(s).padStart(2, '0')}`;
 };
 
-export const formatDate = (iso: string | null): string => {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+/** i18n.language → Date locale. ko stays en-US (short-month tokens; dashboard contract). */
+export const localeForDate = (): string => {
+    switch (i18n.language) {
+        case 'zh-CN':
+            return 'zh-CN';
+        case 'ja':
+            return 'ja-JP';
+        default:
+            return 'en-US';
+    }
 };
+
+export const formatDate = (iso: string | Date | null | undefined): string => {
+    if (!iso) return '—';
+    const d = iso instanceof Date ? iso : new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString(localeForDate(), { month: 'short', day: 'numeric' });
+};
+
+/** grams → kg string; dashboard compact weight wraps this. */
+export const gramsToKg = (grams: number, digits = 2): string => (grams / 1000).toFixed(digits);
 
 /** Format ISO → "YY-MM-DD" (or '—' on null). */
 export const formatDateShort = (iso: string | null): string => {

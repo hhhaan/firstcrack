@@ -12,11 +12,36 @@
         "save": "Save",
         "add": "Add",
         "edit": "Edit",
-        "delete": "Delete"
+        "delete": "Delete",
+        "search": "Search...",
+        "noResults": "No results",
+        "clearSelection": "Clear selection",
+        "unknownError": "An unexpected error occurred.",
+        "retry": "Try again"
     },
     "auth": {
         "oauthCompleting": "Completing sign-in…",
+        "oauthCancel": "Cancel",
         "sessionReplacedTitle": "Signed out",
+        "login": {
+            "brandLine1": "Every roast,",
+            "brandLine2": "perfectly logged.",
+            "brandSub": "Professional roast tracking, real-time temperature curves, and batch analytics — built for specialty coffee.",
+            "title": "Sign in",
+            "welcome": "Welcome back. Enter your details to continue.",
+            "continueGoogle": "Continue with Google",
+            "or": "or",
+            "workEmail": "Work email",
+            "emailPlaceholder": "han@allyouneed.com",
+            "password": "Password",
+            "forgotPassword": "Forgot password?",
+            "showPassword": "Show password",
+            "hidePassword": "Hide password",
+            "signingIn": "Signing in...",
+            "submit": "Sign in",
+            "noAccount": "Don't have an account?",
+            "startTrial": "Start free trial"
+        },
         "errors": {
             "invalid_credentials": "Incorrect email or password. Please try again.",
             "network": "Network error. Check your connection and try again.",
@@ -360,10 +385,30 @@
         "sidecarStarting": "Sidecar starting...",
         "startRoasting": "Start Roasting",
         "selectMachine": "Select a machine",
+        "contactSupport": "Contact support",
         "limit": {
             "banner": "Machine limit: {{used}}/{{max}}. Upgrade to Pro+ for unlimited machines.",
             "title": "Machine limit reached",
             "description": "Plans below Pro+ can register {{max}} machine. Upgrade to Pro+ to connect more roasters."
+        }
+    },
+    "machineControl": {
+        "title": "Machine Control",
+        "sending": "sending…",
+        "expand": "Expand machine control",
+        "collapse": "Collapse machine control",
+        "pidState": "PID {{state}}",
+        "replayActive": "Replay in progress",
+        "unacked": "The machine did not apply the last command",
+        "pid": {
+            "title": "Auto Heat (PID)",
+            "holdBt": "Hold BT at target",
+            "target": "Target",
+            "targetAria": "PID target temperature",
+            "off": "Off",
+            "running": "Running",
+            "holding": "Holding",
+            "fault": "Fault"
         }
     },
     "addMachine": {
@@ -495,6 +540,12 @@
                 "save": "Save",
                 "add": "Add"
             },
+            "validation": {
+                "nameRequired": "Enter a blend name",
+                "beanRequired": "Select a bean",
+                "minComponents": "Add at least one bean",
+                "ratioSum": "Component ratios must total 100%"
+            },
             "componentCount_one": "{{count}} bean",
             "componentCount_other": "{{count}} beans",
             "totalRatioLabel": "Total Ratio",
@@ -515,7 +566,16 @@
             "liveRoastInProgress": "Live — Roast in Progress",
             "machineConnected": "Machine connected · Ready to roast",
             "settings": "Roast settings",
-            "openSettings": "Open roast settings"
+            "openSettings": "Open roast settings",
+            "selectBean": "Select bean",
+            "selectTarget": "Select target profile"
+        },
+        "closeGuard": {
+            "runningMessage": "A roast is in progress. Quit anyway?",
+            "unsavedMessage": "You have an unsaved roast. Quit without saving?",
+            "title": "Roast in progress",
+            "confirm": "Quit",
+            "cancel": "Cancel"
         },
         "readings": {
             "beanTemp": "Bean Temp",
@@ -853,7 +913,10 @@
         "addBatch": "Add Batch",
         "editBatch": "Edit Batch",
         "saveFailed": "Save failed:",
-        "unknown": "Unknown"
+        "unknown": "Unknown",
+        "search": "Search...",
+        "noResults": "No results",
+        "clearSelection": "Clear selection"
     },
     "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     "history": {
@@ -1147,6 +1210,9 @@
             "costPlaceholder": "e.g. 12",
             "tastingNotes": "Tasting Notes",
             "tastingNotesPlaceholder": "e.g. Jasmine, Blueberry, Milk Chocolate"
+        },
+        "validation": {
+            "nameRequired": "Enter a lot name"
         },
         "restock": {
             "weight": "Weight to Add (kg)",

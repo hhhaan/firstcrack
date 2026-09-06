@@ -1,24 +1,11 @@
-import type { EventMarkerStyle, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
+import type { EventMarkerStyle, TemperatureUnit } from '../../model/settings';
+import type { TurningPoint } from '../turningPoints';
 import { fmtSec } from './axes';
-import { buildTargetDeltaMarkPoint } from './target-delta-label';
+import { buildTargetDeltaMarkPoint, nearestBtAt } from './target-delta-label';
 import type { ResolvedChartColors, RoastEventMarker } from './types';
 
-/** 시간축에서 가장 가까운 BT 표시값 조회 */
-export const nearestBtAt = (xs: number[], btActual: (number | null)[], timeSec: number): number | null => {
-    if (!xs.length) return null;
-    let bestIdx = -1;
-    let bestDist = Infinity;
-    for (let i = 0; i < xs.length; i++) {
-        if (btActual[i] == null) continue;
-        const d = Math.abs(xs[i] - timeSec);
-        if (d < bestDist) {
-            bestDist = d;
-            bestIdx = i;
-        }
-    }
-    return bestIdx >= 0 ? btActual[bestIdx] : null;
-};
+export { nearestBtAt } from './target-delta-label';
 
 // Charge는 t=0 고정 → 시간 생략 (event + temp만)
 export const eventLabelText = (event: string, timeStr: string, temp: string) =>

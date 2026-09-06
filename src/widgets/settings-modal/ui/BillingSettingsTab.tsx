@@ -79,7 +79,7 @@ function PlanCard({ plan, isCurrent }: { plan: Plan; isCurrent: boolean }) {
                             size="sm"
                             className="text-[9px] font-bold text-palette-teal bg-palette-teal/15"
                             icon={<Star size={10} fill="currentColor" />}
-                            aria-label="Current plan"
+                            aria-label={t('settings.tabs.billing.currentPlan')}
                         />
                     )}
                 </div>
@@ -148,7 +148,7 @@ function PlanStateCard({
                     size="sm"
                     className="text-[9px] font-bold text-palette-teal bg-palette-teal/15"
                     icon={<Star size={10} fill="currentColor" />}
-                    aria-label="Current plan"
+                    aria-label={t('settings.tabs.billing.currentPlan')}
                 />
             </div>
             <div className="mb-1">

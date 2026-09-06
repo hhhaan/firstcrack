@@ -3,13 +3,14 @@ import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import { useRoastedStock, useRoastedStockEvents } from '@entities/roasted-stock-event';
 import { AdjustStockModal } from '@features/adjust-stock';
+import { gramsToKg, localeForDate } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
 import { TableSkeleton } from '@shared/ui/TableSkeleton';
 import { Coffee, Search, SlidersHorizontal } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const fmtKg = (grams: number) => `${(grams / 1000).toFixed(2)} kg`;
+const fmtKg = (grams: number) => `${gramsToKg(grams)} kg`;
 
 const skeletonCols = [
     { width: '36%', bar: '65%' },
@@ -78,7 +79,7 @@ export const RoastedInventoryTab = () => {
                 </div>
                 {!isLoading && hasAnyStock && (
                     <span className="font-mono text-[12px] text-muted">
-                        {t('inventory.roasted.total', { kg: (totalGrams / 1000).toFixed(2) })}
+                        {t('inventory.roasted.total', { kg: gramsToKg(totalGrams) })}
                     </span>
                 )}
             </div>
@@ -208,7 +209,9 @@ export const RoastedInventoryTab = () => {
                                                                         <span className="text-muted">— {ev.note}</span>
                                                                     ) : null}
                                                                     <span className="ml-auto text-muted">
-                                                                        {new Date(ev.created_at).toLocaleDateString()}
+                                                                        {new Date(ev.created_at).toLocaleDateString(
+                                                                            localeForDate(),
+                                                                        )}
                                                                     </span>
                                                                 </li>
                                                             ))}

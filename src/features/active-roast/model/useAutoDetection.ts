@@ -1,9 +1,8 @@
-import type { TurningPoint } from '@features/active-roast';
-import { detectTurningPoints } from '@features/active-roast';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { detectChargeOnset } from '../lib/chargeOnset';
 import { toDisplayTemp } from '../lib/temperature';
+import { detectTurningPoints, type TurningPoint } from '../lib/turningPoints';
 import type { TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
 

@@ -5,6 +5,8 @@ import {
     formatDateShort,
     formatDuration,
     formatElapsed,
+    gramsToKg,
+    localeForDate,
     pctChange,
     sanitizeDecimal,
 } from './format';
@@ -37,10 +39,24 @@ describe('formatDuration', () => {
 });
 
 describe('formatDate', () => {
-    it('returns em dash for null/empty and a short US date for ISO', () => {
+    it('returns em dash for null/empty and a short locale date for ISO', () => {
         expect(formatDate(null)).toBe('—');
         expect(formatDate('')).toBe('—');
         expect(formatDate('2024-03-15T12:00:00.000Z')).toMatch(/Mar\s+1[45]/);
+    });
+});
+
+describe('gramsToKg', () => {
+    it('converts grams with the requested digits', () => {
+        expect(gramsToKg(2400)).toBe('2.40');
+        expect(gramsToKg(1500, 1)).toBe('1.5');
+        expect(gramsToKg(0)).toBe('0.00');
+    });
+});
+
+describe('localeForDate', () => {
+    it('defaults to en-US (including ko)', () => {
+        expect(localeForDate()).toBe('en-US');
     });
 });
 

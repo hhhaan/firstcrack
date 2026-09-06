@@ -12,11 +12,36 @@
         "save": "保存",
         "add": "添加",
         "edit": "编辑",
-        "delete": "删除"
+        "delete": "删除",
+        "search": "搜索...",
+        "noResults": "无结果",
+        "clearSelection": "清除选择",
+        "unknownError": "发生意外错误。",
+        "retry": "重试"
     },
     "auth": {
         "oauthCompleting": "正在完成登录…",
+        "oauthCancel": "取消",
         "sessionReplacedTitle": "已退出登录",
+        "login": {
+            "brandLine1": "每一炉烘焙，",
+            "brandLine2": "精确记录。",
+            "brandSub": "专业烘焙追踪、实时温度曲线与批次分析 — 为精品咖啡而建。",
+            "title": "登录",
+            "welcome": "欢迎回来。请输入信息以继续。",
+            "continueGoogle": "使用 Google 继续",
+            "or": "或",
+            "workEmail": "工作邮箱",
+            "emailPlaceholder": "han@allyouneed.com",
+            "password": "密码",
+            "forgotPassword": "忘记密码？",
+            "showPassword": "显示密码",
+            "hidePassword": "隐藏密码",
+            "signingIn": "正在登录...",
+            "submit": "登录",
+            "noAccount": "还没有账户？",
+            "startTrial": "开始免费试用"
+        },
         "errors": {
             "invalid_credentials": "邮箱或密码不正确，请重试。",
             "network": "网络错误，请检查连接后重试。",
@@ -360,10 +385,30 @@
         "sidecarStarting": "正在启动边车服务...",
         "startRoasting": "开始烘焙",
         "selectMachine": "请选择设备",
+        "contactSupport": "联系支持",
         "limit": {
             "banner": "Machine limit: {{used}}/{{max}}. Upgrade to Pro+ for unlimited machines.",
             "title": "Machine limit reached",
             "description": "Plans below Pro+ can register {{max}} machine. Upgrade to Pro+ to connect more roasters."
+        }
+    },
+    "machineControl": {
+        "title": "设备控制",
+        "sending": "发送中…",
+        "expand": "展开设备控制",
+        "collapse": "收起设备控制",
+        "pidState": "PID {{state}}",
+        "replayActive": "Replay 进行中",
+        "unacked": "设备未应用上一条命令",
+        "pid": {
+            "title": "自动火力 (PID)",
+            "holdBt": "将 BT 保持在目标",
+            "target": "目标",
+            "targetAria": "PID 目标温度",
+            "off": "关闭",
+            "running": "运行中",
+            "holding": "保持中",
+            "fault": "故障"
         }
     },
     "addMachine": {
@@ -495,6 +540,12 @@
                 "save": "保存",
                 "add": "添加"
             },
+            "validation": {
+                "nameRequired": "请输入拼配名称",
+                "beanRequired": "请选择生豆",
+                "minComponents": "至少添加一种生豆",
+                "ratioSum": "构成比例合计必须为 100%"
+            },
             "componentCount_one": "{{count}}支生豆",
             "componentCount_other": "{{count}}支生豆",
             "totalRatioLabel": "比例合计",
@@ -515,7 +566,16 @@
             "liveRoastInProgress": "实时 — 烘焙进行中",
             "machineConnected": "设备已连接 · 可以开始烘焙",
             "settings": "烘焙设置",
-            "openSettings": "打开烘焙设置"
+            "openSettings": "打开烘焙设置",
+            "selectBean": "选择生豆",
+            "selectTarget": "选择目标曲线"
+        },
+        "closeGuard": {
+            "runningMessage": "烘焙正在进行。确定退出吗？",
+            "unsavedMessage": "有未保存的烘焙记录。不保存就退出吗？",
+            "title": "烘焙进行中",
+            "confirm": "退出",
+            "cancel": "取消"
         },
         "readings": {
             "beanTemp": "豆温",
@@ -853,7 +913,10 @@
         "addBatch": "添加批次",
         "editBatch": "编辑批次",
         "saveFailed": "保存失败:",
-        "unknown": "未知"
+        "unknown": "未知",
+        "search": "搜索...",
+        "noResults": "无结果",
+        "clearSelection": "清除选择"
     },
     "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     "history": {
@@ -1147,6 +1210,9 @@
             "costPlaceholder": "例如：32000",
             "tastingNotes": "风味描述",
             "tastingNotesPlaceholder": "例如：茉莉花、蓝莓、牛奶巧克力"
+        },
+        "validation": {
+            "nameRequired": "请输入批次名称"
         },
         "restock": {
             "weight": "添加重量 (kg)",

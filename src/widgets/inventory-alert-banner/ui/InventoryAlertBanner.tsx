@@ -1,4 +1,5 @@
 import { type InventoryAlert, useDismissInventoryAlert, useInventoryAlerts } from '@entities/inventory-alert';
+import { gramsToKg } from '@shared/lib/format';
 import { alertColor } from '@shared/lib/inventory-alert-styles';
 import { logger } from '@shared/lib/logger';
 import type { View } from '@shared/types/view';
@@ -87,7 +88,7 @@ export const InventoryAlertBanner = ({ userId, onNavigate }: InventoryAlertBanne
                                 {t(reasonLabelKey(item.reason))}
                                 {' · '}
                                 {t('dashboard.kgRemaining', {
-                                    kg: (item.effective_grams / 1000).toFixed(2),
+                                    kg: gramsToKg(item.effective_grams),
                                 })}
                             </div>
                         </button>

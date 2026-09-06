@@ -1,5 +1,6 @@
 import { getStatus, processColor, stockBarClass, stockLevelPct } from '@entities/bean/lib';
 import { type BeanAssetLine, useBeanStockEvents, useBeanStockSummary } from '@entities/bean-stock-event';
+import { gramsToKg, localeForDate } from '@shared/lib/format';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
@@ -79,7 +80,7 @@ export const BeanDetail = ({
 
     const currentGrams = summary?.currentGrams ?? 0;
     const effectiveGrams = summary?.effectiveGrams ?? 0;
-    const currentStockKg = (currentGrams / 1000).toFixed(2);
+    const currentStockKg = gramsToKg(currentGrams);
     const stockStatus = getStatus(currentGrams, bean.low_stock_threshold_grams);
     const stockPct = stockLevelPct(currentGrams, bean.capacity_grams);
 
@@ -162,7 +163,7 @@ export const BeanDetail = ({
                         },
                         {
                             label: t('beanDetail.effective'),
-                            value: `${(effectiveGrams / 1000).toFixed(2)}kg`,
+                            value: `${gramsToKg(effectiveGrams)}kg`,
                         },
                         {
                             label: t('inventoryAsset.avgCost'),
@@ -226,7 +227,7 @@ export const BeanDetail = ({
                             {t('beanDetail.stockLevel')}
                         </span>
                         <span className="text-xs text-muted font-mono">
-                            {(currentGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}kg
+                            {gramsToKg(currentGrams)}kg / {gramsToKg(bean.capacity_grams)}kg
                         </span>
                     </div>
                     <div className="h-1.5 bg-surface rounded-full overflow-hidden">
@@ -291,7 +292,7 @@ export const BeanDetail = ({
                                         )}
                                     </div>
                                     <span className="text-gray-300 dark:text-[#e5e5e5] whitespace-nowrap">
-                                        {new Date(ev.created_at).toLocaleDateString('ko-KR')}
+                                        {new Date(ev.created_at).toLocaleDateString(localeForDate())}
                                     </span>
                                 </div>
                             ))}

@@ -1,4 +1,3 @@
-import type { PhaseSegment, TemperatureUnit } from '@features/active-roast';
 import {
     PHASE_BAR_FONT_FAMILY,
     PHASE_BAR_FONT_SIZE,
@@ -13,6 +12,8 @@ import {
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import * as echarts from 'echarts';
+import type { TemperatureUnit } from '../../model/settings';
+import type { PhaseSegment } from '../phases';
 import type { ControlData, ResolvedChartColors } from './types';
 
 // 커피 로스팅 차트에 최적화된 스무딩 설정

@@ -1,4 +1,3 @@
-import type { EventMarkerStyle, PhaseSegment, TemperatureUnit, TurningPoint } from '@features/active-roast';
 import {
     CONTROL_COLORS,
     getResolvedChartColors,
@@ -16,6 +15,9 @@ import { useThemeStore } from '@shared/store/theme';
 import * as echarts from 'echarts';
 import type React from 'react';
 import { useEffect, useMemo, useRef } from 'react';
+import type { PhaseSegment } from '../lib/phases';
+import type { TurningPoint } from '../lib/turningPoints';
+import type { EventMarkerStyle, TemperatureUnit } from '../model/settings';
 
 export type { RoastEventMarker };
 

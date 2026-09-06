@@ -32,6 +32,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import {
     buildEventMarkers,
@@ -67,6 +68,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const roastSettings = useRoastSettings();
     const pollIntervalMs = useEffectivePollIntervalMs();
     const unit = roastSettings.temperatureUnit;
+    const { t } = useTranslation();
 
     // ── 스토어 구독 ───────────────────────────────────────────────
     const {
@@ -336,14 +338,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 e.preventDefault();
                 const running = isRunningRef.current;
                 const ok = await ask(
-                    running
-                        ? '로스팅이 진행 중입니다. 정말 종료하시겠습니까?'
-                        : '저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?',
+                    running ? t('activeRoast.closeGuard.runningMessage') : t('activeRoast.closeGuard.unsavedMessage'),
                     {
-                        title: '로스팅 진행 중',
+                        title: t('activeRoast.closeGuard.title'),
                         kind: 'warning',
-                        okLabel: '종료',
-                        cancelLabel: '취소',
+                        okLabel: t('activeRoast.closeGuard.confirm'),
+                        cancelLabel: t('activeRoast.closeGuard.cancel'),
                     },
                 );
                 if (ok) {
@@ -371,7 +371,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             active = false;
             unlisten?.();
         };
-    }, []);
+    }, [t]);
 
     // ── Effect: 타이틀바에 실시간 온도 표시 ─────────────────────
     useEffect(() => {

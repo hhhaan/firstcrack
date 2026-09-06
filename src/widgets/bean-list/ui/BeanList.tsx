@@ -1,5 +1,6 @@
 import { getStatus, statusConfig, stockBarClass, stockLevelPct } from '@entities/bean/lib';
 import type { BeanAssetLine, StockSummary } from '@entities/bean-stock-event';
+import { gramsToKg } from '@shared/lib/format';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
@@ -81,7 +82,7 @@ export const BeanList = ({
                             <div
                                 key={bean.id}
                                 data-testid={`bean-list-item-${bean.id}`}
-                                data-stock-kg={(currentGrams / 1000).toFixed(2)}
+                                data-stock-kg={gramsToKg(currentGrams)}
                                 onClick={() => onSelect(bean.id)}
                                 className="cursor-pointer rounded-lg bg-main-bg px-4 py-3.5 transition-all duration-150 dark:border dark:border-[#585d61]"
                             >
@@ -110,7 +111,7 @@ export const BeanList = ({
                                 </div>
                                 <div className="flex items-baseline justify-between gap-2 font-mono text-xs">
                                     <span className="text-muted">
-                                        {(currentGrams / 1000).toFixed(2)}kg / {(bean.capacity_grams / 1000).toFixed(2)}
+                                        {gramsToKg(currentGrams)}kg / {gramsToKg(bean.capacity_grams)}
                                         kg
                                     </span>
                                     {showAssetMeta &&

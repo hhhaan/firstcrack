@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { buildTargetDeltaMarkPoint, classifyTargetDelta, formatTargetDeltaLabel } from './target-delta-label';
+import {
+    buildTargetDeltaMarkPoint,
+    classifyTargetDelta,
+    formatTargetDeltaLabel,
+    nearestBtAt,
+} from './target-delta-label';
 
 const colors = { within: '#within', over: '#over', under: '#under' };
+
+describe('nearestBtAt', () => {
+    it('picks the closest non-null sample', () => {
+        expect(nearestBtAt([], [], 10)).toBeNull();
+        expect(nearestBtAt([0, 5, 10], [100, null, 120], 6)).toBe(120);
+        expect(nearestBtAt([0, 5, 10], [100, 110, 120], 4)).toBe(110);
+    });
+});
 
 describe('formatTargetDeltaLabel', () => {
     it('formats positive and negative', () => {

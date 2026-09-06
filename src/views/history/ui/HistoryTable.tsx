@@ -334,6 +334,15 @@ export const HistoryTable = ({
                                 <th
                                     key={col.key || `col-${colIdx}`}
                                     onClick={() => col.sortable && col.key && onSort(col.key)}
+                                    aria-sort={
+                                        col.sortable && col.key
+                                            ? col.key === sortKey
+                                                ? sortAsc
+                                                    ? 'ascending'
+                                                    : 'descending'
+                                                : 'none'
+                                            : undefined
+                                    }
                                     className={`px-3 py-3 text-left text-[11px] font-medium uppercase tracking-[0.5px] text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'}`}
                                     style={{ width: col.width }}
                                 >

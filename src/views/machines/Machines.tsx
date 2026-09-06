@@ -9,11 +9,14 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useMachinesPageState } from '@widgets/add-machine-modal/model/useMachinesPageState';
 import { AddMachineModal } from '@widgets/add-machine-modal/ui/AddMachineModal';
 import { Activity, AlertCircle, Cpu, Flame, Pencil, Plus, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+const SUPPORT_EMAIL = 'support@firstcrackiscoming.com';
 
 export const Machines = ({
     isActive = false,
@@ -287,10 +290,18 @@ export const Machines = ({
                                 )}
 
                                 {sidecarStatus?.error && sidecarStatus.roaster === selected.roasterKey && (
-                                    // TODO: 에러 메시지 하단에 "문의하기" 링크 추가 (예: 이메일 or 카카오 채널)
-                                    <div className="flex items-center gap-2 bg-[rgba(192,57,43,0.07)] rounded-lg px-3.5 py-2.5 mb-4 text-[12px] text-[#c0392b]">
-                                        <AlertCircle size={14} />
-                                        {sidecarStatus.error}
+                                    <div className="mb-4 flex flex-col gap-1.5 rounded-lg bg-[rgba(192,57,43,0.07)] px-3.5 py-2.5 text-[12px] text-[#c0392b]">
+                                        <div className="flex items-center gap-2">
+                                            <AlertCircle size={14} />
+                                            {sidecarStatus.error}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => void openUrl(`mailto:${SUPPORT_EMAIL}`)}
+                                            className="self-start border-none bg-transparent p-0 text-[12px] font-medium text-[#c0392b] underline decoration-[#c0392b]/40 underline-offset-2 cursor-pointer"
+                                        >
+                                            {t('machines.contactSupport')}
+                                        </button>
                                     </div>
                                 )}
 

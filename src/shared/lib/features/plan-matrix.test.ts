@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { FEATURE, type FeatureKey } from './keys';
 import {
+    BatchLimitError,
     canAddMachine,
     canCompleteBatch,
     isCoreEntitled,
     isPaidPlan,
     isWritablePlan,
+    mapServerBatchGateError,
     PRO_MONTHLY_BATCH_CAP,
     planHasFeature,
     planMaxBatchesPerMonth,
     planMaxMachines,
+    TRIAL_BATCH_CAP,
     TRIAL_DURATION_DAYS,
     trialEndsAt,
 } from './plan-matrix';
@@ -223,5 +226,27 @@ describe('tester plan', () => {
         expect(planMaxBatchesPerMonth('tester')).toBeNull();
         expect(planHasFeature('tester', FEATURE.team)).toBe(true);
         expect(planHasFeature('tester', FEATURE.orderIntegration)).toBe(true);
+    });
+});
+
+describe('mapServerBatchGateError', () => {
+    it('parses monthly_batch_cap used/cap from Postgrest details', () => {
+        const err = mapServerBatchGateError({ message: 'monthly_batch_cap', details: 'used=12 cap=200' });
+        expect(err).toBeInstanceOf(BatchLimitError);
+        expect(err?.code).toBe('monthly_batch_cap');
+        expect(err?.used).toBe(12);
+        expect(err?.max).toBe(200);
+    });
+
+    it('maps trial_batch_cap, trial_expired, and read_only_plan', () => {
+        expect(mapServerBatchGateError({ message: 'trial_batch_cap' })?.code).toBe('trial_batch_cap');
+        expect(mapServerBatchGateError({ message: 'trial_batch_cap' })?.max).toBe(TRIAL_BATCH_CAP);
+        expect(mapServerBatchGateError({ message: 'trial_expired' })?.code).toBe('trial_expired');
+        expect(mapServerBatchGateError({ message: 'read_only_plan' })?.code).toBe('read_only_plan');
+    });
+
+    it('returns null for unrelated errors', () => {
+        expect(mapServerBatchGateError(new Error('network'))).toBeNull();
+        expect(mapServerBatchGateError({ message: 'unique_violation' })).toBeNull();
     });
 });

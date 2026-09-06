@@ -2,6 +2,7 @@ import { snapshotFromSidecar, useMachines } from '@entities/machine';
 import { createBtFilter } from '@features/active-roast/lib/btFilter';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
@@ -47,11 +48,7 @@ export const IDLE_STATUS_POLL_MS = 5000;
 
 /** Charge lookback 샘플 라벨. relSec < 0일 때만 마이너스 접두. */
 export function formatLookbackLabel(relSec: number): string {
-    const absT = Math.abs(relSec);
-    const m = Math.floor(absT / 60);
-    const s = Math.floor(absT % 60);
-    const body = `${m}:${String(s).padStart(2, '0')}`;
-    return relSec < 0 ? `-${body}` : body;
+    return `${relSec < 0 ? '-' : ''}${formatElapsed(Math.abs(relSec))}`;
 }
 
 type SidecarStatusLike = {
@@ -283,11 +280,9 @@ export const useSidecarPolling = ({
                     if (lastRoastPointTime !== null && t >= lastRoastPointTime && t - lastRoastPointTime < 0.4) return;
                     lastRoastPointTimeRef.current = t;
 
-                    const min = Math.floor(t / 60);
-                    const sec = Math.floor(t % 60);
                     const point: LiveRoastPoint = {
                         time: t,
-                        label: `${min}:${String(sec).padStart(2, '0')}`,
+                        label: formatElapsed(t),
                         bt,
                         et: data.et ?? null,
                         ror: data.ror,
@@ -330,13 +325,11 @@ export const useSidecarPolling = ({
 
                     // livePoints: 세션 상대 시간으로 차트에 실시간 표시
                     const sessionTime = (absTime - preChargeStartRef.current) / 1000;
-                    const m = Math.floor(sessionTime / 60);
-                    const s = Math.floor(sessionTime % 60);
                     setLivePoints((prev) => [
                         ...prev,
                         {
                             time: sessionTime,
-                            label: `${m}:${String(s).padStart(2, '0')}`,
+                            label: formatElapsed(sessionTime),
                             ...pointData,
                         },
                     ]);

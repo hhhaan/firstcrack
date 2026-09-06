@@ -7,6 +7,7 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
 import { ChevronDown, Settings2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
@@ -19,12 +20,14 @@ const OverlaySelect = <T extends string>({
     disabled,
     options,
     placeholder,
+    ariaLabel,
 }: {
     value: T | null;
     onChange: (val: T | null) => void;
     disabled: boolean;
     options: { value: T; label: string }[];
     placeholder: string;
+    ariaLabel: string;
 }) => (
     <div className="relative inline-flex items-center">
         <div className="flex items-center gap-1">
@@ -40,6 +43,7 @@ const OverlaySelect = <T extends string>({
                 onChange(v === '' ? null : (v as T));
             }}
             disabled={disabled}
+            aria-label={ariaLabel}
             className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
         >
             <option value="">{placeholder}</option>
@@ -80,6 +84,7 @@ export const RoastHeader = ({
     onBeanChange: (id: string | null) => void;
     onOpenRoastSettings?: () => void;
 }) => {
+    const { t } = useTranslation();
     // ─── Store state ─────────────────────────────────────────────────────────
     const charged = useRoastingStore((s) => s.charged);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
@@ -123,7 +128,7 @@ export const RoastHeader = ({
     const selectedBean = beans.find((b) => b.id === selectedBeanId);
     const beanTitle = selectedBean
         ? joinDisplay([selectedBean.origin, selectedBean.region], ' ') || selectedBean.name
-        : (fallbackBeanName ?? 'No Bean Selected');
+        : (fallbackBeanName ?? t('activeRoast.header.noBeanSelected'));
     const beanSecondary = selectedBean
         ? joinDisplay([selectedBean.farm, selectedBean.variety, selectedBean.process]) ||
           (selectedBean.name !== beanTitle ? selectedBean.name : '')
@@ -153,9 +158,10 @@ export const RoastHeader = ({
                         value={selectedBeanId ?? ''}
                         onChange={(e) => handleBeanChange(e.target.value || null)}
                         disabled={charged}
+                        aria-label={t('activeRoast.header.selectBean')}
                         className={`absolute inset-0 w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] ${charged ? 'cursor-default' : 'cursor-pointer'}`}
                     >
-                        <option value="">No Bean Selected</option>
+                        <option value="">{t('activeRoast.header.noBeanSelected')}</option>
                         {beans.map((b) => (
                             <option key={b.id} value={b.id}>
                                 {beanOptionDisplay(b)}
@@ -179,13 +185,14 @@ export const RoastHeader = ({
                         <p className="text-[13px] text-muted tracking-[-0.1px] mb-0.5">{beanSecondary} / </p>
                     )}
 
-                    <span className="text-[13px] text-muted tracking-[0.14px]">Target:</span>
+                    <span className="text-[13px] text-muted tracking-[0.14px]">{t('activeRoast.header.target')}</span>
                     <OverlaySelect
                         value={targetProfileId}
                         onChange={handleProfileChange}
                         disabled={false}
                         options={profileOptions}
-                        placeholder="No Target"
+                        placeholder={t('activeRoast.header.noTarget')}
+                        ariaLabel={t('activeRoast.header.selectTarget')}
                     />
                 </div>
             </div>
@@ -197,8 +204,8 @@ export const RoastHeader = ({
                         type="button"
                         data-tour="active-roast-settings"
                         onClick={onOpenRoastSettings}
-                        aria-label="Open roast settings"
-                        title="Roast settings"
+                        aria-label={t('activeRoast.header.openSettings')}
+                        title={t('activeRoast.header.settings')}
                         className="w-8.5 h-8.5 rounded-md border border-transparent bg-main-bg dark:bg-[#262b31] text-secondary dark:text-[#e5e5e5] flex items-center justify-center cursor-pointer shrink-0 mt-1.5 hover:-translate-y-px transition"
                     >
                         <Settings2 size={15} strokeWidth={1.9} />

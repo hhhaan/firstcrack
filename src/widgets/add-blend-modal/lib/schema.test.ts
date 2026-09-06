@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { blendFormSchema } from './schema';
 
+const t = (key: string) => key;
+const schema = blendFormSchema(t as never);
+
 const valid = {
     name: 'House Blend',
     description: 'daily',
@@ -12,7 +15,7 @@ const valid = {
 
 describe('blendFormSchema', () => {
     it('accepts name + components whose ratios sum to 100', () => {
-        const result = blendFormSchema.safeParse(valid);
+        const result = schema.safeParse(valid);
         expect(result.success).toBe(true);
         if (result.success) {
             expect(result.data.name).toBe('House Blend');
@@ -21,23 +24,23 @@ describe('blendFormSchema', () => {
     });
 
     it('rejects empty name', () => {
-        const result = blendFormSchema.safeParse({ ...valid, name: '' });
+        const result = schema.safeParse({ ...valid, name: '' });
         expect(result.success).toBe(false);
         if (!result.success) {
-            expect(result.error.issues.some((i) => i.message === '블렌드 이름을 입력하세요')).toBe(true);
+            expect(result.error.issues.some((i) => i.message === 'beans.blend.validation.nameRequired')).toBe(true);
         }
     });
 
     it('requires at least one component', () => {
-        const result = blendFormSchema.safeParse({ ...valid, components: [] });
+        const result = schema.safeParse({ ...valid, components: [] });
         expect(result.success).toBe(false);
         if (!result.success) {
-            expect(result.error.issues.some((i) => i.message === '최소 1개의 생두가 필요합니다')).toBe(true);
+            expect(result.error.issues.some((i) => i.message === 'beans.blend.validation.minComponents')).toBe(true);
         }
     });
 
     it('rejects ratio sum not equal to 100', () => {
-        const result = blendFormSchema.safeParse({
+        const result = schema.safeParse({
             ...valid,
             components: [
                 { bean_id: 'b1', ratio_pct: 50 },
@@ -46,27 +49,27 @@ describe('blendFormSchema', () => {
         });
         expect(result.success).toBe(false);
         if (!result.success) {
-            expect(result.error.issues.some((i) => i.message === '구성 비율 합계가 100%여야 합니다')).toBe(true);
+            expect(result.error.issues.some((i) => i.message === 'beans.blend.validation.ratioSum')).toBe(true);
         }
     });
 
     it('rejects empty bean_id and non-integer / out-of-range ratio', () => {
-        const emptyBean = blendFormSchema.safeParse({
+        const emptyBean = schema.safeParse({
             ...valid,
             components: [{ bean_id: '', ratio_pct: 100 }],
         });
         expect(emptyBean.success).toBe(false);
         if (!emptyBean.success) {
-            expect(emptyBean.error.issues.some((i) => i.message === '생두를 선택하세요')).toBe(true);
+            expect(emptyBean.error.issues.some((i) => i.message === 'beans.blend.validation.beanRequired')).toBe(true);
         }
 
-        const frac = blendFormSchema.safeParse({
+        const frac = schema.safeParse({
             ...valid,
             components: [{ bean_id: 'b1', ratio_pct: 50.5 }],
         });
         expect(frac.success).toBe(false);
 
-        const over = blendFormSchema.safeParse({
+        const over = schema.safeParse({
             ...valid,
             components: [{ bean_id: 'b1', ratio_pct: 101 }],
         });

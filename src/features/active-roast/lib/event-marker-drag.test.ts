@@ -1,10 +1,11 @@
+import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry } from '@shared/types/roast';
 import { describe, expect, it } from 'vitest';
 import { applyEventMarkerDrag, nearestLivePointAt } from './event-marker-drag';
 
 const entry = (event: string, timeSec: number, tempC: number): LogEntry => ({
     id: event,
-    time: `${Math.floor(timeSec / 60)}:${String(Math.floor(timeSec % 60)).padStart(2, '0')}`,
+    time: formatElapsed(timeSec),
     timeSec,
     event,
     temp: `${tempC.toFixed(1)}°C`,

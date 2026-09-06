@@ -60,7 +60,7 @@ export const AddBeanModal = ({
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
 
     const form = useForm({
-        resolver: zodResolver(beanFormSchema),
+        resolver: zodResolver(beanFormSchema(t)),
         defaultValues: EMPTY_BEAN_FORM,
     });
     const {

@@ -1,11 +1,5 @@
+import { useTranslation } from 'react-i18next';
 import type { usePidControl } from '../model/usePidControl';
-
-const STATE_LABEL: Record<string, string> = {
-    off: 'Off',
-    running: 'Running',
-    holding: 'Holding',
-    fault: 'Fault',
-};
 
 const STATE_COLOR: Record<string, string> = {
     off: 'text-muted',
@@ -29,14 +23,20 @@ interface Props {
  * PID를 지원하지 않는 머신(게인이나 heater 쓰기 맵이 없는 경우)에서는 렌더하지 않는다.
  */
 export const PidControlPanel = ({ pid, dropBehavior, replayActive }: Props) => {
+    const { t } = useTranslation();
     if (!pid.supported) return null;
+
+    const stateKey = `machineControl.pid.${pid.state}`;
+    const stateLabel = t(stateKey, { defaultValue: pid.state });
 
     return (
         <div className="flex shrink-0 flex-col gap-2">
             <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">Auto Heat (PID)</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                    {t('machineControl.pid.title')}
+                </span>
                 <span className={`text-[11px] font-medium ${STATE_COLOR[pid.state] ?? 'text-muted'}`}>
-                    {STATE_LABEL[pid.state] ?? pid.state}
+                    {stateLabel}
                 </span>
             </div>
 
@@ -52,12 +52,12 @@ export const PidControlPanel = ({ pid, dropBehavior, replayActive }: Props) => {
                     }}
                     className="h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
                 />
-                <span className="text-[12px] text-secondary">Hold BT at target</span>
+                <span className="text-[12px] text-secondary">{t('machineControl.pid.holdBt')}</span>
             </label>
 
             <div className="flex flex-col gap-1">
                 <div className="flex items-baseline justify-between">
-                    <span className="text-[12px] font-medium text-secondary">Target</span>
+                    <span className="text-[12px] font-medium text-secondary">{t('machineControl.pid.target')}</span>
                     <span className="font-mono text-[12px] text-primary">{Math.round(pid.sv)}°C</span>
                 </div>
                 <input
@@ -66,7 +66,7 @@ export const PidControlPanel = ({ pid, dropBehavior, replayActive }: Props) => {
                     max={pid.svMax}
                     step={1}
                     value={pid.sv}
-                    aria-label="PID target temperature"
+                    aria-label={t('machineControl.pid.targetAria')}
                     // 드래그 중에는 화면만 갱신하고, 손을 뗄 때 한 번만 머신에 보낸다
                     onChange={(e) => pid.previewSv(Number(e.target.value))}
                     onPointerUp={(e) => void pid.commitSv(Number(e.currentTarget.value))}

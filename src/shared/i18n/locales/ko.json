@@ -12,11 +12,36 @@
         "save": "저장",
         "add": "추가",
         "edit": "수정",
-        "delete": "삭제"
+        "delete": "삭제",
+        "search": "검색...",
+        "noResults": "결과 없음",
+        "clearSelection": "선택 해제",
+        "unknownError": "알 수 없는 오류가 발생했습니다.",
+        "retry": "다시 시도"
     },
     "auth": {
         "oauthCompleting": "로그인 완료 중…",
+        "oauthCancel": "취소",
         "sessionReplacedTitle": "로그아웃됨",
+        "login": {
+            "brandLine1": "모든 로스트를",
+            "brandLine2": "정확하게 기록합니다.",
+            "brandSub": "프로페셔널 로스트 트래킹, 실시간 온도 커브, 배치 분석 — 스페셜티 커피를 위해 만들었습니다.",
+            "title": "로그인",
+            "welcome": "다시 오신 것을 환영합니다. 정보를 입력해 계속하세요.",
+            "continueGoogle": "Google로 계속",
+            "or": "또는",
+            "workEmail": "업무 이메일",
+            "emailPlaceholder": "han@allyouneed.com",
+            "password": "비밀번호",
+            "forgotPassword": "비밀번호 찾기",
+            "showPassword": "비밀번호 표시",
+            "hidePassword": "비밀번호 숨기기",
+            "signingIn": "로그인 중...",
+            "submit": "로그인",
+            "noAccount": "계정이 없으신가요?",
+            "startTrial": "무료 체험 시작"
+        },
         "errors": {
             "invalid_credentials": "이메일 또는 비밀번호가 올바르지 않습니다. 다시 시도해 주세요.",
             "network": "네트워크 오류입니다. 연결을 확인한 뒤 다시 시도해 주세요.",
@@ -360,10 +385,30 @@
         "sidecarStarting": "사이드카 시작 중...",
         "startRoasting": "로스팅 시작",
         "selectMachine": "머신을 선택하세요",
+        "contactSupport": "문의하기",
         "limit": {
             "banner": "머신 한도 {{used}}/{{max}}. Pro+에서 무제한 연동.",
             "title": "머신 등록 한도",
             "description": "Pro 이하 플랜은 머신을 {{max}}대만 등록할 수 있습니다. 추가 연동은 Pro+로 업그레이드하세요."
+        }
+    },
+    "machineControl": {
+        "title": "머신 제어",
+        "sending": "전송 중…",
+        "expand": "머신 제어 펼치기",
+        "collapse": "머신 제어 접기",
+        "pidState": "PID {{state}}",
+        "replayActive": "Replay 재생 중",
+        "unacked": "기기가 명령을 반영하지 않았습니다",
+        "pid": {
+            "title": "자동 화력 (PID)",
+            "holdBt": "목표 BT 유지",
+            "target": "목표",
+            "targetAria": "PID 목표 온도",
+            "off": "꺼짐",
+            "running": "작동 중",
+            "holding": "유지 중",
+            "fault": "오류"
         }
     },
     "addMachine": {
@@ -605,7 +650,10 @@
         "addBatch": "배치 추가",
         "editBatch": "배치 편집",
         "saveFailed": "저장 실패:",
-        "unknown": "알 수 없음"
+        "unknown": "알 수 없음",
+        "search": "검색...",
+        "noResults": "결과 없음",
+        "clearSelection": "선택 해제"
     },
     "months": ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
     "history": {
@@ -785,6 +833,12 @@
                 "save": "저장",
                 "add": "추가"
             },
+            "validation": {
+                "nameRequired": "블렌드 이름을 입력하세요",
+                "beanRequired": "생두를 선택하세요",
+                "minComponents": "최소 1개의 생두가 필요합니다",
+                "ratioSum": "구성 비율 합계가 100%여야 합니다"
+            },
             "componentCount_one": "생두 {{count}}종",
             "componentCount_other": "생두 {{count}}종",
             "totalRatioLabel": "비율 합계",
@@ -805,7 +859,16 @@
             "mockRoastInProgress": "모의 — 로스팅 진행 중",
             "roastComplete": "로스팅 완료",
             "settings": "로스팅 설정",
-            "openSettings": "로스팅 설정 열기"
+            "openSettings": "로스팅 설정 열기",
+            "selectBean": "생두 선택",
+            "selectTarget": "목표 프로파일 선택"
+        },
+        "closeGuard": {
+            "runningMessage": "로스팅이 진행 중입니다. 정말 종료하시겠습니까?",
+            "unsavedMessage": "저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?",
+            "title": "로스팅 진행 중",
+            "confirm": "종료",
+            "cancel": "취소"
         },
         "readings": {
             "beanTemp": "생두 온도",
@@ -1147,6 +1210,9 @@
             "costPlaceholder": "예: 32000",
             "tastingNotes": "시음 노트",
             "tastingNotesPlaceholder": "예: 자스민, 블루베리, 밀크 초콜릿"
+        },
+        "validation": {
+            "nameRequired": "Lot 이름을 입력하세요"
         },
         "restock": {
             "weight": "추가 중량 (kg)",

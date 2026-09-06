@@ -4,7 +4,7 @@ import type { TemperatureUnit } from '../../model/settings';
 /** Same ±2°C band as side-panel calcTargetDelta */
 const TARGET_DELTA_BAND_C = 2;
 
-const nearestDisplayAt = (xs: number[], values: (number | null)[], timeSec: number): number | null => {
+export const nearestBtAt = (xs: number[], values: (number | null)[], timeSec: number): number | null => {
     if (!xs.length) return null;
     let bestIdx = -1;
     let bestDist = Infinity;
@@ -61,7 +61,7 @@ export const buildTargetDeltaMarkPoint = (params: BuildTargetDeltaMarkPointParam
     if (!show || !charged || !targetXs?.length || !targetBt?.length) return null;
     if (!Number.isFinite(currentTimeSec)) return null;
 
-    const bt = nearestDisplayAt(xs, btActual, currentTimeSec);
+    const bt = nearestBtAt(xs, btActual, currentTimeSec);
     if (bt == null) return null;
 
     const targetCurve = targetXs
