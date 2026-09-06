@@ -80,6 +80,7 @@
     "devDependencies": {
         "@biomejs/biome": "2.5.7",
         "@playwright/test": "1.62.1",
+        "@sentry/cli": "2.58.6",
         "@secretlint/secretlint-rule-preset-recommend": "^13.0.5",
         "@sentry/vite-plugin": "^5.4.0",
         "@tailwindcss/vite": "^4.3.3",

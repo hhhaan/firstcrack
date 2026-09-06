@@ -12,8 +12,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
-  checks: read
 
 concurrency:
   group: release
@@ -45,6 +43,8 @@ jobs:
   ci-gate:
     needs: setup
     runs-on: ubuntu-latest
+    permissions:
+      checks: read
     timeout-minutes: 15
     steps:
       - name: Wait for CI checks
@@ -98,32 +98,10 @@ jobs:
           echo "::error::CI checks still pending after 10 min — aborting release. Re-run once CI completes."
           exit 1
 
-  migrate:
-    needs: [setup, ci-gate]
-    uses: ./.github/workflows/deploy-migrations.yml
-    with:
-      version: ${{ needs.setup.outputs.version }}
-    secrets: inherit
-
-  # Inner jobs all skipped → reusable result is skipped, run stays green.
-  # Fail here so a bad migrate `if:` cannot ship a no-op release.
-  migrate-ok:
-    needs: [setup, migrate]
-    if: always() && needs.setup.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Require migrate success
-        run: |
-          result="${{ needs.migrate.result }}"
-          echo "migrate result=$result"
-          if [ "$result" != "success" ]; then
-            echo "::error::migrate did not succeed (got $result). Reusable workflows inherit the caller event_name (tag push ≠ workflow_call)."
-            exit 1
-          fi
-
+  # Order: build → migrate → publish. Migrating first left prod schema ahead of
+  # an app that never shipped whenever a 3-runner build failed (#342).
   build:
-    needs: [setup, migrate-ok]
+    needs: [setup, ci-gate]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:
@@ -193,23 +171,23 @@ jobs:
           fi
           echo "All required secrets present."
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0 # master
         with:
+          toolchain: stable
           targets: ${{ matrix.target }}
 
       # Restore-only: tag refs can only restore caches saved on main, and caches
       # saved on a tag ref are never reusable. Warming happens in
       # warm-release-cache.yml (main) with the same shared-key.
       - name: Rust cache
-        uses: swatinem/rust-cache@v2
+        uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: src-tauri
           shared-key: rust-${{ matrix.target }}
@@ -261,6 +239,10 @@ jobs:
         if: steps.sidecar-cache.outputs.cache-hit != 'true'
         run: pnpm run build:sidecar
 
+      # Runs on cache hit too: a cached binary that no longer boots is exactly the bug (#342).
+      - name: Smoke-test sidecar binary
+        run: bash scripts/smoke-sidecar.sh ${{ matrix.target }}
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v1
         env:
@@ -286,12 +268,9 @@ jobs:
         with:
           args: --target ${{ matrix.target }}
 
-      # JS 소스맵은 Vite 플러그인이 이미 업로드+삭제했다 — 여기서는 Rust 네이티브 심볼만 다룬다
-      # (macOS .dSYM / Windows .pdb). @sentry/cli는 vite-plugin의 간접 의존성이라 pnpm bin에
-      # 안 보인다. 설치 스크립트(curl|sh) 대신 npm registry 무결성 검증을 탄다.
-      - name: Install sentry-cli
-        run: npm install -g @sentry/cli
-
+      # JS 소스맵은 Vite 플러그인이 이미 업로드+삭제했다 — 여기는 Rust 네이티브 심볼만.
+      # (macOS .dSYM / Windows .pdb). @sentry/cli는 devDependency — lockfile 핀 + integrity 검증,
+      # curl|sh / npm -g 설치 없음.
       - name: Upload native debug symbols to Sentry
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -299,8 +278,8 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           VERSION: ${{ needs.setup.outputs.version }}
         run: |
-          sentry-cli debug-files upload "src-tauri/target/${{ matrix.target }}/release/"
-          sentry-cli releases finalize "first-crack@$VERSION"
+          pnpm exec sentry-cli debug-files upload "src-tauri/target/${{ matrix.target }}/release/"
+          pnpm exec sentry-cli releases finalize "first-crack@$VERSION"
 
       - name: Upload macOS artifacts
         if: runner.os == 'macOS'
@@ -353,8 +332,33 @@ jobs:
             echo "VITE_SLACK_WEBHOOK_URL not set — skipping notification"
           fi
 
-  publish-r2:
+  migrate:
     needs: [setup, build]
+    uses: ./.github/workflows/deploy-migrations.yml
+    with:
+      version: ${{ needs.setup.outputs.version }}
+    secrets: inherit
+
+  # Inner jobs all skipped → reusable result is skipped, run stays green.
+  # Fail here so a bad migrate `if:` cannot ship a no-op release.
+  migrate-ok:
+    needs: [setup, migrate]
+    if: always() && needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require migrate success
+        run: |
+          result="${{ needs.migrate.result }}"
+          echo "migrate result=$result"
+          if [ "$result" != "success" ]; then
+            echo "::error::migrate did not succeed (got $result). Reusable workflows inherit the caller event_name (tag push ≠ workflow_call)."
+            exit 1
+          fi
+
+  # Build artifacts expire via retention-days: 1 — no cleanup job needed.
+  publish-r2:
+    needs: [setup, build, migrate-ok]
     permissions:
       contents: read
       actions: read
@@ -362,30 +366,3 @@ jobs:
     with:
       version: ${{ needs.setup.outputs.version }}
     secrets: inherit
-
-  cleanup-artifacts:
-    needs: [publish-r2]
-    if: success()
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      actions: write
-    steps:
-      - name: Delete release build artifacts
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          for name in \
-            "macos-aarch64-apple-darwin" \
-            "macos-x86_64-apple-darwin" \
-            "windows-x86_64-pc-windows-msvc"
-          do
-            id=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-              --jq ".artifacts[] | select(.name == \"$name\") | .id")
-            if [ -n "$id" ]; then
-              gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id"
-              echo "Deleted artifact: $name (id: $id)"
-            else
-              echo "Artifact not found (already expired?): $name"
-            fi
-          done

@@ -230,16 +230,29 @@ jobs:
           VERSION: ${{ inputs.target_version }}
         run: |
           set -e
+          # Same retry as publish (#215): a transient 5xx / purge propagation delay
+          # must not report a successful pointer flip as "rollback FAILED".
+          retry() { # retry <attempts> <sleep_s> <cmd...>
+            local n=$1 s=$2; shift 2
+            for i in $(seq 1 "$n"); do
+              "$@" && return 0
+              [ "$i" -lt "$n" ] && { echo "  attempt $i/$n failed, retrying in ${s}s"; sleep "$s"; }
+            done
+            return 1
+          }
+          check_manifest() {
+            curl -fsSL --proto '=https' --tlsv1.2 "${R2_PUBLIC_URL}/releases/latest.json" -o verified.json || return 1
+            [ "$(jq -r .version verified.json)" = "$VERSION" ]
+          }
           # brief settle for eventual consistency
           sleep 2
-          curl -fsSL "${R2_PUBLIC_URL}/releases/latest.json" -o verified.json
-          echo "Public latest.json:"
-          cat verified.json
-          GOT=$(jq -r .version verified.json)
-          if [ "$GOT" != "$VERSION" ]; then
-            echo "::error::Public latest.json version is '$GOT', expected '$VERSION'"
+          if ! retry 5 5 check_manifest; then
+            echo "::error::Public latest.json never reported version '$VERSION'"
+            cat verified.json 2>/dev/null || true
             exit 1
           fi
+          echo "Public latest.json:"
+          cat verified.json
           echo "✅ Public pointer is v${VERSION}"
 
       - name: Notify Slack

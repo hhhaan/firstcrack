@@ -63,15 +63,11 @@ jobs:
             exit 0
           fi
 
-          # Detect changed function directories vs main (PR/local) or full push range on main
-          CHANGED=$(git diff --name-only origin/main...HEAD -- supabase/functions/ || true)
-          if [ -z "$CHANGED" ]; then
-            # On main push: diff entire push (all commits), not only HEAD~1
-            if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
-              CHANGED=$(git diff --name-only "${BEFORE_SHA}...HEAD" -- supabase/functions/ || true)
-            else
-              CHANGED=$(git diff --name-only HEAD~1 -- supabase/functions/ || true)
-            fi
+          # Main push: diff the entire push range (all commits), not only HEAD~1
+          if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            CHANGED=$(git diff --name-only "${BEFORE_SHA}...HEAD" -- supabase/functions/ || true)
+          else
+            CHANGED=$(git diff --name-only HEAD~1 -- supabase/functions/ || true)
           fi
 
           if [ -z "$CHANGED" ]; then
@@ -146,6 +142,33 @@ jobs:
               || { echo "::error::Deploy failed for $fn"; exit 1; }
           done
           echo "✅ All functions deployed"
+
+      # A function that fails to load (e.g. CJS named import) deploys fine and only dies
+      # on first call with 503 BOOT_ERROR — deno check cannot see it. Call each one.
+      # Anon bearer gets past the gateway so the function itself boots; any app-level
+      # 4xx is a pass, 503 / BOOT_ERROR is a fail.
+      - name: Probe deployed functions
+        if: steps.changed.outputs.functions != '[]'
+        env:
+          FUNCTIONS_JSON: ${{ steps.changed.outputs.functions }}
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          sleep 5 # settle so we probe the new version, not the previous deploy
+          fail=0
+          for fn in $(echo "$FUNCTIONS_JSON" | jq -r '.[]'); do
+            code=$(curl -s -o body.txt -w '%{http_code}' -X POST "${SUPABASE_URL}/functions/v1/${fn}" \
+              -H "Authorization: Bearer ${ANON_KEY}" -H "apikey: ${ANON_KEY}" \
+              -H "Content-Type: application/json" --data '{}' || echo 000)
+            if [ "$code" = "503" ] || [ "$code" = "000" ] || grep -q BOOT_ERROR body.txt; then
+              echo "::error::${fn}: HTTP ${code} — $(head -c 300 body.txt)"
+              fail=1
+            else
+              echo "  OK: ${fn} (HTTP ${code})"
+            fi
+          done
+          [ "$fail" -eq 0 ] || exit 1
 
       - name: Notify failure
         if: failure()
