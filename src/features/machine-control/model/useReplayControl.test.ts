@@ -91,6 +91,33 @@ describe('useReplayControl', () => {
         h.unmount();
     });
 
+    it('Replay On이면 다음 이벤트·남은 개수·시간/BT 축을 노출한다 (#369)', async () => {
+        const h = await renderReplay();
+        expect(h.get().nextEvent).toBeNull();
+        expect(h.get().remainingAfterNext).toBe(0);
+        await act(async () => h.get().toggle());
+        // t=0 발화 후 다음은 TP 이후 BT 이벤트, 그 뒤로 40% 하나
+        expect(h.get().nextEvent?.heater).toBe(60);
+        expect(h.get().nextEventOnTime).toBe(false);
+        expect(h.get().remainingAfterNext).toBe(1);
+        h.unmount();
+    });
+
+    it('다음 이벤트가 TP 이전이면 시간축이다', async () => {
+        const pts: ReplayPoint[] = [
+            { t: 0, bt: 180, heater: 80 },
+            { t: 30, bt: 140, heater: 70 },
+            { t: 60, bt: 95, heater: 70 },
+            { t: 300, bt: 155, heater: 40 },
+        ];
+        const h = await renderReplay({ referencePoints: pts });
+        await act(async () => h.get().toggle());
+        expect(h.get().nextEvent?.heater).toBe(70);
+        expect(h.get().nextEventOnTime).toBe(true);
+        expect(h.get().remainingAfterNext).toBe(1);
+        h.unmount();
+    });
+
     it('reconnecting 동안은 이벤트를 소비하지 않는다 — 복구 후 밀린 이벤트를 한 번에 따라잡는다', async () => {
         // t=30 시간축 이벤트 — 링크 복구 대기 중 elapsed만 흐르는 동안 409로 버려지면 안 된다
         const pts: ReplayPoint[] = [

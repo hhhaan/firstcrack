@@ -2,7 +2,7 @@ import type { EventMarkerStyle, TemperatureUnit, TurningPoint } from '@features/
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { fmtSec } from './axes';
 import { buildTargetDeltaMarkPoint } from './target-delta-label';
-import type { ResolvedChartColors, RoastEventMarker } from './types';
+import type { ResolvedChartColors, RoastEventMarker, UpcomingHeaterMark } from './types';
 
 /** 시간축에서 가장 가까운 BT 표시값 조회 */
 export const nearestBtAt = (xs: number[], btActual: (number | null)[], timeSec: number): number | null => {
@@ -30,6 +30,17 @@ export const eventLabelText = (event: string, timeStr: string, temp: string) =>
  */
 export const LABEL_BELOW_EVENTS = new Set(['FC Rolling', 'FC End', 'Drop', 'TP']);
 
+/** 다음 1개 화력 + 남은 N. 숫자라 로케일 없음 */
+export const upcomingHeaterLabel = (
+    heater: number,
+    remainingAfter: number,
+    bt?: { display: number; unitLabel: string },
+): string => {
+    const pct = `${Math.round(heater)}%`;
+    const extra = remainingAfter > 0 ? ` +${remainingAfter}` : '';
+    return bt ? `BT ${Math.round(bt.display)}${bt.unitLabel} → ${pct}${extra}` : `${pct}${extra}`;
+};
+
 const buildPointLabel = (text: string, below = false) => ({
     show: true,
     position: (below ? 'bottom' : 'top') as 'top' | 'bottom',
@@ -51,6 +62,7 @@ export interface MarkerBuildParams {
     xMax: number;
     eventMarkerStyle: EventMarkerStyle;
     eventMarkers: RoastEventMarker[];
+    upcomingHeaterMark?: UpcomingHeaterMark | null;
     turningPoints: TurningPoint[];
     temperatureUnit: TemperatureUnit;
     unitLabel: string;
@@ -59,6 +71,7 @@ export interface MarkerBuildParams {
     colors: ResolvedChartColors;
     tempYMin: number;
     hasControlSeries: boolean;
+    showControlHeat?: boolean;
     showFcBand?: boolean;
     showTargetDeltaLabel?: boolean;
     targetXs?: number[];
@@ -72,6 +85,8 @@ export interface MarkerBuildResult {
     /** FC Start–End vertical band (null if incomplete / invalid range) */
     fcMarkArea: object | null;
     controlGuideMarkLines: object[];
+    heatMarkLines: object[];
+    heatMarkPoints: object[];
     tempBottomBorderLine: object | null;
 }
 
@@ -83,6 +98,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         xMax,
         eventMarkerStyle,
         eventMarkers,
+        upcomingHeaterMark,
         turningPoints,
         temperatureUnit,
         unitLabel,
@@ -91,6 +107,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         colors,
         tempYMin,
         hasControlSeries,
+        showControlHeat = true,
         showFcBand = true,
         showTargetDeltaLabel = false,
         targetXs,
@@ -245,7 +262,66 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     });
     if (targetDeltaPoint) markPointData.push(targetDeltaPoint);
 
-    const allMarkLines = usePointMarkers ? guideMarkLines : [...guideMarkLines, ...eventMarkLines, ...tpMarkLines];
+    const heatMarkLines: object[] = [];
+    const heatMarkPoints: object[] = [];
+    const extraTempMarkLines: object[] = [];
+    if (upcomingHeaterMark) {
+        const { timeSec, btC, heater, remainingAfter, axis } = upcomingHeaterMark;
+        const color = colors.controlHeat;
+        const lineStyle = { color, width: 1, type: [4, 3] as number[], opacity: 0.9 };
+        if (axis === 'bt') {
+            const y = toDisplayTemp(btC, temperatureUnit);
+            extraTempMarkLines.push({
+                yAxis: y,
+                lineStyle,
+                label: {
+                    show: true,
+                    formatter: upcomingHeaterLabel(heater, remainingAfter, { display: y, unitLabel }),
+                    color,
+                    fontSize: 10,
+                    fontWeight: 600,
+                },
+            });
+        } else if (hasControlSeries && showControlHeat) {
+            heatMarkLines.push({ xAxis: timeSec, lineStyle, label: { show: false } });
+            heatMarkPoints.push({
+                name: 'Replay',
+                coord: [timeSec, heater] as [number, number],
+                symbol: 'circle' as const,
+                symbolSize: 7,
+                itemStyle: { color, borderColor: colors.markerLabelColor, borderWidth: 1 },
+                label: {
+                    show: true,
+                    position: 'top' as const,
+                    formatter: upcomingHeaterLabel(heater, remainingAfter),
+                    fontSize: 10,
+                    fontWeight: 600,
+                    fontFamily: 'monospace',
+                    color: '#0b0b0b',
+                    backgroundColor: 'transparent',
+                    borderWidth: 0,
+                    padding: 0,
+                },
+            });
+        } else {
+            extraTempMarkLines.push({
+                xAxis: timeSec,
+                lineStyle,
+                label: {
+                    show: true,
+                    position: 'end' as const,
+                    formatter: upcomingHeaterLabel(heater, remainingAfter),
+                    color,
+                    fontSize: 10,
+                    fontWeight: 600,
+                },
+            });
+        }
+    }
+
+    const allMarkLines = usePointMarkers
+        ? [...guideMarkLines, ...extraTempMarkLines]
+        : [...guideMarkLines, ...eventMarkLines, ...tpMarkLines, ...extraTempMarkLines];
 
     // FC Start → FC End 세로 밴드 (End 없으면 live currentTime까지)
     let fcMarkArea: object | null = null;
@@ -284,6 +360,8 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         markPointData: markPointData as object[],
         fcMarkArea,
         controlGuideMarkLines,
+        heatMarkLines,
+        heatMarkPoints,
         tempBottomBorderLine,
     };
 };

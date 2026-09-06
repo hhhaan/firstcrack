@@ -1,7 +1,7 @@
 import type { PidRuntime } from '@entities/machine';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ControlRole } from '../lib/controlSender';
 import type { ReplayPoint } from '../lib/replay';
 import { useMachineControl } from '../model/useMachineControl';
@@ -41,6 +41,16 @@ interface Props {
     afterTurningPoint: boolean;
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
+    /** Replay On일 때 다음 화력 이벤트를 차트로 올린다. Off/언마운트면 null (#369) */
+    onReplayPreview?: (preview: ReplayChartPreview | null) => void;
+}
+
+export interface ReplayChartPreview {
+    t: number;
+    bt: number;
+    heater: number;
+    remainingAfter: number;
+    onTime: boolean;
 }
 
 /**
@@ -68,6 +78,7 @@ export const MachineControlPanel = ({
     roasting,
     afterTurningPoint,
     temperatureUnit,
+    onReplayPreview,
 }: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
     const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
@@ -124,6 +135,22 @@ export const MachineControlPanel = ({
         reconnecting,
         writeHeater,
     });
+    useEffect(() => {
+        if (!onReplayPreview) return;
+        const next = replay.nextEvent;
+        if (!replay.active || next == null) {
+            onReplayPreview(null);
+            return;
+        }
+        onReplayPreview({
+            t: next.t,
+            bt: next.bt,
+            heater: next.heater,
+            remainingAfter: replay.remainingAfterNext,
+            onTime: replay.nextEventOnTime,
+        });
+    }, [onReplayPreview, replay.active, replay.nextEvent, replay.remainingAfterNext, replay.nextEventOnTime]);
+    useEffect(() => () => onReplayPreview?.(null), [onReplayPreview]);
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.
     // 재생 중 heater 슬라이더는 잠기므로 평소엔 닿지 않는 경로지만, 드래그 도중
     // 재생이 켜지는 경계에서 이벤트가 새면 여기가 마지막 방어선이다.

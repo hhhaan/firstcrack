@@ -19,7 +19,7 @@ import { useAutoDetection } from '@features/active-roast/model/useAutoDetection'
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
-import { MachineControlPanel } from '@features/machine-control';
+import { MachineControlPanel, type ReplayChartPreview } from '@features/machine-control';
 import { useWeather } from '@shared/api/weather';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
@@ -392,6 +392,36 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     const eventMarkers = useMemo(() => buildEventMarkers(logEntries), [logEntries, resolvedTheme]);
+    const [replayPreview, setReplayPreview] = useState<ReplayChartPreview | null>(null);
+    const handleReplayPreview = useCallback((next: ReplayChartPreview | null) => {
+        setReplayPreview((prev) => {
+            if (prev === next) return prev;
+            if (!prev || !next) return next;
+            if (
+                prev.t === next.t &&
+                prev.bt === next.bt &&
+                prev.heater === next.heater &&
+                prev.remainingAfter === next.remainingAfter &&
+                prev.onTime === next.onTime
+            ) {
+                return prev;
+            }
+            return next;
+        });
+    }, []);
+    const upcomingHeaterMark = useMemo(
+        () =>
+            replayPreview
+                ? {
+                      timeSec: replayPreview.t,
+                      btC: replayPreview.bt,
+                      heater: replayPreview.heater,
+                      remainingAfter: replayPreview.remainingAfter,
+                      axis: replayPreview.onTime ? ('time' as const) : ('bt' as const),
+                  }
+                : null,
+        [replayPreview],
+    );
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     const phaseSegments = useMemo(
         () => (roastSettings.showPhaseBar ? computePhaseSegments(logEntries, elapsed, charged) : []),
@@ -582,6 +612,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         charged={charged}
                         eventMarkerStyle={roastSettings.eventMarkerStyle}
                         eventMarkers={eventMarkers}
+                        upcomingHeaterMark={upcomingHeaterMark}
                         turningPoints={turningPoints}
                         phaseSegments={phaseSegments}
                         showFcBand={roastSettings.showFcBand}
@@ -610,6 +641,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         // #314: 120초 fallback TP는 곡선에서 관측된 TP가 아니라 BT 게이트를 열 수 없다
                         afterTurningPoint={confirmedTP !== null && !confirmedTP.fallback}
                         temperatureUnit={unit}
+                        onReplayPreview={handleReplayPreview}
                     />
 
                     <RoastSidePanel

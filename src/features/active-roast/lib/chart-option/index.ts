@@ -18,7 +18,13 @@ import type { ChartOptionParams } from './types';
 
 export { fmtSec } from './axes';
 export { buildCompareChartOption, type CompareChartSeries, compareChartXMax } from './compare';
-export type { ChartOptionParams, ControlData, ResolvedChartColors, RoastEventMarker } from './types';
+export type {
+    ChartOptionParams,
+    ControlData,
+    ResolvedChartColors,
+    RoastEventMarker,
+    UpcomingHeaterMark,
+} from './types';
 
 export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption => {
     const {
@@ -30,6 +36,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         charged,
         eventMarkerStyle,
         eventMarkers,
+        upcomingHeaterMark,
         turningPoints,
         temperatureUnit,
         showET,
@@ -88,27 +95,37 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
 
     const hasControlSeries = !!controlData && (showControlDrum || showControlHeat || showControlFan);
-    const { usePointMarkers, allMarkLines, markPointData, fcMarkArea, controlGuideMarkLines, tempBottomBorderLine } =
-        buildMarkers({
-            charged,
-            currentTimeSec,
-            xMin,
-            xMax,
-            eventMarkerStyle,
-            eventMarkers,
-            turningPoints,
-            temperatureUnit,
-            unitLabel,
-            xs,
-            btActual,
-            colors,
-            tempYMin,
-            hasControlSeries,
-            showFcBand,
-            showTargetDeltaLabel,
-            targetXs,
-            targetBt,
-        });
+    const {
+        usePointMarkers,
+        allMarkLines,
+        markPointData,
+        fcMarkArea,
+        controlGuideMarkLines,
+        heatMarkLines,
+        heatMarkPoints,
+        tempBottomBorderLine,
+    } = buildMarkers({
+        charged,
+        currentTimeSec,
+        xMin,
+        xMax,
+        eventMarkerStyle,
+        eventMarkers,
+        upcomingHeaterMark,
+        turningPoints,
+        temperatureUnit,
+        unitLabel,
+        xs,
+        btActual,
+        colors,
+        tempYMin,
+        hasControlSeries,
+        showControlHeat,
+        showFcBand,
+        showTargetDeltaLabel,
+        targetXs,
+        targetBt,
+    });
 
     const hasRightYAxis = showRoR || hasControlSeries;
     const { leftMargin, rightMargin, topMargin } = computeGridMargins(hasRightYAxis);
@@ -168,6 +185,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             showControlFan,
             colors,
             controlGuideMarkLines,
+            heatMarkLines,
+            heatMarkPoints,
         });
 
         return {

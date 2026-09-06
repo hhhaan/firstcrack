@@ -154,4 +154,39 @@ describe('buildRoastChartOption', () => {
         const bt = series.find((s) => s.name === 'BT Actual');
         expect(bt?.markArea).toBeUndefined();
     });
+
+    it('marks the next Replay heater on the Heat series', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            controlData: {
+                xs: [0, 60],
+                drumTemp: [50, 55],
+                heatPower: [80, 70],
+                fanSpeed: [30, 35],
+            },
+            upcomingHeaterMark: { timeSec: 30, btC: 140, heater: 70, remainingAfter: 2, axis: 'time' },
+        });
+        const series = option.series as {
+            name?: string;
+            markPoint?: { data?: { coord?: number[]; label?: { formatter?: string } }[] };
+        }[];
+        const heat = series.find((s) => s.name === 'Heat');
+        expect(heat?.markPoint?.data?.[0]?.coord).toEqual([30, 70]);
+        expect(heat?.markPoint?.data?.[0]?.label?.formatter).toBe('70% +2');
+    });
+
+    it('omits Heat replay marks when Replay is off', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            controlData: {
+                xs: [0, 60],
+                drumTemp: [50, 55],
+                heatPower: [80, 70],
+                fanSpeed: [30, 35],
+            },
+        });
+        const series = option.series as { name?: string; markPoint?: unknown }[];
+        const heat = series.find((s) => s.name === 'Heat');
+        expect(heat?.markPoint).toBeUndefined();
+    });
 });

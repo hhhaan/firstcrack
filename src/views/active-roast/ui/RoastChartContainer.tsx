@@ -1,4 +1,4 @@
-import type { RoastEventMarker } from '@features/active-roast/lib/chart-option';
+import type { RoastEventMarker, UpcomingHeaterMark } from '@features/active-roast/lib/chart-option';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import type { EventMarkerStyle, TemperatureUnit } from '@features/active-roast/model/settings';
 import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
@@ -46,6 +46,7 @@ interface RoastChartContainerProps {
     charged: boolean;
     eventMarkerStyle: EventMarkerStyle;
     eventMarkers: RoastEventMarker[];
+    upcomingHeaterMark?: UpcomingHeaterMark | null;
     turningPoints: { timeSec: number; temp: number }[];
     phaseSegments: PhaseSegment[];
     showFcBand?: boolean;
@@ -90,6 +91,7 @@ export const RoastChartContainer = ({
     charged,
     eventMarkerStyle,
     eventMarkers,
+    upcomingHeaterMark,
     turningPoints,
     phaseSegments,
     showFcBand = true,
@@ -130,6 +132,7 @@ export const RoastChartContainer = ({
                 charged={charged}
                 eventMarkerStyle={eventMarkerStyle}
                 eventMarkers={eventMarkers}
+                upcomingHeaterMark={upcomingHeaterMark}
                 turningPoints={turningPoints}
                 height={mainChartHeight}
                 onCursorIdx={onCursorIdx}

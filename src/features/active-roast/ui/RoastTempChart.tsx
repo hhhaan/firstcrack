@@ -11,6 +11,7 @@ import {
     buildRoastChartOption,
     type ControlData,
     type RoastEventMarker,
+    type UpcomingHeaterMark,
 } from '@features/active-roast/lib/chart-option';
 import { useThemeStore } from '@shared/store/theme';
 import * as echarts from 'echarts';
@@ -29,6 +30,7 @@ interface Props {
     charged?: boolean;
     eventMarkerStyle?: EventMarkerStyle;
     eventMarkers: RoastEventMarker[];
+    upcomingHeaterMark?: UpcomingHeaterMark | null;
     turningPoints?: TurningPoint[];
     temperatureUnit?: TemperatureUnit;
     height: number;
@@ -69,6 +71,7 @@ export const RoastTempChart: React.FC<Props> = ({
     charged = false,
     eventMarkerStyle = 'point',
     eventMarkers,
+    upcomingHeaterMark,
     turningPoints = [],
     temperatureUnit = 'C',
     height,
@@ -154,6 +157,7 @@ export const RoastTempChart: React.FC<Props> = ({
                 charged,
                 eventMarkerStyle,
                 eventMarkers,
+                upcomingHeaterMark,
                 turningPoints,
                 temperatureUnit,
                 showET,
@@ -193,6 +197,7 @@ export const RoastTempChart: React.FC<Props> = ({
             charged,
             eventMarkerStyle,
             eventMarkers,
+            upcomingHeaterMark,
             turningPoints,
             temperatureUnit,
             showET,

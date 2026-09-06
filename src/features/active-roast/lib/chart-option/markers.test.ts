@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMarkers, LABEL_BELOW_EVENTS } from './markers';
+import { buildMarkers, LABEL_BELOW_EVENTS, upcomingHeaterLabel } from './markers';
 import type { ResolvedChartColors } from './types';
 
 const colors = {
@@ -74,5 +74,84 @@ describe('buildMarkers label position', () => {
         const rolling = eventLines.find((l) => l.label?.formatter?.includes('FC Rolling'));
         expect(start?.label?.position).toBe('start');
         expect(rolling?.label?.position).toBe('end');
+    });
+});
+
+describe('upcomingHeaterLabel', () => {
+    it('shows heater percent and remaining N', () => {
+        expect(upcomingHeaterLabel(70, 0)).toBe('70%');
+        expect(upcomingHeaterLabel(70, 2)).toBe('70% +2');
+        expect(upcomingHeaterLabel(60, 1, { display: 110, unitLabel: '°C' })).toBe('BT 110°C → 60% +1');
+    });
+});
+
+describe('buildMarkers upcoming heater (#369)', () => {
+    it('does not mark when upcomingHeaterMark is omitted', () => {
+        const { heatMarkPoints, heatMarkLines, allMarkLines } = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'point',
+            eventMarkers: [],
+        });
+        expect(heatMarkPoints).toEqual([]);
+        expect(heatMarkLines).toEqual([]);
+        expect((allMarkLines as { label?: { formatter?: string } }[]).some((l) => l.label?.formatter)).toBe(false);
+    });
+
+    it('puts the next time-axis event on the heat band with remaining N', () => {
+        const { heatMarkPoints, heatMarkLines } = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'point',
+            eventMarkers: [],
+            hasControlSeries: true,
+            showControlHeat: true,
+            upcomingHeaterMark: { timeSec: 30, btC: 140, heater: 70, remainingAfter: 2, axis: 'time' },
+        });
+        expect(heatMarkLines).toEqual([expect.objectContaining({ xAxis: 30 })]);
+        expect(heatMarkPoints).toEqual([
+            expect.objectContaining({
+                name: 'Replay',
+                coord: [30, 70],
+                label: expect.objectContaining({ formatter: '70% +2' }),
+            }),
+        ]);
+    });
+
+    it('falls back to a temp-chart time line when the heat band is off', () => {
+        const { heatMarkPoints, allMarkLines } = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'point',
+            eventMarkers: [],
+            hasControlSeries: false,
+            upcomingHeaterMark: { timeSec: 30, btC: 140, heater: 70, remainingAfter: 0, axis: 'time' },
+        });
+        expect(heatMarkPoints).toEqual([]);
+        expect(allMarkLines).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    xAxis: 30,
+                    label: expect.objectContaining({ formatter: '70%' }),
+                }),
+            ]),
+        );
+    });
+
+    it('draws a BT guide for post-TP events', () => {
+        const { heatMarkPoints, allMarkLines } = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'point',
+            eventMarkers: [],
+            hasControlSeries: true,
+            showControlHeat: true,
+            upcomingHeaterMark: { timeSec: 120, btC: 110, heater: 60, remainingAfter: 1, axis: 'bt' },
+        });
+        expect(heatMarkPoints).toEqual([]);
+        expect(allMarkLines).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    yAxis: 110,
+                    label: expect.objectContaining({ formatter: 'BT 110°C → 60% +1' }),
+                }),
+            ]),
+        );
     });
 });

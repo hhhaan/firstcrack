@@ -1,2 +1,2 @@
 export { type ControlRole, useMachineControl } from './model/useMachineControl';
-export { MachineControlPanel } from './ui/MachineControlPanel';
+export { MachineControlPanel, type ReplayChartPreview } from './ui/MachineControlPanel';

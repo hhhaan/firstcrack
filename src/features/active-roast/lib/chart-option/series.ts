@@ -158,10 +158,21 @@ export interface ControlSeriesParams {
     showControlFan: boolean;
     colors: ResolvedChartColors;
     controlGuideMarkLines: object[];
+    heatMarkLines?: object[];
+    heatMarkPoints?: object[];
 }
 
 export const buildControlSeries = (params: ControlSeriesParams): object[] => {
-    const { controlData, showControlDrum, showControlHeat, showControlFan, colors, controlGuideMarkLines } = params;
+    const {
+        controlData,
+        showControlDrum,
+        showControlHeat,
+        showControlFan,
+        colors,
+        controlGuideMarkLines,
+        heatMarkLines = [],
+        heatMarkPoints = [],
+    } = params;
     const { xs: cxs, drumTemp, heatPower, fanSpeed } = controlData;
     const series: object[] = [];
 
@@ -199,6 +210,22 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             ...lineSeriesBase,
             step: 'end' as const,
             smooth: false,
+            markLine:
+                heatMarkLines.length > 0
+                    ? {
+                          silent: true,
+                          symbol: ['none', 'none'] as [string, string],
+                          symbolSize: 0,
+                          data: heatMarkLines,
+                      }
+                    : undefined,
+            markPoint:
+                heatMarkPoints.length > 0
+                    ? {
+                          silent: true,
+                          data: heatMarkPoints,
+                      }
+                    : undefined,
         });
     }
     if (showControlFan) {

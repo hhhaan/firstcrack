@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
+import { extractReplayEvents, judgeReplay, type ReplayPoint } from '../lib/replay';
 
 export interface ReplayControlInputs {
     /** 타겟 프로파일 커브 (charge 기준 상대 시간) — 없으면 Replay 비활성 */
@@ -324,7 +324,9 @@ export const useReplayControl = ({
         writeHeater,
     ]);
 
-    const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;
+    const nextEvent = useMemo(() => (active && plan ? (plan.events[index] ?? null) : null), [active, plan, index]);
+    const remainingAfterNext = nextEvent && plan ? Math.max(0, plan.events.length - index - 1) : 0;
+    const nextEventOnTime = nextEvent != null && plan != null && nextEvent.t <= plan.tpTime;
 
     return {
         /** 레퍼런스에 heater 기록이 있고(합성/PID 기록 아님) 같은 기기이며 쓰기 가능한가 */
@@ -338,6 +340,10 @@ export const useReplayControl = ({
         stopReason,
         /** 다음에 발화할 이벤트 — UI 미리보기용. 다 소진했으면 null */
         nextEvent,
+        /** nextEvent 이후 아직 안 쓴 이벤트 수 — 차트 "다음 1 + 남은 N"용. Off/소진이면 0 */
+        remainingAfterNext,
+        /** true면 시간축(TP 이전), false면 BT 도달. Off/소진이면 false */
+        nextEventOnTime,
         toggle,
         /** 수동 개입 시 부모가 부른다 — 슬라이더 onChange에서, Replay 자신의 쓰기 경로에서는 부르지 않는다 */
         stop,
