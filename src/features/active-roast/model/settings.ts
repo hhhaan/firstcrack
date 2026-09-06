@@ -56,6 +56,18 @@ export type RoastSettings = {
     alertSoundEnabled: boolean;
     alertRorCrashCPerMin: number;
     alertBtMaxC: number;
+    /** Minutes after Charge. Off by default. */
+    alertAfterChargeEnabled: boolean;
+    alertAfterChargeMin: number;
+    /** Minutes before reference FC Start. Off by default; no-op without a target profile. */
+    alertBeforeFcEnabled: boolean;
+    alertBeforeFcMin: number;
+    /** Minutes before reference Drop. Off by default; no-op without a target profile. */
+    alertBeforeDropEnabled: boolean;
+    alertBeforeDropMin: number;
+    /** Minutes after session Drop. Off by default. Timer runs until End roast. */
+    alertAfterDropEnabled: boolean;
+    alertAfterDropMin: number;
     /**
      * DROP 시 PID가 풀릴 때 화력 처리.
      * 'hold' — 머신이 보고하는 현재 duty를 유지 (연속 배치 재승온 시간 절약)
@@ -102,6 +114,14 @@ const DEFAULT_SETTINGS: RoastSettings = {
     alertSoundEnabled: true,
     alertRorCrashCPerMin: 0,
     alertBtMaxC: 250,
+    alertAfterChargeEnabled: false,
+    alertAfterChargeMin: 5,
+    alertBeforeFcEnabled: false,
+    alertBeforeFcMin: 1,
+    alertBeforeDropEnabled: false,
+    alertBeforeDropMin: 1,
+    alertAfterDropEnabled: false,
+    alertAfterDropMin: 5,
     pidDropBehavior: 'hold',
 };
 
@@ -165,6 +185,14 @@ export const normalizeRoastSettings = (raw: Partial<RoastSettings> | null | unde
         alertSoundEnabled: asBool(merged.alertSoundEnabled, DEFAULT_SETTINGS.alertSoundEnabled),
         alertRorCrashCPerMin: clampNum(merged.alertRorCrashCPerMin, -20, 20, DEFAULT_SETTINGS.alertRorCrashCPerMin),
         alertBtMaxC: clampNum(merged.alertBtMaxC, 100, 400, DEFAULT_SETTINGS.alertBtMaxC),
+        alertAfterChargeEnabled: asBool(merged.alertAfterChargeEnabled, DEFAULT_SETTINGS.alertAfterChargeEnabled),
+        alertAfterChargeMin: clampNum(merged.alertAfterChargeMin, 1, 30, DEFAULT_SETTINGS.alertAfterChargeMin),
+        alertBeforeFcEnabled: asBool(merged.alertBeforeFcEnabled, DEFAULT_SETTINGS.alertBeforeFcEnabled),
+        alertBeforeFcMin: clampNum(merged.alertBeforeFcMin, 1, 30, DEFAULT_SETTINGS.alertBeforeFcMin),
+        alertBeforeDropEnabled: asBool(merged.alertBeforeDropEnabled, DEFAULT_SETTINGS.alertBeforeDropEnabled),
+        alertBeforeDropMin: clampNum(merged.alertBeforeDropMin, 1, 30, DEFAULT_SETTINGS.alertBeforeDropMin),
+        alertAfterDropEnabled: asBool(merged.alertAfterDropEnabled, DEFAULT_SETTINGS.alertAfterDropEnabled),
+        alertAfterDropMin: clampNum(merged.alertAfterDropMin, 1, 30, DEFAULT_SETTINGS.alertAfterDropMin),
         pidDropBehavior: isPidDropBehavior(merged.pidDropBehavior)
             ? merged.pidDropBehavior
             : DEFAULT_SETTINGS.pidDropBehavior,

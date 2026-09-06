@@ -205,7 +205,7 @@
                 "autoDropSensitivity": "自動 Drop 感度",
                 "autoDropSensitivityDescription": "検出ウィンドウ内で BT がこの量だけ下がると Drop が自動検出されます（3 分以降）。",
                 "alerts": "リアルタイム警報",
-                "alertsDescription": "焙煎が正常範囲を外れたら警告します。",
+                "alertsDescription": "閾値警告と時間リマインダーを焙煎中に知らせます。",
                 "alertsEnabled": "警報を有効化",
                 "alertsEnabledDescription": "焙煎中に警告バナーを表示します。",
                 "alertSound": "警報音",
@@ -213,7 +213,15 @@
                 "alertRorCrash": "RoRクラッシュ",
                 "alertRorCrashDescription": "BT RoRがこの値以下に落ちたら警告。ターニングポイント以降のみ。",
                 "alertBtMax": "BT上限",
-                "alertBtMaxDescription": "豆温度がこの値に達したら警告します。"
+                "alertBtMaxDescription": "豆温度がこの値に達したら警告します。",
+                "alertAfterCharge": "投入後",
+                "alertAfterChargeDescription": "Charge からこの分数が経ったら知らせます。",
+                "alertBeforeFc": "1ハゼ前",
+                "alertBeforeFcDescription": "ターゲットプロファイルの FC Start のこの分数前に知らせます。FC Start マークがあるターゲットプロファイルが必要です。",
+                "alertBeforeDrop": "排出前",
+                "alertBeforeDropDescription": "ターゲットプロファイルの Drop のこの分数前に知らせます。Drop マークがあるターゲットプロファイルが必要です。",
+                "alertAfterDrop": "排出後",
+                "alertAfterDropDescription": "Drop からこの分数が経ったら知らせます。タイマーは焙煎終了まで動き続けます。"
             },
             "account": {
                 "label": "アカウント",
@@ -689,7 +697,11 @@
         },
         "alerts": {
             "rorCrash": "RoRクラッシュ — 火力が落ちています",
-            "btOver": "BT上限超過"
+            "btOver": "BT上限超過",
+            "afterCharge": "投入 {{minutes}}分後",
+            "beforeFc": "1ハゼ {{minutes}}分前（リファレンス）",
+            "beforeDrop": "排出 {{minutes}}分前（リファレンス）",
+            "afterDrop": "排出 {{minutes}}分後"
         },
         "recovery": {
             "title": "未保存の焙煎",

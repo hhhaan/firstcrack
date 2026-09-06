@@ -205,7 +205,7 @@
                 "autoDropSensitivity": "自动 Drop 灵敏度",
                 "autoDropSensitivityDescription": "在检测窗口内 BT 下降达到该值时自动检测 Drop（3 分钟后）。",
                 "alerts": "实时警报",
-                "alertsDescription": "烘焙偏离正常范围时发出警告。",
+                "alertsDescription": "烘焙过程中的阈值警告与时间提醒。",
                 "alertsEnabled": "启用警报",
                 "alertsEnabledDescription": "烘焙过程中显示警告横幅。",
                 "alertSound": "警报声",
@@ -213,7 +213,15 @@
                 "alertRorCrash": "RoR 骤降",
                 "alertRorCrashDescription": "BT RoR 降至该值时警告。仅在回温点之后生效。",
                 "alertBtMax": "BT 上限",
-                "alertBtMaxDescription": "豆温达到该值时警告。"
+                "alertBtMaxDescription": "豆温达到该值时警告。",
+                "alertAfterCharge": "投豆后",
+                "alertAfterChargeDescription": "Charge 后经过该分钟数时提醒。",
+                "alertBeforeFc": "一爆前",
+                "alertBeforeFcDescription": "目标曲线 FC Start 前该分钟数提醒。需要带有 FC Start 标记的目标曲线。",
+                "alertBeforeDrop": "下豆前",
+                "alertBeforeDropDescription": "目标曲线 Drop 前该分钟数提醒。需要带有 Drop 标记的目标曲线。",
+                "alertAfterDrop": "下豆后",
+                "alertAfterDropDescription": "Drop 后经过该分钟数时提醒。计时器持续到结束烘焙。"
             },
             "account": {
                 "label": "账户",
@@ -689,7 +697,11 @@
         },
         "alerts": {
             "rorCrash": "RoR 骤降 — 火力正在衰减",
-            "btOver": "BT 超过上限"
+            "btOver": "BT 超过上限",
+            "afterCharge": "投豆 {{minutes}} 分钟后",
+            "beforeFc": "一爆前 {{minutes}} 分钟（参考）",
+            "beforeDrop": "下豆前 {{minutes}} 分钟（参考）",
+            "afterDrop": "下豆 {{minutes}} 分钟后"
         },
         "recovery": {
             "title": "未保存的烘焙",

@@ -169,6 +169,38 @@ const NumberInput = ({
     );
 };
 
+const TimeAlertRow = ({
+    enabled,
+    minutes,
+    label,
+    description,
+    onEnabled,
+    onMinutes,
+}: {
+    enabled: boolean;
+    minutes: number;
+    label: string;
+    description: string;
+    onEnabled: () => void;
+    onMinutes: (v: number) => void;
+}) => (
+    <SettingsOptionRow justify="between" align="start">
+        <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+            <input
+                type="checkbox"
+                checked={enabled}
+                onChange={onEnabled}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[#111827] dark:accent-[#F2F2F2]"
+            />
+            <div className="min-w-0">
+                <div className={settingsOptionLabelCls}>{label}</div>
+                <div className={settingsOptionDescCls}>{description}</div>
+            </div>
+        </label>
+        <NumberInput value={minutes} onChange={onMinutes} min={1} max={30} suffix="min" />
+    </SettingsOptionRow>
+);
+
 const RangeRow = ({
     label,
     minVal,
@@ -513,6 +545,46 @@ export const RoastSettingsTab = () => {
                             suffix={tempSuffix}
                         />
                     </SettingsOptionRow>
+                    <TimeAlertRow
+                        enabled={roastSettings.alertAfterChargeEnabled}
+                        minutes={roastSettings.alertAfterChargeMin}
+                        label={tk('alertAfterCharge')}
+                        description={tk('alertAfterChargeDescription')}
+                        onEnabled={() =>
+                            updateRoastSettings({ alertAfterChargeEnabled: !roastSettings.alertAfterChargeEnabled })
+                        }
+                        onMinutes={(v) => updateRoastSettings({ alertAfterChargeMin: v })}
+                    />
+                    <TimeAlertRow
+                        enabled={roastSettings.alertBeforeFcEnabled}
+                        minutes={roastSettings.alertBeforeFcMin}
+                        label={tk('alertBeforeFc')}
+                        description={tk('alertBeforeFcDescription')}
+                        onEnabled={() =>
+                            updateRoastSettings({ alertBeforeFcEnabled: !roastSettings.alertBeforeFcEnabled })
+                        }
+                        onMinutes={(v) => updateRoastSettings({ alertBeforeFcMin: v })}
+                    />
+                    <TimeAlertRow
+                        enabled={roastSettings.alertBeforeDropEnabled}
+                        minutes={roastSettings.alertBeforeDropMin}
+                        label={tk('alertBeforeDrop')}
+                        description={tk('alertBeforeDropDescription')}
+                        onEnabled={() =>
+                            updateRoastSettings({ alertBeforeDropEnabled: !roastSettings.alertBeforeDropEnabled })
+                        }
+                        onMinutes={(v) => updateRoastSettings({ alertBeforeDropMin: v })}
+                    />
+                    <TimeAlertRow
+                        enabled={roastSettings.alertAfterDropEnabled}
+                        minutes={roastSettings.alertAfterDropMin}
+                        label={tk('alertAfterDrop')}
+                        description={tk('alertAfterDropDescription')}
+                        onEnabled={() =>
+                            updateRoastSettings({ alertAfterDropEnabled: !roastSettings.alertAfterDropEnabled })
+                        }
+                        onMinutes={(v) => updateRoastSettings({ alertAfterDropMin: v })}
+                    />
                 </SectionCard.Body>
             </SectionCard>
         </div>
