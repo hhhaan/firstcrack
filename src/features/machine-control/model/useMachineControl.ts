@@ -131,7 +131,8 @@ export const useMachineControl = (sidecarConnected: boolean, feedback: MachineFe
         [sender],
     );
 
-    const commitNow = useCallback(() => void sender.commitNow(), [sender]);
+    /** 전송 성공 여부 — 슬라이더는 무시하고, Replay는 실패 시 이벤트를 보존한다 (#312) */
+    const commitNow = useCallback(() => sender.commitNow(), [sender]);
 
     /** 지시했는데 기기가 계속 그대로인 role — 명령이 먹지 않았을 가능성 */
     const unacknowledged = new Set(ROLES.filter((role) => (tracking.unackPolls[role] ?? 0) >= STALE_COMMAND_POLLS));
