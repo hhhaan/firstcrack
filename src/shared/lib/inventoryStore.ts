@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import { settingsGet, settingsSet } from './settings-store';
 import { STOCK_HORIZON_DAYS } from './stock-calc';
 
@@ -9,7 +10,8 @@ const readLocal = (): number | null => {
         if (!raw) return null;
         const n = Number.parseInt(raw, 10);
         return Number.isFinite(n) && n > 0 ? n : null;
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'inventoryStore.readLocal' });
         return null;
     }
 };
@@ -17,7 +19,8 @@ const readLocal = (): number | null => {
 const writeLocal = (days: number) => {
     try {
         localStorage.setItem(HORIZON_KEY, String(days));
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'inventoryStore.writeLocal' });
         /* web dev fallback only */
     }
 };

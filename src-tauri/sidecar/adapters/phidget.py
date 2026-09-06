@@ -60,6 +60,7 @@ class PhidgetAdapter:
                 try:
                     sensor.close()
                 except Exception:
+                    _log.exception("Phidget sensor close failed")
                     pass
 
     async def connect(self) -> None:

@@ -75,6 +75,7 @@ class ProbatWSAdapter:
             try:
                 await self._ws.close()
             except Exception:
+                _log.exception("Probat WS close failed during disconnect: %s", self._url())
                 pass
             self._ws = None
         self._connected = False
@@ -88,6 +89,7 @@ class ProbatWSAdapter:
             try:
                 await ws.close()
             except Exception:
+                _log.exception("Probat WS close failed while handling error: %s", self._url())
                 pass
         return ConnectionError(f"Probat WS 연결 끊김: {exc}")
 
@@ -120,6 +122,7 @@ class ProbatWSAdapter:
             try:
                 j = json.loads(raw)
             except json.JSONDecodeError:
+                _log.warning("Probat WS malformed frame (non-JSON), skipping: %s", self._url())
                 continue
             if j.get("id") != msg_id:
                 TRACE.record(
@@ -138,6 +141,7 @@ class ProbatWSAdapter:
                     try:
                         return round(float(data[node]), 1)
                     except (TypeError, ValueError):
+                        _log.warning("Probat WS unparsable value for node=%s: %r", node, data[node])
                         pass
                 return default
 

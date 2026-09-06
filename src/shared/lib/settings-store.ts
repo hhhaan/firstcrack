@@ -3,6 +3,7 @@
  * Domain modules (inventory, pricing, roast, i18n) are thin key wrappers over this.
  */
 import { LazyStore } from '@tauri-apps/plugin-store';
+import { logger } from './logger';
 
 const STORE_FILE = 'settings.json';
 const SAVE_DEBOUNCE_MS = 200;
@@ -15,8 +16,9 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null;
 const flushSave = async (): Promise<void> => {
     try {
         await store.save();
-    } catch {
+    } catch (err) {
         /* Tauri unavailable / web */
+        logger.capture(err, { scope: 'settings-store.save' });
     }
 };
 
@@ -31,7 +33,8 @@ const scheduleSave = (): void => {
 export const settingsGet = async <T>(key: string): Promise<T | undefined> => {
     try {
         return await store.get<T>(key);
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'settings-store.read', key });
         return undefined;
     }
 };
@@ -45,7 +48,8 @@ export const settingsSet = async (key: string, value: unknown, options?: { debou
         } else {
             await flushSave();
         }
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'settings-store.set' });
         /* Tauri unavailable / web */
     }
 };

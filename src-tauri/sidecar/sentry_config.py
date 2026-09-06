@@ -22,7 +22,7 @@ from typing import Any, Mapping
 
 import sentry_sdk
 from sentry_sdk.integrations.aiohttp import AioHttpIntegration
-from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.integrations.asyncio import AsyncioIntegration
 
 # DSN은 클라이언트 공개값 (프론트/Rust도 동일하게 하드코딩) — 빌드 시크릿 의존 제거
 SENTRY_DSN = (
@@ -164,10 +164,10 @@ def init(env: Mapping[str, str] | None = None, *, frozen: bool | None = None) ->
         environment=environment_name(env, frozen=frozen),
         release=release_name(env),
         traces_sample_rate=0.1,
-        integrations=[AioHttpIntegration()],
-        # LoggingIntegration 기본값은 ERROR 로그마다 이슈를 만든다 — 읽기 실패 한 번에
-        # 이슈가 쌓여 "조치 가능한 것만" 정책이 무너진다. 캡처는 명시 호출로만.
-        disabled_integrations=[LoggingIntegration()],
+        # 전부 탐지 정책: ERROR 로그는 이슈, INFO 이상은 breadcrumb (LoggingIntegration 기본값).
+        # AsyncioIntegration 없이는 create_task로 띄운 폴링 루프의 미처리 예외가 조용히 죽는다.
+        # ponytail: 폴링 루프 읽기 실패가 틱마다 이슈가 되면 쿼터가 먼저 닳는다 — 하루치 볼륨 보고 판단.
+        integrations=[AioHttpIntegration(), AsyncioIntegration()],
         send_default_pii=False,
         include_local_variables=False,
         max_request_body_size="never",

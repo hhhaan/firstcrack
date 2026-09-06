@@ -1,3 +1,4 @@
+import { logger } from '@shared/lib/logger';
 import type { SaveRoastParams } from './useSaveRoast';
 
 /** Serializable SaveRoastParams — the ref is replaced by its captured value. */
@@ -23,7 +24,8 @@ export const readPendingRoastSave = (): PendingRoastSave | null => {
         if (!raw) return null;
         const parsed = JSON.parse(raw) as Partial<PendingRoastSave> | null;
         return parsed?.version === 1 && parsed.params != null ? (parsed as PendingRoastSave) : null;
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'pendingRoastSave.read' });
         return null;
     }
 };
@@ -31,15 +33,17 @@ export const readPendingRoastSave = (): PendingRoastSave | null => {
 export const writePendingRoastSave = (pending: PendingRoastSave): void => {
     try {
         localStorage.setItem(KEY, JSON.stringify(pending));
-    } catch {
+    } catch (err) {
         // Durable backstop only — must never block the save itself.
+        logger.capture(err, { scope: 'pendingRoastSave.write' });
     }
 };
 
 export const clearPendingRoastSave = (): void => {
     try {
         localStorage.removeItem(KEY);
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'pendingRoastSave.clear' });
         // noop
     }
 };

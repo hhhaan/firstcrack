@@ -1,3 +1,4 @@
+import { logger } from '@shared/lib/logger';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import { useSyncExternalStore } from 'react';
 
@@ -195,7 +196,8 @@ const _consumeLegacyLocalStorage = (): Partial<RoastSettings> | null => {
         const parsed = JSON.parse(raw) as Partial<RoastSettings>;
         window.localStorage.removeItem(LEGACY_STORAGE_KEY);
         return parsed;
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'roastSettings.legacyLocalStorage' });
         return null;
     }
 };
@@ -225,7 +227,8 @@ const _hydrate = async () => {
             _emit();
             await settingsSet(STORE_KEY, _settings);
         }
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'roastSettings.load' });
         // store unavailable (e.g., non-Tauri context) — keep defaults
     }
 };

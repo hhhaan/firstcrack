@@ -1,3 +1,4 @@
+import { logger } from '@shared/lib/logger';
 import { bbpKeyForUser, profileKeyForUser, requestUploadUrl } from '@shared/lib/r2';
 import { BaseDirectory, readTextFile } from '@tauri-apps/plugin-fs';
 
@@ -7,7 +8,8 @@ export const uploadRoastProfile = async (sessionId: string, userId: string): Pro
         tsvContent = await readTextFile(`session_${sessionId}.tsv`, {
             baseDir: BaseDirectory.AppLocalData,
         });
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'uploadRoastProfile.readTsv' });
         return null;
     }
 
@@ -33,7 +35,8 @@ export const uploadBbpProfile = async (sessionId: string, userId: string): Promi
         tsvContent = await readTextFile(`bbp_${sessionId}.tsv`, {
             baseDir: BaseDirectory.AppLocalData,
         });
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'uploadRoastProfile.readBbpTsv' });
         return null;
     }
 

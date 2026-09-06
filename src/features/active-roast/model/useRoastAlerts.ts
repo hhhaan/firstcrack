@@ -1,3 +1,4 @@
+import { logger } from '@shared/lib/logger';
 import type { LogEntry } from '@shared/types/roast';
 import { useEffect, useRef, useState } from 'react';
 import { evaluateRoastAlerts, type RoastAlertKind } from '../lib/roastAlerts';
@@ -32,7 +33,8 @@ const beep = () => {
         osc.connect(gain).connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + 0.25);
-    } catch {
+    } catch (err) {
+        logger.capture(err, { scope: 'roastAlerts.playSound' });
         // no audio device / autoplay blocked — the banner still shows
     }
 };

@@ -33,6 +33,7 @@ export const useLogin = (onLogin?: () => void) => {
                 await signInWithEmail(email, password);
                 onLogin?.();
             } catch (err: unknown) {
+                logger.capture(err, { scope: 'useLogin.signInWithEmail' });
                 setError(mapAuthError(err));
             } finally {
                 setLoading(false);

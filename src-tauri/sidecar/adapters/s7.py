@@ -174,10 +174,12 @@ class S7Adapter:
                 try:
                     plc.disconnect()
                 except Exception:
+                    _log.exception("S7 plc.disconnect() failed during teardown")
                     pass
                 try:
                     plc.destroy()
                 except Exception:
+                    _log.exception("S7 plc.destroy() failed during teardown")
                     pass
             finally:
                 self._io_lock.release()
