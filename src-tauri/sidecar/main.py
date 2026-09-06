@@ -25,9 +25,12 @@ import sentry_config
 
 sentry_config.init()
 
+import errno
+import http.client
 import logging
 import math
 import os
+import socket
 import sys
 import time
 from typing import Any
@@ -46,6 +49,9 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
 )
 _log = logging.getLogger(__name__)
+
+SIDECAR_HOST = "127.0.0.1"
+SIDECAR_PORT = 9999
 
 
 def _pid_alive(pid: int) -> bool:
@@ -95,6 +101,84 @@ def _exit_if_parent_dead() -> None:
     if not _pid_alive(parent_pid):
         _log.info("부모 프로세스(PID %d) 사망 — sidecar bind 취소", parent_pid)
         raise SystemExit(0)
+
+
+def _is_addr_in_use_error(exc: BaseException) -> bool:
+    if not isinstance(exc, OSError):
+        return False
+    codes = {errno.EADDRINUSE}
+    wsa = getattr(errno, "WSAEADDRINUSE", None)
+    if wsa is not None:
+        codes.add(wsa)
+    return exc.errno in codes
+
+
+def _port_occupied(host: str, port: int, timeout: float) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def _probe_status(host: str, port: int, timeout: float) -> int | None:
+    try:
+        conn = http.client.HTTPConnection(host, port, timeout=timeout)
+        try:
+            conn.request("GET", "/status")
+            return conn.getresponse().status
+        finally:
+            conn.close()
+    except (OSError, http.client.HTTPException):
+        return None
+
+
+def _exit_if_port_taken(
+    host: str = SIDECAR_HOST,
+    port: int = SIDECAR_PORT,
+    timeout: float = 0.4,
+) -> None:
+    """이미 리스닝 중이면 bind하지 않고 처리된 종료로 끝낸다 (FC-J).
+
+    GET /status 200·401은 우리 sidecar가 이미 살아 있는 것 — 이 프로세스는
+    성공 종료해서 기존 인스턴스를 재사용한다. 그 외 점유는 명확한 실패(1).
+    """
+    if not _port_occupied(host, port, timeout):
+        return
+    status = _probe_status(host, port, timeout)
+    if status in (200, 401):
+        _log.info(
+            "포트 %s:%s 이미 sidecar 응답 중 (HTTP %s) — 이 프로세스 종료",
+            host,
+            port,
+            status,
+        )
+        raise SystemExit(0)
+    _log.error(
+        "포트 %s:%s 이미 사용 중 (HTTP %s) — sidecar bind 취소",
+        host,
+        port,
+        status,
+    )
+    raise SystemExit(1)
+
+
+def _run() -> None:
+    _exit_if_parent_dead()
+    _exit_if_port_taken(SIDECAR_HOST, SIDECAR_PORT)
+    _log.info("First Crack sidecar 시작 — http://%s:%s", SIDECAR_HOST, SIDECAR_PORT)
+    try:
+        web.run_app(create_app(), host=SIDECAR_HOST, port=SIDECAR_PORT, print=None)
+    except OSError as e:
+        if not _is_addr_in_use_error(e):
+            raise
+        _log.warning(
+            "포트 %s:%s bind 실패: address already in use",
+            SIDECAR_HOST,
+            SIDECAR_PORT,
+        )
+        _exit_if_port_taken(SIDECAR_HOST, SIDECAR_PORT)
+        raise SystemExit(1)
 
 
 async def _cleanup_manager(manager: RoasterManager) -> None:
@@ -530,6 +614,4 @@ def create_app() -> web.Application:
 
 
 if __name__ == "__main__":
-    _exit_if_parent_dead()
-    _log.info("First Crack sidecar 시작 — http://127.0.0.1:9999")
-    web.run_app(create_app(), host="127.0.0.1", port=9999, print=None)
+    _run()
