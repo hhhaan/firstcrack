@@ -1,5 +1,5 @@
 import type { BlendWithComponents } from '@entities/blend';
-import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
+import { MasterDetail } from '@shared/ui/MasterDetailLayout';
 import { BlendDetail } from '@widgets/blend-detail/ui/BlendDetail';
 import { useBlendListState } from '@widgets/blend-list/model/useBlendListState';
 import { BlendCard } from '@widgets/blend-list/ui/BlendCard';
@@ -42,10 +42,10 @@ export const BlendList = ({ hasBeans, onAddOpen, onNeedBeans, onEditOpen }: Blen
             {!isLoading && blends.length === 0 ? (
                 <BlendListEmpty hasBeans={hasBeans} onAdd={onAddOpen} onNeedBeans={onNeedBeans} />
             ) : (
-                <MasterDetailLayout
-                    left={leftPanel}
-                    detail={
-                        selected ? (
+                <MasterDetail.Root>
+                    <MasterDetail.Master>{leftPanel}</MasterDetail.Master>
+                    {selected ? (
+                        <MasterDetail.Detail>
                             <BlendDetail
                                 blend={selected}
                                 roastable={roastable}
@@ -53,10 +53,11 @@ export const BlendList = ({ hasBeans, onAddOpen, onNeedBeans, onEditOpen }: Blen
                                 onEdit={onEditOpen}
                                 onDelete={handleDelete}
                             />
-                        ) : null
-                    }
-                    placeholder={t('beans.blend.selectBlend')}
-                />
+                        </MasterDetail.Detail>
+                    ) : (
+                        <MasterDetail.Empty>{t('beans.blend.selectBlend')}</MasterDetail.Empty>
+                    )}
+                </MasterDetail.Root>
             )}
         </>
     );

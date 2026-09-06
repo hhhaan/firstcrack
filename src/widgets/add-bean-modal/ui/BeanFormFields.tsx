@@ -5,7 +5,8 @@ import {
     REGIONS_BY_ORIGIN,
     VARIETIES_BY_ORIGIN,
 } from '@entities/bean/lib/coffee-origins';
-import { chipCls, formErrorCls, inputCls, labelCls } from '@shared/ui/form-styles';
+import { FormField } from '@shared/ui/form-field/FormField';
+import { chipCls, labelCls } from '@shared/ui/form-styles';
 import { numericInputProps } from '@shared/ui/numeric-input';
 import { Info, MapPin, Scale, Tag } from 'lucide-react';
 import type { FieldErrors, UseFormGetValues, UseFormRegister, UseFormSetValue } from 'react-hook-form';
@@ -60,28 +61,27 @@ export const BeanFormFields = ({
             onSubmit={handleSubmit(onSubmit)}
             className="grid grid-cols-2 gap-6"
         >
-            <div className="col-span-2">
-                <label className={labelCls}>
+            <FormField.Root className="col-span-2" error={errors.name?.message}>
+                <FormField.Label>
                     <Info size={14} /> {t('addBeanModal.form.lotName')}
-                </label>
-                <input
-                    data-testid="bean-form-name"
-                    className={inputCls}
-                    placeholder={t('addBeanModal.form.lotNamePlaceholder')}
-                    {...register('name', { onChange: () => setNameIsAuto(false) })}
-                />
-                {errors.name && <p className={formErrorCls}>{errors.name.message}</p>}
-            </div>
+                </FormField.Label>
+                <FormField.Control>
+                    <input
+                        data-testid="bean-form-name"
+                        placeholder={t('addBeanModal.form.lotNamePlaceholder')}
+                        {...register('name', { onChange: () => setNameIsAuto(false) })}
+                    />
+                </FormField.Control>
+                <FormField.ErrorMessage />
+            </FormField.Root>
 
-            <div>
-                <label className={labelCls}>
+            <FormField.Root>
+                <FormField.Label>
                     <MapPin size={14} /> {t('addBeanModal.form.origin')}
-                </label>
-                <input
-                    className={inputCls}
-                    placeholder={t('addBeanModal.form.originPlaceholder')}
-                    {...register('origin')}
-                />
+                </FormField.Label>
+                <FormField.Control>
+                    <input placeholder={t('addBeanModal.form.originPlaceholder')} {...register('origin')} />
+                </FormField.Control>
                 <div className="flex flex-wrap gap-1.5 mt-2">
                     <ChipGroup
                         items={[...COMMON_ORIGINS]}
@@ -97,17 +97,15 @@ export const BeanFormFields = ({
                         )}
                     />
                 </div>
-            </div>
+            </FormField.Root>
 
-            <div>
-                <label className={labelCls}>
+            <FormField.Root>
+                <FormField.Label>
                     <MapPin size={14} /> {t('addBeanModal.form.region')}
-                </label>
-                <input
-                    className={inputCls}
-                    placeholder={t('addBeanModal.form.regionPlaceholder')}
-                    {...register('region')}
-                />
+                </FormField.Label>
+                <FormField.Control>
+                    <input placeholder={t('addBeanModal.form.regionPlaceholder')} {...register('region')} />
+                </FormField.Control>
                 {REGIONS_BY_ORIGIN[origin] && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                         {REGIONS_BY_ORIGIN[origin].map((r: string) => (
@@ -122,17 +120,15 @@ export const BeanFormFields = ({
                         ))}
                     </div>
                 )}
-            </div>
+            </FormField.Root>
 
-            <div>
-                <label className={labelCls}>
+            <FormField.Root>
+                <FormField.Label>
                     <MapPin size={14} /> {t('addBeanModal.form.farm')}
-                </label>
-                <input
-                    className={inputCls}
-                    placeholder={t('addBeanModal.form.farmPlaceholder')}
-                    {...register('farm')}
-                />
+                </FormField.Label>
+                <FormField.Control>
+                    <input placeholder={t('addBeanModal.form.farmPlaceholder')} {...register('farm')} />
+                </FormField.Control>
                 {origin && region && FARMS_BY_REGION[region] && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                         {FARMS_BY_REGION[region].slice(0, 5).map((f: string) => (
@@ -142,17 +138,15 @@ export const BeanFormFields = ({
                         ))}
                     </div>
                 )}
-            </div>
+            </FormField.Root>
 
-            <div>
-                <label className={labelCls}>
+            <FormField.Root>
+                <FormField.Label>
                     <Info size={14} /> {t('addBeanModal.form.variety')}
-                </label>
-                <input
-                    className={inputCls}
-                    placeholder={t('addBeanModal.form.varietyPlaceholder')}
-                    {...register('variety')}
-                />
+                </FormField.Label>
+                <FormField.Control>
+                    <input placeholder={t('addBeanModal.form.varietyPlaceholder')} {...register('variety')} />
+                </FormField.Control>
                 {origin && VARIETIES_BY_ORIGIN[origin] && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                         <ChipGroup
@@ -170,7 +164,7 @@ export const BeanFormFields = ({
                         />
                     </div>
                 )}
-            </div>
+            </FormField.Root>
 
             <div>
                 <label className={labelCls}>
@@ -193,69 +187,75 @@ export const BeanFormFields = ({
                 </div>
             </div>
 
-            <div>
-                <label className={labelCls}>
+            <FormField.Root>
+                <FormField.Label>
                     <MapPin size={14} /> {t('addBeanModal.form.altitude')}
-                </label>
-                <input
-                    {...numericInputProps}
-                    className={inputCls}
-                    placeholder={t('addBeanModal.form.altitudePlaceholder')}
-                    value={altitude}
-                    onChange={(e) => setValue('altitude', e.target.value.replace(/\D/g, ''))}
-                />
-            </div>
+                </FormField.Label>
+                <FormField.Control>
+                    <input
+                        {...numericInputProps}
+                        placeholder={t('addBeanModal.form.altitudePlaceholder')}
+                        value={altitude}
+                        onChange={(e) => setValue('altitude', e.target.value.replace(/\D/g, ''))}
+                    />
+                </FormField.Control>
+            </FormField.Root>
 
-            <div>
-                <label className={labelCls}>
+            <FormField.Root>
+                <FormField.Label>
                     <Scale size={14} /> {t('addBeanModal.form.stock')}
-                </label>
-                <input
-                    {...numericInputProps}
-                    data-testid="bean-form-stock"
-                    className={inputCls}
-                    placeholder="5"
-                    value={stock}
-                    onChange={(e) => setValue('stock', e.target.value.replace(/[^0-9.]/g, ''))}
-                />
-            </div>
+                </FormField.Label>
+                <FormField.Control>
+                    <input
+                        {...numericInputProps}
+                        data-testid="bean-form-stock"
+                        placeholder="5"
+                        value={stock}
+                        onChange={(e) => setValue('stock', e.target.value.replace(/[^0-9.]/g, ''))}
+                    />
+                </FormField.Control>
+            </FormField.Root>
 
-            <div>
-                <label className={labelCls}>
+            <FormField.Root>
+                <FormField.Label>
                     <Scale size={14} /> {t('addBeanModal.form.capacity')}
-                </label>
-                <input
-                    {...numericInputProps}
-                    className={inputCls}
-                    placeholder="5"
-                    value={capacity}
-                    onChange={(e) => setValue('capacity', e.target.value.replace(/[^0-9.]/g, ''))}
-                />
-            </div>
+                </FormField.Label>
+                <FormField.Control>
+                    <input
+                        {...numericInputProps}
+                        placeholder="5"
+                        value={capacity}
+                        onChange={(e) => setValue('capacity', e.target.value.replace(/[^0-9.]/g, ''))}
+                    />
+                </FormField.Control>
+            </FormField.Root>
 
-            <div>
-                <label className={labelCls}>
+            <FormField.Root>
+                <FormField.Label>
                     <Scale size={14} /> {t('addBeanModal.form.cost')}
-                </label>
-                <input
-                    {...numericInputProps}
-                    className={inputCls}
-                    placeholder={t('addBeanModal.form.costPlaceholder')}
-                    value={costPerKg}
-                    onChange={(e) => setValue('costPerKg', e.target.value.replace(/[^0-9.]/g, ''))}
-                />
-            </div>
+                </FormField.Label>
+                <FormField.Control>
+                    <input
+                        {...numericInputProps}
+                        placeholder={t('addBeanModal.form.costPlaceholder')}
+                        value={costPerKg}
+                        onChange={(e) => setValue('costPerKg', e.target.value.replace(/[^0-9.]/g, ''))}
+                    />
+                </FormField.Control>
+            </FormField.Root>
 
-            <div className="col-span-2">
-                <label className={labelCls}>
+            <FormField.Root className="col-span-2">
+                <FormField.Label>
                     <Info size={14} /> {t('addBeanModal.form.tastingNotes')}
-                </label>
-                <textarea
-                    className={`${inputCls} min-h-25 resize-none`}
-                    placeholder={t('addBeanModal.form.tastingNotesPlaceholder')}
-                    {...register('tastingNotes')}
-                />
-            </div>
+                </FormField.Label>
+                <FormField.Control>
+                    <textarea
+                        className="min-h-25 resize-none"
+                        placeholder={t('addBeanModal.form.tastingNotesPlaceholder')}
+                        {...register('tastingNotes')}
+                    />
+                </FormField.Control>
+            </FormField.Root>
         </form>
     );
 };

@@ -39,6 +39,15 @@ describe('modalPanel + form-styles tokens', () => {
         );
     });
 
+    it('BeanFormFields and DispatchModal use compound FormField/Modal', () => {
+        expect(src('../../../widgets/add-bean-modal/ui/BeanFormFields.tsx')).toContain(
+            "from '@shared/ui/form-field/FormField'",
+        );
+        expect(src('../../../features/dispatch-order/ui/DispatchModal.tsx')).toContain(
+            "from '@shared/ui/modal-shell/Modal'",
+        );
+    });
+
     it('ModalFooter is built from shared footer tokens', () => {
         const footer = src('./ModalFooter.tsx');
         expect(footer).toContain('modalFooterChrome');
