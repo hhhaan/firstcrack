@@ -10,10 +10,11 @@
  * Cafe24: mall_id in payload; x-cafe24-webhook-secret / x-webhook-secret vs CAFE24_WEBHOOK_SECRET
  */
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
+import { mapCafe24Order } from '../_shared/channels/cafe24.ts';
 import { isCafe24Uninstall } from '../_shared/channels/cafe24-webhook.ts';
 import { gidToId, lineQuantity, lineStatusOf, upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { classifyShopifyTopic } from '../_shared/channels/shopify-webhook.ts';
-import { cafe24ToCanonical, shopifyToCanonical } from '../_shared/channels/status-map.ts';
+import { shopifyToCanonical } from '../_shared/channels/status-map.ts';
 import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
 import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 import { verifySharedSecret, verifyShopifyHmac } from '../_shared/webhook-auth.ts';
@@ -88,55 +89,6 @@ function parseShopifyOrder(payload: Record<string, unknown>): CanonicalOrder | n
         buyerName: buyer,
         currency: payload.currency != null ? String(payload.currency) : null,
         totalAmount: payload.total_price != null ? Number(payload.total_price) : null,
-        lines,
-        raw: payload,
-    };
-}
-
-function parseCafe24Order(payload: Record<string, unknown>): CanonicalOrder | null {
-    const resource = (payload.resource ?? payload.order ?? payload) as Record<string, unknown>;
-    const orderId = String(resource.order_id ?? payload.order_id ?? '');
-    if (!orderId) return null;
-
-    const status =
-        cafe24ToCanonical({
-            paid: resource.paid != null ? String(resource.paid) : null,
-            canceled: resource.canceled != null ? String(resource.canceled) : null,
-            shippingStatus: resource.shipping_status != null ? String(resource.shipping_status) : null,
-            processStatus: resource.process_status != null ? String(resource.process_status) : null,
-            orderStatus: resource.order_status != null ? String(resource.order_status) : null,
-        }) ?? 'paid';
-
-    const items = (resource.items as Array<Record<string, unknown>> | undefined) ?? [];
-    const lines: CanonicalOrderLine[] = items.length
-        ? items.map((it, i) => ({
-              platformLineId: String(it.order_item_code ?? it.item_no ?? `${orderId}-${i}`),
-              platformProductId: it.product_no != null ? String(it.product_no) : null,
-              platformVariantId: it.variant_code != null ? String(it.variant_code) : null,
-              title: String(it.product_name ?? 'Item'),
-              quantity: lineQuantity(it.quantity),
-              unitPrice: it.product_price != null ? Number(it.product_price) : null,
-              status: lineStatusOf(status),
-          }))
-        : [
-              {
-                  platformLineId: `${orderId}-unknown`,
-                  platformProductId: null,
-                  platformVariantId: null,
-                  title: orderId,
-                  quantity: 1,
-                  unitPrice: null,
-                  status: 'active' as const,
-              },
-          ];
-
-    return {
-        platformOrderId: orderId,
-        status,
-        orderedAt: String(resource.order_date ?? new Date().toISOString()),
-        buyerName: resource.billing_name != null ? String(resource.billing_name) : null,
-        currency: resource.currency != null ? String(resource.currency) : 'KRW',
-        totalAmount: null,
         lines,
         raw: payload,
     };
@@ -361,7 +313,10 @@ serveWithSentry('order-webhook', async (req) => {
             return jsonResponse({ ok: true, handled: 'app/uninstalled' });
         }
 
-        const order = parseCafe24Order(payload);
+        // Webhook wraps the order under `resource` (sample payloads: event_no 90023 etc.);
+        // some senders put order_id at the top level only.
+        const resource = (payload.resource ?? payload.order ?? payload) as Record<string, unknown>;
+        const order = mapCafe24Order({ ...resource, order_id: resource.order_id ?? payload.order_id });
         if (!order) return jsonResponse({ ok: true, skipped: 'unparseable' });
 
         await upsertCanonicalOrders(

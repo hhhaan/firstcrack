@@ -17,22 +17,6 @@ export const mapRoastedStockRecord = (raw: Record<string, unknown> | null): Reco
 };
 
 export const roastedStockEventApi = {
-    /** 세션당 입고 1건 보장 — 추정 입고를 실측으로 교체하는 유일한 경로. 귀속(bean/blend)은 서버가 세션에서 해석 */
-    upsertInbound: async (p: {
-        sessionId: string;
-        userId: string;
-        grams: number;
-        isEstimate: boolean;
-    }): Promise<void> => {
-        const { error } = await supabase.rpc('upsert_roasted_inbound', {
-            p_session_id: p.sessionId,
-            p_user_id: p.userId,
-            p_grams: p.grams,
-            p_is_estimate: p.isEstimate,
-        });
-        if (error) throw error;
-    },
-
     /** 포장/블렌딩 이벤트 원자적 배치 */
     insertBatch: async (events: RoastedStockEventInsert[]): Promise<void> => {
         if (!events.length) return;

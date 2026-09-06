@@ -49,10 +49,16 @@ export const createControlSender = ({ send, onApplied, onError, onSendingChange 
     // 연결이 끊겨 상태를 비운 뒤에 늦게 온 응답이 옛 setpoint를 되살린다.
     let generation = 0;
 
-    const flush = async (): Promise<void> => {
-        if (inFlight) return;
+    /**
+     * 전송 성공 여부를 돌려준다 — Replay는 실패한 이벤트를 소진하면 안 된다 (#312).
+     * ponytail: 다른 요청이 in-flight면 committed에 합쳐져 그 요청의 후속 flush가 보내는데,
+     * 그 결과는 여기로 돌아오지 않아 true로 본다. 슬라이더와 Replay가 겹치는 짧은 창이고,
+     * 그 창의 실패는 unacknowledged 워치독이 잡는다. 결과가 필요해지면 후속 flush를 체인할 것.
+     */
+    const flush = async (): Promise<boolean> => {
+        if (inFlight) return true;
         const cmd = committed;
-        if (Object.keys(cmd).length === 0) return;
+        if (Object.keys(cmd).length === 0) return true;
         const gen = generation;
         committed = {};
         inFlight = true;
@@ -60,8 +66,10 @@ export const createControlSender = ({ send, onApplied, onError, onSendingChange 
         try {
             const applied = await send(cmd);
             if (gen === generation) onApplied?.(applied);
+            return true;
         } catch (err) {
             if (gen === generation) onError?.(err);
+            return false;
         } finally {
             inFlight = false;
             if (gen === generation) {
@@ -77,7 +85,7 @@ export const createControlSender = ({ send, onApplied, onError, onSendingChange 
             draft = { ...draft, [role]: value };
         },
         /** 슬라이더에서 손을 뗀 순간 — 그때까지의 draft를 확정해 전송 */
-        commitNow(): Promise<void> {
+        commitNow(): Promise<boolean> {
             committed = { ...committed, ...draft };
             draft = {};
             return flush();

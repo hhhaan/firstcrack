@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
 
 export interface ReplayControlInputs {
@@ -41,7 +41,8 @@ export interface ReplayControlInputs {
      * 계속 흘러, 같은 샘플 하나로 "지속 이탈"을 확정할 수 있다. 카운트를 멈춘다.
      */
     reconnecting: boolean;
-    writeHeater: (value: number) => void;
+    /** resolve false = /control 실패(timeout·409·502) — Replay는 그 이벤트를 소진하지 않는다 (#312) */
+    writeHeater: (value: number) => Promise<boolean>;
 }
 
 /** 재생 중지 사유 — 'finished'는 배치 종료라 UI에 표시하지 않는다 */
@@ -53,7 +54,9 @@ export type ReplayStopReason =
     | 'finished'
     | 'manual'
     | 'profileChanged'
-    | 'controlDiverged';
+    | 'controlDiverged'
+    | 'timingGap'
+    | 'writeFailed';
 
 /**
  * 마지막 확정 명령에서 실측이 이만큼 **초과** 이탈하면 외부 개입 후보로 센다.
@@ -65,6 +68,15 @@ export type ReplayStopReason =
 const DIVERGE_TOLERANCE = 2;
 /** 이탈이 이만큼의 elapsed 틱(≈1초) 연속이어야 확정 — 순간 스파이크 제외 */
 const DIVERGE_TICKS = 3;
+/**
+ * 연속 렌더 사이 elapsed가 이만큼 **초과** 뛰면 JS가 멈췄던 것으로 본다 (#313).
+ * elapsed는 호스트 시계에서 유도되지만 갱신은 webview 타이머·폴링이 하므로, 창
+ * 최소화·App Nap·슬립으로 webview가 스로틀되면 멈췄다가 복귀 때 한 번에 점프한다.
+ * 그동안 실기는 마지막 화력으로 계속 돌았고 UI만 Replay On이었다 — fail-closed로
+ * 멈추고 사람이 확인 후 다시 켠다. 정상 틱은 1초(지터 2초), 최대 폴링 주기 1초.
+ * ponytail: sidecar heartbeat로 판정을 옮기면(#308) 이 감지는 그쪽 책임이 된다.
+ */
+const SAMPLE_GAP_LIMIT_S = 5;
 
 /**
  * Replay Assist 수명 관리 (#300). 판정은 lib/replay의 순수 함수가 하고,
@@ -114,6 +126,15 @@ export const useReplayControl = ({
      */
     const [lastWritten, setLastWritten] = useState<number | null>(null);
     const [diverge, setDiverge] = useState({ tick: elapsed, ticks: 0 });
+    /** 직전 렌더의 elapsed — 타이밍 갭 감지 기준 (#313) */
+    const [prevElapsed, setPrevElapsed] = useState(elapsed);
+    /**
+     * 이벤트 write가 /control 응답 대기 중 — 그동안 판정을 멈춰 같은 이벤트를 두 번 쓰지
+     * 않는다 (#312). 응답 세대: 배치·프로파일 경계를 넘어 도착한 늦은 응답은 무시한다 —
+     * 리셋된 index를 옛 nextIndex로 덮으면 안 된다.
+     */
+    const [writing, setWriting] = useState(false);
+    const writeGenRef = useRef(0);
 
     // 레퍼런스가 바뀌면 진행 중인 재생은 무효 — 옛 인덱스로 새 계획을 재생하면 안 된다.
     // effect가 아니라 렌더 중 리셋인 이유: effect로 하면 plan이 바뀐 커밋에서 아래 판정
@@ -145,6 +166,27 @@ export const useReplayControl = ({
         if (roasting) setSafeOffIssued(false);
         setLastWritten(null);
         setDiverge({ tick: elapsed, ticks: 0 });
+        // lookback 자동 차지는 origin을 과거로 잡아 elapsed가 0보다 크게 시작한다 —
+        // 이전 배치 기준으로 재면 차지 직후 오중지된다.
+        setPrevElapsed(elapsed);
+    }
+
+    // 배치·프로파일 경계에서 write 세대를 올린다 — 위 렌더 중 리셋과 같은 커밋에 실행되므로
+    // 경계 전에 나간 write의 응답은 반드시 새 세대를 본다. (렌더 중 ref 갱신은 lint 금지)
+    // biome-ignore lint/correctness/useExhaustiveDependencies: plan·roasting은 트리거이지 읽는 값이 아니다
+    useEffect(() => {
+        writeGenRef.current += 1;
+    }, [plan, roasting]);
+
+    // 타이밍 갭 판정 (#313) — 렌더 중인 이유는 profileChanged와 같다: 복귀 커밋에서
+    // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
+    // 복귀 후 catch-up write는 하지 않는다 — 그동안의 실기 상태를 모른다.
+    if (elapsed !== prevElapsed) {
+        setPrevElapsed(elapsed);
+        if (active && roasting && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
+            setActive(false);
+            setStopReason('timingGap');
+        }
     }
 
     // 외부 개입 판정 (#307) — elapsed를 틱으로 쓰는 이유: liveData 스토어는 값이 같으면
@@ -207,7 +249,7 @@ export const useReplayControl = ({
         // 실패가 토스트/Sentry로 관측된다. hold면 아무것도 안 쓴다 — 설정으로 선택된
         // 잔류라 PID hold와 같은 등급의 문서화된 동작이다.
         if (roastFinished && dropBehavior === 'zero') {
-            writeHeater(0);
+            void writeHeater(0);
             setSafeOffIssued(true);
         }
     }, [active, stopCause, roastFinished, dropBehavior, writeHeater]);
@@ -218,7 +260,7 @@ export const useReplayControl = ({
     // 매 write가 미반영 카운트를 되돌리므로 tight loop이 될 수 없다.
     useEffect(() => {
         if (!safeOffIssued || !heaterUnacknowledged || !sidecarConnected) return;
-        writeHeater(0);
+        void writeHeater(0);
     }, [safeOffIssued, heaterUnacknowledged, sidecarConnected, writeHeater]);
 
     const toggle = useCallback(() => {
@@ -248,14 +290,25 @@ export const useReplayControl = ({
         // 개입을 덮는 동시에 lastWritten 갱신·pending으로 판정까지 리셋돼, #307이
         // 막으려던 경로가 확정 창 안에서 재현된다. 노이즈로 판명되면(카운터 0 복귀)
         // 이 effect가 다시 실행되고 judgeReplay가 밀린 이벤트를 한 번에 따라잡는다.
-        if (diverge.ticks > 0) return;
+        if (diverge.ticks > 0 || writing) return;
         const result = judgeReplay(plan, index, { bt: liveBt, elapsed, afterTurningPoint });
-        if (result.nextIndex === index) return;
-        setIndex(result.nextIndex);
-        if (result.heater != null) {
-            writeHeater(result.heater);
-            setLastWritten(result.heater);
-        }
+        if (result.nextIndex === index || result.heater == null) return;
+        // 성공을 확인한 뒤에만 index를 전진한다 — 실패한 이벤트는 남겨 두고 fail-closed로
+        // 멈춘다. 자동 재시도는 없다: 물리 제어 실패는 사람이 기기를 보고 다시 켠다.
+        const heater = result.heater;
+        const gen = writeGenRef.current;
+        setWriting(true);
+        void writeHeater(heater).then((ok) => {
+            setWriting(false);
+            if (gen !== writeGenRef.current) return;
+            if (ok) {
+                setIndex(result.nextIndex);
+                setLastWritten(heater);
+                return;
+            }
+            setActive(false);
+            setStopReason('writeFailed');
+        });
     }, [
         active,
         stopCause,
@@ -267,6 +320,7 @@ export const useReplayControl = ({
         plan,
         index,
         diverge.ticks,
+        writing,
         writeHeater,
     ]);
 

@@ -98,7 +98,7 @@ export const MachineControlPanel = ({
     const writeHeater = useCallback(
         (value: number) => {
             setValue('heater', value);
-            void commitNow();
+            return commitNow();
         },
         [setValue, commitNow],
     );
