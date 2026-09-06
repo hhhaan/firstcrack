@@ -159,11 +159,6 @@ export const useReplayControl = ({
         setPrevRoasting(roasting);
         setIndex(0);
         setStopReason(null);
-        // 상승 에지(새 배치 차지)에서만 지운다 — 이전 배치의 safe-off 재시도가 새
-        // 배치 화력을 덮으면 안 된다. 하강 에지(End Roast 확정)에서 지우면 안 되는
-        // 이유: Drop은 phase를 안 바꾸므로 safe-off는 roasting 중에 발행되고, 몇 초
-        // 뒤 End 확정의 하강 에지가 재시도를 죽이면 미반영 기기가 그대로 남는다.
-        if (roasting) setSafeOffIssued(false);
         setLastWritten(null);
         setDiverge({ tick: elapsed, ticks: 0 });
         // lookback 자동 차지는 origin을 과거로 잡아 elapsed가 0보다 크게 시작한다 —
@@ -262,6 +257,13 @@ export const useReplayControl = ({
         if (!safeOffIssued || !heaterUnacknowledged || !sidecarConnected) return;
         void writeHeater(0);
     }, [safeOffIssued, heaterUnacknowledged, sidecarConnected, writeHeater]);
+
+    // Drop 언토글 = 배출 취소. safe-off 재시도가 살아 있으면 재개된 재생을 0으로 덮는다.
+    // End 확정 후에는 roastFinished가 true로 고정이라 하강 에지를 만들지 않는다 —
+    // 미반영 기기의 재시도를 End가 죽이지 않는다. 새 배치(roastFinished→false)도 여기서 흡수.
+    useEffect(() => {
+        if (!roastFinished) setSafeOffIssued(false);
+    }, [roastFinished]);
 
     const toggle = useCallback(() => {
         if (active) {

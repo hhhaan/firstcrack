@@ -379,6 +379,47 @@ describe('useReplayControl', () => {
             expect(h.writeHeater).toHaveBeenCalledWith(0);
             h.unmount();
         });
+
+        it('zero: Drop 언토글 후 unack이어도 0 재시도 없음 — 재개된 재생을 덮지 않는다', async () => {
+            const h = await renderReplay({ dropBehavior: 'zero' });
+            await act(async () => h.get().toggle());
+            h.writeHeater.mockClear();
+            await h.rerender({ dropBehavior: 'zero', ...dropMarked });
+            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            expect(h.writeHeater).toHaveBeenCalledTimes(1);
+
+            // un-drop. unack는 아직 false — 같은 커밋에서 retry effect가 stale safeOffIssued로
+            // 한 번 더 쓰는 레이스를 피하고, 다음 렌더의 유지된 unack으로 재시도를 검증한다.
+            await h.rerender({
+                dropBehavior: 'zero',
+                liveBt: 205,
+                elapsed: 650,
+                afterTurningPoint: true,
+                roastFinished: false,
+            });
+            h.writeHeater.mockClear();
+            await h.rerender({
+                dropBehavior: 'zero',
+                liveBt: 205,
+                elapsed: 651,
+                afterTurningPoint: true,
+                roastFinished: false,
+                heaterUnacknowledged: true,
+            });
+            expect(h.writeHeater).not.toHaveBeenCalled();
+
+            await h.rerender({
+                dropBehavior: 'zero',
+                liveBt: 205,
+                elapsed: 652,
+                afterTurningPoint: true,
+                roastFinished: false,
+            });
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalled();
+            expect(h.writeHeater).not.toHaveBeenCalledWith(0);
+            h.unmount();
+        });
     });
 
     describe('외부 개입 — controlDiverged (#307)', () => {
