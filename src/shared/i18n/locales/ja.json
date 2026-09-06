@@ -554,11 +554,23 @@
             "now": "現在",
             "addNotePlaceholder": "ノート追加... (Enterで保存)"
         },
+        "events": {
+            "charge": "チャージ",
+            "yellow": "イエロー",
+            "fcStart": "ファーストクラック開始",
+            "fcRolling": "FC ローリング",
+            "fcEnd": "ファーストクラック終了",
+            "drop": "ドロップ",
+            "end": "終了",
+            "now": "現在",
+            "note": "ノート",
+            "tp": "TP"
+        },
         "shortcuts": {
-            "yellow": "⌘1",
-            "fcStart": "⌘2",
-            "fcEnd": "⌘3",
-            "markDrop": "⌘D"
+            "yellow": "{{mod}}1",
+            "fcStart": "{{mod}}2",
+            "fcEnd": "{{mod}}3",
+            "markDrop": "{{mod}}D"
         },
         "sidebar": {
             "bt": "BT",
@@ -676,6 +688,8 @@
         "dialogs": {
             "roastInProgressTitle": "ロースト中",
             "roastInProgressMsg": "ローストが進行中です。本当に終了しますか？",
+            "unsavedRoastTitle": "未保存のロースト",
+            "unsavedRoastMsg": "保存されていないローストがあります。保存せずに終了しますか？",
             "end": "終了",
             "cancel": "キャンセル",
             "machineRequiredTitle": "マシン接続が必要",
@@ -686,6 +700,32 @@
             "beanDeletedMsg": "選択した生豆は削除されています。もう一度選択してください。",
             "invalidWeightTitle": "重量が不正です",
             "invalidWeightMsg": "重量の値が不正なため保存できませんでした。焙煎後の重量は投入量を超えられません。値を修正して再度保存してください。"
+        },
+        "replay": {
+            "title": "Replay",
+            "on": "On",
+            "off": "Off",
+            "enable": "リファレンス火力を再生",
+            "next": "次: BT {{temp}}°{{unit}} → {{heater}}%",
+            "done": "すべてのイベントを再生済み",
+            "slidersLocked": "スライダーロック中",
+            "slidersLockedHint": "再生中は席を離れないでください。火力が再生指示から外れ続けると自動停止します。手動操作はチェックを外してから行ってください。再度オンにすると残りの区間から再開します。Giesenは本体をAutoからManualにしてください。",
+            "stop": {
+                "disconnected": "接続切断により再生を停止しました",
+                "pid": "PID介入により再生を停止しました",
+                "unacknowledged": "コマンドが反映されず再生を停止しました",
+                "unwritable": "ヒーター制御不可のため再生を停止しました",
+                "manual": "手動操作により再生を停止しました",
+                "profileChanged": "プロファイル変更により再生を停止しました",
+                "controlDiverged": "火力が再生指示から外れたため再生を停止しました",
+                "timingGap": "画面が止まっていた間に再生を停止しました — 現在の火力を確認してください",
+                "writeFailed": "火力コマンド送信失敗により再生を停止しました — 現在の火力を確認してください"
+            },
+            "disabled": {
+                "machineMismatch": "別の機器で記録したプロファイルは再生できません — この機器で記録したプロファイルを選んでください",
+                "noReference": "リファレンス火力記録がありません — heater記録のあるターゲットプロファイルを選んでください",
+                "blocked": "現在オンにできません — PID解除と接続状態を確認してください"
+            }
         },
         "alerts": {
             "rorCrash": "RoRクラッシュ — 火力が落ちています",

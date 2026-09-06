@@ -554,11 +554,23 @@
             "now": "Now",
             "addNotePlaceholder": "Add note... (Enter to save)"
         },
+        "events": {
+            "charge": "Charge",
+            "yellow": "Yellow",
+            "fcStart": "FC Start",
+            "fcRolling": "FC Rolling",
+            "fcEnd": "FC End",
+            "drop": "Drop",
+            "end": "End",
+            "now": "Now",
+            "note": "Note",
+            "tp": "TP"
+        },
         "shortcuts": {
-            "yellow": "⌘1",
-            "fcStart": "⌘2",
-            "fcEnd": "⌘3",
-            "markDrop": "⌘D"
+            "yellow": "{{mod}}1",
+            "fcStart": "{{mod}}2",
+            "fcEnd": "{{mod}}3",
+            "markDrop": "{{mod}}D"
         },
         "sidebar": {
             "bt": "BT",
@@ -676,6 +688,8 @@
         "dialogs": {
             "roastInProgressTitle": "Roast in Progress",
             "roastInProgressMsg": "A roast is in progress. Are you sure you want to end it?",
+            "unsavedRoastTitle": "Unsaved roast",
+            "unsavedRoastMsg": "There is an unsaved roast. Close without saving?",
             "end": "End",
             "cancel": "Cancel",
             "machineRequiredTitle": "Connect a machine",
@@ -686,6 +700,32 @@
             "beanDeletedMsg": "The selected bean was deleted. Please choose a bean again.",
             "invalidWeightTitle": "Invalid weight",
             "invalidWeightMsg": "The roast could not be saved because the weights are invalid. The output weight cannot exceed the green charge weight — please correct the values and save again."
+        },
+        "replay": {
+            "title": "Replay",
+            "on": "On",
+            "off": "Off",
+            "enable": "Replay reference heat",
+            "next": "Next: BT {{temp}}°{{unit}} → {{heater}}%",
+            "done": "All events replayed",
+            "slidersLocked": "Sliders locked",
+            "slidersLockedHint": "Stay with the machine while replay is on — replay stops if heat keeps drifting from the replay command. Uncheck to adjust manually. Turn it back on to resume from the remaining events. On Giesen, set the machine Auto to Manual.",
+            "stop": {
+                "disconnected": "Replay stopped because the connection dropped",
+                "pid": "Replay stopped because PID took over",
+                "unacknowledged": "Replay stopped because a command was not applied",
+                "unwritable": "Replay stopped because heater control is unavailable",
+                "manual": "Replay stopped because of a manual adjustment",
+                "profileChanged": "Replay stopped because the profile changed",
+                "controlDiverged": "Replay stopped because heat drifted from the replay command",
+                "timingGap": "Replay stopped while the screen was frozen — check the current heat",
+                "writeFailed": "Replay stopped because a heat command failed — check the current heat"
+            },
+            "disabled": {
+                "machineMismatch": "Profiles recorded on a different machine cannot be replayed — pick a profile recorded on this machine",
+                "noReference": "No reference heat recording — select a target profile that includes heater data",
+                "blocked": "Cannot turn on now — disable PID and check the connection"
+            }
         },
         "alerts": {
             "rorCrash": "RoR crash — heat is stalling",

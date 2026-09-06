@@ -554,11 +554,23 @@
             "now": "当前",
             "addNotePlaceholder": "添加备注... (Enter保存)"
         },
+        "events": {
+            "charge": "投豆",
+            "yellow": "转黄",
+            "fcStart": "一爆开始",
+            "fcRolling": "一爆持续",
+            "fcEnd": "一爆结束",
+            "drop": "下豆",
+            "end": "结束",
+            "now": "当前",
+            "note": "备注",
+            "tp": "TP"
+        },
         "shortcuts": {
-            "yellow": "⌘1",
-            "fcStart": "⌘2",
-            "fcEnd": "⌘3",
-            "markDrop": "⌘D"
+            "yellow": "{{mod}}1",
+            "fcStart": "{{mod}}2",
+            "fcEnd": "{{mod}}3",
+            "markDrop": "{{mod}}D"
         },
         "sidebar": {
             "bt": "BT",
@@ -676,6 +688,8 @@
         "dialogs": {
             "roastInProgressTitle": "烘焙进行中",
             "roastInProgressMsg": "烘焙正在进行中。确定要结束吗？",
+            "unsavedRoastTitle": "未保存的烘焙",
+            "unsavedRoastMsg": "有未保存的烘焙记录。确定不保存并退出吗？",
             "end": "结束",
             "cancel": "取消",
             "machineRequiredTitle": "需要连接设备",
@@ -686,6 +700,32 @@
             "beanDeletedMsg": "所选生豆已删除。请重新选择。",
             "invalidWeightTitle": "重量数值无效",
             "invalidWeightMsg": "重量数值无效，保存失败。烘焙后重量不能超过生豆投入量。请修正后重新保存。"
+        },
+        "replay": {
+            "title": "Replay",
+            "on": "On",
+            "off": "Off",
+            "enable": "回放参考火力",
+            "next": "下一个：BT {{temp}}°{{unit}} → {{heater}}%",
+            "done": "所有事件已回放完成",
+            "slidersLocked": "滑块已锁定",
+            "slidersLockedHint": "回放期间请不要离开机器 — 若火力持续偏离回放指令会自动停止。手动调节请先取消勾选。再次开启会从剩余区间继续。Giesen 需将机身 Auto 设为 Manual。",
+            "stop": {
+                "disconnected": "因连接断开已停止回放",
+                "pid": "因 PID 介入已停止回放",
+                "unacknowledged": "因指令未生效已停止回放",
+                "unwritable": "因无法控制加热器已停止回放",
+                "manual": "因手动操作已停止回放",
+                "profileChanged": "因曲线变更已停止回放",
+                "controlDiverged": "因火力偏离回放指令已停止回放",
+                "timingGap": "画面冻结期间已停止回放 — 请确认当前火力",
+                "writeFailed": "因火力指令发送失败已停止回放 — 请确认当前火力"
+            },
+            "disabled": {
+                "machineMismatch": "无法回放其他设备记录的曲线 — 请选择本机记录的曲线",
+                "noReference": "没有参考火力记录 — 请选择包含加热器记录的目标曲线",
+                "blocked": "现在无法开启 — 请关闭 PID 并检查连接"
+            }
         },
         "alerts": {
             "rorCrash": "RoR 骤降 — 火力正在衰减",

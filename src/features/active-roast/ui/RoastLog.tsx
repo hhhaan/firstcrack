@@ -1,6 +1,8 @@
 import { STATUS_COLORS } from '@features/active-roast/lib/colors';
+import { roastEventLabel, roastPhaseLabel } from '@features/active-roast/lib/roast-i18n';
 import type { LogEntry } from '@shared/types/roast';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export const RoastLog = ({
     entries,
@@ -13,6 +15,7 @@ export const RoastLog = ({
     variant: 'sidebar' | 'main';
     onRemoveEntry?: (id: string) => void;
 }) => {
+    const { t } = useTranslation();
     const isSidebar = variant === 'sidebar';
 
     return (
@@ -27,7 +30,7 @@ export const RoastLog = ({
                         marginBottom: 10,
                     }}
                 >
-                    Roast Log
+                    {t('activeRoast.log.title')}
                 </h3>
             )}
             {entries.map((entry, i, arr) => {
@@ -92,7 +95,7 @@ export const RoastLog = ({
                                         letterSpacing: isSidebar ? 'normal' : '0.14px',
                                     }}
                                 >
-                                    {entry.event}
+                                    {roastEventLabel(entry.event, t)}
                                 </span>
                                 <span
                                     style={{
@@ -112,7 +115,11 @@ export const RoastLog = ({
                                         letterSpacing: isSidebar ? 'normal' : '0.14px',
                                     }}
                                 >
-                                    {entry.note}
+                                    {entry.current && entry.event === 'Now'
+                                        ? t('activeRoast.actions.inProgress', {
+                                              phase: roastPhaseLabel(entry.note.replace(/ in progress$/, ''), t),
+                                          })
+                                        : entry.note}
                                 </div>
                             )}
                         </div>
@@ -121,7 +128,7 @@ export const RoastLog = ({
                                 type="button"
                                 // biome-ignore lint/style/noNonNullAssertion: error already checked above
                                 onClick={() => onRemoveEntry(entry.id!)}
-                                aria-label="Delete note"
+                                aria-label={t('activeRoast.log.deleteNote')}
                                 className="shrink-0 self-start p-1 border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
                             >
                                 <X size={12} />

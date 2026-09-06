@@ -8,6 +8,7 @@ import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
 import { message } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { RoastSummaryData } from './useRoastCompletionFlow';
 import type { LiveRoastPoint } from './useSidecarPolling';
 
@@ -71,6 +72,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         roastStartTimeRef,
     } = params;
 
+    const { t } = useTranslation();
     const bbpEnabled = useFeature(FEATURE.bbp);
     const canWrite = useWriteAccess();
     const quota = useBatchQuota();
@@ -128,7 +130,10 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             rearmAutoChargeRef.current?.();
             setConnected(false);
             if (isTauri()) {
-                await message('머신이 연결되어 있지 않습니다.', { title: '머신 연결 필요', kind: 'warning' });
+                await message(t('activeRoast.dialogs.machineRequiredMsg'), {
+                    title: t('activeRoast.dialogs.machineRequiredTitle'),
+                    kind: 'warning',
+                });
             }
             return;
         }
@@ -146,6 +151,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         setConnected,
         disableAutoChargeRef,
         rearmAutoChargeRef,
+        t,
     ]);
 
     const resetActiveRoast = useCallback(() => {

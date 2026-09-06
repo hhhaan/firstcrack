@@ -1,5 +1,6 @@
 import { formatTemp, type TemperatureUnit, useBbpTimer } from '@features/active-roast';
 import { SENSOR_COLORS } from '@features/active-roast/lib/colors';
+import { roastPhaseLabel } from '@features/active-roast/lib/roast-i18n';
 import { useTranslation } from 'react-i18next';
 
 export const LiveReadings = ({
@@ -45,7 +46,7 @@ export const LiveReadings = ({
                     },
                     {
                         label: t('activeRoast.readings.phase'),
-                        value: connected ? phase : '—',
+                        value: connected ? roastPhaseLabel(phase, t) : '—',
                         color: connected ? phaseColor : 'var(--color-muted)',
                         sub: connected && bbpTimer ? `BBP ${bbpTimer}` : null,
                     },

@@ -21,6 +21,7 @@ import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel } from '@features/machine-control';
 import { useWeather } from '@shared/api/weather';
+import { i18n } from '@shared/i18n';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
@@ -336,14 +337,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 e.preventDefault();
                 const running = isRunningRef.current;
                 const ok = await ask(
-                    running
-                        ? '로스팅이 진행 중입니다. 정말 종료하시겠습니까?'
-                        : '저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?',
+                    i18n.t(running ? 'activeRoast.dialogs.roastInProgressMsg' : 'activeRoast.dialogs.unsavedRoastMsg'),
                     {
-                        title: '로스팅 진행 중',
+                        title: i18n.t(
+                            running
+                                ? 'activeRoast.dialogs.roastInProgressTitle'
+                                : 'activeRoast.dialogs.unsavedRoastTitle',
+                        ),
                         kind: 'warning',
-                        okLabel: '종료',
-                        cancelLabel: '취소',
+                        okLabel: i18n.t('activeRoast.dialogs.end'),
+                        cancelLabel: i18n.t('activeRoast.dialogs.cancel'),
                     },
                 );
                 if (ok) {

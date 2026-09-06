@@ -1,6 +1,7 @@
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Square } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface EndRoastModalProps {
     open: boolean;
@@ -10,6 +11,7 @@ interface EndRoastModalProps {
 }
 
 export const EndRoastModal = ({ open, timeStr, onClose, onConfirm }: EndRoastModalProps) => {
+    const { t } = useTranslation();
     if (!open) {
         return null;
     }
@@ -29,10 +31,10 @@ export const EndRoastModal = ({ open, timeStr, onClose, onConfirm }: EndRoastMod
                 id="end-roast-modal-title"
                 className="font-(--font-mono) text-[28px] leading-[1.05] text-primary tracking-[-0.5px] mb-2.5"
             >
-                로스팅을 종료할까요?
+                {t('activeRoast.endRoastModal.title')}
             </h2>
             <p className="text-sm text-secondary leading-[1.6] mb-5.5">
-                타이머가 {timeStr}에서 멈추고 로스트가 종료됩니다.
+                {t('activeRoast.endRoastModal.description', { time: timeStr })}
             </p>
             <div className="grid grid-cols-2 gap-2">
                 <button
@@ -40,7 +42,7 @@ export const EndRoastModal = ({ open, timeStr, onClose, onConfirm }: EndRoastMod
                     onClick={onClose}
                     className="w-full py-3 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-(--font-mono) cursor-pointer tracking-[0.14px] dark:border dark:border-border"
                 >
-                    아니오
+                    {t('activeRoast.endRoastModal.cancel')}
                 </button>
                 <button
                     type="button"
@@ -48,7 +50,7 @@ export const EndRoastModal = ({ open, timeStr, onClose, onConfirm }: EndRoastMod
                     onClick={onConfirm}
                     className="w-full py-3 rounded-lg border-none bg-[rgba(254,226,226,0.8)] dark:bg-[rgba(220,38,38,0.15)] text-[#dc2626] dark:text-[#f87171] text-sm font-(--font-mono) cursor-pointer tracking-[0.14px]"
                 >
-                    예
+                    {t('activeRoast.endRoastModal.confirm')}
                 </button>
             </div>
         </ModalShell>

@@ -1,12 +1,14 @@
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import { getFcDualStage } from '@features/active-roast/lib/fc-dual-mark';
+import { roastPhaseLabel } from '@features/active-roast/lib/roast-i18n';
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
 import { EventButtons } from './EventButtons';
 import { RoastAlertBanner } from './RoastAlertBanner';
@@ -88,8 +90,9 @@ export const RoastSidePanel = ({
     onManualCharge,
     onEndRoast,
 }: RoastSidePanelProps) => {
+    const { t } = useTranslation();
     const showRollingDtr = rollingDtrPct != null;
-    const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
+    const dtrLabel = showRollingDtr ? 'DTR · Start' : t('activeRoast.sidebar.dtr');
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
 
     return (
@@ -97,7 +100,7 @@ export const RoastSidePanel = ({
             <RoastAlertBanner alerts={activeAlerts} />
             {/* ET */}
             <div className="text-right">
-                <div className="text-sm text-muted font-semibold uppercase mb-1">ET</div>
+                <div className="text-sm text-muted font-semibold uppercase mb-1">{t('activeRoast.sidebar.et')}</div>
                 <div
                     className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                     style={{ color: SENSOR_COLORS.et }}
@@ -107,7 +110,7 @@ export const RoastSidePanel = ({
             </div>
             {/* ΔET */}
             <div className="flex items-center justify-between">
-                <span className="text-xs text-muted font-semibold uppercase">ΔET (30s)</span>
+                <span className="text-xs text-muted font-semibold uppercase">{t('activeRoast.sidebar.deltaEt')}</span>
                 <span className="font-mono text-xl font-medium leading-tight" style={{ color: SENSOR_COLORS.et }}>
                     {deltaET != null ? (
                         <>
@@ -121,7 +124,7 @@ export const RoastSidePanel = ({
             </div>
             {/* BT */}
             <div className="text-right border-t border-border-subtle pt-3">
-                <div className="text-sm text-muted font-semibold uppercase mb-1">BT</div>
+                <div className="text-sm text-muted font-semibold uppercase mb-1">{t('activeRoast.sidebar.bt')}</div>
                 <div
                     className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                     style={{ color: SENSOR_COLORS.bt }}
@@ -131,7 +134,7 @@ export const RoastSidePanel = ({
             </div>
             {/* ΔBT */}
             <div className="flex items-center justify-between">
-                <span className="text-xs text-muted font-semibold uppercase">ΔBT (30s)</span>
+                <span className="text-xs text-muted font-semibold uppercase">{t('activeRoast.sidebar.deltaBt')}</span>
                 <span className="font-mono text-xl font-medium leading-tight" style={{ color: SENSOR_COLORS.bt }}>
                     {deltaBT != null ? (
                         <>
@@ -158,7 +161,7 @@ export const RoastSidePanel = ({
             )}
             {/* RoR */}
             <div className="text-right border-t border-border-subtle pt-3">
-                <div className="text-md text-muted font-semibold mb-1">RoR</div>
+                <div className="text-md text-muted font-semibold mb-1">{t('activeRoast.sidebar.ror')}</div>
                 <div
                     className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                     style={{ color: SENSOR_COLORS.ror }}
@@ -168,7 +171,7 @@ export const RoastSidePanel = ({
             </div>
             {/* Time */}
             <div className="text-right border-t border-border-subtle pt-3">
-                <div className="text-sm text-muted font-semibold uppercase mb-1">Time</div>
+                <div className="text-sm text-muted font-semibold uppercase mb-1">{t('activeRoast.sidebar.time')}</div>
                 <div
                     className="font-mono text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                     style={{ color: 'var(--color-primary)' }}
@@ -178,12 +181,12 @@ export const RoastSidePanel = ({
             </div>
             {/* Phase */}
             <div className="flex items-center justify-between border-t border-border-subtle pt-3">
-                <span className="text-xs text-muted font-semibold uppercase">Phase</span>
+                <span className="text-xs text-muted font-semibold uppercase">{t('activeRoast.readings.phase')}</span>
                 <span
                     className="font-mono text-base font-medium leading-tight tracking-tight"
                     style={{ color: roastPhaseColor }}
                 >
-                    {roastPhaseName}
+                    {roastPhaseLabel(roastPhaseName, t)}
                 </span>
             </div>
             {/* DTR + Dev (Start = canonical; Rolling when dual-mark event present) */}
@@ -248,7 +251,7 @@ export const RoastSidePanel = ({
                             type="button"
                         >
                             <Play size={12} />
-                            Roast Ready
+                            {t('activeRoast.actions.roastReady')}
                         </button>
                     )}
                     {phase === 'standby' && (
@@ -260,14 +263,14 @@ export const RoastSidePanel = ({
                             type="button"
                         >
                             <Play size={12} />
-                            Charge
+                            {t('activeRoast.actions.charge')}
                         </button>
                     )}
                     <button
                         data-testid="roast-end"
                         onClick={onEndRoast}
                         disabled={roastEnded || !charged}
-                        aria-label="End roast"
+                        aria-label={t('activeRoast.actions.endRoast')}
                         type="button"
                         className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
                             roastEnded || !charged
@@ -281,7 +284,7 @@ export const RoastSidePanel = ({
                         }
                     >
                         <Square size={12} />
-                        End Roast
+                        {t('activeRoast.actions.endRoast')}
                     </button>
                 </div>
                 <EventButtons
@@ -290,14 +293,14 @@ export const RoastSidePanel = ({
                     pressedButtons={pressedButtons}
                     buttons={[
                         {
-                            label: 'Yellow',
+                            label: t('activeRoast.actions.yellow'),
                             event: 'Yellow',
                             shortcutKey: '1',
                             pressKey: 'Mark Yellow',
                             onClick: () => onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow'),
                         },
                         {
-                            label: 'FC Start',
+                            label: t('activeRoast.actions.fcStart'),
                             event: 'FC Start',
                             shortcutKey: '2',
                             pressKey: 'Mark FC Start',
@@ -307,14 +310,14 @@ export const RoastSidePanel = ({
                             dualStage: fcDualStage,
                         },
                         {
-                            label: 'FC End',
+                            label: t('activeRoast.actions.fcEnd'),
                             event: 'FC End',
                             shortcutKey: '3',
                             pressKey: 'Mark FC End',
                             onClick: () => onMarkEvent('FC End', 'First crack ended', 'Mark FC End'),
                         },
                         {
-                            label: 'Mark Drop',
+                            label: t('activeRoast.actions.markDrop'),
                             event: 'Drop',
                             shortcutKey: 'D',
                             pressKey: 'Mark Drop',
@@ -335,7 +338,7 @@ export const RoastSidePanel = ({
                             onNoteSubmit();
                         }
                     }}
-                    placeholder="Add note... (Enter to save)"
+                    placeholder={t('activeRoast.actions.addNotePlaceholder')}
                     className="h-16 text-xs px-2 py-1.5 rounded bg-surface dark:bg-surface-elevated text-primary placeholder:text-muted focus:outline-none focus:border-border resize-none"
                 />
                 <button
