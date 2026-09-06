@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { cafe24ToCanonical, mergeStatus, naverToCanonical, shopifyToCanonical } from './status-map.ts';
+import {
+    cafe24ToCanonical,
+    mergeStatus,
+    naverToCanonical,
+    shopifyToCanonical,
+    tossPlaceToCanonical,
+} from './status-map.ts';
 
 describe('mergeStatus', () => {
     it('advances forward', () => {
@@ -97,5 +103,18 @@ describe('cafe24ToCanonical (official property list)', () => {
     it('process_status prepare*', () => {
         expect(cafe24ToCanonical({ paid: 'T', processStatus: 'prepare' })).toBe('preparing');
         expect(cafe24ToCanonical({ paid: 'T', processStatus: 'prepareproduct' })).toBe('preparing');
+    });
+});
+
+describe('tossPlaceToCanonical', () => {
+    it('maps COMPLETED → paid and CANCELLED → cancelled', () => {
+        expect(tossPlaceToCanonical('COMPLETED')).toBe('paid');
+        expect(tossPlaceToCanonical('cancelled')).toBe('cancelled');
+    });
+    it('drops OPENED / REQUESTED / unknown', () => {
+        expect(tossPlaceToCanonical('OPENED')).toBeNull();
+        expect(tossPlaceToCanonical('REQUESTED')).toBeNull();
+        expect(tossPlaceToCanonical('UNDEFINED')).toBeNull();
+        expect(tossPlaceToCanonical('')).toBeNull();
     });
 });

@@ -1481,6 +1481,9 @@
             "clientId": "Client ID",
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
+            "merchantId": "Merchant ID",
+            "confirmMerchant": "Is this your store? {{name}} ({{id}})",
+            "confirmMerchantCta": "Yes, connect this store",
             "accessToken": "Access token",
             "webhookSecret": "Webhook signing secret (optional)",
             "webhookSecretHelp": "Shopify admin → Settings → Notifications → Webhooks → signing secret. Required once more than one Shopify store is connected.",
@@ -1492,18 +1495,21 @@
             "connect": {
                 "naver": "Connect Naver Smart Store",
                 "cafe24": "Connect Cafe24",
-                "shopify": "Connect Shopify"
+                "shopify": "Connect Shopify",
+                "toss_place": "Connect Toss Place"
             },
             "help": {
                 "naver": "Commerce API Center → application → copy Client ID and Client Secret (SELF type).",
                 "cafe24": "Enter your Mall ID, then approve permissions in Cafe24. Tokens stay on the server only.",
-                "shopify": "Shopify admin → Develop apps → install custom app with read_orders, read_products → paste shop domain and Admin API access token."
+                "shopify": "Shopify admin → Develop apps → install custom app with read_orders, read_products → paste shop domain and Admin API access token.",
+                "toss_place": "Paste the merchant ID from Toss Place POS after installing the First Crack app. App keys stay on the server."
             },
             "platform": {
                 "manual": "Manual",
                 "naver": "Naver",
                 "cafe24": "Cafe24",
-                "shopify": "Shopify"
+                "shopify": "Shopify",
+                "toss_place": "Toss Place"
             },
             "status": {
                 "pending": "Pending",

@@ -39,6 +39,11 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
     const [accessToken, setAccessToken] = useState('');
     const [webhookSecret, setWebhookSecret] = useState('');
     const [mallId, setMallId] = useState('');
+    const [merchantId, setMerchantId] = useState('');
+    const [merchantPreview, setMerchantPreview] = useState<{
+        displayName: string;
+        shopIdentifier: string;
+    } | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const channels = useMemo(() => channelData ?? [], [channelData]);
@@ -67,6 +72,8 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
         setAccessToken('');
         setWebhookSecret('');
         setMallId('');
+        setMerchantId('');
+        setMerchantPreview(null);
         setError(null);
         stopOauthWait();
     }, [open, platform, stopOauthWait]);
@@ -109,6 +116,26 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                     workspaceOwnerId: userId,
                 });
                 onClose();
+            } else if (platform === 'toss_place') {
+                if (!merchantId.trim()) {
+                    setError(t('orders.channel.errRequired'));
+                    return;
+                }
+                const res = await connect.mutateAsync({
+                    platform,
+                    credentials: { merchant_id: merchantId.trim() },
+                    displayName: displayName.trim() || undefined,
+                    workspaceOwnerId: userId,
+                    confirmMerchant: !!merchantPreview,
+                });
+                if (res.kind === 'confirm') {
+                    setMerchantPreview({
+                        displayName: res.displayName,
+                        shopIdentifier: res.shopIdentifier,
+                    });
+                    return;
+                }
+                onClose();
             } else {
                 if (!mallId.trim()) {
                     setError(t('orders.channel.errRequired'));
@@ -138,7 +165,9 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                 : t('orders.channel.oauthCta')
             : connect.isPending
               ? t('orders.channel.connecting')
-              : t('orders.channel.connectCta');
+              : platform === 'toss_place' && merchantPreview
+                ? t('orders.channel.confirmMerchantCta')
+                : t('orders.channel.connectCta');
 
     return (
         <ModalShell onClose={onClose} labelledBy="connect-channel-title" contentClassName={modalPanel.formSm}>
@@ -273,6 +302,36 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                             disabled={cafe24Waiting}
                         />
                     </div>
+                )}
+
+                {platform === 'toss_place' && (
+                    <>
+                        <div>
+                            <label className={labelCls} htmlFor="channel-merchant-id">
+                                {t('orders.channel.merchantId')}
+                            </label>
+                            <input
+                                id="channel-merchant-id"
+                                className={inputCls}
+                                value={merchantId}
+                                onChange={(e) => {
+                                    setMerchantId(e.target.value);
+                                    setMerchantPreview(null);
+                                }}
+                                placeholder="123456"
+                                inputMode="numeric"
+                                autoComplete="off"
+                            />
+                        </div>
+                        {merchantPreview ? (
+                            <p className="rounded-lg bg-surface-warm-solid px-3 py-2 text-[12px] leading-relaxed text-secondary tracking-[0.14px] dark:bg-surface-elevated">
+                                {t('orders.channel.confirmMerchant', {
+                                    name: merchantPreview.displayName,
+                                    id: merchantPreview.shopIdentifier,
+                                })}
+                            </p>
+                        ) : null}
+                    </>
                 )}
 
                 {errorText ? (

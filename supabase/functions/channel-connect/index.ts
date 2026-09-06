@@ -1,6 +1,6 @@
 /**
  * POST /channel-connect
- * Body: { platform: 'naver'|'cafe24'|'shopify', credentials: {...}, displayName?: string }
+ * Body: { platform: 'naver'|'cafe24'|'shopify'|'toss_place', credentials: {...}, displayName?: string, confirmMerchant?: boolean }
  *
  * Validates credentials against the live platform API, then stores connection + secrets.
  * Secrets are written with service role only.
@@ -23,7 +23,7 @@ import { pickConnectCredentials } from '../_shared/channels/connect-credentials.
 import type { ChannelSecrets, Platform } from '../_shared/channels/types.ts';
 import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 
-const PLATFORMS = new Set(['naver', 'cafe24', 'shopify']);
+const PLATFORMS = new Set(['naver', 'cafe24', 'shopify', 'toss_place']);
 
 function serviceClient() {
     return createClient(
@@ -44,6 +44,9 @@ function validateCredentials(platform: Platform, credentials: ChannelSecrets): s
     } else if (platform === 'cafe24') {
         // Cafe24 production connect is OAuth (cafe24-oauth-start / callback).
         return 'cafe24 requires OAuth — use cafe24-oauth-start';
+    } else if (platform === 'toss_place') {
+        const merchantId = String(credentials.merchant_id ?? '').trim();
+        if (!/^\d+$/.test(merchantId)) return 'toss_place requires numeric merchant_id';
     }
     return null;
 }
@@ -61,6 +64,11 @@ serveWithSentry('channel-connect', async (req) => {
         displayName?: string;
         /** Workspace owner to connect under; verified below, defaults to self. */
         workspaceOwnerId?: string;
+        /**
+         * Toss Place: first call returns `{ needsConfirm, displayName, shopIdentifier }`.
+         * Second call with `confirmMerchant: true` stores the connection.
+         */
+        confirmMerchant?: boolean;
     };
     try {
         body = await req.json();
@@ -70,7 +78,7 @@ serveWithSentry('channel-connect', async (req) => {
 
     const platform = body.platform as Platform;
     if (!platform || !PLATFORMS.has(platform)) {
-        return jsonResponse({ error: 'platform must be naver | cafe24 | shopify' }, 400);
+        return jsonResponse({ error: 'platform must be naver | cafe24 | shopify | toss_place' }, 400);
     }
 
     // Rows must be owned by the workspace owner or a member's workspace-scoped
@@ -115,6 +123,25 @@ serveWithSentry('channel-connect', async (req) => {
 
     const admin = serviceClient();
     const now = new Date().toISOString();
+
+    if (platform === 'toss_place') {
+        const { data: claimed } = await admin
+            .from('sales_channel_connections')
+            .select('id, user_id')
+            .eq('platform', 'toss_place')
+            .eq('shop_identifier', shopIdentifier)
+            .maybeSingle();
+        if (claimed && claimed.user_id !== ownerId) {
+            return jsonResponse({ error: 'merchant already connected to another workspace' }, 409);
+        }
+        if (!body.confirmMerchant) {
+            return jsonResponse({
+                needsConfirm: true,
+                displayName,
+                shopIdentifier,
+            });
+        }
+    }
 
     // Upsert connection by (workspace owner, platform, shop_identifier)
     const { data: existing } = await admin
@@ -179,6 +206,9 @@ serveWithSentry('channel-connect', async (req) => {
             .single();
         if (error || !created) {
             console.error('[channel-connect] insert', error);
+            if (platform === 'toss_place' && error?.code === '23505') {
+                return jsonResponse({ error: 'merchant already connected to another workspace' }, 409);
+            }
             await captureEdgeException(error, {
                 function: 'channel-connect',
                 status: 500,

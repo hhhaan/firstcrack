@@ -1,6 +1,6 @@
 /** Canonical order model shared by all channel adapters. Pure TS — no Deno globals. */
 
-export type Platform = 'naver' | 'cafe24' | 'shopify';
+export type Platform = 'naver' | 'cafe24' | 'shopify' | 'toss_place';
 
 export type CanonicalStatus =
     | 'pending'

@@ -1,6 +1,6 @@
 import { supabase } from '@shared/lib/supabase';
 
-export type ChannelPlatform = 'naver' | 'cafe24' | 'shopify';
+export type ChannelPlatform = 'naver' | 'cafe24' | 'shopify' | 'toss_place';
 export type ChannelStatus = 'pending' | 'active' | 'error' | 'disabled';
 
 export interface SalesChannelConnection {
@@ -25,7 +25,12 @@ export interface SalesChannelConnection {
  */
 export type ConnectCredentials =
     | { client_id: string; client_secret: string } // naver
-    | { shop: string; access_token: string; webhook_secret?: string }; // shopify
+    | { shop: string; access_token: string; webhook_secret?: string } // shopify
+    | { merchant_id: string }; // toss_place
+
+export type ConnectChannelResult =
+    | { kind: 'connected'; connection: SalesChannelConnection }
+    | { kind: 'confirm'; displayName: string; shopIdentifier: string };
 
 /** One sellable variant/product as the platform reports it (from `channel-products`, secrets stay server-side). */
 export interface ChannelListing {
@@ -59,13 +64,21 @@ export const salesChannelApi = {
         credentials: ConnectCredentials,
         displayName?: string,
         workspaceOwnerId?: string,
-    ): Promise<SalesChannelConnection> => {
+        confirmMerchant?: boolean,
+    ): Promise<ConnectChannelResult> => {
         const { data, error } = await supabase.functions.invoke('channel-connect', {
-            body: { platform, credentials, displayName, workspaceOwnerId },
+            body: { platform, credentials, displayName, workspaceOwnerId, confirmMerchant },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
-        return data.connection as SalesChannelConnection;
+        if (data?.needsConfirm) {
+            return {
+                kind: 'confirm',
+                displayName: String(data.displayName ?? ''),
+                shopIdentifier: String(data.shopIdentifier ?? ''),
+            };
+        }
+        return { kind: 'connected', connection: data.connection as SalesChannelConnection };
     },
 
     /** Cafe24 OAuth: returns authorize URL for browser open. Callback stores connection. */

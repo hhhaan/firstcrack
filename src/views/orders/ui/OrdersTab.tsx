@@ -23,7 +23,7 @@ import { dispatchTone, EmptyState, GhostButton, orderStatusTone } from './orderU
 const PAGE_SIZE = 20;
 const CUSTOM_RANGE_MONTHS = 24;
 const STATUS_OPTIONS: OrderStatusFilter[] = ['unfulfilled', 'fulfilled', 'cancelled'];
-const PLATFORM_OPTIONS = ['manual', 'naver', 'cafe24', 'shopify'];
+const PLATFORM_OPTIONS = ['manual', 'naver', 'cafe24', 'shopify', 'toss_place'];
 
 export function OrdersTab() {
     const { t } = useTranslation();

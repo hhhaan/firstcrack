@@ -1481,6 +1481,9 @@
             "clientId": "Client ID",
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
+            "merchantId": "店舗ID (merchantId)",
+            "confirmMerchant": "この店舗でよろしいですか？ {{name}} ({{id}})",
+            "confirmMerchantCta": "はい、接続する",
             "accessToken": "アクセストークン",
             "webhookSecret": "Webhook署名シークレット（任意）",
             "webhookSecretHelp": "Shopify管理画面 → 設定 → 通知 → Webhook → signing secret。Shopifyストアを2つ以上接続する場合は必須です。",
@@ -1492,18 +1495,21 @@
             "connect": {
                 "naver": "Naverスマートストアを接続",
                 "cafe24": "Cafe24を接続",
-                "shopify": "Shopifyを接続"
+                "shopify": "Shopifyを接続",
+                "toss_place": "Toss Placeを接続"
             },
             "help": {
                 "naver": "Commerce API Center → アプリケーション → Client IDとClient Secretをコピー（SELFタイプ）。",
                 "cafe24": "Mall IDを入力し、Cafe24で権限に同意すると接続されます。トークンはサーバーのみに保存されます。",
-                "shopify": "Shopify管理画面 → アプリ開発 → read_orders・read_products権限のカスタムアプリをインストール → ショップドメインとAdmin APIアクセストークンを貼り付け。"
+                "shopify": "Shopify管理画面 → アプリ開発 → read_orders・read_products権限のカスタムアプリをインストール → ショップドメインとAdmin APIアクセストークンを貼り付け。",
+                "toss_place": "Toss Place POSにFirst Crackアプリをインストールしたあと、店舗ID（merchantId）を入力してください。アプリキーはサーバーのみに保存されます。"
             },
             "platform": {
                 "manual": "手動",
                 "naver": "Naver",
                 "cafe24": "Cafe24",
-                "shopify": "Shopify"
+                "shopify": "Shopify",
+                "toss_place": "Toss Place"
             },
             "status": {
                 "pending": "保留中",

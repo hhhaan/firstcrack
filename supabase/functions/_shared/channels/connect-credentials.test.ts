@@ -32,4 +32,15 @@ describe('pickConnectCredentials', () => {
     it('returns nothing for cafe24 (OAuth-only)', () => {
         expect(pickConnectCredentials('cafe24', { access_token: 'x', mall_id: 'm' })).toEqual({});
     });
+
+    it('keeps only merchant_id for toss_place and drops injected app keys', () => {
+        expect(
+            pickConnectCredentials('toss_place', {
+                merchant_id: '  42  ',
+                access_key: 'injected',
+                secret_key: 'injected',
+                access_token: 'injected',
+            }),
+        ).toEqual({ merchant_id: '42' });
+    });
 });

@@ -16,6 +16,7 @@ export const orderActionFlags = (order: OrderActionOrder, dispatch?: OrderAction
     const canFulfill = !fulfilled && !cancelled && FULFILLABLE_STATUSES.has(order.status);
     const canDispatch =
         order.platform !== 'manual' &&
+        order.platform !== 'toss_place' &&
         fulfilled &&
         !!order.connection_id &&
         (!dispatch || dispatch.status === 'failed');

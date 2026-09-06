@@ -39,12 +39,14 @@ export const useConnectChannel = (userId: string) => {
             credentials,
             displayName,
             workspaceOwnerId,
+            confirmMerchant,
         }: {
             platform: ChannelPlatform;
             credentials: ConnectCredentials;
             displayName?: string;
             workspaceOwnerId?: string;
-        }) => salesChannelApi.connect(platform, credentials, displayName, workspaceOwnerId),
+            confirmMerchant?: boolean;
+        }) => salesChannelApi.connect(platform, credentials, displayName, workspaceOwnerId, confirmMerchant),
         // ConnectChannelModal renders the failure inline.
         meta: { silentError: true },
         onSuccess: () => {

@@ -1481,6 +1481,9 @@
             "clientId": "Client ID",
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
+            "merchantId": "门店 ID (merchantId)",
+            "confirmMerchant": "这是您的门店吗？{{name}} ({{id}})",
+            "confirmMerchantCta": "是，连接此门店",
             "accessToken": "访问令牌",
             "webhookSecret": "Webhook 签名密钥（可选）",
             "webhookSecretHelp": "Shopify 后台 → 设置 → 通知 → Webhook → signing secret。连接两个及以上 Shopify 店铺时必填。",
@@ -1492,18 +1495,21 @@
             "connect": {
                 "naver": "连接 Naver 智能店铺",
                 "cafe24": "连接 Cafe24",
-                "shopify": "连接 Shopify"
+                "shopify": "连接 Shopify",
+                "toss_place": "连接 Toss Place"
             },
             "help": {
                 "naver": "Commerce API Center → 应用 → 复制 Client ID 和 Client Secret（SELF 类型）。",
                 "cafe24": "输入 Mall ID，在 Cafe24 中同意权限即可连接。令牌仅保存在服务器。",
-                "shopify": "Shopify 后台 → 开发应用 → 安装具有 read_orders、read_products 权限的自定义应用 → 粘贴店铺域名和 Admin API 访问令牌。"
+                "shopify": "Shopify 后台 → 开发应用 → 安装具有 read_orders、read_products 权限的自定义应用 → 粘贴店铺域名和 Admin API 访问令牌。",
+                "toss_place": "在 Toss Place POS 安装 First Crack 应用后，粘贴门店 ID（merchantId）。应用密钥仅保存在服务器。"
             },
             "platform": {
                 "manual": "手动",
                 "naver": "Naver",
                 "cafe24": "Cafe24",
-                "shopify": "Shopify"
+                "shopify": "Shopify",
+                "toss_place": "Toss Place"
             },
             "status": {
                 "pending": "待处理",

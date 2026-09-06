@@ -17,6 +17,8 @@ const ALLOWED_KEYS: Record<Platform, readonly string[]> = {
     shopify: ['shop', 'access_token', 'webhook_secret'],
     // cafe24 connects via OAuth only (cafe24-oauth-start/callback) — no client-supplied creds.
     cafe24: [],
+    // App access/secret keys live in function env — never accept them from the client.
+    toss_place: ['merchant_id'],
 };
 
 export function pickConnectCredentials(platform: Platform, raw: ChannelSecrets): ChannelSecrets {

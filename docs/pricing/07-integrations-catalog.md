@@ -13,7 +13,7 @@
 | `cafe24` | 카페24 | KR | Commerce | Pro+ | beta | access_token 붙여넣기 + 폴링 (OAuth 앱 등록은 운영 시) |
 | `shopify` | Shopify | Global (US/JP/KR) | Commerce | Pro+ | beta | custom app token + GraphQL 폴링 |
 | `toss` | 토스 (Toss Payments 등) | KR | Payments | Pro+ | planned | **Mislabelled for POS work** — prefer `toss_place` (below). PG-only path if ever needed. |
-| `toss_place` | Toss Place POS | KR | Commerce/POS | Pro+ | planned | Open API order+payment pull; plan `docs/agent/toss-place-integration.md` |
+| `toss_place` | Toss Place POS | KR | Commerce/POS | Pro+ | beta | Open API order+payment pull (`docs/agent/toss-place-integration.md`). Phase 1 pull-only; live data needs `TOSS_PLACE_*` function secrets + merchant app install. |
 | `smaregi` | スマレジ | JP | Commerce/POS | Pro+ | planned | Platform API (OAuth); Premium+ merchants; see `docs/agent/pos-openapi-integrations.md` |
 | `square` | Square POS | US, JP | Commerce/POS | Pro+ | planned | Orders/Payments API; café/retail offline sales |
 

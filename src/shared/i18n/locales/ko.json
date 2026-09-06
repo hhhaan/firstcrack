@@ -1481,6 +1481,9 @@
             "clientId": "Client ID",
             "clientSecret": "Client Secret",
             "mallId": "Mall ID",
+            "merchantId": "매장 ID (merchantId)",
+            "confirmMerchant": "이 매장이 맞습니까? {{name}} ({{id}})",
+            "confirmMerchantCta": "맞습니다, 연결",
             "accessToken": "Access token",
             "webhookSecret": "웹훅 서명 시크릿 (선택)",
             "webhookSecretHelp": "Shopify 관리자 → 설정 → 알림 → 웹훅 → signing secret. Shopify 스토어를 2개 이상 연결하면 필수입니다.",
@@ -1492,18 +1495,21 @@
             "connect": {
                 "naver": "네이버 스마트스토어 연결",
                 "cafe24": "카페24 연결",
-                "shopify": "Shopify 연결"
+                "shopify": "Shopify 연결",
+                "toss_place": "토스플레이스 연결"
             },
             "help": {
                 "naver": "커머스API 센터 → 애플리케이션 → Client ID / Client Secret 복사 (SELF).",
                 "cafe24": "Mall ID를 입력한 뒤 카페24에서 권한에 동의하면 연결됩니다. 토큰은 서버에만 저장됩니다.",
-                "shopify": "Shopify 관리자 → 앱 개발 → custom app(read_orders, read_products) 설치 후 도메인과 Admin API access token 입력."
+                "shopify": "Shopify 관리자 → 앱 개발 → custom app(read_orders, read_products) 설치 후 도메인과 Admin API access token 입력.",
+                "toss_place": "First Crack 앱을 토스 POS에 설치한 뒤 매장 ID(merchantId)를 입력하세요. 앱 키는 서버에만 저장됩니다."
             },
             "platform": {
                 "manual": "수동",
                 "naver": "네이버",
                 "cafe24": "카페24",
-                "shopify": "Shopify"
+                "shopify": "Shopify",
+                "toss_place": "토스플레이스"
             },
             "status": {
                 "pending": "대기",

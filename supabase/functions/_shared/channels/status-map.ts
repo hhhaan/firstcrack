@@ -165,3 +165,19 @@ export function shopifyToCanonical(
     }
     return null;
 }
+
+/**
+ * Toss Place Order.orderState (Open API order-model).
+ * COMPLETED = paid walk-in sale; CANCELLED = declined / refunded.
+ * REQUESTED / OPENED / UNDEFINED are excluded from the v1 poll.
+ */
+export function tossPlaceToCanonical(orderState: string | null | undefined): CanonicalStatus | null {
+    switch ((orderState ?? '').toUpperCase()) {
+        case 'COMPLETED':
+            return 'paid';
+        case 'CANCELLED':
+            return 'cancelled';
+        default:
+            return null;
+    }
+}

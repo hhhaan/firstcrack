@@ -1,4 +1,11 @@
-export type { ChannelListing, ChannelPlatform, ChannelStatus, ConnectCredentials, SalesChannelConnection } from './api';
+export type {
+    ChannelListing,
+    ChannelPlatform,
+    ChannelStatus,
+    ConnectChannelResult,
+    ConnectCredentials,
+    SalesChannelConnection,
+} from './api';
 export { salesChannelApi } from './api';
 export {
     invalidateAfterSyncOrders,

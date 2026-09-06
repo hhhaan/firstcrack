@@ -144,6 +144,27 @@ function shopifyCostWaitMs(cost: ShopifyCost | undefined): number | null {
  * Shopify GraphQL answers a cost throttle with **HTTP 200** — the status alone says nothing, the
  * body has to be read. Resource-level limits still use 429, so both paths are covered.
  */
+/**
+ * Toss Place `x-ratelimit-reset` is epoch milliseconds, not seconds (`Retry-After`).
+ * A non-positive / unparseable value falls back to the exponential step.
+ */
+export function epochMsHeaderWaitMs(raw: string | null | undefined, nowMs = Date.now()): number | null {
+    if (raw == null) return null;
+    const reset = Number(raw.trim());
+    if (!Number.isFinite(reset) || reset <= 0) return null;
+    const wait = Math.ceil(reset - nowMs);
+    return wait > 0 ? wait : null;
+}
+
+/** Toss Place 429 + `x-ratelimit-reset` (epoch ms). Gateway 5xx still uses the shared HTTP reader. */
+export function tossPlaceThrottle(attempt: HttpAttempt): ThrottleSignal | null {
+    const http = httpThrottle(attempt);
+    if (!http || attempt.status !== 429) return http;
+    const waitMs = epochMsHeaderWaitMs(attempt.headers.get('x-ratelimit-reset'));
+    if (waitMs == null) return http;
+    return { waitMs, reason: `toss_place 429 (reset in ${waitMs}ms)` };
+}
+
 export function shopifyThrottle(attempt: HttpAttempt): ThrottleSignal | null {
     const http = httpThrottle(attempt);
     if (http) return http;

@@ -2,7 +2,7 @@
 
 **Audience:** coding agents  
 **Date:** 2026-07-22  
-**Status:** plan only (no connector code in this doc’s goal)  
+**Status:** Phase 1 pull-only connector implemented (#84). Phase 0 partner keys still required for live data. Phase 2 webhooks not shipped.  
 **Related:** `docs/agent/sales-channels-orders.md`, `docs/agent/pos-openapi-integrations.md` (KR/JP/US POS catalog), `TODOS.md` [ORD3], `docs/pricing/07-integrations-catalog.md`  
 **External SSoT:** [Open API 소개](https://docs.tossplace.com/reference/open-api/intro.html) · [공통 가이드](https://docs.tossplace.com/reference/open-api/common.html) · [개발 튜토리얼](https://docs.tossplace.com/guide/pos-integration/open-api/develop-tutorial.html) · [연동 이해하기](https://docs.tossplace.com/guide/understanding.html)
 

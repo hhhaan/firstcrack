@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
     cafe24Throttle,
+    epochMsHeaderWaitMs,
     type HttpAttempt,
     naverThrottle,
     RateLimitError,
     type RetryLimits,
     secondsHeaderToMs,
     shopifyThrottle,
+    tossPlaceThrottle,
     withRetry,
 } from './rate-limit.ts';
 
@@ -127,6 +129,22 @@ describe('shopifyThrottle (throttle arrives as HTTP 200)', () => {
 
     it('still handles the resource-level 429 path', () => {
         expect(shopifyThrottle(attempt(429, { 'retry-after': '1' }))?.waitMs).toBe(1_000);
+    });
+});
+
+describe('tossPlaceThrottle', () => {
+    it('waits until x-ratelimit-reset epoch ms', () => {
+        const now = 1_700_000_000_000;
+        expect(epochMsHeaderWaitMs(String(now + 2_500), now)).toBe(2_500);
+        const signal = tossPlaceThrottle(attempt(429, { 'x-ratelimit-reset': String(Date.now() + 3_000) }));
+        expect(signal?.reason).toMatch(/toss_place 429/);
+        expect(signal?.waitMs).toBeGreaterThan(0);
+    });
+
+    it('falls back to exponential when reset is missing or already passed', () => {
+        expect(tossPlaceThrottle(attempt(429))).toEqual({ waitMs: null, reason: 'http 429' });
+        expect(epochMsHeaderWaitMs('not-a-number')).toBeNull();
+        expect(epochMsHeaderWaitMs('100', 1_000)).toBeNull();
     });
 });
 

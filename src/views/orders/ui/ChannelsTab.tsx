@@ -19,7 +19,7 @@ import { formatChannelSyncError } from './formatChannelSyncError';
 import { ChannelsListSkeleton } from './OrdersSkeleton';
 import { channelStatusTone, EmptyState, GhostButton } from './orderUi';
 
-const PLATFORMS: ChannelPlatform[] = ['naver', 'cafe24', 'shopify'];
+const PLATFORMS: ChannelPlatform[] = ['naver', 'cafe24', 'shopify', 'toss_place'];
 
 export function ChannelsTab() {
     const { t } = useTranslation();

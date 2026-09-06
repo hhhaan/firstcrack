@@ -32,6 +32,7 @@ Canonical order data lives in Supabase (`orders`, `order_lines`). The desktop ap
 User → connect channel
   Naver/Shopify → channel-connect EF (validate + store)
   Cafe24 → cafe24-oauth-start → browser consent → cafe24-oauth-callback
+  Toss Place → channel-connect EF (merchantId + env app keys; confirm store name)
   → sales_channel_connections (client-readable metadata)
   → sales_channel_secrets (service-role only; no authenticated policies)
 ```
@@ -41,6 +42,7 @@ User → connect channel
 | Naver | Client ID + secret | client_credentials + signed requests | product-orders dispatch |
 | Shopify | shop domain + Admin token + *optional* webhook signing secret | custom app token header | `fulfillmentCreateV2` — **deprecated** since API 2024-10; migrate to `fulfillmentCreate` + `FulfillmentInput` |
 | Cafe24 | Mall ID only (OAuth) | Bearer + refresh via app env `CAFE24_CLIENT_*` | shipments |
+| Toss Place | merchantId only | product-wide `TOSS_PLACE_ACCESS_KEY` / `TOSS_PLACE_SECRET_KEY` env + per-merchant install | **none** (`outboundDispatch: false`) |
 
 **Invariant:** Cafe24 must not accept pasted access tokens. Client must not store or re-display platform secrets.
 
@@ -110,7 +112,7 @@ rotation that never reaches the DB permanently breaks the connection.
 
 SKU mapping (`_shared/channels/normalize.ts`, `lineMatchKeys` / `buildProductMap`): candidate keys per
 line are — in priority order — the platform **variant id**, the platform **product id**, and the line's
-merchant **SKU** (Shopify only; Naver/Cafe24 report none). Each key is looked up first in
+merchant **SKU** (Shopify line sku; Toss Place `item.code` is both product id and sku; Naver/Cafe24 report none). Each key is looked up first in
 `product_channel_skus` (#164: one product ↔ N `(platform, external_key)` rows, scoped to the order's
 platform), then as an exact match on `products.sku` (legacy fallback, still valid). A failed table read logs
 and degrades to the fallback so a lagging migration never stops a sync. Unmatched ⇒ `product_id = null`,

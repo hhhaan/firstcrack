@@ -31,6 +31,17 @@ describe('orderActionFlags', () => {
         expect(orderActionFlags({ ...base, status: 'preparing' }).canFulfill).toBe(true);
     });
 
+    it('hides dispatch for toss_place (POS has no outbound ship)', () => {
+        const flags = orderActionFlags({
+            ...base,
+            platform: 'toss_place',
+            status: 'paid',
+            fulfilled_at: '2026-08-01T00:00:00Z',
+        });
+        expect(flags.canFulfill).toBe(false);
+        expect(flags.canDispatch).toBe(false);
+    });
+
     it('never fulfills or dispatches cancelled/refunded', () => {
         for (const status of ['cancelled', 'refunded'] as const) {
             const flags = orderActionFlags({
