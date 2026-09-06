@@ -1,5 +1,5 @@
 import { useWriteAccess } from '@shared/lib/features';
-import { planQueryRoots } from '@shared/lib/query-keys';
+import { dashboardKeys, planQueryRoots } from '@shared/lib/query-keys';
 import type { RecurrenceInterval } from '@shared/lib/rrule';
 import { buildRRule } from '@shared/lib/rrule';
 import { calcPlanBatchCount } from '@shared/lib/stock-calc';
@@ -50,6 +50,7 @@ export const invalidateScheduledBatchQueries = (qc: QueryClient) => {
     for (const queryKey of scheduledBatchInvalidationKeys()) {
         void qc.invalidateQueries({ queryKey });
     }
+    void qc.invalidateQueries({ queryKey: dashboardKeys.root, refetchType: 'all' });
 };
 
 export const invalidatePlanScope = (qc: QueryClient, userId?: string) => {

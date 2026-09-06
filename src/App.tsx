@@ -44,6 +44,7 @@ export const App = () => {
     const cancelOAuth = useAuthStore((s) => s.cancelOAuth);
     const init = useAuthStore((s) => s.init);
     const theme = useThemeStore((s) => s.theme);
+    const themeReady = useThemeStore((s) => s.ready);
     const initTheme = useThemeStore((s) => s.initTheme);
 
     useEffect(() => init(), [init]);
@@ -205,7 +206,7 @@ export const App = () => {
                     overflow: 'hidden',
                 }}
             >
-                {theme === null && <ThemeSelectModal />}
+                {themeReady && theme === null && <ThemeSelectModal />}
                 <PendingRoastRecovery />
                 <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                     <Sidebar
@@ -231,8 +232,7 @@ export const App = () => {
                                 <Dashboard onNavigate={setView} />
                             </ViewErrorBoundary>
                         )}
-                        {/* 탭 전환 후 복귀해도 타이머·sidecar 폴링이 유지되도록 unmount 대신 CSS hide 사용
-            TODO: 로스트 상태를 전역 store(Zustand 등)로 올리면 여러 뷰에서 로스트 진행 상황 접근 가능 */}
+                        {/* Keep ActiveRoast mounted (CSS hide) so timer + sidecar polling survive tab switches. */}
                         <div
                             style={{
                                 display: view === 'roast' ? 'flex' : 'none',

@@ -2,7 +2,7 @@ import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useRoastProfiles } from '@entities/roast-profile';
-import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
+import { persistDefaultBeanId } from '@features/active-roast/lib/default-bean';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
 import { ChevronDown, Settings2 } from 'lucide-react';
@@ -115,9 +115,8 @@ export const RoastHeader = ({
 
     const handleBeanChange = (id: string | null) => {
         onBeanChange(id);
-        // 원두 기본값은 기기별 취향이라 localStorage에만 저장 (프로파일과 달리 DB 동기화 불필요)
-        if (id) localStorage.setItem(DEFAULT_BEAN_KEY, id);
-        else localStorage.removeItem(DEFAULT_BEAN_KEY);
+        // 원두 기본값은 기기별 취향 — TauriStore `roast.defaultBeanId` (#274)
+        persistDefaultBeanId(id);
     };
 
     const selectedBean = beans.find((b) => b.id === selectedBeanId);

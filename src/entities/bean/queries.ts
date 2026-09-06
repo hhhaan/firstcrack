@@ -1,6 +1,6 @@
-import { inventoryQueryRoots } from '@shared/lib/query-keys';
+import { dashboardKeys, inventoryQueryRoots } from '@shared/lib/query-keys';
 import type { Bean } from '@shared/types/database.types';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { beanApi } from './api';
 
 export const beanKeys = {
@@ -78,6 +78,13 @@ export const useUpdateBean = (userId: string) => {
     });
 };
 
+/** Bean delete drops stock/alerts/dashboard — list optimistic is not enough (#274). */
+export const invalidateAfterDeleteBean = (qc: QueryClient, userId: string) => {
+    void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
+    void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
+    void qc.invalidateQueries({ queryKey: dashboardKeys.all(userId), refetchType: 'all' });
+};
+
 export const useDeleteBean = (userId: string) => {
     const qc = useQueryClient();
     return useMutation({
@@ -95,6 +102,7 @@ export const useDeleteBean = (userId: string) => {
             qc.removeQueries({ queryKey: beanKeys.detail(id) });
             qc.removeQueries({ queryKey: [...inventoryQueryRoots.beanStockEvents, id] });
             qc.removeQueries({ queryKey: [...inventoryQueryRoots.beanStockSummary, id] });
+            invalidateAfterDeleteBean(qc, userId);
         },
     });
 };

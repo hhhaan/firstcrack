@@ -1,6 +1,5 @@
-import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
+import { persistDefaultBeanId, readDefaultBeanId } from '@features/active-roast/lib/default-bean';
 import { useRoastingStore } from '@features/active-roast/model/status';
-import { logger } from '@shared/lib/logger';
 import { useRoastSessionStore } from '@shared/store/roastSession';
 import type { Bean } from '@shared/types/database.types';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -33,14 +32,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
 
     const [targetProfileId, setTargetProfileId] = useState<string | null>(null);
     const userSelectedTargetRef = useRef(false);
-    const [selectedBeanId, setSelectedBeanId] = useState<string | null>(() => {
-        try {
-            return localStorage.getItem(DEFAULT_BEAN_KEY);
-        } catch (err) {
-            logger.capture(err, { scope: 'roastProfileSelection.readDefaultBean' });
-            return null;
-        }
-    });
+    const [selectedBeanId, setSelectedBeanId] = useState<string | null>(() => readDefaultBeanId());
     const [handoffBeanName, setHandoffBeanName] = useState<string | null>(null);
     const appliedDefaultBeanRef = useRef(Boolean(selectedBeanId));
 
@@ -105,13 +97,9 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
             appliedDefaultBeanRef.current = true;
             return;
         }
-        try {
-            const stored = localStorage.getItem(DEFAULT_BEAN_KEY);
-            if (stored) {
-                setSelectedBeanId(stored);
-            }
-        } catch (err) {
-            logger.capture(err, { scope: 'roastProfileSelection.applyDefaultBean' });
+        const stored = readDefaultBeanId();
+        if (stored) {
+            setSelectedBeanId(stored);
         }
         appliedDefaultBeanRef.current = true;
     }, [isActive, selectedBeanId]);
@@ -123,12 +111,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         if (handoffBeanName) return;
         if (beans.some((b) => b.id === selectedBeanId)) return;
         setSelectedBeanId(null);
-        try {
-            localStorage.removeItem(DEFAULT_BEAN_KEY);
-        } catch (err) {
-            logger.capture(err, { scope: 'roastProfileSelection.clearDefaultBean' });
-            /* ignore */
-        }
+        persistDefaultBeanId(null);
     }, [beansReady, beans, selectedBeanId, handoffBeanName]);
 
     const setUserSelectedTarget = useCallback((id: string | null) => {

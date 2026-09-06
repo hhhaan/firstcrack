@@ -124,17 +124,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         useRoastProfileSelection({ isActive, charged, userProfile, beans, beansReady });
 
     // ── UI 상태 ───────────────────────────────────────────────────
-    const [isRunning, setIsRunning] = useState(false);
+    // phase is SSoT — local isRunning duplicated store isRoasting/phase (#274)
+    const isRunning = phase === 'roasting';
     const isRunningRef = useRef(isRunning);
-    useEffect(() => {
-        isRunningRef.current = isRunning;
-    }, [isRunning]);
+    isRunningRef.current = isRunning;
 
     // 미저장 로스트(진행 중 or ended 요약) — 창 닫기 가드용 (#177)
     const hasUnsavedRoastRef = useRef(false);
-    useEffect(() => {
-        hasUnsavedRoastRef.current = isRunning || phase === 'ended';
-    }, [isRunning, phase]);
+    hasUnsavedRoastRef.current = isRunning || phase === 'ended';
 
     const [isFullscreen, setIsFullscreen] = useState(false);
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
@@ -231,7 +228,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         enterPreheating,
         storeEndRoast,
         setConnected,
-        setIsRunning,
         resetStore,
         resetAutoDetectionRef,
         disableAutoChargeRef,
@@ -266,7 +262,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         unit,
         rawBT,
         setLogEntries,
-        setIsRunning,
         setShowEndRoastModal: saveFlow.flow.openEndRoast,
         storeStartCharge,
         roastStartTimeRef,

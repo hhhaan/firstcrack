@@ -21,7 +21,6 @@ const renderActions = (roastStartTimeRef: { current: number }) => {
             unit: 'C',
             rawBT: 200,
             setLogEntries,
-            setIsRunning: vi.fn(),
             setShowEndRoastModal: vi.fn(),
             storeStartCharge: (ms) => useRoastingStore.getState().startCharge(ms),
             roastStartTimeRef: roastStartTimeRef as React.MutableRefObject<number>,
@@ -57,8 +56,10 @@ describe('triggerCharge 이중 발화 가드 (#174 manual↔auto race)', () => {
         const h = renderActions(ref);
 
         void act(() => h.result.triggerCharge(200));
-        const { sessionId, roastStartMs } = useRoastingStore.getState();
+        const { sessionId, roastStartMs, phase, isRoasting } = useRoastingStore.getState();
         expect(sessionId).not.toBeNull();
+        expect(phase).toBe('roasting');
+        expect(isRoasting).toBe(true);
         const originAfterFirst = ref.current;
 
         // 2차 호출은 과거 chargeTimeMs를 줘도 (가드 실패 시 기준점이 이동하도록) 전부 무시돼야 한다

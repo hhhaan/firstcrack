@@ -27,7 +27,9 @@ export const tauriInitScript = `
     },
     unregisterCallback: function () {},
   };
+  try { localStorage.setItem('theme.mode', 'light'); } catch (e) {}
   try { localStorage.setItem('fc_theme', 'light'); } catch (e) {}
+  try { localStorage.setItem('i18n.language', 'en'); } catch (e) {}
   try { localStorage.setItem('fc.language', 'en'); } catch (e) {}
   // Skip Active Roast spotlight tour (blocks clicks in e2e)
   try {

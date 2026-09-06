@@ -1,26 +1,9 @@
 import { type InventoryAlert, useDismissInventoryAlert, useInventoryAlerts } from '@entities/inventory-alert';
 import { alertColor } from '@shared/lib/inventory-alert-styles';
-import { logger } from '@shared/lib/logger';
 import type { View } from '@shared/types/view';
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-
-const STORAGE_KEY = 'fc_dismissed_alerts';
-
-const loadDismissed = (): Set<string> => {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return new Set<string>(raw ? JSON.parse(raw) : []);
-    } catch (err) {
-        logger.capture(err, { scope: 'inventoryAlertBanner.readDismissed' });
-        return new Set<string>();
-    }
-};
-
-const persistDismissed = (ids: Set<string>) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
-};
 
 interface InventoryAlertBannerProps {
     userId: string;
@@ -37,22 +20,15 @@ export const InventoryAlertBanner = ({ userId, onNavigate }: InventoryAlertBanne
     const { t } = useTranslation();
     const { data: alerts = [] } = useInventoryAlerts(userId);
     const dismiss = useDismissInventoryAlert(userId);
-    const [dismissedIds, setDismissedIds] = useState(() => loadDismissed());
-
-    useEffect(() => {
-        persistDismissed(dismissedIds);
-    }, [dismissedIds]);
 
     const dismissAlert = useCallback(
         (id: string) => {
-            setDismissedIds((prev) => new Set([...prev, id]));
             dismiss.mutate(id);
         },
         [dismiss],
     );
 
-    const top = alerts
-        .filter((a) => !dismissedIds.has(a.id))
+    const top = [...alerts]
         .sort((a, b) => {
             const rank: Record<InventoryAlert['reason'], number> = { out: 0, schedule: 1, low: 2 };
             return rank[a.reason] - rank[b.reason] || a.effective_grams - b.effective_grams;

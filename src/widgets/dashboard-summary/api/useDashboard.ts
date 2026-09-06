@@ -191,7 +191,6 @@ export const useDashboard = (userId: string): DashboardData => {
         queryKey: dashboardKeys.all(userId),
         queryFn: () => fetchDashboard(userId),
         enabled: !!userId,
-        staleTime: 5 * 60 * 1000,
     });
 
     return {

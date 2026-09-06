@@ -12,8 +12,9 @@ import zhCNJson from './locales/zh-CN.json';
 export const supportedLanguages = ['ko', 'en', 'ja', 'zh-CN'] as const;
 export type SupportedLanguage = (typeof supportedLanguages)[number];
 
-const LANGUAGE_KEY = 'language';
-const LOCAL_STORAGE_KEY = 'fc.language';
+export const LANGUAGE_STORE_KEY = 'i18n.language';
+const LEGACY_STORE_KEY = 'language';
+const LEGACY_LOCAL_KEY = 'fc.language';
 
 const normalizeLanguage = (value: string | null | undefined): SupportedLanguage => {
     const normalized = value?.toLowerCase();
@@ -25,9 +26,20 @@ const normalizeLanguage = (value: string | null | undefined): SupportedLanguage 
 };
 
 const getStoredLanguage = async (): Promise<string | undefined> => {
-    const fromStore = await settingsGet<string>(LANGUAGE_KEY);
+    const fromStore = await settingsGet<string>(LANGUAGE_STORE_KEY);
     if (fromStore) return fromStore;
-    return window.localStorage.getItem(LOCAL_STORAGE_KEY) ?? undefined;
+    const fromLegacyStore = await settingsGet<string>(LEGACY_STORE_KEY);
+    if (fromLegacyStore) return fromLegacyStore;
+    try {
+        return (
+            window.localStorage.getItem(LANGUAGE_STORE_KEY) ??
+            window.localStorage.getItem(LEGACY_LOCAL_KEY) ??
+            undefined
+        );
+    } catch (err) {
+        logger.capture(err, { scope: 'i18n.readLocal' });
+        return undefined;
+    }
 };
 
 const getSystemLanguage = async (): Promise<string | null> => {
@@ -40,9 +52,10 @@ const getSystemLanguage = async (): Promise<string | null> => {
 };
 
 const persistLanguage = async (language: SupportedLanguage) => {
-    await settingsSet(LANGUAGE_KEY, language);
+    await settingsSet(LANGUAGE_STORE_KEY, language);
     try {
-        window.localStorage.setItem(LOCAL_STORAGE_KEY, language);
+        window.localStorage.setItem(LANGUAGE_STORE_KEY, language);
+        window.localStorage.removeItem(LEGACY_LOCAL_KEY);
     } catch (err) {
         logger.capture(err, { scope: 'i18n.persistLanguage' });
         /* private mode */
@@ -74,9 +87,7 @@ export const initI18n = async () => {
 
     document.documentElement.lang = language;
 
-    if (!savedLanguage) {
-        await persistLanguage(language);
-    }
+    await persistLanguage(language);
 };
 
 export const getDateFnsLocale = () => {

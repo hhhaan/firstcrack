@@ -27,6 +27,11 @@ vi.mock('@shared/store/roastSession', () => ({
     useRoastSessionStore: (sel: (s: { planBatchHandoff: null }) => unknown) => sel({ planBatchHandoff: null }),
 }));
 
+vi.mock('@shared/lib/settings-store', () => ({
+    settingsGet: vi.fn(async () => undefined),
+    settingsSet: vi.fn(async () => {}),
+}));
+
 type HookApi = ReturnType<typeof useRoastProfileSelection>;
 
 function mountHook(props: Parameters<typeof useRoastProfileSelection>[0]) {

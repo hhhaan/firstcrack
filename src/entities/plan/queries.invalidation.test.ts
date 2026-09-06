@@ -1,4 +1,4 @@
-import { planQueryRoots } from '@shared/lib/query-keys';
+import { dashboardKeys, planQueryRoots } from '@shared/lib/query-keys';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { invalidateAfterCreatePlanBatch, planKeys, scheduledBatchInvalidationKeys } from './queries';
@@ -25,5 +25,6 @@ describe('plan mutation invalidation', () => {
         for (const root of scheduledBatchInvalidationKeys()) {
             expect(keys).toContainEqual(root);
         }
+        expect(keys).toContainEqual(dashboardKeys.root);
     });
 });

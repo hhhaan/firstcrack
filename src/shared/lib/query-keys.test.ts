@@ -40,6 +40,7 @@ describe('query key factories', () => {
     });
 
     it('cross-slice keys stay hierarchical', () => {
+        expect(dashboardKeys.root).toEqual(['dashboard']);
         expect(dashboardKeys.all('u1')).toEqual(['dashboard', 'u1']);
         expect(weatherKeys.coords).toEqual(['weather', 'coords']);
         expect(weatherKeys.current(1, 2)).toEqual(['weather', 'current', 1, 2]);

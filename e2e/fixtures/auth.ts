@@ -24,6 +24,8 @@ export async function seedAuthSession(page: Page, projectRef = E2E_PROJECT_REF) 
         ({ key, value, themeKey }) => {
             localStorage.setItem(key, JSON.stringify(value));
             localStorage.setItem(themeKey, 'light');
+            localStorage.setItem('theme.mode', 'light');
+            localStorage.setItem('i18n.language', 'en');
             localStorage.setItem('fc.language', 'en');
         },
         { key: authStorageKey(projectRef), value: session, themeKey: 'fc_theme' },

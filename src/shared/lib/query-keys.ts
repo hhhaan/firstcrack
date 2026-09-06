@@ -5,6 +5,7 @@
  */
 
 export const dashboardKeys = {
+    root: ['dashboard'] as const,
     all: (userId: string) => ['dashboard', userId] as const,
 };
 
