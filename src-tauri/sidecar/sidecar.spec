@@ -47,12 +47,13 @@ a = Analysis(
 
 pyz = PYZ(a.pure)
 
+# onedir (COLLECT): onefile은 매 실행 _MEI 압축 해제+코드사인 검증으로 7.5s~17s.
+# onedir는 폴더 안 dylib를 그대로 로드해서 warm ~0.7s (#346 D).
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='sidecar',
     debug=False,
     strip=False,
@@ -65,4 +66,13 @@ exe = EXE(
     target_arch=None,  # 빌드 머신 네이티브 아키텍처 사용 (CI 매트릭스에서 aarch64/x86_64 각자 빌드)
     codesign_identity=None,
     entitlements_file=None,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    name='sidecar',
 )

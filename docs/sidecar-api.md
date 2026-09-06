@@ -707,22 +707,22 @@ const BASE = 'http://127.0.0.1:9999';
 
 ## Packaging & Deployment
 
-프로덕션 배포 시 Python 런타임 없이 동작하도록 PyInstaller로 단일 바이너리를 빌드한다.
+프로덕션 배포 시 Python 런타임 없이 동작하도록 PyInstaller **onedir**로 빌드한다 (#346 D). onefile은 매 실행 `_MEI` 압축 해제로 7.5s~17s가 걸린다.
 
 ```bash
-npm run build:sidecar   # → src-tauri/binaries/sidecar-aarch64-apple-darwin
-npm run tauri build     # Tauri가 위 바이너리를 앱 번들에 포함
+pnpm build:sidecar   # → src-tauri/binaries/sidecar/ (onedir folder)
+pnpm tauri build     # Tauri가 위 폴더를 bundle.resources로 앱에 포함
 ```
 
 빌드 관련 파일:
 
 | 파일 | 역할 |
 | ---- | ---- |
-| `src-tauri/sidecar/sidecar.spec` | PyInstaller spec — `main.py` 기준, arm64 타겟, 의존성 전체 포함 |
-| `scripts/build-sidecar.sh` | `pyinstaller sidecar.spec` 실행 후 rustc target triple 이름으로 `src-tauri/binaries/`에 복사 |
-| `src-tauri/src/lib.rs` | Tauri 앱 시작 시 `tauri_plugin_shell`로 sidecar 프로세스 spawn, stdout/stderr drain. spawn 실패는 비치명 — 앱은 정상 기동하고 워치독이 백오프 재시도하며, 모두 실패하면 `sidecar-dead` 이벤트를 emit한다 |
+| `src-tauri/sidecar/sidecar.spec` | PyInstaller spec — `COLLECT` onedir, `main.py` 기준, 의존성 전체 포함 |
+| `scripts/build-sidecar.sh` | `pyinstaller sidecar.spec` 실행 후 `src-tauri/binaries/sidecar/`로 복사 |
+| `src-tauri/src/lib.rs` | `$RESOURCE/sidecar/sidecar` 경로를 `tauri_plugin_shell`로 spawn, stdout/stderr drain. spawn 실패는 비치명 — 앱은 정상 기동하고 워치독이 백오프 재시도하며, 모두 실패하면 `sidecar-dead` 이벤트를 emit한다 |
 
-바이너리(`src-tauri/binaries/sidecar-*`)는 `.gitignore`에 등록되어 있으므로 배포 전 반드시 `npm run build:sidecar`를 먼저 실행해야 한다.
+onedir 폴더(`src-tauri/binaries/sidecar/`)는 `.gitignore`에 등록되어 있으므로 배포 전 반드시 `pnpm build:sidecar`를 먼저 실행해야 한다.
 
 ## Known Behavior To Preserve
 

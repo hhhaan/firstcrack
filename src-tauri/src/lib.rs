@@ -9,6 +9,8 @@ use std::io::{Read, Write};
 #[cfg(desktop)]
 use std::net::TcpStream;
 #[cfg(desktop)]
+use std::path::{Path, PathBuf};
+#[cfg(desktop)]
 use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(desktop)]
 use std::sync::Mutex;
@@ -16,6 +18,8 @@ use std::sync::Mutex;
 use std::time::Duration;
 #[cfg(desktop)]
 use std::time::Instant;
+#[cfg(desktop)]
+use tauri::path::BaseDirectory;
 #[cfg(desktop)]
 use tauri::{Emitter, Manager};
 #[cfg(desktop)]
@@ -177,8 +181,7 @@ fn kill_zombie_sidecar() {
             let pids = String::from_utf8_lossy(&out.stdout);
             for pid_str in pids.split_whitespace() {
                 // ps -o comm=: 실행 파일 basename만 출력 (경로 없음).
-                // Tauri externalBin 규약상 바이너리는 "sidecar-<target-triple>" 형태이므로
-                // contains("sidecar")가 확실히 매칭된다.
+                // onedir 실행 파일 이름은 "sidecar" (Windows는 sidecar.exe).
                 let name_check = std::process::Command::new("sh")
                     .args(["-c", &format!("ps -p {pid_str} -o comm= 2>/dev/null")])
                     .output();
@@ -292,24 +295,35 @@ fn configure_main_window(app: &tauri::App) {
     }
 }
 
+/// onedir 폴더 안의 실행 파일 경로. Windows는 `.exe`.
+#[cfg(desktop)]
+fn sidecar_executable(sidecar_dir: &Path) -> PathBuf {
+    if cfg!(windows) {
+        sidecar_dir.join("sidecar.exe")
+    } else {
+        sidecar_dir.join("sidecar")
+    }
+}
+
 /// 사이드카 1회 스폰. 최초 spawn과 워치독 재시작이 같은 env를 쓰도록 한 곳에 모은다.
 /// (예전에는 재시작 경로가 `SIDECAR_VERSION`을 빠뜨려 Sentry release가 어긋났다.)
+///
+/// onedir는 `bundle.resources`로 들어가므로 `externalBin` sidecar()가 아니라
+/// `$RESOURCE/sidecar/sidecar` 경로를 직접 스폰한다 (#346 D).
 #[cfg(desktop)]
 fn spawn_sidecar(
     app: &tauri::AppHandle,
-) -> Result<
-    (
-        tauri::async_runtime::Receiver<CommandEvent>,
-        CommandChild,
-    ),
-    Box<dyn std::error::Error>,
-> {
+) -> Result<(tauri::async_runtime::Receiver<CommandEvent>, CommandChild), Box<dyn std::error::Error>>
+{
+    let sidecar_dir = app.path().resolve("sidecar", BaseDirectory::Resource)?;
+    let sidecar_bin = sidecar_executable(&sidecar_dir);
     let parent_pid = std::process::id().to_string();
     let version = app.package_info().version.to_string();
     let token = app.state::<SidecarToken>().0.clone();
     let (rx, child) = app
         .shell()
-        .sidecar("sidecar")?
+        .command(&sidecar_bin)
+        .current_dir(&sidecar_dir)
         .env("SIDECAR_PARENT_PID", &parent_pid)
         .env("SIDECAR_VERSION", &version)
         .env("SIDECAR_TOKEN", &token)
@@ -558,7 +572,10 @@ pub fn run() {
 
 #[cfg(all(test, desktop))]
 mod sidecar_ready_tests {
-    use super::{claim_watcher_generation, is_latest_watcher, is_ready_response};
+    use super::{
+        claim_watcher_generation, is_latest_watcher, is_ready_response, sidecar_executable,
+    };
+    use std::path::PathBuf;
 
     #[test]
     fn accepts_only_http_200() {
@@ -579,5 +596,15 @@ mod sidecar_ready_tests {
         assert!(latest > stale);
         assert!(!is_latest_watcher(stale));
         assert!(is_latest_watcher(latest));
+    }
+
+    #[test]
+    fn onedir_executable_sits_inside_resource_folder() {
+        let dir = PathBuf::from("/tmp/sidecar");
+        let bin = sidecar_executable(&dir);
+        #[cfg(windows)]
+        assert_eq!(bin, dir.join("sidecar.exe"));
+        #[cfg(not(windows))]
+        assert_eq!(bin, dir.join("sidecar"));
     }
 }

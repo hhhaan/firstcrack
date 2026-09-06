@@ -37,15 +37,26 @@ fi
 
 "$PYINSTALLER" sidecar.spec --distpath "$SIDECAR_DIR/dist" --workpath "$SIDECAR_DIR/build" --noconfirm
 
-# Copy binary to src-tauri/binaries/ with Tauri-expected name
+# onedir folder → src-tauri/binaries/sidecar (Tauri bundle.resources target)
 mkdir -p "$BINARIES_DIR"
 SRC="$SIDECAR_DIR/dist/sidecar"
-DEST="$BINARIES_DIR/sidecar-$TARGET"
+DEST="$BINARIES_DIR/sidecar"
 
-if [[ "$TARGET" == *"windows"* ]]; then
-    SRC="$SRC.exe"
-    DEST="$DEST.exe"
+if [ ! -d "$SRC" ]; then
+    echo "❌ expected onedir folder at $SRC (sidecar.spec must use COLLECT)"
+    exit 1
 fi
 
-cp "$SRC" "$DEST"
-echo "✅ sidecar binary → $DEST"
+rm -rf "$DEST"
+cp -R "$SRC" "$DEST"
+# keep the tracked placeholder so a clean tree still has the resource dir
+touch "$DEST/.gitkeep"
+
+if [[ "$TARGET" == *"windows"* ]]; then
+    [ -f "$DEST/sidecar.exe" ] || { echo "❌ missing $DEST/sidecar.exe"; exit 1; }
+else
+    chmod +x "$DEST/sidecar"
+    [ -x "$DEST/sidecar" ] || { echo "❌ missing executable $DEST/sidecar"; exit 1; }
+fi
+
+echo "✅ sidecar onedir → $DEST ($TARGET)"

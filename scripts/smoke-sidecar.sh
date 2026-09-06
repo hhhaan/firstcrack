@@ -5,9 +5,10 @@
 set -euo pipefail
 
 TARGET="${1:?target triple required}"
-BIN="src-tauri/binaries/sidecar-$TARGET"
+DIR="src-tauri/binaries/sidecar"
+BIN="$DIR/sidecar"
 [[ "$TARGET" == *windows* ]] && BIN="$BIN.exe"
-[ -x "$BIN" ] || { echo "::error::sidecar binary missing or not executable: $BIN"; exit 1; }
+[ -x "$BIN" ] || { echo "::error::sidecar onedir binary missing or not executable: $BIN"; exit 1; }
 
 SIDECAR_DISABLE_SENTRY=1 "$BIN" &
 PID=$!

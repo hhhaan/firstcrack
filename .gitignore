@@ -39,7 +39,9 @@ dist-ssr
 
 config/machines/ 
 
-# Sidecar build output
+# Sidecar build output (onedir contents; keep .gitkeep so tauri-build sees the folder)
+src-tauri/binaries/sidecar/**
+!src-tauri/binaries/sidecar/.gitkeep
 src-tauri/binaries/sidecar-*
 
 # Python sidecar

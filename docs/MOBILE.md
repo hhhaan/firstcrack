@@ -15,7 +15,7 @@
 
 - [x] 데스크톱 전용 의존성 분리: single-instance / updater / process / tokio
 - [x] `lib.rs` 사이드카 스폰·워치독·좀비킬 `#[cfg(desktop)]` 게이트
-- [x] `externalBin` → `tauri.macos.conf.json` / `tauri.windows.conf.json` 이동 (모바일 번들에서 제외)
+- [x] sidecar onedir `bundle.resources` → `tauri.macos.conf.json` / `tauri.windows.conf.json` (모바일 번들에서 제외)
 - [x] `capabilities/mobile.json` (shell/updater/process 권한 제외)
 - [x] CI `ios-check` 잡 — 모바일 컴파일 회귀 방지
 - [x] `release-app.yml` — 모바일 릴리스 파이프라인 (아래 전제 충족 전까지는 gen/ 부재 에러로 실패하는 게 정상)
