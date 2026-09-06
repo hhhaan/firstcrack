@@ -5,7 +5,13 @@ mod sentry_config;
 
 use tauri::RunEvent;
 #[cfg(desktop)]
+use std::io::{Read, Write};
+#[cfg(desktop)]
+use std::net::TcpStream;
+#[cfg(desktop)]
 use std::sync::Mutex;
+#[cfg(desktop)]
+use std::time::Duration;
 #[cfg(desktop)]
 use std::time::Instant;
 #[cfg(desktop)]
@@ -58,6 +64,57 @@ fn generate_sidecar_token() -> String {
 #[tauri::command]
 fn sidecar_token(app: tauri::AppHandle) -> String {
     app.state::<SidecarToken>().0.clone()
+}
+
+/// 준비 완료 판정: HTTP 200만 인정한다.
+/// 401은 이전 프로세스의 토큰을 든 좀비 사이드카라는 뜻이므로 준비된 게 아니다.
+#[cfg(desktop)]
+fn is_ready_response(response: &[u8]) -> bool {
+    response.starts_with(b"HTTP/1.1 200 ") || response.starts_with(b"HTTP/1.0 200 ")
+}
+
+/// 현재 앱 토큰으로 `/status`를 호출해 준비 여부를 판정.
+///
+/// TCP 연결만으로 판정하면 안 된다 — 죽어가는 좀비 사이드카가 포트를 약 1초간
+/// 계속 accept하면서 이전 토큰을 들고 있는 구간이 실제 로그로 확인됐다.
+/// 그 구간에는 연결은 되지만 우리 토큰에는 401이 돌아온다.
+#[cfg(desktop)]
+fn probe_sidecar_ready(token: &str) -> bool {
+    let Ok(mut stream) = TcpStream::connect_timeout(
+        &"127.0.0.1:9999".parse().unwrap(),
+        Duration::from_millis(200),
+    ) else {
+        return false;
+    };
+    let _ = stream.set_read_timeout(Some(Duration::from_millis(200)));
+    let request = format!(
+        "GET /status HTTP/1.0\r\nHost: 127.0.0.1\r\nX-Sidecar-Token: {token}\r\nConnection: close\r\n\r\n"
+    );
+    if stream.write_all(request.as_bytes()).is_err() {
+        return false;
+    }
+    // status line 앞 32바이트만 읽는다 — 판정에 필요한 건 "HTTP/1.x 200 "뿐.
+    let mut response = [0_u8; 32];
+    match stream.read(&mut response) {
+        Ok(size) => is_ready_response(&response[..size]),
+        Err(_) => false,
+    }
+}
+
+/// spawn 성공 후 실제 인증 응답이 올 때까지 폴링하고, 그때 `sidecar-ready`를 1회 emit.
+/// spawn 성공 ≠ HTTP 서버 bind 완료이므로 프로세스 기동만으로 emit하면 프론트가 너무 빨리 붙는다.
+#[cfg(desktop)]
+fn watch_sidecar_ready(app: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        let token = app.state::<SidecarToken>().0.clone();
+        loop {
+            if probe_sidecar_ready(&token) {
+                let _ = app.emit("sidecar-ready", ());
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    });
 }
 
 /// 업데이트 적용 재시작. single-instance 소켓을 먼저 제거해 재시작 프로세스가 즉시 종료되지 않도록 한다.
@@ -256,6 +313,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
     let initial_rx = match spawn_sidecar(&app_handle) {
         Ok((rx, child)) => {
             *app_handle.state::<SidecarChild>().0.lock().unwrap() = Some(child);
+            watch_sidecar_ready(app_handle.clone());
             Some(rx)
         }
         Err(e) => {
@@ -348,6 +406,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
             match spawn_sidecar(&app_handle) {
                 Ok((new_rx, new_child)) => {
                     *app_handle.state::<SidecarChild>().0.lock().unwrap() = Some(new_child);
+                    watch_sidecar_ready(app_handle.clone());
                     current_rx = Some(new_rx);
                     spawned_at = Instant::now();
                     eprintln!("[sidecar-restart] 재시작 성공");
@@ -437,9 +496,7 @@ pub fn run() {
             {
                 // 1. graceful shutdown: /shutdown 엔드포인트로 sidecar 자체 종료 유도 (C1)
                 {
-                    use std::io::Write;
-                    use std::time::Duration;
-                    if let Ok(mut stream) = std::net::TcpStream::connect_timeout(
+                    if let Ok(mut stream) = TcpStream::connect_timeout(
                         &"127.0.0.1:9999".parse().unwrap(),
                         Duration::from_millis(200),
                     ) {
@@ -460,4 +517,17 @@ pub fn run() {
             }
         }
     });
+}
+
+#[cfg(all(test, desktop))]
+mod sidecar_ready_tests {
+    use super::is_ready_response;
+
+    #[test]
+    fn accepts_only_http_200() {
+        assert!(is_ready_response(b"HTTP/1.1 200 OK\r\n"));
+        assert!(is_ready_response(b"HTTP/1.0 200 OK\r\n"));
+        assert!(!is_ready_response(b"HTTP/1.1 401 Unauthorized\r\n"));
+        assert!(!is_ready_response(b""));
+    }
 }
