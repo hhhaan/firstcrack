@@ -11,9 +11,10 @@ import type { FeatureKey } from './keys';
  * Personal plan: profiles RQ (`profileKeys`, same cache as `useProfile`).
  * Foreign workspace: host plan from `ownerPlanById`.
  */
-export function useEffectivePlan(featureKey?: FeatureKey): string {
+export function useEffectivePlan(featureKey?: FeatureKey, ownerId?: string | null): string {
     const authUserId = useAuthStore((s) => s.user?.id ?? '');
-    const activeOwnerId = useWorkspaceStore((s) => s.activeOwnerId);
+    const storeActiveOwnerId = useWorkspaceStore((s) => s.activeOwnerId);
+    const activeOwnerId = ownerId ?? storeActiveOwnerId;
     const ownerPlanById = useWorkspaceStore((s) => s.ownerPlanById);
     const { data: personalPlan = PERSONAL_PLAN_PLACEHOLDER } = useQuery({
         queryKey: profileKeys.detail(authUserId),

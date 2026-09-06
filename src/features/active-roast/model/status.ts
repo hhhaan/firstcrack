@@ -32,6 +32,8 @@ export interface RoastingState {
     /** Profiles page "start with this profile" → target profile handoff (consumed once). */
     pendingProfileId: string | null;
     sessionId: string | null;
+    /** Workspace owner at charge. Survives endRoast; cleared on reset with sessionId. */
+    sessionOwnerId: string | null;
     reconnecting: boolean;
     /** Last connected machine this roast; kept through disconnect until reset. */
     machineSnapshot: MachineSnapshot | null;
@@ -43,7 +45,7 @@ export interface RoastingState {
     enterPreheating: (capabilities?: string[]) => void;
     enterStandby: () => void;
     /** originMs: charge wall time (auto-charge onset). Defaults to Date.now(). */
-    startCharge: (originMs?: number) => void;
+    startCharge: (originMs?: number, ownerId?: string) => void;
     endRoast: () => void;
     tick: () => void;
     setConnected: (connected: boolean, capabilities?: string[]) => void;
@@ -70,6 +72,7 @@ const initialState = {
     pendingBeanName: null as string | null,
     pendingProfileId: null as string | null,
     sessionId: null as string | null,
+    sessionOwnerId: null as string | null,
     reconnecting: false,
     machineSnapshot: null as MachineSnapshot | null,
     isRoasting: false,
@@ -93,7 +96,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         set({ phase: 'standby' });
     },
 
-    startCharge: (originMs?: number) => {
+    startCharge: (originMs?: number, ownerId?: string) => {
         if (get().charged) return; // sessionId 재생성 방지 — 심층 방어 (#174)
         const now = Date.now();
         const origin = originMs != null && originMs > 0 && originMs <= now ? originMs : now;
@@ -102,6 +105,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             charged: true,
             isRoasting: true,
             sessionId: crypto.randomUUID(),
+            sessionOwnerId: ownerId || null,
             roastStartMs: origin,
             elapsed: Math.floor((now - origin) / 1000),
         });
