@@ -197,7 +197,7 @@
                 "fcMarking": "First Crack マーキング",
                 "fcMarkingDescription": "FC ボタン（⌘2）がファーストクラックを記録する方法です。",
                 "fcDualMark": "二重マーク（初ポップ + ローリング）",
-                "fcDualMarkDescription": "1回目: 初ポップ（FC Start）。2回目: ローリング（FC Rolling）。3回目: 両方削除。Start と Rolling それぞれの DTR を記録します。オフ時は従来どおり FC Start のみトグル。",
+                "fcDualMarkDescription": "1回目: 初ポップ（FC Start）。2回目: ローリング（FC Rolling）。削除はログから。Start と Rolling それぞれの DTR を記録します。オフ時は従来どおり FC Start のみトグル。",
                 "autoCharge": "自動 Charge 検出",
                 "autoChargeDescription": "検出ウィンドウ内で BT がこの量だけ下がると Charge がトリガーされます。",
                 "dropThreshold": "下降しきい値",

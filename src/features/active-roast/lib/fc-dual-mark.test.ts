@@ -1,6 +1,6 @@
 import type { LogEntry } from '@shared/types/roast';
 import { describe, expect, it, vi } from 'vitest';
-import { cycleFcDualEntries, getFcDualStage } from './fc-dual-mark';
+import { cycleFcDualEntries, fcDualButtonLabel, getFcDualStage } from './fc-dual-mark';
 
 const entry = (event: string, timeSec = 100): LogEntry => ({
     id: `${event}-${timeSec}`,
@@ -32,8 +32,16 @@ describe('getFcDualStage', () => {
     });
 });
 
+describe('fcDualButtonLabel', () => {
+    it('Start at stage 0, Rolling at 1 and 2', () => {
+        expect(fcDualButtonLabel(0)).toBe('FC Start');
+        expect(fcDualButtonLabel(1)).toBe('FC Rolling');
+        expect(fcDualButtonLabel(2)).toBe('FC Rolling');
+    });
+});
+
 describe('cycleFcDualEntries', () => {
-    it('cycles 0 → Start → Rolling → clear', () => {
+    it('cycles 0 → Start → Rolling; stage 2 is a no-op', () => {
         vi.spyOn(crypto, 'randomUUID')
             .mockReturnValueOnce('00000000-0000-0000-0000-00000000000a')
             .mockReturnValueOnce('00000000-0000-0000-0000-00000000000b');
@@ -56,7 +64,7 @@ describe('cycleFcDualEntries', () => {
         });
 
         const s3 = cycleFcDualEntries(s2, ctx);
-        expect(s3).toEqual([]);
+        expect(s3).toEqual(s2);
     });
 
     it('clears orphan Rolling on cycle', () => {
@@ -64,10 +72,10 @@ describe('cycleFcDualEntries', () => {
         expect(next.map((e) => e.event)).toEqual(['Yellow']);
     });
 
-    it('keeps non-FC events when clearing dual marks', () => {
+    it('does not clear Start+Rolling on a third cycle', () => {
         const prev = [entry('Yellow', 240), entry('FC Start', 480), entry('FC Rolling', 520)];
         const next = cycleFcDualEntries(prev, ctx);
-        expect(next.map((e) => e.event)).toEqual(['Yellow']);
+        expect(next.map((e) => e.event)).toEqual(['Yellow', 'FC Start', 'FC Rolling']);
     });
 
     it('sorts by time after insert', () => {

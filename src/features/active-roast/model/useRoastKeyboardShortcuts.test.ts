@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isRoastMarkShortcutEnabled, isRoastShortcutBaseEnabled } from './useRoastKeyboardShortcuts';
+import {
+    isRoastEventMarkEnabled,
+    isRoastMarkShortcutEnabled,
+    isRoastShortcutBaseEnabled,
+} from './useRoastKeyboardShortcuts';
 
 const base = {
     isActive: true,
@@ -18,6 +22,15 @@ describe('isRoastShortcutBaseEnabled', () => {
         expect(isRoastShortcutBaseEnabled({ ...base, showEndRoastModal: true })).toBe(false);
         expect(isRoastShortcutBaseEnabled({ ...base, showSummaryModal: true })).toBe(false);
         expect(isRoastShortcutBaseEnabled({ ...base, showContinueModal: true })).toBe(false);
+    });
+});
+
+describe('isRoastEventMarkEnabled', () => {
+    it('true only while roasting', () => {
+        expect(isRoastEventMarkEnabled('roasting')).toBe(true);
+        expect(isRoastEventMarkEnabled('preheating')).toBe(false);
+        expect(isRoastEventMarkEnabled('standby')).toBe(false);
+        expect(isRoastEventMarkEnabled('ended')).toBe(false);
     });
 });
 

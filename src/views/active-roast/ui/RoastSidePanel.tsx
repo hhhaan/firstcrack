@@ -1,9 +1,10 @@
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
-import { getFcDualStage } from '@features/active-roast/lib/fc-dual-mark';
+import { fcDualButtonLabel, getFcDualStage } from '@features/active-roast/lib/fc-dual-mark';
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
+import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKeyboardShortcuts';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
@@ -91,6 +92,7 @@ export const RoastSidePanel = ({
     const showRollingDtr = rollingDtrPct != null;
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
+    const canMark = isRoastEventMarkEnabled(phase);
 
     return (
         <div className="w-48 flex flex-col gap-2.5 px-3 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -288,22 +290,28 @@ export const RoastSidePanel = ({
                     variant="sidebar"
                     logEntries={logEntries}
                     pressedButtons={pressedButtons}
+                    disabled={!canMark}
                     buttons={[
                         {
                             label: 'Yellow',
                             event: 'Yellow',
                             shortcutKey: '1',
                             pressKey: 'Mark Yellow',
-                            onClick: () => onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow'),
+                            onClick: () => {
+                                if (!canMark) return;
+                                onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
+                            },
                         },
                         {
-                            label: 'FC Start',
+                            label: fcDualStage != null ? fcDualButtonLabel(fcDualStage) : 'FC Start',
                             event: 'FC Start',
                             shortcutKey: '2',
                             pressKey: 'Mark FC Start',
-                            onClick: fcDualMarkEnabled
-                                ? onCycleFc
-                                : () => onMarkEvent('FC Start', 'First crack started', 'Mark FC Start'),
+                            onClick: () => {
+                                if (!canMark) return;
+                                if (fcDualMarkEnabled) onCycleFc();
+                                else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
+                            },
                             dualStage: fcDualStage,
                         },
                         {
@@ -311,14 +319,20 @@ export const RoastSidePanel = ({
                             event: 'FC End',
                             shortcutKey: '3',
                             pressKey: 'Mark FC End',
-                            onClick: () => onMarkEvent('FC End', 'First crack ended', 'Mark FC End'),
+                            onClick: () => {
+                                if (!canMark) return;
+                                onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
+                            },
                         },
                         {
                             label: 'Mark Drop',
                             event: 'Drop',
                             shortcutKey: 'D',
                             pressKey: 'Mark Drop',
-                            onClick: onHandleDrop,
+                            onClick: () => {
+                                if (!canMark) return;
+                                onHandleDrop();
+                            },
                         },
                     ]}
                 />

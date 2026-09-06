@@ -28,6 +28,11 @@ export function isRoastShortcutBaseEnabled(p: {
     return p.isActive && !p.showEndRoastModal && !p.showSummaryModal && !p.showContinueModal;
 }
 
+/** Event-mark buttons + hotkeys: Yellow / FC / Drop only while roasting. */
+export function isRoastEventMarkEnabled(phase: string): boolean {
+    return phase === 'roasting';
+}
+
 /**
  * Event-marking hotkeys (Yellow / FC / Drop) only while roasting.
  * Standby/preheating must not create Drop etc. (disarms alerts).
@@ -39,7 +44,7 @@ export function isRoastMarkShortcutEnabled(p: {
     showContinueModal?: boolean;
     phase: string;
 }): boolean {
-    return isRoastShortcutBaseEnabled(p) && p.phase === 'roasting';
+    return isRoastShortcutBaseEnabled(p) && isRoastEventMarkEnabled(p.phase);
 }
 
 export const useRoastKeyboardShortcuts = ({
