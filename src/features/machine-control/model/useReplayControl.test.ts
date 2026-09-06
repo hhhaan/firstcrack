@@ -37,7 +37,7 @@ const BASE: Omit<ReplayControlInputs, 'writeHeater'> = {
 
 /** repo 표준 패턴 — 실제 훅을 렌더해 반환값을 노출한다 */
 const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
-    const writeHeater = vi.fn(async (_value: number) => true);
+    const writeHeater = vi.fn(async (value: number): Promise<number | null> => value);
     const root = createRoot(document.createElement('div'));
     let latest!: ReturnType<typeof useReplayControl>;
     const Probe = ({ inputs }: { inputs: Partial<ReplayControlInputs> }) => {
@@ -559,6 +559,48 @@ describe('useReplayControl', () => {
             h.unmount();
         });
 
+        it('요청 0이 applied 1로 잘리면 lastWritten은 1 — 실측 1은 이탈이 아니다 (기센 min=1)', async () => {
+            const pts: ReplayPoint[] = [
+                { t: 0, bt: 180, heater: 80 },
+                { t: 30, bt: 140, heater: 0 },
+                { t: 60, bt: 95, heater: 0 },
+                { t: 300, bt: 155, heater: 40 },
+            ];
+            const h = await renderReplay({ referencePoints: pts, heaterFeedback: 80 });
+            h.writeHeater.mockImplementation(async (v) => (v === 0 ? 1 : v));
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledWith(80);
+            h.writeHeater.mockClear();
+            await h.rerender({
+                referencePoints: pts,
+                heaterFeedback: 80,
+                elapsed: 30,
+                liveBt: 140,
+            });
+            expect(h.writeHeater).toHaveBeenCalledWith(0);
+            await h.rerender({
+                referencePoints: pts,
+                heaterFeedback: 1,
+                elapsed: 31,
+                liveBt: 138,
+            });
+            await h.rerender({
+                referencePoints: pts,
+                heaterFeedback: 1,
+                elapsed: 32,
+                liveBt: 136,
+            });
+            await h.rerender({
+                referencePoints: pts,
+                heaterFeedback: 1,
+                elapsed: 33,
+                liveBt: 134,
+            });
+            expect(h.get().active).toBe(true);
+            expect(h.get().stopReason).toBeNull();
+            h.unmount();
+        });
+
         it('새 배치가 시작되면 이탈 상태(카운터·기준·사유)가 초기화된다', async () => {
             const h = await armed();
             await h.rerender({ heaterFeedback: 50, elapsed: 10 });
@@ -622,7 +664,7 @@ describe('useReplayControl', () => {
         const h = await renderReplay();
         await act(async () => h.get().toggle());
         h.writeHeater.mockClear();
-        h.writeHeater.mockResolvedValueOnce(false);
+        h.writeHeater.mockResolvedValueOnce(null);
         await h.rerender({ liveBt: 111, elapsed: 130, afterTurningPoint: true });
         expect(h.writeHeater).toHaveBeenCalledTimes(1);
         expect(h.writeHeater).toHaveBeenCalledWith(60);
@@ -639,12 +681,12 @@ describe('useReplayControl', () => {
         const h = await renderReplay();
         await act(async () => h.get().toggle());
         h.writeHeater.mockClear();
-        let resolve!: (ok: boolean) => void;
-        h.writeHeater.mockImplementationOnce(() => new Promise<boolean>((r) => (resolve = r)));
+        let resolve!: (applied: number | null) => void;
+        h.writeHeater.mockImplementationOnce(() => new Promise<number | null>((r) => (resolve = r)));
         await h.rerender({ liveBt: 111, elapsed: 130, afterTurningPoint: true });
         await h.rerender({ liveBt: 112, elapsed: 131, afterTurningPoint: true });
         expect(h.writeHeater).toHaveBeenCalledTimes(1);
-        await act(async () => resolve(true));
+        await act(async () => resolve(60));
         expect(h.get().nextEvent?.heater).toBe(40);
         h.unmount();
     });

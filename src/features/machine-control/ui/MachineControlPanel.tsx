@@ -96,9 +96,10 @@ export const MachineControlPanel = ({
 
     // Replay 쓰기 경로 — setValue만으로는 전송되지 않는다(드래그 억제 설계), commit까지 한 쌍
     const writeHeater = useCallback(
-        (value: number) => {
+        async (value: number) => {
             setValue('heater', value);
-            return commitNow();
+            const applied = await commitNow();
+            return applied?.heater ?? null;
         },
         [setValue, commitNow],
     );

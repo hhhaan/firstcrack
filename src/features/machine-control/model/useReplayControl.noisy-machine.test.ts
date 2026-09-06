@@ -64,9 +64,10 @@ const renderRig = async () => {
         const mc = useMachineControl(true, inputs.feedback);
         const { setValue, commitNow } = mc;
         const writeHeater = useCallback(
-            (value: number) => {
+            async (value: number) => {
                 setValue('heater', value);
-                return commitNow();
+                const applied = await commitNow();
+                return applied?.heater ?? null;
             },
             [setValue, commitNow],
         );

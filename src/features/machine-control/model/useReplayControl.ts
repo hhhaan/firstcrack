@@ -41,8 +41,8 @@ export interface ReplayControlInputs {
      * 계속 흘러, 같은 샘플 하나로 "지속 이탈"을 확정할 수 있다. 카운트를 멈춘다.
      */
     reconnecting: boolean;
-    /** resolve false = /control 실패(timeout·409·502) — Replay는 그 이벤트를 소진하지 않는다 (#312) */
-    writeHeater: (value: number) => Promise<boolean>;
+    /** resolve number = 기기에 남은 세트포인트, null = /control 실패 — Replay는 실패 이벤트를 소진하지 않는다 (#312, #376) */
+    writeHeater: (value: number) => Promise<number | null>;
 }
 
 /** 재생 중지 사유 — 'finished'는 배치 종료라 UI에 표시하지 않는다 */
@@ -300,12 +300,12 @@ export const useReplayControl = ({
         const heater = result.heater;
         const gen = writeGenRef.current;
         setWriting(true);
-        void writeHeater(heater).then((ok) => {
+        void writeHeater(heater).then((applied) => {
             setWriting(false);
             if (gen !== writeGenRef.current) return;
-            if (ok) {
+            if (applied != null) {
                 setIndex(result.nextIndex);
-                setLastWritten(heater);
+                setLastWritten(applied);
                 return;
             }
             setActive(false);
