@@ -61,7 +61,7 @@ export const SetpointControl = ({
             : null;
 
     return (
-        <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+        <div className="relative z-[1] flex min-w-0 flex-1 flex-col items-center gap-1.5">
             <div className="flex h-7 flex-col items-center justify-end">
                 <span className="font-mono text-[13px] font-semibold text-primary">
                     {unsupported ? '—' : `${Math.round(current)}${unit}`}
@@ -95,7 +95,7 @@ export const SetpointControl = ({
                 />
                 {/* ponytail: inset-y-2.5는 썸 반지름(≈10px)만큼의 여백 근사. 눈금은 지표라 픽셀 정합까지는 불필요 */}
                 {ghostPct != null && (
-                    <div className="pointer-events-none absolute inset-y-2.5 left-1/2 w-3.5 -translate-x-1/2">
+                    <div className="pointer-events-none absolute inset-y-2.5 left-1/2 z-[1] w-3.5 -translate-x-1/2">
                         <span
                             className={`absolute left-0 h-0.5 w-full rounded-full transition-[bottom] duration-500 ease-out ${
                                 unacknowledged ? 'bg-red-500' : 'bg-muted'

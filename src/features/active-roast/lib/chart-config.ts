@@ -36,6 +36,12 @@ export const AXIS_MINOR_SPLIT_NUMBER = 2;
 // Defaults match controlChartHeightPct=21 (control ~21%, gap 3% under temp).
 export const CONTROL_GRID_GAP_PCT = 3;
 export const CONTROL_GRID_BOTTOM = 30;
+/** Control y-axis bands. Chart splitNumber and fader hairlines share this (#303). */
+export const CONTROL_GRID_SPLIT = 5;
+
+/** Inclusive 0–100% positions for `split` bands (5 → 0, 20, 40, 60, 80, 100). */
+export const controlGridTickPercents = (split = CONTROL_GRID_SPLIT): number[] =>
+    Array.from({ length: split + 1 }, (_, i) => (100 * i) / split);
 
 /** Map control band height % → temp/control grid tops. */
 export function getControlGridLayout(heightPct: number): {

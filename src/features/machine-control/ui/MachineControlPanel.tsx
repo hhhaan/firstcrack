@@ -1,4 +1,5 @@
 import type { PidRuntime } from '@entities/machine';
+import { controlGridTickPercents } from '@features/active-roast/lib/chart-config';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useState } from 'react';
@@ -198,7 +199,17 @@ export const MachineControlPanel = ({
             <div className={collapsed ? 'hidden' : 'flex min-h-0 flex-1 flex-col gap-3'} aria-hidden={collapsed}>
                 {sending && <span className="text-[11px] text-muted">sending…</span>}
                 {/* fader가 남는 높이를 먹는다. 창이 짧아지면 min-h까지 줄고 그 아래로는 패널이 스크롤된다 */}
-                <div className="flex min-h-24 flex-1 justify-around gap-1">
+                <div className="relative flex min-h-24 flex-1 justify-around gap-1">
+                    {/* top-11 = SetpointControl h-7 + gap-1.5 + ghost inset-y-2.5, so ticks match the track */}
+                    <div className="pointer-events-none absolute inset-x-0 top-11 bottom-11" aria-hidden>
+                        {controlGridTickPercents().map((pct) => (
+                            <span
+                                key={pct}
+                                className="absolute inset-x-0 h-px bg-(--color-chart-grid-stroke)"
+                                style={{ top: `${pct}%` }}
+                            />
+                        ))}
+                    </div>
                     {ROLE_ORDER.map((role) => {
                         const supported = limits[role] != null;
                         const lockedByPid = role === 'heater' && pidHoldsHeater;

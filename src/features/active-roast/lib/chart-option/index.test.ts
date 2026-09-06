@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CONTROL_GRID_SPLIT } from '../chart-config';
 import { buildRoastChartOption } from './index';
 import type { ChartOptionParams, ResolvedChartColors } from './types';
 
@@ -102,6 +103,27 @@ describe('buildRoastChartOption', () => {
         expect(series.some((s) => s.name === 'Drum')).toBe(true);
         expect(series.some((s) => s.name === 'Heat')).toBe(true);
         expect(series.some((s) => s.name === 'Fan')).toBe(true);
+    });
+
+    it('locks control yAxis splitNumber to CONTROL_GRID_SPLIT even for non-default range', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            controlYMin: -50,
+            controlYMax: 200,
+            controlData: {
+                xs: [0, 60],
+                drumTemp: [50, 55],
+                heatPower: [40, 45],
+                fanSpeed: [30, 35],
+            },
+        });
+        const yAxis = option.yAxis as {
+            gridIndex?: number;
+            splitNumber?: number;
+            splitLine?: { show?: boolean };
+        }[];
+        const controlLeft = yAxis.find((axis) => axis.gridIndex === 1 && axis.splitLine?.show);
+        expect(controlLeft?.splitNumber).toBe(CONTROL_GRID_SPLIT);
     });
 
     it('includes NOW markLine when charged with current time in view', () => {

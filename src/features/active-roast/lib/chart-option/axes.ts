@@ -7,6 +7,7 @@ import {
     CHART_GRID_RIGHT_WITH_ROR,
     CHART_GRID_TOP,
     CONTROL_GRID_BOTTOM,
+    CONTROL_GRID_SPLIT,
     getControlGridLayout,
     SINGLE_GRID_BOTTOM,
     TEMP_Y_INTERVAL,
@@ -224,6 +225,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             splitLine: { show: true, lineStyle: { color: colors.gridLine } },
             min: controlYMin,
             max: controlYMax,
+            splitNumber: CONTROL_GRID_SPLIT,
         },
         {
             gridIndex: 1,
