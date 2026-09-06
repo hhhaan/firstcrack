@@ -42,21 +42,6 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
         };
 
         void listen<null>('sidecar-ready', () => {
-            // #region agent log
-            fetch('http://127.0.0.1:7587/ingest/0bb0b05a-64a9-4b7c-808f-af9b5ec0a764', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c9b355' },
-                body: JSON.stringify({
-                    sessionId: 'c9b355',
-                    runId: 'post-fix',
-                    hypothesisId: 'H1,H3,H4',
-                    location: 'src/features/machine-connection/model/useMachineSidecarConnection.ts:45',
-                    message: 'Frontend received sidecar-ready',
-                    data: { isActive, modalOpen },
-                    timestamp: Date.now(),
-                }),
-            }).catch(() => {});
-            // #endregion
             void sidecar.waitUntilReady().then(markReady, () => null);
         })
             .then((fn) => {

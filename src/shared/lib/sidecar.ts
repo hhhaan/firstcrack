@@ -47,13 +47,8 @@ async function retryWhileSidecarStarts<T>(operation: () => Promise<T>, budgetMs:
 }
 
 async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
-    const requestStartedAt = Date.now();
     try {
         const token = await getSidecarToken();
-        // #region agent log
-        if (path === '/status' || path === '/connect')
-            fetch('http://127.0.0.1:7587/ingest/0bb0b05a-64a9-4b7c-808f-af9b5ec0a764',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c9b355'},body:JSON.stringify({sessionId:'c9b355',runId:'pre-fix',hypothesisId:'H1,H3,H4',location:'src/shared/lib/sidecar.ts:41',message:'Sidecar request starting',data:{path,method:init?.method??'GET',tokenPresent:Boolean(token)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         const res = await fetch(`${SIDECAR_BASE}${path}`, {
             headers: {
                 'Content-Type': 'application/json',
@@ -62,10 +57,6 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_
             ...init,
             signal: AbortSignal.timeout(timeoutMs),
         });
-        // #region agent log
-        if (path === '/status' || path === '/connect')
-            fetch('http://127.0.0.1:7587/ingest/0bb0b05a-64a9-4b7c-808f-af9b5ec0a764',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c9b355'},body:JSON.stringify({sessionId:'c9b355',runId:'pre-fix',hypothesisId:'H1,H3,H4',location:'src/shared/lib/sidecar.ts:53',message:'Sidecar response received',data:{path,method:init?.method??'GET',status:res.status,elapsedMs:Date.now()-requestStartedAt,tokenPresent:Boolean(token)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         if (!res.ok) {
             const body = await res.json().catch(() => ({}));
             const msg = (body as { error?: string }).error ?? `HTTP ${res.status}`;
@@ -74,10 +65,6 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_
         }
         return await (res.json() as Promise<T>);
     } catch (err) {
-        // #region agent log
-        if (path === '/status' || path === '/connect')
-            fetch('http://127.0.0.1:7587/ingest/0bb0b05a-64a9-4b7c-808f-af9b5ec0a764',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c9b355'},body:JSON.stringify({sessionId:'c9b355',runId:'pre-fix',hypothesisId:'H1,H4',location:'src/shared/lib/sidecar.ts:66',message:'Sidecar request failed',data:{path,method:init?.method??'GET',elapsedMs:Date.now()-requestStartedAt,errorName:err instanceof Error?err.name:typeof err,errorMessage:err instanceof Error?err.message:String(err)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         if (!(err instanceof Error && err.message.startsWith('HTTP'))) {
             logger.error(`[sidecar] ${path} 네트워크 오류:`, err);
         }

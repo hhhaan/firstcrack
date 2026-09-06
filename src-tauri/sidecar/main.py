@@ -19,15 +19,6 @@ aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
   3. roaster_registry.py 에 항목 추가
 """
 
-# region agent log
-import json
-import os
-import time
-
-with open("/Users/hanseungheon/han/first-crack-proj/fc-desktop/.cursor/debug-c9b355.log", "a", encoding="utf-8") as f:
-    f.write(json.dumps({"sessionId": "c9b355", "runId": "pre-fix", "hypothesisId": "H1,H5", "location": "src-tauri/sidecar/main.py:23", "message": "Python entry reached", "data": {"pid": os.getpid(), "ppid": os.getppid(), "declaredParentPid": os.environ.get("SIDECAR_PARENT_PID")}, "timestamp": int(time.time() * 1000)}) + "\n")
-# endregion
-
 # Sentry는 다른 앱 모듈보다 **먼저** 초기화한다 — import 중 터진 예외도 잡히게.
 # 활성 조건·release·스크러빙 정책은 모두 sentry_config에 있다.
 import sentry_config
@@ -36,7 +27,9 @@ sentry_config.init()
 
 import logging
 import math
+import os
 import sys
+import time
 from typing import Any
 
 from aiohttp import web
@@ -47,11 +40,6 @@ from manager import RoasterManager
 
 from protocol_trace import TRACE
 from roaster_registry import ROASTER_REGISTRY, PROTOCOL_FORM_FIELDS
-
-# region agent log
-with open("/Users/hanseungheon/han/first-crack-proj/fc-desktop/.cursor/debug-c9b355.log", "a", encoding="utf-8") as f:
-    f.write(json.dumps({"sessionId": "c9b355", "runId": "pre-fix", "hypothesisId": "H5", "location": "src-tauri/sidecar/main.py:47", "message": "Python imports complete", "data": {"pid": os.getpid(), "ppid": os.getppid()}, "timestamp": int(time.time() * 1000)}) + "\n")
-# endregion
 
 logging.basicConfig(
     level=os.environ.get("SIDECAR_LOG_LEVEL", "INFO").upper(),
@@ -106,10 +94,6 @@ def _exit_if_parent_dead() -> None:
         raise SystemExit(0)
     if not _pid_alive(parent_pid):
         _log.info("부모 프로세스(PID %d) 사망 — sidecar bind 취소", parent_pid)
-        # region agent log
-        with open("/Users/hanseungheon/han/first-crack-proj/fc-desktop/.cursor/debug-c9b355.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "c9b355", "runId": "post-fix", "hypothesisId": "H2", "location": "src-tauri/sidecar/main.py:_exit_if_parent_dead", "message": "Rejected dead parent before bind", "data": {"pid": os.getpid(), "ppid": os.getppid(), "declaredParentPid": parent_pid}, "timestamp": int(time.time() * 1000)}) + "\n")
-        # endregion
         raise SystemExit(0)
 
 
@@ -127,10 +111,6 @@ async def parent_watchdog(parent_pid: int, manager: RoasterManager, interval: fl
     while True:
         await asyncio.sleep(interval)
         if not _pid_alive(parent_pid):
-            # region agent log
-            with open("/Users/hanseungheon/han/first-crack-proj/fc-desktop/.cursor/debug-c9b355.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "c9b355", "runId": "pre-fix", "hypothesisId": "H2", "location": "src-tauri/sidecar/main.py:110", "message": "Watchdog found dead parent", "data": {"pid": os.getpid(), "ppid": os.getppid(), "declaredParentPid": parent_pid}, "timestamp": int(time.time() * 1000)}) + "\n")
-            # endregion
             _log.info("부모 프로세스(PID %d) 종료 감지 — sidecar 종료", parent_pid)
             await _cleanup_manager(manager)
             os._exit(0)
@@ -483,11 +463,6 @@ def _make_token_middleware(expected: str) -> Any:
         if request.method == "OPTIONS":
             return await handler(request)
         if request.headers.get(TOKEN_HEADER) != expected:
-            # region agent log
-            parent_pid = os.environ.get("SIDECAR_PARENT_PID")
-            with open("/Users/hanseungheon/han/first-crack-proj/fc-desktop/.cursor/debug-c9b355.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "c9b355", "runId": "pre-fix", "hypothesisId": "H3", "location": "src-tauri/sidecar/main.py:466", "message": "Sidecar rejected token", "data": {"pid": os.getpid(), "ppid": os.getppid(), "declaredParentPid": parent_pid, "parentAlive": _pid_alive(int(parent_pid)) if parent_pid and parent_pid.isdigit() else None, "providedPresent": bool(request.headers.get(TOKEN_HEADER)), "expectedPresent": bool(expected), "method": request.method, "path": request.path}, "timestamp": int(time.time() * 1000)}) + "\n")
-            # endregion
             _log.warning("토큰 불일치 요청 거부: %s %s", request.method, request.path)
             return web.json_response({"error": "unauthorized"}, status=401)
         return await handler(request)
@@ -556,10 +531,5 @@ def create_app() -> web.Application:
 
 if __name__ == "__main__":
     _exit_if_parent_dead()
-    # region agent log
-    _debug_parent_pid = os.environ.get("SIDECAR_PARENT_PID")
-    with open("/Users/hanseungheon/han/first-crack-proj/fc-desktop/.cursor/debug-c9b355.log", "a", encoding="utf-8") as f:
-        f.write(json.dumps({"sessionId": "c9b355", "runId": "pre-fix", "hypothesisId": "H1,H2,H5", "location": "src-tauri/sidecar/main.py:538", "message": "Sidecar about to bind", "data": {"pid": os.getpid(), "ppid": os.getppid(), "declaredParentPid": _debug_parent_pid, "parentAlive": _pid_alive(int(_debug_parent_pid)) if _debug_parent_pid and _debug_parent_pid.isdigit() else None}, "timestamp": int(time.time() * 1000)}) + "\n")
-    # endregion
     _log.info("First Crack sidecar 시작 — http://127.0.0.1:9999")
     web.run_app(create_app(), host="127.0.0.1", port=9999, print=None)

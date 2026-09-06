@@ -20,9 +20,7 @@ describe('sidecar.waitUntilReady', () => {
         let sidecarCalls = 0;
         vi.stubGlobal(
             'fetch',
-            vi.fn((input: string | URL | Request) => {
-                const url = String(input);
-                if (url.includes(':7587/ingest/')) return Promise.resolve(new Response(null, { status: 204 }));
+            vi.fn(() => {
                 sidecarCalls += 1;
                 if (sidecarCalls === 1) return Promise.reject(new TypeError('Load failed'));
                 return Promise.resolve(
