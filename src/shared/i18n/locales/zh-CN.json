@@ -649,15 +649,6 @@
             "sessionsComplete": "批次 {{done}}/{{total}} 完成。开始下一批次？",
             "allDone": "{{done}}/{{total}} 批次完成"
         },
-        "stockDeduct": {
-            "title": "扣减库存",
-            "description": "烘焙记录已保存。请选择是否扣减生豆库存。",
-            "deductionAmount": "预计扣减量：{{kg}}kg",
-            "deductStock": "扣减生豆库存",
-            "deductStockDisabled": "未关联豆子，无法扣减库存。",
-            "skip": "不扣减",
-            "confirm": "确认"
-        },
         "onboarding": {
             "next": "下一步",
             "done": "知道了",
