@@ -421,6 +421,8 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                     ),
                     sentry::Level::Error,
                 );
+                // 복구 포기 후에도 마지막 워처가 9999를 100ms마다 찌르면 App Nap을 깨운다.
+                let _ = claim_watcher_generation();
                 let _ = app_handle.emit("sidecar-dead", ());
                 break;
             }
