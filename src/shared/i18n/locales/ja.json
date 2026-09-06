@@ -567,6 +567,7 @@
             "deltaEt": "ΔET (30秒)",
             "ror": "RoR",
             "time": "時間",
+            "fcEta": "FC 予想",
             "dtr": "DTR"
         },
         "chart": {

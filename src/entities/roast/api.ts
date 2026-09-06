@@ -252,4 +252,30 @@ export const roastSessionApi = {
         if (error) throw error;
         return data ?? [];
     },
+
+    /**
+     * Recent completed sessions for FC-target median (events jsonb only).
+     * Bean wins over profile when both are set.
+     */
+    listRecentEvents: async (params: {
+        userId: string;
+        beanId: string | null;
+        profileId: string | null;
+        limit?: number;
+    }): Promise<Array<{ events: unknown }>> => {
+        const { userId, beanId, profileId, limit = 5 } = params;
+        if (!beanId && !profileId) return [];
+        let query = supabase
+            .from('roast_sessions')
+            .select('events')
+            .eq('user_id', userId)
+            .eq('status', 'completed')
+            .order('roasted_at', { ascending: false, nullsFirst: false })
+            .limit(limit);
+        if (beanId) query = query.eq('bean_id', beanId);
+        else if (profileId) query = query.eq('profile_id', profileId);
+        const { data, error } = await query;
+        if (error) throw error;
+        return data ?? [];
+    },
 };

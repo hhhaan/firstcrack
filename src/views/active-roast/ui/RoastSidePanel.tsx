@@ -7,6 +7,7 @@ import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
 import { EventButtons } from './EventButtons';
 import { RoastAlertBanner } from './RoastAlertBanner';
@@ -22,6 +23,8 @@ interface RoastSidePanelProps {
     rawET: number | null;
     displayRoR: string;
     timeStr: string;
+    /** Smoothed FC ETA clock ("m:ss"); hidden when null. */
+    fcEta: string | null;
     unit: TemperatureUnit;
     /** machine lifecycle phase (preheating/standby/roasting/ended) — control buttons */
     phase: string;
@@ -59,6 +62,7 @@ export const RoastSidePanel = ({
     rawET,
     displayRoR,
     timeStr,
+    fcEta,
     unit,
     phase,
     roastPhaseName,
@@ -88,6 +92,7 @@ export const RoastSidePanel = ({
     onManualCharge,
     onEndRoast,
 }: RoastSidePanelProps) => {
+    const { t } = useTranslation();
     const showRollingDtr = rollingDtrPct != null;
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
@@ -176,6 +181,12 @@ export const RoastSidePanel = ({
                     {timeStr}
                 </div>
             </div>
+            {fcEta != null && (
+                <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted font-semibold uppercase">{t('activeRoast.sidebar.fcEta')}</span>
+                    <span className="font-mono text-xl font-medium leading-tight">{fcEta}</span>
+                </div>
+            )}
             {/* Phase */}
             <div className="flex items-center justify-between border-t border-border-subtle pt-3">
                 <span className="text-xs text-muted font-semibold uppercase">Phase</span>

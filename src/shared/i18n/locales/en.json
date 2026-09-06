@@ -567,6 +567,7 @@
             "deltaEt": "ΔET (30s)",
             "ror": "RoR",
             "time": "Time",
+            "fcEta": "FC ETA",
             "dtr": "DTR"
         },
         "chart": {

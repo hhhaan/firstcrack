@@ -825,6 +825,7 @@
             "ror": "RoR",
             "deltaBt": "ΔBT (30초)",
             "deltaEt": "ΔET (30초)",
+            "fcEta": "FC 예상",
             "dtr": "DTR"
         },
         "phase": {

@@ -13,6 +13,8 @@ export const roastSessionKeys = {
     completedCount: (userId: string) => [...roastSessionRoot(userId), 'completed_count'] as const,
     completedMonthCount: (userId: string) => [...roastSessionRoot(userId), 'completed_month_count'] as const,
     filterMeta: (userId: string) => [...roastSessionRoot(userId), 'filter_meta'] as const,
+    recentFc: (userId: string, beanId: string | null, profileId: string | null) =>
+        [...roastSessionRoot(userId), 'recent_fc', beanId ?? '', profileId ?? ''] as const,
 };
 
 type PaginatedSessions = { data: RoastSessionWithRelations[]; total: number };
@@ -139,6 +141,15 @@ export const useRoastSession = (userId: string, id: string) =>
         queryKey: roastSessionKeys.detail(userId, id),
         queryFn: () => roastSessionApi.get(id),
         enabled: !!userId && !!id,
+    });
+
+/** Last N completed-session events for same bean (else same profile) — FC-target median. */
+export const useRecentFcEvents = (userId: string, beanId: string | null, profileId: string | null) =>
+    useQuery({
+        queryKey: roastSessionKeys.recentFc(userId, beanId, profileId),
+        queryFn: () => roastSessionApi.listRecentEvents({ userId, beanId, profileId }),
+        staleTime: Infinity,
+        enabled: !!userId && (!!beanId || !!profileId),
     });
 
 const is4xx = (error: unknown) => {

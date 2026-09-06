@@ -16,6 +16,7 @@ import { applyEventMarkerDrag } from '@features/active-roast/lib/event-marker-dr
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
+import { useFcPrediction } from '@features/active-roast/model/useFcPrediction';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
@@ -202,6 +203,20 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     const fcDualMarkEnabled = roastSettings.fcDualMarkEnabled;
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
+    const { fcEta } = useFcPrediction({
+        userId: workspaceOwnerId,
+        beanId: selectedBeanId,
+        profileId: targetProfileId,
+        referenceEvents: resolveSourceSession(targetProfile?.source_session)?.events,
+        elapsedS: elapsed,
+        bt: rawBT,
+        rorPerMin: liveData?.ror ?? null,
+        hasYellow: logEntries.some((e) => e.event === 'Yellow'),
+        hasFcStart: fcStartEntry != null,
+        hasDrop: logEntries.some((e) => e.event === 'Drop'),
+        charged,
+        roastEnded,
+    });
     // 고아 Rolling(FC Start 삭제됨)은 기준점이 없어 지표를 내지 않는다
     const fcRollingEntry = fcStartEntry ? logEntries.find((e) => e.event === 'FC Rolling') : undefined;
     const { devTimeStr, devTimeOnly, dtrPct } = useMemo(
@@ -617,6 +632,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         rawET={rawET}
                         displayRoR={displayRoR}
                         timeStr={timeStr}
+                        fcEta={fcEta}
                         unit={unit}
                         phase={phase}
                         roastPhaseName={roastPhaseName}
