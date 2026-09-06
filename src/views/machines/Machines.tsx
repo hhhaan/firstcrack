@@ -34,6 +34,7 @@ export const Machines = ({
         temps,
         setTemps,
         connecting,
+        sidecarReady,
         handleConnect: connectMachine,
         handleDisconnect,
     } = useMachineSidecarConnection({
@@ -308,10 +309,18 @@ export const Machines = ({
                                         <button
                                             type="button"
                                             onClick={() => handleConnect(selected)}
-                                            disabled={connecting}
-                                            className={`flex-1 py-3 rounded-lg border-none bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium flex items-center justify-center gap-2 ${connecting ? 'opacity-70 cursor-default' : 'cursor-pointer'}`}
+                                            disabled={connecting || !sidecarReady}
+                                            className={`flex-1 py-3 rounded-lg border-none bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium flex items-center justify-center gap-2 ${
+                                                connecting || !sidecarReady
+                                                    ? 'opacity-70 cursor-default'
+                                                    : 'cursor-pointer'
+                                            }`}
                                         >
-                                            {connecting ? (
+                                            {!sidecarReady ? (
+                                                <>
+                                                    <Activity size={15} /> {t('machines.sidecarStarting')}
+                                                </>
+                                            ) : connecting ? (
                                                 <>
                                                     <Activity size={15} /> {t('common.connecting')}
                                                 </>

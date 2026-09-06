@@ -357,6 +357,7 @@
         "connection": "接続",
         "disconnect": "切断",
         "connect": "接続",
+        "sidecarStarting": "サイドカーを起動中...",
         "startRoasting": "ローストを開始",
         "selectMachine": "マシンを選択してください",
         "limit": {

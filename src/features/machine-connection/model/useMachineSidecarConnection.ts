@@ -5,6 +5,7 @@ import { isOpaqueNetworkError } from '@shared/lib/errorMessage';
 import { logger } from '@shared/lib/logger';
 import { sendOsNotification } from '@shared/lib/osNotification';
 import { sidecar } from '@shared/lib/sidecar';
+import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useState } from 'react';
 
 const POLL_INTERVAL_MS = 3000;
@@ -25,15 +26,54 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
     const [sidecarStatus, setSidecarStatus] = useState<SidecarStatus | null>(null);
     const [temps, setTemps] = useState<TemperatureReading | null>(null);
     const [connecting, setConnecting] = useState(false);
+    const [sidecarReady, setSidecarReady] = useState(false);
 
+    // Rust는 인증된 200 응답 뒤에만 sidecar-ready를 쏜다. 마운트가 그 이벤트보다 늦으면
+    // waitUntilReady 폴백이 첫 정상 상태를 대신 확인한다 (양쪽 모두 markReady로 수렴).
     useEffect(() => {
         if (!isActive) return;
+        let cancelled = false;
+        let unlisten: (() => void) | undefined;
+
+        const markReady = (status?: SidecarStatus) => {
+            if (cancelled) return;
+            if (status) setSidecarStatus(status);
+            setSidecarReady(true);
+        };
+
+        void listen<null>('sidecar-ready', () => {
+            // #region agent log
+            fetch('http://127.0.0.1:7587/ingest/0bb0b05a-64a9-4b7c-808f-af9b5ec0a764', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'c9b355' },
+                body: JSON.stringify({
+                    sessionId: 'c9b355',
+                    runId: 'post-fix',
+                    hypothesisId: 'H1,H3,H4',
+                    location: 'src/features/machine-connection/model/useMachineSidecarConnection.ts:45',
+                    message: 'Frontend received sidecar-ready',
+                    data: { isActive, modalOpen },
+                    timestamp: Date.now(),
+                }),
+            }).catch(() => {});
+            // #endregion
+            void sidecar.getStatus().then(markReady, () => null);
+        })
+            .then((fn) => {
+                // 이미 정리된 이펙트면 즉시 해제 — listen resolve가 cleanup보다 늦으면 리스너가 샌다
+                if (cancelled) fn();
+                else unlisten = fn;
+            })
+            .catch(() => null);
+
         if (!modalOpen) {
-            sidecar
-                .getStatus()
-                .then(setSidecarStatus)
-                .catch(() => null);
+            void sidecar.waitUntilReady().then(markReady, () => null);
         }
+
+        return () => {
+            cancelled = true;
+            unlisten?.();
+        };
     }, [isActive, modalOpen]);
 
     useEffect(() => {
@@ -146,6 +186,7 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
         temps,
         setTemps,
         connecting,
+        sidecarReady,
         handleConnect,
         handleDisconnect,
     };

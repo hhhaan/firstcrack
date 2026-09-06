@@ -23,4 +23,12 @@ describe('useMachineSidecarConnection', () => {
         expect(hookSrc).toMatch(/isOpaqueNetworkError/);
         expect(hookSrc).toMatch(/logger\.capture/);
     });
+
+    it('waits for authenticated sidecar readiness', () => {
+        expect(hookSrc).toContain("listen<null>('sidecar-ready'");
+        expect(hookSrc).toContain('sidecar.waitUntilReady()');
+        expect(hookSrc).toContain('sidecarReady');
+        expect(machinesSrc).toMatch(/disabled=\{connecting \|\| !sidecarReady\}/);
+        expect(machinesSrc).toContain("t('machines.sidecarStarting')");
+    });
 });
