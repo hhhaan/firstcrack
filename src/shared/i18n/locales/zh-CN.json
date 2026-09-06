@@ -515,7 +515,8 @@
             "liveRoastInProgress": "实时 — 烘焙进行中",
             "machineConnected": "设备已连接 · 可以开始烘焙",
             "settings": "烘焙设置",
-            "openSettings": "打开烘焙设置"
+            "openSettings": "打开烘焙设置",
+            "reconnecting": "正在重新连接 — 曲线已暂停。请勿刷新窗口"
         },
         "readings": {
             "beanTemp": "豆温",

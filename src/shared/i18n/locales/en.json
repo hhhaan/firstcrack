@@ -515,7 +515,8 @@
             "liveRoastInProgress": "Live — Roast in Progress",
             "machineConnected": "Machine connected · Ready to roast",
             "settings": "Roast settings",
-            "openSettings": "Open roast settings"
+            "openSettings": "Open roast settings",
+            "reconnecting": "Reconnecting — curve paused. Do not reload the window"
         },
         "readings": {
             "beanTemp": "Bean Temp",

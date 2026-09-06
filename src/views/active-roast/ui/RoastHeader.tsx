@@ -7,6 +7,7 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
 import { ChevronDown, Settings2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
@@ -81,9 +82,11 @@ export const RoastHeader = ({
     onOpenRoastSettings?: () => void;
 }) => {
     // ─── Store state ─────────────────────────────────────────────────────────
+    const { t } = useTranslation();
     const charged = useRoastingStore((s) => s.charged);
     const sidecarConnected = useRoastingStore((s) => s.sidecarConnected);
     const sidecarError = useRoastingStore((s) => s.sidecarError);
+    const reconnecting = useRoastingStore((s) => s.reconnecting);
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
     const { data: beans = [] } = useBeans(workspaceOwnerId);
@@ -140,6 +143,11 @@ export const RoastHeader = ({
     return (
         <div className="flex items-end justify-between">
             <div>
+                {reconnecting && (
+                    <p role="status" aria-live="assertive" className="text-xs text-amber-400 mb-1.5 max-w-xs">
+                        {t('activeRoast.header.reconnecting')}
+                    </p>
+                )}
                 {!sidecarConnected && sidecarError && (
                     <p className="text-xs text-red-400 mb-1.5 max-w-xs">{sidecarError}</p>
                 )}
