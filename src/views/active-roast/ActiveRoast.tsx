@@ -6,6 +6,7 @@ import {
     computePhaseSegments,
     formatTemp,
     toDisplayRoR,
+    useBbpTimer,
     useEffectivePollIntervalMs,
     useRoastActions,
     useRoastKeyboardShortcuts,
@@ -21,6 +22,7 @@ import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel } from '@features/machine-control';
 import { useWeather } from '@shared/api/weather';
+import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
@@ -48,8 +50,6 @@ import { useRoastProfileSelection } from './model/useRoastProfileSelection';
 import { useRoastSaveFlow } from './model/useRoastSaveFlow';
 import { useSidecarPolling } from './model/useSidecarPolling';
 import { EndRoastModal } from './ui/EndRoastModal';
-import { LiveReadings } from './ui/LiveReadings';
-import { MachineControls } from './ui/MachineControls';
 import { PlanBatchContinueModal } from './ui/PlanBatchContinueModal';
 import { RoastChartContainer } from './ui/RoastChartContainer';
 import { RoastHeader } from './ui/RoastHeader';
@@ -67,6 +67,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const roastSettings = useRoastSettings();
     const pollIntervalMs = useEffectivePollIntervalMs();
     const unit = roastSettings.temperatureUnit;
+    const bbpEnabled = useFeature(FEATURE.bbp);
+    const bbpElapsed = useBbpTimer();
+    const bbpTimer = bbpEnabled ? bbpElapsed : null;
 
     // ── 스토어 구독 ───────────────────────────────────────────────
     const {
@@ -78,7 +81,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         sessionId,
         sidecarConnected,
         reconnecting,
-        machineCapabilities,
         machineSnapshot,
     } = useRoastingStore(
         useShallow((s) => ({
@@ -90,7 +92,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             sessionId: s.sessionId,
             sidecarConnected: s.sidecarConnected,
             reconnecting: s.reconnecting,
-            machineCapabilities: s.machineCapabilities,
             machineSnapshot: s.machineSnapshot,
         })),
     );
@@ -504,25 +505,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 onOpenRoastSettings={onOpenRoastSettings}
             />
 
-            {isFullscreen && (
-                <LiveReadings
-                    rawBT={rawBT}
-                    rawET={rawET}
-                    displayRoR={displayRoR}
-                    unit={unit}
-                    phase={roastPhaseName}
-                    phaseColor={roastPhaseColor}
-                    connected={sidecarConnected}
-                />
-            )}
-            {isFullscreen && (
-                <MachineControls
-                    machineCapabilities={machineCapabilities}
-                    sidecarConnected={sidecarConnected}
-                    liveData={liveData}
-                />
-            )}
-
             <div
                 className={`bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
                     isFullscreen
@@ -645,6 +627,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onEnterStandby={lifecycle.handleEnterStandby}
                         onManualCharge={lifecycle.handleManualCharge}
                         onEndRoast={handleEndRoastClick}
+                        bbpTimer={bbpTimer}
+                        liveData={liveData}
                     />
                 </div>
             </div>

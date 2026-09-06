@@ -825,7 +825,8 @@
             "ror": "RoR",
             "deltaBt": "ΔBT (30초)",
             "deltaEt": "ΔET (30초)",
-            "dtr": "DTR"
+            "dtr": "DTR",
+            "bbp": "BBP"
         },
         "phase": {
             "idle": "대기",
