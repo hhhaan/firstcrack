@@ -22,6 +22,7 @@ import {
     buildReorderIds,
     type CompleteBatchFlowDeps,
     nextOneOffOrderIndex,
+    recurringOriginalDate,
     runCompleteBatchFlow,
 } from '../lib/plan-day-flow';
 import type { EditScope, NewBatchData } from '../lib/types';
@@ -156,7 +157,7 @@ export const usePlanDayWrites = ({
                 bean_id: data.beanId,
                 blend_id: data.blendId ?? null,
                 batch_type: data.batchType,
-                roast_profile_id: data.profileId,
+                roast_profile_id: data.profileId || null,
                 machine_id: data.machineId || null,
                 target_roasted_kg: data.targetRoasted,
                 batch_size_kg: data.batchSize,
@@ -204,7 +205,7 @@ export const usePlanDayWrites = ({
                     plan_id: targetPlanId,
                     machine_id: data.machineId || null,
                     batch_type: data.batchType,
-                    roast_profile_id: data.profileId,
+                    roast_profile_id: data.profileId || null,
                     bean_id: isBlendType ? null : data.beanId,
                     blend_id: isBlendType ? data.blendId : null,
                     bean_name: data.beanName || editing.bean_name,
@@ -238,7 +239,7 @@ export const usePlanDayWrites = ({
                 bean_id: data.beanId,
                 blend_id: data.blendId ?? null,
                 batch_type: data.batchType,
-                roast_profile_id: data.profileId,
+                roast_profile_id: data.profileId || null,
                 machine_id: data.machineId,
                 target_roasted_kg: data.targetRoasted,
                 batch_size_kg: data.batchSize,
@@ -248,32 +249,37 @@ export const usePlanDayWrites = ({
             };
 
             if (scope === 'single') {
-                let targetPlanId = editing.plan_id;
-                if (!targetPlanId) {
-                    const plan = await dayPlanApi.getOrCreate(userId, editing.scheduled_date ?? dateKey);
-                    targetPlanId = plan.id;
-                }
+                const scheduleDate = format(data.date, 'yyyy-MM-dd');
+                const plan = await dayPlanApi.getOrCreate(userId, scheduleDate);
                 const isVirtual = editing.id.includes(':');
                 await updateSingleBatch.mutateAsync({
                     id: editing.id,
-                    patch: { ...basePatch, plan_id: targetPlanId ?? '' },
+                    patch: { ...basePatch, plan_id: plan.id, scheduled_date: scheduleDate },
                     // Virtual only: materialize via exception insert. Real exception → UPDATE.
                     ...(isVirtual
                         ? {
                               meta: {
                                   recurrenceRuleId: editing.recurrence_rule_id,
-                                  originalDate: editing.original_date ?? editing.scheduled_date ?? dateKey,
+                                  originalDate: recurringOriginalDate(editing, dateKey),
                               },
                           }
                         : {}),
                 });
+                const oldDate = editing.scheduled_date ?? dateKey;
+                if (scheduleDate !== oldDate || scheduleDate !== dateKey) {
+                    void qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, dateKey) });
+                    void qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, scheduleDate) });
+                    if (oldDate !== dateKey && oldDate !== scheduleDate) {
+                        void qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, oldDate) });
+                    }
+                }
                 return;
             }
 
             const instanceDate = editing.scheduled_date ?? dateKey;
             const masterPatch = {
                 machine_id: data.machineId || null,
-                roast_profile_id: data.profileId,
+                roast_profile_id: data.profileId || null,
                 bean_id: data.beanId,
                 blend_id: data.blendId ?? null,
                 bean_name: data.beanName || editing.bean_name,
@@ -296,7 +302,7 @@ export const usePlanDayWrites = ({
                 await updateAllBatches.mutateAsync({ ruleId: editing.recurrence_rule_id, patch: masterPatch });
             }
         },
-        [updateSingleBatch, updateFromThis, updateAllBatches, dateKey, userId],
+        [updateSingleBatch, updateFromThis, updateAllBatches, dateKey, userId, qc],
     );
 
     /** One-off delete. Caller confirms first. */
@@ -319,7 +325,7 @@ export const usePlanDayWrites = ({
                     id: batch.id,
                     meta: {
                         recurrenceRuleId: batch.recurrence_rule_id,
-                        originalDate: batch.scheduled_date ?? dateKey,
+                        originalDate: recurringOriginalDate(batch, dateKey),
                         planId: targetPlanId ?? '',
                     },
                 });

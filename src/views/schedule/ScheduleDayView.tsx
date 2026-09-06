@@ -1,3 +1,4 @@
+import { buildReorderIds } from '@features/schedule';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { AddBatchModal } from '@widgets/add-batch-modal';
@@ -102,6 +103,8 @@ export const ScheduleDayView = ({
                                 batch={batch}
                                 index={index}
                                 total={hooks.batches.length}
+                                canMoveUp={buildReorderIds(hooks.batches, index, 'up') !== null}
+                                canMoveDown={buildReorderIds(hooks.batches, index, 'down') !== null}
                                 stockShort={hooks.isRecurringStockShort(batch)}
                                 stockShortDetail={hooks.recurringStockShortDetail(batch)}
                                 onMove={(dir) => hooks.handleMove(index, dir)}

@@ -30,6 +30,8 @@ export const BatchCard = ({
     batch,
     index,
     total,
+    canMoveUp,
+    canMoveDown,
     onMove,
     onDelete,
     onStart,
@@ -42,6 +44,9 @@ export const BatchCard = ({
     batch: PlanBatchWithProgress;
     index: number;
     total: number;
+    /** When omitted, falls back to first/last index. Pass false when the swap target is a recurring row. */
+    canMoveUp?: boolean;
+    canMoveDown?: boolean;
     onMove: (dir: 'up' | 'down') => void;
     onDelete: () => void;
     onStart: () => void;
@@ -173,7 +178,10 @@ export const BatchCard = ({
                         key={dir}
                         type="button"
                         onClick={() => onMove(dir)}
-                        disabled={!canReorder || (dir === 'up' ? index === 0 : index === total - 1)}
+                        disabled={
+                            !canReorder ||
+                            (dir === 'up' ? !(canMoveUp ?? index > 0) : !(canMoveDown ?? index < total - 1))
+                        }
                         title={reorderTitle}
                         className="w-6 h-6 rounded-md flex items-center justify-center border-none bg-surface dark:bg-surface-elevated text-muted cursor-pointer hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     >

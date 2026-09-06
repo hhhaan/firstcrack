@@ -2,6 +2,7 @@ import { beanStockEventApi } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
 import { planBatchApi, planKeys, useDayBatches } from '@entities/plan';
 import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
+import { resolveLinkedScheduleBatch } from '@features/active-roast/lib/resolveLinkedScheduleBatch';
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { pgErrorCode } from '@features/active-roast/lib/saveErrorClassification';
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
@@ -124,7 +125,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     if (!row || row.completed_sessions >= row.batch_count) {
                         throw new Error(i18n.t('activeRoast.summary.batchUnavailable'));
                     }
-                    linkedBatch = toPlanBatchHandoff(row);
+                    linkedBatch = await resolveLinkedScheduleBatch(row, workspaceOwnerId, planBatchApi.materialize);
                 }
 
                 // F3 UX: warn if schedule already deducted this batch; server also skips (C2).

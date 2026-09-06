@@ -75,6 +75,14 @@ export function buildReorderIds(batches: PlanBatchWithProgress[], index: number,
     return next.filter((b) => !b.recurrence_rule_id).map((b) => b.id);
 }
 
+/** RRULE instance key for exception rows — original_date, not the (possibly moved) scheduled_date. */
+export function recurringOriginalDate(
+    batch: Pick<PlanBatchWithProgress, 'original_date' | 'scheduled_date'>,
+    fallback: string,
+): string {
+    return batch.original_date ?? batch.scheduled_date ?? fallback;
+}
+
 /** Next one-off order_index: 1-based (0 pinned for recurring), collision-free after deletes. */
 export function nextOneOffOrderIndex(batches: PlanBatchWithProgress[]): number {
     const oneOffs = batches.filter((b) => !b.recurrence_rule_id);

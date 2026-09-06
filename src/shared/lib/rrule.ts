@@ -170,11 +170,20 @@ export function mergeRecurrenceExceptions(
             continue;
         }
 
+        if (ex?.exception_type === 'modified') {
+            result.push({
+                date: ex.scheduled_date,
+                originalDate: dateStr,
+                exceptionType: 'modified',
+                exception: ex,
+            });
+            continue;
+        }
+
         result.push({
             date: dateStr,
             originalDate: dateStr,
-            exceptionType: ex?.exception_type === 'modified' ? 'modified' : 'normal',
-            exception: ex?.exception_type === 'modified' ? ex : undefined,
+            exceptionType: 'normal',
         });
     }
 

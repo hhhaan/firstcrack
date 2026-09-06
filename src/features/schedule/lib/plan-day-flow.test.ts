@@ -4,6 +4,7 @@ import {
     buildReorderIds,
     type CompleteBatchFlowDeps,
     nextOneOffOrderIndex,
+    recurringOriginalDate,
     runCompleteBatchFlow,
 } from './plan-day-flow';
 
@@ -120,6 +121,18 @@ describe('buildReorderIds', () => {
     it('경계(첫 up / 마지막 down) → null', () => {
         expect(buildReorderIds([oneOffA, oneOffB], 0, 'up')).toBeNull();
         expect(buildReorderIds([oneOffA, oneOffB], 1, 'down')).toBeNull();
+    });
+});
+
+describe('recurringOriginalDate', () => {
+    it('prefers original_date so a moved instance still keys the exception row', () => {
+        expect(recurringOriginalDate({ original_date: '2026-07-06', scheduled_date: '2026-07-08' }, '2026-07-10')).toBe(
+            '2026-07-06',
+        );
+        expect(recurringOriginalDate({ original_date: null, scheduled_date: '2026-07-08' }, '2026-07-10')).toBe(
+            '2026-07-08',
+        );
+        expect(recurringOriginalDate({ original_date: null, scheduled_date: null }, '2026-07-10')).toBe('2026-07-10');
     });
 });
 

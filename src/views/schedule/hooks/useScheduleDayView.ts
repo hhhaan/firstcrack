@@ -9,7 +9,7 @@ import { logger } from '@shared/lib/logger';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { format } from 'date-fns';
 import { useCallback, useMemo, useState } from 'react';
-import { batchStatus, toDateKey, unknownErrorMessage } from '../lib';
+import { isOverdueBatch, toDateKey, unknownErrorMessage } from '../lib';
 
 /** Live/unsaved roast blocks schedule Start. Machine connected (preheating/standby) does not. */
 export function isRoastBlockingScheduleStart(phase: RoastPhase): boolean {
@@ -32,6 +32,7 @@ export const useScheduleDayView = ({
     onStartBatch: (handoff: PlanBatchHandoff) => void;
 }) => {
     const dateKey = toDateKey(selectedDate);
+    const todayKey = toDateKey(new Date());
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [editingBatch, setEditingBatch] = useState<PlanBatchWithProgress | null>(null);
     const [editScope, setEditScope] = useState<EditScope | null>(null);
@@ -50,17 +51,7 @@ export const useScheduleDayView = ({
 
     const { data: rangeData = [], isLoading: isBatchesLoading } = useDayBatches(userId, dateKey, 14);
     const batches = useMemo(() => rangeData.filter((b) => b.scheduled_date === dateKey), [rangeData, dateKey]);
-    const overdueBatches = useMemo(
-        () =>
-            rangeData.filter(
-                (b) =>
-                    b.scheduled_date &&
-                    b.scheduled_date < dateKey &&
-                    batchStatus(b) !== 'done' &&
-                    batchStatus(b) !== 'skipped',
-            ),
-        [rangeData, dateKey],
-    );
+    const overdueBatches = useMemo(() => rangeData.filter((b) => isOverdueBatch(b, todayKey)), [rangeData, todayKey]);
     const { data: stockSummaries = {} } = useBeanStockSummaries(userId);
     const isLoading = isDayPlanLoading || isBatchesLoading;
 

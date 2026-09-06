@@ -28,13 +28,16 @@ export async function listForDateRange(
     const planIdToDate = new Map((plans ?? []).map((p) => [p.id, p.date]));
     const planIds = (plans ?? []).map((p) => p.id);
 
-    // 3. Get exception rows for recurrence rules in the date range
+    // 3. Exception rows whose scheduled_date OR original_date falls in range.
+    // original_date is required so a moved instance still suppresses the virtual
+    // occurrence on the original day (otherwise A and B both show the batch).
     const { data: exceptions, error: exceptionsError } = await supabase
         .from('roast_plan_batches')
         .select('*')
         .not('recurrence_rule_id', 'is', null)
-        .gte('scheduled_date', startDate)
-        .lte('scheduled_date', endDate);
+        .or(
+            `and(scheduled_date.gte.${startDate},scheduled_date.lte.${endDate}),and(original_date.gte.${startDate},original_date.lte.${endDate})`,
+        );
     if (exceptionsError) throw exceptionsError;
 
     // 4. Get one-off batches (no recurrence_rule_id)
@@ -122,14 +125,20 @@ export async function listForDateRange(
 
             if (instance.exceptionType === 'modified' && instance.exception) {
                 // Use exception data
-                const exBatch = exceptions?.find((e) => e.original_date === instance.originalDate);
+                const exBatch = exceptions?.find(
+                    (e) => e.recurrence_rule_id === rule.id && e.original_date === instance.originalDate,
+                );
                 if (exBatch) {
-                    result.push({
-                        ...exBatch,
-                        // Exception rows may not store rrule; use master rule
-                        rrule: exBatch.rrule ?? rule.rrule,
-                        completed_sessions: sessionCountMap.get(exBatch.id) ?? 0,
-                    });
+                    const movedDate = exBatch.scheduled_date;
+                    // Original day is suppressed even when the new date is outside this range.
+                    if (movedDate && movedDate >= startDate && movedDate <= endDate) {
+                        result.push({
+                            ...exBatch,
+                            // Exception rows may not store rrule; use master rule
+                            rrule: exBatch.rrule ?? rule.rrule,
+                            completed_sessions: sessionCountMap.get(exBatch.id) ?? 0,
+                        });
+                    }
                 }
             } else if (instance.exceptionType === 'normal') {
                 const planId = dateToPlanId.get(instance.date) ?? '';

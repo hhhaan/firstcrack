@@ -61,7 +61,9 @@ export const planBatchApi = {
         meta?: { recurrenceRuleId?: string; originalDate?: string },
     ): Promise<PlanBatch> => {
         if (meta?.recurrenceRuleId && meta?.originalDate) {
-            // Recurring batch → insert exception row (modified)
+            // Recurring batch → insert exception row (modified).
+            // (rule, original_date) is unique — on 23505 converge by UPDATE
+            // (same pattern as materializePlanBatch / deleteSingle).
             const { data, error } = await supabase
                 .from('roast_plan_batches')
                 .insert({
@@ -86,8 +88,25 @@ export const planBatchApi = {
                 })
                 .select()
                 .single();
-            if (error) throw error;
-            return data;
+            if (!error) return data;
+            if (error.code !== '23505') throw error;
+
+            const definedPatch = Object.fromEntries(
+                Object.entries(patch).filter(([k, v]) => k !== 'id' && v !== undefined),
+            );
+            const { data: existing, error: updateError } = await supabase
+                .from('roast_plan_batches')
+                .update({
+                    ...definedPatch,
+                    scheduled_date: patch.scheduled_date ?? meta.originalDate,
+                    exception_type: 'modified',
+                })
+                .eq('recurrence_rule_id', meta.recurrenceRuleId)
+                .eq('original_date', meta.originalDate)
+                .select()
+                .single();
+            if (updateError) throw updateError;
+            return existing;
         }
 
         // One-off batch → update directly

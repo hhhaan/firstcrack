@@ -1,6 +1,6 @@
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { describe, expect, it } from 'vitest';
-import { batchStatus, getRecurrenceLabel, toDateKey, unknownErrorMessage } from './lib';
+import { batchStatus, getRecurrenceLabel, isOverdueBatch, toDateKey, unknownErrorMessage } from './lib';
 
 const batch = (partial: Partial<PlanBatchWithProgress>): PlanBatchWithProgress =>
     ({
@@ -29,6 +29,15 @@ describe('batchStatus', () => {
 
     it('pending when no sessions', () => {
         expect(batchStatus(batch({ completed_sessions: 0, batch_count: 2, status: 'pending' }))).toBe('pending');
+    });
+});
+
+describe('isOverdueBatch', () => {
+    it('compares against today, not the selected view date', () => {
+        const pending = batch({ scheduled_date: '2026-09-07', status: 'pending' });
+        expect(isOverdueBatch(pending, '2026-09-07')).toBe(false);
+        expect(isOverdueBatch(pending, '2026-09-08')).toBe(true);
+        expect(isOverdueBatch(batch({ ...pending, status: 'done' }), '2026-09-08')).toBe(false);
     });
 });
 

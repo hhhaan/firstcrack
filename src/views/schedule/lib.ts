@@ -14,6 +14,12 @@ export const batchStatus = (b: PlanBatchWithProgress): BatchStatus => {
     return 'pending';
 };
 
+/** Pending/in-progress batches scheduled before today (not the selected view date). */
+export const isOverdueBatch = (b: PlanBatchWithProgress, todayKey: string): boolean => {
+    const status = batchStatus(b);
+    return !!b.scheduled_date && b.scheduled_date < todayKey && status !== 'done' && status !== 'skipped';
+};
+
 export const getRecurrenceLabel = (rrule: string | null): string => {
     if (!rrule) return '';
     const match = rrule.match(/FREQ=([A-Z]+)/);

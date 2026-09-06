@@ -124,4 +124,19 @@ describe('mergeRecurrenceExceptions', () => {
         expect(moved?.exceptionType).toBe('modified');
         expect(moved?.exception?.bean_name).toBe('Moved');
     });
+
+    it('in-range modified uses scheduled_date so the original day is not kept', () => {
+        const instances = mergeRecurrenceExceptions(
+            [new Date(2026, 6, 6), new Date(2026, 6, 13)],
+            [
+                {
+                    original_date: '2026-07-06',
+                    scheduled_date: '2026-07-08',
+                    exception_type: 'modified',
+                },
+            ],
+        );
+        expect(instances.find((i) => i.originalDate === '2026-07-06')?.date).toBe('2026-07-08');
+        expect(instances.map((i) => i.date)).toEqual(['2026-07-08', '2026-07-13']);
+    });
 });
