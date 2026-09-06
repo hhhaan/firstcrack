@@ -16,6 +16,7 @@ async function openExternal(url: string, context: string) {
         await openUrl(url);
     } catch (e) {
         logger.capture(e, { context });
+        if (url.startsWith('mailto:')) window.location.assign(url);
     }
 }
 

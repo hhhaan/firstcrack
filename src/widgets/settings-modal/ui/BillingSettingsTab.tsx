@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const CONTACT_EMAIL = 'contact@firstcrackiscoming.com';
+const CONTACT_MAILTO = `mailto:${CONTACT_EMAIL}?subject=Enterprise%20plan`;
 const COMPARE_PLANS_URL = 'https://firstcrackiscoming.com/compare-plans';
 
 type Plan = {
@@ -61,9 +62,10 @@ function PlanCard({ plan, isCurrent }: { plan: Plan; isCurrent: boolean }) {
 
     const handleContact = async () => {
         try {
-            await openUrl(`mailto:${CONTACT_EMAIL}?subject=Enterprise%20plan`);
+            await openUrl(CONTACT_MAILTO);
         } catch (err) {
             logger.capture(err, { context: 'billing contact enterprise' });
+            window.location.assign(CONTACT_MAILTO);
         }
     };
 
@@ -108,14 +110,17 @@ function PlanCard({ plan, isCurrent }: { plan: Plan; isCurrent: boolean }) {
                         {t('settings.tabs.billing.upgrade')}
                     </button>
                 ) : canContact ? (
-                    <button
-                        type="button"
-                        onClick={() => void handleContact()}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-palette-teal/15 text-palette-teal border border-palette-teal/30 text-[12px] font-semibold hover:bg-palette-teal/25 active:bg-palette-teal/30 transition-all cursor-pointer"
+                    <a
+                        href={CONTACT_MAILTO}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            void handleContact();
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-palette-teal/15 text-palette-teal border border-palette-teal/30 text-[12px] font-semibold hover:bg-palette-teal/25 active:bg-palette-teal/30 transition-all cursor-pointer no-underline"
                     >
                         <Mail size={12} strokeWidth={2} />
                         {t('settings.tabs.billing.contact')}
-                    </button>
+                    </a>
                 ) : null}
             </div>
         </div>
