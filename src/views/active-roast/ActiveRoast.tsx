@@ -162,7 +162,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         () => dbProfiles.find((p) => p.id === targetProfileId) ?? null,
         [dbProfiles, targetProfileId],
     );
-    const { points: targetCurvePoints } = useResolvedProfileCurve(targetProfile);
+    const { points: targetCurvePoints, isError: replayCurveError } = useResolvedProfileCurve(targetProfile);
     // Replay 컷오프는 레퍼런스의 Drop 마크다. duration_sec는 End 확정 시각(store elapsed)이라
     // Drop→End 사이 쿨다운 조작(다음 배치 예열용 가스 올림)이 재생 계획에 섞인다.
     const replayDropTime = useMemo(() => {
@@ -610,6 +610,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         // #314: 120초 fallback TP는 곡선에서 관측된 TP가 아니라 BT 게이트를 열 수 없다
                         afterTurningPoint={confirmedTP !== null && !confirmedTP.fallback}
                         temperatureUnit={unit}
+                        replayCurveError={replayCurveError}
+                        roasterKey={currentKey}
+                        onOpenRoastSettings={onOpenRoastSettings}
                     />
 
                     <RoastSidePanel

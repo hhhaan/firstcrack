@@ -987,6 +987,41 @@
             "saved": "이전에 저장하지 못한 로스팅 기록을 저장했습니다.",
             "failed": "미저장 로스팅 기록 저장에 실패했습니다. 다음 실행 시 다시 시도합니다.",
             "discarded": "복구한 로스팅 기록의 값이 올바르지 않아 저장하지 못했습니다. 해당 기록은 폐기했습니다."
+        },
+        "replay": {
+            "title": "Replay",
+            "on": "On",
+            "off": "Off",
+            "enable": "레퍼런스 화력 재생",
+            "next": "다음: BT {{temp}}°{{unit}} → {{heater}}%",
+            "done": "모든 이벤트 재생 완료",
+            "sliderLocked": "슬라이더 잠김",
+            "sliderLockedHint": "재생 중에는 자리를 비우지 마세요 — 화력이 재생 지시에서 계속 벗어나면 자동 중지됩니다. 수동 조절은 체크 해제 후 하세요. 다시 켜면 남은 구간부터 이어집니다.",
+            "giesenManual": "기센은 조작반을 Manual로 두세요. Auto면 본체가 가스를 덮어씁니다.",
+            "dropHold": "배출 후 화력: 유지",
+            "dropZero": "배출 후 화력: 0으로",
+            "dropSettings": "설정",
+            "collapsedActive": "Replay 재생 중",
+            "disable": {
+                "mismatch": "다른 기기에서 기록된 프로파일은 재생할 수 없습니다 — 이 기기로 기록한 프로파일을 선택하세요",
+                "curveError": "레퍼런스 곡선을 불러오지 못했습니다 — 네트워크를 확인하거나 다른 프로파일을 선택하세요",
+                "noHeater": "레퍼런스 화력 기록이 없습니다 — heater 기록이 있는 타겟 프로파일을 선택하세요",
+                "disconnected": "머신이 연결되어 있지 않습니다",
+                "unwritable": "이 기기는 히터를 쓸 수 없습니다",
+                "pid": "PID가 화력을 잡고 있어 켤 수 없습니다",
+                "unacknowledged": "기기가 명령을 반영하지 않아 켤 수 없습니다"
+            },
+            "stop": {
+                "disconnected": "연결 끊김으로 재생 중지",
+                "pid": "PID 개입으로 재생 중지",
+                "unacknowledged": "명령 미반영으로 재생 중지",
+                "unwritable": "히터 제어 불가로 재생 중지",
+                "manual": "수동 조작으로 재생 중지",
+                "profileChanged": "프로파일 변경으로 재생 중지",
+                "controlDiverged": "화력이 재생 지시에서 벗어나 재생 중지",
+                "timingGap": "화면이 멈췄던 동안 재생 중지 — 현재 화력을 확인하세요",
+                "writeFailed": "화력 명령 전송 실패로 재생 중지 — 현재 화력을 확인하세요"
+            }
         }
     },
     "profiles": {

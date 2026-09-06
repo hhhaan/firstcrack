@@ -57,9 +57,9 @@ export type RoastSettings = {
     alertRorCrashCPerMin: number;
     alertBtMaxC: number;
     /**
-     * DROP 시 PID가 풀릴 때 화력 처리.
-     * 'hold' — 머신이 보고하는 현재 duty를 유지 (연속 배치 재승온 시간 절약)
-     * 'zero' — 히터 0
+     * DROP 시 PID·Replay가 풀릴 때 화력 처리.
+     * 'zero' — 히터 0 (기본: 자리 비움 시 버너 잔류 방지, #372)
+     * 'hold' — 머신이 보고하는 현재 duty를 유지 (연속 배치 재승온, 명시 선택)
      * 과열·쓰기 실패 등 이상 정지는 이 설정과 무관하게 항상 0을 시도한다.
      */
     pidDropBehavior: PidDropBehavior;
@@ -102,7 +102,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     alertSoundEnabled: true,
     alertRorCrashCPerMin: 0,
     alertBtMaxC: 250,
-    pidDropBehavior: 'hold',
+    pidDropBehavior: 'zero',
 };
 
 const clampNum = (value: unknown, min: number, max: number, fallback: number) => {

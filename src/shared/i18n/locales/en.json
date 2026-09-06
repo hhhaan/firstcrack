@@ -697,6 +697,41 @@
             "saved": "Recovered and saved your previous unsaved roast.",
             "failed": "Could not save the recovered roast. It will be retried on next launch.",
             "discarded": "The recovered roast had invalid data and could not be saved, so it was discarded."
+        },
+        "replay": {
+            "title": "Replay",
+            "on": "On",
+            "off": "Off",
+            "enable": "Replay reference heat",
+            "next": "Next: BT {{temp}}°{{unit}} → {{heater}}%",
+            "done": "All events replayed",
+            "sliderLocked": "Slider locked",
+            "sliderLockedHint": "Stay at the machine while Replay is on — Replay stops if heat keeps diverging from the plan. Uncheck to adjust manually. Turning it back on resumes from the remaining events.",
+            "giesenManual": "Set the roaster console to Manual. Auto will overwrite Replay gas writes.",
+            "dropHold": "After drop: hold heat",
+            "dropZero": "After drop: cut to 0",
+            "dropSettings": "Settings",
+            "collapsedActive": "Replay playing",
+            "disable": {
+                "mismatch": "This profile was recorded on a different machine — pick a profile from this roaster",
+                "curveError": "Could not load the reference curve — check the network or pick another profile",
+                "noHeater": "No heater recording in the reference — pick a target profile with heater data",
+                "disconnected": "Machine is disconnected",
+                "unwritable": "This machine cannot write heater",
+                "pid": "PID is holding heat — turn PID off to enable Replay",
+                "unacknowledged": "Machine is not applying commands — Replay cannot start"
+            },
+            "stop": {
+                "disconnected": "Replay stopped — disconnected",
+                "pid": "Replay stopped — PID took heat",
+                "unacknowledged": "Replay stopped — command not applied",
+                "unwritable": "Replay stopped — heater not writable",
+                "manual": "Replay stopped — manual adjustment",
+                "profileChanged": "Replay stopped — profile changed",
+                "controlDiverged": "Replay stopped — heat diverged from the plan",
+                "timingGap": "Replay stopped while the screen was frozen — check current heat",
+                "writeFailed": "Replay stopped — heat command failed. Check current heat"
+            }
         }
     },
     "schedule": {

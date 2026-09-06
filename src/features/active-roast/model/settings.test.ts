@@ -36,6 +36,14 @@ describe('normalize — phase temperatures', () => {
         expect(normalizeRoastSettings({ fcDualMarkEnabled: false })).toMatchObject({ fcDualMarkEnabled: false });
     });
 
+    it('defaults pidDropBehavior to zero — unattended drop must cut heat (#372)', () => {
+        expect(normalizeRoastSettings({}).pidDropBehavior).toBe('zero');
+    });
+
+    it('keeps an explicit hold drop policy', () => {
+        expect(normalizeRoastSettings({ pidDropBehavior: 'hold' }).pidDropBehavior).toBe('hold');
+    });
+
     it('defaults dual mark when only legacy FC auto keys are present', () => {
         const s = normalizeRoastSettings({
             // legacy store may still hold these; typed settings no longer include them

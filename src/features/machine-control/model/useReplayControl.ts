@@ -329,6 +329,12 @@ export const useReplayControl = ({
     return {
         /** 레퍼런스에 heater 기록이 있고(합성/PID 기록 아님) 같은 기기이며 쓰기 가능한가 */
         available: plan != null && !referenceMachineMismatch && heaterWritable && sidecarConnected,
+        /** 추출된 재생 계획 존재 — 연결/쓰기와 접지 말 것 (#372) */
+        hasPlan: plan != null,
+        sidecarConnected,
+        heaterWritable,
+        pidEngaged,
+        heaterUnacknowledged,
         /** 다른 기종 기록 — UI 힌트 분리용 */
         machineMismatch: referenceMachineMismatch,
         /** 지금 켤 수 없는 상태(PID 점유 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */

@@ -2,8 +2,10 @@ import type { PidRuntime } from '@entities/machine';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ControlRole } from '../lib/controlSender';
 import type { ReplayPoint } from '../lib/replay';
+import { collapsedReplayTone } from '../lib/replayStatus';
 import { useMachineControl } from '../model/useMachineControl';
 import { usePidControl } from '../model/usePidControl';
 import { useReplayControl } from '../model/useReplayControl';
@@ -41,6 +43,11 @@ interface Props {
     afterTurningPoint: boolean;
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
+    /** TSV 로드 실패 — Replay 카피를 “기록 없음”과 접지 말 것 (#372) */
+    replayCurveError?: boolean;
+    /** 현재 기기 키 — 기센 Manual 배너 */
+    roasterKey?: string | null;
+    onOpenRoastSettings?: () => void;
 }
 
 /**
@@ -68,7 +75,11 @@ export const MachineControlPanel = ({
     roasting,
     afterTurningPoint,
     temperatureUnit,
+    replayCurveError = false,
+    roasterKey = null,
+    onOpenRoastSettings,
 }: Props) => {
+    const { t } = useTranslation();
     const entitled = useFeature(FEATURE.machineControl);
     const { writable, limits, pidCapability, desired, unacknowledged, sending, setValue, commitNow } =
         useMachineControl(sidecarConnected, liveData);
@@ -124,6 +135,7 @@ export const MachineControlPanel = ({
         reconnecting,
         writeHeater,
     });
+    const replayTone = collapsedReplayTone(replay.active, replay.stopReason);
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.
     // 재생 중 heater 슬라이더는 잠기므로 평소엔 닿지 않는 경로지만, 드래그 도중
     // 재생이 켜지는 경계에서 이벤트가 새면 여기가 마지막 방어선이다.
@@ -174,13 +186,21 @@ export const MachineControlPanel = ({
                         aria-label={`PID ${pidState}`}
                     />
                 )}
-                {/* 접혀도 Replay가 히터를 잡고 있다는 표시는 보여야 한다 (#300) */}
-                {collapsed && replay.active && (
+                {/* Replay 점은 PID emerald와 분리 — 중지 시에도 점+title (#372) */}
+                {collapsed && replayTone === 'active' && (
                     <span
                         role="img"
-                        className="h-2 w-2 rounded-full bg-emerald-500"
-                        title="Replay 재생 중"
-                        aria-label="Replay 재생 중"
+                        className="h-2 w-2 rounded-full bg-sky-500"
+                        title={t('activeRoast.replay.collapsedActive')}
+                        aria-label={t('activeRoast.replay.collapsedActive')}
+                    />
+                )}
+                {collapsed && replayTone === 'stopped' && replay.stopReason && (
+                    <span
+                        role="img"
+                        className="h-2 w-2 rounded-full bg-red-500"
+                        title={t(`activeRoast.replay.stop.${replay.stopReason}`)}
+                        aria-label={t(`activeRoast.replay.stop.${replay.stopReason}`)}
                     />
                 )}
                 {/* 접혀도 미반영 경고는 보여야 한다 — 원격 제어 거부를 모른 채 지나칠 수 있다 (#269) */}
@@ -230,7 +250,14 @@ export const MachineControlPanel = ({
                         기기가 명령을 반영하지 않았습니다. 조작반이 원격 제어를 허용하는지 확인하세요.
                     </p>
                 )}
-                <ReplayControlPanel replay={replay} unit={temperatureUnit} />
+                <ReplayControlPanel
+                    replay={replay}
+                    unit={temperatureUnit}
+                    curveError={replayCurveError}
+                    roasterKey={roasterKey}
+                    dropBehavior={pidDropBehavior}
+                    onOpenRoastSettings={onOpenRoastSettings}
+                />
                 <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />
             </div>
         </div>

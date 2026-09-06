@@ -697,6 +697,41 @@
             "saved": "已恢复并保存之前未保存的烘焙记录。",
             "failed": "恢复的烘焙记录保存失败。下次启动时将重试。",
             "discarded": "恢复的烘焙记录数值无效、无法保存，已将其丢弃。"
+        },
+        "replay": {
+            "title": "Replay",
+            "on": "On",
+            "off": "Off",
+            "enable": "回放参考火力",
+            "next": "下一个：BT {{temp}}°{{unit}} → {{heater}}%",
+            "done": "所有事件已回放",
+            "sliderLocked": "滑块已锁定",
+            "sliderLockedHint": "回放期间请勿离开机器。火力持续偏离计划时会自动停止。手动调节请先取消勾选。再次开启会从剩余区间继续。",
+            "giesenManual": "Giesen 请将操作台设为 Manual。Auto 会覆盖 Replay 的燃气写入。",
+            "dropHold": "下豆后火力：保持",
+            "dropZero": "下豆后火力：归零",
+            "dropSettings": "设置",
+            "collapsedActive": "Replay 播放中",
+            "disable": {
+                "mismatch": "该曲线记录于其他机器，无法回放 — 请选择本机记录的曲线",
+                "curveError": "无法加载参考曲线 — 请检查网络或选择其他曲线",
+                "noHeater": "参考中没有火力记录 — 请选择带 heater 数据的目标曲线",
+                "disconnected": "机器未连接",
+                "unwritable": "此机器无法写入加热器",
+                "pid": "PID 正在占用火力，无法开启 Replay",
+                "unacknowledged": "机器未执行指令，无法开始 Replay"
+            },
+            "stop": {
+                "disconnected": "因断线停止回放",
+                "pid": "因 PID 介入停止回放",
+                "unacknowledged": "因指令未生效停止回放",
+                "unwritable": "因无法控制加热器停止回放",
+                "manual": "因手动操作停止回放",
+                "profileChanged": "因曲线变更停止回放",
+                "controlDiverged": "因火力偏离回放指令而停止",
+                "timingGap": "画面卡住期间已停止回放 — 请确认当前火力",
+                "writeFailed": "因火力指令发送失败停止回放 — 请确认当前火力"
+            }
         }
     },
     "schedule": {
