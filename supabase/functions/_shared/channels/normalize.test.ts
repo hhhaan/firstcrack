@@ -1,6 +1,54 @@
 import { describe, expect, it } from 'vitest';
-import { buildProductMap, earliestOrderedAt, resolveProductId } from './normalize.ts';
+import {
+    buildProductMap,
+    earliestOrderedAt,
+    resolveProductId,
+    resolveUpdatedTotalAmount,
+} from './normalize.ts';
 import type { CanonicalOrder, CanonicalOrderLine } from './types.ts';
+
+describe('resolveUpdatedTotalAmount', () => {
+    it('keeps the stored total when Cafe24/Naver omit amount (null)', () => {
+        expect(
+            resolveUpdatedTotalAmount({
+                incoming: null,
+                previous: 45000,
+                incomingLineCount: 1,
+                existingLineCount: 3,
+            }),
+        ).toBe(45000);
+    });
+
+    it('does not shrink a full-order total when a single ProductOrder arrives', () => {
+        expect(
+            resolveUpdatedTotalAmount({
+                incoming: 12000,
+                previous: 45000,
+                incomingLineCount: 1,
+                existingLineCount: 3,
+            }),
+        ).toBe(45000);
+    });
+
+    it('uses the incoming total for a new order or a complete replacement', () => {
+        expect(
+            resolveUpdatedTotalAmount({
+                incoming: 12000,
+                previous: null,
+                incomingLineCount: 1,
+                existingLineCount: 0,
+            }),
+        ).toBe(12000);
+        expect(
+            resolveUpdatedTotalAmount({
+                incoming: 40000,
+                previous: 45000,
+                incomingLineCount: 3,
+                existingLineCount: 3,
+            }),
+        ).toBe(40000);
+    });
+});
 
 describe('earliestOrderedAt (#125 degraded sync poisons ordered_at)', () => {
     const real = '2026-07-20T03:00:00.000Z';

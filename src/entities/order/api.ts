@@ -1,6 +1,5 @@
 import { supabase } from '@shared/lib/supabase';
 import type { Database, Json } from '@shared/types/database.types';
-import { addMonths, format, parse } from 'date-fns';
 
 export type Order = Database['public']['Tables']['orders']['Row'];
 export type OrderInsert = Database['public']['Tables']['orders']['Insert'];
@@ -23,6 +22,11 @@ export interface RoastingRequirements {
         roasted_grams_needed: number;
         green_grams_needed: number;
         green_available: number;
+    }[];
+    warnings?: {
+        product_id: string;
+        name: string;
+        reason: string;
     }[];
 }
 
@@ -55,11 +59,26 @@ export interface OrderPage {
 }
 
 /**
- * PostgREST `.or()` uses `,` to separate conditions and `()` to group them, so those three
- * characters would let a search term rewrite the filter. `%`/`_` stay — they are ilike
- * wildcards inside the value and are harmless (arguably useful) here.
+ * PostgREST `.or()` treats `,()` as grammar, `.` as column/op separators, `:` as modifiers,
+ * and quotes/backslashes as quoting. `%`/`_` stay — they are ilike wildcards inside the value.
  */
-export const sanitizeOrTerm = (term: string) => term.replace(/[,()]/g, ' ').trim();
+export const sanitizeOrTerm = (term: string) =>
+    term
+        .replace(/[,().:"'\\*]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+/** Local-timezone start of `yyyy-MM` as ISO datetime (not a date-only string parsed as UTC). */
+export const monthStartIso = (ym: string): string => {
+    const [year, month] = ym.split('-').map(Number);
+    return new Date(year, month - 1, 1).toISOString();
+};
+
+/** Local-timezone start of the month after `yyyy-MM` — half-open upper bound. */
+export const monthEndExclusiveIso = (ym: string): string => {
+    const [year, month] = ym.split('-').map(Number);
+    return new Date(year, month, 1).toISOString();
+};
 
 export const orderApi = {
     listPaginated: async ({
@@ -89,13 +108,8 @@ export const orderApi = {
             query = query.is('fulfilled_at', null).not('status', 'in', `(${TERMINAL_STATUSES.join(',')})`);
 
         if (platform) query = query.eq('platform', platform);
-        if (fromYM) query = query.gte('ordered_at', `${fromYM}-01`);
-        if (toYM) {
-            // Half-open interval [startOfMonth, startOfNextMonth) — same idiom as roastSessionApi
-            // so a month boundary never depends on how many days that month has.
-            const nextMonthStart = addMonths(parse(toYM, 'yyyy-MM', new Date()), 1);
-            query = query.lt('ordered_at', format(nextMonthStart, 'yyyy-MM-dd'));
-        }
+        if (fromYM) query = query.gte('ordered_at', monthStartIso(fromYM));
+        if (toYM) query = query.lt('ordered_at', monthEndExclusiveIso(toYM));
 
         const term = search ? sanitizeOrTerm(search) : '';
         if (term) query = query.or(`buyer_name.ilike.%${term}%,platform_order_id.ilike.%${term}%`);

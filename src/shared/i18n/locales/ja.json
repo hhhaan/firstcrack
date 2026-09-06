@@ -1370,7 +1370,8 @@
             "empty": "未処理の注文はありません — 焙煎の必要はありません。",
             "bean": "豆",
             "green": "必要な生豆",
-            "available": "利用可能"
+            "available": "利用可能",
+            "blendMissingComponents": "{{name}}: ブレンド構成豆が未登録のため、焙煎必要量から除外されました。"
         },
         "order": {
             "newTitle": "新規注文",

@@ -10,6 +10,10 @@ export const CARRIERS = {
     lotte: { naver: 'HYUNDAI', cafe24: '0019', shopify: 'Lotte' },
     post_office: { naver: 'EPOST', cafe24: '0012', shopify: 'Korea Post' },
     logen: { naver: 'KGB', cafe24: '0004', shopify: 'Logen' },
+    dhl: { naver: 'DHL', cafe24: '0026', shopify: 'DHL Express' },
+    fedex: { naver: 'FEDEX', cafe24: '0027', shopify: 'FedEx' },
+    ups: { naver: 'UPS', cafe24: '0028', shopify: 'UPS' },
+    other: { naver: 'DIRECT', cafe24: '9999', shopify: 'Other' },
 } as const;
 
 export type CarrierId = keyof typeof CARRIERS;

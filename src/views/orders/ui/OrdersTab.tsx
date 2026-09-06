@@ -14,9 +14,9 @@ import { DateRangeFilter } from '@widgets/date-range-filter';
 import { RoastingRequirementsCard } from '@widgets/roasting-requirements-card';
 import { format, subMonths } from 'date-fns';
 import { AlertTriangle, ChevronDown, ChevronRight, Plus, Search, ShoppingBag, Truck } from 'lucide-react';
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useOrderFilters } from '../hooks/useOrderFilters';
+import { clampPage, useOrderFilters } from '../hooks/useOrderFilters';
 import { OrdersTableSkeleton } from './OrdersSkeleton';
 import { dispatchTone, EmptyState, GhostButton, orderStatusTone } from './orderUi';
 
@@ -69,6 +69,12 @@ export function OrdersTab() {
     const safePage = Math.min(f.page, totalPages);
     const start = (safePage - 1) * PAGE_SIZE + 1;
     const end = Math.min(safePage * PAGE_SIZE, total);
+
+    useEffect(() => {
+        if (isLoading) return;
+        const next = clampPage(f.page, total, PAGE_SIZE);
+        if (next !== f.page) f.setPage(next);
+    }, [isLoading, f.page, f.setPage, total]);
     // A filtered-to-zero result is not an empty workspace — the onboarding empty state would be a lie.
     const isEmptyWorkspace = total === 0 && !f.isFiltered;
 

@@ -1370,7 +1370,8 @@
             "empty": "No unfulfilled orders — nothing to roast.",
             "bean": "Bean",
             "green": "Green needed",
-            "available": "Available"
+            "available": "Available",
+            "blendMissingComponents": "{{name}}: blend has no components, so it is omitted from roast demand."
         },
         "order": {
             "newTitle": "New order",

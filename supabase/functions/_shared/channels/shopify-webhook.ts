@@ -31,3 +31,16 @@ export function classifyShopifyTopic(topic: string | null): ShopifyTopicKind {
     if (ORDER_TOPICS.has(normalized)) return 'order';
     return 'ignore';
 }
+
+/**
+ * Header checks that must run before any shop-existence ack. Returning 200 for an
+ * unknown shop without an HMAC header lets anyone enumerate connected domains.
+ */
+export function shopifyWebhookPreconditions(
+    shop: string,
+    hmac: string | null,
+): { ok: true } | { ok: false; status: 400 | 401; error: string } {
+    if (!shop) return { ok: false, status: 400, error: 'missing shop domain' };
+    if (!hmac) return { ok: false, status: 401, error: 'Unauthorized' };
+    return { ok: true };
+}

@@ -1,6 +1,12 @@
 import type { OrderStatusFilter } from '@entities/order';
 import { type DatePreset, getPresetYMRange } from '@widgets/date-range-filter';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+
+/** Clamp a 1-based page so a shrink in `total` cannot leave the UI on an empty page. */
+export const clampPage = (page: number, total: number, pageSize: number): number => {
+    const totalPages = Math.max(1, Math.ceil(Math.max(0, total) / pageSize));
+    return Math.min(Math.max(1, page), totalPages);
+};
 
 interface OrderFilterState {
     search: string;
@@ -27,6 +33,7 @@ export const useOrderFilters = () => {
     const [state, setState] = useState<OrderFilterState>(INITIAL);
 
     const patch = (partial: Partial<OrderFilterState>) => setState((prev) => ({ ...prev, ...partial, page: 1 }));
+    const setPage = useCallback((value: number) => setState((prev) => ({ ...prev, page: value })), []);
 
     return {
         ...state,
@@ -46,6 +53,6 @@ export const useOrderFilters = () => {
         setFromYM: (value: string) => patch({ fromYM: value }),
         setToYM: (value: string) => patch({ toYM: value }),
         reset: () => setState(INITIAL),
-        setPage: (value: number) => setState((prev) => ({ ...prev, page: value })),
+        setPage,
     };
 };

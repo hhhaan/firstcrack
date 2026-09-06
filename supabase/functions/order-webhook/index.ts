@@ -13,7 +13,7 @@ import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
 import { mapCafe24Order } from '../_shared/channels/cafe24.ts';
 import { isCafe24Uninstall } from '../_shared/channels/cafe24-webhook.ts';
 import { gidToId, lineQuantity, lineStatusOf, upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
-import { classifyShopifyTopic } from '../_shared/channels/shopify-webhook.ts';
+import { classifyShopifyTopic, shopifyWebhookPreconditions } from '../_shared/channels/shopify-webhook.ts';
 import { shopifyToCanonical } from '../_shared/channels/status-map.ts';
 import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
 import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
@@ -118,35 +118,38 @@ serveWithSentry('order-webhook', async (req) => {
         if (platform === 'shopify') {
             const shop = (req.headers.get('X-Shopify-Shop-Domain') ?? '').toLowerCase();
             const hmac = req.headers.get('X-Shopify-Hmac-Sha256');
-            if (!shop) return jsonResponse({ error: 'missing shop domain' }, 400);
+            const pre = shopifyWebhookPreconditions(shop, hmac);
+            if (!pre.ok) return jsonResponse({ error: pre.error }, pre.status);
 
             const { conn, ambiguous } = await resolveConnection(admin, 'shopify', shop);
-            if (ambiguous) {
-                console.error('[order-webhook] shopify ambiguous shop', shop);
-                return jsonResponse({ ok: true, skipped: 'ambiguous shop' });
-            }
-            if (!conn) {
-                // Unknown shop — acknowledge to avoid retry storms
-                return jsonResponse({ ok: true, skipped: 'unknown shop' });
-            }
-
-            const { data: secretRow } = await admin
-                .from('sales_channel_secrets')
-                .select('credentials')
-                .eq('connection_id', conn.id)
-                .single();
 
             // Per-connection webhook secret (collected at connect time) first.
             // SHOPIFY_WEBHOOK_SECRET is a single-tenant fallback only — with more
             // than one store connected every store must have its own secret.
-            const creds = (secretRow?.credentials ?? {}) as Record<string, string>;
-            const secret = creds.webhook_secret || Deno.env.get('SHOPIFY_WEBHOOK_SECRET') || '';
+            // Verified before the unknown-shop ack so an unauthenticated caller
+            // cannot probe which shops are connected (#306).
+            let secret = Deno.env.get('SHOPIFY_WEBHOOK_SECRET') || '';
+            if (conn) {
+                const { data: secretRow } = await admin
+                    .from('sales_channel_secrets')
+                    .select('credentials')
+                    .eq('connection_id', conn.id)
+                    .single();
+                const creds = (secretRow?.credentials ?? {}) as Record<string, string>;
+                if (creds.webhook_secret) secret = creds.webhook_secret;
+            }
 
-            // fail-closed: secret 또는 헤더 부재 = 검증 불가 = 거부 (기존: 조용히 통과)
+            // fail-closed: secret 또는 헤더 부재 = 검증 불가 = 거부
             if (!(await verifyShopifyHmac(secret, rawBody, hmac))) {
                 console.error('[order-webhook] shopify hmac reject', shop);
                 return jsonResponse({ error: 'Unauthorized' }, 401);
             }
+
+            if (ambiguous) {
+                console.error('[order-webhook] shopify ambiguous shop', shop);
+                return jsonResponse({ ok: true, skipped: 'ambiguous shop' });
+            }
+            if (!conn) return jsonResponse({ ok: true, skipped: 'unknown shop' });
 
             // A valid HMAC proves the sender, not the payload shape — route by topic.
             const topic = classifyShopifyTopic(req.headers.get('X-Shopify-Topic'));

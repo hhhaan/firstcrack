@@ -35,5 +35,9 @@ describe('carriers', () => {
         expect(platformCarrierCode('logen', 'cafe24')).toBe('0004');
         expect(platformCarrierCode('lotte', 'cafe24')).toBe('0019');
         expect(platformCarrierCode('post_office', 'cafe24')).toBe('0012');
+        expect(platformCarrierCode('dhl', 'cafe24')).toBe('0026');
+        expect(platformCarrierCode('fedex', 'cafe24')).toBe('0027');
+        expect(platformCarrierCode('ups', 'cafe24')).toBe('0028');
+        expect(platformCarrierCode('other', 'cafe24')).toBe('9999');
     });
 });

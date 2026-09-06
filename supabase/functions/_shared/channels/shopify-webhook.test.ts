@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyShopifyTopic } from './shopify-webhook.ts';
+import { classifyShopifyTopic, shopifyWebhookPreconditions } from './shopify-webhook.ts';
 
 describe('classifyShopifyTopic', () => {
     it('routes order topics', () => {
@@ -19,5 +19,27 @@ describe('classifyShopifyTopic', () => {
         expect(classifyShopifyTopic('shop/redact')).toBe('ignore');
         expect(classifyShopifyTopic('customers/data_request')).toBe('ignore');
         expect(classifyShopifyTopic('products/update')).toBe('ignore');
+    });
+});
+
+describe('shopifyWebhookPreconditions (#306 shop enumeration)', () => {
+    it('rejects a missing shop before any lookup', () => {
+        expect(shopifyWebhookPreconditions('', 'sig')).toEqual({
+            ok: false,
+            status: 400,
+            error: 'missing shop domain',
+        });
+    });
+
+    it('rejects a missing HMAC before any unknown-shop ack', () => {
+        expect(shopifyWebhookPreconditions('store.myshopify.com', null)).toEqual({
+            ok: false,
+            status: 401,
+            error: 'Unauthorized',
+        });
+    });
+
+    it('lets a shop+HMAC pair continue to signature verify', () => {
+        expect(shopifyWebhookPreconditions('store.myshopify.com', 'sig')).toEqual({ ok: true });
     });
 });

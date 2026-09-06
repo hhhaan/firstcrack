@@ -1370,7 +1370,8 @@
             "empty": "미출고 주문이 없어 로스팅할 물량이 없습니다.",
             "bean": "원두",
             "green": "필요 생두",
-            "available": "보유"
+            "available": "보유",
+            "blendMissingComponents": "{{name}}: 블렌드 구성 원두가 없어 로스팅 필요량에서 빠졌습니다."
         },
         "order": {
             "newTitle": "새 주문",

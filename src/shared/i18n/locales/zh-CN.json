@@ -1370,7 +1370,8 @@
             "empty": "没有未完成的订单 — 无需烘焙。",
             "bean": "咖啡豆",
             "green": "所需生豆",
-            "available": "可用库存"
+            "available": "可用库存",
+            "blendMissingComponents": "{{name}}: 拼配组成未登记，已从烘焙需求中省略。"
         },
         "order": {
             "newTitle": "新建订单",

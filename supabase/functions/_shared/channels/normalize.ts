@@ -55,7 +55,26 @@ type OrderRow = {
     status: string;
     fulfilled_at: string | null;
     ordered_at: string | null;
+    total_amount: number | null;
 };
+
+/**
+ * Naver last-changed polls can deliver a single ProductOrder whose `totalAmount` is that
+ * line only. Cafe24 webhooks often omit amount entirely (`null`). Never shrink or null out
+ * a stored full-order total in those cases.
+ */
+export function resolveUpdatedTotalAmount(input: {
+    incoming: number | null;
+    previous: number | null;
+    incomingLineCount: number;
+    existingLineCount: number;
+}): number | null {
+    if (input.incoming == null) return input.previous;
+    if (input.previous == null) return input.incoming;
+    const partial = input.existingLineCount > 0 && input.incomingLineCount < input.existingLineCount;
+    if (partial && input.incoming < input.previous) return input.previous;
+    return input.incoming;
+}
 
 /**
  * `orders.ordered_at` is NOT NULL, so a degraded sync (Naver's last-changed-only fallback) has to
@@ -207,7 +226,7 @@ export async function upsertCanonicalOrders(
     for (const order of orders) {
         const { data: existing } = await supabase
             .from('orders')
-            .select('id, status, fulfilled_at, ordered_at')
+            .select('id, status, fulfilled_at, ordered_at, total_amount')
             .eq('user_id', ctx.userId)
             .eq('platform', ctx.platform)
             .eq('platform_order_id', order.platformOrderId)
@@ -219,8 +238,21 @@ export async function upsertCanonicalOrders(
 
         let orderId: string;
         let fulfilledAt = prev?.fulfilled_at ?? null;
+        let existingLines: LineRow[] = [];
 
         if (prev) {
+            const { data: prevLines } = await supabase
+                .from('order_lines')
+                .select('id, platform_line_id, product_id, quantity, status')
+                .eq('order_id', prev.id);
+            existingLines = (prevLines ?? []) as LineRow[];
+            const totalAmount = resolveUpdatedTotalAmount({
+                incoming: order.totalAmount,
+                previous: prev.total_amount,
+                incomingLineCount: order.lines.length,
+                existingLineCount: existingLines.length,
+            });
+
             const { error } = await supabase
                 .from('orders')
                 .update({
@@ -229,7 +261,7 @@ export async function upsertCanonicalOrders(
                     ordered_at: earliestOrderedAt(prev.ordered_at, order.orderedAt),
                     buyer_name: order.buyerName,
                     currency: order.currency,
-                    total_amount: order.totalAmount,
+                    total_amount: totalAmount,
                     raw: order.raw as Record<string, unknown>,
                     synced_at: now,
                     updated_at: now,
@@ -259,12 +291,7 @@ export async function upsertCanonicalOrders(
             orderId = created!.id;
         }
 
-        const { data: existingLines } = await supabase
-            .from('order_lines')
-            .select('id, platform_line_id, product_id, quantity, status')
-            .eq('order_id', orderId);
-
-        const lineByPlatform = new Map(((existingLines ?? []) as LineRow[]).map((l) => [l.platform_line_id, l]));
+        const lineByPlatform = new Map(existingLines.map((l) => [l.platform_line_id, l]));
 
         type DiffLine = {
             lineId: string;
@@ -363,7 +390,9 @@ export async function upsertCanonicalOrders(
                 );
             }
 
-            cancelledCompensations += planned.events.filter((e) => e.event_type === 'order_cancel').length;
+            cancelledCompensations += planned.events.filter(
+                (e) => e.event_type === 'order_cancel' && !skippedRefs.has(e.reference_id),
+            ).length;
             autoFulfillments += planned.events.filter(
                 (e) => e.event_type === 'order_fulfillment' && !skippedRefs.has(e.reference_id),
             ).length;
