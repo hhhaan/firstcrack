@@ -9,6 +9,8 @@ use std::io::{Read, Write};
 #[cfg(desktop)]
 use std::net::TcpStream;
 #[cfg(desktop)]
+use std::sync::atomic::{AtomicU64, Ordering};
+#[cfg(desktop)]
 use std::sync::Mutex;
 #[cfg(desktop)]
 use std::time::Duration;
@@ -86,7 +88,13 @@ fn probe_sidecar_ready(token: &str) -> bool {
     ) else {
         return false;
     };
-    let _ = stream.set_read_timeout(Some(Duration::from_millis(200)));
+    // 타임아웃을 못 걸었으면 read가 무한 블로킹될 수 있다 — 준비 판정을 포기하고 다음 주기에 재시도.
+    if stream
+        .set_read_timeout(Some(Duration::from_millis(200)))
+        .is_err()
+    {
+        return false;
+    }
     let request = format!(
         "GET /status HTTP/1.0\r\nHost: 127.0.0.1\r\nX-Sidecar-Token: {token}\r\nConnection: close\r\n\r\n"
     );
@@ -101,16 +109,43 @@ fn probe_sidecar_ready(token: &str) -> bool {
     }
 }
 
-/// spawn 성공 후 실제 인증 응답이 올 때까지 폴링하고, 그때 `sidecar-ready`를 1회 emit.
+/// 준비 감시 세대. `watch_sidecar_ready` 호출마다 +1 되고, 자기 세대가 아닌 워처는 은퇴한다.
+#[cfg(desktop)]
+static READY_WATCHER_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// 새 워처 세대를 발급. 이 시점부터 이전 세대는 모두 무효다.
+#[cfg(desktop)]
+fn claim_watcher_generation() -> u64 {
+    READY_WATCHER_GENERATION.fetch_add(1, Ordering::SeqCst) + 1
+}
+
+#[cfg(desktop)]
+fn is_latest_watcher(generation: u64) -> bool {
+    READY_WATCHER_GENERATION.load(Ordering::SeqCst) == generation
+}
+
+/// spawn 성공 후 실제 인증 응답이 올 때까지 폴링하고, 그때 `sidecar-ready`를 emit.
 /// spawn 성공 ≠ HTTP 서버 bind 완료이므로 프로세스 기동만으로 emit하면 프론트가 너무 빨리 붙는다.
+///
+/// bind 전에 죽은 사이드카의 워처가 남아 있으면 재시작으로 뜬 워처와 함께 같은 200을 보고
+/// `sidecar-ready`를 중복 emit한다. 그래서 세대 카운터로 최신 워처 1개만 살려둔다 —
+/// 세대는 spawn 스레드에서 미리 올려서(스레드 시작 순서에 의존하지 않도록) 넘긴다.
 #[cfg(desktop)]
 fn watch_sidecar_ready(app: tauri::AppHandle) {
+    let generation = claim_watcher_generation();
     std::thread::spawn(move || {
         let token = app.state::<SidecarToken>().0.clone();
         loop {
+            // 더 새로운 워처가 떴으면 여기서 종료 — 폴링도 emit도 하지 않는다.
+            if !is_latest_watcher(generation) {
+                return;
+            }
             if probe_sidecar_ready(&token) {
-                let _ = app.emit("sidecar-ready", ());
-                break;
+                // probe에 최대 400ms가 걸리므로 그 사이 세대가 바뀔 수 있다 → emit 직전 재확인.
+                if is_latest_watcher(generation) {
+                    let _ = app.emit("sidecar-ready", ());
+                }
+                return;
             }
             std::thread::sleep(Duration::from_millis(100));
         }
@@ -521,7 +556,7 @@ pub fn run() {
 
 #[cfg(all(test, desktop))]
 mod sidecar_ready_tests {
-    use super::is_ready_response;
+    use super::{claim_watcher_generation, is_latest_watcher, is_ready_response};
 
     #[test]
     fn accepts_only_http_200() {
@@ -529,5 +564,18 @@ mod sidecar_ready_tests {
         assert!(is_ready_response(b"HTTP/1.0 200 OK\r\n"));
         assert!(!is_ready_response(b"HTTP/1.1 401 Unauthorized\r\n"));
         assert!(!is_ready_response(b""));
+        assert!(!is_ready_response(b"HTTP/1.1 200"));
+    }
+
+    /// 새 세대가 발급되면 이전 세대 워처는 폴링·emit 자격을 잃는다.
+    #[test]
+    fn stale_watcher_generation_retires() {
+        let stale = claim_watcher_generation();
+        assert!(is_latest_watcher(stale));
+
+        let latest = claim_watcher_generation();
+        assert!(latest > stale);
+        assert!(!is_latest_watcher(stale));
+        assert!(is_latest_watcher(latest));
     }
 }
