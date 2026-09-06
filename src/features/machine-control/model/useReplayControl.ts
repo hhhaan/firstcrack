@@ -117,6 +117,13 @@ export const useReplayControl = ({
     const [index, setIndex] = useState(0);
     /** 마지막 자동/수동 중지 사유 — 토글 재시작 전까지 UI에 지속 표시 */
     const [stopReason, setStopReason] = useState<ReplayStopReason | null>(null);
+    /**
+     * 실기 개입(#374) 후 그 배치 roasting 동안 재토글 차단. Cropster와 같이
+     * 조작반·타 소프트웨어·본체 Auto가 화력을 바꾸면 남은 구간을 재생하지 않는다.
+     * 앱 슬라이더(manual)는 잠그지 않는다 — 같은 앱의 의도적 개입이고 남은 구간
+     * 재개가 운영 기본이다. roasting 에지에서 풀린다.
+     */
+    const [locked, setLocked] = useState(false);
     /** zero 정책의 safe-off write가 나갔다 — 기기가 따라올 때까지 재시도 대상 (#316) */
     const [safeOffIssued, setSafeOffIssued] = useState(false);
     /**
@@ -159,6 +166,7 @@ export const useReplayControl = ({
         setPrevRoasting(roasting);
         setIndex(0);
         setStopReason(null);
+        setLocked(false);
         // 상승 에지(새 배치 차지)에서만 지운다 — 이전 배치의 safe-off 재시도가 새
         // 배치 화력을 덮으면 안 된다. 하강 에지(End Roast 확정)에서 지우면 안 되는
         // 이유: Drop은 phase를 안 바꾸므로 safe-off는 roasting 중에 발행되고, 몇 초
@@ -208,13 +216,13 @@ export const useReplayControl = ({
         // 카운터가 0→0이면 setState 생략 — 유휴 중 매초 여분 렌더를 만들지 않는다.
         // tick이 stale해져도 무해하다: 다음 이탈의 첫 렌더에서 1부터 정상 카운트된다.
         if (ticks !== 0 || diverge.ticks !== 0) setDiverge({ tick: elapsed, ticks });
-        // 확정 시 중지만 한다 — 배치 잠금은 두지 않는다. 재개는 사람이 토글해야만
-        // 가능하고, 토글이 lastWritten을 리셋해 감지가 즉시 재무장되므로 원인이
-        // 지속되면(인터락·타 소프트웨어) 다음 이벤트 write 후 ~3틱 안에 다시 걸린다.
-        // 앱 슬라이더 개입(manual)과 처벌을 다르게 둘 이유가 없다.
+        // 확정 시 중지하고 그 배치를 잠근다 (#374). 재토글은 다음 배치까지 막는다 —
+        // 원인이 지속되는 인터락·타 소프트웨어를 남은 구간에서 다시 덮지 않기 위함.
+        // 앱 슬라이더(manual)는 여기로 안 온다(stop()).
         if (ticks >= DIVERGE_TICKS) {
             setActive(false);
             setStopReason('controlDiverged');
+            setLocked(true);
         }
     }
 
@@ -243,6 +251,8 @@ export const useReplayControl = ({
         if (!active || stopCause == null) return;
         setActive(false);
         setStopReason(stopCause);
+        // 명령 미반영은 실기 개입(조작반 로컬·원격 거부)과 같은 등급 — 그 배치 잠금 (#374)
+        if (stopCause === 'unacknowledged') setLocked(true);
         // 재생이 화력을 잡은 채 배출됐다 — zero 정책이면 즉시 끈다 (#316, PID off와
         // 동일 타이밍). stopCause 라벨이 아니라 roastFinished를 보는 이유: "끊김+배출"
         // 커밋에서는 우선순위가 'disconnected'로 밀리는데, 그때도 write는 시도해야
@@ -269,13 +279,13 @@ export const useReplayControl = ({
             setStopReason(null); // 사용자가 직접 껐다 — 안내할 사유가 없다
             return;
         }
-        if (plan == null || referenceMachineMismatch || stopCause != null) return;
+        if (plan == null || referenceMachineMismatch || stopCause != null || locked) return;
         setStopReason(null);
         // 꺼져 있던 동안의 수동 개입이 stale 기준으로 남아 즉시 오판하면 안 된다
         setLastWritten(null);
         setDiverge((d) => ({ ...d, ticks: 0 }));
         setActive(true);
-    }, [active, plan, referenceMachineMismatch, stopCause]);
+    }, [active, plan, referenceMachineMismatch, stopCause, locked]);
 
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
     // stopCause 가드: pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다 —
@@ -331,8 +341,10 @@ export const useReplayControl = ({
         available: plan != null && !referenceMachineMismatch && heaterWritable && sidecarConnected,
         /** 다른 기종 기록 — UI 힌트 분리용 */
         machineMismatch: referenceMachineMismatch,
-        /** 지금 켤 수 없는 상태(PID 점유 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */
-        blocked: stopCause != null,
+        /** 지금 켤 수 없는 상태(PID 점유·배치 잠금 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */
+        blocked: stopCause != null || locked,
+        /** 실기 개입 후 그 배치 잠금 (#374) — UI 카피 분리용. blocked에 포함된다 */
+        locked,
         active,
         /** 마지막 중지 사유 — 재시작·직접 끄기 전까지 유지. UI 안내용 */
         stopReason,

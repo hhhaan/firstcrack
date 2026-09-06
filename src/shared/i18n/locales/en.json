@@ -691,6 +691,9 @@
             "rorCrash": "RoR crash — heat is stalling",
             "btOver": "BT over the ceiling"
         },
+        "replay": {
+            "batchLocked": "Replay cannot be turned back on for this roast"
+        },
         "recovery": {
             "title": "Unsaved roast",
             "askMsg": "An unsaved roast was found. Save it now? You can edit the details later in History.",

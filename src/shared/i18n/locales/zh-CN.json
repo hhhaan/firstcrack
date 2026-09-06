@@ -691,6 +691,9 @@
             "rorCrash": "RoR 骤降 — 火力正在衰减",
             "btOver": "BT 超过上限"
         },
+        "replay": {
+            "batchLocked": "此批次无法再次开启"
+        },
         "recovery": {
             "title": "未保存的烘焙",
             "askMsg": "发现未保存的烘焙记录。现在保存吗？详细信息可稍后在历史记录中编辑。",

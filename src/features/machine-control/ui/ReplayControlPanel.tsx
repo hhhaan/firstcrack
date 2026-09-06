@@ -1,4 +1,5 @@
 import { Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { ReplayStopReason, useReplayControl } from '../model/useReplayControl';
 
 interface Props {
@@ -27,15 +28,19 @@ const STOP_REASON_TEXT: Partial<Record<ReplayStopReason, string>> = {
  * disabled로 둔다. 숨겨버리면 "기능이 사라졌다"로 읽힌다. 기본 OFF.
  */
 export const ReplayControlPanel = ({ replay, unit }: Props) => {
+    const { t } = useTranslation();
     const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
+    const lockText = replay.locked ? t('activeRoast.replay.batchLocked') : undefined;
     // disabled 사유 안내 — native title은 OS 지연(~1s)이 있어 CSS 툴팁으로 즉시 띄운다
     const disabledHint = replay.machineMismatch
         ? '다른 기기에서 기록된 프로파일은 재생할 수 없습니다 — 이 기기로 기록한 프로파일을 선택하세요'
         : !replay.available
           ? '레퍼런스 화력 기록이 없습니다 — heater 기록이 있는 타겟 프로파일을 선택하세요'
-          : !replay.active && replay.blocked
-            ? '지금은 켤 수 없습니다 — PID 해제·연결 상태를 확인하세요'
-            : undefined;
+          : !replay.active && replay.locked
+            ? lockText
+            : !replay.active && replay.blocked
+              ? '지금은 켤 수 없습니다 — PID 해제·연결 상태를 확인하세요'
+              : undefined;
 
     return (
         <div className="flex shrink-0 flex-col gap-2">
@@ -66,6 +71,7 @@ export const ReplayControlPanel = ({ replay, unit }: Props) => {
             </label>
 
             {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
+            {!replay.active && lockText && <p className="text-[11px] leading-snug text-red-500">{lockText}</p>}
 
             {replay.active &&
                 (replay.nextEvent ? (

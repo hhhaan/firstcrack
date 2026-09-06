@@ -147,6 +147,25 @@ describe('useReplayControl', () => {
         h.unmount();
     });
 
+    it('unacknowledged 중지 후 미반영이 풀려도 그 배치는 다시 켤 수 없다 (#374)', async () => {
+        const h = await renderReplay();
+        await act(async () => h.get().toggle());
+        await h.rerender({ heaterUnacknowledged: true });
+        expect(h.get().active).toBe(false);
+        expect(h.get().stopReason).toBe('unacknowledged');
+        expect(h.get().locked).toBe(true);
+        await h.rerender({ heaterUnacknowledged: false });
+        expect(h.get().blocked).toBe(true);
+        await act(async () => h.get().toggle());
+        expect(h.get().active).toBe(false);
+        await h.rerender({ roasting: false });
+        await h.rerender({ liveBt: 180, elapsed: 0, afterTurningPoint: false });
+        expect(h.get().locked).toBe(false);
+        await act(async () => h.get().toggle());
+        expect(h.get().active).toBe(true);
+        h.unmount();
+    });
+
     it('중지 조건과 새 샘플이 같은 커밋에 오면 쓰지 않는다 — stale write 회귀', async () => {
         // pidEngaged/unacknowledged는 새 liveBt와 같은 폴링 커밋에 바뀐다.
         // setActive(false)는 다음 렌더에나 반영되므로 판정 effect의 stopCause 가드가 막아야 한다.
@@ -185,6 +204,8 @@ describe('useReplayControl', () => {
         await act(async () => h.get().toggle()); // t=0 h=80, index=1
         h.writeHeater.mockClear();
         await act(async () => h.get().stop());
+        // 앱 슬라이더는 배치 잠금 대상이 아니다 (#374)
+        expect(h.get().locked).toBe(false);
 
         // 아직 다음 BT 이벤트(110°) 전 — 재개해도 즉시 쓰기 없음, 손 값이 유지
         await act(async () => h.get().toggle());
@@ -391,7 +412,7 @@ describe('useReplayControl', () => {
             return h;
         };
 
-        it('수렴 후 실측이 지시에서 지속 이탈하면 재생 중지 — write 없음, 재개는 토글로', async () => {
+        it('수렴 후 실측이 지시에서 지속 이탈하면 재생 중지 — write 없음, 그 배치는 잠금 (#374)', async () => {
             const h = await armed();
             await h.rerender({ heaterFeedback: 50, elapsed: 10 });
             await h.rerender({ heaterFeedback: 50, elapsed: 11 });
@@ -401,31 +422,40 @@ describe('useReplayControl', () => {
             expect(h.get().stopReason).toBe('controlDiverged');
             // 개입 값을 존중한다 — 어떤 write도 없어야 한다
             expect(h.writeHeater).not.toHaveBeenCalled();
-            // 배치 잠금은 없다 — manual 중지와 같은 등급, 사람이 토글하면 재개된다
-            expect(h.get().blocked).toBe(false);
+            // 실기 개입은 그 배치 잠금 — 재토글 침묵
+            expect(h.get().locked).toBe(true);
+            expect(h.get().blocked).toBe(true);
             await act(async () => h.get().toggle());
-            expect(h.get().active).toBe(true);
-            expect(h.get().stopReason).toBeNull();
+            expect(h.get().active).toBe(false);
+            expect(h.get().stopReason).toBe('controlDiverged');
             h.unmount();
         });
 
-        it('재개 후 원인이 지속되면 다음 write 뒤 다시 걸린다 — 감지 재무장', async () => {
+        it('잠금은 새 배치에서만 풀린다 — 다음 배치에서 원인이 지속되면 다시 잠긴다 (#374)', async () => {
             const h = await armed();
             await h.rerender({ heaterFeedback: 50, elapsed: 10 });
             await h.rerender({ heaterFeedback: 50, elapsed: 11 });
             await h.rerender({ heaterFeedback: 50, elapsed: 12 });
-            expect(h.get().stopReason).toBe('controlDiverged');
-            // 사람이 재개 — lastWritten 리셋, 즉시 오판 없음
+            expect(h.get().locked).toBe(true);
+            await act(async () => h.get().toggle());
+            expect(h.get().active).toBe(false);
+            // 배출 → 새 배치 차지 — 잠금 해제
+            await h.rerender({ heaterFeedback: 50, elapsed: 20, roastFinished: true, roasting: false });
+            await h.rerender({ heaterFeedback: 80, elapsed: 0 });
+            expect(h.get().locked).toBe(false);
+            h.writeHeater.mockClear();
             await act(async () => h.get().toggle());
             expect(h.get().active).toBe(true);
-            // 다음 이벤트 발화(110°→60%)로 기준이 다시 생기고, 실측(50)이 계속 벗어나 있으면 재확정
-            await h.rerender({ heaterFeedback: 50, elapsed: 130, liveBt: 111, afterTurningPoint: true });
+            expect(h.writeHeater).toHaveBeenCalledWith(80);
+            // 수렴 상태에서 다음 이벤트 발화(110°→60%) 후, 실측이 계속 벗어나면 재잠금
+            await h.rerender({ heaterFeedback: 80, elapsed: 130, liveBt: 111, afterTurningPoint: true });
             expect(h.writeHeater).toHaveBeenCalledWith(60);
             await h.rerender({ heaterFeedback: 50, elapsed: 131, liveBt: 111, afterTurningPoint: true });
             await h.rerender({ heaterFeedback: 50, elapsed: 132, liveBt: 111, afterTurningPoint: true });
             await h.rerender({ heaterFeedback: 50, elapsed: 133, liveBt: 111, afterTurningPoint: true });
             expect(h.get().active).toBe(false);
             expect(h.get().stopReason).toBe('controlDiverged');
+            expect(h.get().locked).toBe(true);
             h.unmount();
         });
 
@@ -524,9 +554,11 @@ describe('useReplayControl', () => {
             await h.rerender({ heaterFeedback: 50, elapsed: 11 });
             await h.rerender({ heaterFeedback: 50, elapsed: 12 });
             expect(h.get().stopReason).toBe('controlDiverged');
+            expect(h.get().locked).toBe(true);
             // 배출 → 종료 → 새 배치 차지
             await h.rerender({ heaterFeedback: 50, elapsed: 20, roastFinished: true, roasting: false });
             await h.rerender({ heaterFeedback: 80, elapsed: 0 });
+            expect(h.get().locked).toBe(false);
             h.writeHeater.mockClear();
             await act(async () => h.get().toggle());
             expect(h.get().active).toBe(true);

@@ -160,8 +160,9 @@ describe('read≠write 기계 프로파일 특성화', () => {
         expect(rig.get().replay.active).toBe(false);
         expect(rig.get().replay.stopReason).toBe('controlDiverged');
         expect(heaterWrites()).toEqual([60]); // 안전 바닥: 오탐이어도 write는 없다
-        // 잠금 없음 — 사람이 토글하면 즉시 재개 가능 (오탐 비용 = 클릭 한 번)
-        expect(rig.get().replay.blocked).toBe(false);
+        // 실기 개입과 구분 불가 — 오탐이어도 그 배치는 잠금 (#374). 비용 = 남은 구간 수동.
+        expect(rig.get().replay.locked).toBe(true);
+        expect(rig.get().replay.blocked).toBe(true);
         rig.unmount();
     });
 
