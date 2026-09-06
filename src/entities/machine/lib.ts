@@ -1,5 +1,4 @@
 import {
-    addressDefaultsForProtocol,
     CUSTOM_CONNECT_KEYS,
     flattenAddressMaps,
     nestAddressMaps,
@@ -20,16 +19,13 @@ export {
     validateAddressMaps,
 } from './addressMap';
 
-/** Protocols whose adapters honor a client-supplied write_map. */
-const WRITE_MAP_PROTOCOLS = new Set(['s7']);
-
-/** Show and persist use the same plan/protocol gate — never persist a hidden write map. */
+/** Show and persist use the same plan gate. Only custom S7 adapters honor client write_map. */
 export const writeMapFormFlags = (input: {
     isCustom: boolean;
     protocol: string;
     canConfigureControl: boolean;
 }): { showWriteMap: boolean; includeWriteMap: boolean } => {
-    const showWriteMap = input.isCustom && WRITE_MAP_PROTOCOLS.has(input.protocol) && input.canConfigureControl;
+    const showWriteMap = input.isCustom && input.protocol === 's7' && input.canConfigureControl;
     return { showWriteMap, includeWriteMap: showWriteMap };
 };
 
@@ -63,19 +59,15 @@ export const isRoasterFieldVisible = (fieldKey: string, mode: string | undefined
 export const initRoasterFormParams = (
     def: RoasterDef,
     existing?: Record<string, unknown>,
-    options?: { includeAddressMap?: boolean },
+    isCustom = false,
 ): Record<string, string> => {
     const initial: Record<string, string> = {};
     for (const field of def.form_fields) {
         const val = existing?.[field.key] ?? def.default_params[field.key];
         initial[field.key] = val != null ? String(val) : '';
     }
-    if (options?.includeAddressMap && PROTOCOLS_WITH_ADDRESS_MAP.has(def.protocol)) {
+    if (isCustom && PROTOCOLS_WITH_ADDRESS_MAP.has(def.protocol)) {
         Object.assign(initial, flattenAddressMaps(def.protocol, existing));
-        // Defaults when no stored map yet
-        if (!existing?.modbus_registers && !existing?.channels) {
-            Object.assign(initial, addressDefaultsForProtocol(def.protocol));
-        }
     }
     return initial;
 };
@@ -83,7 +75,7 @@ export const initRoasterFormParams = (
 export const buildTypedConnectionParams = (
     def: RoasterDef,
     stringParams: Record<string, string>,
-    options?: { includeAddressMap?: boolean },
+    isCustom = false,
 ): Record<string, unknown> => {
     const mode = stringParams.mode;
     const result: Record<string, unknown> = {};
@@ -93,25 +85,26 @@ export const buildTypedConnectionParams = (
         if (raw === '' || raw == null) continue;
         result[field.key] = field.type === 'number' ? Number(raw) : raw;
     }
-    if (options?.includeAddressMap && PROTOCOLS_WITH_ADDRESS_MAP.has(def.protocol)) {
+    if (isCustom && PROTOCOLS_WITH_ADDRESS_MAP.has(def.protocol)) {
         Object.assign(result, nestAddressMaps(def.protocol, stringParams));
     }
     return result;
 };
 
+/** Returns the first missing field key, or null if valid. */
 export const validateRoasterFormFields = (
     def: RoasterDef,
     stringParams: Record<string, string>,
-    options?: { includeAddressMap?: boolean },
+    isCustom = false,
 ): string | null => {
     const mode = stringParams.mode;
     for (const field of def.form_fields) {
         if (!isRoasterFieldVisible(field.key, mode)) continue;
         if (field.required && !stringParams[field.key]?.trim()) {
-            return field.label;
+            return field.key;
         }
     }
-    if (options?.includeAddressMap && PROTOCOLS_WITH_ADDRESS_MAP.has(def.protocol)) {
+    if (isCustom && PROTOCOLS_WITH_ADDRESS_MAP.has(def.protocol)) {
         return validateAddressMaps(def.protocol, stringParams);
     }
     return null;

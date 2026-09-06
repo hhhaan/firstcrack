@@ -12,24 +12,17 @@ export const persistConnectionParams = (
     return rest;
 };
 
-/** Validate form fields and build typed connection params. Returns missing field label on failure. */
+/** Validate form fields and build typed connection params. Returns missing field key on failure. */
 export const assembleConnectionParams = (
     selectedDef: RoasterDef,
     params: Record<string, string>,
-    showAddressMap: boolean,
+    isCustom: boolean,
     includeWriteMap: boolean,
 ): { ok: true; typed: Record<string, unknown> } | { ok: false; missing: string } => {
-    const missing = validateRoasterFormFields(selectedDef, params, {
-        includeAddressMap: showAddressMap,
-    });
+    const missing = validateRoasterFormFields(selectedDef, params, isCustom);
     if (missing) return { ok: false, missing };
     return {
         ok: true,
-        typed: persistConnectionParams(
-            buildTypedConnectionParams(selectedDef, params, {
-                includeAddressMap: showAddressMap,
-            }),
-            includeWriteMap,
-        ),
+        typed: persistConnectionParams(buildTypedConnectionParams(selectedDef, params, isCustom), includeWriteMap),
     };
 };

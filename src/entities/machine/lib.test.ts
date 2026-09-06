@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+    buildProtocolRoasterDef,
     copyMachineSnapshot,
     EMPTY_MACHINE_SNAPSHOT,
+    initRoasterFormParams,
     isRoasterFieldVisible,
     snapshotFromSidecar,
     writeMapFormFlags,
 } from './lib';
+import { ROASTER_REGISTRY } from './roasterRegistry';
 import type { Machine } from './types';
 
 describe('isRoasterFieldVisible', () => {
@@ -52,6 +55,23 @@ describe('writeMapFormFlags', () => {
         expect(writeMapFormFlags({ isCustom: false, protocol: 's7', canConfigureControl: true }).includeWriteMap).toBe(
             false,
         );
+    });
+});
+
+describe('initRoasterFormParams custom vs registry', () => {
+    it('known machine does not flatten address-map fields', () => {
+        const def = ROASTER_REGISTRY.giesen_standard;
+        const params = initRoasterFormParams(def, { host: '10.0.0.1', channels: [{ role: 'BT', db: 9, offset: 0 }] });
+        expect(params.host).toBe('10.0.0.1');
+        expect(params).not.toHaveProperty('bt_db');
+    });
+
+    it('custom s7 add gets address defaults; custom edit hydrates channels', () => {
+        const def = buildProtocolRoasterDef('s7');
+        expect(initRoasterFormParams(def, undefined, true).bt_db).toBe('3');
+        expect(
+            initRoasterFormParams(def, { host: '10.0.0.1', channels: [{ role: 'BT', db: 9, offset: 2 }] }, true).bt_db,
+        ).toBe('9');
     });
 });
 

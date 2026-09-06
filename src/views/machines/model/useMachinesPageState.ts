@@ -1,16 +1,9 @@
-import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
+import type { Machine, RoasterDef } from '@entities/machine';
 import { useMachines, VIRTUAL_ID } from '@entities/machine';
 import { canAddMachine, planMaxMachines, useEffectivePlan } from '@shared/lib/features';
-import { sidecar } from '@shared/lib/sidecar';
-import { type Dispatch, type SetStateAction, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
-type Args = {
-    sidecarStatus: SidecarStatus | null;
-    setSidecarStatus: Dispatch<SetStateAction<SidecarStatus | null>>;
-    setTemps: Dispatch<SetStateAction<TemperatureReading | null>>;
-};
-
-export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps }: Args) => {
+export const useMachinesPageState = () => {
     const { addMachine, updateMachine, machines } = useMachines();
     const plan = useEffectivePlan();
     const [modalOpen, setModalOpen] = useState(false);
@@ -20,11 +13,6 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
     const realMachineCount = useMemo(() => machines.filter((m) => m.id !== VIRTUAL_ID).length, [machines]);
     const maxMachines = planMaxMachines(plan);
     const allowAddMachine = canAddMachine(plan, realMachineCount);
-
-    const isThisMachineConnected = useCallback(
-        (m: Machine) => Boolean(sidecarStatus?.connected && sidecarStatus.roaster === m.roasterKey),
-        [sidecarStatus?.connected, sidecarStatus?.roaster],
-    );
 
     const handleAdd = useCallback(
         (
@@ -54,21 +42,11 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
         [addMachine, plan, realMachineCount],
     );
 
-    const handleEdit = useCallback(
-        async (id: string, params: Record<string, unknown>, keepConnection = false): Promise<void> => {
-            const machine = machines.find((m) => m.id === id);
-            const wasConnected = machine ? isThisMachineConnected(machine) : false;
+    const updateMachineParams = useCallback(
+        (id: string, params: Record<string, unknown>) => {
             updateMachine(id, { connectionParams: params });
-            if (wasConnected && !keepConnection) {
-                const status = await sidecar.disconnect().catch(() => null);
-                if (status) setSidecarStatus(status);
-                setTemps(null);
-            } else if (keepConnection) {
-                const status = await sidecar.getStatus().catch(() => null);
-                if (status) setSidecarStatus(status);
-            }
         },
-        [machines, isThisMachineConnected, updateMachine, setSidecarStatus, setTemps],
+        [updateMachine],
     );
 
     const openAddModal = useCallback(() => {
@@ -100,8 +78,7 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
         openEditModal,
         closeModal,
         handleAdd,
-        handleEdit,
-        isThisMachineConnected,
+        updateMachineParams,
         allowAddMachine,
         maxMachines,
         realMachineCount,

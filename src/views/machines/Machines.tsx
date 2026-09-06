@@ -2,6 +2,7 @@ import type { Machine } from '@entities/machine';
 import { useMachines, VIRTUAL_ID } from '@entities/machine';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useMachineSidecarConnection } from '@features/machine-connection';
+import { sidecar } from '@shared/lib/sidecar';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
@@ -9,11 +10,11 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { PillButton } from '@shared/ui/PillButton';
-import { useMachinesPageState } from '@widgets/add-machine-modal/model/useMachinesPageState';
 import { AddMachineModal } from '@widgets/add-machine-modal/ui/AddMachineModal';
 import { Activity, AlertCircle, Cpu, Flame, Pencil, Plus, Trash2, Wifi, WifiOff } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useMachinesPageState } from './model/useMachinesPageState';
 
 export const Machines = ({
     isActive = false,
@@ -25,8 +26,20 @@ export const Machines = ({
     const { t } = useTranslation();
     const { machines, removeMachine } = useMachines();
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    /** Bridges page-state modalOpen into sidecar poll gate (hook order). */
-    const [modalOpenForPoll, setModalOpenForPoll] = useState(false);
+    const {
+        modalOpen,
+        editingMachine,
+        openAddModal,
+        openEditModal,
+        closeModal,
+        handleAdd,
+        updateMachineParams,
+        allowAddMachine,
+        maxMachines,
+        realMachineCount,
+        limitBlocked,
+        dismissLimitBlocked,
+    } = useMachinesPageState();
 
     const {
         sidecarStatus,
@@ -39,30 +52,32 @@ export const Machines = ({
         handleDisconnect,
     } = useMachineSidecarConnection({
         isActive,
-        modalOpen: modalOpenForPoll,
+        modalOpen,
         machines,
         onConnectedMachineId: setSelectedId,
     });
 
-    const {
-        modalOpen,
-        editingMachine,
-        openAddModal,
-        openEditModal,
-        closeModal,
-        handleAdd,
-        handleEdit,
-        isThisMachineConnected,
-        allowAddMachine,
-        maxMachines,
-        realMachineCount,
-        limitBlocked,
-        dismissLimitBlocked,
-    } = useMachinesPageState({ sidecarStatus, setSidecarStatus, setTemps });
+    const isThisMachineConnected = useCallback(
+        (m: Machine) => Boolean(sidecarStatus?.connected && sidecarStatus.roaster === m.roasterKey),
+        [sidecarStatus?.connected, sidecarStatus?.roaster],
+    );
 
-    useEffect(() => {
-        setModalOpenForPoll(modalOpen);
-    }, [modalOpen]);
+    const handleEdit = useCallback(
+        async (id: string, params: Record<string, unknown>, keepConnection = false): Promise<void> => {
+            const machine = machines.find((m) => m.id === id);
+            const wasConnected = machine ? isThisMachineConnected(machine) : false;
+            updateMachineParams(id, params);
+            if (wasConnected && !keepConnection) {
+                const status = await sidecar.disconnect().catch(() => null);
+                if (status) setSidecarStatus(status);
+                setTemps(null);
+            } else if (keepConnection) {
+                const status = await sidecar.getStatus().catch(() => null);
+                if (status) setSidecarStatus(status);
+            }
+        },
+        [machines, isThisMachineConnected, updateMachineParams, setSidecarStatus, setTemps],
+    );
 
     const selected = machines.find((m) => m.id === selectedId) ?? null;
 
