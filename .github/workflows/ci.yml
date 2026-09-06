@@ -156,7 +156,7 @@ jobs:
         working-directory: src-tauri/sidecar
 
   # Edge Function type check. _shared/*.test.ts already run under vitest (test job).
-  # Advisory until the 7 pre-existing errors are fixed (#342) — then drop the step's continue-on-error.
+  # Job id is the check-run name — keep in sync with release.yml ci-gate + scripts/release.mjs.
   # --node-modules-dir=none: root package.json would otherwise make deno resolve npm: specifiers
   # from node_modules (byonm), which is not how the edge runtime resolves them.
   edge-check:
@@ -170,7 +170,6 @@ jobs:
           deno-version: v2.x
 
       - name: deno check
-        continue-on-error: true
         working-directory: supabase/functions
         run: deno check --node-modules-dir=none */index.ts
 
