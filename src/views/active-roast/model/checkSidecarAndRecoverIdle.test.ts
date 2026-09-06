@@ -106,6 +106,26 @@ describe('checkSidecarAndRecoverIdle (#178)', () => {
         expect(setConnected).toHaveBeenCalledWith(false);
         expect(enterPreheating).not.toHaveBeenCalled();
     });
+
+    it('does not promote zombie 401 to disconnect', async () => {
+        const setConnected = vi.fn();
+        const enterPreheating = vi.fn();
+        const setReconnecting = vi.fn();
+
+        await checkSidecarAndRecoverIdle({
+            getStatus: async () => {
+                throw new Error('unauthorized');
+            },
+            getPhase: () => 'idle',
+            setConnected,
+            enterPreheating,
+            setReconnecting,
+        });
+
+        expect(setConnected).not.toHaveBeenCalled();
+        expect(setReconnecting).not.toHaveBeenCalled();
+        expect(enterPreheating).not.toHaveBeenCalled();
+    });
 });
 
 describe('idle recovery effect wiring (structural)', () => {
