@@ -1,3 +1,4 @@
+import type { SessionSummary } from '@entities/roast-profile';
 import { formatDuration } from '@shared/lib/format';
 import type { Bean } from '@shared/types/database.types';
 import { FormSelect } from '@shared/ui/FormSelect';
@@ -13,11 +14,11 @@ import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { Check, ChevronRight, History, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { fmtDate } from '../lib/format';
-import { type ProfileDefaultType, type ProfileFormMode, type ProfileFormState, ROAST_LEVELS } from '../lib/types';
-import { ProfileCurveFields } from './ProfileCurveFields';
+import { type ProfileDefaultType, type ProfileFormState, ROAST_LEVELS } from '../lib/types';
+import { ProfileCurveSummary } from './ProfileCurveSummary';
 import { ProfileDefaultSourceFields } from './ProfileDefaultSourceFields';
 
-type SessionSummary = {
+type SessionSummaryRow = {
     beans?: { name?: string | null } | null;
     roasted_at: string | null;
     duration_seconds: number | null;
@@ -26,7 +27,6 @@ type SessionSummary = {
 type BlendOption = { id: string; name: string };
 
 type ProfileFormBodyProps = {
-    mode: ProfileFormMode;
     form: ProfileFormState;
     setField: (
         field: keyof ProfileFormState,
@@ -34,7 +34,9 @@ type ProfileFormBodyProps = {
     nameRef: React.RefObject<HTMLInputElement | null>;
     isEditing: boolean;
     isValid: boolean;
-    selectedSession: SessionSummary | null;
+    selectedSession: SessionSummaryRow | null;
+    /** Curve numbers — read-only, cut from the source session. */
+    summary: SessionSummary | null;
     beans: Bean[];
     blends: BlendOption[];
     defaultType: ProfileDefaultType;
@@ -43,19 +45,20 @@ type ProfileFormBodyProps = {
     setDefaultBeanId: (id: string | null) => void;
     defaultBlendId: string | null;
     setDefaultBlendId: (id: string | null) => void;
-    onBackToPick: () => void;
+    /** Back to the session list; absent when editing (the source session is fixed). */
+    onBack?: () => void;
     onClose: () => void;
     onSubmit: (e: React.FormEvent) => void;
 };
 
 export const ProfileFormBody = ({
-    mode,
     form,
     setField,
     nameRef,
     isEditing,
     isValid,
     selectedSession,
+    summary,
     beans,
     blends,
     defaultType,
@@ -64,7 +67,7 @@ export const ProfileFormBody = ({
     setDefaultBeanId,
     defaultBlendId,
     setDefaultBlendId,
-    onBackToPick,
+    onBack,
     onClose,
     onSubmit,
 }: ProfileFormBodyProps) => {
@@ -75,28 +78,24 @@ export const ProfileFormBody = ({
             <div className={modalHeaderChrome}>
                 <ModalHeader
                     titleId="new-profile-modal-title"
-                    title={
-                        isEditing
-                            ? t('newProfileModal.editTitle')
-                            : mode === 'from-session'
-                              ? t('newProfileModal.fromSession')
-                              : t('newProfileModal.newTitle')
-                    }
+                    title={isEditing ? t('newProfileModal.editTitle') : t('newProfileModal.fromSession')}
                     onClose={onClose}
                     closeLabel={t('common.close')}
                     className="px-8 pt-6 pb-4"
                     leading={
-                        <button
-                            type="button"
-                            onClick={onBackToPick}
-                            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-xl border-none bg-surface text-muted transition-all duration-200 hover:text-primary dark:bg-surface-elevated"
-                        >
-                            <ChevronRight size={14} strokeWidth={2.5} className="rotate-180" />
-                        </button>
+                        onBack ? (
+                            <button
+                                type="button"
+                                onClick={onBack}
+                                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-xl border-none bg-surface text-muted transition-all duration-200 hover:text-primary dark:bg-surface-elevated"
+                            >
+                                <ChevronRight size={14} strokeWidth={2.5} className="rotate-180" />
+                            </button>
+                        ) : undefined
                     }
                 />
 
-                {mode === 'from-session' && selectedSession ? (
+                {selectedSession ? (
                     <div className="px-8 pb-4">
                         <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface/60 dark:bg-surface-elevated border border-transparent dark:border-[#585d61] text-[12px] text-secondary shadow-(--shadow-inset)">
                             <History size={14} strokeWidth={2} className="text-muted flex-shrink-0" />
@@ -153,7 +152,7 @@ export const ProfileFormBody = ({
                         </FormSelect>
                     </div>
 
-                    <ProfileCurveFields form={form} setField={setField} />
+                    {summary ? <ProfileCurveSummary summary={summary} /> : null}
 
                     <ProfileDefaultSourceFields
                         beans={beans}

@@ -945,7 +945,9 @@
             "title": "删除烘焙记录？",
             "description": "“{{name}}” 将被永久删除，无法恢复。",
             "cancel": "取消",
-            "confirm": "删除"
+            "confirm": "删除",
+            "blockedByProfile": "已有基于此记录创建的曲线，无法删除。请先删除该曲线。",
+            "failed": "删除失败，请重试。"
         },
         "saveAsProfile": "保存为曲线",
         "exportCsv": "导出 CSV",
@@ -1067,15 +1069,10 @@
         "description": "描述",
         "descriptionPlaceholder": "简短描述…",
         "targetLevel": "目标烘焙度",
-        "chargeTemp": "投豆温度 (°C)",
-        "tempPlaceholder": "例如：200",
-        "dropTemp": "下豆温度 (°C)",
-        "duration": "时长 (秒)",
-        "durationPlaceholder": "例如：720",
-        "devTime": "DT (秒)",
-        "devTimePlaceholder": "例如：90",
+        "chargeTemp": "投豆温度",
+        "dropTemp": "下豆温度",
+        "devTime": "DT",
         "devPct": "DTR",
-        "devPctPlaceholder": "例如：13",
         "defaultBean": "默认生豆 (可选)",
         "none": "无",
         "singleOrigin": "单品",
@@ -1087,18 +1084,17 @@
         "createProfile": "创建曲线",
         "noSessions": "暂无完成的烘焙记录。",
         "drop": "下豆",
-        "howToCreate": "您希望如何创建曲线？",
-        "manualInput": "手动输入",
-        "manualInputDesc": "直接输入入豆/下豆温度、时间等",
-        "fromSessionOption": "从烘焙记录导入",
-        "fromSessionDesc": "根据历史烘焙记录自动填充参数",
         "roastLevel": {
             "Light": "浅烘焙",
             "Medium-Light": "中浅烘焙",
             "Medium": "中烘焙",
             "Medium-Dark": "中深烘焙",
             "Dark": "深烘焙"
-        }
+        },
+        "dropTime": "下豆时间",
+        "fcTime": "一爆",
+        "computedHint": "根据烘焙记录的事件标记计算。如需更改，请编辑烘焙记录。",
+        "noMarks": "无标记"
     },
     "addBeanModal": {
         "newTitle": "新批次",

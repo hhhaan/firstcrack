@@ -725,7 +725,9 @@
             "title": "로스팅 기록을 삭제할까요?",
             "description": "\"{{name}}\" 기록이 영구 삭제됩니다. 되돌릴 수 없습니다.",
             "cancel": "취소",
-            "confirm": "삭제"
+            "confirm": "삭제",
+            "blockedByProfile": "이 기록을 기준으로 만든 프로파일이 있어 삭제할 수 없습니다. 프로파일을 먼저 삭제하세요.",
+            "failed": "삭제하지 못했습니다. 다시 시도하세요."
         },
         "saveAsProfile": "프로파일로 저장",
         "exportCsv": "Export CSV",
@@ -1055,15 +1057,10 @@
         "description": "설명",
         "descriptionPlaceholder": "간단한 설명…",
         "targetLevel": "Target Roast Level",
-        "chargeTemp": "투입 온도 (°C)",
-        "tempPlaceholder": "예: 200",
-        "dropTemp": "배출 온도 (°C)",
-        "duration": "시간 (초)",
-        "durationPlaceholder": "예: 720",
-        "devTime": "DT (초)",
-        "devTimePlaceholder": "예: 90",
+        "chargeTemp": "투입 온도",
+        "dropTemp": "배출 온도",
+        "devTime": "DT",
         "devPct": "DTR",
-        "devPctPlaceholder": "예: 13",
         "defaultBean": "기본 생두 (선택)",
         "none": "없음",
         "singleOrigin": "싱글",
@@ -1075,18 +1072,17 @@
         "createProfile": "프로파일 생성",
         "noSessions": "완료된 로스팅 세션이 없습니다.",
         "drop": "Drop",
-        "howToCreate": "프로파일을 어떻게 만들까요?",
-        "manualInput": "직접 입력",
-        "manualInputDesc": "투입·배출 온도, 시간 등을 직접 입력",
-        "fromSessionOption": "로스팅 기록에서 불러오기",
-        "fromSessionDesc": "과거 로스팅 세션 기준으로 파라미터 자동 완성",
         "roastLevel": {
             "Light": "라이트",
             "Medium-Light": "미디엄 라이트",
             "Medium": "미디엄",
             "Medium-Dark": "미디엄 다크",
             "Dark": "다크"
-        }
+        },
+        "dropTime": "배출 시각",
+        "fcTime": "1차 크랙",
+        "computedHint": "세션 이벤트에서 계산됩니다. 값을 바꾸려면 로스팅 기록을 수정하세요.",
+        "noMarks": "마킹 없음"
     },
     "beanList": {
         "searchPlaceholder": "생두 검색...",

@@ -973,7 +973,9 @@
             "title": "Delete roast session?",
             "description": "{{name}} will be permanently deleted. This can't be undone.",
             "cancel": "Cancel",
-            "confirm": "Delete"
+            "confirm": "Delete",
+            "blockedByProfile": "A profile is based on this record, so it can't be deleted. Delete the profile first.",
+            "failed": "Couldn't delete. Try again."
         },
         "saveAsProfile": "Save as profile",
         "exportCsv": "Export CSV",
@@ -1055,15 +1057,10 @@
         "description": "Description",
         "descriptionPlaceholder": "Short description…",
         "targetLevel": "Target roast level",
-        "chargeTemp": "Charge Temp (°C)",
-        "tempPlaceholder": "e.g. 200",
-        "dropTemp": "Drop Temp (°C)",
-        "duration": "Duration (sec)",
-        "durationPlaceholder": "e.g. 720",
-        "devTime": "DT (sec)",
-        "devTimePlaceholder": "e.g. 90",
+        "chargeTemp": "Charge Temp",
+        "dropTemp": "Drop Temp",
+        "devTime": "DT",
         "devPct": "DTR",
-        "devPctPlaceholder": "e.g. 13",
         "defaultBean": "Default Bean (optional)",
         "none": "None",
         "singleOrigin": "Single",
@@ -1075,18 +1072,17 @@
         "createProfile": "Create Profile",
         "noSessions": "No completed roast sessions.",
         "drop": "Drop",
-        "howToCreate": "How would you like to create the profile?",
-        "manualInput": "Manual Input",
-        "manualInputDesc": "Enter charge temp, drop temp, duration, and more",
-        "fromSessionOption": "From Roast History",
-        "fromSessionDesc": "Auto-fill parameters from a past roast session",
         "roastLevel": {
             "Light": "Light",
             "Medium-Light": "Medium-Light",
             "Medium": "Medium",
             "Medium-Dark": "Medium-Dark",
             "Dark": "Dark"
-        }
+        },
+        "dropTime": "Drop Time",
+        "fcTime": "First Crack",
+        "computedHint": "Calculated from the session's event marks. Edit the roast record to change them.",
+        "noMarks": "No marks"
     },
     "beanList": {
         "searchPlaceholder": "Search beans...",

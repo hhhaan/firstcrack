@@ -945,7 +945,9 @@
             "title": "ローストセッションを削除しますか？",
             "description": "「{{name}}」は完全に削除されます。元に戻せません。",
             "cancel": "キャンセル",
-            "confirm": "削除"
+            "confirm": "削除",
+            "blockedByProfile": "この記録を基にしたプロファイルがあるため削除できません。先にプロファイルを削除してください。",
+            "failed": "削除できませんでした。もう一度お試しください。"
         },
         "saveAsProfile": "プロファイルとして保存",
         "exportCsv": "CSV書き出し",
@@ -1055,15 +1057,10 @@
         "description": "説明",
         "descriptionPlaceholder": "簡単な説明...",
         "targetLevel": "目標ローストレベル",
-        "chargeTemp": "チャージ温度 (°C)",
-        "tempPlaceholder": "例: 200",
-        "dropTemp": "ドロップ温度 (°C)",
-        "duration": "時間 (秒)",
-        "durationPlaceholder": "例: 720",
-        "devTime": "DT (秒)",
-        "devTimePlaceholder": "例: 90",
+        "chargeTemp": "チャージ温度",
+        "dropTemp": "ドロップ温度",
+        "devTime": "DT",
         "devPct": "DTR",
-        "devPctPlaceholder": "例: 13",
         "defaultBean": "既定の豆 (任意)",
         "none": "なし",
         "singleOrigin": "シングル",
@@ -1075,18 +1072,17 @@
         "createProfile": "プロファイルを作成",
         "noSessions": "完了したローストセッションがありません。",
         "drop": "ドロップ",
-        "howToCreate": "プロファイルの作成方法を選択してください",
-        "manualInput": "手動入力",
-        "manualInputDesc": "投入・排出温度や時間などを直接入力",
-        "fromSessionOption": "ロースト履歴から",
-        "fromSessionDesc": "過去のローストセッションからパラメータを自動入力",
         "roastLevel": {
             "Light": "ライト",
             "Medium-Light": "ミディアムライト",
             "Medium": "ミディアム",
             "Medium-Dark": "ミディアムダーク",
             "Dark": "ダーク"
-        }
+        },
+        "dropTime": "ドロップ時刻",
+        "fcTime": "1ハゼ",
+        "computedHint": "セッションのイベントから計算されます。変更するにはロースト記録を編集してください。",
+        "noMarks": "マークなし"
     },
     "beanList": {
         "searchPlaceholder": "豆を検索...",
