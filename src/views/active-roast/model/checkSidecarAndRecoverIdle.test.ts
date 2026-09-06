@@ -1,5 +1,16 @@
+import type { SidecarStatus } from '@shared/types/sidecar';
 import { describe, expect, it, vi } from 'vitest';
 import { checkSidecarAndRecoverIdle } from './useSidecarPolling';
+
+const asStatus = (over: Partial<SidecarStatus> & Pick<SidecarStatus, 'connected'>): SidecarStatus => ({
+    roaster: '',
+    display_name: '',
+    brand: '',
+    capabilities: [],
+    uptime: 0,
+    error: null,
+    ...over,
+});
 
 describe('checkSidecarAndRecoverIdle (#178)', () => {
     it('enters preheating when connected and phase is idle', async () => {
@@ -7,7 +18,7 @@ describe('checkSidecarAndRecoverIdle (#178)', () => {
         const enterPreheating = vi.fn();
 
         await checkSidecarAndRecoverIdle({
-            getStatus: async () => ({ connected: true, capabilities: ['heater'] }),
+            getStatus: async () => asStatus({ connected: true, capabilities: ['heater'] }),
             getPhase: () => 'idle',
             setConnected,
             enterPreheating,
@@ -19,17 +30,22 @@ describe('checkSidecarAndRecoverIdle (#178)', () => {
 
     it('connected status is forwarded for machine snapshot', async () => {
         const onConnectedStatus = vi.fn();
-        const status = { connected: true, roaster: 'giesen_w6a', display_name: 'Giesen W6A', brand: 'Giesen' };
+        const connected = asStatus({
+            connected: true,
+            roaster: 'giesen_w6a',
+            display_name: 'Giesen W6A',
+            brand: 'Giesen',
+        });
 
         await checkSidecarAndRecoverIdle({
-            getStatus: async () => status,
+            getStatus: async () => connected,
             getPhase: () => 'roasting',
             setConnected: vi.fn(),
             enterPreheating: vi.fn(),
             onConnectedStatus,
         });
 
-        expect(onConnectedStatus).toHaveBeenCalledWith(status);
+        expect(onConnectedStatus).toHaveBeenCalledWith(connected);
     });
 
     it('does not enter preheating when already non-idle', async () => {
@@ -37,7 +53,7 @@ describe('checkSidecarAndRecoverIdle (#178)', () => {
         const enterPreheating = vi.fn();
 
         await checkSidecarAndRecoverIdle({
-            getStatus: async () => ({ connected: true, capabilities: [] }),
+            getStatus: async () => asStatus({ connected: true, capabilities: [] }),
             getPhase: () => 'roasting',
             setConnected,
             enterPreheating,
@@ -53,7 +69,7 @@ describe('checkSidecarAndRecoverIdle (#178)', () => {
         const setReconnecting = vi.fn();
 
         await checkSidecarAndRecoverIdle({
-            getStatus: async () => ({ connected: false, reconnecting: false }),
+            getStatus: async () => asStatus({ connected: false, reconnecting: false }),
             getPhase: () => 'idle',
             setConnected,
             enterPreheating,
@@ -72,11 +88,12 @@ describe('checkSidecarAndRecoverIdle (#178)', () => {
         const setError = vi.fn();
 
         await checkSidecarAndRecoverIdle({
-            getStatus: async () => ({
-                connected: false,
-                reconnecting: true,
-                error: 'read failed',
-            }),
+            getStatus: async () =>
+                asStatus({
+                    connected: false,
+                    reconnecting: true,
+                    error: 'read failed',
+                }),
             getPhase: () => 'idle',
             setConnected,
             enterPreheating,

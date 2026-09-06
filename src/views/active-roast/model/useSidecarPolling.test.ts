@@ -23,11 +23,15 @@ vi.mock('@shared/lib/sidecar', () => ({
     },
 }));
 
-vi.mock('@shared/lib/tsv-writer', () => ({
-    enqueueTsvRow: mocks.enqueueTsvRow,
-    initSessionTsv: mocks.initSessionTsv,
-    writeBbpTsv: vi.fn(),
-}));
+vi.mock('@shared/lib/tsv-writer', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/tsv-writer')>();
+    return {
+        ...actual,
+        enqueueTsvRow: mocks.enqueueTsvRow,
+        initSessionTsv: mocks.initSessionTsv,
+        writeBbpTsv: vi.fn(),
+    };
+});
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

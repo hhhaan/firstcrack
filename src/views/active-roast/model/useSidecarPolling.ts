@@ -5,25 +5,22 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { enqueueTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
+import type { SidecarStatus } from '@shared/types/sidecar';
 import { listen } from '@tauri-apps/api/event';
 import type { MutableRefObject } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { classifySidecarConnection } from '../lib/classify-sidecar-connection';
+import {
+    convertPreChargeBuffer,
+    type LiveRoastPoint,
+    type PreChargeSample,
+    stepPoll,
+    trimPreChargeBuffer,
+} from '../lib/poll-step';
 import { shouldAcceptTick } from '../lib/poll-tick-gate';
 
-/** 폴링 중 누적하는 실시간 측정 포인트 */
-export interface LiveRoastPoint {
-    time: number;
-    label: string;
-    bt: number;
-    et: number | null;
-    ror: number | null;
-    ror_et: number | null;
-    /** null = 화력 피드백 채널 없음 — TSV에는 빈칸으로 남는다 */
-    heater: number | null;
-    fan: number;
-    drum: number;
-}
+export type { LiveRoastPoint } from '../lib/poll-step';
+export { formatLookbackLabel } from '../lib/poll-step';
 
 interface Params {
     /** 뷰가 화면에 노출되어 있는지 여부 (CSS hide → show 전환 감지) */
@@ -45,38 +42,19 @@ interface Params {
 /** idle 중 /status 재확인 주기 — 온도 폴링보다 느슨 (부하 거의 없음). */
 export const IDLE_STATUS_POLL_MS = 5000;
 
-/** Charge lookback 샘플 라벨. relSec < 0일 때만 마이너스 접두. */
-export function formatLookbackLabel(relSec: number): string {
-    const absT = Math.abs(relSec);
-    const m = Math.floor(absT / 60);
-    const s = Math.floor(absT % 60);
-    const body = `${m}:${String(s).padStart(2, '0')}`;
-    return relSec < 0 ? `-${body}` : body;
-}
-
-type SidecarStatusLike = {
-    connected: boolean;
-    reconnecting?: boolean;
-    error?: string | null;
-    capabilities?: string[];
-    roaster?: string | null;
-    display_name?: string | null;
-    brand?: string | null;
-};
-
 /**
  * 연결 상태 확인 후 idle이면 preheating 재진입.
  * preheating/standby 끊김 → idle 이후 뷰 유지 시 자동 복구 (#178).
  * 자동 재연결 중에는 hard disconnect로 내리지 않는다 (세션 리셋 방지).
  */
 export async function checkSidecarAndRecoverIdle(deps: {
-    getStatus: () => Promise<SidecarStatusLike>;
+    getStatus: () => Promise<SidecarStatus>;
     getPhase: () => string;
     setConnected: (connected: boolean, capabilities?: string[]) => void;
     enterPreheating: (capabilities?: string[]) => void;
     setReconnecting?: (reconnecting: boolean) => void;
     setError?: (error: string | null) => void;
-    onConnectedStatus?: (status: SidecarStatusLike) => void;
+    onConnectedStatus?: (status: SidecarStatus) => void;
 }): Promise<void> {
     try {
         const s = await deps.getStatus();
@@ -127,7 +105,7 @@ export const useSidecarPolling = ({
 }: Params) => {
     const [livePoints, setLivePoints] = useState<LiveRoastPoint[]>([]);
     // pre-charge 버퍼: absTime으로 누적 (charge 시 음수 상대 시간으로 변환에 사용)
-    const preChargeBufferRef = useRef<(Omit<LiveRoastPoint, 'time' | 'label'> & { absTime: number })[]>([]);
+    const preChargeBufferRef = useRef<PreChargeSample[]>([]);
     // preheating 첫 폴링 시각 — livePoints 실시간 표시용 세션 기준점
     const preChargeStartRef = useRef<number>(0);
     const lastRoastPointTimeRef = useRef<number | null>(null);
@@ -160,20 +138,7 @@ export const useSidecarPolling = ({
                     });
                 });
             }
-            let prePoints: LiveRoastPoint[] = [];
-            if (chargeTime !== 0 && preChargeBufferRef.current.length > 0) {
-                const cutoff = chargeTime - preChargeDisplaySec * 1000;
-                prePoints = preChargeBufferRef.current
-                    .filter((p) => p.absTime >= cutoff)
-                    .map((p) => {
-                        const relSec = (p.absTime - chargeTime) / 1000;
-                        return {
-                            ...p,
-                            time: relSec,
-                            label: formatLookbackLabel(relSec),
-                        };
-                    });
-            }
+            const prePoints = convertPreChargeBuffer(preChargeBufferRef.current, chargeTime, preChargeDisplaySec);
             // 세션 상대 시간 display 포인트를 버퍼 기반 음수 포인트로 완전 교체
             setLivePoints(prePoints);
             preChargeBufferRef.current = [];
@@ -253,41 +218,10 @@ export const useSidecarPolling = ({
                 applyConnection(classifySidecarConnection({ kind: 'live', dataReconnecting: data.reconnecting }));
                 if (bt === null) return;
 
-                const currentPhase = useRoastingStore.getState().phase;
-
-                // BBP: 이전 드롭 이후 pre-charge 구간(ended/preheating/standby) 기록.
-                // 비활성 시 no-op — 간격 제한·만료는 스토어 append가 처리.
-                if (currentPhase !== 'roasting') {
-                    useBbpStore.getState().append(
-                        {
-                            bt,
-                            et: data.et ?? null,
-                            heater: data.heater ?? null,
-                            fan: data.fan ?? 0,
-                            drum: data.drum ?? 0,
-                        },
-                        Date.now(),
-                    );
-                }
-
-                if (currentPhase === 'roasting' && roastStartTimeRef.current !== 0) {
-                    // post-charge: same origin as store.roastStartMs / elapsed
-                    const t = (Date.now() - roastStartTimeRef.current) / 1000;
-                    // Keep elapsed on wall-clock even if UI tick interval is throttled
-                    const elapsedSec = Math.floor(t);
-                    if (useRoastingStore.getState().elapsed !== elapsedSec) {
-                        useRoastingStore.setState({ elapsed: elapsedSec });
-                    }
-                    // 폴링 주기보다 짧은 간격은 무시해 중복 포인트를 방지한다.
-                    const lastRoastPointTime = lastRoastPointTimeRef.current;
-                    if (lastRoastPointTime !== null && t >= lastRoastPointTime && t - lastRoastPointTime < 0.4) return;
-                    lastRoastPointTimeRef.current = t;
-
-                    const min = Math.floor(t / 60);
-                    const sec = Math.floor(t % 60);
-                    const point: LiveRoastPoint = {
-                        time: t,
-                        label: `${min}:${String(sec).padStart(2, '0')}`,
+                const nowMs = Date.now();
+                const buf = preChargeBufferRef.current;
+                const stepped = stepPoll(
+                    {
                         bt,
                         et: data.et ?? null,
                         ror: data.ror,
@@ -295,52 +229,35 @@ export const useSidecarPolling = ({
                         heater: data.heater ?? null,
                         fan: data.fan ?? 0,
                         drum: data.drum ?? 0,
-                    };
-
-                    const currentSessionId = useRoastingStore.getState().sessionId;
-                    if (currentSessionId) {
-                        const row = `${t.toFixed(2)}\t${bt}\t${data.et ?? ''}\t${data.ror ?? ''}\t${data.heater ?? ''}\t${data.fan ?? 0}\t${data.drum ?? 0}\n`;
-                        enqueueTsvRow(currentSessionId, row);
-                    }
-                    setLivePoints((prev) => [...prev, point]);
-                } else if (currentPhase === 'standby') {
-                    // pre-charge: 버퍼(absTime)와 livePoints(세션 상대 시간) 동시 기록
-                    const absTime = Date.now();
-                    const buf = preChargeBufferRef.current;
-                    if (buf.length > 0 && absTime - buf[buf.length - 1].absTime < 400) return;
-
-                    // 첫 폴링 시 세션 기준점 설정
-                    if (preChargeStartRef.current === 0) {
-                        preChargeStartRef.current = absTime;
-                    }
-
-                    const pointData = {
-                        bt,
-                        et: data.et ?? null,
-                        ror: data.ror,
-                        ror_et: data.ror_et ?? null,
-                        heater: data.heater ?? null,
-                        fan: data.fan ?? 0,
-                        drum: data.drum ?? 0,
-                    };
-
-                    // 버퍼: charge 시 음수 상대 시간 변환에 사용
-                    buf.push({ absTime, ...pointData });
-                    if (buf.length > 1200) buf.splice(0, buf.length - 1200);
-
-                    // livePoints: 세션 상대 시간으로 차트에 실시간 표시
-                    const sessionTime = (absTime - preChargeStartRef.current) / 1000;
-                    const m = Math.floor(sessionTime / 60);
-                    const s = Math.floor(sessionTime % 60);
-                    setLivePoints((prev) => [
-                        ...prev,
-                        {
-                            time: sessionTime,
-                            label: `${m}:${String(s).padStart(2, '0')}`,
-                            ...pointData,
-                        },
-                    ]);
+                    },
+                    {
+                        phase: useRoastingStore.getState().phase,
+                        nowMs,
+                        roastStartMs: roastStartTimeRef.current,
+                        sessionId: useRoastingStore.getState().sessionId,
+                        lastRoastPointTime: lastRoastPointTimeRef.current,
+                        lastStandbyAbsTime: buf.length > 0 ? buf[buf.length - 1].absTime : null,
+                        preChargeStartMs: preChargeStartRef.current,
+                    },
+                );
+                if (stepped.bbp) {
+                    const { bt: bbt, et, heater, fan, drum } = stepped.bbp;
+                    useBbpStore.getState().append({ bt: bbt, et, heater, fan, drum }, nowMs);
                 }
+                if (stepped.elapsedSec !== undefined && useRoastingStore.getState().elapsed !== stepped.elapsedSec) {
+                    useRoastingStore.setState({ elapsed: stepped.elapsedSec });
+                }
+                if (stepped.lastRoastPointTime !== undefined)
+                    lastRoastPointTimeRef.current = stepped.lastRoastPointTime;
+                if (stepped.preChargeStartMs !== undefined) preChargeStartRef.current = stepped.preChargeStartMs;
+                if (stepped.bufferPush) {
+                    buf.push(stepped.bufferPush);
+                    trimPreChargeBuffer(buf);
+                }
+                const tsvSessionId = useRoastingStore.getState().sessionId;
+                if (stepped.tsvRow && tsvSessionId) enqueueTsvRow(tsvSessionId, stepped.tsvRow);
+                const livePoint = stepped.livePoint;
+                if (livePoint) setLivePoints((prev) => [...prev, livePoint]);
             } catch (e) {
                 logger.debug(e, 'sidecar polling error');
                 // Transient HTTP/timeout must not wipe reconnecting or force hard disconnect

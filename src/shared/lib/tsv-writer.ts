@@ -3,6 +3,20 @@ import { BaseDirectory, remove, writeTextFile } from '@tauri-apps/plugin-fs';
 
 export const TSV_HEADER = 'time\tbt\tet\tror\theater\tfan\tdrum\n';
 
+export type TsvSample = {
+    time: number;
+    bt: number;
+    et: number | null | undefined;
+    ror: number | null | undefined;
+    heater: number | null | undefined;
+    fan: number;
+    drum: number;
+};
+
+/** Column order is owned here — must stay in lockstep with TSV_HEADER. */
+export const formatTsvRow = (s: TsvSample): string =>
+    `${s.time.toFixed(2)}\t${s.bt}\t${s.et ?? ''}\t${s.ror ?? ''}\t${s.heater ?? ''}\t${s.fan ?? 0}\t${s.drum ?? 0}\n`;
+
 export type TsvWriteFn = (path: string, contents: string, options: { append?: boolean }) => Promise<void>;
 export type TsvRemoveFn = (path: string) => Promise<void>;
 

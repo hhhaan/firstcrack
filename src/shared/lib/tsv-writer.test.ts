@@ -6,6 +6,7 @@ import {
     deleteSessionTsv,
     enqueueTsvRow,
     flushTsv,
+    formatTsvRow,
     initSessionTsv,
     sessionTsvPath,
     TSV_HEADER,
@@ -261,5 +262,16 @@ describe('tsv-writer', () => {
     it('deleteBbpTsv removes the bbp file', async () => {
         await deleteBbpTsv('abc');
         expect(removed).toEqual(['bbp_abc.tsv']);
+    });
+
+    it('formatTsvRow matches TSV_HEADER column order', () => {
+        const cols = TSV_HEADER.trimEnd().split('\t');
+        expect(cols).toEqual(['time', 'bt', 'et', 'ror', 'heater', 'fan', 'drum']);
+        expect(formatTsvRow({ time: 60, bt: 200, et: 210, ror: 5, heater: 80, fan: 40, drum: 60 })).toBe(
+            '60.00\t200\t210\t5\t80\t40\t60\n',
+        );
+        expect(formatTsvRow({ time: 1, bt: 100, et: null, ror: null, heater: null, fan: 0, drum: 0 })).toBe(
+            '1.00\t100\t\t\t\t0\t0\n',
+        );
     });
 });
