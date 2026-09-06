@@ -141,3 +141,43 @@ export const judgeReplay = (
     }
     return { nextIndex: i, heater };
 };
+
+/** 타겟 프로파일에서 Replay가 읽는 사실 — 컷오프·기기 키는 뷰가 미리 판정하지 않는다 */
+export interface ReplayReference {
+    points: ReplayPoint[] | null;
+    machineRoasterKey: string | null;
+    /** source session events jsonb — Drop 마크가 컷오프 */
+    sourceEvents?: unknown;
+    durationSec: number | null;
+}
+
+/**
+ * 컷오프는 Drop 마크. `duration_sec`는 End 확정 시각이라 Drop→End 쿨다운 조작이 섞인다.
+ * Drop이 없으면 duration으로 퇴화(레거시·미마크).
+ */
+export const replayDropCutoff = (sourceEvents: unknown, durationSec: number | null | undefined): number | null => {
+    if (Array.isArray(sourceEvents)) {
+        for (const item of sourceEvents) {
+            if (item == null || typeof item !== 'object') continue;
+            const o = item as Record<string, unknown>;
+            if (o.type === 'Drop' && typeof o.time_sec === 'number' && Number.isFinite(o.time_sec)) return o.time_sec;
+        }
+    }
+    return durationSec ?? null;
+};
+
+/** 양쪽 키가 있고 다를 때만 차단 — 마이그레이션 이전 프로파일(null)은 허용 */
+export const replayMachineMismatch = (
+    referenceKey: string | null | undefined,
+    liveKey: string | null | undefined,
+): boolean => referenceKey != null && liveKey != null && referenceKey !== liveKey;
+
+/**
+ * #314: 120s fallback TP는 곡선에서 관측된 TP가 아니라 BT 게이트를 열 수 없다.
+ * 열리면 하강 구간 후반 이벤트가 오발한다.
+ */
+export const replayAfterTurningPoint = (confirmed: { fallback?: boolean } | null | undefined): boolean =>
+    confirmed != null && !confirmed.fallback;
+
+/** 배출·로스팅 종료 — Drop 마크 포함 (PID/Replay safe-off 타이밍) */
+export const replayRoastFinished = (roastEnded: boolean, dropMarked: boolean): boolean => roastEnded || dropMarked;

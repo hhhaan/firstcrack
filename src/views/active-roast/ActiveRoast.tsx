@@ -13,7 +13,6 @@ import {
 } from '@features/active-roast';
 import { EVENT_MARKER_COLORS } from '@features/active-roast/lib/chart-config';
 import { applyEventMarkerDrag } from '@features/active-roast/lib/event-marker-drag';
-import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
@@ -163,17 +162,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [dbProfiles, targetProfileId],
     );
     const { points: targetCurvePoints } = useResolvedProfileCurve(targetProfile);
-    // Replay 컷오프는 레퍼런스의 Drop 마크다. duration_sec는 End 확정 시각(store elapsed)이라
-    // Drop→End 사이 쿨다운 조작(다음 배치 예열용 가스 올림)이 재생 계획에 섞인다.
-    const replayDropTime = useMemo(() => {
-        const events = parseStoredRoastEvents(resolveSourceSession(targetProfile?.source_session)?.events);
-        return events.find((e) => e.type === 'Drop')?.time_sec ?? targetProfile?.duration_sec ?? null;
-    }, [targetProfile]);
-
-    // Replay는 같은 기기만 — 키가 양쪽 다 있고 다를 때만 차단(레거시 null 프로파일은 허용)
-    const referenceKey = targetProfile?.machine_roaster_key ?? null;
-    const currentKey = machineSnapshot?.machine_roaster_key ?? null;
-    const replayMachineMismatch = referenceKey != null && currentKey != null && referenceKey !== currentKey;
 
     const actualPreSec =
         charged && livePoints.length > 0 && livePoints[0].time < 0 ? Math.ceil(Math.abs(livePoints[0].time)) : 0;
@@ -199,6 +187,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         rawBT,
         elapsed,
     );
+    const dropMarked = logEntries.some((e) => e.event === 'Drop');
 
     const fcDualMarkEnabled = roastSettings.fcDualMarkEnabled;
     const fcStartEntry = logEntries.find((e) => e.event === 'FC Start');
@@ -598,17 +587,23 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         liveData={liveData}
                         pidRuntime={pidRuntime}
                         // 배출·로스팅 종료 시 PID 자동 해제 (무인 화력 방지)
-                        roastFinished={roastEnded || logEntries.some((e) => e.event === 'Drop')}
+                        roastFinished={roastEnded || dropMarked}
                         pidDropBehavior={roastSettings.pidDropBehavior}
-                        // Replay Assist (#300) — 합성 곡선은 heater가 null이라 자연 비활성
-                        replayPoints={targetCurvePoints}
-                        replayMachineMismatch={replayMachineMismatch}
-                        replayDropTime={replayDropTime}
+                        // Replay Assist (#300) — 합성 곡선은 heater가 null이라 자연 비활성.
+                        // 컷오프·기기 키·fallback TP 게이트는 모듈이 프로파일/세션에서 읽는다.
+                        replayReference={{
+                            points: targetCurvePoints,
+                            machineRoasterKey: targetProfile?.machine_roaster_key ?? null,
+                            sourceEvents: resolveSourceSession(targetProfile?.source_session)?.events,
+                            durationSec: targetProfile?.duration_sec ?? null,
+                        }}
                         liveBt={rawBT}
                         elapsed={elapsed}
                         roasting={phase === 'roasting'}
-                        // #314: 120초 fallback TP는 곡선에서 관측된 TP가 아니라 BT 게이트를 열 수 없다
-                        afterTurningPoint={confirmedTP !== null && !confirmedTP.fallback}
+                        roastEnded={roastEnded}
+                        dropMarked={dropMarked}
+                        liveMachineKey={machineSnapshot?.machine_roaster_key ?? null}
+                        confirmedTurningPoint={confirmedTP}
                         temperatureUnit={unit}
                     />
 

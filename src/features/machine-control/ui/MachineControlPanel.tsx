@@ -3,7 +3,7 @@ import { FEATURE, useFeature } from '@shared/lib/features';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import type { ControlRole } from '../lib/controlSender';
-import type { ReplayPoint } from '../lib/replay';
+import type { ReplayReference } from '../lib/replay';
 import { useMachineControl } from '../model/useMachineControl';
 import { usePidControl } from '../model/usePidControl';
 import { useReplayControl } from '../model/useReplayControl';
@@ -28,17 +28,16 @@ interface Props {
     /** 배출·로스팅 종료 — PID 자동 해제 신호 */
     roastFinished: boolean;
     pidDropBehavior: 'hold' | 'zero';
-    /** 타겟 프로파일 커브 — Replay Assist 레퍼런스 (#300). 없으면 Replay 숨김 */
-    replayPoints: ReplayPoint[] | null;
-    /** 레퍼런스가 다른 기종 기록 — Replay 차단 (같은 기기만 재생) */
-    replayMachineMismatch: boolean;
-    /** 레퍼런스의 charge→drop 초 — 배출 후 기록 제외용 */
-    replayDropTime: number | null;
+    /** 타겟 프로파일 — Replay가 컷오프·기기 키를 직접 읽는다. points 없으면 비활성 */
+    replayReference: ReplayReference;
     liveBt: number | null;
     elapsed: number;
     roasting: boolean;
-    /** 실기 TP 확정 여부 — 하강 구간 BT 트리거 오발 방지 */
-    afterTurningPoint: boolean;
+    roastEnded: boolean;
+    dropMarked: boolean;
+    liveMachineKey: string | null;
+    /** 실기 TP — fallback 게이트는 Replay 모듈이 닫는다 (#314) */
+    confirmedTurningPoint: { fallback?: boolean } | null;
     /** 표시 온도 단위 — Replay 안내 문구용 */
     temperatureUnit: 'C' | 'F';
 }
@@ -60,13 +59,14 @@ export const MachineControlPanel = ({
     pidRuntime,
     roastFinished,
     pidDropBehavior,
-    replayPoints,
-    replayMachineMismatch,
-    replayDropTime,
+    replayReference,
     liveBt,
     elapsed,
     roasting,
-    afterTurningPoint,
+    roastEnded,
+    dropMarked,
+    liveMachineKey,
+    confirmedTurningPoint,
     temperatureUnit,
 }: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
@@ -94,35 +94,31 @@ export const MachineControlPanel = ({
     const pidActive = pidState !== 'off';
     const anyUnacknowledged = ROLE_ORDER.some((role) => limits[role] != null && unacknowledged.has(role));
 
-    // Replay 쓰기 경로 — setValue만으로는 전송되지 않는다(드래그 억제 설계), commit까지 한 쌍
-    const writeHeater = useCallback(
-        (value: number) => {
-            setValue('heater', value);
-            return commitNow();
-        },
-        [setValue, commitNow],
-    );
     const replay = useReplayControl({
-        referencePoints: replayPoints,
-        referenceMachineMismatch: replayMachineMismatch,
-        referenceDropTime: replayDropTime,
-        liveBt,
-        elapsed,
-        roasting,
-        afterTurningPoint,
-        heaterWritable: writable && limits.heater != null,
-        // fault 포함 — PID가 off가 아닌 동안 히터 소유권을 넘기지 않는다
-        pidEngaged: pidActive,
-        roastFinished,
-        sidecarConnected,
-        heaterUnacknowledged: unacknowledged.has('heater'),
-        // 배출 시 화력 정책은 PID와 공용 — "DROP 후 화력"은 구동 주체와 무관한 한 정책 (#316)
-        dropBehavior: pidDropBehavior,
-        // 외부 개입(지속 이탈) 감지 재료 (#307) — 실측과 "지시 미수렴" 상태
-        heaterFeedback: liveData?.heater ?? null,
-        heaterPending: desired.heater != null,
-        reconnecting,
-        writeHeater,
+        reference: replayReference,
+        live: {
+            bt: liveBt,
+            elapsed,
+            roasting,
+            roastEnded,
+            dropMarked,
+            machineRoasterKey: liveMachineKey,
+            confirmedTurningPoint,
+            heaterFeedback: liveData?.heater ?? null,
+            reconnecting,
+            sidecarConnected,
+        },
+        heater: {
+            writable: writable && limits.heater != null,
+            // fault 포함 — PID가 off가 아닌 동안 히터 소유권을 넘기지 않는다
+            pidEngaged: pidActive,
+            unacknowledged: unacknowledged.has('heater'),
+            pending: desired.heater != null,
+            // 배출 시 화력 정책은 PID와 공용 — "DROP 후 화력"은 구동 주체와 무관한 한 정책 (#316)
+            dropBehavior: pidDropBehavior,
+            setValue,
+            commitNow,
+        },
     });
     // 수동 개입은 슬라이더 콜백에서만 감지한다 — Replay 자신의 setValue가 자기를 중지시키면 안 된다.
     // 재생 중 heater 슬라이더는 잠기므로 평소엔 닿지 않는 경로지만, 드래그 도중

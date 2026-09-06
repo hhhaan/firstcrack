@@ -7,7 +7,7 @@
  * 핵심 불변식(안전 바닥): 어떤 프로파일에서도 실패는 "재생 중지·write 중단" 방향이다.
  * 엉뚱한 화력이 추가로 나가는 경로는 없다 — setControl 호출 수로 박제한다.
  */
-import { act, createElement, useCallback } from 'react';
+import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -40,10 +40,10 @@ const POINTS: ReplayPoint[] = [
 interface Sample {
     heater: number;
     liveBt?: number;
-    afterTurningPoint?: boolean;
+    confirmedTurningPoint?: { fallback?: boolean } | null;
 }
 
-/** 두 훅을 MachineControlPanel과 동일하게 배선한 합성 하네스 */
+/** 모듈 표면으로 두 훅을 물린다 — 패널 writeHeater 조립을 복사하지 않는다 */
 const renderRig = async () => {
     getStatus.mockReset();
     setControl.mockReset();
@@ -58,36 +58,33 @@ const renderRig = async () => {
         feedback: MachineFeedback;
         elapsed: number;
         liveBt: number;
-        afterTurningPoint: boolean;
+        confirmedTurningPoint: { fallback?: boolean } | null;
     }
     const Probe = ({ inputs }: { inputs: Inputs }) => {
         const mc = useMachineControl(true, inputs.feedback);
-        const { setValue, commitNow } = mc;
-        const writeHeater = useCallback(
-            (value: number) => {
-                setValue('heater', value);
-                return commitNow();
-            },
-            [setValue, commitNow],
-        );
         const replay = useReplayControl({
-            referencePoints: POINTS,
-            referenceDropTime: null,
-            liveBt: inputs.liveBt,
-            elapsed: inputs.elapsed,
-            roasting: true,
-            afterTurningPoint: inputs.afterTurningPoint,
-            heaterWritable: mc.writable && mc.limits.heater != null,
-            pidEngaged: false,
-            roastFinished: false,
-            sidecarConnected: true,
-            heaterUnacknowledged: mc.unacknowledged.has('heater'),
-            dropBehavior: 'hold',
-            heaterFeedback: inputs.feedback?.heater ?? null,
-            heaterPending: mc.desired.heater != null,
-            reconnecting: false,
-            referenceMachineMismatch: false,
-            writeHeater,
+            reference: { points: POINTS, machineRoasterKey: null, sourceEvents: null, durationSec: null },
+            live: {
+                bt: inputs.liveBt,
+                elapsed: inputs.elapsed,
+                roasting: true,
+                roastEnded: false,
+                dropMarked: false,
+                machineRoasterKey: null,
+                confirmedTurningPoint: inputs.confirmedTurningPoint,
+                heaterFeedback: inputs.feedback?.heater ?? null,
+                reconnecting: false,
+                sidecarConnected: true,
+            },
+            heater: {
+                writable: mc.writable && mc.limits.heater != null,
+                pidEngaged: false,
+                unacknowledged: mc.unacknowledged.has('heater'),
+                pending: mc.desired.heater != null,
+                dropBehavior: 'hold',
+                setValue: mc.setValue,
+                commitNow: mc.commitNow,
+            },
         });
         latest = { replay, mc };
         return null;
@@ -96,7 +93,7 @@ const renderRig = async () => {
     let elapsed = 0;
     const render = (inputs: Inputs) => act(async () => root.render(createElement(Probe, { inputs })));
     // 초기 렌더 + capability 로드 대기 (실측은 아직 idle 값)
-    await render({ feedback: { heater: 30, fan: 0, drum: 0 }, elapsed, liveBt: 180, afterTurningPoint: false });
+    await render({ feedback: { heater: 30, fan: 0, drum: 0 }, elapsed, liveBt: 180, confirmedTurningPoint: null });
 
     return {
         get: () => latest,
@@ -108,7 +105,7 @@ const renderRig = async () => {
                 feedback: { heater: s.heater, fan: 0, drum: 0 },
                 elapsed,
                 liveBt: s.liveBt ?? 180,
-                afterTurningPoint: s.afterTurningPoint ?? false,
+                confirmedTurningPoint: s.confirmedTurningPoint ?? null,
             });
         },
         unmount: () => act(() => root.unmount()),
@@ -176,7 +173,7 @@ describe('read≠write 기계 프로파일 특성화', () => {
         expect(rig.get().replay.active).toBe(true);
 
         // TP 확정 + BT 도달 → 다음 이벤트(40) 정상 발화
-        await rig.poll({ heater: 60, liveBt: 111, afterTurningPoint: true });
+        await rig.poll({ heater: 60, liveBt: 111, confirmedTurningPoint: { fallback: false } });
         expect(heaterWrites()).toEqual([60, 40]);
         expect(rig.get().replay.active).toBe(true);
         rig.unmount();

@@ -2,7 +2,15 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseTsv } from '@shared/lib/tsv';
 import { describe, expect, it } from 'vitest';
-import { extractReplayEvents, judgeReplay, type ReplayPoint } from './replay';
+import {
+    extractReplayEvents,
+    judgeReplay,
+    type ReplayPoint,
+    replayAfterTurningPoint,
+    replayDropCutoff,
+    replayMachineMismatch,
+    replayRoastFinished,
+} from './replay';
 
 /** charge 180° → TP 95°(t=60) → 상승 → drop 205° 형태의 레퍼런스 */
 const curve = (heaterAt: Record<number, number>): ReplayPoint[] => {
@@ -200,5 +208,53 @@ describe('judgeReplay', () => {
         expect(first).toEqual({ nextIndex: 2, heater: 70 });
         const again = judgeReplay(plan, first.nextIndex, { bt: 100, elapsed: 50, afterTurningPoint: false });
         expect(again.heater).toBeNull();
+    });
+
+    it('#314 fallback TP 게이트가 닫히면 하강 구간 후반 이벤트가 오발하지 않는다', () => {
+        const r = judgeReplay(plan, 2, {
+            bt: 170,
+            elapsed: 200,
+            afterTurningPoint: replayAfterTurningPoint({ fallback: true }),
+        });
+        expect(r).toEqual({ nextIndex: 2, heater: null });
+    });
+});
+
+describe('replayDropCutoff', () => {
+    it('Drop 마크를 쓰고 duration_sec(End)는 쓰지 않는다', () => {
+        expect(replayDropCutoff([{ type: 'Drop', time_sec: 580 }], 660)).toBe(580);
+    });
+
+    it('Drop이 없으면 duration_sec로 퇴화한다', () => {
+        expect(replayDropCutoff([], 660)).toBe(660);
+        expect(replayDropCutoff(null, 660)).toBe(660);
+        expect(replayDropCutoff(undefined, null)).toBeNull();
+    });
+});
+
+describe('replayMachineMismatch', () => {
+    it('양쪽 키가 있고 다를 때만 true — 레거시 null은 허용', () => {
+        expect(replayMachineMismatch('giesen_w6a', 'probat')).toBe(true);
+        expect(replayMachineMismatch('giesen_w6a', 'giesen_w6a')).toBe(false);
+        expect(replayMachineMismatch(null, 'probat')).toBe(false);
+        expect(replayMachineMismatch('giesen_w6a', null)).toBe(false);
+        expect(replayMachineMismatch(null, null)).toBe(false);
+    });
+});
+
+describe('replayAfterTurningPoint (#314)', () => {
+    it('관측 TP만 게이트를 연다 — 120s fallback은 열지 않는다', () => {
+        expect(replayAfterTurningPoint(null)).toBe(false);
+        expect(replayAfterTurningPoint({ fallback: false })).toBe(true);
+        expect(replayAfterTurningPoint({})).toBe(true);
+        expect(replayAfterTurningPoint({ fallback: true })).toBe(false);
+    });
+});
+
+describe('replayRoastFinished', () => {
+    it('ended 또는 Drop이면 종료', () => {
+        expect(replayRoastFinished(false, false)).toBe(false);
+        expect(replayRoastFinished(true, false)).toBe(true);
+        expect(replayRoastFinished(false, true)).toBe(true);
     });
 });

@@ -1,30 +1,51 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
+import type { ControlRole } from '../lib/controlSender';
+import {
+    extractReplayEvents,
+    judgeReplay,
+    type ReplayEvent,
+    type ReplayReference,
+    replayAfterTurningPoint,
+    replayDropCutoff,
+    replayMachineMismatch,
+    replayRoastFinished,
+} from '../lib/replay';
 
-export interface ReplayControlInputs {
-    /** 타겟 프로파일 커브 (charge 기준 상대 시간) — 없으면 Replay 비활성 */
-    referencePoints: ReplayPoint[] | null;
-    /**
-     * 레퍼런스가 다른 기종에서 기록됐다 — Replay는 같은 기기만 재생한다. 히터 스케일이
-     * 다르면(WxA coarse 0~10 스텝 vs % 기종) 전 이벤트가 clamp로 최대/최소 화력에 붙는다.
-     * 양쪽 키가 모두 있고 다를 때만 true — 마이그레이션 이전 프로파일(null)은 막지 않는다.
-     */
-    referenceMachineMismatch: boolean;
-    /** 레퍼런스의 charge→drop 초 — 배출 후 기록(쿨다운 조작)을 재생에서 제외한다 */
-    referenceDropTime: number | null;
-    liveBt: number | null;
+export type { ReplayReference };
+
+/** 라이브 세션 사실 — 게이트(fallback TP·종료)는 훅이 프로파일/세션에서 유도한다 */
+export interface ReplayLiveSession {
+    bt: number | null;
     elapsed: number;
     /** phase === 'roasting' — 이 밖에서는 판정도 쓰기도 하지 않는다 */
     roasting: boolean;
-    /** 실기 TP 확정 여부 — 하강 구간 BT 트리거 오발 방지 게이트 */
-    afterTurningPoint: boolean;
-    heaterWritable: boolean;
+    roastEnded: boolean;
+    dropMarked: boolean;
+    machineRoasterKey: string | null;
+    /** 실기 TP. fallback(120s)은 BT 게이트를 열면 안 된다 (#314) */
+    confirmedTurningPoint: { fallback?: boolean } | null;
+    /** heater 실측 — Replay 마지막 확정 명령과의 지속 이탈 감지용 (#307) */
+    heaterFeedback: number | null;
+    /**
+     * 사이드카 재연결 대기 중 — 이 동안 실측은 동결되는데 elapsed는 호스트 시계라
+     * 계속 흘러, 같은 샘플 하나로 "지속 이탈"을 확정할 수 있다. 카운트를 멈춘다.
+     */
+    reconnecting: boolean;
+    sidecarConnected: boolean;
+}
+
+/**
+ * 히터 채널 상태 + 슬라이더 원시 쓰기. 훅이 setValue('heater')+commitNow 쌍을
+ * 내부에서 조립한다 — 패널은 그 쌍을 모른다.
+ */
+export interface ReplayHeaterControl {
+    writable: boolean;
     /** PID가 off가 아니면 Replay 불가 — 히터 소유권은 하나 */
     pidEngaged: boolean;
-    roastFinished: boolean;
-    sidecarConnected: boolean;
     /** 지시했는데 기기가 안 따라온 상태 — 재생을 계속 밀어붙이지 않는다 (#269) */
-    heaterUnacknowledged: boolean;
+    unacknowledged: boolean;
+    /** heater 지시가 아직 수렴하지 않았다(desired 잔존) — settling 동안은 이탈 판정 제외 */
+    pending: boolean;
     /**
      * 배출 시 화력 정책 — pidDropBehavior 공용 (#316). PID든 Replay든 "DROP 후
      * 화력을 어떻게 둘지"는 한 정책이다. zero면 배출 즉시 heater 0을 쓴다(PID
@@ -32,17 +53,14 @@ export interface ReplayControlInputs {
      * hold면 마지막 재생 값을 남긴다 — 설정으로 선택된, 문서화된 잔류다.
      */
     dropBehavior: 'hold' | 'zero';
-    /** heater 실측 — Replay 마지막 확정 명령과의 지속 이탈 감지용 (#307) */
-    heaterFeedback: number | null;
-    /** heater 지시가 아직 수렴하지 않았다(desired 잔존) — settling 동안은 이탈 판정 제외 */
-    heaterPending: boolean;
-    /**
-     * 사이드카 재연결 대기 중 — 이 동안 실측은 동결되는데 elapsed는 호스트 시계라
-     * 계속 흘러, 같은 샘플 하나로 "지속 이탈"을 확정할 수 있다. 카운트를 멈춘다.
-     */
-    reconnecting: boolean;
-    /** resolve false = /control 실패(timeout·409·502) — Replay는 그 이벤트를 소진하지 않는다 (#312) */
-    writeHeater: (value: number) => Promise<boolean>;
+    setValue: (role: ControlRole, value: number) => void;
+    commitNow: () => Promise<boolean>;
+}
+
+export interface ReplayControlInputs {
+    reference: ReplayReference;
+    live: ReplayLiveSession;
+    heater: ReplayHeaterControl;
 }
 
 /** 재생 중지 사유 — 'finished'는 배치 종료라 UI에 표시하지 않는다 */
@@ -86,31 +104,48 @@ const SAMPLE_GAP_LIMIT_S = 5;
  * 다시 켜면 남은 이벤트부터 이어간다 — 지난 값을 다시 쓰지 않는다.
  * 단, 배치 안에서만이다 — 새 배치가 시작되면 인덱스는 처음으로 돌아간다.
  */
-export const useReplayControl = ({
-    referencePoints,
-    referenceMachineMismatch,
-    referenceDropTime,
-    liveBt,
-    elapsed,
-    roasting,
-    afterTurningPoint,
-    heaterWritable,
-    pidEngaged,
-    roastFinished,
-    sidecarConnected,
-    heaterUnacknowledged,
-    dropBehavior,
-    heaterFeedback,
-    heaterPending,
-    reconnecting,
-    writeHeater,
-}: ReplayControlInputs) => {
+export const useReplayControl = ({ reference, live, heater }: ReplayControlInputs) => {
+    const {
+        bt: liveBt,
+        elapsed,
+        roasting,
+        roastEnded,
+        dropMarked,
+        machineRoasterKey: liveMachineKey,
+        confirmedTurningPoint,
+        heaterFeedback,
+        reconnecting,
+        sidecarConnected,
+    } = live;
+    const {
+        writable: heaterWritable,
+        pidEngaged,
+        unacknowledged: heaterUnacknowledged,
+        pending: heaterPending,
+        dropBehavior,
+        setValue,
+        commitNow,
+    } = heater;
+
+    const referenceDropTime = replayDropCutoff(reference.sourceEvents, reference.durationSec);
+    const referenceMachineMismatch = replayMachineMismatch(reference.machineRoasterKey, liveMachineKey);
+    const afterTurningPoint = replayAfterTurningPoint(confirmedTurningPoint);
+    const roastFinished = replayRoastFinished(roastEnded, dropMarked);
+
+    const writeHeater = useCallback(
+        (value: number) => {
+            setValue('heater', value);
+            return commitNow();
+        },
+        [setValue, commitNow],
+    );
+
     const plan = useMemo(
         () =>
-            referencePoints && referencePoints.length > 0
-                ? extractReplayEvents(referencePoints, referenceDropTime)
+            reference.points && reference.points.length > 0
+                ? extractReplayEvents(reference.points, referenceDropTime)
                 : null,
-        [referencePoints, referenceDropTime],
+        [reference.points, referenceDropTime],
     );
 
     const [active, setActive] = useState(false);
