@@ -16,7 +16,7 @@ import config
 from snap7.util.getters import get_int, get_real
 from snap7.util.setters import set_int
 
-from adapters.s7 import S7Adapter, _probe_tcp  # autouse 패치 이전의 원본을 잡아둔다
+from adapters.s7 import S7Adapter, _client_alive, _probe_tcp  # autouse 패치 이전의 원본을 잡아둔다
 
 
 GIESEN_CHANNELS = [
@@ -475,3 +475,85 @@ class TestConnectProbe:
         monkeypatch.setattr(socket, "create_connection", fake_create_connection)
         _probe_tcp("172.30.30.90", 102, 0.7)
         assert seen == {"addr": ("172.30.30.90", 102), "timeout": 0.7}
+
+
+# ---------------------------------------------------------------------------
+# TestClientAliveFallback (#304) — SZL 차단 PLC는 BT db_read로 연결 인정
+# ---------------------------------------------------------------------------
+
+def _plc(cpu_state="S7CpuStatusRun", connected=True, read=None, cpu_exc=None):
+    plc = MagicMock()
+    plc.get_connected.return_value = connected
+    if cpu_exc is not None:
+        plc.get_cpu_state.side_effect = cpu_exc
+    else:
+        plc.get_cpu_state.return_value = cpu_state
+    plc.db_read.return_value = bytearray(4) if read is None else read
+    return plc
+
+
+class TestClientAliveFallback:
+    def test_run_does_not_probe(self):
+        plc = _plc()
+        assert _client_alive(plc, GIESEN_CHANNELS[0]) is True
+        plc.db_read.assert_not_called()
+
+    def test_explicit_stop_does_not_fallback(self):
+        """STOP을 db_read로 살리면 정지 PLC를 연결로 오판한다."""
+        plc = _plc(cpu_state="S7CpuStatusStop")
+        assert _client_alive(plc, GIESEN_CHANNELS[0]) is False
+        plc.db_read.assert_not_called()
+
+    def test_cpu_state_exception_falls_back_to_bt_read(self):
+        plc = _plc(cpu_exc=RuntimeError("SZL denied"))
+        assert _client_alive(plc, GIESEN_CHANNELS[0]) is True
+        plc.db_read.assert_called_once_with(3, 116, 4)
+
+    def test_unknown_falls_back_to_bt_read(self):
+        plc = _plc(cpu_state="S7CpuStatusUnknown")
+        assert _client_alive(plc, GIESEN_CHANNELS[0]) is True
+        plc.db_read.assert_called_once_with(3, 116, 4)
+
+    def test_fallback_requires_probe_channel(self):
+        plc = _plc(cpu_exc=RuntimeError("SZL denied"))
+        assert _client_alive(plc) is False
+        plc.db_read.assert_not_called()
+
+    def test_fallback_fails_on_short_read(self):
+        plc = _plc(cpu_exc=RuntimeError("SZL denied"), read=bytearray(1))
+        assert _client_alive(plc, GIESEN_CHANNELS[0]) is False
+
+    def test_int_channel_probes_two_bytes(self):
+        plc = _plc(cpu_exc=RuntimeError("SZL denied"), read=bytearray(2))
+        ch = {"role": "BT", "db": 2, "offset": 38, "type": 0}
+        assert _client_alive(plc, ch) is True
+        plc.db_read.assert_called_once_with(2, 38, 2)
+
+    def test_fallback_logs_warning(self, caplog):
+        plc = _plc(cpu_exc=RuntimeError("SZL denied"))
+        with caplog.at_level("WARNING", logger="adapters.s7"):
+            assert _client_alive(plc, GIESEN_CHANNELS[0]) is True
+        assert "CPU 상태 조회 차단됨, db_read 폴백으로 연결" in caplog.text
+
+    def test_connected_property_passes_bt_cache(self, adapter):
+        adapter._plc.get_cpu_state.side_effect = RuntimeError("SZL denied")
+        adapter._plc.db_read.return_value = bytearray(4)
+        assert adapter.connected is True
+        adapter._plc.db_read.assert_called_with(3, 116, 4)
+
+    async def test_connect_uses_bt_fallback_when_cpu_state_blocked(self, adapter):
+        adapter._plc = None
+        client = _plc(cpu_exc=RuntimeError("SZL denied"))
+        with patch("snap7.client.Client", return_value=client):
+            await adapter.connect()
+        assert adapter._plc is client
+        assert adapter._bt_ch == GIESEN_CHANNELS[0]
+        client.db_read.assert_called_with(3, 116, 4)
+
+    async def test_connect_rejects_explicit_stop(self, adapter):
+        adapter._plc = None
+        client = _plc(cpu_state="S7CpuStatusStop")
+        with patch("snap7.client.Client", return_value=client):
+            with pytest.raises(ConnectionError, match="S7 연결 실패"):
+                await adapter.connect()
+        client.db_read.assert_not_called()

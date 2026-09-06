@@ -13,19 +13,38 @@ from protocol_trace import TRACE
 _log = logging.getLogger(__name__)
 
 
-def _client_alive(plc: Any) -> bool:
+def _client_alive(plc: Any, probe_channel: dict[str, Any] | None = None) -> bool:
     """클라이언트가 살아있는 PLC에 붙어 있는지 확인 (네트워크 왕복 포함).
 
     get_connected()는 peer가 끊은 뒤에도 True를 돌려줄 수 있어(snap7 버그)
     CPU 상태 조회가 신뢰할 수 있는 신호다 — Artisan s7port.py 기준.
     비싸므로 connect 검증과 /status에서만 쓴다. 읽기 경로에서는 쓰지 않는다.
+
+    get_cpu_state()는 SZL 읽기라 S7-1200/1500 보호 설정에 선별 거부될 수 있다.
+    그 경우(예외 또는 RUN/STOP이 아닌 응답) BT db_read가 성공하면 연결로 인정.
+    명시적 STOP은 폴백하지 않는다 — PLC 정지를 연결로 오판하지 않기 위함.
     """
     try:
-        return (
-            plc is not None
-            and plc.get_connected()
-            and str(plc.get_cpu_state()) == "S7CpuStatusRun"
-        )
+        if plc is None or not plc.get_connected():
+            return False
+        try:
+            cpu_state = str(plc.get_cpu_state())
+        except Exception:
+            cpu_state = None
+
+        if cpu_state == "S7CpuStatusRun":
+            return True
+        if cpu_state == "S7CpuStatusStop":
+            return False
+        if probe_channel is None:
+            return False
+
+        db, offset = probe_channel["db"], probe_channel["offset"]
+        size = 4 if probe_channel.get("type") == 1 else 2
+        if len(plc.db_read(db, offset, size)) != size:
+            return False
+        _log.warning("CPU 상태 조회 차단됨, db_read 폴백으로 연결")
+        return True
     except Exception:
         return False
 
@@ -138,11 +157,13 @@ class S7Adapter:
 
         # 연결 검증은 get_cpu_state() 네트워크 왕복을 포함 → 이벤트 루프 밖에서 평가 (H5).
         # 읽기 경로에서는 제거했지만(예산 20% 낭비) connect 시에는 왕복 비용이 정당하다.
-        if not await loop.run_in_executor(None, lambda: _client_alive(client)):
+        # SZL이 막힌 PLC는 BT db_read 폴백 (#304). 채널 캐시 전에 _channels에서 고른다.
+        bt_ch = next((c for c in self._channels if c.get("role") == "BT"), None)
+        if not await loop.run_in_executor(None, lambda: _client_alive(client, bt_ch)):
             raise ConnectionError(
                 f"S7 연결 실패: {self._host}:{self._port} (rack={self._rack}, slot={self._slot})"
             )
-        self._bt_ch = next((c for c in self._channels if c.get("role") == "BT"), None)
+        self._bt_ch = bt_ch
         self._et_ch = next((c for c in self._channels if c.get("role") == "ET"), None)
         self._hp_ch = next((c for c in self._channels if c.get("role") == "heater"), None)
         self._fc_ch = next((c for c in self._channels if c.get("role") == "fan"), None)
@@ -413,4 +434,5 @@ class S7Adapter:
 
         읽기 경로에서는 절대 쓰지 않는다(예산 초과의 주범이었다).
         """
-        return _client_alive(self._plc)  # await 중 교체될 수 있어 스냅샷으로 넘긴다
+        plc = self._plc
+        return _client_alive(plc, self._bt_ch)  # await 중 교체될 수 있어 스냅샷으로 넘긴다
