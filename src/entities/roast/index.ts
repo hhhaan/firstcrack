@@ -11,6 +11,7 @@ export {
     useCompletedSessionCount,
     useCreateRoastSession,
     useDeleteRoastSession,
+    useRoastComponentReport,
     useRoastSession,
     useRoastSessionFilterMeta,
     useRoastSessions,

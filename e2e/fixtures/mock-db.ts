@@ -57,6 +57,8 @@ export type RoastSession = {
     bbp_seconds: number | null;
     charge_temp_celsius: number | null;
     plan_batch_id: string | null;
+    color_whole: number | null;
+    color_ground: number | null;
     machine_id: string | null;
     machine_name: string | null;
     machine_roaster_key: string | null;
@@ -66,7 +68,14 @@ export type RoastSession = {
     created_at: string;
     updated_at: string;
     beans?: { name: string; origin: string | null; region: string | null; variety: string | null; process: string | null; farm: string | null } | null;
-    roast_profiles?: { name: string; target_level: string | null } | null;
+    roast_profiles?: {
+        name: string;
+        target_level: string | null;
+        drop_temp_celsius?: number | null;
+        duration_sec?: number | null;
+        dev_time_sec?: number | null;
+        dev_pct?: number | null;
+    } | null;
 };
 
 export type PlanBatch = {
@@ -300,6 +309,8 @@ export class MockDb {
             bbp_seconds: (params.session.bbp_seconds as number | null) ?? null,
             charge_temp_celsius: (params.session.charge_temp_celsius as number | null) ?? null,
             plan_batch_id: planBatchId,
+            color_whole: (params.session.color_whole as number | null) ?? null,
+            color_ground: (params.session.color_ground as number | null) ?? null,
             machine_id: (params.session.machine_id as string | null) ?? null,
             machine_name: (params.session.machine_name as string | null) ?? null,
             machine_roaster_key: (params.session.machine_roaster_key as string | null) ?? null,

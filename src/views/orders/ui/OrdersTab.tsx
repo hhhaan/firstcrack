@@ -1,14 +1,17 @@
 import { type OrderLine, type OrderStatusFilter, type OrderWithLines, useOrdersPaginated } from '@entities/order';
 import { type OrderDispatch, useOrderDispatches } from '@entities/order-dispatch';
 import { useActiveWorkspace } from '@entities/organization';
+import { useDayBatches } from '@entities/plan';
 import { DispatchModal } from '@features/dispatch-order';
 import { LinkOrderLineModal } from '@features/map-channel-product';
 import { orderActionFlags, useCancelOrder, useFulfillOrder } from '@features/order-status';
+import { usePlanDayWrites } from '@features/schedule';
 import { formatDateShort } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { TablePagination } from '@shared/ui/TablePagination';
+import { AddBatchModal, type BatchPrefill } from '@widgets/add-batch-modal';
 import { AddOrderModal } from '@widgets/add-order-modal';
 import { DateRangeFilter } from '@widgets/date-range-filter';
 import { RoastingRequirementsCard } from '@widgets/roasting-requirements-card';
@@ -48,6 +51,15 @@ export function OrdersTab() {
     const [dispatchOrderId, setDispatchOrderId] = useState<string | null>(null);
     const [linkLine, setLinkLine] = useState<{ line: OrderLine; platform: string } | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [planPrefill, setPlanPrefill] = useState<BatchPrefill | null>(null);
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const { data: dayBatches = [] } = useDayBatches(userId, today);
+    const { createBatch } = usePlanDayWrites({
+        userId,
+        dateKey: today,
+        planId: '',
+        batches: dayBatches,
+    });
 
     const dispatchByOrder = useMemo(() => {
         const m = new Map<string, OrderDispatch>();
@@ -74,7 +86,22 @@ export function OrdersTab() {
 
     return (
         <div className="space-y-5">
-            <RoastingRequirementsCard />
+            <RoastingRequirementsCard
+                onCreatePlan={(row) =>
+                    setPlanPrefill({
+                        beanId: row.bean_id,
+                        profileId: row.roast_profile_id,
+                        greenKg: row.green_grams_needed / 1000,
+                    })
+                }
+            />
+            <AddBatchModal
+                open={planPrefill != null}
+                onClose={() => setPlanPrefill(null)}
+                onSave={createBatch}
+                initialPrefill={planPrefill}
+                currentDateKey={today}
+            />
 
             <div className="flex flex-col gap-3 rounded-lg bg-main-bg p-4 lg:flex-row lg:items-center dark:border dark:border-[#585d61]">
                 <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface px-3 py-2 dark:bg-surface-elevated">

@@ -58,6 +58,7 @@ NOTES.md
 # docs: 추적 중인 공개 문서만 예외 — 나머지는 로컬 전용
 docs/*
 !docs/agent/
+!docs/cropster-feature-map.md
 !docs/MOBILE.md
 !docs/abstraction-roi.md
 !docs/domain-architecture-code-review.md

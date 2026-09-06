@@ -1590,6 +1590,8 @@ export type Database = {
                     /** Free-text name when bean_id is null (sample / no-inventory). */
                     bean_label: string | null;
                     charge_temp_celsius: number | null;
+                    color_ground: number | null;
+                    color_whole: number | null;
                     created_at: string;
                     created_by: string | null;
                     drop_temp_celsius: number | null;
@@ -1622,6 +1624,8 @@ export type Database = {
                     bean_id?: string | null;
                     bean_label?: string | null;
                     charge_temp_celsius?: number | null;
+                    color_ground?: number | null;
+                    color_whole?: number | null;
                     created_at?: string;
                     created_by?: string | null;
                     drop_temp_celsius?: number | null;
@@ -1654,6 +1658,8 @@ export type Database = {
                     bean_id?: string | null;
                     bean_label?: string | null;
                     charge_temp_celsius?: number | null;
+                    color_ground?: number | null;
+                    color_whole?: number | null;
                     created_at?: string;
                     created_by?: string | null;
                     drop_temp_celsius?: number | null;
@@ -2146,6 +2152,8 @@ export type Database = {
                     bbp_tsv_path: string | null;
                     bean_id: string | null;
                     charge_temp_celsius: number | null;
+                    color_ground: number | null;
+                    color_whole: number | null;
                     created_at: string;
                     created_by: string | null;
                     drop_temp_celsius: number | null;
@@ -2336,7 +2344,10 @@ export type RoastProfile = Database['public']['Tables']['roast_profiles']['Row']
 export type RoastSession = Database['public']['Tables']['roast_sessions']['Row'];
 export type RoastSessionWithRelations = RoastSession & {
     beans: Pick<Bean, 'name' | 'origin' | 'region' | 'variety' | 'process' | 'farm'> | null;
-    roast_profiles: Pick<RoastProfile, 'name' | 'target_level'> | null;
+    roast_profiles:
+        | (Pick<RoastProfile, 'name' | 'target_level'> &
+              Partial<Pick<RoastProfile, 'drop_temp_celsius' | 'duration_sec' | 'dev_time_sec' | 'dev_pct'>>)
+        | null;
 };
 
 export type Cupping = Database['public']['Tables']['cuppings']['Row'];

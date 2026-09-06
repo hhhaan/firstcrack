@@ -61,6 +61,10 @@ export type SaveRoastFormData = {
     linkedBatch?: PlanBatchHandoff | null;
     /** When true, server deducts green in the same TX as session save (C1). */
     deductStock?: boolean;
+    /** Whole-bean roast color. NaN/undefined = not recorded. */
+    colorWhole?: number;
+    /** Ground roast color. NaN/undefined = not recorded. */
+    colorGround?: number;
 };
 
 export interface SaveRoastParams {
@@ -216,6 +220,9 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         charge_temp_celsius: bbpSummary != null ? Math.round(bbpSummary.chargeTemp) : null,
         plan_batch_id: effectiveBatch?.planBatchId ?? null,
         events: serializeRoastEvents(payloadParams.logEntries),
+        color_whole: formData.colorWhole != null && Number.isFinite(formData.colorWhole) ? formData.colorWhole : null,
+        color_ground:
+            formData.colorGround != null && Number.isFinite(formData.colorGround) ? formData.colorGround : null,
         ...copyMachineSnapshot(payloadParams.machineSnapshot ?? EMPTY_MACHINE_SNAPSHOT),
     };
 

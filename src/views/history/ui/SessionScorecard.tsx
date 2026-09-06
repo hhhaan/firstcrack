@@ -3,12 +3,10 @@ import { formatTemp, tempUnitLabel, toDisplayTempDelta, useRoastSettings } from 
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDuration } from '@shared/lib/format';
 import { deltaOrNull, deriveSessionDevMetrics } from '@shared/lib/roast-delta';
+import { GOAL_BANDS } from '@shared/lib/session-goals';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-
-// ponytail: 허용 밴드 하드코드 — 설정화는 수요 생기면 (Roast Settings로)
-const BANDS = { dropTemp: 2, duration: 30, devTime: 15, devPct: 2 } as const;
 
 const signed = (d: number, body: string): string => `${d >= 0 ? '+' : '−'}${body}`;
 
@@ -43,7 +41,7 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
             labelKey: 'history.table.dropTemp',
             actual: session.drop_temp_celsius,
             target: profile.drop_temp_celsius,
-            band: BANDS.dropTemp,
+            band: GOAL_BANDS.dropTemp,
             format: (v) => formatTemp(v, unit),
             formatDelta: (d) => signed(d, `${Math.abs(toDisplayTempDelta(d, unit)).toFixed(1)}${tempUnitLabel(unit)}`),
         },
@@ -52,7 +50,7 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
             labelKey: 'history.table.duration',
             actual: session.duration_seconds,
             target: profile.duration_sec,
-            band: BANDS.duration,
+            band: GOAL_BANDS.duration,
             format: fmtSec,
             formatDelta: fmtSecDelta,
         },
@@ -61,7 +59,7 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
             labelKey: 'history.scorecard.devTime',
             actual: dev.devTimeSec,
             target: profile.dev_time_sec,
-            band: BANDS.devTime,
+            band: GOAL_BANDS.devTime,
             format: fmtSec,
             formatDelta: fmtSecDelta,
         },
@@ -70,7 +68,7 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
             labelKey: 'history.scorecard.devPct',
             actual: dev.devPct,
             target: profile.dev_pct,
-            band: BANDS.devPct,
+            band: GOAL_BANDS.devPct,
             format: (v) => `${v.toFixed(1)}%`,
             formatDelta: (d) => signed(d, `${Math.abs(d).toFixed(1)}%`),
         },
@@ -82,7 +80,7 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
                       labelKey: 'history.scorecard.devTimeRolling',
                       actual: dev.rollingDevTimeSec,
                       target: null,
-                      band: BANDS.devTime,
+                      band: GOAL_BANDS.devTime,
                       format: fmtSec,
                       formatDelta: fmtSecDelta,
                   },
@@ -91,7 +89,7 @@ export const SessionScorecard = ({ session }: { session: RoastSessionWithRelatio
                       labelKey: 'history.scorecard.devPctRolling',
                       actual: dev.rollingDevPct,
                       target: null,
-                      band: BANDS.devPct,
+                      band: GOAL_BANDS.devPct,
                       format: (v: number) => `${v.toFixed(1)}%`,
                       formatDelta: (d: number) => signed(d, `${Math.abs(d).toFixed(1)}%`),
                   },

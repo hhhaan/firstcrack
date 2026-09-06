@@ -19,7 +19,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { deriveBatchQuantities } from '../lib/batch-quantities';
 import { buildNewBatchPayload } from '../lib/build-new-batch-payload';
-import type { BatchType, EditScope, NewBatchData } from '../lib/types';
+import type { BatchPrefill, BatchType, EditScope, NewBatchData } from '../lib/types';
 import { DEFAULT_BATCH_SIZE } from '../lib/types';
 import { BatchFormHeader } from './BatchFormHeader';
 import { BatchQuantityFields } from './BatchQuantityFields';
@@ -39,6 +39,7 @@ interface AddBatchModalProps {
     editingBatch?: PlanBatchWithProgress | null;
     editScope?: EditScope | null;
     currentDateKey?: string;
+    initialPrefill?: BatchPrefill | null;
     onSaved?: () => void;
 }
 
@@ -49,6 +50,7 @@ export const AddBatchModal = ({
     editingBatch,
     editScope,
     currentDateKey,
+    initialPrefill = null,
     onSaved,
 }: AddBatchModalProps) => {
     const { workspaceOwnerId: userId } = useActiveWorkspace();
@@ -85,6 +87,7 @@ export const AddBatchModal = ({
         open,
         editingBatch: editingBatch ?? null,
         currentDateKey,
+        initialPrefill,
         machines,
         setDate,
         setRecurringInterval,

@@ -2,7 +2,7 @@ import type { Machine } from '@entities/machine';
 import { parseRruleToInterval, type RecurrenceInterval } from '@shared/lib/rrule';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { useEffect } from 'react';
-import { type BatchType, DEFAULT_BATCH_SIZE, DEFAULT_YIELD } from '../lib/types';
+import { type BatchPrefill, type BatchType, DEFAULT_BATCH_SIZE, DEFAULT_YIELD } from '../lib/types';
 
 const todayDate = () => new Date();
 
@@ -20,6 +20,7 @@ type Params = {
     open: boolean;
     editingBatch: PlanBatchWithProgress | null;
     currentDateKey?: string;
+    initialPrefill?: BatchPrefill | null;
     machines: Machine[];
     setDate: (d: Date | undefined) => void;
     setRecurringInterval: (v: RecurrenceInterval | null) => void;
@@ -38,6 +39,7 @@ export const useBatchFormReset = ({
     open,
     editingBatch,
     currentDateKey,
+    initialPrefill,
     machines,
     setDate,
     setRecurringInterval,
@@ -71,11 +73,18 @@ export const useBatchFormReset = ({
             setRecurringInterval(null);
             setMachineId(machines[0]?.id ?? '');
             setBatchType('Single Origin');
-            setProfileId('');
-            setBeanId('');
+            setProfileId(initialPrefill?.profileId ?? '');
+            setBeanId(initialPrefill?.beanId ?? '');
             setBlendId(null);
-            setTargetRoasted('');
-            setBatchSize(String(DEFAULT_BATCH_SIZE));
+            const greenKg = initialPrefill?.greenKg;
+            if (greenKg != null && greenKg > 0) {
+                const green = Math.round(greenKg * 10) / 10;
+                setBatchSize(String(green));
+                setTargetRoasted(String(Math.round(green * DEFAULT_YIELD) / 100));
+            } else {
+                setTargetRoasted('');
+                setBatchSize(String(DEFAULT_BATCH_SIZE));
+            }
             setYieldPct(String(DEFAULT_YIELD));
             setNotes('');
         }
@@ -83,6 +92,7 @@ export const useBatchFormReset = ({
         open,
         editingBatch,
         currentDateKey,
+        initialPrefill,
         machines,
         setDate,
         setRecurringInterval,

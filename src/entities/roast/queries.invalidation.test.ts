@@ -20,6 +20,13 @@ describe('roastSessionKeys shape', () => {
         expect(roastSessionKeys.completedCount(uid)).toEqual(['roast_sessions', uid, 'completed_count']);
         expect(roastSessionKeys.completedMonthCount(uid)).toEqual(['roast_sessions', uid, 'completed_month_count']);
         expect(roastSessionKeys.filterMeta(uid)).toEqual(['roast_sessions', uid, 'filter_meta']);
+        expect(roastSessionKeys.componentReport(uid, '2026-01', '2026-03')).toEqual([
+            'roast_sessions',
+            uid,
+            'component_report',
+            '2026-01',
+            '2026-03',
+        ]);
         expect(roastSessionKeys.detail(uid, 's1')).toEqual(['roast_sessions', uid, 'detail', 's1']);
 
         // Old sibling shapes that miss prefix invalidation of all(userId)

@@ -170,6 +170,8 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                             // (resolvedBeanId || blendId) already blocks label-only sessions,
                             // and gating on beanId silently killed blend/handoff deduction.
                             deductStock,
+                            colorWhole: formData.colorWhole,
+                            colorGround: formData.colorGround,
                         },
                         flow.summaryData?.logEntries ?? [],
                     ),

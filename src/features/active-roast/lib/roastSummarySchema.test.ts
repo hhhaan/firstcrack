@@ -73,6 +73,17 @@ describe('buildRoastSummarySchema output vs input', () => {
     });
 });
 
+describe('buildRoastSummarySchema roast color', () => {
+    it('accepts omitted or NaN color', () => {
+        expect(issuesFor(form({ colorWhole: undefined, colorGround: Number.NaN }))).toEqual([]);
+    });
+
+    it('rejects a negative color reading', () => {
+        const issues = issuesFor(form({ colorWhole: -1 }));
+        expect(issues.some((i) => i.path.join('.') === 'colorWhole')).toBe(true);
+    });
+});
+
 describe('buildRoastSummarySchema existing refinements', () => {
     it('still requires a bean name when weight is set', () => {
         const issues = issuesFor(form({ beanId: null, beanLabel: '  ' }));

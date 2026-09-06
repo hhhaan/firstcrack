@@ -12,6 +12,7 @@ import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { deriveSessionDevMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
+import { sessionGoalsVerdict } from '@shared/lib/session-goals';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { TablePagination } from '@shared/ui/TablePagination';
@@ -54,22 +55,43 @@ type Column = {
     render: (s: RoastSessionWithRelations) => ReactNode;
 };
 
-const columnsFor = (unit: TemperatureUnit): Column[] => [
+const formatRoastColor = (whole: number | null, ground: number | null): string => {
+    if (whole == null && ground == null) return '—';
+    return `${whole ?? '—'} / ${ground ?? '—'}`;
+};
+
+const columnsFor = (unit: TemperatureUnit, t: (key: string) => string): Column[] => [
     { key: 'date', label: 'Date', width: '100px', sortable: true, render: (s) => formatDateShort(s.roasted_at) },
     {
         key: 'bean',
         label: 'Bean',
-        width: '200px',
+        width: '180px',
         sortable: true,
         render: (s) => sessionBeanName(s) ?? '—',
     },
     {
         key: 'profile',
         label: 'Profile',
-        width: '150px',
+        width: '130px',
         sortable: false,
         hideOnMd: true,
         render: (s) => s.roast_profiles?.name ?? '—',
+    },
+    {
+        key: null,
+        label: 'goals',
+        width: '72px',
+        sortable: false,
+        render: (s) => {
+            const dev = deriveSessionDevMetrics(parseStoredRoastEvents(s.events), s.duration_seconds);
+            const verdict = sessionGoalsVerdict(s, s.roast_profiles, dev);
+            if (verdict == null) return null;
+            return (
+                <Badge tone={verdict === 'pass' ? 'good' : 'bad'} size="sm">
+                    {t(`history.scorecard.${verdict}`)}
+                </Badge>
+            );
+        },
     },
     { key: 'weight', label: 'Weight', width: '90px', sortable: false, render: (s) => `${s.weight_grams}g` },
     {
@@ -124,6 +146,14 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
             ) : (
                 <span className="text-muted">—</span>
             ),
+    },
+    {
+        key: null,
+        label: 'color',
+        width: '90px',
+        sortable: false,
+        hideOnMd: true,
+        render: (s) => formatRoastColor(s.color_whole, s.color_ground),
     },
     {
         key: null,
@@ -188,7 +218,7 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
 
     return (
         <tr className="border-b border-border-subtle dark:border-[#585d61] bg-[rgba(245,242,239,0.3)] dark:bg-[rgba(38,43,48,0.3)]">
-            <td colSpan={10} className="px-4 py-4 md:px-6">
+            <td colSpan={12} className="px-4 py-4 md:px-6">
                 <div className="grid items-start gap-4 md:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_2fr]">
                     {[
                         { label: t('history.expanded.origin'), value: session.beans?.origin ?? '—' },
@@ -197,6 +227,10 @@ function ExpandedRow({ session }: ExpandedRowProps): ReactNode {
                             value: formatTemp(session.drop_temp_celsius, unit),
                         },
                         { label: t('history.expanded.duration'), value: formatDuration(session.duration_seconds) },
+                        {
+                            label: t('history.expanded.color'),
+                            value: formatRoastColor(session.color_whole, session.color_ground),
+                        },
                     ].map(({ label, value }) => (
                         <div key={label} className="mb-2">
                             <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
@@ -295,7 +329,7 @@ export const HistoryTable = ({
 }: HistoryTableProps): ReactNode => {
     const { t } = useTranslation();
     const unit = useRoastSettings().temperatureUnit;
-    const columns = columnsFor(unit);
+    const columns = columnsFor(unit, t);
     const start = (page - 1) * pageSize + 1;
     const end = Math.min(page * pageSize, filteredTotal);
 
@@ -304,12 +338,14 @@ export const HistoryTable = ({
             date: t('history.table.date'),
             bean: t('history.table.bean'),
             profile: t('history.table.profile'),
+            goals: t('history.table.goals'),
             weight: t('history.table.weight'),
             drop: t('history.table.dropTemp'),
             duration: t('history.table.duration'),
             loss: t('history.table.loss'),
             dtr: t('history.table.dtr'),
             level: t('history.table.level'),
+            color: t('history.table.color'),
         };
         return map[key] || key;
     };

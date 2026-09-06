@@ -1,9 +1,10 @@
+import type { ComponentReportSession } from '@shared/lib/component-report';
 import { supabase } from '@shared/lib/supabase';
 import type { RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 
 const SELECT_WITH_RELATIONS =
-    '*, beans(name, origin, region, variety, process, farm), roast_profiles!profile_id(name, target_level)';
+    '*, beans(name, origin, region, variety, process, farm), roast_profiles!profile_id(name, target_level, drop_temp_celsius, duration_sec, dev_time_sec, dev_pct)';
 
 /** Insert payload — created_by defaults to auth.uid() in DB. */
 export type RoastSessionInsert = Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'created_by'> & {
@@ -251,5 +252,33 @@ export const roastSessionApi = {
             .order('roasted_at', { ascending: true });
         if (error) throw error;
         return data ?? [];
+    },
+
+    /** Lightweight rows for History component report (no events/embeds). */
+    listComponentReport: async ({
+        userId,
+        fromYM,
+        toYM,
+    }: {
+        userId: string;
+        fromYM?: string | null;
+        toYM?: string | null;
+    }): Promise<ComponentReportSession[]> => {
+        let query = supabase
+            .from('roast_sessions')
+            .select('bean_id, bean_label, weight_grams, output_weight_grams, beans(name)')
+            .eq('user_id', userId)
+            .eq('status', 'completed');
+
+        if (fromYM) query = query.gte('roasted_at', `${fromYM}-01`);
+        if (toYM) {
+            const monthStart = parse(toYM, 'yyyy-MM', new Date());
+            const nextMonthStart = addMonths(monthStart, 1);
+            query = query.lt('roasted_at', format(nextMonthStart, 'yyyy-MM-dd'));
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return (data as ComponentReportSession[]) ?? [];
     },
 };

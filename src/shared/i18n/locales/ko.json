@@ -647,14 +647,28 @@
             "chartUnavailable": "차트를 불러올 수 없습니다",
             "outputWeight": "배출량",
             "estimated": "추정",
-            "outputWeightInvalid": "1–{{max}}g 사이로 입력하세요 (투입량 초과 불가)."
+            "outputWeightInvalid": "1–{{max}}g 사이로 입력하세요 (투입량 초과 불가).",
+            "color": "색도 (홀빈 / 분쇄)"
+        },
+        "tabs": {
+            "sessions": "세션",
+            "components": "컴포넌트"
+        },
+        "componentReport": {
+            "bean": "생두",
+            "sessions": "세션",
+            "green": "생두 투입",
+            "output": "배출",
+            "empty": "이 기간에 로스팅 기록이 없습니다."
         },
         "scorecard": {
             "title": "vs {{name}}",
             "devTime": "발현 시간",
             "devPct": "발현 비율",
             "devTimeRolling": "발현 시간 (Rolling)",
-            "devPctRolling": "발현 비율 (Rolling)"
+            "devPctRolling": "발현 비율 (Rolling)",
+            "pass": "합격",
+            "fail": "불합격"
         },
         "compare": {
             "button": "비교",
@@ -719,7 +733,9 @@
             "duration": "시간",
             "loss": "손실률",
             "dtr": "DTR",
-            "level": "레벨"
+            "level": "레벨",
+            "goals": "목표",
+            "color": "색도"
         },
         "delete": {
             "title": "로스팅 기록을 삭제할까요?",
@@ -936,6 +952,9 @@
             "outputExceedsInput": "볶은 후 무게가 투입량보다 클 수 없습니다.",
             "lossRateMeasured": "감량률 {{pct}}%",
             "lossRateEstimated": "미계량 — 감량률은 로스팅 레벨 기반 추정치로 대체됩니다.",
+            "colorWhole": "색도 (홀빈)",
+            "colorGround": "색도 (분쇄)",
+            "colorHint": "Agtron 등 측정값. 선택 입력.",
             "sessionExpired": "로그인 세션이 만료되었습니다. 다시 로그인하면 이 기록이 자동으로 저장됩니다.",
             "workspaceLoading": "작업 공간을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.",
             "batchUnavailable": "선택한 일정 배치는 더 이상 사용할 수 없습니다."
@@ -1370,7 +1389,8 @@
             "empty": "미출고 주문이 없어 로스팅할 물량이 없습니다.",
             "bean": "원두",
             "green": "필요 생두",
-            "available": "보유"
+            "available": "보유",
+            "createPlan": "일정 추가"
         },
         "order": {
             "newTitle": "새 주문",

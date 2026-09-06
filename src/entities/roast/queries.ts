@@ -13,6 +13,8 @@ export const roastSessionKeys = {
     completedCount: (userId: string) => [...roastSessionRoot(userId), 'completed_count'] as const,
     completedMonthCount: (userId: string) => [...roastSessionRoot(userId), 'completed_month_count'] as const,
     filterMeta: (userId: string) => [...roastSessionRoot(userId), 'filter_meta'] as const,
+    componentReport: (userId: string, fromYM: string | null, toYM: string | null) =>
+        [...roastSessionRoot(userId), 'component_report', fromYM, toYM] as const,
 };
 
 type PaginatedSessions = { data: RoastSessionWithRelations[]; total: number };
@@ -132,6 +134,25 @@ export const useRoastSessionFilterMeta = (userId: string) =>
         staleTime: Infinity,
         refetchOnMount: true,
         enabled: !!userId,
+    });
+
+export const useRoastComponentReport = ({
+    userId,
+    fromYM,
+    toYM,
+    enabled = true,
+}: {
+    userId: string;
+    fromYM?: string | null;
+    toYM?: string | null;
+    enabled?: boolean;
+}) =>
+    useQuery({
+        queryKey: roastSessionKeys.componentReport(userId, fromYM ?? null, toYM ?? null),
+        queryFn: () => roastSessionApi.listComponentReport({ userId, fromYM, toYM }),
+        staleTime: Infinity,
+        refetchOnMount: true,
+        enabled: !!userId && enabled,
     });
 
 export const useRoastSession = (userId: string, id: string) =>

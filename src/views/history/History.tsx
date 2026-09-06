@@ -2,6 +2,7 @@ import { useActiveWorkspace } from '@entities/organization';
 import {
     sessionBeanName,
     useDeleteRoastSession,
+    useRoastComponentReport,
     useRoastSessionFilterMeta,
     useRoastSessions,
     useRoastSessionsPaginated,
@@ -20,6 +21,7 @@ import { Download, GitCompare, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHistoryFilters } from './hooks/useHistoryFilters';
+import { ComponentReportTable } from './ui/ComponentReportTable';
 import { DeleteSessionModal } from './ui/DeleteSessionModal';
 import { ExportCsvModal, type ExportDateRange } from './ui/ExportCsvModal';
 import { HistorySkeleton } from './ui/HistorySkeleton';
@@ -40,6 +42,7 @@ export const History = () => {
     const [compareIds, setCompareIds] = useState<string[]>([]);
     const [showCompare, setShowCompare] = useState(false);
     const [promoteSessionId, setPromoteSessionId] = useState<string | null>(null);
+    const [view, setView] = useState<'sessions' | 'components'>('sessions');
 
     const {
         search,
@@ -95,6 +98,13 @@ export const History = () => {
     } = useRoastSessions(workspaceOwnerId, 'completed', { enabled: needFullList });
 
     const { data: filterMeta = [] } = useRoastSessionFilterMeta(workspaceOwnerId);
+
+    const { data: componentSessions = [], isLoading: isComponentLoading } = useRoastComponentReport({
+        userId: workspaceOwnerId,
+        fromYM: fromYM || null,
+        toYM: toYM || null,
+        enabled: view === 'components',
+    });
 
     const totalSessions = filterMeta.length;
 
@@ -239,6 +249,10 @@ export const History = () => {
     }, [deletingId, deleteSession]);
 
     const renderContent = (): React.ReactNode => {
+        if (view === 'components') {
+            if (isComponentLoading) return <HistorySkeleton />;
+            return <ComponentReportTable sessions={componentSessions} />;
+        }
         if (isError) {
             return <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">{t('history.error')}</div>;
         }
@@ -278,7 +292,7 @@ export const History = () => {
                     className="flex-col gap-4 md:flex-row"
                     actions={
                         <div className="flex items-center gap-2">
-                            {totalSessions > 1 && (
+                            {view === 'sessions' && totalSessions > 1 && (
                                 <button
                                     type="button"
                                     onClick={handleToggleCompareMode}
@@ -288,7 +302,7 @@ export const History = () => {
                                     {compareMode ? t('history.compare.cancel') : t('history.compare.button')}
                                 </button>
                             )}
-                            {compareMode && (
+                            {view === 'sessions' && compareMode && (
                                 <button
                                     type="button"
                                     onClick={() => setShowCompare(true)}
@@ -298,41 +312,72 @@ export const History = () => {
                                     {t('history.compare.open', { count: compareSessions.length })}
                                 </button>
                             )}
-                            <button
-                                type="button"
-                                onClick={() => setExportOpen(true)}
-                                className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px"
-                            >
-                                <Download size={14} strokeWidth={2} />
-                                {t('history.exportCsv')}
-                            </button>
+                            {view === 'sessions' && (
+                                <button
+                                    type="button"
+                                    onClick={() => setExportOpen(true)}
+                                    className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px"
+                                >
+                                    <Download size={14} strokeWidth={2} />
+                                    {t('history.exportCsv')}
+                                </button>
+                            )}
                         </div>
                     }
                 />
 
+                <div className="mb-4 flex gap-1 border-b border-border-subtle dark:border-[#585d61]">
+                    {(['sessions', 'components'] as const).map((id) => (
+                        <button
+                            key={id}
+                            type="button"
+                            onClick={() => {
+                                setView(id);
+                                if (id === 'components') {
+                                    setCompareMode(false);
+                                    setCompareIds([]);
+                                }
+                            }}
+                            className={`-mb-px cursor-pointer border-b-2 px-4 py-2.5 text-[13px] font-medium tracking-[0.14px] transition-colors ${
+                                view === id
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-muted hover:text-secondary'
+                            }`}
+                        >
+                            {t(`history.tabs.${id}`)}
+                        </button>
+                    ))}
+                </div>
+
                 <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg dark:border dark:border-[#585d61] p-4 lg:flex-row lg:items-center lg:gap-3 lg:px-5">
-                    <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface dark:bg-surface-elevated px-3 py-2">
-                        <Search size={14} strokeWidth={2} className="text-muted" />
-                        <input
-                            className="w-full border-none bg-transparent text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted font-body"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder={t('history.searchPlaceholder')}
-                        />
-                    </div>
+                    {view === 'sessions' && (
+                        <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface dark:bg-surface-elevated px-3 py-2">
+                            <Search size={14} strokeWidth={2} className="text-muted" />
+                            <input
+                                className="w-full border-none bg-transparent text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted font-body"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder={t('history.searchPlaceholder')}
+                            />
+                        </div>
+                    )}
                     <div className="flex flex-wrap items-center gap-2">
-                        <FilterDropdown
-                            label={t('history.allLevels')}
-                            value={levelFilter}
-                            options={ROAST_LEVELS.filter((l) => rawSessions.some((s) => s.roast_level === l))}
-                            onSelect={setLevelFilter}
-                        />
-                        <FilterDropdown
-                            label={t('history.allOrigins')}
-                            value={originFilter}
-                            options={uniqueOrigins}
-                            onSelect={setOriginFilter}
-                        />
+                        {view === 'sessions' && (
+                            <>
+                                <FilterDropdown
+                                    label={t('history.allLevels')}
+                                    value={levelFilter}
+                                    options={ROAST_LEVELS.filter((l) => rawSessions.some((s) => s.roast_level === l))}
+                                    onSelect={setLevelFilter}
+                                />
+                                <FilterDropdown
+                                    label={t('history.allOrigins')}
+                                    value={originFilter}
+                                    options={uniqueOrigins}
+                                    onSelect={setOriginFilter}
+                                />
+                            </>
+                        )}
                         <DateRangeFilter
                             preset={datePreset}
                             fromYM={fromYM}

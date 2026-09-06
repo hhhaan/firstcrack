@@ -632,6 +632,9 @@
             "outputExceedsInput": "烘焙后重量不能超过生豆投入量。",
             "lossRateMeasured": "失重率 {{pct}}%",
             "lossRateEstimated": "未称重 — 失重率将按烘焙度估算。",
+            "colorWhole": "色值（整豆）",
+            "colorGround": "色值（研磨）",
+            "colorHint": "可选 Agtron 等读数，无需仪器。",
             "sessionExpired": "登录会话已过期。重新登录后，此记录将自动保存。",
             "workspaceLoading": "工作区仍在加载中，请稍后重试。",
             "batchUnavailable": "所选的排程批次已不可用。"
@@ -895,14 +898,28 @@
             "chartUnavailable": "图表不可用",
             "outputWeight": "出豆量",
             "estimated": "估算",
-            "outputWeightInvalid": "请输入 1–{{max}}g（不能超过投入量）。"
+            "outputWeightInvalid": "请输入 1–{{max}}g（不能超过投入量）。",
+            "color": "色值（整豆 / 研磨）"
+        },
+        "tabs": {
+            "sessions": "记录",
+            "components": "组分"
+        },
+        "componentReport": {
+            "bean": "生豆",
+            "sessions": "记录",
+            "green": "生豆投入",
+            "output": "出豆",
+            "empty": "该时段没有烘焙记录。"
         },
         "scorecard": {
             "title": "vs {{name}}",
             "devTime": "发展时间",
             "devPct": "发展率",
             "devTimeRolling": "发展时间 (Rolling)",
-            "devPctRolling": "发展率 (Rolling)"
+            "devPctRolling": "发展率 (Rolling)",
+            "pass": "合格",
+            "fail": "不合格"
         },
         "compare": {
             "button": "对比",
@@ -939,7 +956,9 @@
             "duration": "时长",
             "loss": "失重率",
             "dtr": "DTR",
-            "level": "烘焙度"
+            "level": "烘焙度",
+            "goals": "目标",
+            "color": "色值"
         },
         "delete": {
             "title": "删除烘焙记录？",
@@ -1370,7 +1389,8 @@
             "empty": "没有未完成的订单 — 无需烘焙。",
             "bean": "咖啡豆",
             "green": "所需生豆",
-            "available": "可用库存"
+            "available": "可用库存",
+            "createPlan": "加入计划"
         },
         "order": {
             "newTitle": "新建订单",

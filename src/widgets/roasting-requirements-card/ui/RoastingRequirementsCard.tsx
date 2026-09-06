@@ -6,8 +6,14 @@ import { Flame } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+export type RequirementPlanTarget = {
+    bean_id: string;
+    roast_profile_id: string | null;
+    green_grams_needed: number;
+};
+
 /** Display-only aggregation: what to roast to cover unfulfilled paid orders. */
-export const RoastingRequirementsCard = () => {
+export const RoastingRequirementsCard = ({ onCreatePlan }: { onCreatePlan?: (row: RequirementPlanTarget) => void }) => {
     const { t } = useTranslation();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: req, isLoading } = useRoastingRequirements(userId);
@@ -52,6 +58,7 @@ export const RoastingRequirementsCard = () => {
                             <th className="pb-2 text-right text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                 {t('orders.requirements.available')}
                             </th>
+                            {onCreatePlan ? <th className="pb-2 w-px" /> : null}
                         </tr>
                     </thead>
                     <tbody>
@@ -73,6 +80,25 @@ export const RoastingRequirementsCard = () => {
                                     >
                                         {(b.green_available / 1000).toFixed(2)} kg
                                     </td>
+                                    {onCreatePlan ? (
+                                        <td className="py-2.5 pl-3 text-right">
+                                            {short ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        onCreatePlan({
+                                                            bean_id: b.bean_id,
+                                                            roast_profile_id: b.roast_profile_id,
+                                                            green_grams_needed: b.green_grams_needed,
+                                                        })
+                                                    }
+                                                    className="cursor-pointer rounded-md bg-surface px-2 py-1 text-[12px] font-medium text-primary hover:bg-surface-raised dark:bg-surface-elevated"
+                                                >
+                                                    {t('orders.requirements.createPlan')}
+                                                </button>
+                                            ) : null}
+                                        </td>
+                                    ) : null}
                                 </tr>
                             );
                         })}

@@ -110,6 +110,8 @@ export const RoastSummaryModal = ({
             linkMode: hasHandoff ? 'schedule' : 'none',
             planBatchId: planBatchHandoff?.planBatchId ?? null,
             deductStock: false,
+            colorWhole: undefined,
+            colorGround: undefined,
         },
     });
 
@@ -166,6 +168,8 @@ export const RoastSummaryModal = ({
                 linkMode: handoff ? 'schedule' : 'none',
                 planBatchId: handoff?.planBatchId ?? null,
                 deductStock: false,
+                colorWhole: undefined,
+                colorGround: undefined,
             });
             setBeanComboboxKey((k) => k + 1);
         }
@@ -531,6 +535,32 @@ export const RoastSummaryModal = ({
                             </button>
                         ))}
                     </div>
+                </div>
+
+                <div className="mb-3.5 grid grid-cols-2 gap-2">
+                    <div>
+                        <div className={sectionLabelClass}>{t('activeRoast.summary.colorWhole')}</div>
+                        <input
+                            type="number"
+                            min={0}
+                            step={0.1}
+                            {...register('colorWhole', { valueAsNumber: true })}
+                            placeholder="—"
+                            className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
+                        />
+                    </div>
+                    <div>
+                        <div className={sectionLabelClass}>{t('activeRoast.summary.colorGround')}</div>
+                        <input
+                            type="number"
+                            min={0}
+                            step={0.1}
+                            {...register('colorGround', { valueAsNumber: true })}
+                            placeholder="—"
+                            className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
+                        />
+                    </div>
+                    <p className="col-span-2 text-[11px] text-muted">{t('activeRoast.summary.colorHint')}</p>
                 </div>
 
                 <div className="mb-3.5">
