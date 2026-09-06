@@ -57,7 +57,7 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
                 }),
             }).catch(() => {});
             // #endregion
-            void sidecar.getStatus().then(markReady, () => null);
+            void sidecar.waitUntilReady().then(markReady, () => null);
         })
             .then((fn) => {
                 // 이미 정리된 이펙트면 즉시 해제 — listen resolve가 cleanup보다 늦으면 리스너가 샌다
