@@ -29,9 +29,22 @@ const getSidecarToken = (): Promise<string | null> => {
     return tokenPromise;
 };
 
+const STARTUP_RETRY_GAP_MS = 400;
 const CONNECT_RETRY_BUDGET_MS = 8_000;
-const CONNECT_RETRY_GAP_MS = 400;
+const READY_RETRY_BUDGET_MS = 30_000;
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+async function retryWhileSidecarStarts<T>(operation: () => Promise<T>, budgetMs: number): Promise<T> {
+    const deadline = Date.now() + budgetMs;
+    for (;;) {
+        try {
+            return await operation();
+        } catch (error) {
+            if (!isSidecarStartingError(error) || Date.now() >= deadline) throw error;
+            await wait(STARTUP_RETRY_GAP_MS);
+        }
+    }
+}
 
 async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
     try {
@@ -62,24 +75,22 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = DEFAULT_
 export const sidecar = {
     getStatus: () => request<SidecarStatus>('/status'),
 
-    connect: async (roasterKey: string, params: Record<string, unknown>) => {
-        const deadline = Date.now() + CONNECT_RETRY_BUDGET_MS;
-        for (;;) {
-            try {
-                return await request<SidecarStatus>(
+    /** 재시작 직후 30초 예산 동안 사이드카 기동 실패를 삼키고 첫 정상 상태를 기다린다. */
+    waitUntilReady: () => retryWhileSidecarStarts(() => request<SidecarStatus>('/status'), READY_RETRY_BUDGET_MS),
+
+    connect: (roasterKey: string, params: Record<string, unknown>) =>
+        retryWhileSidecarStarts(
+            () =>
+                request<SidecarStatus>(
                     '/connect',
                     {
                         method: 'POST',
                         body: JSON.stringify({ roaster: roasterKey, ...params }),
                     },
                     CONNECT_TIMEOUT_MS,
-                );
-            } catch (e) {
-                if (!isSidecarStartingError(e) || Date.now() >= deadline) throw e;
-                await wait(CONNECT_RETRY_GAP_MS);
-            }
-        }
-    },
+                ),
+            CONNECT_RETRY_BUDGET_MS,
+        ),
 
     // connect와 같은 예산을 준다 — 진행 중인 핸드셰이크를 취소하고 정리가 끝나기를
     // 기다려야 하므로, 5s 기본값이면 요청이 먼저 abort돼 상태가 갱신되지 않는다.

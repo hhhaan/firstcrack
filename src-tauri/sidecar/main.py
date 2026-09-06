@@ -77,6 +77,26 @@ def _pid_alive(pid: int) -> bool:
         return False
 
 
+def _exit_if_parent_dead() -> None:
+    """bind 전에 부모(Tauri) 생존을 확인한다.
+
+    PyInstaller 자식 프로세스는 죽은 부모를 두고도 bind에 성공해 약 1초간
+    생존할 수 있다(런타임 로그로 확인됨). watchdog(parent_watchdog)는 bind
+    이후에야 감지하므로 그 창을 막지 못한다 — bind 전에 여기서 막는다.
+    """
+    pid_str = os.environ.get("SIDECAR_PARENT_PID")
+    if pid_str is None:
+        return
+    try:
+        parent_pid = int(pid_str)
+    except ValueError:
+        _log.error("잘못된 부모 PID — sidecar bind 취소")
+        raise SystemExit(0)
+    if not _pid_alive(parent_pid):
+        _log.info("부모 프로세스(PID %d) 사망 — sidecar bind 취소", parent_pid)
+        raise SystemExit(0)
+
+
 async def _cleanup_manager(manager: RoasterManager) -> None:
     """어댑터 정리(Kaleido CL/AR, 시리얼 해제 등). 실패해도 종료 경로를 막지 않음."""
     try:
@@ -510,5 +530,6 @@ def create_app() -> web.Application:
 
 
 if __name__ == "__main__":
+    _exit_if_parent_dead()
     _log.info("First Crack sidecar 시작 — http://127.0.0.1:9999")
     web.run_app(create_app(), host="127.0.0.1", port=9999, print=None)
