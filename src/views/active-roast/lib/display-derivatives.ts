@@ -69,6 +69,12 @@ export const calcDelta = (livePoints: LiveRoastPoint[], unit: TemperatureUnit): 
     };
 };
 
+/** ET−BT gap in the display unit. Null unless both sensors have a reading. */
+export const calcEtBtGap = (rawET: number | null, rawBT: number | null, unit: TemperatureUnit): string | null => {
+    if (rawET == null || rawBT == null) return null;
+    return (toDisplayTemp(rawET, unit) - toDisplayTemp(rawBT, unit)).toFixed(1);
+};
+
 export type TargetDeltaStatus = 'within' | 'over' | 'under';
 
 export interface TargetDeltaResult {

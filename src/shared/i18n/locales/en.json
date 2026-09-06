@@ -565,6 +565,7 @@
             "deltaBt": "ΔBT (30s)",
             "et": "ET",
             "deltaEt": "ΔET (30s)",
+            "etBt": "ET−BT",
             "ror": "RoR",
             "time": "Time",
             "dtr": "DTR"

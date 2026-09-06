@@ -7,7 +7,8 @@ import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
-import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
+import { useTranslation } from 'react-i18next';
+import { calcEtBtGap, type RoastLogDisplayEntry, type TargetDeltaResult } from '../lib/display-derivatives';
 import { EventButtons } from './EventButtons';
 import { RoastAlertBanner } from './RoastAlertBanner';
 
@@ -88,9 +89,11 @@ export const RoastSidePanel = ({
     onManualCharge,
     onEndRoast,
 }: RoastSidePanelProps) => {
+    const { t } = useTranslation();
     const showRollingDtr = rollingDtrPct != null;
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
+    const etBtGap = calcEtBtGap(rawET, rawBT, unit);
 
     return (
         <div className="w-48 flex flex-col gap-2.5 px-3 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -143,6 +146,19 @@ export const RoastSidePanel = ({
                     )}
                 </span>
             </div>
+            {/* ET−BT */}
+            {etBtGap != null && (
+                <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted font-semibold uppercase">{t('activeRoast.sidebar.etBt')}</span>
+                    <span
+                        className="font-mono text-xl font-medium leading-tight"
+                        style={{ color: 'var(--color-primary)' }}
+                    >
+                        <span className="mr-1">{Number(etBtGap) >= 0 ? '+' : '−'}</span>
+                        <span>{Math.abs(Number(etBtGap)).toFixed(1)}°</span>
+                    </span>
+                </div>
+            )}
             {/* Δ Target — 타겟 곡선 대비 현재 BT */}
             {targetDelta != null && (
                 <div className="flex items-center justify-between">

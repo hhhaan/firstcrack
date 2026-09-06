@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
-import { calcDelta, calcTargetDelta } from './display-derivatives';
+import { calcDelta, calcEtBtGap, calcTargetDelta } from './display-derivatives';
 
 // 0s:200° → 60s:180° 직선 타겟
 const target = [
@@ -53,6 +53,27 @@ describe('calcDelta', () => {
     it('null ET delta when either sample lacks ET', () => {
         const points = [live(0, 100, null), live(30, 110, 120)];
         expect(calcDelta(points, 'C')).toEqual({ deltaBT: '10.0', deltaET: null });
+    });
+});
+
+describe('calcEtBtGap', () => {
+    it('returns ET−BT when both sensors have a reading', () => {
+        expect(calcEtBtGap(200, 180, 'C')).toBe('20.0');
+    });
+
+    it('returns null unless both ET and BT are present', () => {
+        expect(calcEtBtGap(null, 180, 'C')).toBeNull();
+        expect(calcEtBtGap(200, null, 'C')).toBeNull();
+        expect(calcEtBtGap(null, null, 'C')).toBeNull();
+    });
+
+    it('converts the gap into the display unit', () => {
+        // 20°C → 36°F
+        expect(calcEtBtGap(200, 180, 'F')).toBe('36.0');
+    });
+
+    it('keeps a negative gap when BT is above ET', () => {
+        expect(calcEtBtGap(170, 180, 'C')).toBe('-10.0');
     });
 });
 
