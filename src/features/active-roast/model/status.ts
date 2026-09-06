@@ -33,7 +33,7 @@ export interface RoastingState {
     pendingProfileId: string | null;
     sessionId: string | null;
     reconnecting: boolean;
-    /** Last connected machine this roast; kept through disconnect until reset. */
+    /** Last connected machine this roast; kept through disconnect and reset while connected. */
     machineSnapshot: MachineSnapshot | null;
 
     // derived convenience
@@ -183,7 +183,7 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
     },
 
     reset: () => {
-        const { sidecarConnected, machineCapabilities } = get();
-        set({ ...initialState, sidecarConnected, machineCapabilities });
+        const { sidecarConnected, machineCapabilities, machineSnapshot } = get();
+        set({ ...initialState, sidecarConnected, machineCapabilities, machineSnapshot });
     },
 }));

@@ -1,3 +1,4 @@
+import { isVirtualMachineSnapshot } from '@entities/machine';
 import { useRoastingStore } from '@features/active-roast';
 import { useWeather } from '@shared/api/weather';
 import type { View } from '@shared/types/view';
@@ -11,7 +12,7 @@ interface DashboardHeaderProps {
 }
 
 export const DashboardHeader = ({ onNavigate }: DashboardHeaderProps) => {
-    const isRoasting = useRoastingStore((s) => s.isRoasting);
+    const isRoasting = useRoastingStore((s) => s.isRoasting && !isVirtualMachineSnapshot(s.machineSnapshot));
     const weather = useWeather();
     const { t } = useTranslation();
 

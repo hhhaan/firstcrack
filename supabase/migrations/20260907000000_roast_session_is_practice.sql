@@ -1,0 +1,241 @@
+-- Virtual/practice sessions: persist as roast_sessions.is_practice so History,
+-- stock, plan progress, and batch caps can exclude them server-side.
+-- Client flags are not trusted — save_roast_op also infers practice from the
+-- machine snapshot (roaster_key/protocol = virtual).
+
+alter table public.roast_sessions
+  add column if not exists is_practice boolean not null default false;
+
+comment on column public.roast_sessions.is_practice is
+  'Virtual/practice roast. Excluded from History, inventory, plan progress, and batch caps.';
+
+CREATE OR REPLACE FUNCTION public.enforce_batch_gate()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  gate_err text;
+  owner_plan text;
+  used int;
+  cap int := 200;
+  month_start timestamptz;
+  month_end timestamptz;
+BEGIN
+  IF NEW.status IS DISTINCT FROM 'completed' THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.is_practice THEN
+    RETURN NEW;
+  END IF;
+
+  -- Already completed: editing other fields must not re-count against caps.
+  IF TG_OP = 'UPDATE' AND OLD.status = 'completed' THEN
+    RETURN NEW;
+  END IF;
+
+  gate_err := public.profile_write_error(NEW.user_id);
+  IF gate_err IS NOT NULL THEN
+    RAISE EXCEPTION '%', gate_err
+      USING ERRCODE = 'check_violation',
+            DETAIL = format('user=%s', NEW.user_id);
+  END IF;
+
+  SELECT plan INTO owner_plan FROM public.profiles WHERE id = NEW.user_id;
+  -- trial is gated by the lifetime cap above; unlimited tiers pass.
+  IF owner_plan IN ('trial', 'pro_plus', 'tester', 'enterprise', 'team') THEN
+    RETURN NEW;
+  END IF;
+
+  -- pro / legacy free / unknown: 200 completed sessions per UTC month.
+  month_start := date_trunc('month', timezone('utc', now()));
+  month_end := month_start + interval '1 month';
+
+  SELECT count(*)::int INTO used
+  FROM public.roast_sessions
+  WHERE user_id = NEW.user_id
+    AND status = 'completed'
+    AND is_practice = false
+    AND roasted_at >= month_start
+    AND roasted_at < month_end
+    AND (TG_OP = 'INSERT' OR id IS DISTINCT FROM NEW.id);
+
+  IF used >= cap THEN
+    RAISE EXCEPTION 'monthly_batch_cap_exceeded'
+      USING ERRCODE = 'check_violation',
+            DETAIL = format('used=%s cap=%s plan=%s', used, cap, coalesce(owner_plan, 'null'));
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- save_roast_op lists columns explicitly — include is_practice and skip
+-- stock / plan_batch side-effects for practice rows.
+CREATE OR REPLACE FUNCTION save_roast_op(
+  p_session jsonb,
+  p_deduct boolean,
+  p_deduction_grams integer,
+  p_inbound_grams integer,
+  p_inbound_is_estimate boolean
+)
+RETURNS roast_sessions
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_session roast_sessions;
+  v_id uuid;
+  v_blend_id uuid;
+  v_bean_id uuid;
+  v_user_id uuid;
+  v_blend_name text;
+  v_allocated integer := 0;
+  v_grams integer;
+  v_comp record;
+  v_count integer;
+  v_i integer := 0;
+  v_is_practice boolean;
+BEGIN
+  v_user_id := (p_session->>'user_id')::uuid;
+  IF v_user_id IS NULL OR NOT public.has_workspace_access(v_user_id) THEN
+    RAISE EXCEPTION 'workspace access denied';
+  END IF;
+
+  v_id := NULLIF(p_session->>'id', '')::uuid;
+
+  v_is_practice := COALESCE((p_session->>'is_practice')::boolean, false)
+    OR COALESCE(p_session->>'machine_roaster_key', '') = 'virtual'
+    OR COALESCE(p_session->>'machine_protocol', '') = 'virtual';
+
+  -- Retry of a committed save: side-effects were part of that TX — return as-is.
+  IF v_id IS NOT NULL THEN
+    SELECT * INTO v_session FROM roast_sessions WHERE id = v_id;
+    IF FOUND THEN
+      RETURN v_session;
+    END IF;
+  END IF;
+
+  INSERT INTO roast_sessions (
+    id, user_id, weight_grams, output_weight_grams, status, roasted_at, duration_seconds,
+    drop_temp_celsius, roast_level, scheduled_at, notes,
+    ambient_temp_celsius, ambient_humidity_pct, bean_id, bean_label, profile_id,
+    tsv_path, bbp_tsv_path, bbp_seconds, charge_temp_celsius, plan_batch_id, events,
+    machine_id, machine_name, machine_roaster_key, machine_brand, machine_protocol,
+    is_practice,
+    created_by
+  ) VALUES (
+    COALESCE(v_id, gen_random_uuid()),
+    v_user_id,
+    (p_session->>'weight_grams')::integer,
+    NULLIF(p_session->>'output_weight_grams', '')::integer,
+    COALESCE(p_session->>'status', 'completed'),
+    NULLIF(p_session->>'roasted_at', '')::timestamptz,
+    NULLIF(p_session->>'duration_seconds', '')::integer,
+    NULLIF(p_session->>'drop_temp_celsius', '')::integer,
+    NULLIF(p_session->>'roast_level', ''),
+    NULLIF(p_session->>'scheduled_at', '')::timestamptz,
+    NULLIF(p_session->>'notes', ''),
+    NULLIF(p_session->>'ambient_temp_celsius', '')::numeric,
+    NULLIF(p_session->>'ambient_humidity_pct', '')::numeric,
+    NULLIF(p_session->>'bean_id', '')::uuid,
+    NULLIF(trim(COALESCE(p_session->>'bean_label', '')), ''),
+    NULLIF(p_session->>'profile_id', '')::uuid,
+    NULLIF(p_session->>'tsv_path', ''),
+    NULLIF(p_session->>'bbp_tsv_path', ''),
+    NULLIF(p_session->>'bbp_seconds', '')::integer,
+    NULLIF(p_session->>'charge_temp_celsius', '')::integer,
+    CASE WHEN v_is_practice THEN NULL ELSE NULLIF(p_session->>'plan_batch_id', '')::uuid END,
+    COALESCE(p_session->'events', '[]'::jsonb),
+    NULLIF(p_session->>'machine_id', ''),
+    NULLIF(p_session->>'machine_name', ''),
+    NULLIF(p_session->>'machine_roaster_key', ''),
+    NULLIF(p_session->>'machine_brand', ''),
+    NULLIF(p_session->>'machine_protocol', ''),
+    v_is_practice,
+    auth.uid()
+  )
+  ON CONFLICT (id) DO NOTHING
+  RETURNING * INTO v_session;
+
+  -- Lost a concurrent race on the same id — winner owns the side-effects.
+  IF v_session.id IS NULL THEN
+    SELECT * INTO v_session FROM roast_sessions WHERE id = v_id;
+    IF v_session.id IS NULL THEN
+      RAISE EXCEPTION 'session id conflict';
+    END IF;
+    RETURN v_session;
+  END IF;
+
+  IF NOT v_is_practice
+     AND COALESCE(p_deduct, false)
+     AND COALESCE(p_deduction_grams, 0) > 0
+     AND NOT roast_deduction_blocked(v_session.id)
+  THEN
+    v_bean_id := v_session.bean_id;
+    v_blend_id := NULL;
+
+    IF v_session.plan_batch_id IS NOT NULL THEN
+      SELECT blend_id INTO v_blend_id
+      FROM roast_plan_batches
+      WHERE id = v_session.plan_batch_id;
+    END IF;
+
+    IF v_blend_id IS NOT NULL THEN
+      SELECT count(*)::int INTO v_count
+      FROM blend_components
+      WHERE blend_id = v_blend_id;
+
+      IF v_count = 0 THEN
+        RAISE EXCEPTION 'blend has no components';
+      END IF;
+
+      SELECT name INTO v_blend_name FROM blends WHERE id = v_blend_id;
+
+      FOR v_comp IN
+        SELECT bean_id, ratio_pct
+        FROM blend_components
+        WHERE blend_id = v_blend_id
+        ORDER BY bean_id
+      LOOP
+        v_i := v_i + 1;
+        IF v_i = v_count THEN
+          v_grams := p_deduction_grams - v_allocated;
+        ELSE
+          v_grams := round(p_deduction_grams * (v_comp.ratio_pct / 100.0))::integer;
+        END IF;
+        v_allocated := v_allocated + v_grams;
+
+        IF v_grams > 0 THEN
+          INSERT INTO bean_stock_events (
+            user_id, bean_id, delta_grams, event_type, reference_id, note, created_by
+          ) VALUES (
+            v_user_id, v_comp.bean_id, -v_grams, 'roast', v_session.id,
+            COALESCE(v_blend_name, 'blend') || ' 블렌드 차감',
+            auth.uid()
+          )
+          ON CONFLICT (reference_id, bean_id) WHERE reference_id IS NOT NULL DO NOTHING;
+        END IF;
+      END LOOP;
+    ELSIF v_bean_id IS NOT NULL THEN
+      INSERT INTO bean_stock_events (
+        user_id, bean_id, delta_grams, event_type, reference_id, created_by
+      ) VALUES (
+        v_user_id, v_bean_id, -p_deduction_grams, 'roast', v_session.id, auth.uid()
+      )
+      ON CONFLICT (reference_id, bean_id) WHERE reference_id IS NOT NULL DO NOTHING;
+    END IF;
+  END IF;
+
+  IF NOT v_is_practice AND COALESCE(p_inbound_grams, 0) > 0 THEN
+    PERFORM upsert_roasted_inbound(v_session.id, v_user_id, p_inbound_grams,
+                                   COALESCE(p_inbound_is_estimate, false));
+  END IF;
+
+  RETURN v_session;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION save_roast_op(jsonb, boolean, integer, integer, boolean) TO authenticated;

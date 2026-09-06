@@ -29,6 +29,7 @@ function mockSelectChain(data: unknown[] = []) {
         catch: terminal.catch.bind(terminal),
     });
     fromMock.mockReturnValue(chain);
+    return chain;
 }
 
 describe('roastSessionApi dashboard reads', () => {
@@ -49,5 +50,13 @@ describe('roastSessionApi dashboard reads', () => {
         const rows = await roastSessionApi.listCompletedWeightsSince('user-1', '2025-07-01T00:00:00.000Z');
         expect(Array.isArray(rows)).toBe(true);
         expect(fromMock).toHaveBeenCalledWith('roast_sessions');
+    });
+
+    it('excludes practice sessions from dashboard reads', async () => {
+        const chain = mockSelectChain([]);
+        await roastSessionApi.listCompletedDashboard('user-1', '2026-01-01T00:00:00.000Z');
+        expect(chain.eq as ReturnType<typeof vi.fn>).toHaveBeenCalledWith('is_practice', false);
+        await roastSessionApi.listCompletedWeightsSince('user-1', '2025-07-01T00:00:00.000Z');
+        expect(chain.eq as ReturnType<typeof vi.fn>).toHaveBeenCalledWith('is_practice', false);
     });
 });

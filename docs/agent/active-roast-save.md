@@ -49,6 +49,24 @@ Typical sequence:
 8. Invalidate roast + inventory query roots
 9. **Post-save next roast:** `fetchQuery` today's day batches → `getRemainingDayBatches` (`completed_sessions < batch_count`) → if any, open `PlanBatchContinueModal` with candidates; **Start next** calls `startBatch(handoff)` so bean/profile prefill via existing handoff path
 
+## Virtual Machine / practice
+
+Virtual Machine (`roaster_key`/`protocol` = `virtual`, or local id `__virtual__`) is practice, not production roasting.
+
+| Effect | Virtual / `is_practice` | Real machine |
+|--------|-------------------------|--------------|
+| `roast_sessions` row | Yes, `is_practice=true` | Yes, `is_practice=false` |
+| Green deduct / roasted inbound | Never | When requested |
+| History / dashboard / batch caps | Excluded (`is_practice=false` filter + `enforce_batch_gate`) | Counted |
+| `plan_batch` progress / done | Never | When linked |
+| R2 curve upload | Skipped | Best-effort |
+| Active Roast UI (chart, log, close-guard, update-hide) | Live session — practice still in progress | Same |
+| Dashboard Active Roast pulse | Off | On while `isRoasting` |
+
+Identity is the machine snapshot on the roasting store (kept through `reset()` + bare `enterPreheating()`). `save_roast_op` also infers practice from the snapshot so a client flag cannot bypass stock/caps.
+
+Dev/e2e: Virtual remains connectable for chart practice. Playwright sidecar mock uses roaster key `e2e` (not `virtual`) so save-deduct specs still hit the real path.
+
 Form field semantics (`SaveRoastFormData` in `useSaveRoast.ts`):
 
 - `weightGrams` field is **green input in kg** (name is historical — do not treat as grams without conversion)

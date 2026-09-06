@@ -29,6 +29,7 @@ export const planBatchApi = {
             const sessionsResult = await supabase
                 .from('roast_sessions')
                 .select('plan_batch_id')
+                .eq('is_practice', false)
                 .in('plan_batch_id', batchIds);
             if (sessionsResult.error) throw sessionsResult.error;
             for (const s of sessionsResult.data ?? []) {

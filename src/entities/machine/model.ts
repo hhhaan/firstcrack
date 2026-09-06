@@ -1,10 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Machine } from './types';
+import type { Machine, MachineSnapshot } from './types';
 
 const uid = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 export const VIRTUAL_ID = '__virtual__';
+
+/** Virtual Machine identity — SSoT for practice-session gates. */
+export const isVirtualMachineSnapshot = (src: Partial<MachineSnapshot> | null | undefined): boolean =>
+    src?.machine_roaster_key === 'virtual' || src?.machine_protocol === 'virtual' || src?.machine_id === VIRTUAL_ID;
 
 const VIRTUAL_MACHINE: Machine = {
     id: VIRTUAL_ID,

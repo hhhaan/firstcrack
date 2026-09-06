@@ -273,6 +273,10 @@ export async function installMockSupabase(page: Page, db: MockDb) {
                 if (params['status']?.startsWith('eq.')) {
                     rows = rows.filter((s) => s.status === params['status']!.slice(3));
                 }
+                if (params['is_practice']?.startsWith('eq.')) {
+                    const want = params['is_practice']!.slice(3) === 'true';
+                    rows = rows.filter((s) => s.is_practice === want);
+                }
                 // head count
                 if (
                     method === 'GET' &&

@@ -2,7 +2,9 @@ import http from 'node:http';
 
 const STATUS = {
     connected: true,
-    roaster: 'virtual',
+    // Not 'virtual' — prod Virtual Machine saves as is_practice and skips stock/History.
+    // E2E roast-save-deduct must exercise the real save path.
+    roaster: 'e2e',
     capabilities: ['heater', 'fan', 'drum'],
     error: null as string | null,
 };
@@ -44,7 +46,7 @@ export function startSidecarMock(port = 9999): Promise<http.Server> {
             TEMP.bt += ((tick++ % 10) / 10 - 0.4) * 0.5;
             return send(200, TEMP);
         }
-        if (url.startsWith('/roasters')) return send(200, { roasters: [{ key: 'virtual', name: 'Virtual' }] });
+        if (url.startsWith('/roasters')) return send(200, { roasters: [{ key: 'e2e', name: 'E2E' }] });
         if (url.startsWith('/serial-ports')) return send(200, []);
         if (url.startsWith('/connect') || url.startsWith('/disconnect') || url.startsWith('/standby') || url.startsWith('/start') || url.startsWith('/reset') || url.startsWith('/settings')) {
             return send(200, { ok: true, ...STATUS });

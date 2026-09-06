@@ -1,6 +1,8 @@
 import { useBeans } from '@entities/bean/queries';
+import { isVirtualMachineSnapshot } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useDayBatches } from '@entities/plan';
+import { useRoastingStore } from '@features/active-roast';
 import {
     buildRoastSummarySchema,
     MAX_BATCH_WEIGHT_KG,
@@ -76,6 +78,7 @@ export const RoastSummaryModal = ({
     fallbackBeanName = null,
 }: RoastSummaryModalProps) => {
     const { t } = useTranslation();
+    const isPractice = useRoastingStore((s) => isVirtualMachineSnapshot(s.machineSnapshot));
     const { workspaceOwnerId: userId, isWorkspaceReady } = useActiveWorkspace();
     const { data: beans = [] } = useBeans(userId);
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -222,7 +225,10 @@ export const RoastSummaryModal = ({
 
     const isCustomBean = showBeanPicker && !formBeanId && Boolean(beanLabel.trim());
     const canDeduct =
-        !isCustomBean && deductionKg > 0 && Boolean(resolvedBeanId || effectiveHandoff?.blendId || hasBlendHandoff);
+        !isPractice &&
+        !isCustomBean &&
+        deductionKg > 0 &&
+        Boolean(resolvedBeanId || effectiveHandoff?.blendId || hasBlendHandoff);
 
     const beanComboboxItems = useMemo(() => beans.map((b) => ({ id: b.id, name: b.name })), [beans]);
 
@@ -256,6 +262,11 @@ export const RoastSummaryModal = ({
                 >
                     {t('activeRoast.summary.title')}
                 </h2>
+                {isPractice && (
+                    <p className="text-[12px] text-secondary leading-snug mb-3.5">
+                        {t('activeRoast.summary.practiceNotice')}
+                    </p>
+                )}
 
                 <div className={`grid grid-cols-3 gap-1.5 ${ambientLine ? 'mb-1' : 'mb-3.5'}`}>
                     {[
@@ -302,96 +313,103 @@ export const RoastSummaryModal = ({
                 </div>
 
                 {/* ── Link: schedule batch or ad-hoc ── */}
-                <div className="mb-3.5">
-                    <div className={sectionLabelClass}>{t('activeRoast.summary.link')}</div>
+                {!isPractice && (
+                    <div className="mb-3.5">
+                        <div className={sectionLabelClass}>{t('activeRoast.summary.link')}</div>
 
-                    {hasHandoff && planBatchHandoff ? (
-                        <div className="rounded-lg bg-surface dark:bg-[#262B31] px-3 py-2.5">
-                            <p className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
-                                {planBatchHandoff.beanName}
-                            </p>
-                            <p className="text-[11px] text-muted mt-0.5">
-                                {t('activeRoast.summary.sessionProgress', {
-                                    current: planBatchHandoff.completedSessions + 1,
-                                    total: planBatchHandoff.batchCount,
-                                })}
-                                {' · '}
-                                {planBatchHandoff.batchSizeKg}kg
-                            </p>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="flex gap-2 mb-2">
-                                {(
-                                    [
-                                        { value: 'schedule' as const, label: t('activeRoast.summary.linkSchedule') },
-                                        { value: 'none' as const, label: t('activeRoast.summary.linkNone') },
-                                    ] as const
-                                ).map(({ value, label }) => (
-                                    <button
-                                        key={value}
-                                        type="button"
-                                        onClick={() => {
-                                            setValue('linkMode', value, { shouldValidate: true });
-                                            if (value === 'none') {
-                                                setValue('planBatchId', null, { shouldValidate: true });
-                                            }
-                                        }}
-                                        className={`flex-1 px-3 py-1.5 rounded-md text-[12px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
-                                            linkMode === value
-                                                ? 'bg-primary text-white'
-                                                : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
-                                        }`}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
+                        {hasHandoff && planBatchHandoff ? (
+                            <div className="rounded-lg bg-surface dark:bg-[#262B31] px-3 py-2.5">
+                                <p className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
+                                    {planBatchHandoff.beanName}
+                                </p>
+                                <p className="text-[11px] text-muted mt-0.5">
+                                    {t('activeRoast.summary.sessionProgress', {
+                                        current: planBatchHandoff.completedSessions + 1,
+                                        total: planBatchHandoff.batchCount,
+                                    })}
+                                    {' · '}
+                                    {planBatchHandoff.batchSizeKg}kg
+                                </p>
                             </div>
-
-                            {linkMode === 'schedule' && (
-                                <>
-                                    <div
-                                        className={`rounded-lg bg-surface dark:bg-[#262B31] px-3 py-0.5 ${
-                                            errors.planBatchId ? 'ring-1 ring-red-400/80' : ''
-                                        }`}
-                                    >
-                                        <select
-                                            value={formPlanBatchId ?? ''}
-                                            onChange={(e) =>
-                                                setValue('planBatchId', e.target.value || null, {
-                                                    shouldDirty: true,
-                                                    shouldValidate: true,
-                                                })
-                                            }
-                                            disabled={!isWorkspaceReady || incompleteBatches.length === 0}
-                                            className="w-full py-2 bg-transparent border-none outline-none text-primary text-[13px] cursor-pointer appearance-none disabled:opacity-50"
+                        ) : (
+                            <>
+                                <div className="flex gap-2 mb-2">
+                                    {(
+                                        [
+                                            {
+                                                value: 'schedule' as const,
+                                                label: t('activeRoast.summary.linkSchedule'),
+                                            },
+                                            { value: 'none' as const, label: t('activeRoast.summary.linkNone') },
+                                        ] as const
+                                    ).map(({ value, label }) => (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            onClick={() => {
+                                                setValue('linkMode', value, { shouldValidate: true });
+                                                if (value === 'none') {
+                                                    setValue('planBatchId', null, { shouldValidate: true });
+                                                }
+                                            }}
+                                            className={`flex-1 px-3 py-1.5 rounded-md text-[12px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
+                                                linkMode === value
+                                                    ? 'bg-primary text-white'
+                                                    : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
+                                            }`}
                                         >
-                                            <option value="">
-                                                {incompleteBatches.length === 0
-                                                    ? t('activeRoast.summary.noOpenBatches')
-                                                    : t('activeRoast.summary.planBatchPlaceholder')}
-                                            </option>
-                                            {incompleteBatches.map((b) => (
-                                                <option key={b.id} value={b.id}>
-                                                    {batchOptionLabel(b)}
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {linkMode === 'schedule' && (
+                                    <>
+                                        <div
+                                            className={`rounded-lg bg-surface dark:bg-[#262B31] px-3 py-0.5 ${
+                                                errors.planBatchId ? 'ring-1 ring-red-400/80' : ''
+                                            }`}
+                                        >
+                                            <select
+                                                value={formPlanBatchId ?? ''}
+                                                onChange={(e) =>
+                                                    setValue('planBatchId', e.target.value || null, {
+                                                        shouldDirty: true,
+                                                        shouldValidate: true,
+                                                    })
+                                                }
+                                                disabled={!isWorkspaceReady || incompleteBatches.length === 0}
+                                                className="w-full py-2 bg-transparent border-none outline-none text-primary text-[13px] cursor-pointer appearance-none disabled:opacity-50"
+                                            >
+                                                <option value="">
+                                                    {incompleteBatches.length === 0
+                                                        ? t('activeRoast.summary.noOpenBatches')
+                                                        : t('activeRoast.summary.planBatchPlaceholder')}
                                                 </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    {effectiveHandoff && (
-                                        <p className="text-[11px] text-muted mt-1">
-                                            {t('activeRoast.summary.sessionProgress', {
-                                                current: effectiveHandoff.completedSessions + 1,
-                                                total: effectiveHandoff.batchCount,
-                                            })}
-                                        </p>
-                                    )}
-                                    {errors.planBatchId && <p className={formErrorCls}>{errors.planBatchId.message}</p>}
-                                </>
-                            )}
-                        </>
-                    )}
-                </div>
+                                                {incompleteBatches.map((b) => (
+                                                    <option key={b.id} value={b.id}>
+                                                        {batchOptionLabel(b)}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        {effectiveHandoff && (
+                                            <p className="text-[11px] text-muted mt-1">
+                                                {t('activeRoast.summary.sessionProgress', {
+                                                    current: effectiveHandoff.completedSessions + 1,
+                                                    total: effectiveHandoff.batchCount,
+                                                })}
+                                            </p>
+                                        )}
+                                        {errors.planBatchId && (
+                                            <p className={formErrorCls}>{errors.planBatchId.message}</p>
+                                        )}
+                                    </>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
 
                 {/* ── Bean ── */}
                 {(showBeanPicker || showBeanReadonly) && (
@@ -543,25 +561,27 @@ export const RoastSummaryModal = ({
                     />
                 </div>
 
-                <label
-                    className={`flex items-start gap-2.5 ${canDeduct ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
-                >
-                    <input
-                        type="checkbox"
-                        data-testid="roast-summary-deduct"
-                        checked={deductStock && canDeduct}
-                        disabled={!canDeduct}
-                        onChange={(e) => setValue('deductStock', e.target.checked)}
-                        className="mt-0.5 shrink-0"
-                    />
-                    <span className="text-[12px] text-primary leading-snug">
-                        {canDeduct
-                            ? t('activeRoast.summary.deductStock', { kg: deductionKg.toFixed(1) })
-                            : isCustomBean
-                              ? t('activeRoast.summary.deductStockCustomBean')
-                              : t('activeRoast.summary.deductStockDisabled')}
-                    </span>
-                </label>
+                {!isPractice && (
+                    <label
+                        className={`flex items-start gap-2.5 ${canDeduct ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+                    >
+                        <input
+                            type="checkbox"
+                            data-testid="roast-summary-deduct"
+                            checked={deductStock && canDeduct}
+                            disabled={!canDeduct}
+                            onChange={(e) => setValue('deductStock', e.target.checked)}
+                            className="mt-0.5 shrink-0"
+                        />
+                        <span className="text-[12px] text-primary leading-snug">
+                            {canDeduct
+                                ? t('activeRoast.summary.deductStock', { kg: deductionKg.toFixed(1) })
+                                : isCustomBean
+                                  ? t('activeRoast.summary.deductStockCustomBean')
+                                  : t('activeRoast.summary.deductStockDisabled')}
+                        </span>
+                    </label>
+                )}
             </ModalScrollBody>
 
             <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-[#585d61] flex flex-col gap-2 bg-main-bg dark:bg-[#181d21]">

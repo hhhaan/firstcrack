@@ -62,6 +62,7 @@ export type RoastSession = {
     machine_roaster_key: string | null;
     machine_brand: string | null;
     machine_protocol: string | null;
+    is_practice: boolean;
     events: unknown;
     created_at: string;
     updated_at: string;
@@ -250,10 +251,14 @@ export class MockDb {
         this.lastSaveOpRequestedDeduct = params.deduct;
         const sessionId = uuid();
         const beanId = (params.session.bean_id as string | null) ?? null;
-        const planBatchId = (params.session.plan_batch_id as string | null) ?? null;
         const userId = (params.session.user_id as string) ?? E2E_USER.id;
+        const isPractice =
+            Boolean(params.session.is_practice) ||
+            params.session.machine_roaster_key === 'virtual' ||
+            params.session.machine_protocol === 'virtual';
+        const planBatchId = isPractice ? null : ((params.session.plan_batch_id as string | null) ?? null);
 
-        let applyDeduct = params.deduct && params.deductionGrams > 0 && !!beanId;
+        let applyDeduct = !isPractice && params.deduct && params.deductionGrams > 0 && !!beanId;
         if (applyDeduct && planBatchId && this.hasRoastDeductionForReference(planBatchId)) {
             applyDeduct = false;
         }
@@ -269,7 +274,7 @@ export class MockDb {
             });
         }
 
-        if (params.inboundGrams > 0) {
+        if (!isPractice && params.inboundGrams > 0) {
             this.roastedEvents.push({
                 id: uuid(),
                 reference_id: sessionId,
@@ -305,6 +310,7 @@ export class MockDb {
             machine_roaster_key: (params.session.machine_roaster_key as string | null) ?? null,
             machine_brand: (params.session.machine_brand as string | null) ?? null,
             machine_protocol: (params.session.machine_protocol as string | null) ?? null,
+            is_practice: isPractice,
             events: params.session.events ?? [],
             created_at: nowIso(),
             updated_at: nowIso(),

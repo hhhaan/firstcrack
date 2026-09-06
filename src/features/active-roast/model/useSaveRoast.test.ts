@@ -364,6 +364,39 @@ describe('saveRoastCore', () => {
         expect(arg.session.machine_roaster_key).toBeNull();
         expect(arg.session.machine_brand).toBeNull();
         expect(arg.session.machine_protocol).toBeNull();
+        expect(arg.session.is_practice).toBe(false);
+    });
+
+    it('virtual 세션 → deduct false, plan_batch 미연동, 캡 프리체크 스킵', async () => {
+        const deps = makeDeps({
+            plan: 'trial',
+            countCompletedTotal: vi.fn().mockResolvedValue(20),
+            planBatchHandoff: handoff,
+            updatePlanBatch: vi.fn().mockResolvedValue(undefined),
+        });
+        const result = await saveRoastCore(deps, {
+            ...baseParams,
+            machineSnapshot: {
+                machine_id: '__virtual__',
+                machine_name: 'Virtual Machine',
+                machine_roaster_key: 'virtual',
+                machine_brand: 'Internal',
+                machine_protocol: 'virtual',
+            },
+        });
+        expect(result.savedSession).toEqual({ id: 'sess-db-1' });
+        expect(result.shouldOpenContinue).toBe(false);
+        expect(deps.countCompletedTotal).not.toHaveBeenCalled();
+        expect(deps.updatePlanBatch).not.toHaveBeenCalled();
+        expect(deps.startBatch).not.toHaveBeenCalled();
+        expect(deps.syncRoastCurve).not.toHaveBeenCalled();
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.deduct).toBe(false);
+        expect(arg.deductionGrams).toBe(0);
+        expect(arg.inboundGrams).toBe(0);
+        expect(arg.session.plan_batch_id).toBeNull();
+        expect(arg.session.is_practice).toBe(true);
+        expect(arg.session.machine_roaster_key).toBe('virtual');
     });
 
     it('inventory bean 있으면 bean_label 무시', async () => {

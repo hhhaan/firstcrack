@@ -6,6 +6,7 @@ import {
     snapshotFromSidecar,
     writeMapFormFlags,
 } from './lib';
+import { isVirtualMachineSnapshot } from './model';
 import type { Machine } from './types';
 
 describe('isRoasterFieldVisible', () => {
@@ -115,5 +116,16 @@ describe('copyMachineSnapshot', () => {
             ...EMPTY_MACHINE_SNAPSHOT,
             machine_name: 'A',
         });
+    });
+});
+
+describe('isVirtualMachineSnapshot', () => {
+    it('matches virtual roaster key, protocol, or local id', () => {
+        expect(isVirtualMachineSnapshot({ machine_roaster_key: 'virtual' })).toBe(true);
+        expect(isVirtualMachineSnapshot({ machine_protocol: 'virtual' })).toBe(true);
+        expect(isVirtualMachineSnapshot({ machine_id: '__virtual__' })).toBe(true);
+        expect(isVirtualMachineSnapshot({ machine_roaster_key: 'giesen_w6a' })).toBe(false);
+        expect(isVirtualMachineSnapshot(null)).toBe(false);
+        expect(isVirtualMachineSnapshot(EMPTY_MACHINE_SNAPSHOT)).toBe(false);
     });
 });

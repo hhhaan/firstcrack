@@ -1,6 +1,11 @@
 import { beanKeys } from '@entities/bean/queries';
 import { stockEventKeys } from '@entities/bean-stock-event';
-import { copyMachineSnapshot, EMPTY_MACHINE_SNAPSHOT, type MachineSnapshot } from '@entities/machine';
+import {
+    copyMachineSnapshot,
+    EMPTY_MACHINE_SNAPSHOT,
+    isVirtualMachineSnapshot,
+    type MachineSnapshot,
+} from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { useUpdateSingleBatch } from '@entities/plan';
 import { invalidateRoastSessionQueries, type RoastSessionInsert, roastSessionApi } from '@entities/roast';
@@ -127,39 +132,44 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         getFinalizedBbp,
     } = deps;
 
+    const isPractice = isVirtualMachineSnapshot(params.machineSnapshot);
+
     // UX pre-checks only — the DB trigger (enforce_batch_gate) is the authority.
     // Count failures (network etc.) fail open: skip the pre-check and let the
     // server trigger decide. Only a successful count that exceeds the cap blocks.
+    // Practice/virtual sessions do not consume trial or monthly caps.
     if (!isWritablePlan(plan)) {
         throw new BatchLimitError(0, 0, 'read_only_plan');
     }
-    if (plan === 'trial') {
-        try {
-            const used = await countCompletedTotal(userId);
-            if (used >= TRIAL_BATCH_CAP) {
-                throw new BatchLimitError(used, TRIAL_BATCH_CAP, 'trial_batch_cap');
-            }
-        } catch (err) {
-            if (err instanceof BatchLimitError) throw err;
-            logger.capture(err, { context: 'saveRoast trial count pre-check' });
-        }
-    } else {
-        const monthCap = planMaxBatchesPerMonth(plan);
-        if (monthCap != null) {
+    if (!isPractice) {
+        if (plan === 'trial') {
             try {
-                const used = await countCompletedThisMonth(userId);
-                if (!canCompleteBatch(plan, used)) {
-                    throw new BatchLimitError(used, monthCap);
+                const used = await countCompletedTotal(userId);
+                if (used >= TRIAL_BATCH_CAP) {
+                    throw new BatchLimitError(used, TRIAL_BATCH_CAP, 'trial_batch_cap');
                 }
             } catch (err) {
                 if (err instanceof BatchLimitError) throw err;
-                logger.capture(err, { context: 'saveRoast monthly count pre-check' });
+                logger.capture(err, { context: 'saveRoast trial count pre-check' });
+            }
+        } else {
+            const monthCap = planMaxBatchesPerMonth(plan);
+            if (monthCap != null) {
+                try {
+                    const used = await countCompletedThisMonth(userId);
+                    if (!canCompleteBatch(plan, used)) {
+                        throw new BatchLimitError(used, monthCap);
+                    }
+                } catch (err) {
+                    if (err instanceof BatchLimitError) throw err;
+                    logger.capture(err, { context: 'saveRoast monthly count pre-check' });
+                }
             }
         }
     }
 
     const { formData, handoffBeanName, sessionId, ...payloadParams } = params;
-    const effectiveBatch = resolveEffectiveBatch(planBatchHandoff, formData.linkedBatch);
+    const effectiveBatch = isPractice ? null : resolveEffectiveBatch(planBatchHandoff, formData.linkedBatch);
 
     const weightGrams = Math.round(formData.weightGrams * 1000);
     const outputKg = formData.outputWeightKg;
@@ -216,11 +226,12 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         charge_temp_celsius: bbpSummary != null ? Math.round(bbpSummary.chargeTemp) : null,
         plan_batch_id: effectiveBatch?.planBatchId ?? null,
         events: serializeRoastEvents(payloadParams.logEntries),
+        is_practice: isPractice,
         ...copyMachineSnapshot(payloadParams.machineSnapshot ?? EMPTY_MACHINE_SNAPSHOT),
     };
 
     // Free-text label sessions never touch inventory (green deduct or roasted inbound).
-    const canTouchStock = Boolean(resolvedBeanId || blendId);
+    const canTouchStock = !isPractice && Boolean(resolvedBeanId || blendId);
     const inbound = canTouchStock
         ? buildRoastedInbound({
               greenGrams: weightGrams,
@@ -247,7 +258,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
           })
         : null;
 
-    const wantDeduct = Boolean(formData.deductStock && provisionalPlan?.canDeduct);
+    const wantDeduct = !isPractice && Boolean(formData.deductStock && provisionalPlan?.canDeduct);
     const deductionGrams = wantDeduct ? (provisionalPlan?.deductionGrams ?? 0) : 0;
 
     if (sessionId) await flushCurve(sessionId);
@@ -282,7 +293,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     }
 
     // Meta returns immediately; curve sync background. Local TSV kept if sync fails.
-    if (sessionId) {
+    // Practice sessions skip R2 — they are not operational history.
+    if (sessionId && !isPractice) {
         void syncRoastCurve({ sessionId, roastSessionId: savedSession.id }).catch((err) => {
             logger.capture(err, { context: 'saveRoast tsv' });
         });
@@ -308,7 +320,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
                 batchStatusUpdateFailed = true;
             }
         }
-    } else {
+    } else if (!isPractice) {
         // 애드혹 연속 배치: 다음 저장 폼 프리필용으로 이번 값을 기록
         recordAdhocSave({
             beanId: resolvedBeanId,

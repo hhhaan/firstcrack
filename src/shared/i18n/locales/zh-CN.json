@@ -606,6 +606,7 @@
             "sessionProgress": "第 {{current}}/{{total}} 次",
             "deductStock": "扣减生豆库存 ({{kg}}kg)",
             "deductStockDisabled": "未关联生豆，无法扣减库存。",
+            "practiceNotice": "Virtual Machine 练习烘焙。不会写入历史、库存或排程。",
             "deductSkippedAlreadyDeducted": "该批次已在计划中扣减过库存，已跳过重复扣减。",
             "batchStatusUpdateFailed": "烘焙已保存，但批次完成状态保存失败。请在排程中将其标记为完成。",
             "batchWeight": "生豆投入量",

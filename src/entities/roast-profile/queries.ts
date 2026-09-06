@@ -123,6 +123,7 @@ export const useProfileBeanHistory = (profileId: string) =>
                 .from('roast_sessions')
                 .select('bean_id, roasted_at, beans(name)')
                 .eq('profile_id', profileId)
+                .eq('is_practice', false)
                 .not('bean_id', 'is', null)
                 .order('roasted_at', { ascending: false });
             if (error) throw error;
@@ -165,6 +166,7 @@ export const useProfileConsistency = (profileId: string) =>
                 .select('drop_temp_celsius, duration_seconds, weight_grams, roasted_at')
                 .eq('profile_id', profileId)
                 .eq('status', 'completed')
+                .eq('is_practice', false)
                 .order('roasted_at', { ascending: false })
                 .limit(CONSISTENCY_BATCH_LIMIT);
             if (error) throw error;

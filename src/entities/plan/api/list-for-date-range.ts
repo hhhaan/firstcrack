@@ -56,6 +56,7 @@ export async function listForDateRange(
         const { data: sessions, error: sessionsError } = await supabase
             .from('roast_sessions')
             .select('plan_batch_id')
+            .eq('is_practice', false)
             .in('plan_batch_id', batchIds);
         if (sessionsError) throw sessionsError;
         for (const s of sessions ?? []) {

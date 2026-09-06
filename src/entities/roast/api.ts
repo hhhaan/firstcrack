@@ -47,6 +47,7 @@ export const roastSessionApi = {
         if (status) {
             query = query.eq('status', status);
         }
+        query = query.eq('is_practice', false);
 
         const { data, error } = await query;
         if (error) throw error;
@@ -59,7 +60,8 @@ export const roastSessionApi = {
             .from('roast_sessions')
             .select('roasted_at, beans(origin)')
             .eq('user_id', userId)
-            .eq('status', 'completed');
+            .eq('status', 'completed')
+            .eq('is_practice', false);
         if (error) throw error;
         return (data as RoastSessionFilterMeta[]) || [];
     },
@@ -108,7 +110,8 @@ export const roastSessionApi = {
             .from('roast_sessions')
             .select('id', { count: 'exact', head: true })
             .eq('user_id', userId)
-            .eq('status', 'completed');
+            .eq('status', 'completed')
+            .eq('is_practice', false);
         if (error) throw error;
         return count ?? 0;
     },
@@ -122,6 +125,7 @@ export const roastSessionApi = {
             .select('id', { count: 'exact', head: true })
             .eq('user_id', userId)
             .eq('status', 'completed')
+            .eq('is_practice', false)
             .gte('roasted_at', from)
             .lte('roasted_at', to);
         if (error) throw error;
@@ -156,6 +160,7 @@ export const roastSessionApi = {
             .range(from, to);
 
         if (status) query = query.eq('status', status);
+        query = query.eq('is_practice', false);
         if (level) query = query.eq('roast_level', level);
         if (fromYM) query = query.gte('roasted_at', `${fromYM}-01`);
 
@@ -231,6 +236,7 @@ export const roastSessionApi = {
             )
             .eq('user_id', userId)
             .eq('status', 'completed')
+            .eq('is_practice', false)
             .gte('roasted_at', sinceIso)
             .order('roasted_at', { ascending: false });
         if (error) throw error;
@@ -247,6 +253,7 @@ export const roastSessionApi = {
             .select('roasted_at, weight_grams')
             .eq('user_id', userId)
             .eq('status', 'completed')
+            .eq('is_practice', false)
             .gte('roasted_at', sinceIso)
             .order('roasted_at', { ascending: true });
         if (error) throw error;

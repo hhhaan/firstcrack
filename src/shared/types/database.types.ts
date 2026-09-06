@@ -1596,6 +1596,7 @@ export type Database = {
                     duration_seconds: number | null;
                     events: Json;
                     id: string;
+                    is_practice: boolean;
                     machine_brand: string | null;
                     machine_id: string | null;
                     machine_name: string | null;
@@ -1628,6 +1629,7 @@ export type Database = {
                     duration_seconds?: number | null;
                     events?: Json;
                     id?: string;
+                    is_practice?: boolean;
                     machine_brand?: string | null;
                     machine_id?: string | null;
                     machine_name?: string | null;
@@ -1660,6 +1662,7 @@ export type Database = {
                     duration_seconds?: number | null;
                     events?: Json;
                     id?: string;
+                    is_practice?: boolean;
                     machine_brand?: string | null;
                     machine_id?: string | null;
                     machine_name?: string | null;
@@ -2152,6 +2155,7 @@ export type Database = {
                     duration_seconds: number | null;
                     events: Json;
                     id: string;
+                    is_practice: boolean;
                     machine_brand: string | null;
                     machine_id: string | null;
                     machine_name: string | null;
