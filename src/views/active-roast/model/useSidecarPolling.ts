@@ -257,7 +257,7 @@ export const useSidecarPolling = ({
 
                 // BBP: 이전 드롭 이후 pre-charge 구간(ended/preheating/standby) 기록.
                 // 비활성 시 no-op — 간격 제한·만료는 스토어 append가 처리.
-                if (currentPhase !== 'roasting') {
+                if (currentPhase !== 'roasting' && !data.stale) {
                     useBbpStore.getState().append(
                         {
                             bt,
@@ -278,6 +278,8 @@ export const useSidecarPolling = ({
                     if (useRoastingStore.getState().elapsed !== elapsedSec) {
                         useRoastingStore.setState({ elapsed: elapsedSec });
                     }
+                    // stale = last-good 재전송. 표시(updateLiveData)는 유지하되 시계열엔 안 쓴다
+                    if (data.stale) return;
                     // 폴링 주기보다 짧은 간격은 무시해 중복 포인트를 방지한다.
                     const lastRoastPointTime = lastRoastPointTimeRef.current;
                     if (lastRoastPointTime !== null && t >= lastRoastPointTime && t - lastRoastPointTime < 0.4) return;
